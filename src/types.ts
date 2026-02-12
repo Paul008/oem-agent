@@ -42,6 +42,12 @@ export interface MoltbotEnv {
   BROWSER?: Fetcher;
   CDP_SECRET?: string; // Shared secret for CDP endpoint authentication
   WORKER_URL?: string; // Public URL of the worker (for CDP endpoint)
+  // OEM Agent configuration
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  GROQ_API_KEY: string;
+  TOGETHER_API_KEY: string;
+  SLACK_WEBHOOK_URL?: string;
 }
 
 /**

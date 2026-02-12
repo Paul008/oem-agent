@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createAccessMiddleware } from '../auth';
+import oemAgentRoutes from './oem-agent';
 import {
   ensureMoltbotGateway,
   findExistingMoltbotProcess,
@@ -309,5 +310,8 @@ adminApi.post('/gateway/restart', async (c) => {
 
 // Mount admin API routes under /admin
 api.route('/admin', adminApi);
+
+// Mount OEM Agent routes under /oem-agent
+api.route('/oem-agent', oemAgentRoutes);
 
 export { api };

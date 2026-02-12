@@ -1,57 +1,33 @@
 {
-  "name": "moltbot-sandbox",
-  "version": "1.0.0",
-  "type": "module",
+  "name": "oem-agent",
+  "version": "0.2.0",
   "private": true,
-  "description": "Run Moltbot personal AI assistant in a Cloudflare Sandbox",
+  "packageManager": "pnpm@9.15.0",
+  "description": "Multi-OEM AI Agent — OpenClaw on Moltworker fork. Crawl, extract, monitor, and design-capture across 13 Australian OEM websites.",
   "scripts": {
-    "build": "vite build",
-    "deploy": "npm run build && wrangler deploy",
-    "dev": "vite dev",
-    "start": "wrangler dev",
-    "types": "wrangler types",
+    "dev": "wrangler dev -c wrangler.jsonc",
+    "deploy": "wrangler deploy -c wrangler.jsonc",
+    "deploy:dev": "wrangler deploy -c wrangler.jsonc --env dev",
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint src/",
-    "lint:fix": "oxlint --fix src/",
-    "format": "oxfmt --write src/",
-    "format:check": "oxfmt --check src/",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "vitest",
+    "test:skill": "vitest --reporter=verbose",
+    "sandbox:build": "docker build -t oem-agent-sandbox .",
+    "sandbox:dev": "docker run -it --rm -p 8080:8080 --env-file .env oem-agent-sandbox"
   },
   "dependencies": {
-    "@cloudflare/puppeteer": "^1.0.5",
-    "hono": "^4.11.6",
-    "jose": "^6.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@cloudflare/puppeteer": "^1.0.6",
+    "@cloudflare/sandbox": "^0.7.2",
+    "@supabase/supabase-js": "^2.45.0",
+    "cheerio": "^1.0.0",
+    "hono": "^4.6.0",
+    "jose": "^6.1.3"
   },
   "devDependencies": {
-    "@cloudflare/sandbox": "*",
-    "@cloudflare/vite-plugin": "^1.0.0",
-    "@cloudflare/workers-types": "^4.20250109.0",
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
-    "@vitest/coverage-v8": "^4.0.18",
-    "oxfmt": "^0.28.0",
-    "oxlint": "^1.43.0",
-    "typescript": "^5.9.3",
-    "vite": "^6.0.0",
-    "vitest": "^4.0.18",
-    "wrangler": "^4.50.0"
-  },
-  "author": "",
-  "license": "Apache-2.0",
-  "cloudflare": {
-    "bindings": {
-      "ANTHROPIC_API_KEY": {
-        "description": "Your [Anthropic API key](https://console.anthropic.com/)."
-      },
-      "MOLTBOT_GATEWAY_TOKEN": {
-        "description": "Token for gateway access. Generate with: openssl rand -hex 32"
-      }
-    }
+    "@cloudflare/workers-types": "^4.20260101.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.64.0"
   }
 }

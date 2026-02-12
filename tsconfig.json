@@ -2,17 +2,31 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["@cloudflare/workers-types"],
-    "jsx": "react-jsx",
     "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "rootDir": ".",
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "@lib/*": ["./lib/*"],
+      "@shared/*": ["./lib/shared/*"],
+      "@extractors/*": ["./lib/extractors/*"],
+      "@ai/*": ["./lib/ai/*"],
+      "@skills/*": ["./skills/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*.ts",
+    "lib/**/*.ts",
+    "skills/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 }

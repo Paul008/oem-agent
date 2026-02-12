@@ -28,6 +28,7 @@ import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp } from './routes';
+import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
@@ -446,13 +447,21 @@ app.all('*', async (c) => {
 
 /**
  * Scheduled handler for cron triggers.
- * Syncs moltbot config/state from container to R2 for persistence.
+ * 
+ * Handles:
+ * 1. Moltbot backup sync to R2
+ * 2. OEM Agent scheduled crawls (homepage, offers, vehicles, news, sitemap)
  */
 async function scheduled(
-  _event: ScheduledEvent,
+  event: ScheduledEvent,
   env: MoltbotEnv,
-  _ctx: ExecutionContext,
+  ctx: ExecutionContext,
 ): Promise<void> {
+  // Run OEM Agent scheduled tasks
+  console.log('[cron] Running OEM Agent scheduled tasks...');
+  await handleOemScheduled(event, env, ctx);
+
+  // Run Moltbot backup sync
   const options = buildSandboxOptions(env);
   const sandbox = getSandbox(env.Sandbox, 'moltbot', options);
 

@@ -13,6 +13,10 @@ export function createMockEnv(overrides: Partial<MoltbotEnv> = {}): MoltbotEnv {
     Sandbox: {} as any,
     ASSETS: {} as any,
     MOLTBOT_BUCKET: {} as any,
+    SUPABASE_URL: 'https://test.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+    GROQ_API_KEY: 'test-groq-key',
+    TOGETHER_API_KEY: 'test-together-key',
     ...overrides,
   };
 }
