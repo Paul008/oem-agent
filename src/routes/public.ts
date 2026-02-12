@@ -9,11 +9,14 @@ import oemLandingHtml from '../assets/oem-landing.html';
  *
  * These routes are mounted BEFORE the auth middleware is applied.
  * Includes: health checks, static assets, and public API endpoints.
+ *
+ * Note: The root `/` path is NOT handled here - it falls through to the
+ * catch-all proxy which routes to the Moltbot/OpenClaw web chat UI.
  */
 const publicRoutes = new Hono<AppEnv>();
 
-// GET / - OEM Agent landing page
-publicRoutes.get('/', (c) => {
+// GET /oem - OEM Agent landing page (moved from / to allow chat UI at root)
+publicRoutes.get('/oem', (c) => {
   return c.html(oemLandingHtml);
 });
 

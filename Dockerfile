@@ -1,27 +1,41 @@
 # Sandbox Container — OpenClaw OEM Agent
 # Based on Moltworker Sandbox SDK patterns
+# Uses cloudflare/sandbox base image with OpenClaw gateway
 
-FROM node:22-slim
+FROM docker.io/cloudflare/sandbox:0.7.0
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies first (including xz-utils for node tarball)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xz-utils \
     ca-certificates \
+    rclone \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files and install dependencies
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile --prod
+# Install Node 22 (replace sandbox default Node 20)
+ARG NODE_VERSION=22.13.1
+ARG TARGETARCH
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64").tar.xz" | tar -xJf - --strip-components=1 -C /usr/local
 
-# Copy application code
-COPY lib/ ./lib/
-COPY skills/ ./skills/
-COPY src/container.ts ./src/container.ts
+# Install pnpm and OpenClaw
+RUN npm install -g pnpm@9.15.0 openclaw@latest
 
-EXPOSE 8080
+# Create config directories (legacy .clawdbot path preserved for compatibility)
+RUN mkdir -p /root/.openclaw /root/.clawdbot
 
-CMD ["node", "--experimental-specifier-resolution=node", "src/container.ts"]
+# Create clawd workspace directory
+RUN mkdir -p /root/clawd/skills
+
+# Copy startup script
+COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
+RUN chmod +x /usr/local/bin/start-openclaw.sh
+
+# Copy custom skills if available
+COPY skills/ /root/clawd/skills/
+
+WORKDIR /root/clawd
+
+# Expose gateway port
+EXPOSE 18789
+
+# Gateway will be started by start-openclaw.sh via the Worker
+CMD ["sleep", "infinity"]
