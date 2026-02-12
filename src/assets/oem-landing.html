@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OEM Agent - Australian Automotive Market Monitor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e4e4e4;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #fff; }
+    .subtitle { color: #888; font-size: 1.1rem; margin-bottom: 2rem; }
+    .status-badge {
+      display: inline-block;
+      background: #22c55e;
+      color: #fff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1.25rem; margin-bottom: 1rem; color: #fff; }
+    .endpoint-list { list-style: none; }
+    .endpoint-list li {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .endpoint-list li:last-child { border-bottom: none; }
+    .method {
+      background: #3b82f6;
+      color: #fff;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      min-width: 45px;
+      text-align: center;
+    }
+    .method.post { background: #22c55e; }
+    .path {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      color: #60a5fa;
+    }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .oem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+    .oem-chip {
+      background: rgba(255,255,255,0.08);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .footer { margin-top: 3rem; color: #666; font-size: 0.85rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚗 OEM Agent</h1>
+    <p class="subtitle">Australian Automotive Market Monitor</p>
+    <span class="status-badge">● Operational</span>
+
+    <div class="card">
+      <h2>API Endpoints</h2>
+      <ul class="endpoint-list">
+        <li><span class="method">GET</span> <a href="/api/oem-agent/health" class="path">/api/oem-agent/health</a> <span>— Health check</span></li>
+        <li><span class="method">GET</span> <a href="/api/oem-agent/oems" class="path">/api/oem-agent/oems</a> <span>— List all OEMs</span></li>
+        <li><span class="method">GET</span> <span class="path">/api/oem-agent/oems/:id</span> <span>— OEM details</span></li>
+        <li><span class="method">GET</span> <span class="path">/api/oem-agent/oems/:id/products</span> <span>— Products</span></li>
+        <li><span class="method">GET</span> <span class="path">/api/oem-agent/oems/:id/offers</span> <span>— Offers</span></li>
+        <li><span class="method">GET</span> <span class="path">/api/oem-agent/oems/:id/changes</span> <span>— Recent changes</span></li>
+        <li><span class="method post">POST</span> <span class="path">/api/oem-agent/admin/crawl/:id</span> <span>— Trigger crawl</span></li>
+        <li><span class="method post">POST</span> <span class="path">/api/oem-agent/sales-rep/chat</span> <span>— Sales Rep AI</span></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Monitored OEMs (13)</h2>
+      <div class="oem-grid">
+        <div class="oem-chip">🇯🇵 Toyota</div>
+        <div class="oem-chip">🇰🇷 Hyundai</div>
+        <div class="oem-chip">🇰🇷 Kia</div>
+        <div class="oem-chip">🇯🇵 Mazda</div>
+        <div class="oem-chip">🇯🇵 Nissan</div>
+        <div class="oem-chip">🇯🇵 Mitsubishi</div>
+        <div class="oem-chip">🇯🇵 Suzuki</div>
+        <div class="oem-chip">🇯🇵 Isuzu</div>
+        <div class="oem-chip">🇺🇸 Ford</div>
+        <div class="oem-chip">🇩🇪 Volkswagen</div>
+        <div class="oem-chip">🇨🇳 GWM</div>
+        <div class="oem-chip">🇨🇳 LDV</div>
+        <div class="oem-chip">🇰🇷 KGM</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Powered by Cloudflare Workers + Containers</p>
+    </div>
+  </div>
+</body>
+</html>

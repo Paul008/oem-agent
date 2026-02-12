@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { MOLTBOT_PORT } from '../config';
 import { findExistingMoltbotProcess } from '../gateway';
+import oemLandingHtml from '../assets/oem-landing.html';
 
 /**
  * Public routes - NO Cloudflare Access authentication required
@@ -10,6 +11,11 @@ import { findExistingMoltbotProcess } from '../gateway';
  * Includes: health checks, static assets, and public API endpoints.
  */
 const publicRoutes = new Hono<AppEnv>();
+
+// GET / - OEM Agent landing page
+publicRoutes.get('/', (c) => {
+  return c.html(oemLandingHtml);
+});
 
 // GET /sandbox-health - Health check endpoint
 publicRoutes.get('/sandbox-health', (c) => {
