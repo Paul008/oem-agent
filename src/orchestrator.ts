@@ -348,20 +348,34 @@ export class OemAgentOrchestrator {
             const fordProducts = this.extractProductsFromApiResponse(data);
             console.log(`[Orchestrator] Extracted ${fordProducts.length} products from direct Ford API fetch`);
             
+            // Log all extracted product names
+            const extractedNames = fordProducts.map((p: any) => p.title).filter(Boolean);
+            console.log(`[Orchestrator] Ford API product names: ${extractedNames.join(', ')}`);
+            
             if (fordProducts.length > 0) {
               // Merge with existing extraction
               const existingProducts = extractionResult.products?.data || [];
               const seenTitles = new Set(existingProducts.map((p: any) => p.title?.toLowerCase().trim()));
+              console.log(`[Orchestrator] Existing products before merge: ${existingProducts.length}`);
+              
               let added = 0;
+              let skipped = 0;
               for (const fp of fordProducts) {
                 const title = fp.title?.toLowerCase().trim();
-                if (title && !seenTitles.has(title)) {
-                  seenTitles.add(title);
-                  existingProducts.push(fp);
-                  added++;
+                if (title) {
+                  if (!seenTitles.has(title)) {
+                    seenTitles.add(title);
+                    existingProducts.push(fp);
+                    added++;
+                  } else {
+                    skipped++;
+                    console.log(`[Orchestrator] Skipping duplicate: ${title}`);
+                  }
+                } else {
+                  console.log(`[Orchestrator] Skipping product without title:`, fp);
                 }
               }
-              console.log(`[Orchestrator] Added ${added} new products from Ford API`);
+              console.log(`[Orchestrator] Added ${added} new products from Ford API (skipped ${skipped})`);
               extractionResult = {
                 ...extractionResult,
                 products: {
@@ -399,7 +413,7 @@ export class OemAgentOrchestrator {
         throw processError;
       }
 
-      // Step 8: Update source page record
+      // Step 10: Update source page record
       await this.updateSourcePage(page, htmlHash, wasRendered);
 
       return {
