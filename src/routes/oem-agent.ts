@@ -1559,14 +1559,15 @@ app.post('/admin/capture-ford-pricing', async (c) => {
 
 /**
  * POST /api/v1/oem-agent/admin/network-capture
- * Advanced network capture using dedicated NetworkInterceptionBrowser.
- * Captures all network activity for analysis.
+ * Enhanced network capture with response body capture.
+ * Uses request queuing to prevent buffer wiping.
  */
 app.post('/admin/network-capture', async (c) => {
   const body = await c.req.json<{
     url: string;
     waitAfterLoad?: number;
     urlPatterns?: string[];
+    captureBodies?: boolean;
   }>();
 
   if (!body.url) {
@@ -1574,44 +1575,43 @@ app.post('/admin/network-capture', async (c) => {
   }
 
   try {
-    // Dynamically import to avoid loading if not needed
-    const { createNetworkBrowser } = await import('../utils/network-browser');
+    const { captureNetworkActivity } = await import('../utils/network-capture');
     
-    const browser = createNetworkBrowser(c.env.BROWSER!, {
+    const result = await captureNetworkActivity(c.env.BROWSER!, body.url, {
       waitAfterLoad: body.waitAfterLoad || 5000,
       urlPatterns: body.urlPatterns || ['.*'],
-      captureResponseBody: true,
+      captureBodies: body.captureBodies !== false,
     });
 
-    const session = await browser.capture(body.url);
-
-    // Analyze responses
+    // Build analysis
     const analysis = {
-      totalRequests: session.requests.length,
-      totalResponses: session.responses.length,
-      jsonResponses: session.jsonResponses.length,
-      apiResponses: session.apiResponses.length,
-      uniqueUrls: [...new Set(session.responses.map(r => r.url))].length,
+      duration: result.duration,
+      totalRequests: result.requests.length,
+      totalResponses: result.responses.length,
+      jsonResponses: result.jsonResponses.length,
+      apiResponses: result.apiResponses.length,
+      htmlResponses: result.htmlResponses.length,
+      errors: result.errors.length,
+      uniqueUrls: result.responsesByUrl.size,
       statusCodes: {} as Record<number, number>,
       contentTypes: {} as Record<string, number>,
       domains: {} as Record<string, number>,
     };
 
     // Count status codes
-    for (const r of session.responses) {
+    for (const r of result.responses) {
       analysis.statusCodes[r.status] = (analysis.statusCodes[r.status] || 0) + 1;
     }
 
     // Count content types
-    for (const r of session.responses) {
+    for (const r of result.responses) {
       if (r.contentType) {
-        const ct = r.contentType.split(';')[0]; // Remove charset
-        analysis.contentTypes[ct] = (analysis.contentTypes[ct] || 0) + 1;
+        analysis.contentTypes[r.contentType] = (analysis.contentTypes[r.contentType] || 0) + 1;
       }
     }
 
     // Count domains
-    for (const r of session.responses) {
+    for (const r of result.responses) {
       try {
         const domain = new URL(r.url).hostname;
         analysis.domains[domain] = (analysis.domains[domain] || 0) + 1;
@@ -1620,29 +1620,45 @@ app.post('/admin/network-capture', async (c) => {
       }
     }
 
-    // Find potential API endpoints
-    const potentialApis = session.apiResponses
+    // Find potential APIs (JSON responses with bodies)
+    const potentialApis = result.jsonResponses
       .filter(r => r.status === 200 && r.body && r.body.length > 50)
-      .map(r => ({
-        url: r.url.substring(0, 150),
-        status: r.status,
-        contentType: r.contentType,
-        bodySize: r.bodyLength,
-        bodyPreview: r.body?.substring(0, 200) + '...',
-      }))
-      .slice(0, 20); // Limit to first 20
+      .map(r => {
+        let parsedPreview = null;
+        try {
+          const parsed = JSON.parse(r.body!.substring(0, 500));
+          parsedPreview = {
+            keys: Object.keys(parsed),
+            type: Array.isArray(parsed) ? 'array' : 'object',
+            length: Array.isArray(parsed) ? parsed.length : undefined,
+          };
+        } catch (e) {
+          // Not JSON
+        }
+
+        return {
+          url: r.url.substring(0, 120),
+          status: r.status,
+          contentType: r.contentType,
+          bodySize: r.bodyLength,
+          bodyPreview: r.body?.substring(0, 300) + (r.body && r.body.length > 300 ? '...' : ''),
+          parsedPreview,
+        };
+      })
+      .slice(0, 20);
 
     return c.json({
       success: true,
       url: body.url,
-      duration: session.endTime - session.startTime,
       analysis,
       potentialApis,
-      jsonResponses: session.jsonResponses.map(r => ({
+      allJsonResponses: result.jsonResponses.map(r => ({
         url: r.url.substring(0, 100),
         status: r.status,
+        contentType: r.contentType,
         bodySize: r.bodyLength,
-      })).slice(0, 30),
+      })),
+      errors: result.errors,
     });
 
   } catch (error: any) {
@@ -1656,123 +1672,93 @@ app.post('/admin/network-capture', async (c) => {
 
 /**
  * POST /api/v1/oem-agent/admin/capture-ford-advanced
- * Advanced Ford pricing capture with network interception and API chaining.
+ * Enhanced Ford pricing capture using new network capture utility.
+ * Uses request queuing for reliable response body capture.
  */
 app.post('/admin/capture-ford-advanced', async (c) => {
   const body = await c.req.json<{
     vehicleCode: string;
     vehicleName: string;
-    useApiChain?: boolean;
+    useChaining?: boolean;
   }>();
 
   if (!body.vehicleCode || !body.vehicleName) {
     return c.json({ error: 'vehicleCode and vehicleName are required' }, 400);
   }
 
-  const results: any = {
-    vehicleCode: body.vehicleCode,
-    vehicleName: body.vehicleName,
-    methods: {},
-  };
-
   try {
-    // Method 1: Network Interception Browser
-    console.log(`[Capture Ford Advanced] Trying network interception for ${body.vehicleName}`);
-    const { createNetworkBrowser } = await import('../utils/network-browser');
-    
-    const netBrowser = createNetworkBrowser(c.env.BROWSER!, {
-      waitAfterLoad: 8000, // Longer wait for React hydration
-      contentTypes: [
-        'application/json',
-        'text/json',
-        'application/javascript',
-        'text/javascript',
-      ],
-    });
+    const { captureFordPricing, captureWithChaining } = await import('../utils/network-capture');
 
-    const fordResult = await netBrowser.captureFordPricing(
+    // Primary method: Direct Ford pricing capture
+    console.log(`[Capture Ford Advanced] Capturing ${body.vehicleName} pricing data`);
+    
+    const fordResult = await captureFordPricing(
+      c.env.BROWSER!,
       body.vehicleName,
       body.vehicleCode
     );
 
-    results.methods.networkInterception = {
+    const response = {
       success: fordResult.pricingData.length > 0 || fordResult.configData.length > 0,
-      pricingDataCount: fordResult.pricingData.length,
-      configDataCount: fordResult.configData.length,
-      tokensExtracted: Object.keys(fordResult.tokens),
-      totalResponses: fordResult.session.responses.length,
+      vehicleCode: body.vehicleCode,
+      vehicleName: body.vehicleName,
+      capture: {
+        duration: fordResult.result.duration,
+        totalRequests: fordResult.result.requests.length,
+        totalResponses: fordResult.result.responses.length,
+        jsonResponses: fordResult.result.jsonResponses.length,
+        apiResponses: fordResult.result.apiResponses.length,
+        pricingDataSources: fordResult.pricingData.length,
+        configDataSources: fordResult.configData.length,
+        tokensExtracted: Object.keys(fordResult.tokens),
+        errors: fordResult.result.errors,
+      },
+      pricingData: fordResult.pricingData.map(p => ({
+        url: p.url.substring(0, 100),
+        dataKeys: Object.keys(p.data),
+      })),
+      configData: fordResult.configData.map(c => ({
+        url: c.url.substring(0, 100),
+        dataKeys: Object.keys(c.data),
+      })),
+      tokens: fordResult.tokens,
     };
 
-    results.pricingData = fordResult.pricingData;
-    results.configData = fordResult.configData;
-    results.tokens = fordResult.tokens;
-
-    // Method 2: API Chaining (if requested)
-    if (body.useApiChain) {
-      console.log(`[Capture Ford Advanced] Trying API chaining for ${body.vehicleName}`);
+    // Optional: API chaining
+    if (body.useChaining && Object.keys(fordResult.tokens).length > 0) {
+      console.log(`[Capture Ford Advanced] Attempting API chaining`);
       
-      const { ApiChainer } = await import('../utils/api-chainer');
-      const chainer = ApiChainer.createFordPricingChain(body.vehicleCode);
+      const chainResult = await captureWithChaining(
+        c.env.BROWSER!,
+        `https://www.ford.com.au/content/ford/au/en_au/home/${body.vehicleCode}/pricing.data`,
+        {
+          tokenExtractor: () => fordResult.tokens,
+          subsequentUrls: [
+            `https://www.ford.com.au/api/vehicleconfig/${body.vehicleCode}`,
+          ],
+          delayBetween: 2000,
+        },
+        {
+          waitAfterLoad: 3000,
+          captureBodies: true,
+        }
+      );
 
-      // Create a fetch function that uses the browser's fetch
-      const fetchFn = async (url: string, options: any) => {
-        const response = await fetch(url, options);
-        const body = await response.text();
-        
-        return {
-          url,
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
-          contentType: response.headers.get('content-type'),
-          body,
-          bodyLength: body.length,
-          timestamp: Date.now(),
-          fromCache: false,
-          id: Math.random().toString(36),
-          requestId: Math.random().toString(36),
-        };
-      };
-
-      const chainResult = await chainer.execute(fetchFn, fordResult.tokens);
-
-      results.methods.apiChaining = {
-        success: chainResult.success,
-        executedSteps: chainResult.executedSteps,
-        failedSteps: chainResult.failedSteps,
-        totalDuration: chainResult.totalDuration,
-        finalTokens: Object.keys(chainResult.context.tokens),
-      };
-
-      results.chainResult = {
-        mergedDataKeys: Object.keys(chainResult.mergedData),
-        stepResults: Array.from(chainResult.context.stepResults.entries()).map(
-          ([id, result]) => ({
-            stepId: id,
-            success: result.success,
-            tokensExtracted: result.tokensExtracted,
-          })
-        ),
+      // @ts-ignore
+      response.chaining = {
+        success: chainResult.chained.length > 0,
+        stepsCompleted: chainResult.chained.length,
+        additionalResponses: chainResult.chained.reduce((sum, r) => sum + r.responses.length, 0),
       };
     }
 
-    // Determine overall success
-    const hasData = 
-      fordResult.pricingData.length > 0 ||
-      fordResult.configData.length > 0 ||
-      (body.useApiChain && results.methods.apiChaining?.success);
-
-    return c.json({
-      success: hasData,
-      ...results,
-    });
+    return c.json(response);
 
   } catch (error: any) {
     console.error('[Capture Ford Advanced] Error:', error);
     return c.json({
       error: 'Advanced capture failed',
       details: error?.message || 'Unknown error',
-      ...results,
     }, 500);
   }
 });
