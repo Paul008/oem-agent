@@ -686,6 +686,9 @@ export class OemAgentOrchestrator {
         }
       }
       console.log(`[Orchestrator] Ford nameplates extraction found ${items.length} vehicles`);
+      // Log all extracted vehicle names for debugging
+      const vehicleNames = items.map((i: any) => i.title).filter(Boolean);
+      console.log(`[Orchestrator] Extracted vehicles: ${vehicleNames.join(', ')}`);
       return items;
     }
 
