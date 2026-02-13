@@ -324,7 +324,9 @@ export class OemAgentOrchestrator {
       }
 
       // Step 6: Direct Ford API fetch for known endpoints
+      let fordApiDebug: any = { attempted: false };
       if (oemId === 'ford-au' && page.url.includes('ford.com.au')) {
+        fordApiDebug.attempted = true;
         console.log(`[Orchestrator] Attempting direct Ford API fetch for ${page.url}`);
         try {
           const fordApiUrl = 'https://www.ford.com.au/content/ford/au/en_au.vehiclesmenu.data';
@@ -340,12 +342,19 @@ export class OemAgentOrchestrator {
               'Sec-Fetch-Site': 'same-origin',
             },
           });
-          
+
+          fordApiDebug.status = fordResponse.status;
+          fordApiDebug.statusText = fordResponse.statusText;
+
           if (fordResponse.ok) {
             const body = await fordResponse.text();
+            fordApiDebug.bodyLength = body.length;
             console.log(`[Orchestrator] Ford API direct fetch: ${body.length} chars`);
             const data = JSON.parse(body);
+            fordApiDebug.parsedType = Array.isArray(data) ? 'array' : typeof data;
+            fordApiDebug.parsedLength = Array.isArray(data) ? data.length : null;
             const fordProducts = this.extractProductsFromApiResponse(data);
+            fordApiDebug.extractedCount = fordProducts.length;
             console.log(`[Orchestrator] Extracted ${fordProducts.length} products from direct Ford API fetch`);
             
             // Log all extracted product names
@@ -387,8 +396,37 @@ export class OemAgentOrchestrator {
               };
             }
           }
-        } catch (fordError) {
+        } catch (fordError: any) {
           console.error(`[Orchestrator] Ford API direct fetch failed:`, fordError);
+          fordApiDebug.error = fordError?.message || String(fordError);
+        }
+      }
+
+      // Attach Ford API debug info to result
+      (extractionResult as any).fordApiDebug = fordApiDebug;
+
+      // Step 6.5: Enrich Ford products with variant data from pricing API
+      // This adds detailed trim/grade information to each nameplate
+      if (oemId === 'ford-au' && fordApiDebug.extractedCount > 0) {
+        console.log(`[Orchestrator] Enriching Ford products with variant data from pricing API...`);
+        try {
+          const enrichedProducts = await this.enrichFordProductsWithVariants(extractionResult.products?.data || []);
+          fordApiDebug.enrichedCount = enrichedProducts.length;
+          
+          extractionResult = {
+            ...extractionResult,
+            products: {
+              data: enrichedProducts,
+              confidence: 0.95,
+              method: 'api' as any,
+              coverage: 1,
+            },
+          };
+          console.log(`[Orchestrator] Enriched ${enrichedProducts.length} Ford products with variants`);
+        } catch (enrichError: any) {
+          console.error(`[Orchestrator] Ford variant enrichment failed (non-critical):`, enrichError?.message || String(enrichError));
+          fordApiDebug.enrichError = enrichError?.message || String(enrichError);
+          // Continue with base products even if enrichment fails
         }
       }
 
@@ -1745,6 +1783,992 @@ export class OemAgentOrchestrator {
   }
 
   /**
+   * Agentic Ford variant extraction.
+   * Crawls each nameplate's Build & Price page to extract detailed variant information.
+   */
+  private async extractFordVariantsAgentic(nameplates: any[]): Promise<any[]> {
+    const allVariants: any[] = [];
+    const maxPagesToProcess = 5; // Limit to avoid timeout - process most popular nameplates
+    let pagesProcessed = 0;
+
+    // Priority nameplates to extract variants from (most popular Ford AU vehicles)
+    const priorityNameplates = ['Ranger', 'Everest', 'Mustang', 'F-150', 'Transit Custom'];
+
+    // Sort nameplates by priority
+    const sortedNameplates = [...nameplates].sort((a, b) => {
+      const aIdx = priorityNameplates.findIndex(p => a.title?.includes(p));
+      const bIdx = priorityNameplates.findIndex(p => b.title?.includes(p));
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+
+    for (const nameplate of sortedNameplates) {
+      if (pagesProcessed >= maxPagesToProcess) {
+        console.log(`[Orchestrator] Ford variants: Reached max pages limit (${maxPagesToProcess})`);
+        break;
+      }
+
+      // Get Build & Price URL from nameplate's ctaLink or additionalCTA
+      const buildPriceUrl = nameplate.ctaLink || nameplate.source_url;
+      if (!buildPriceUrl || !buildPriceUrl.includes('ford.com.au/price')) {
+        continue;
+      }
+
+      console.log(`[Orchestrator] Ford variants: Crawling ${nameplate.title} at ${buildPriceUrl}`);
+      pagesProcessed++;
+
+      try {
+        // Use browser rendering to load the Build & Price page and capture network traffic
+        const smartResult = await this.renderPageSmartMode(buildPriceUrl, 'ford-au');
+
+        // Look for variant data in network responses
+        const jsonResponses = smartResult.networkResponses.filter(
+          (r) => r.contentType?.includes('json') && r.body && r.body.length > 500
+        );
+
+        console.log(`[Orchestrator] Ford variants: ${nameplate.title} - ${jsonResponses.length} JSON responses captured`);
+
+        // Try to extract variants from each response
+        for (const response of jsonResponses) {
+          try {
+            const data = JSON.parse(response.body || '');
+            const variants = this.extractFordVariantsFromResponse(data, nameplate.title);
+            if (variants.length > 0) {
+              console.log(`[Orchestrator] Ford variants: Found ${variants.length} variants for ${nameplate.title}`);
+              allVariants.push(...variants);
+              break; // Found variants, move to next nameplate
+            }
+          } catch (parseError) {
+            // Skip invalid JSON
+          }
+        }
+
+        // Also try to extract from HTML (embedded JSON in React props)
+        const htmlVariants = this.extractFordVariantsFromHtml(smartResult.html, nameplate.title);
+        if (htmlVariants.length > 0) {
+          console.log(`[Orchestrator] Ford variants: Found ${htmlVariants.length} HTML-embedded variants for ${nameplate.title}`);
+          // Deduplicate against already found variants
+          for (const v of htmlVariants) {
+            const exists = allVariants.some(av => av.title?.toLowerCase() === v.title?.toLowerCase());
+            if (!exists) {
+              allVariants.push(v);
+            }
+          }
+        }
+
+      } catch (crawlError: any) {
+        console.error(`[Orchestrator] Ford variants: Error crawling ${nameplate.title}:`, crawlError?.message);
+      }
+    }
+
+    console.log(`[Orchestrator] Ford variants: Total extracted: ${allVariants.length} from ${pagesProcessed} pages`);
+    return allVariants;
+  }
+
+  /**
+   * Extract Ford variants from a JSON API response.
+   */
+  private extractFordVariantsFromResponse(data: any, nameplateName: string): any[] {
+    const variants: any[] = [];
+
+    // Look for filterData structure (Ford Build & Price configurator)
+    const filterData = data.filterData || data.data?.filterData || data;
+
+    // Try to find series/variants in various structures
+    const seriesData = filterData?.series || filterData?.variants || filterData?.models ||
+                       filterData?.trims || filterData?.grades || data?.vehicles || data?.models;
+
+    if (Array.isArray(seriesData)) {
+      for (const series of seriesData) {
+        const variantName = series.name || series.title || series.seriesName || series.trimName;
+        if (!variantName) continue;
+
+        variants.push({
+          title: `${nameplateName} ${variantName}`,
+          subtitle: series.description || series.tagline,
+          body_type: series.bodyType || series.body || nameplateName,
+          fuel_type: series.fuelType || series.powerTrain || series.engine,
+          price: {
+            amount: series.price || series.msrp || series.startingPrice,
+            currency: 'AUD',
+            type: 'driveaway',
+            raw_string: series.priceDisplay || series.priceText,
+          },
+          primary_image_url: series.image || series.imageUrl || series.thumbnail,
+          external_key: series.code || series.id || series.seriesCode,
+          source_url: `https://www.ford.com.au/price/${nameplateName.replace(/\s+/g, '')}`,
+          parent_nameplate: nameplateName,
+        });
+      }
+    }
+
+    // Also check for body styles within series
+    if (filterData?.bodyStyles || filterData?.bodyTypes) {
+      const bodyStyles = filterData.bodyStyles || filterData.bodyTypes;
+      if (Array.isArray(bodyStyles)) {
+        for (const body of bodyStyles) {
+          const series = body.series || body.variants || body.trims || [];
+          for (const s of (Array.isArray(series) ? series : [])) {
+            const variantName = s.name || s.title;
+            const bodyName = body.name || body.title;
+            if (!variantName) continue;
+
+            const fullName = bodyName ? `${nameplateName} ${variantName} ${bodyName}` : `${nameplateName} ${variantName}`;
+            const exists = variants.some(v => v.title === fullName);
+            if (!exists) {
+              variants.push({
+                title: fullName,
+                body_type: bodyName || nameplateName,
+                price: {
+                  amount: s.price || s.msrp,
+                  currency: 'AUD',
+                  type: 'driveaway',
+                },
+                external_key: s.code || s.id,
+                source_url: `https://www.ford.com.au/price/${nameplateName.replace(/\s+/g, '')}`,
+                parent_nameplate: nameplateName,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return variants;
+  }
+
+  /**
+   * Extract Ford variants from embedded JSON in HTML.
+   */
+  private extractFordVariantsFromHtml(html: string, nameplateName: string): any[] {
+    const variants: any[] = [];
+
+    // Try to find JSON data in script tags
+    const scriptPattern = /<script[^>]*>([^<]*(?:filterData|series|variants|models)[^<]*)<\/script>/gi;
+    let match;
+
+    while ((match = scriptPattern.exec(html)) !== null) {
+      try {
+        // Try to extract and parse JSON from the script content
+        const scriptContent = match[1];
+
+        // Look for series names directly (common Ford pattern)
+        const seriesNames = ['XL', 'XLS', 'XLT', 'Sport', 'Wildtrak', 'Platinum', 'Raptor', 'Trend', 'Ambiente'];
+        for (const seriesName of seriesNames) {
+          const pattern = new RegExp(`"name"\\s*:\\s*"${seriesName}"`, 'i');
+          if (pattern.test(scriptContent)) {
+            // Check if we already have this variant
+            const fullName = `${nameplateName} ${seriesName}`;
+            const exists = variants.some(v => v.title === fullName);
+            if (!exists) {
+              variants.push({
+                title: fullName,
+                body_type: nameplateName,
+                external_key: `${nameplateName.toLowerCase()}-${seriesName.toLowerCase()}`,
+                source_url: `https://www.ford.com.au/price/${nameplateName.replace(/\s+/g, '')}`,
+                parent_nameplate: nameplateName,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Skip invalid content
+      }
+    }
+
+    return variants;
+  }
+
+  /**
+   * Expand Ford products into separate variant products.
+   * Fetches pricing.data endpoint and creates a product record for EACH variant/trim.
+   */
+  private async enrichFordProductsWithVariants(products: any[]): Promise<any[]> {
+    const expandedProducts: any[] = [];
+    const maxToExpand = 10; // Limit to avoid timeout - prioritize popular models
+    let expanded = 0;
+
+    // Priority order for variant expansion
+    const priorityModels = ['Ranger', 'Everest', 'Mustang', 'F-150', 'Transit Custom', 'Ranger Raptor', 'Transit Van'];
+    
+    // Sort products by priority
+    const sortedProducts = [...products].sort((a, b) => {
+      const aIdx = priorityModels.findIndex(p => a.title?.includes(p));
+      const bIdx = priorityModels.findIndex(p => b.title?.includes(p));
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+
+    for (const product of sortedProducts) {
+      // Always add the base product first
+      expandedProducts.push(product);
+
+      if (expanded >= maxToExpand) {
+        // Add remaining products without variant expansion
+        const remainingIdx = sortedProducts.indexOf(product) + 1;
+        if (remainingIdx < sortedProducts.length) {
+          expandedProducts.push(...sortedProducts.slice(remainingIdx));
+        }
+        break;
+      }
+
+      // Extract vehicle code from external_key or ctaLink
+      let vehicleCode = product.external_key;
+      
+      // Try to extract from ctaLink if no code
+      if (!vehicleCode && product.ctaLink) {
+        const match = product.ctaLink.match(/price\/([^/]+)/i);
+        if (match) vehicleCode = match[1];
+      }
+
+      if (!vehicleCode) {
+        continue;
+      }
+
+      try {
+        // Try to fetch pricing data
+        const pricingUrl = `https://www.ford.com.au/content/ford/au/en_au/home/${vehicleCode.toLowerCase().replace(/_/g, '-')}/pricing.data`;
+        
+        const response = await fetch(pricingUrl, {
+          headers: {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-AU,en;q=0.9',
+            'Referer': 'https://www.ford.com.au/',
+            'Origin': 'https://www.ford.com.au',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+          },
+        });
+
+        let data: any = null;
+        
+        if (!response.ok) {
+          // Try alternative URL format
+          const altUrl = `https://www.ford.com.au/content/ford/au/en_au/home/vehicles/${vehicleCode.toLowerCase().replace(/_/g, '-')}/pricing.data`;
+          const altResponse = await fetch(altUrl, { headers: response.headers });
+          
+          if (altResponse.ok) {
+            data = await altResponse.json();
+          }
+        } else {
+          data = await response.json();
+        }
+
+        if (!data) {
+          continue;
+        }
+
+        // Extract variants, colors, features, and gallery images from pricing data
+        const variants = this.extractVariantsFromPricingData(data, product.title);
+        const colors = this.extractColorsFromPricingData(data);
+        const features = this.extractFeaturesFromPricingData(data);
+        const galleryImages = this.extractGalleryImagesFromPricingData(data);
+
+        if (variants.length > 0) {
+          // Create a separate product for EACH variant
+          for (const variant of variants) {
+            const variantProduct = {
+              ...product,
+              // Unique title: "Ranger XL", "Ranger XLT", etc.
+              title: `${product.title} ${variant.name}`,
+              // Unique external_key for deduplication
+              external_key: variant.code || `${product.external_key}-${variant.name.toLowerCase().replace(/\s+/g, '-')}`,
+              subtitle: variant.description || product.subtitle,
+              price: {
+                amount: variant.price?.driveAway || variant.price?.msrp || variant.price?.startingPrice || product.price?.amount,
+                currency: 'AUD',
+                type: 'driveaway',
+                raw_string: variant.price?.driveAway ? `$${variant.price.driveAway}` : product.price?.raw_string,
+              },
+              // Store parent nameplate reference
+              parent_nameplate: product.title,
+              // Engine and transmission from variant
+              fuel_type: variant.engine || product.fuel_type,
+              // Variant-specific metadata
+              meta: {
+                ...(product.meta || {}),
+                parentNameplate: product.title,
+                parentExternalKey: product.external_key,
+                variantName: variant.name,
+                variantCode: variant.code,
+                variantDataSource: 'pricing_api',
+                bodyType: variant.bodyType || product.body_type,
+                transmission: variant.transmission,
+                engine: variant.engine,
+                availableColors: colors,
+                colorCount: colors.length,
+                variantFeatures: variant.features || [],
+                nameplateFeatures: features,
+                // Gallery images
+                galleryImages: galleryImages,
+                galleryImageCount: galleryImages.length,
+                interiorImages: galleryImages.filter((img: any) => img.type === 'interior'),
+                exteriorImages: galleryImages.filter((img: any) => img.type === 'exterior'),
+              },
+              // Variants array contains sibling variants
+              variants: variants.map((v: any) => ({
+                name: v.name,
+                code: v.code,
+                price: v.price,
+                engine: v.engine,
+                transmission: v.transmission,
+              })),
+            };
+
+            expandedProducts.push(variantProduct);
+          }
+
+          expanded++;
+          console.log(`[Ford Expand] ${product.title}: Created ${variants.length} variant products with ${galleryImages.length} gallery images`);
+        }
+      } catch (error: any) {
+        console.log(`[Ford Expand] ${product.title}: Error fetching variants - ${error?.message || 'unknown'}`);
+      }
+    }
+
+    console.log(`[Ford Expand] Total products: ${expandedProducts.length} (${products.length} base + ${expandedProducts.length - products.length} variants)`);
+    return expandedProducts;
+  }
+
+  /**
+   * Extract variant/trim data from Ford pricing API response.
+   */
+  private extractVariantsFromPricingData(data: any, nameplateName: string): any[] {
+    const variants: any[] = [];
+    
+    // Look for series/grades/trims in various structures
+    const seriesData = data.series || data.grades || data.trims || data.variants ||
+                       data.data?.series || data.data?.grades || data.data?.trims ||
+                       data.filterData?.series || data.filterData?.grades ||
+                       data.modelSeries || data.vehicleSeries;
+
+    if (Array.isArray(seriesData)) {
+      for (const series of seriesData) {
+        const variantName = series.name || series.title || series.gradeName || series.trimName || series.seriesName;
+        if (!variantName) continue;
+
+        variants.push({
+          name: variantName,
+          code: series.code || series.id || series.gradeCode || series.seriesCode || 
+                `${nameplateName.toLowerCase().replace(/\s+/g, '-')}-${variantName.toLowerCase().replace(/\s+/g, '-')}`,
+          description: series.description || series.tagline || series.subtitle,
+          bodyType: series.bodyType || series.bodyStyle || series.body,
+          engine: series.engine || series.powerTrain || series.drivetrain || series.engineType,
+          engineSize: series.engineSize || series.displacement,
+          power: series.power || series.kw || series.horsepower,
+          torque: series.torque || series.nm,
+          transmission: series.transmission || series.transmissionType || series.gearbox,
+          drivetrain: series.drivetrain || series.driveType || series.drive,
+          fuelType: series.fuelType || series.fuel || series.powerTrain,
+          price: {
+            msrp: series.msrp || series.price || series.rrp,
+            driveAway: series.driveAwayPrice || series.driveawayPrice || series.driveAway,
+            startingPrice: series.startingPrice || series.fromPrice || series.priceFrom,
+          },
+          features: series.features || series.highlights || series.standardFeatures || [],
+          images: series.images || series.imageUrls || series.thumbnails || [],
+        });
+      }
+    }
+
+    // Also check for body styles with nested series
+    const bodyStyles = data.bodyStyles || data.bodyTypes || data.data?.bodyStyles || data.bodyStyleOptions;
+    if (Array.isArray(bodyStyles)) {
+      for (const body of bodyStyles) {
+        const bodyName = body.name || body.title || body.style || body.type;
+        const bodySeries = body.series || body.grades || body.trims || body.variants || [];
+        
+        for (const series of bodySeries) {
+          const variantName = series.name || series.title || series.grade;
+          if (!variantName) continue;
+
+          variants.push({
+            name: bodyName ? `${variantName} ${bodyName}` : variantName,
+            code: series.code || series.id || `${nameplateName.toLowerCase()}-${variantName.toLowerCase().replace(/\s+/g, '-')}`,
+            bodyType: bodyName,
+            engine: series.engine || series.powerTrain || series.engineSpec,
+            engineSize: series.engineSize || series.displacement,
+            transmission: series.transmission || series.gearbox,
+            drivetrain: series.drivetrain || series.drive,
+            fuelType: series.fuelType || series.fuel,
+            price: {
+              msrp: series.msrp || series.price,
+              driveAway: series.driveAwayPrice || series.driveaway,
+              startingPrice: series.startingPrice || series.from,
+            },
+            features: series.features || series.highlights || [],
+          });
+        }
+      }
+    }
+
+    return variants;
+  }
+
+  /**
+   * Extract color options from Ford pricing API response.
+   * Handles Ford's color swatch format with images and hex values.
+   */
+  private extractColorsFromPricingData(data: any): any[] {
+    const colors: any[] = [];
+    
+    // Try multiple possible locations for color data
+    const colorData = data.colors || data.colours || 
+                      data.data?.colors || data.data?.colours ||
+                      data.colourData || data.colorData || 
+                      data.paintOptions || data.paintColours ||
+                      data.exteriorColors || data.exteriorColours ||
+                      data.colorSwatches || data.colourSwatches ||
+                      data.vehicleColors || data.availableColors;
+
+    if (Array.isArray(colorData)) {
+      for (const color of colorData) {
+        // Handle both object and string formats
+        if (typeof color === 'string') {
+          colors.push({
+            name: color,
+            code: null,
+            hex: null,
+            type: 'standard',
+            price: 0,
+            image: null,
+          });
+          continue;
+        }
+
+        // Extract swatch image - Ford often uses these fields
+        const swatchImage = color.swatchImage || color.swatch || color.thumbnail || 
+                           color.image || color.colourImage || color.colorImage ||
+                           color.previewImage || color.sampleImage ||
+                           (color.images?.[0]) ||
+                           (color.swatchImages?.[0]);
+
+        // Extract full-size image if different from swatch
+        const fullImage = color.fullImage || color.vehicleImage || color.renderImage ||
+                         color.imageUrl || color.imageURL || color.photo ||
+                         (color.images?.[1]) || swatchImage;
+
+        colors.push({
+          name: color.name || color.label || color.colourName || color.colorName || 
+                color.title || color.description,
+          code: color.code || color.id || color.colourCode || color.colorCode || 
+                color.swatchCode || color.optionCode,
+          hex: color.hex || color.colourHex || color.colorHex || color.rgb || 
+               color.colourRgb || color.colorRgb || color.htmlColor,
+          type: color.type || color.category || color.colourType || color.optionType || 
+                (color.isPremium ? 'premium' : color.isMetallic ? 'metallic' : 'standard'),
+          price: color.price || color.cost || color.colourPrice || color.optionPrice || 
+                 color.priceAdjustment || color.additionalCost || 0,
+          // Swatch image (small thumbnail)
+          swatchImage: swatchImage,
+          // Full-size image of vehicle in this color
+          fullImage: fullImage,
+          // Generic image field for backward compatibility
+          image: swatchImage || fullImage,
+          // Ford-specific fields
+          fordColorCode: color.fordColourCode || color.fordColorCode,
+          paintType: color.paintType || color.finish || color.colourFinish,
+          availability: color.availability || color.status || color.inStock,
+          // Any additional metadata
+          meta: {
+            isPremium: color.isPremium || color.premium || false,
+            isMetallic: color.isMetallic || color.metallic || false,
+            isSpecialOrder: color.isSpecialOrder || color.specialOrder || false,
+            orderCode: color.orderCode || color.factoryOrderCode,
+          }
+        });
+      }
+    }
+
+    // Also check for legacy Ford format with separate swatches object
+    const swatchesData = data.swatches || data.colourSwatches || data.colorSwatches ||
+                        data.swatchData || data.paintSwatches;
+    if (Array.isArray(swatchesData) && colors.length === 0) {
+      for (const swatch of swatchesData) {
+        colors.push({
+          name: swatch.name || swatch.colourName || swatch.colorName,
+          code: swatch.code || swatch.colourCode || swatch.id,
+          hex: swatch.hex || swatch.colourHex || swatch.rgb,
+          type: swatch.type || 'standard',
+          price: swatch.price || swatch.cost || 0,
+          swatchImage: swatch.image || swatch.swatchImage || swatch.url || swatch.swatchUrl,
+          image: swatch.image || swatch.swatchImage || swatch.url,
+        });
+      }
+    }
+
+    return colors;
+  }
+
+  /**
+   * Extract feature highlights from Ford pricing API response.
+   */
+  private extractFeaturesFromPricingData(data: any): string[] {
+    const features: string[] = [];
+    
+    const featureData = data.features || data.highlights || data.keyFeatures ||
+                        data.data?.features || data.data?.highlights ||
+                        data.vehicleFeatures || data.standardFeatures;
+
+    if (Array.isArray(featureData)) {
+      for (const feature of featureData) {
+        if (typeof feature === 'string') {
+          features.push(feature);
+        } else if (feature.name || feature.title || feature.description) {
+          features.push(feature.name || feature.title || feature.description);
+        }
+      }
+    }
+
+    return features;
+  }
+
+  /**
+   * Extract gallery images from Ford pricing API response.
+   * Includes exterior shots, interior images, and detail shots.
+   */
+  private extractGalleryImagesFromPricingData(data: any): any[] {
+    const images: any[] = [];
+    
+    // Try multiple possible locations for gallery/image data
+    const galleryData = data.gallery || data.images || data.imageGallery ||
+                        data.data?.gallery || data.data?.images ||
+                        data.vehicleImages || data.carImages ||
+                        data.exteriorImages || data.interiorImages ||
+                        data.mediaGallery || data.photoGallery ||
+                        data.assetLibrary || data.visualAssets;
+
+    if (Array.isArray(galleryData)) {
+      for (const img of galleryData) {
+        if (typeof img === 'string') {
+          // Simple URL string
+          images.push({
+            url: img,
+            type: 'exterior',
+            category: 'gallery',
+            alt: null,
+          });
+          continue;
+        }
+
+        // Determine image type/category
+        const imageType = img.type || img.imageType || img.category || img.photoType || 'exterior';
+        const isInterior = imageType.toLowerCase().includes('interior') || 
+                          (img.tags && img.tags.some((t: string) => t.toLowerCase().includes('interior')));
+        const isExterior = imageType.toLowerCase().includes('exterior') ||
+                          (img.tags && img.tags.some((t: string) => t.toLowerCase().includes('exterior')));
+        const isDetail = imageType.toLowerCase().includes('detail') || 
+                        imageType.toLowerCase().includes('feature');
+
+        images.push({
+          // Image URLs - try multiple fields
+          url: img.url || img.src || img.imageUrl || img.imageURL || 
+               img.path || img.file || img.location,
+          thumbnail: img.thumbnail || img.thumbUrl || img.thumbnailUrl || 
+                     img.preview || img.small,
+          fullSize: img.fullSize || img.fullUrl || img.highRes || 
+                    img.large || img.original,
+          // Image metadata
+          type: isInterior ? 'interior' : isExterior ? 'exterior' : isDetail ? 'detail' : 'gallery',
+          category: img.category || img.section || img.group,
+          alt: img.alt || img.altText || img.description || img.caption || img.title,
+          // Position/sorting
+          position: img.position || img.order || img.sequence || img.index,
+          // Tags/labels
+          tags: img.tags || img.labels || img.keywords || [],
+          // Interior-specific fields
+          interiorView: img.interiorView || img.cockpitView || img.dashboardView,
+          seatView: img.seatView || img.upholsteryView,
+          // Ford-specific
+          fordAssetId: img.assetId || img.fordAssetId || img.mediaId,
+        });
+      }
+    }
+
+    // Also look for separate interior images array
+    const interiorData = data.interiorImages || data.interiorGallery || 
+                        data.cockpitImages || data.cabinImages ||
+                        data.data?.interiorImages || data.insideImages;
+    
+    if (Array.isArray(interiorData)) {
+      for (const img of interiorData) {
+        const existingUrl = typeof img === 'string' ? img : 
+                           (img.url || img.src || img.imageUrl);
+        
+        // Check if already exists
+        if (!images.some((i: any) => i.url === existingUrl)) {
+          images.push({
+            url: existingUrl,
+            thumbnail: typeof img === 'object' ? (img.thumbnail || img.thumbUrl) : null,
+            type: 'interior',
+            category: img.category || 'interior',
+            alt: typeof img === 'object' ? (img.alt || img.description) : null,
+            interiorView: typeof img === 'object' ? (img.view || img.angle) : null,
+          });
+        }
+      }
+    }
+
+    // Look for exterior images array
+    const exteriorData = data.exteriorImages || data.exteriorGallery ||
+                        data.outsideImages || data.bodyImages ||
+                        data.data?.exteriorImages;
+    
+    if (Array.isArray(exteriorData)) {
+      for (const img of exteriorData) {
+        const existingUrl = typeof img === 'string' ? img : 
+                           (img.url || img.src || img.imageUrl);
+        
+        if (!images.some((i: any) => i.url === existingUrl)) {
+          images.push({
+            url: existingUrl,
+            thumbnail: typeof img === 'object' ? (img.thumbnail || img.thumbUrl) : null,
+            type: 'exterior',
+            category: typeof img === 'object' ? (img.category || img.angle) : 'exterior',
+            alt: typeof img === 'object' ? (img.alt || img.description) : null,
+          });
+        }
+      }
+    }
+
+    return images;
+  }
+
+  /**
+   * Capture Ford pricing API data using browser network interception.
+   * Navigates to Build & Price page and intercepts the pricing.data API response.
+   * 
+   * @param vehicleCode The Ford vehicle code (e.g., 'Next-Gen_Ranger-test')
+   * @param vehicleName The display name (e.g., 'Ranger')
+   * @returns The captured pricing data or null if not found
+   */
+  private async captureFordPricingApiWithBrowser(
+    vehicleCode: string,
+    vehicleName: string
+  ): Promise<{ data: any; source: string } | null> {
+    console.log(`[Ford Pricing Capture] Starting browser capture for ${vehicleName} (${vehicleCode})`);
+
+    // Build the Build & Price URL
+    const buildPriceUrl = `https://www.ford.com.au/price/${vehicleName.replace(/\s+/g, '')}`;
+    
+    try {
+      // Use Smart Mode to render the page and capture network traffic
+      const smartResult = await this.renderPageSmartMode(buildPriceUrl, 'ford-au');
+      
+      console.log(`[Ford Pricing Capture] ${vehicleName}: Captured ${smartResult.networkResponses.length} network responses`);
+
+      // Look for pricing.data responses
+      const pricingResponses = smartResult.networkResponses.filter((r) =>
+        r.url.includes('pricing.data') && r.status === 200 && r.body && r.body.length > 100
+      );
+
+      console.log(`[Ford Pricing Capture] ${vehicleName}: Found ${pricingResponses.length} pricing.data responses`);
+
+      // Try each pricing response
+      for (const response of pricingResponses) {
+        try {
+          const data = JSON.parse(response.body || '{}');
+          
+          // Validate this looks like pricing data (has expected structure)
+          if (this.isValidFordPricingData(data)) {
+            console.log(`[Ford Pricing Capture] ${vehicleName}: Valid pricing data found!`);
+            
+            // Store the raw response to R2 for debugging/analysis
+            await this.storeFordPricingResponse(vehicleName, vehicleCode, data, response.url);
+            
+            return { data, source: response.url };
+          }
+        } catch (parseError) {
+          // Skip invalid JSON
+          console.log(`[Ford Pricing Capture] ${vehicleName}: Failed to parse response from ${response.url}`);
+        }
+      }
+
+      // Also check for pricing data embedded in HTML (React hydration data)
+      const htmlData = this.extractFordPricingFromHtml(smartResult.html, vehicleName);
+      if (htmlData) {
+        console.log(`[Ford Pricing Capture] ${vehicleName}: Found pricing data embedded in HTML`);
+        await this.storeFordPricingResponse(vehicleName, vehicleCode, htmlData, 'html-embedded');
+        return { data: htmlData, source: 'html-embedded' };
+      }
+
+      console.log(`[Ford Pricing Capture] ${vehicleName}: No valid pricing data found`);
+      
+      // Store the raw responses for debugging even if we couldn't parse them
+      await this.storeFordPricingDebug(vehicleName, vehicleCode, smartResult.networkResponses);
+      
+      return null;
+    } catch (error: any) {
+      console.error(`[Ford Pricing Capture] ${vehicleName}: Error during capture - ${error?.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Validate that data looks like Ford pricing data.
+   */
+  private isValidFordPricingData(data: any): boolean {
+    // Check for common Ford pricing data structures
+    const hasSeries = data.series || data.grades || data.trims || data.variants ||
+                      data.data?.series || data.data?.grades;
+    const hasColors = data.colors || data.colours || data.paintOptions || 
+                      data.exteriorColors || data.colorSwatches;
+    const hasPricing = data.price || data.pricing || data.msrp || 
+                       data.driveAwayPrice || data.startingPrice;
+    const hasModels = data.models || data.vehicles || data.nameplates;
+    
+    return !!(hasSeries || hasColors || hasPricing || hasModels);
+  }
+
+  /**
+   * Extract Ford pricing data embedded in HTML (React hydration, etc).
+   */
+  private extractFordPricingFromHtml(html: string, vehicleName: string): any | null {
+    // Look for JSON data in script tags that contains pricing/series data
+    const patterns = [
+      /<script[^>]*>.*?window\.__INITIAL_STATE__\s*=\s*({.*?});.*?<\/script>/s,
+      /<script[^>]*>.*?window\.__DATA__\s*=\s*({.*?});.*?<\/script>/s,
+      /<script[^>]*type="application\/json"[^>]*>({.*?})<\/script>/s,
+      /<script[^>]*>.*?"filterData":\s*({.*?\}).*?<\/script>/s,
+      /<script[^>]*>.*?"pricingData":\s*({.*?\}).*?<\/script>/s,
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        try {
+          // Try to parse the JSON
+          const data = JSON.parse(match[1]);
+          if (this.isValidFordPricingData(data)) {
+            return data;
+          }
+        } catch (e) {
+          // Try with unescaping
+          try {
+            const unescaped = match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+            const data = JSON.parse(unescaped);
+            if (this.isValidFordPricingData(data)) {
+              return data;
+            }
+          } catch (e2) {
+            // Continue to next pattern
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Store Ford pricing API response to R2 for debugging and analysis.
+   */
+  private async storeFordPricingResponse(
+    vehicleName: string,
+    vehicleCode: string,
+    data: any,
+    sourceUrl: string
+  ): Promise<void> {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const key = `ford-pricing/${vehicleCode}/${timestamp}.json`;
+
+      const payload = {
+        vehicleName,
+        vehicleCode,
+        capturedAt: new Date().toISOString(),
+        sourceUrl,
+        data,
+      };
+
+      await this.config.r2Bucket.put(key, JSON.stringify(payload, null, 2), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+
+      console.log(`[Ford Pricing Capture] Stored pricing data to R2: ${key}`);
+    } catch (error) {
+      console.error(`[Ford Pricing Capture] Failed to store pricing response:`, error);
+    }
+  }
+
+  /**
+   * Store debug info when pricing capture fails.
+   */
+  private async storeFordPricingDebug(
+    vehicleName: string,
+    vehicleCode: string,
+    responses: NetworkResponse[]
+  ): Promise<void> {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const key = `ford-pricing/${vehicleCode}/debug-${timestamp}.json`;
+
+      const payload = {
+        vehicleName,
+        vehicleCode,
+        capturedAt: new Date().toISOString(),
+        responses: responses.map(r => ({
+          url: r.url,
+          status: r.status,
+          contentType: r.contentType,
+          bodyLength: r.body?.length,
+          bodyPreview: r.body?.substring(0, 500),
+        })),
+      };
+
+      await this.config.r2Bucket.put(key, JSON.stringify(payload, null, 2), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+
+      console.log(`[Ford Pricing Capture] Stored debug info to R2: ${key}`);
+    } catch (error) {
+      // Silent fail for debug storage
+    }
+  }
+
+  /**
+   * Enrich Ford products with variants using browser-based pricing API capture.
+   * This method navigates to each vehicle's Build & Price page and intercepts
+   * the pricing API response to extract variants, colors, and gallery images.
+   */
+  async enrichFordProductsWithBrowserCapture(products: any[]): Promise<{
+    enriched: any[];
+    captureResults: Array<{ vehicle: string; success: boolean; variants: number; colors: number; images: number }>;
+  }> {
+    const enrichedProducts: any[] = [];
+    const captureResults: Array<{ vehicle: string; success: boolean; variants: number; colors: number; images: number }> = [];
+    
+    // Priority vehicles to process
+    const priorityVehicles = ['Ranger', 'Everest', 'Mustang', 'F-150', 'Transit Custom'];
+    
+    // Sort products by priority
+    const sortedProducts = [...products].sort((a, b) => {
+      const aIdx = priorityVehicles.findIndex(p => a.title?.includes(p));
+      const bIdx = priorityVehicles.findIndex(p => b.title?.includes(p));
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+
+    // Limit to avoid timeout
+    const maxToProcess = Math.min(5, sortedProducts.length);
+    const productsToProcess = sortedProducts.slice(0, maxToProcess);
+
+    console.log(`[Ford Enrich] Processing ${productsToProcess.length} vehicles with browser capture`);
+
+    for (const product of productsToProcess) {
+      // Always include the base product
+      enrichedProducts.push(product);
+
+      const vehicleCode = product.external_key;
+      if (!vehicleCode) {
+        console.log(`[Ford Enrich] ${product.title}: No vehicle code, skipping`);
+        continue;
+      }
+
+      console.log(`[Ford Enrich] Processing ${product.title} (${vehicleCode})`);
+
+      // Capture pricing API using browser
+      const captureResult = await this.captureFordPricingApiWithBrowser(vehicleCode, product.title);
+
+      if (!captureResult) {
+        console.log(`[Ford Enrich] ${product.title}: Failed to capture pricing data`);
+        captureResults.push({ vehicle: product.title, success: false, variants: 0, colors: 0, images: 0 });
+        continue;
+      }
+
+      // Extract variants, colors, and images
+      const variants = this.extractVariantsFromPricingData(captureResult.data, product.title);
+      const colors = this.extractColorsFromPricingData(captureResult.data);
+      const galleryImages = this.extractGalleryImagesFromPricingData(captureResult.data);
+
+      console.log(`[Ford Enrich] ${product.title}: Found ${variants.length} variants, ${colors.length} colors, ${galleryImages.length} images`);
+
+      captureResults.push({
+        vehicle: product.title,
+        success: true,
+        variants: variants.length,
+        colors: colors.length,
+        images: galleryImages.length,
+      });
+
+      if (variants.length > 0) {
+        // Create variant products
+        for (const variant of variants) {
+          const variantProduct = {
+            ...product,
+            title: `${product.title} ${variant.name}`,
+            external_key: variant.code || `${product.external_key}-${variant.name.toLowerCase().replace(/\s+/g, '-')}`,
+            subtitle: variant.description || product.subtitle,
+            price: {
+              amount: variant.price?.driveAway || variant.price?.msrp || product.price?.amount,
+              currency: 'AUD',
+              type: 'driveaway',
+              raw_string: variant.price?.driveAway ? `$${variant.price.driveAway}` : undefined,
+            },
+            parent_nameplate: product.title,
+            fuel_type: variant.fuelType || variant.engine || product.fuel_type,
+            meta: {
+              ...(product.meta || {}),
+              parentNameplate: product.title,
+              parentExternalKey: product.external_key,
+              variantName: variant.name,
+              variantCode: variant.code,
+              variantDataSource: 'browser_capture',
+              capturedAt: new Date().toISOString(),
+              bodyType: variant.bodyType,
+              transmission: variant.transmission,
+              engine: variant.engine,
+              engineSize: variant.engineSize,
+              power: variant.power,
+              torque: variant.torque,
+              drivetrain: variant.drivetrain,
+              availableColors: colors,
+              colorCount: colors.length,
+              variantFeatures: variant.features || [],
+              galleryImages: galleryImages,
+              galleryImageCount: galleryImages.length,
+            },
+            variants: variants.map(v => ({
+              name: v.name,
+              code: v.code,
+              price: v.price,
+              engine: v.engine,
+              transmission: v.transmission,
+            })),
+          };
+
+          enrichedProducts.push(variantProduct);
+        }
+
+        // Update base product with enrichment data
+        product.meta = {
+          ...(product.meta || {}),
+          hasVariantData: true,
+          variantCount: variants.length,
+          availableColors: colors,
+          colorCount: colors.length,
+          galleryImages: galleryImages,
+          galleryImageCount: galleryImages.length,
+          variantDataSource: 'browser_capture',
+          capturedAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    console.log(`[Ford Enrich] Complete: ${enrichedProducts.length} total products (${products.length} base + ${enrichedProducts.length - products.length} variants)`);
+
+    return { enriched: enrichedProducts, captureResults };
+  }
+
+  /**
    * Store discovered APIs in the database.
    */
   private async storeDiscoveredApis(
@@ -1935,6 +2959,7 @@ ${html.substring(0, 50000)}
     // Use database column names (meta_json, not meta)
     const product: Record<string, any> = {
       oem_id: oemId,
+      external_key: productData.external_key, // Store external key for deduplication
       source_url: sourceUrl,
       title: productData.title,
       subtitle: productData.subtitle,

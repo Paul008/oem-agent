@@ -407,25 +407,102 @@ async function fetchFordVehicleDetails(vehicleCode: string, vehicleName: string)
     const body = await response.text();
     const data = JSON.parse(body);
     
-    // Extract color options, variants, and pricing
+    // Extract color options, variants, pricing, and gallery images
     const details: any = {
       colors: [],
       variants: [],
       features: [],
+      galleryImages: [],
       pricing: {},
     };
     
-    // Look for color data in the response
-    if (data.colors || data.colours) {
-      const colorData = data.colors || data.colours || [];
+    // Look for color data in multiple possible locations
+    const colorData = data.colors || data.colours || 
+                      data.data?.colors || data.data?.colours ||
+                      data.paintOptions || data.paintColours ||
+                      data.exteriorColors || data.exteriorColours ||
+                      data.colorSwatches || data.colourSwatches ||
+                      data.vehicleColors || data.availableColors;
+    
+    if (Array.isArray(colorData)) {
       for (const color of colorData) {
+        if (typeof color === 'string') {
+          details.colors.push({ name: color, price: 0 });
+          continue;
+        }
+        
+        // Extract swatch image - Ford often uses these fields
+        const swatchImage = color.swatchImage || color.swatch || color.thumbnail || 
+                           color.image || color.colourImage || color.colorImage ||
+                           color.previewImage || color.sampleImage ||
+                           (color.images?.[0]) ||
+                           (color.swatchImages?.[0]);
+        
+        const fullImage = color.fullImage || color.vehicleImage || color.renderImage ||
+                         color.imageUrl || color.imageURL || color.photo ||
+                         (color.images?.[1]) || swatchImage;
+        
         details.colors.push({
-          name: color.name || color.label,
-          code: color.code,
-          hex: color.hex,
-          image: color.image,
-          price: color.price || 0,
+          name: color.name || color.label || color.colourName || color.colorName || color.title,
+          code: color.code || color.id || color.colourCode || color.colorCode || color.swatchCode,
+          hex: color.hex || color.colourHex || color.colorHex || color.rgb || color.colourRgb,
+          type: color.type || color.category || color.colourType || 
+                (color.isPremium ? 'premium' : color.isMetallic ? 'metallic' : 'standard'),
+          price: color.price || color.cost || color.colourPrice || color.optionPrice || 
+                 color.priceAdjustment || color.additionalCost || 0,
+          swatchImage: swatchImage,
+          fullImage: fullImage,
+          image: swatchImage || fullImage,
+          fordColorCode: color.fordColourCode || color.fordColorCode,
+          paintType: color.paintType || color.finish || color.colourFinish,
+          isPremium: color.isPremium || color.premium || false,
+          isMetallic: color.isMetallic || color.metallic || false,
         });
+      }
+    }
+    
+    // Look for gallery/images data
+    const galleryData = data.gallery || data.images || data.imageGallery ||
+                        data.vehicleImages || data.carImages ||
+                        data.exteriorImages || data.interiorImages ||
+                        data.mediaGallery || data.photoGallery ||
+                        data.data?.gallery || data.data?.images;
+    
+    if (Array.isArray(galleryData)) {
+      for (const img of galleryData) {
+        if (typeof img === 'string') {
+          details.galleryImages.push({ url: img, type: 'gallery' });
+          continue;
+        }
+        
+        const imageType = img.type || img.imageType || img.category || 'gallery';
+        const isInterior = imageType.toLowerCase().includes('interior') ||
+                          (img.tags && img.tags.some((t: string) => t.toLowerCase().includes('interior')));
+        
+        details.galleryImages.push({
+          url: img.url || img.src || img.imageUrl || img.path,
+          thumbnail: img.thumbnail || img.thumbUrl || img.preview,
+          type: isInterior ? 'interior' : imageType,
+          category: img.category || img.section,
+          alt: img.alt || img.altText || img.description || img.caption,
+          tags: img.tags || img.labels || [],
+        });
+      }
+    }
+    
+    // Also check for separate interior images
+    const interiorData = data.interiorImages || data.interiorGallery || data.cockpitImages;
+    if (Array.isArray(interiorData)) {
+      for (const img of interiorData) {
+        const url = typeof img === 'string' ? img : (img.url || img.src);
+        if (!details.galleryImages.some((i: any) => i.url === url)) {
+          details.galleryImages.push({
+            url: url,
+            type: 'interior',
+            category: typeof img === 'object' ? (img.category || img.view) : 'interior',
+            alt: typeof img === 'object' ? (img.alt || img.description) : null,
+          });
+        }
       }
     }
     
@@ -530,6 +607,7 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
         const colors = details?.colors || [];
         const variants = details?.variants || [];
         const features = details?.features || [];
+        const galleryImages = details?.galleryImages || [];
         const detailedPricing = details?.pricing || {};
         
         // If no detailed variants, use basic models from API
@@ -569,12 +647,18 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
           vehicleType: np.vehicleType,
           bodyType: np.bodyType,
           group: np.group,
-          // Color information
+          // Image information
           image: np.image,
           imgUrlHeader: np.imgUrlHeader,
           imgAltText: np.imgAltText,
+          // Color information
           colors: colors,
           colorCount: colors.length,
+          // Gallery images (exterior, interior, detail shots)
+          galleryImages: galleryImages,
+          galleryImageCount: galleryImages.length,
+          interiorImages: galleryImages.filter((img: any) => img.type === 'interior'),
+          exteriorImages: galleryImages.filter((img: any) => img.type === 'exterior'),
           // CTA information
           additionalCTA: np.additionalCTA,
           additionalLabel: np.additionalLabel,
@@ -1116,6 +1200,8 @@ app.post('/admin/debug-crawl/:oemId', async (c) => {
         } : null,
         // Page info for debugging
         pageUsed: { id: page.id, url: page.url, page_type: page.page_type },
+        // Ford API debug info
+        fordApiDebug: (result.extractionResult as any)?.fordApiDebug || null,
       },
       storedApis: apis || [],
       storedApisCount: apis?.length || 0,
@@ -1333,6 +1419,142 @@ app.post('/sales-rep/generate', async (c) => {
   }
 
   return c.json({ error: 'Invalid type. Use "social" or "email"' }, 400);
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/enrich-ford/:oemId
+ * Enrich Ford products with variants, colors, and gallery using browser capture.
+ * Uses headless browser to intercept pricing API responses.
+ */
+app.post('/admin/enrich-ford/:oemId', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  
+  if (oemId !== 'ford-au') {
+    return c.json({ error: 'This endpoint only supports ford-au' }, 400);
+  }
+
+  const body = await c.req.json<{ maxVehicles?: number }>().catch(() => ({ maxVehicles: 5 }));
+  const maxVehicles = body.maxVehicles || 5;
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // Get existing Ford products
+  const { data: products, error: productsError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('oem_id', oemId)
+    .order('title');
+
+  if (productsError) {
+    return c.json({ error: 'Failed to fetch products', details: productsError.message }, 500);
+  }
+
+  if (!products || products.length === 0) {
+    return c.json({ error: 'No Ford products found in database' }, 404);
+  }
+
+  console.log(`[Enrich Ford] Starting enrichment for ${products.length} products, max ${maxVehicles} to process`);
+
+  // Create orchestrator and run enrichment
+  const orchestrator = createOrchestratorFromEnv(c.env);
+  
+  try {
+    const { enriched, captureResults } = await orchestrator.enrichFordProductsWithBrowserCapture(
+      products.slice(0, maxVehicles)
+    );
+
+    // Count variants created
+    const baseCount = products.filter(p => 
+      enriched.some(e => e.id === p.id)
+    ).length;
+    const variantCount = enriched.length - baseCount;
+
+    return c.json({
+      success: true,
+      summary: {
+        baseProducts: baseCount,
+        variantProducts: variantCount,
+        totalProducts: enriched.length,
+        vehiclesProcessed: captureResults.length,
+        successfulCaptures: captureResults.filter(r => r.success).length,
+      },
+      captureResults,
+      enrichedProducts: enriched.map(p => ({
+        title: p.title,
+        external_key: p.external_key,
+        isVariant: !!p.parent_nameplate,
+        parent: p.parent_nameplate,
+        variants: p.variants?.length || 0,
+        colors: p.meta?.colorCount || 0,
+        images: p.meta?.galleryImageCount || 0,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[Enrich Ford] Error:', error);
+    return c.json({
+      error: 'Enrichment failed',
+      details: error?.message || 'Unknown error',
+    }, 500);
+  }
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/capture-ford-pricing
+ * Capture Ford pricing API for a specific vehicle using browser.
+ */
+app.post('/admin/capture-ford-pricing', async (c) => {
+  const body = await c.req.json<{
+    vehicleCode: string;
+    vehicleName: string;
+  }>();
+
+  if (!body.vehicleCode || !body.vehicleName) {
+    return c.json({ error: 'vehicleCode and vehicleName are required' }, 400);
+  }
+
+  const orchestrator = createOrchestratorFromEnv(c.env);
+
+  try {
+    const result = await orchestrator['captureFordPricingApiWithBrowser'](
+      body.vehicleCode,
+      body.vehicleName
+    );
+
+    if (!result) {
+      return c.json({
+        success: false,
+        message: 'No pricing data captured',
+      });
+    }
+
+    // Extract data using existing methods
+    const variants = orchestrator['extractVariantsFromPricingData'](result.data, body.vehicleName);
+    const colors = orchestrator['extractColorsFromPricingData'](result.data);
+    const galleryImages = orchestrator['extractGalleryImagesFromPricingData'](result.data);
+
+    return c.json({
+      success: true,
+      source: result.source,
+      extracted: {
+        variants: variants.length,
+        colors: colors.length,
+        galleryImages: galleryImages.length,
+      },
+      variants: variants.slice(0, 10), // Limit response size
+      colors: colors.slice(0, 10),
+      galleryImages: galleryImages.slice(0, 5),
+      rawDataKeys: Object.keys(result.data),
+    });
+  } catch (error: any) {
+    console.error('[Capture Ford Pricing] Error:', error);
+    return c.json({
+      error: 'Capture failed',
+      details: error?.message || 'Unknown error',
+    }, 500);
+  }
 });
 
 // ============================================================================
