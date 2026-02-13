@@ -397,7 +397,26 @@ export class OemAgentOrchestrator {
 
     for (const api of productApis) {
       console.log(`[Orchestrator] Looking for response matching: ${api.url}`);
-      const response = smartModeResult.networkResponses.find((r) => r.url === api.url);
+      // Try exact match first, then normalize URL for comparison
+      let response = smartModeResult.networkResponses.find((r) => r.url === api.url);
+      
+      // If no exact match, try matching without query params and with normalized paths
+      if (!response) {
+        const apiUrlObj = new URL(api.url);
+        const apiPath = apiUrlObj.pathname;
+        response = smartModeResult.networkResponses.find((r) => {
+          try {
+            const rUrlObj = new URL(r.url);
+            return rUrlObj.pathname === apiPath;
+          } catch {
+            return false;
+          }
+        });
+        if (response) {
+          console.log(`[Orchestrator] Found response via path match: ${apiPath}`);
+        }
+      }
+      
       console.log(`[Orchestrator] Found response: ${response ? 'yes' : 'no'}, body length: ${response?.body?.length || 0}`);
       if (response?.body) {
         try {
@@ -411,6 +430,39 @@ export class OemAgentOrchestrator {
         }
       } else {
         console.log(`[Orchestrator] No body found for API: ${api.url}`);
+        
+        // Fallback: Try to fetch the API directly
+        console.log(`[Orchestrator] Attempting direct fetch fallback for: ${api.url}`);
+        try {
+          const directResponse = await fetch(api.url, {
+            headers: {
+              'Accept': 'application/json, text/plain, */*',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          });
+          
+          if (directResponse.ok) {
+            const body = await directResponse.text();
+            console.log(`[Orchestrator] Direct fetch successful: ${body.length} chars`);
+            
+            if (body.length > 0) {
+              try {
+                const data = JSON.parse(body);
+                console.log(`[Orchestrator] Parsed direct fetch JSON, type: ${Array.isArray(data) ? 'array' : typeof data}`);
+                const extractedProducts = this.extractProductsFromApiResponse(data);
+                products.push(...extractedProducts);
+                console.log(`[Orchestrator] Extracted ${extractedProducts.length} products from direct fetch: ${api.url}`);
+              } catch (parseErr) {
+                console.error(`[Orchestrator] Failed to parse direct fetch response:`, parseErr);
+              }
+            }
+          } else {
+            console.log(`[Orchestrator] Direct fetch failed: ${directResponse.status}`);
+          }
+        } catch (fetchErr) {
+          console.log(`[Orchestrator] Direct fetch error: ${fetchErr}`);
+        }
+        
         // Debug: log all available response URLs
         const availableUrls = smartModeResult.networkResponses.map(r => r.url.substring(0, 80));
         console.log(`[Orchestrator] Available response URLs: ${JSON.stringify(availableUrls.slice(0, 10))}`);
@@ -418,7 +470,23 @@ export class OemAgentOrchestrator {
     }
 
     for (const api of offerApis) {
-      const response = smartModeResult.networkResponses.find((r) => r.url === api.url);
+      // Try exact match first, then normalize URL for comparison
+      let response = smartModeResult.networkResponses.find((r) => r.url === api.url);
+      
+      // If no exact match, try matching without query params
+      if (!response) {
+        const apiUrlObj = new URL(api.url);
+        const apiPath = apiUrlObj.pathname;
+        response = smartModeResult.networkResponses.find((r) => {
+          try {
+            const rUrlObj = new URL(r.url);
+            return rUrlObj.pathname === apiPath;
+          } catch {
+            return false;
+          }
+        });
+      }
+      
       if (response?.body) {
         try {
           const data = JSON.parse(response.body);
@@ -427,6 +495,33 @@ export class OemAgentOrchestrator {
           console.log(`[Orchestrator] Extracted ${extractedOffers.length} offers from API: ${api.url}`);
         } catch (err) {
           console.error(`[Orchestrator] Failed to parse API response:`, err);
+        }
+      } else {
+        // Fallback: Try to fetch the API directly
+        console.log(`[Orchestrator] Attempting direct fetch fallback for offer API: ${api.url}`);
+        try {
+          const directResponse = await fetch(api.url, {
+            headers: {
+              'Accept': 'application/json, text/plain, */*',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          });
+          
+          if (directResponse.ok) {
+            const body = await directResponse.text();
+            if (body.length > 0) {
+              try {
+                const data = JSON.parse(body);
+                const extractedOffers = this.extractOffersFromApiResponse(data);
+                offers.push(...extractedOffers);
+                console.log(`[Orchestrator] Extracted ${extractedOffers.length} offers from direct fetch: ${api.url}`);
+              } catch (parseErr) {
+                console.error(`[Orchestrator] Failed to parse direct fetch response:`, parseErr);
+              }
+            }
+          }
+        } catch (fetchErr) {
+          console.log(`[Orchestrator] Direct fetch error for offers: ${fetchErr}`);
         }
       }
     }
