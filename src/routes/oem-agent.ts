@@ -379,6 +379,125 @@ app.get('/admin/discovered-apis/:oemId', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/direct-extract/:oemId
+ * Directly extract from known APIs and save to database
+ */
+app.post('/admin/direct-extract/:oemId', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  
+  if (oemId !== 'ford-au') {
+    return c.json({ error: 'Only ford-au supported for direct extract' }, 400);
+  }
+  
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  
+  try {
+    // Direct fetch Ford API
+    const response = await fetch('https://www.ford.com.au/content/ford/au/en_au.vehiclesmenu.data', {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-AU,en;q=0.9',
+        'Referer': 'https://www.ford.com.au/',
+        'Origin': 'https://www.ford.com.au',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    });
+    
+    if (!response.ok) {
+      return c.json({ error: 'Ford API failed', status: response.status }, 500);
+    }
+    
+    const body = await response.text();
+    const data = JSON.parse(body);
+    
+    // Extract vehicles
+    const vehicles: any[] = [];
+    for (const category of data) {
+      const catName = category.category || 'Unknown';
+      for (const np of category.nameplates || []) {
+        vehicles.push({
+          oem_id: oemId,
+          source_url: 'https://www.ford.com.au/',
+          title: np.name,
+          subtitle: null,
+          body_type: catName,
+          fuel_type: null,
+          availability: 'available',
+          price_amount: null,
+          price_currency: 'AUD',
+          price_type: null,
+          price_raw_string: null,
+          disclaimer_text: null,
+          key_features: [],
+          variants: [],
+          cta_links: [],
+          meta_json: { category: catName, code: np.code },
+          last_seen_at: new Date().toISOString(),
+        });
+      }
+    }
+    
+    // Insert vehicles (workaround for missing unique constraint)
+    let inserted = 0;
+    let errors = 0;
+    let skipped = 0;
+    
+    const errorDetails: string[] = [];
+    
+    // Get existing products first
+    const { data: existingProducts } = await supabase
+      .from('products')
+      .select('title')
+      .eq('oem_id', oemId);
+    
+    const existingTitles = new Set((existingProducts || []).map(p => p.title));
+    console.log(`[Direct Extract] Existing products: ${existingTitles.size}`);
+    
+    for (const vehicle of vehicles) {
+      // Skip duplicates in this batch
+      if (existingTitles.has(vehicle.title)) {
+        skipped++;
+        continue;
+      }
+      
+      const { error } = await supabase
+        .from('products')
+        .insert(vehicle);
+      
+      if (error) {
+        console.error(`[Direct Extract] Error inserting ${vehicle.title}:`, error);
+        errors++;
+        if (errorDetails.length < 5) {
+          errorDetails.push(`${vehicle.title}: ${error.message}`);
+        }
+      } else {
+        inserted++;
+        existingTitles.add(vehicle.title); // Mark as existing
+      }
+    }
+    
+    return c.json({
+      success: true,
+      extracted: vehicles.length,
+      inserted,
+      skipped,
+      errors,
+      errorDetails,
+      vehicles: vehicles.map(v => v.title),
+    });
+  } catch (error) {
+    console.error('[Direct Extract] Error:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
+/**
  * POST /api/v1/oem-agent/admin/force-crawl/:oemId
  * Force crawl all pages for an OEM (bypasses scheduler check)
  */
