@@ -442,15 +442,27 @@ export class OemAgentOrchestrator {
       } else {
         console.log(`[Orchestrator] No body found for API: ${api.url}`);
         
-        // Fallback: Try to fetch the API directly
+        // Fallback: Try to fetch the API directly with OEM-specific headers
         console.log(`[Orchestrator] Attempting direct fetch fallback for: ${api.url}`);
         try {
-          const directResponse = await fetch(api.url, {
-            headers: {
-              'Accept': 'application/json, text/plain, */*',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-          });
+          // Build headers with Referer for OEM sites that require it (Ford, etc.)
+          const headers: Record<string, string> = {
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          };
+          
+          // Add Referer for known OEMs that require it
+          if (api.url.includes('ford.com')) {
+            headers['Referer'] = 'https://www.ford.com.au/';
+            headers['Origin'] = 'https://www.ford.com.au';
+            console.log(`[Orchestrator] Adding Ford-specific headers for direct fetch`);
+          } else if (api.url.includes('toyota.com')) {
+            headers['Referer'] = 'https://www.toyota.com.au/';
+          } else if (api.url.includes('hyundai.com')) {
+            headers['Referer'] = 'https://www.hyundai.com/au/';
+          }
+          
+          const directResponse = await fetch(api.url, { headers });
           
           if (directResponse.ok) {
             const body = await directResponse.text();
@@ -508,15 +520,24 @@ export class OemAgentOrchestrator {
           console.error(`[Orchestrator] Failed to parse API response:`, err);
         }
       } else {
-        // Fallback: Try to fetch the API directly
+        // Fallback: Try to fetch the API directly with OEM-specific headers
         console.log(`[Orchestrator] Attempting direct fetch fallback for offer API: ${api.url}`);
         try {
-          const directResponse = await fetch(api.url, {
-            headers: {
-              'Accept': 'application/json, text/plain, */*',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-          });
+          const headers: Record<string, string> = {
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          };
+          
+          if (api.url.includes('ford.com')) {
+            headers['Referer'] = 'https://www.ford.com.au/';
+            headers['Origin'] = 'https://www.ford.com.au';
+          } else if (api.url.includes('toyota.com')) {
+            headers['Referer'] = 'https://www.toyota.com.au/';
+          } else if (api.url.includes('hyundai.com')) {
+            headers['Referer'] = 'https://www.hyundai.com/au/';
+          }
+          
+          const directResponse = await fetch(api.url, { headers });
           
           if (directResponse.ok) {
             const body = await directResponse.text();
