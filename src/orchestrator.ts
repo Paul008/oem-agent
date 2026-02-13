@@ -330,7 +330,14 @@ export class OemAgentOrchestrator {
       }
 
       // Step 7: Process changes
-      await this.processChanges(oemId, page, extractionResult);
+      console.log(`[Orchestrator] About to process changes. Products: ${extractionResult.products?.data?.length || 0}`);
+      try {
+        await this.processChanges(oemId, page, extractionResult);
+        console.log(`[Orchestrator] Process changes completed successfully`);
+      } catch (processError) {
+        console.error(`[Orchestrator] Process changes FAILED:`, processError);
+        throw processError;
+      }
 
       // Step 8: Update source page record
       await this.updateSourcePage(page, htmlHash, wasRendered);
@@ -1639,8 +1646,14 @@ ${html.substring(0, 50000)}
   ): Promise<void> {
     // Process products
     if (extractionResult.products?.data) {
+      console.log(`[Orchestrator] Processing ${extractionResult.products.data.length} products for ${page.url}`);
       for (const extractedProduct of extractionResult.products.data) {
-        await this.upsertProduct(oemId, page.url, extractedProduct);
+        try {
+          await this.upsertProduct(oemId, page.url, extractedProduct);
+          console.log(`[Orchestrator] Upserted product: ${extractedProduct.title}`);
+        } catch (error) {
+          console.error(`[Orchestrator] Failed to upsert product ${extractedProduct.title}:`, error);
+        }
       }
     }
 
@@ -1672,7 +1685,8 @@ ${html.substring(0, 50000)}
       .eq('source_url', sourceUrl)
       .maybeSingle();
 
-    const product: Partial<Product> = {
+    // Use database column names (meta_json, not meta)
+    const product: Record<string, any> = {
       oem_id: oemId,
       source_url: sourceUrl,
       title: productData.title,
@@ -1688,7 +1702,7 @@ ${html.substring(0, 50000)}
       key_features: productData.key_features || [],
       variants: productData.variants || [],
       cta_links: productData.cta_links || [],
-      meta: productData.meta || {},
+      meta_json: productData.meta || {}, // Database column is meta_json
       last_seen_at: new Date().toISOString(),
     };
 
@@ -1722,11 +1736,17 @@ ${html.substring(0, 50000)}
     } else {
       // New product
       product.id = crypto.randomUUID();
-      product.first_seen_at = new Date().toISOString();
-      
-      await this.config.supabaseClient
+      // Note: first_seen_at doesn't exist in schema, using created_at (auto-set by DB)
+
+      const { error } = await this.config.supabaseClient
         .from('products')
         .insert(product);
+
+      if (error) {
+        console.error(`[Orchestrator] Failed to insert product ${product.title}:`, error);
+        throw error;
+      }
+      console.log(`[Orchestrator] Inserted new product: ${product.title} (${product.id})`);
 
       // Create change event for new product
       const analysis = this.changeDetector.detectProductChanges(null, product as Product);

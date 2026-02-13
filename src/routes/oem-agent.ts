@@ -657,11 +657,45 @@ app.post('/admin/debug-crawl/:oemId', async (c) => {
   try {
     const result = await orchestrator.crawlPage(oemId, page as any);
 
-    // Also check what's in discovered_apis now
+    // Also check what's in discovered_apis and products now
     const { data: apis } = await supabase
       .from('discovered_apis')
       .select('*')
       .eq('oem_id', oemId);
+
+    // Check if products were saved
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('id, title, source_url')
+      .eq('oem_id', oemId)
+      .limit(5);
+
+    // Test direct insert to verify database connection
+    let testInsertResult = null;
+    try {
+      const testProduct = {
+        id: crypto.randomUUID(),
+        oem_id: oemId,
+        source_url: 'https://test.example.com/' + Date.now(),
+        title: 'Test Product ' + Date.now(),
+        availability: 'available',
+        price_currency: 'AUD',
+        key_features: [],
+        variants: [],
+        cta_links: [],
+        meta_json: {},
+        last_seen_at: new Date().toISOString(),
+        // Note: created_at is auto-set by the database
+      };
+      const { error: insertError } = await supabase.from('products').insert(testProduct);
+      testInsertResult = insertError ? { error: insertError.message } : { success: true, productId: testProduct.id };
+      // Clean up test product
+      if (!insertError) {
+        await supabase.from('products').delete().eq('id', testProduct.id);
+      }
+    } catch (e: any) {
+      testInsertResult = { exception: e.message };
+    }
 
     return c.json({
       crawlResult: {
@@ -673,9 +707,30 @@ app.post('/admin/debug-crawl/:oemId', async (c) => {
         discoveredApis: result.discoveredApis?.slice(0, 10) || [],
         durationMs: result.durationMs,
         error: result.error,
+        // Include extraction results for debugging
+        extractionResult: result.extractionResult ? {
+          productsCount: result.extractionResult.products?.data?.length || 0,
+          offersCount: result.extractionResult.offers?.data?.length || 0,
+          bannersCount: result.extractionResult.bannerSlides?.data?.length || 0,
+          productsMethod: result.extractionResult.products?.method,
+          productsConfidence: result.extractionResult.products?.confidence,
+          sampleProducts: result.extractionResult.products?.data?.slice(0, 3)?.map((p: any) => ({
+            title: p.title,
+            body_type: p.body_type,
+            source_url: p.source_url,
+          })) || [],
+        } : null,
+        // Page info for debugging
+        pageUsed: { id: page.id, url: page.url, page_type: page.page_type },
       },
       storedApis: apis || [],
       storedApisCount: apis?.length || 0,
+      // Products in database after crawl
+      productsInDb: products || [],
+      productsInDbCount: products?.length || 0,
+      productsDbError: productsError?.message || null,
+      // Test insert result
+      testInsertResult,
     });
   } catch (err) {
     return c.json({
