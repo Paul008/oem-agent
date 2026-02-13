@@ -966,6 +966,8 @@ export class OemAgentOrchestrator {
 
     const networkRequests: NetworkRequest[] = [];
     const networkResponses: NetworkResponse[] = [];
+    let pendingResponseHandlers = 0;
+    const responsePromises: Promise<void>[] = [];
 
     try {
       console.log(`[Orchestrator] Creating new page...`);
@@ -1080,8 +1082,11 @@ export class OemAgentOrchestrator {
       }
 
       // Capture all responses (response events work even without interception)
-      page.on('response', async (response) => {
-        try {
+      page.on('response', (response) => {
+        // Track this handler as pending
+        pendingResponseHandlers++;
+        const handlerPromise = (async () => {
+          try {
           const request = response.request();
           const resourceType = request.resourceType();
           const responseUrl = response.url();
@@ -1149,7 +1154,11 @@ export class OemAgentOrchestrator {
           }
         } catch (responseError) {
           console.warn(`[SmartMode] Error processing response:`, responseError);
+        } finally {
+          pendingResponseHandlers--;
         }
+        })();
+        responsePromises.push(handlerPromise);
       });
 
       // Track performance metrics
@@ -1203,6 +1212,11 @@ export class OemAgentOrchestrator {
       // Get the full HTML content
       const html = await page.content();
       console.log(`[Orchestrator] Got page content: ${html.length} chars`);
+
+      // Wait for all response handlers to complete (important for async body reading)
+      console.log(`[Orchestrator] Waiting for ${pendingResponseHandlers} pending response handlers...`);
+      await Promise.all(responsePromises);
+      console.log(`[Orchestrator] All response handlers complete, ${networkResponses.length} responses captured`);
 
       // Analyze captured responses to identify API candidates
       const apiCandidates = this.analyzeApiCandidates(networkResponses, oemId);
