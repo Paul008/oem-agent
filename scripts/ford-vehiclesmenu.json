@@ -1,0 +1,766 @@
+[
+  {
+    "category": "Trucks",
+    "actionButtons": "<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/vehicles.html\" _link_style=\"cta-button cta-button-primary\">EXPLORE ALL VEHICLES</a></p>\n<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/latest-offers.html\" _link_style=\"cta-button cta-button-primary\">LATEST OFFERS</a></p>\n",
+    "nameplates": [
+      {
+        "code": "Next-Gen_Ranger-test",
+        "name": "Ranger",
+        "image": "/content/dam/Ford/au/nameplate/ranger/jellybean/ranger-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/ranger.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "white-next-gen-ranger-sideview",
+        "additionalCTA": "https://www.ford.com.au/price/Ranger",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/ranger/jellybean/ranger-jb.webp"
+      },
+      {
+        "code": "next-gen-ranger-raptor-key-aus",
+        "name": "Ranger Raptor",
+        "image": "/content/dam/Ford/au/nameplate/ranger/raptor/jellybean/raptor-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/ranger-raptor.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "white-ford-next-gen-ranger-raptor-sideview",
+        "additionalCTA": "https://www.ford.com.au/price/Ranger",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [
+          "Performance"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/ranger/raptor/jellybean/raptor-jb.webp"
+      },
+      {
+        "code": "ranger-phev",
+        "name": "Ranger Hybrid",
+        "image": "/content/dam/Ford/au/nameplate/ranger/model/hybrid/jellybean/ranger-phev-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/electric/phev/ranger.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Alt Text",
+        "additionalCTA": "https://www.ford.com.au/price/RangerHybrid",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [
+          "Electrified"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/ranger/model/hybrid/jellybean/ranger-phev-jb.webp"
+      },
+      {
+        "code": "superduty",
+        "name": "Ranger Super Duty",
+        "image": "/content/dam/Ford/au/nameplate/ranger/model/super-duty/jellybean/super-duty-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/ranger/super-duty.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "ranger super duty",
+        "additionalCTA": "https://www.ford.com.au/price/RangerSuperDuty",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/ranger/model/super-duty/jellybean/super-duty-jb.webp"
+      },
+      {
+        "code": "F-150-2024",
+        "name": "F-150",
+        "image": "/content/dam/Ford/au/nameplate/f-150/jellybean/f-150-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/f-150.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "F-150-sideview",
+        "additionalCTA": "https://www.ford.com.au/price/F-150",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/f-150/jellybean/f-150-jb.webp"
+      }
+    ]
+  },
+  {
+    "category": "Vans",
+    "actionButtons": "<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/vehicles.html\" _link_style=\"cta-button cta-button-primary\">EXPLORE ALL VEHICLES</a></p>\n<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/latest-offers.html\" _link_style=\"cta-button cta-button-primary\">LATEST OFFERS</a></p>\n",
+    "nameplates": [
+      {
+        "code": "tourneo-brochure-db",
+        "name": "Tourneo",
+        "image": "/content/dam/Ford/au/nameplate/tourneo/jellybean/tourneo-jb.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/suvs-and-cars/tourneo.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Tourneo",
+        "additionalCTA": "https://www.ford.com.au/price/Tourneo",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [
+          "People movers"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/tourneo/jellybean/tourneo-jb.webp"
+      },
+      {
+        "code": "2023-next-gen-transit-custom",
+        "name": "Transit Custom",
+        "image": "/content/dam/Ford/au/nameplate/transit-custom/jellybean/custom-jb.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/custom.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Transit Custom",
+        "additionalCTA": "https://www.ford.com.au/price/TransitCustom",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit-custom/jellybean/custom-jb.webp"
+      },
+      {
+        "code": "transit-custom-trail-1",
+        "name": "Transit Custom Trail",
+        "image": "/content/dam/Ford/au/nameplate/transit-custom/models/trail/jellybean/trail-cargovan.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/custom/trail.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "trail",
+        "additionalCTA": "https://www.ford.com.au/price/TransitCustom",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit-custom/models/trail/jellybean/trail-cargovan.webp"
+      },
+      {
+        "code": "Transit Van",
+        "name": "Transit Van",
+        "image": "/content/dam/Ford/au/nameplate/transit-van/jellybean/transit-van-jellybean.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/van.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Transit Van",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit-van/jellybean/transit-van-jellybean.webp"
+      },
+      {
+        "code": "Transit Bus",
+        "name": "Transit Bus",
+        "image": "/content/dam/Ford/au/nameplate/transit/model/bus/jellybean/transit-bus-jellybean.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/bus.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Transit Bus",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [
+          "People movers"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit/model/bus/jellybean/transit-bus-jellybean.webp"
+      },
+      {
+        "code": "Transit Cab Chassis",
+        "name": "Transit Cab Chassis",
+        "image": "/content/dam/Ford/au/nameplate/transit/model/cab-chasis/jellybean/transit-cab-chassis-jellybean.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/cab-chassis.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Transit Cab Chassis",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit/model/cab-chasis/jellybean/transit-cab-chassis-jellybean.webp"
+      }
+    ]
+  },
+  {
+    "category": "SUVs",
+    "actionButtons": "<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/vehicles.html\" _link_style=\"cta-button cta-button-primary\">EXPLORE ALL VEHICLES</a></p>\n<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/latest-offers.html\" _link_style=\"cta-button cta-button-primary\">LATEST OFFERS</a></p>\n",
+    "nameplates": [
+      {
+        "code": "Next-Gen-Everest",
+        "name": "Everest",
+        "image": "/content/dam/Ford/au/nameplate/everest/jellybean/everest-jb.webp",
+        "vehicleType": [
+          "SUVs"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/suv/everest.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "white-ford-next-gen-everest-sideview",
+        "additionalCTA": "https://www.ford.com.au/price/Everest",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/everest/jellybean/everest-jb.webp"
+      },
+      {
+        "code": "Mach-E",
+        "name": "Mustang Mach-E",
+        "image": "/content/dam/Ford/au/nameplate/mach-e/jellybean/mustang-mach-e-jb.webp",
+        "vehicleType": [
+          "SUVs"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/electric/mach-e.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Alt Text",
+        "additionalCTA": "https://www.ford.com.au/price/MustangMach-E",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [
+          "Performance",
+          "Electrified"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/mach-e/jellybean/mustang-mach-e-jb.webp"
+      }
+    ]
+  },
+  {
+    "category": "People movers",
+    "actionButtons": "<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/vehicles.html\" _link_style=\"cta-button cta-button-primary\">EXPLORE ALL VEHICLES</a></p>\n<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/latest-offers.html\" _link_style=\"cta-button cta-button-primary\">LATEST OFFERS</a></p>\n",
+    "nameplates": [
+      {
+        "code": "tourneo-brochure-db",
+        "name": "Tourneo",
+        "image": "/content/dam/Ford/au/nameplate/tourneo/jellybean/tourneo-jb.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/suvs-and-cars/tourneo.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Tourneo",
+        "additionalCTA": "https://www.ford.com.au/price/Tourneo",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [
+          "People movers"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/tourneo/jellybean/tourneo-jb.webp"
+      },
+      {
+        "code": "Transit Bus",
+        "name": "Transit Bus",
+        "image": "/content/dam/Ford/au/nameplate/transit/model/bus/jellybean/transit-bus-jellybean.webp",
+        "vehicleType": [
+          "Vans"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/bus.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Transit Bus",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [
+          "People movers"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit/model/bus/jellybean/transit-bus-jellybean.webp"
+      }
+    ]
+  },
+  {
+    "category": "Performance",
+    "actionButtons": "<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/vehicles.html\" _link_style=\"cta-button cta-button-primary\">EXPLORE ALL VEHICLES</a></p>\n<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/latest-offers.html\" _link_style=\"cta-button cta-button-primary\">LATEST OFFERS</a></p>\n",
+    "nameplates": [
+      {
+        "code": "Mach-E",
+        "name": "Mustang Mach-E",
+        "image": "/content/dam/Ford/au/nameplate/mach-e/jellybean/mustang-mach-e-jb.webp",
+        "vehicleType": [
+          "SUVs"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/electric/mach-e.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Alt Text",
+        "additionalCTA": "https://www.ford.com.au/price/MustangMach-E",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [
+          "Performance",
+          "Electrified"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/mach-e/jellybean/mustang-mach-e-jb.webp"
+      },
+      {
+        "code": "next-gen-ranger-raptor-key-aus",
+        "name": "Ranger Raptor",
+        "image": "/content/dam/Ford/au/nameplate/ranger/raptor/jellybean/raptor-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/ranger-raptor.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "white-ford-next-gen-ranger-raptor-sideview",
+        "additionalCTA": "https://www.ford.com.au/price/Ranger",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [
+          "Performance"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/ranger/raptor/jellybean/raptor-jb.webp"
+      },
+      {
+        "code": "mustang-2024-au",
+        "name": "Mustang",
+        "image": "/content/dam/Ford/au/nameplate/mustang/jellybean/mustang-jb.webp",
+        "vehicleType": [
+          "Performance"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/cars/mustang.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Mustang",
+        "additionalCTA": "https://www.ford.com.au/price/Mustang",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/mustang/jellybean/mustang-jb.webp"
+      }
+    ]
+  },
+  {
+    "category": "Electrified",
+    "actionButtons": "<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/vehicles.html\" _link_style=\"cta-button cta-button-primary\">EXPLORE ALL VEHICLES</a></p>\n<p style=\"text-align: center;\"><a class=\" cta-button cta-button-primary \" href=\"/content/ford/au/en_au/home/latest-offers.html\" _link_style=\"cta-button cta-button-primary\">LATEST OFFERS</a></p>\n",
+    "nameplates": [
+      {
+        "code": "Mach-E",
+        "name": "Mustang Mach-E",
+        "image": "/content/dam/Ford/au/nameplate/mach-e/jellybean/mustang-mach-e-jb.webp",
+        "vehicleType": [
+          "SUVs"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/electric/mach-e.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Alt Text",
+        "additionalCTA": "https://www.ford.com.au/price/MustangMach-E",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [
+          "Performance",
+          "Electrified"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/mach-e/jellybean/mustang-mach-e-jb.webp"
+      },
+      {
+        "code": "ranger-phev",
+        "name": "Ranger Hybrid",
+        "image": "/content/dam/Ford/au/nameplate/ranger/model/hybrid/jellybean/ranger-phev-jb.webp",
+        "vehicleType": [
+          "Trucks"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/electric/phev/ranger.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Alt Text",
+        "additionalCTA": "https://www.ford.com.au/price/RangerHybrid",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [
+          "Electrified"
+        ],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/ranger/model/hybrid/jellybean/ranger-phev-jb.webp"
+      },
+      {
+        "code": "e-transit",
+        "name": "E-Transit",
+        "image": "/content/dam/Ford/au/nameplate/e-transit/jellybean/e-transit-jellybean.webp",
+        "vehicleType": [
+          "Electrified"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/electric.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Electic",
+        "exploreLabel": "Explore",
+        "enableCTA": "false",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/e-transit/jellybean/e-transit-jellybean.webp"
+      },
+      {
+        "code": "transit-custom-phev",
+        "name": "Transit Custom PHEV",
+        "image": "/content/dam/Ford/au/nameplate/transit-custom/models/phev-trend/jellybean/trend-cargo-van-phev.webp",
+        "vehicleType": [
+          "Electrified"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/custom/phev-trend.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "Transit Custom PHEV",
+        "additionalCTA": "https://www.ford.com.au/price/TransitCustom",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/transit-custom/models/phev-trend/jellybean/trend-cargo-van-phev.webp"
+      },
+      {
+        "code": "transit-custom-bev",
+        "name": "E-Transit Custom",
+        "image": "/content/dam/Ford/au/nameplate/next-gen-e-transit-custom/jellybean/transit-custom-bev-jb.webp",
+        "vehicleType": [
+          "Electrified"
+        ],
+        "group": [],
+        "bodyType": [],
+        "pricing": {
+          "min": {
+            "priceVat": "$0"
+          }
+        },
+        "models": [],
+        "path": "/content/ecomm-img/au/en_au/home/trucks-and-vans/transit/custom/electric.html",
+        "attributeItemModels": [
+          {
+            "attributeId": " "
+          }
+        ],
+        "imgAltText": "E-Transit Custom",
+        "additionalCTA": "/content/ford/au/en_au/home/build-and-price/select-a-vehicle.html",
+        "additionalLabel": "Build & Price",
+        "exploreLabel": "Explore",
+        "enableCTA": "true",
+        "additionalCategories": [],
+        "blurbMessage": "",
+        "blurbIcon": "",
+        "imgUrlHeader": "/content/dam/Ford/au/nameplate/next-gen-e-transit-custom/jellybean/transit-custom-bev-jb.webp"
+      }
+    ]
+  }
+]

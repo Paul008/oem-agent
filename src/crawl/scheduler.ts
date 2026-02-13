@@ -133,29 +133,22 @@ export class CrawlScheduler {
 
   /**
    * Determine if a full browser render should be performed.
-   * 
-   * Implements spec Section 3.3 Rule 1: Skip render if cheap check shows no change
+   *
+   * Priority order:
+   * 1. Always respect render rate limits (prevent abuse)
+   * 2. OEMs that require browser rendering always render (cheap check unreliable)
+   * 3. For other OEMs, skip if hash unchanged (cost control)
    */
   shouldRender(
     page: SourcePage,
     currentHtmlHash: string,
     now: Date = new Date()
   ): { shouldRender: boolean; reason: string } {
-    // Check if hash has changed from last cheap check
-    if (page.last_hash === currentHtmlHash) {
-      if (this.config.skipRenderOnNoChange) {
-        return {
-          shouldRender: false,
-          reason: 'HTML hash unchanged - skipping render (cost control)',
-        };
-      }
-    }
-
-    // Check max render interval (Rule 2)
+    // Check max render interval first (Rule 2 - always respect rate limits)
     if (page.last_rendered_at) {
       const lastRendered = new Date(page.last_rendered_at);
       const minutesSinceLastRender = (now.getTime() - lastRendered.getTime()) / (1000 * 60);
-      
+
       if (minutesSinceLastRender < this.config.maxRenderIntervalMinutes) {
         return {
           shouldRender: false,
@@ -164,13 +157,24 @@ export class CrawlScheduler {
       }
     }
 
-    // Check if page requires browser rendering
+    // Check if OEM requires browser rendering (e.g., Ford with Akamai protection)
+    // For these OEMs, the cheap check is unreliable (may get blocked/garbage HTML)
     const oemDef = getOemDefinition(page.oem_id);
     if (oemDef?.flags.requiresBrowserRendering) {
       return {
         shouldRender: true,
         reason: 'Browser rendering required for this OEM',
       };
+    }
+
+    // For other OEMs, check if hash has changed from last cheap check (cost control)
+    if (page.last_hash === currentHtmlHash) {
+      if (this.config.skipRenderOnNoChange) {
+        return {
+          shouldRender: false,
+          reason: 'HTML hash unchanged - skipping render (cost control)',
+        };
+      }
     }
 
     return {

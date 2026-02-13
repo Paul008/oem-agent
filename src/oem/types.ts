@@ -789,6 +789,77 @@ export interface GroqModelConfig {
   supports_tools: boolean;
 }
 
+// ============================================================================
+// Smart Mode — API Discovery
+// ============================================================================
+
+export type ApiDiscoveryStatus = 'discovered' | 'verified' | 'stale' | 'error';
+
+export interface DiscoveredApi {
+  id: string; // UUID
+  oem_id: OemId;
+  source_page_id: string | null; // UUID - page where API was discovered
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  content_type: string | null;
+  response_type: 'json' | 'xml' | 'html' | 'text' | 'binary';
+  sample_request_headers: Record<string, string> | null;
+  sample_request_body: string | null;
+  sample_response_hash: string | null;
+  data_type: 'products' | 'offers' | 'inventory' | 'pricing' | 'config' | 'other' | null;
+  schema_json: object | null; // Inferred JSON schema
+  reliability_score: number; // 0-1 confidence score
+  status: ApiDiscoveryStatus;
+  last_successful_call: string | null;
+  call_count: number;
+  error_count: number;
+  discovered_at: string;
+  updated_at: string;
+}
+
+export interface NetworkRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  postData?: string;
+  resourceType: string;
+  timestamp: number;
+}
+
+export interface NetworkResponse {
+  url: string;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  contentType: string | null;
+  body?: string;
+  bodySize: number;
+  timestamp: number;
+}
+
+export interface SmartModeResult {
+  html: string;
+  networkRequests: NetworkRequest[];
+  networkResponses: NetworkResponse[];
+  apiCandidates: ApiCandidate[];
+  performanceMetrics: {
+    domContentLoaded: number;
+    loadComplete: number;
+    firstPaint: number | null;
+  };
+}
+
+export interface ApiCandidate {
+  url: string;
+  method: string;
+  contentType: string | null;
+  responseSize: number;
+  isJson: boolean;
+  isPotentialDataApi: boolean;
+  dataType: 'products' | 'offers' | 'inventory' | 'pricing' | 'config' | 'other' | null;
+  confidence: number;
+}
+
 export interface AiRouterConfig {
   groq: {
     api_base: string;
