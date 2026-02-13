@@ -4,7 +4,13 @@ import { createMockEnv } from '../test-utils';
 
 describe('buildEnvVars', () => {
   it('returns empty object when no env vars set', () => {
-    const env = createMockEnv();
+    // Override OEM defaults from createMockEnv to test empty case
+    const env = createMockEnv({
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
+    });
     const result = buildEnvVars(env);
     expect(result).toEqual({});
   });
@@ -145,10 +151,15 @@ describe('buildEnvVars', () => {
   });
 
   it('combines all env vars correctly', () => {
+    // Override OEM defaults to test only the vars we care about
     const env = createMockEnv({
       ANTHROPIC_API_KEY: 'sk-key',
       MOLTBOT_GATEWAY_TOKEN: 'token',
       TELEGRAM_BOT_TOKEN: 'tg',
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
     });
     const result = buildEnvVars(env);
 
@@ -157,5 +168,70 @@ describe('buildEnvVars', () => {
       OPENCLAW_GATEWAY_TOKEN: 'token',
       TELEGRAM_BOT_TOKEN: 'tg',
     });
+  });
+
+  // OEM Agent secrets
+  it('passes OEM Agent Supabase credentials', () => {
+    const env = createMockEnv({
+      SUPABASE_URL: 'https://project.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
+    });
+    const result = buildEnvVars(env);
+    expect(result.SUPABASE_URL).toBe('https://project.supabase.co');
+    expect(result.SUPABASE_SERVICE_ROLE_KEY).toBe('service-role-key');
+  });
+
+  it('passes OEM Agent LLM API keys', () => {
+    const env = createMockEnv({
+      GROQ_API_KEY: 'groq-key',
+      TOGETHER_API_KEY: 'together-key',
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+    });
+    const result = buildEnvVars(env);
+    expect(result.GROQ_API_KEY).toBe('groq-key');
+    expect(result.TOGETHER_API_KEY).toBe('together-key');
+  });
+
+  it('passes OEM Agent research API keys', () => {
+    const env = createMockEnv({
+      BRAVE_API_KEY: 'brave-key',
+      PERPLEXITY_API_KEY: 'perplexity-key',
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
+    });
+    const result = buildEnvVars(env);
+    expect(result.BRAVE_API_KEY).toBe('brave-key');
+    expect(result.PERPLEXITY_API_KEY).toBe('perplexity-key');
+  });
+
+  it('passes browser automation secrets', () => {
+    const env = createMockEnv({
+      CDP_SECRET: 'cdp-shared-secret',
+      WORKER_URL: 'https://worker.example.com',
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
+    });
+    const result = buildEnvVars(env);
+    expect(result.CDP_SECRET).toBe('cdp-shared-secret');
+    expect(result.WORKER_URL).toBe('https://worker.example.com');
+  });
+
+  it('passes Slack webhook for notifications', () => {
+    const env = createMockEnv({
+      SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/xxx',
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
+    });
+    const result = buildEnvVars(env);
+    expect(result.SLACK_WEBHOOK_URL).toBe('https://hooks.slack.com/services/xxx');
   });
 });
