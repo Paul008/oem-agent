@@ -406,160 +406,106 @@ export class OemAgentOrchestrator {
       jsonResponses.forEach(r => console.log(`  - ${r.url.substring(0, 100)} (body: ${r.body?.length || 0} chars)`));
     }
 
-    for (const api of productApis) {
-      console.log(`[Orchestrator] Looking for response matching: ${api.url}`);
-      // Try exact match first, then normalize URL for comparison
-      let response = smartModeResult.networkResponses.find((r) => r.url === api.url);
-      
-      // If no exact match, try matching without query params and with normalized paths
-      if (!response) {
-        const apiUrlObj = new URL(api.url);
-        const apiPath = apiUrlObj.pathname;
-        console.log(`[Orchestrator] Trying path match: ${apiPath}`);
-        response = smartModeResult.networkResponses.find((r) => {
-          try {
-            const rUrlObj = new URL(r.url);
-            const match = rUrlObj.pathname === apiPath;
-            if (r.url.includes('vehiclesmenu')) {
-              console.log(`[Orchestrator]   Comparing: ${rUrlObj.pathname} === ${apiPath} ? ${match}`);
+    // ROBUST EXTRACTION: Try to extract from ALL JSON responses with bodies first
+    // This bypasses URL matching issues and extracts from any response that looks like vehicle data
+    const jsonResponsesWithBody = smartModeResult.networkResponses.filter(
+      (r) => r.contentType?.includes('json') && r.body && r.body.length > 100
+    );
+    
+    console.log(`[Orchestrator] Attempting robust extraction from ${jsonResponsesWithBody.length} JSON responses`);
+    
+    const seenTitles = new Set<string>();
+    for (const response of jsonResponsesWithBody) {
+      try {
+        const data = JSON.parse(response.body!);
+        const extracted = this.extractProductsFromApiResponse(data);
+        if (extracted.length > 0) {
+          console.log(`[Orchestrator] Extracted ${extracted.length} products from: ${response.url.substring(0, 80)}`);
+          // Deduplicate as we go
+          for (const p of extracted) {
+            const title = p.title?.toLowerCase().trim();
+            if (title && !seenTitles.has(title)) {
+              seenTitles.add(title);
+              products.push(p);
             }
-            return match;
+          }
+        }
+      } catch (err) {
+        // Ignore parse errors
+      }
+    }
+    
+    console.log(`[Orchestrator] Total unique products from JSON responses: ${products.length}`);
+
+    // Fallback: Try direct fetch for any product APIs that weren't captured in network responses
+    for (const api of productApis) {
+      // Skip if we already have products from this URL (check by path)
+      try {
+        const apiPath = new URL(api.url).pathname;
+        const alreadyCaptured = jsonResponsesWithBody.some(r => {
+          try {
+            return new URL(r.url).pathname === apiPath;
           } catch {
             return false;
           }
         });
-        if (response) {
-          console.log(`[Orchestrator] Found response via path match: ${apiPath}`);
-        }
+        if (alreadyCaptured) continue;
+      } catch {
+        continue;
       }
       
-      console.log(`[Orchestrator] Found response: ${response ? 'yes' : 'no'}, body length: ${response?.body?.length || 0}`);
-      if (response?.body) {
-        try {
-          const data = JSON.parse(response.body);
-          console.log(`[Orchestrator] Parsed JSON successfully, type: ${Array.isArray(data) ? 'array' : typeof data}, length: ${Array.isArray(data) ? data.length : 'N/A'}`);
-          const extractedProducts = this.extractProductsFromApiResponse(data);
-          products.push(...extractedProducts);
-          console.log(`[Orchestrator] Extracted ${extractedProducts.length} products from API: ${api.url}`);
-        } catch (err) {
-          console.error(`[Orchestrator] Failed to parse API response:`, err);
-        }
-      } else {
-        console.log(`[Orchestrator] No body found for API: ${api.url}`);
+      console.log(`[Orchestrator] API not captured, trying direct fetch: ${api.url.substring(0, 80)}`);
+      
+      try {
+        const headers: Record<string, string> = {
+          'Accept': 'application/json, text/plain, */*',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        };
         
-        // Fallback: Try to fetch the API directly with OEM-specific headers
-        console.log(`[Orchestrator] Attempting direct fetch fallback for: ${api.url}`);
-        try {
-          // Build headers with Referer for OEM sites that require it (Ford, etc.)
-          const headers: Record<string, string> = {
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          };
-          
-          // Add Referer for known OEMs that require it
-          if (api.url.includes('ford.com')) {
-            headers['Referer'] = 'https://www.ford.com.au/';
-            headers['Origin'] = 'https://www.ford.com.au';
-            console.log(`[Orchestrator] Adding Ford-specific headers for direct fetch`);
-          } else if (api.url.includes('toyota.com')) {
-            headers['Referer'] = 'https://www.toyota.com.au/';
-          } else if (api.url.includes('hyundai.com')) {
-            headers['Referer'] = 'https://www.hyundai.com/au/';
-          }
-          
-          const directResponse = await fetch(api.url, { headers });
-          
-          if (directResponse.ok) {
-            const body = await directResponse.text();
-            console.log(`[Orchestrator] Direct fetch successful: ${body.length} chars`);
-            
-            if (body.length > 0) {
-              try {
-                const data = JSON.parse(body);
-                console.log(`[Orchestrator] Parsed direct fetch JSON, type: ${Array.isArray(data) ? 'array' : typeof data}`);
-                const extractedProducts = this.extractProductsFromApiResponse(data);
-                products.push(...extractedProducts);
-                console.log(`[Orchestrator] Extracted ${extractedProducts.length} products from direct fetch: ${api.url}`);
-              } catch (parseErr) {
-                console.error(`[Orchestrator] Failed to parse direct fetch response:`, parseErr);
+        if (api.url.includes('ford.com')) {
+          headers['Referer'] = 'https://www.ford.com.au/';
+          headers['Origin'] = 'https://www.ford.com.au';
+        } else if (api.url.includes('toyota.com')) {
+          headers['Referer'] = 'https://www.toyota.com.au/';
+        } else if (api.url.includes('hyundai.com')) {
+          headers['Referer'] = 'https://www.hyundai.com/au/';
+        }
+        
+        const directResponse = await fetch(api.url, { headers });
+        
+        if (directResponse.ok) {
+          const body = await directResponse.text();
+          if (body.length > 0) {
+            const data = JSON.parse(body);
+            const extracted = this.extractProductsFromApiResponse(data);
+            for (const p of extracted) {
+              const title = p.title?.toLowerCase().trim();
+              if (title && !seenTitles.has(title)) {
+                seenTitles.add(title);
+                products.push(p);
               }
             }
-          } else {
-            console.log(`[Orchestrator] Direct fetch failed: ${directResponse.status}`);
+            if (extracted.length > 0) {
+              console.log(`[Orchestrator] Direct fetch added ${extracted.length} products`);
+            }
           }
-        } catch (fetchErr) {
-          console.log(`[Orchestrator] Direct fetch error: ${fetchErr}`);
         }
-        
-        // Debug: log all available response URLs
-        const availableUrls = smartModeResult.networkResponses.map(r => r.url.substring(0, 80));
-        console.log(`[Orchestrator] Available response URLs: ${JSON.stringify(availableUrls.slice(0, 10))}`);
+      } catch (fetchErr) {
+        // Ignore fetch errors
       }
     }
 
-    for (const api of offerApis) {
-      // Try exact match first, then normalize URL for comparison
-      let response = smartModeResult.networkResponses.find((r) => r.url === api.url);
-      
-      // If no exact match, try matching without query params
-      if (!response) {
-        const apiUrlObj = new URL(api.url);
-        const apiPath = apiUrlObj.pathname;
-        response = smartModeResult.networkResponses.find((r) => {
-          try {
-            const rUrlObj = new URL(r.url);
-            return rUrlObj.pathname === apiPath;
-          } catch {
-            return false;
-          }
-        });
-      }
-      
-      if (response?.body) {
-        try {
-          const data = JSON.parse(response.body);
-          const extractedOffers = this.extractOffersFromApiResponse(data);
-          offers.push(...extractedOffers);
-          console.log(`[Orchestrator] Extracted ${extractedOffers.length} offers from API: ${api.url}`);
-        } catch (err) {
-          console.error(`[Orchestrator] Failed to parse API response:`, err);
+    // Also extract offers from all JSON responses
+    for (const response of jsonResponsesWithBody) {
+      try {
+        const data = JSON.parse(response.body!);
+        const extracted = this.extractOffersFromApiResponse(data);
+        if (extracted.length > 0) {
+          console.log(`[Orchestrator] Extracted ${extracted.length} offers from: ${response.url.substring(0, 80)}`);
+          offers.push(...extracted);
         }
-      } else {
-        // Fallback: Try to fetch the API directly with OEM-specific headers
-        console.log(`[Orchestrator] Attempting direct fetch fallback for offer API: ${api.url}`);
-        try {
-          const headers: Record<string, string> = {
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          };
-          
-          if (api.url.includes('ford.com')) {
-            headers['Referer'] = 'https://www.ford.com.au/';
-            headers['Origin'] = 'https://www.ford.com.au';
-          } else if (api.url.includes('toyota.com')) {
-            headers['Referer'] = 'https://www.toyota.com.au/';
-          } else if (api.url.includes('hyundai.com')) {
-            headers['Referer'] = 'https://www.hyundai.com/au/';
-          }
-          
-          const directResponse = await fetch(api.url, { headers });
-          
-          if (directResponse.ok) {
-            const body = await directResponse.text();
-            if (body.length > 0) {
-              try {
-                const data = JSON.parse(body);
-                const extractedOffers = this.extractOffersFromApiResponse(data);
-                offers.push(...extractedOffers);
-                console.log(`[Orchestrator] Extracted ${extractedOffers.length} offers from direct fetch: ${api.url}`);
-              } catch (parseErr) {
-                console.error(`[Orchestrator] Failed to parse direct fetch response:`, parseErr);
-              }
-            }
-          }
-        } catch (fetchErr) {
-          console.log(`[Orchestrator] Direct fetch error for offers: ${fetchErr}`);
-        }
+      } catch (err) {
+        // Ignore parse errors
       }
     }
 
