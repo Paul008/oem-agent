@@ -1557,6 +1557,226 @@ app.post('/admin/capture-ford-pricing', async (c) => {
   }
 });
 
+/**
+ * POST /api/v1/oem-agent/admin/network-capture
+ * Advanced network capture using dedicated NetworkInterceptionBrowser.
+ * Captures all network activity for analysis.
+ */
+app.post('/admin/network-capture', async (c) => {
+  const body = await c.req.json<{
+    url: string;
+    waitAfterLoad?: number;
+    urlPatterns?: string[];
+  }>();
+
+  if (!body.url) {
+    return c.json({ error: 'url is required' }, 400);
+  }
+
+  try {
+    // Dynamically import to avoid loading if not needed
+    const { createNetworkBrowser } = await import('../utils/network-browser');
+    
+    const browser = createNetworkBrowser(c.env.BROWSER!, {
+      waitAfterLoad: body.waitAfterLoad || 5000,
+      urlPatterns: body.urlPatterns || ['.*'],
+      captureResponseBody: true,
+    });
+
+    const session = await browser.capture(body.url);
+
+    // Analyze responses
+    const analysis = {
+      totalRequests: session.requests.length,
+      totalResponses: session.responses.length,
+      jsonResponses: session.jsonResponses.length,
+      apiResponses: session.apiResponses.length,
+      uniqueUrls: [...new Set(session.responses.map(r => r.url))].length,
+      statusCodes: {} as Record<number, number>,
+      contentTypes: {} as Record<string, number>,
+      domains: {} as Record<string, number>,
+    };
+
+    // Count status codes
+    for (const r of session.responses) {
+      analysis.statusCodes[r.status] = (analysis.statusCodes[r.status] || 0) + 1;
+    }
+
+    // Count content types
+    for (const r of session.responses) {
+      if (r.contentType) {
+        const ct = r.contentType.split(';')[0]; // Remove charset
+        analysis.contentTypes[ct] = (analysis.contentTypes[ct] || 0) + 1;
+      }
+    }
+
+    // Count domains
+    for (const r of session.responses) {
+      try {
+        const domain = new URL(r.url).hostname;
+        analysis.domains[domain] = (analysis.domains[domain] || 0) + 1;
+      } catch {
+        // Invalid URL
+      }
+    }
+
+    // Find potential API endpoints
+    const potentialApis = session.apiResponses
+      .filter(r => r.status === 200 && r.body && r.body.length > 50)
+      .map(r => ({
+        url: r.url.substring(0, 150),
+        status: r.status,
+        contentType: r.contentType,
+        bodySize: r.bodyLength,
+        bodyPreview: r.body?.substring(0, 200) + '...',
+      }))
+      .slice(0, 20); // Limit to first 20
+
+    return c.json({
+      success: true,
+      url: body.url,
+      duration: session.endTime - session.startTime,
+      analysis,
+      potentialApis,
+      jsonResponses: session.jsonResponses.map(r => ({
+        url: r.url.substring(0, 100),
+        status: r.status,
+        bodySize: r.bodyLength,
+      })).slice(0, 30),
+    });
+
+  } catch (error: any) {
+    console.error('[Network Capture] Error:', error);
+    return c.json({
+      error: 'Network capture failed',
+      details: error?.message || 'Unknown error',
+    }, 500);
+  }
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/capture-ford-advanced
+ * Advanced Ford pricing capture with network interception and API chaining.
+ */
+app.post('/admin/capture-ford-advanced', async (c) => {
+  const body = await c.req.json<{
+    vehicleCode: string;
+    vehicleName: string;
+    useApiChain?: boolean;
+  }>();
+
+  if (!body.vehicleCode || !body.vehicleName) {
+    return c.json({ error: 'vehicleCode and vehicleName are required' }, 400);
+  }
+
+  const results: any = {
+    vehicleCode: body.vehicleCode,
+    vehicleName: body.vehicleName,
+    methods: {},
+  };
+
+  try {
+    // Method 1: Network Interception Browser
+    console.log(`[Capture Ford Advanced] Trying network interception for ${body.vehicleName}`);
+    const { createNetworkBrowser } = await import('../utils/network-browser');
+    
+    const netBrowser = createNetworkBrowser(c.env.BROWSER!, {
+      waitAfterLoad: 8000, // Longer wait for React hydration
+      contentTypes: [
+        'application/json',
+        'text/json',
+        'application/javascript',
+        'text/javascript',
+      ],
+    });
+
+    const fordResult = await netBrowser.captureFordPricing(
+      body.vehicleName,
+      body.vehicleCode
+    );
+
+    results.methods.networkInterception = {
+      success: fordResult.pricingData.length > 0 || fordResult.configData.length > 0,
+      pricingDataCount: fordResult.pricingData.length,
+      configDataCount: fordResult.configData.length,
+      tokensExtracted: Object.keys(fordResult.tokens),
+      totalResponses: fordResult.session.responses.length,
+    };
+
+    results.pricingData = fordResult.pricingData;
+    results.configData = fordResult.configData;
+    results.tokens = fordResult.tokens;
+
+    // Method 2: API Chaining (if requested)
+    if (body.useApiChain) {
+      console.log(`[Capture Ford Advanced] Trying API chaining for ${body.vehicleName}`);
+      
+      const { ApiChainer } = await import('../utils/api-chainer');
+      const chainer = ApiChainer.createFordPricingChain(body.vehicleCode);
+
+      // Create a fetch function that uses the browser's fetch
+      const fetchFn = async (url: string, options: any) => {
+        const response = await fetch(url, options);
+        const body = await response.text();
+        
+        return {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          contentType: response.headers.get('content-type'),
+          body,
+          bodyLength: body.length,
+          timestamp: Date.now(),
+          fromCache: false,
+          id: Math.random().toString(36),
+          requestId: Math.random().toString(36),
+        };
+      };
+
+      const chainResult = await chainer.execute(fetchFn, fordResult.tokens);
+
+      results.methods.apiChaining = {
+        success: chainResult.success,
+        executedSteps: chainResult.executedSteps,
+        failedSteps: chainResult.failedSteps,
+        totalDuration: chainResult.totalDuration,
+        finalTokens: Object.keys(chainResult.context.tokens),
+      };
+
+      results.chainResult = {
+        mergedDataKeys: Object.keys(chainResult.mergedData),
+        stepResults: Array.from(chainResult.context.stepResults.entries()).map(
+          ([id, result]) => ({
+            stepId: id,
+            success: result.success,
+            tokensExtracted: result.tokensExtracted,
+          })
+        ),
+      };
+    }
+
+    // Determine overall success
+    const hasData = 
+      fordResult.pricingData.length > 0 ||
+      fordResult.configData.length > 0 ||
+      (body.useApiChain && results.methods.apiChaining?.success);
+
+    return c.json({
+      success: hasData,
+      ...results,
+    });
+
+  } catch (error: any) {
+    console.error('[Capture Ford Advanced] Error:', error);
+    return c.json({
+      error: 'Advanced capture failed',
+      details: error?.message || 'Unknown error',
+      ...results,
+    }, 500);
+  }
+});
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
