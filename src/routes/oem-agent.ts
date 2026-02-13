@@ -391,18 +391,23 @@ app.post('/admin/force-crawl/:oemId', async (c) => {
   });
 
   // Reset last_checked_at for all active pages to force them due
-  const { error: resetError } = await supabase
+  console.log(`[Force Crawl] Resetting pages for ${oemId}...`);
+  const { data: resetData, error: resetError } = await supabase
     .from('source_pages')
     .update({
       last_checked_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq('oem_id', oemId)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .select();
 
   if (resetError) {
+    console.error(`[Force Crawl] Reset failed:`, resetError);
     return c.json({ error: resetError.message }, 500);
   }
+  
+  console.log(`[Force Crawl] Reset ${resetData?.length || 0} pages for ${oemId}`);
 
   // Now trigger the crawl
   const orchestrator = c.get('orchestrator');
