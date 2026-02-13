@@ -664,6 +664,7 @@ export class OemAgentOrchestrator {
       items = data.results;
     }
 
+    let skippedNoTitle = 0;
     for (const item of items) {
       // Normalize to our product format
       const product = {
@@ -693,7 +694,14 @@ export class OemAgentOrchestrator {
       // Only add if we have at least a title
       if (product.title) {
         products.push(product);
+      } else {
+        skippedNoTitle++;
+        console.log(`[Orchestrator] Skipping item without title: ${JSON.stringify(item).substring(0, 200)}`);
       }
+    }
+    
+    if (skippedNoTitle > 0) {
+      console.log(`[Orchestrator] Skipped ${skippedNoTitle} items without title`);
     }
 
     return products;
@@ -774,6 +782,19 @@ export class OemAgentOrchestrator {
       // Log all extracted vehicle names for debugging
       const vehicleNames = items.map((i: any) => i.title).filter(Boolean);
       console.log(`[Orchestrator] Extracted vehicles: ${vehicleNames.join(', ')}`);
+      
+      // Log by category for debugging
+      const byCategory: Record<string, string[]> = {};
+      for (const item of items) {
+        const cat = item.category || 'Unknown';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(item.title);
+      }
+      console.log(`[Orchestrator] By category:`);
+      for (const [cat, names] of Object.entries(byCategory)) {
+        console.log(`[Orchestrator]   ${cat}: ${names.join(', ')}`);
+      }
+      
       return items;
     }
 
@@ -1895,14 +1916,21 @@ ${html.substring(0, 50000)}
     sourceUrl: string,
     productData: any
   ): Promise<void> {
+    console.log(`[UpsertProduct] Processing: ${productData.title}`);
+    
     // Check for existing product
     // Match by oem_id + title (multiple products can come from same source_url)
-    const { data: existing } = await this.config.supabaseClient
+    const { data: existing, error: queryError } = await this.config.supabaseClient
       .from('products')
-      .select('*')
+      .select('id, title')
       .eq('oem_id', oemId)
       .eq('title', productData.title)
       .maybeSingle();
+    
+    if (queryError) {
+      console.error(`[UpsertProduct] Query error for ${productData.title}:`, queryError);
+      return;
+    }
 
     // Use database column names (meta_json, not meta)
     const product: Record<string, any> = {
@@ -1926,15 +1954,22 @@ ${html.substring(0, 50000)}
     };
 
     if (existing) {
+      console.log(`[UpsertProduct] Existing product found: ${existing.id}`);
       // Detect changes
       const analysis = this.changeDetector.detectProductChanges(existing, product as Product);
       
       if (analysis) {
+        console.log(`[UpsertProduct] Changes detected, updating: ${productData.title}`);
         // Update product
-        await this.config.supabaseClient
+        const { error: updateError } = await this.config.supabaseClient
           .from('products')
           .update(product)
           .eq('id', existing.id);
+        
+        if (updateError) {
+          console.error(`[UpsertProduct] Update error for ${productData.title}:`, updateError);
+          return;
+        }
 
         // Create version record
         await this.config.supabaseClient
@@ -1951,21 +1986,29 @@ ${html.substring(0, 50000)}
 
         // Queue alert
         this.alertBatcher.add(analysis, oemId);
+      } else {
+        console.log(`[UpsertProduct] No changes for: ${productData.title}`);
+        // Still update last_seen_at
+        await this.config.supabaseClient
+          .from('products')
+          .update({ last_seen_at: product.last_seen_at })
+          .eq('id', existing.id);
       }
     } else {
+      console.log(`[UpsertProduct] NEW product, inserting: ${productData.title}`);
       // New product
       product.id = crypto.randomUUID();
       // Note: first_seen_at doesn't exist in schema, using created_at (auto-set by DB)
 
-      const { error } = await this.config.supabaseClient
+      const { error: insertError } = await this.config.supabaseClient
         .from('products')
         .insert(product);
 
-      if (error) {
-        console.error(`[Orchestrator] Failed to insert product ${product.title}:`, error);
-        throw error;
+      if (insertError) {
+        console.error(`[UpsertProduct] Failed to insert ${product.title}:`, insertError);
+        return;
       }
-      console.log(`[Orchestrator] Inserted new product: ${product.title} (${product.id})`);
+      console.log(`[UpsertProduct] Successfully inserted: ${product.title} (${product.id})`);
 
       // Create change event for new product
       const analysis = this.changeDetector.detectProductChanges(null, product as Product);
