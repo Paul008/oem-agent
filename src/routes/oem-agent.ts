@@ -379,6 +379,89 @@ app.get('/admin/discovered-apis/:oemId', async (c) => {
 });
 
 /**
+ * Fetch detailed vehicle data from Ford pricing page
+ */
+async function fetchFordVehicleDetails(vehicleCode: string, vehicleName: string): Promise<any> {
+  try {
+    // Try to fetch from the pricing endpoint
+    const pricingUrl = `https://www.ford.com.au/content/ford/au/en_au/home/${vehicleCode.toLowerCase().replace(/_/g, '-')}/pricing.data`;
+    
+    const response = await fetch(pricingUrl, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-AU,en;q=0.9',
+        'Referer': 'https://www.ford.com.au/',
+        'Origin': 'https://www.ford.com.au',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    });
+    
+    if (!response.ok) {
+      console.log(`[Ford Detail] No pricing data for ${vehicleName}: ${response.status}`);
+      return null;
+    }
+    
+    const body = await response.text();
+    const data = JSON.parse(body);
+    
+    // Extract color options, variants, and pricing
+    const details: any = {
+      colors: [],
+      variants: [],
+      features: [],
+      pricing: {},
+    };
+    
+    // Look for color data in the response
+    if (data.colors || data.colours) {
+      const colorData = data.colors || data.colours || [];
+      for (const color of colorData) {
+        details.colors.push({
+          name: color.name || color.label,
+          code: color.code,
+          hex: color.hex,
+          image: color.image,
+          price: color.price || 0,
+        });
+      }
+    }
+    
+    // Look for variant/trim data
+    if (data.variants || data.trims || data.grades) {
+      const variantData = data.variants || data.trims || data.grades || [];
+      for (const variant of variantData) {
+        details.variants.push({
+          code: variant.code,
+          name: variant.name || variant.label,
+          description: variant.description,
+          msrp: variant.msrp,
+          driveAwayPrice: variant.driveAwayPrice,
+          features: variant.features || [],
+        });
+      }
+    }
+    
+    // Look for feature highlights
+    if (data.features || data.highlights) {
+      details.features = data.features || data.highlights || [];
+    }
+    
+    // Look for pricing info
+    if (data.pricing) {
+      details.pricing = data.pricing;
+    }
+    
+    return details;
+  } catch (error) {
+    console.error(`[Ford Detail] Error fetching ${vehicleName}:`, error);
+    return null;
+  }
+}
+
+/**
  * POST /api/v1/oem-agent/admin/direct-extract/:oemId
  * Directly extract from known APIs and save to database
  */
@@ -416,11 +499,103 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
     const body = await response.text();
     const data = JSON.parse(body);
     
-    // Extract vehicles
+    // Extract vehicles with detailed sub-variants
     const vehicles: any[] = [];
+    let vehiclesWithDetails = 0;
+    
     for (const category of data) {
       const catName = category.category || 'Unknown';
       for (const np of category.nameplates || []) {
+        // Extract pricing information
+        const pricing = np.pricing || {};
+        const minPrice = pricing.min || {};
+        const priceAmount = minPrice.priceVat || minPrice.price || null;
+        
+        // Parse price amount (remove $ and commas)
+        let parsedPrice: number | null = null;
+        if (priceAmount && typeof priceAmount === 'string') {
+          const priceMatch = priceAmount.replace(/[$,]/g, '');
+          parsedPrice = parseFloat(priceMatch) || null;
+        }
+        
+        // Fetch detailed vehicle data (colors, variants, pricing)
+        const vehicleCode = np.code || '';
+        const vehicleName = np.name || '';
+        const details = await fetchFordVehicleDetails(vehicleCode, vehicleName);
+        if (details) {
+          vehiclesWithDetails++;
+        }
+        
+        // Merge API data with detailed data
+        const colors = details?.colors || [];
+        const variants = details?.variants || [];
+        const features = details?.features || [];
+        const detailedPricing = details?.pricing || {};
+        
+        // If no detailed variants, use basic models from API
+        if (variants.length === 0) {
+          for (const model of np.models || []) {
+            variants.push({
+              code: model.code,
+              name: model.name,
+              description: model.description,
+              bodyStyle: model.bodyStyle,
+              engine: model.engine,
+              transmission: model.transmission,
+              drivetrain: model.drivetrain,
+              fuelType: model.fuelType,
+              pricing: {
+                msrp: model.msrp,
+                driveAwayPrice: model.driveAwayPrice,
+                priceFrom: model.priceFrom,
+              },
+            });
+          }
+        }
+        
+        // Extract basic features from attributeItemModels if no detailed features
+        if (features.length === 0) {
+          for (const attr of np.attributeItemModels || []) {
+            if (attr.attributeId && attr.attributeId.trim()) {
+              features.push(attr.attributeId);
+            }
+          }
+        }
+        
+        // Build comprehensive meta_json with all sub-variant data
+        const metaJson: Record<string, any> = {
+          category: catName,
+          code: np.code,
+          vehicleType: np.vehicleType,
+          bodyType: np.bodyType,
+          group: np.group,
+          // Color information
+          image: np.image,
+          imgUrlHeader: np.imgUrlHeader,
+          imgAltText: np.imgAltText,
+          colors: colors,
+          colorCount: colors.length,
+          // CTA information
+          additionalCTA: np.additionalCTA,
+          additionalLabel: np.additionalLabel,
+          exploreLabel: np.exploreLabel,
+          // Pricing details
+          pricing: {
+            min: minPrice,
+            parsedAmount: parsedPrice,
+            rawString: priceAmount,
+            detailed: detailedPricing,
+          },
+          // Sub-variants/models
+          variants: variants,
+          variantCount: variants.length,
+          // Features
+          features: features,
+          featureCount: features.length,
+          // Additional categories (e.g., color options, trim levels)
+          additionalCategories: np.additionalCategories || [],
+        };
+        
         vehicles.push({
           oem_id: oemId,
           source_url: 'https://www.ford.com.au/',
@@ -429,15 +604,15 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
           body_type: catName,
           fuel_type: null,
           availability: 'available',
-          price_amount: null,
+          price_amount: parsedPrice,
           price_currency: 'AUD',
-          price_type: null,
-          price_raw_string: null,
-          disclaimer_text: null,
-          key_features: [],
-          variants: [],
-          cta_links: [],
-          meta_json: { category: catName, code: np.code },
+          price_type: parsedPrice ? 'driveaway' : null,
+          price_raw_string: priceAmount,
+          disclaimer_text: np.blurbMessage || null,
+          key_features: features,
+          variants: variants,
+          cta_links: np.additionalCTA ? [{ label: np.additionalLabel || 'Build & Price', url: np.additionalCTA }] : [],
+          meta_json: metaJson,
           last_seen_at: new Date().toISOString(),
         });
       }
@@ -482,6 +657,12 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
       }
     }
     
+    // Calculate totals
+    const totalVariants = vehicles.reduce((sum, v) => sum + (v.variants?.length || 0), 0);
+    const totalFeatures = vehicles.reduce((sum, v) => sum + (v.key_features?.length || 0), 0);
+    const totalColors = vehicles.reduce((sum, v) => sum + (v.meta_json?.colors?.length || 0), 0);
+    const vehiclesWithPricing = vehicles.filter(v => v.price_amount && v.price_amount > 0).length;
+    
     return c.json({
       success: true,
       extracted: vehicles.length,
@@ -489,7 +670,23 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
       skipped,
       errors,
       errorDetails,
-      vehicles: vehicles.map(v => v.title),
+      summary: {
+        totalVehicles: vehicles.length,
+        totalVariants,
+        totalFeatures,
+        totalColors,
+        vehiclesWithPricing,
+        vehiclesWithDetails,
+      },
+      vehicles: vehicles.map(v => ({
+        title: v.title,
+        price: v.price_amount,
+        variantCount: v.variants?.length || 0,
+        featureCount: v.key_features?.length || 0,
+        colorCount: v.meta_json?.colors?.length || 0,
+        variants: v.variants?.map((m: any) => m.name) || [],
+        colors: v.meta_json?.colors?.map((c: any) => c.name) || [],
+      })),
     });
   } catch (error) {
     console.error('[Direct Extract] Error:', error);
