@@ -616,6 +616,79 @@ app.post('/admin/test-crawl', async (c) => {
 });
 
 /**
+ * GET /api/v1/oem-agent/admin/test-ford-api
+ * Direct test of Ford API from worker
+ */
+app.get('/admin/test-ford-api', async (c) => {
+  try {
+    console.log('[Test Ford API] Starting direct fetch');
+    
+    const response = await fetch('https://www.ford.com.au/content/ford/au/en_au.vehiclesmenu.data', {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-AU,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://www.ford.com.au/',
+        'Origin': 'https://www.ford.com.au',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    });
+    
+    console.log(`[Test Ford API] Response status: ${response.status}`);
+    
+    if (!response.ok) {
+      return c.json({ 
+        error: 'Ford API request failed', 
+        status: response.status,
+        statusText: response.statusText 
+      }, 500);
+    }
+    
+    const body = await response.text();
+    console.log(`[Test Ford API] Body length: ${body.length}`);
+    
+    let data;
+    try {
+      data = JSON.parse(body);
+    } catch (e) {
+      return c.json({ 
+        error: 'Failed to parse JSON', 
+        bodyPreview: body.substring(0, 500) 
+      }, 500);
+    }
+    
+    // Count vehicles
+    let totalVehicles = 0;
+    const categories: Record<string, number> = {};
+    
+    if (Array.isArray(data)) {
+      for (const cat of data) {
+        const catName = cat.category || 'Unknown';
+        const count = cat.nameplates?.length || 0;
+        categories[catName] = count;
+        totalVehicles += count;
+      }
+    }
+    
+    return c.json({
+      success: true,
+      bodyLength: body.length,
+      totalVehicles,
+      categories,
+      sample: data?.[0]?.nameplates?.[0] || null,
+    });
+  } catch (error) {
+    console.error('[Test Ford API] Error:', error);
+    return c.json({ 
+      error: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+/**
  * POST /api/v1/oem-agent/admin/debug-crawl/:oemId
  * Debug crawl a single page using orchestrator logic and return full results
  */
