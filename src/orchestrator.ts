@@ -418,20 +418,31 @@ export class OemAgentOrchestrator {
     for (const response of jsonResponsesWithBody) {
       try {
         const data = JSON.parse(response.body!);
+        console.log(`[Orchestrator] Parsing JSON from ${response.url.substring(0, 60)}... (type: ${Array.isArray(data) ? 'array' : typeof data})`);
         const extracted = this.extractProductsFromApiResponse(data);
+        console.log(`[Orchestrator] Extraction returned ${extracted.length} items`);
         if (extracted.length > 0) {
           console.log(`[Orchestrator] Extracted ${extracted.length} products from: ${response.url.substring(0, 80)}`);
           // Deduplicate as we go
+          let added = 0;
           for (const p of extracted) {
             const title = p.title?.toLowerCase().trim();
-            if (title && !seenTitles.has(title)) {
-              seenTitles.add(title);
-              products.push(p);
+            if (title) {
+              if (!seenTitles.has(title)) {
+                seenTitles.add(title);
+                products.push(p);
+                added++;
+              } else {
+                console.log(`[Orchestrator] Duplicate title skipped: ${title}`);
+              }
+            } else {
+              console.log(`[Orchestrator] Item without title: ${JSON.stringify(p).substring(0, 100)}`);
             }
           }
+          console.log(`[Orchestrator] Added ${added} unique products from this response`);
         }
       } catch (err) {
-        // Ignore parse errors
+        console.error(`[Orchestrator] Error extracting from ${response.url.substring(0, 60)}:`, err);
       }
     }
     
