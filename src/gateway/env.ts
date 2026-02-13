@@ -50,5 +50,16 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.CDP_SECRET) envVars.CDP_SECRET = env.CDP_SECRET;
   if (env.WORKER_URL) envVars.WORKER_URL = env.WORKER_URL;
 
+  // OEM Agent secrets
+  if (env.SUPABASE_URL) envVars.SUPABASE_URL = env.SUPABASE_URL;
+  if (env.SUPABASE_SERVICE_ROLE_KEY) envVars.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (env.GROQ_API_KEY) envVars.GROQ_API_KEY = env.GROQ_API_KEY;
+  if (env.TOGETHER_API_KEY) envVars.TOGETHER_API_KEY = env.TOGETHER_API_KEY;
+  if (env.SLACK_WEBHOOK_URL) envVars.SLACK_WEBHOOK_URL = env.SLACK_WEBHOOK_URL;
+
+  // Research APIs for OEM discovery
+  if (env.BRAVE_API_KEY) envVars.BRAVE_API_KEY = env.BRAVE_API_KEY;
+  if (env.PERPLEXITY_API_KEY) envVars.PERPLEXITY_API_KEY = env.PERPLEXITY_API_KEY;
+
   return envVars;
 }

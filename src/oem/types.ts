@@ -29,7 +29,7 @@ export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'phev' | 'electric' | nu
 export type Availability = 'available' | 'coming_soon' | 'limited_stock' | 'run_out' | 'discontinued';
 export type PriceType = 'driveaway' | 'from' | 'rrp' | 'weekly' | 'monthly' | 'per_week' | 'per_month' | 'mrlp';
 export type OfferType = 'price_discount' | 'driveaway_deal' | 'finance_rate' | 'bonus_accessory' | 'cashback' | 'free_servicing' | 'plate_clearance' | 'factory_bonus' | 'free_charger' | 'other';
-export type PageType = 'homepage' | 'vehicle' | 'offers' | 'news' | 'sitemap' | 'price_guide' | 'category' | 'other';
+export type PageType = 'homepage' | 'vehicle' | 'offers' | 'news' | 'sitemap' | 'price_guide' | 'category' | 'build_price' | 'other';
 export type EntityType = 'product' | 'offer' | 'banner' | 'sitemap' | 'page';
 export type EventType = 'created' | 'updated' | 'removed' | 'price_changed' | 'disclaimer_changed' | 'image_changed' | 'availability_changed' | 'new_url_discovered';
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
@@ -80,12 +80,23 @@ export interface ProductPrice {
   qualifier: string | null;
 }
 
+export interface VariantColor {
+  name: string;                    // e.g., "Aurora Black Pearl"
+  code: string | null;             // e.g., "WK" (OEM color code)
+  hex: string | null;              // e.g., "#1a1a1a" (for UI display)
+  swatch_url: string | null;       // URL to color swatch image
+  price_delta: number | null;      // Additional cost for this color (0 for standard, e.g., 695 for metallic)
+  is_standard: boolean;            // true if included in base price
+}
+
 export interface ProductVariant {
   name: string;
   price_amount: number | null;
   price_type: PriceType | null;
   drivetrain: string | null;
   engine: string | null;
+  colors: VariantColor[];          // Available colors for this variant
+  disclaimer_text: string | null;  // Variant-specific disclaimer
 }
 
 export interface ProductCtaLink {
@@ -118,6 +129,15 @@ export interface Product {
   disclaimer_text: string | null;
   primary_image_r2_key: string | null;
   gallery_image_count: number;
+  // Vehicle specifications
+  engine_size: string | null;
+  cylinders: number | null;
+  transmission: string | null;
+  gears: number | null;
+  drive: string | null;
+  doors: number | null;
+  seats: number | null;
+  // OEM marketing features (e.g., "Apple CarPlay", "Blind Spot Monitor")
   key_features: string[];
   cta_links: ProductCtaLink[];
   variants: ProductVariant[];
@@ -692,8 +712,17 @@ export interface ExtractedProduct {
   fuel_type?: FuelType;
   availability?: Availability;
   price?: ProductPrice | null;
-  variants?: ProductVariant[];
+  // Vehicle specifications
+  engine_size?: string | null;
+  cylinders?: number | null;
+  transmission?: string | null;
+  gears?: number | null;
+  drive?: string | null;
+  doors?: number | null;
+  seats?: number | null;
+  // OEM marketing features (e.g., "Apple CarPlay", "Blind Spot Monitor")
   key_features?: string[];
+  variants?: ProductVariant[];
   cta_links?: ProductCtaLink[];
   disclaimer_text?: string | null;
   primary_image_url?: string | null;

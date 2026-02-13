@@ -10,7 +10,7 @@ This document provides instructions for setting up the Supabase database for the
 
 ## Migration Files
 
-There are 3 migration files to execute in order:
+There are 4 migration files to execute in order:
 
 1. **`00001_initial_schema.sql`** (495 lines)
    - Creates all core tables
@@ -25,6 +25,13 @@ There are 3 migration files to execute in order:
 3. **`00003_seed_source_pages.sql`** (241 lines)
    - Seeds ~100 source pages across all 13 OEMs
    - Creates indexes for query performance
+
+4. **`00008_vector_embeddings.sql`** (385 lines)
+   - Enables pgvector extension
+   - Creates embedding tables (products, offers, change_events)
+   - Creates HNSW indexes for fast similarity search
+   - Adds semantic search RPC functions
+   - Creates monitoring views for embedding coverage
 
 ## Setup Instructions
 
@@ -109,6 +116,32 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 | `brand_tokens` | Design system extraction (colors, typography) |
 | `page_layouts` | Page structure decomposition |
 | `design_captures` | Screenshots and computed styles |
+
+### Vector Embedding Tables
+
+| Table | Purpose |
+|-------|---------|
+| `product_embeddings` | 768-dim vectors for product semantic search |
+| `offer_embeddings` | 768-dim vectors for offer semantic search |
+| `change_event_embeddings` | 768-dim vectors for change pattern detection |
+
+### Semantic Search Functions (RPC)
+
+| Function | Purpose |
+|----------|---------|
+| `search_products_semantic` | Find products by natural language query |
+| `find_similar_products` | Cross-OEM product similarity matching |
+| `search_offers_semantic` | Find offers by semantic query |
+| `find_similar_changes` | Detect similar change patterns across OEMs |
+
+### Monitoring Views
+
+| View | Purpose |
+|------|---------|
+| `products_pending_embedding` | Products needing embedding generation |
+| `offers_pending_embedding` | Offers needing embedding generation |
+| `change_events_pending_embedding` | Change events needing embedding |
+| `embedding_coverage_stats` | Coverage % for each table |
 
 ### OEMs Seeded
 

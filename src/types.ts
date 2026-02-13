@@ -48,6 +48,9 @@ export interface MoltbotEnv {
   GROQ_API_KEY: string;
   TOGETHER_API_KEY: string;
   SLACK_WEBHOOK_URL?: string;
+  // Research APIs for OEM discovery
+  BRAVE_API_KEY?: string;       // Brave Search API for web research
+  PERPLEXITY_API_KEY?: string;  // Perplexity API for AI-powered research
 }
 
 /**

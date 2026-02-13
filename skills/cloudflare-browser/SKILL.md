@@ -61,6 +61,8 @@ ws.on('message', (data) => {
 | Page.captureScreenshot | Capture PNG/JPEG |
 | Runtime.evaluate | Execute JavaScript |
 | Emulation.setDeviceMetricsOverride | Set viewport size |
+| Network.enable | Enable network interception |
+| Network.getResponseBody | Get response content |
 
 ## Common Patterns
 
@@ -91,6 +93,52 @@ await send('Emulation.setDeviceMetricsOverride', {
 
 1. Capture frames as PNGs during navigation
 2. Use ffmpeg to stitch: `ffmpeg -framerate 10 -i frame_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4`
+
+## Network Interception (API Discovery)
+
+Capture all network requests during page load to discover APIs that can be called directly.
+
+### Enable Network Monitoring
+```javascript
+const { createClient } = require('./scripts/cdp-client');
+const client = await createClient();
+
+// Enable BEFORE navigating
+await client.enableNetwork();
+
+await client.navigate('https://ford.com/suvs/explorer');
+
+// Get all captured requests
+const networkLog = client.getNetworkLog();
+console.log(`Captured ${networkLog.length} requests`);
+
+// Get filtered API candidates (JSON responses, excludes tracking)
+const apis = client.getApiCandidates();
+console.log('Potential APIs:', apis);
+
+client.close();
+```
+
+### Network Log Entry Format
+```javascript
+{
+  url: 'https://ford.com/api/vehicles/explorer',
+  method: 'GET',
+  status: 200,
+  content_type: 'application/json',
+  response_size: 15234,
+  request_headers: { ... },
+  resource_type: 'XHR'
+}
+```
+
+### API Discovery Workflow
+
+1. Enable network monitoring before navigation
+2. Navigate to target page, wait for JS render
+3. Call `getApiCandidates()` to get filtered JSON endpoints
+4. Pass results to `oem-api-discover` skill for classification
+5. Store discovered APIs in Supabase for future direct calls
 
 ## Troubleshooting
 

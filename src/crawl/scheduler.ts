@@ -27,6 +27,7 @@ export const PAGE_TYPE_SCHEDULE: Record<PageType, number> = {
   sitemap: 1440,      // 24 hours
   price_guide: 1440,  // 24 hours
   category: 720,      // 12 hours
+  build_price: 720,   // 12 hours (configurator pages)
   other: 720,         // 12 hours
 };
 

@@ -438,6 +438,13 @@ The previous `AI_GATEWAY_API_KEY` + `AI_GATEWAY_BASE_URL` approach is still supp
 | `SLACK_APP_TOKEN` | No | Slack app token |
 | `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
 | `WORKER_URL` | No | Public URL of the worker (required for CDP) |
+| `SUPABASE_URL` | Yes | Supabase project URL for OEM data storage |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key |
+| `GROQ_API_KEY` | Yes | Groq API key for LLM inference |
+| `TOGETHER_API_KEY` | No | Together AI API key (alternative LLM provider) |
+| `SLACK_WEBHOOK_URL` | No | Slack webhook for OEM change notifications |
+| `BRAVE_API_KEY` | No | Brave Search API key for OEM discovery research |
+| `PERPLEXITY_API_KEY` | No | Perplexity API key for AI-powered OEM research |
 
 ## Security Considerations
 

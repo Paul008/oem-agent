@@ -1,0 +1,138 @@
+{
+  "$schema": "https://openclaw.ai/schemas/cron-jobs.json",
+  "version": "1.0",
+  "description": "OEM Agent scheduled tasks for OpenClaw",
+  "jobs": [
+    {
+      "id": "oem-discovery-refresh",
+      "name": "OEM Discovery Refresh",
+      "description": "Re-run discovery for OEMs with degraded cache health",
+      "schedule": "0 2 * * 0",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-build-price-discover",
+      "enabled": true,
+      "config": {
+        "trigger_conditions": {
+          "cache_success_rate_below": 0.8,
+          "last_extraction_older_than_days": 7
+        },
+        "max_concurrent": 2,
+        "retry_on_failure": true,
+        "retry_count": 2
+      }
+    },
+    {
+      "id": "oem-extract-daily",
+      "name": "Daily OEM Extraction",
+      "description": "Extract prices and offers from all configured OEMs",
+      "schedule": "0 6 * * *",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-extract",
+      "enabled": true,
+      "config": {
+        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au"],
+        "extraction_layers": ["L2_FAST_PATH", "L3_ADAPTIVE"],
+        "max_concurrent": 3,
+        "notify_on_change": true,
+        "notify_channel": "slack:#oem-alerts"
+      }
+    },
+    {
+      "id": "oem-cache-health-check",
+      "name": "Cache Health Monitor",
+      "description": "Check cache health and trigger repairs if needed",
+      "schedule": "0 */4 * * *",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-agent-hooks",
+      "enabled": true,
+      "config": {
+        "action": "health_check",
+        "thresholds": {
+          "selector_success_rate": 0.7,
+          "api_success_rate": 0.8,
+          "max_consecutive_failures": 3
+        },
+        "auto_repair": true,
+        "notify_on_degradation": true
+      }
+    },
+    {
+      "id": "oem-memory-sync",
+      "name": "Memory Persistence Sync",
+      "description": "Sync in-memory cache to persistent storage",
+      "schedule": "*/30 * * * *",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-agent-hooks",
+      "enabled": true,
+      "config": {
+        "action": "memory_sync",
+        "storage_path": "discoveries/",
+        "backup_enabled": true,
+        "backup_retention_days": 7
+      }
+    },
+    {
+      "id": "oem-weekly-report",
+      "name": "Weekly Extraction Report",
+      "description": "Generate weekly summary of extraction performance",
+      "schedule": "0 9 * * 1",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-agent-hooks",
+      "enabled": true,
+      "config": {
+        "action": "generate_report",
+        "report_type": "weekly_summary",
+        "include_metrics": [
+          "total_extractions",
+          "success_rate",
+          "selector_repairs",
+          "api_discoveries",
+          "cost_breakdown"
+        ],
+        "output_path": "memory/reports/",
+        "notify_channel": "slack:#oem-reports"
+      }
+    },
+    {
+      "id": "oem-embedding-sync",
+      "name": "Vector Embedding Sync",
+      "description": "Generate embeddings for new products, offers, and change events",
+      "schedule": "0 */6 * * *",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-agent-hooks",
+      "enabled": true,
+      "config": {
+        "action": "sync_embeddings",
+        "tables": ["products", "offers", "change_events"],
+        "batch_size": 50,
+        "provider": "gemini",
+        "model": "text-embedding-004",
+        "max_items_per_run": 200
+      }
+    }
+  ],
+  "hooks": {
+    "on_job_start": {
+      "log_level": "info",
+      "update_memory": true
+    },
+    "on_job_complete": {
+      "log_level": "info",
+      "update_memory": true,
+      "persist_results": true
+    },
+    "on_job_failure": {
+      "log_level": "error",
+      "notify": true,
+      "retry_strategy": "exponential_backoff",
+      "max_retries": 3
+    }
+  },
+  "global_config": {
+    "max_concurrent_jobs": 5,
+    "job_timeout_minutes": 30,
+    "memory_path": "memory/",
+    "cache_path": "discoveries/",
+    "log_retention_days": 30
+  }
+}

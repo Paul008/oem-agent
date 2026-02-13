@@ -285,6 +285,25 @@ console.log('Configuration patched successfully');
 EOFPATCH
 
 # ============================================================
+# LINK SKILLS INTO WORKSPACE
+# ============================================================
+# OpenClaw looks for skills in the workspace directory, not /root/clawd/skills
+# Symlink the skills directory into the workspace
+WORKSPACE_SKILLS_DIR="/root/.openclaw/workspace/skills"
+CONTAINER_SKILLS_DIR="/root/clawd/skills"
+
+if [ -d "$CONTAINER_SKILLS_DIR" ] && [ "$(ls -A $CONTAINER_SKILLS_DIR 2>/dev/null)" ]; then
+    echo "Linking skills from $CONTAINER_SKILLS_DIR to workspace..."
+    mkdir -p "$(dirname $WORKSPACE_SKILLS_DIR)"
+    # Remove existing skills dir/link if present
+    rm -rf "$WORKSPACE_SKILLS_DIR" 2>/dev/null || true
+    # Create symlink to our skills directory
+    ln -s "$CONTAINER_SKILLS_DIR" "$WORKSPACE_SKILLS_DIR"
+    echo "Skills linked: $(ls -1 $CONTAINER_SKILLS_DIR | wc -l) skills available"
+    ls -la "$WORKSPACE_SKILLS_DIR"
+fi
+
+# ============================================================
 # START GATEWAY
 # ============================================================
 echo "Starting OpenClaw Gateway..."
