@@ -323,18 +323,69 @@ export class OemAgentOrchestrator {
         }
       }
 
-      // Step 6: LLM fallback if still needed
+      // Step 6: Direct Ford API fetch for known endpoints
+      if (oemId === 'ford-au' && page.url.includes('ford.com.au')) {
+        console.log(`[Orchestrator] Attempting direct Ford API fetch for ${page.url}`);
+        try {
+          const fordApiUrl = 'https://www.ford.com.au/content/ford/au/en_au.vehiclesmenu.data';
+          const fordResponse = await fetch(fordApiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Referer': 'https://www.ford.com.au/',
+              'Origin': 'https://www.ford.com.au',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          });
+          
+          if (fordResponse.ok) {
+            const body = await fordResponse.text();
+            console.log(`[Orchestrator] Ford API direct fetch: ${body.length} chars`);
+            const data = JSON.parse(body);
+            const fordProducts = this.extractProductsFromApiResponse(data);
+            console.log(`[Orchestrator] Extracted ${fordProducts.length} products from direct Ford API fetch`);
+            
+            if (fordProducts.length > 0) {
+              // Merge with existing extraction
+              const existingProducts = extractionResult.products?.data || [];
+              const seenTitles = new Set(existingProducts.map((p: any) => p.title?.toLowerCase().trim()));
+              let added = 0;
+              for (const fp of fordProducts) {
+                const title = fp.title?.toLowerCase().trim();
+                if (title && !seenTitles.has(title)) {
+                  seenTitles.add(title);
+                  existingProducts.push(fp);
+                  added++;
+                }
+              }
+              console.log(`[Orchestrator] Added ${added} new products from Ford API`);
+              extractionResult = {
+                ...extractionResult,
+                products: {
+                  data: existingProducts,
+                  confidence: 0.95,
+                  method: 'api' as any,
+                  coverage: 1,
+                },
+              };
+            }
+          }
+        } catch (fordError) {
+          console.error(`[Orchestrator] Ford API direct fetch failed:`, fordError);
+        }
+      }
+
+      // Step 7: LLM fallback if still needed
       if (this.extractionEngine.needsLlmFallback(extractionResult)) {
         const llmResult = await this.runLlmExtraction(finalHtml, oemId, page);
         extractionResult = this.mergeLlmResults(extractionResult, llmResult);
       }
 
-      // Step 7: Store raw API responses to R2 for debugging
+      // Step 8: Store raw API responses to R2 for debugging
       if (smartModeResult?.networkResponses) {
         await this.storeRawResponses(oemId, page.url, smartModeResult.networkResponses);
       }
 
-      // Step 8: Process changes
+      // Step 9: Process changes
       console.log(`[Orchestrator] About to process changes. Products: ${extractionResult.products?.data?.length || 0}`);
       try {
         await this.processChanges(oemId, page, extractionResult);
