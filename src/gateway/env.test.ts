@@ -234,4 +234,16 @@ describe('buildEnvVars', () => {
     const result = buildEnvVars(env);
     expect(result.SLACK_WEBHOOK_URL).toBe('https://hooks.slack.com/services/xxx');
   });
+
+  it('passes GOOGLE_API_KEY for Gemini embeddings', () => {
+    const env = createMockEnv({
+      GOOGLE_API_KEY: 'gemini-api-key',
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      GROQ_API_KEY: undefined,
+      TOGETHER_API_KEY: undefined,
+    });
+    const result = buildEnvVars(env);
+    expect(result.GOOGLE_API_KEY).toBe('gemini-api-key');
+  });
 });

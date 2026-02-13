@@ -61,5 +61,8 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.BRAVE_API_KEY) envVars.BRAVE_API_KEY = env.BRAVE_API_KEY;
   if (env.PERPLEXITY_API_KEY) envVars.PERPLEXITY_API_KEY = env.PERPLEXITY_API_KEY;
 
+  // Embedding APIs
+  if (env.GOOGLE_API_KEY) envVars.GOOGLE_API_KEY = env.GOOGLE_API_KEY;
+
   return envVars;
 }

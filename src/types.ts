@@ -51,6 +51,8 @@ export interface MoltbotEnv {
   // Research APIs for OEM discovery
   BRAVE_API_KEY?: string;       // Brave Search API for web research
   PERPLEXITY_API_KEY?: string;  // Perplexity API for AI-powered research
+  // Embedding APIs
+  GOOGLE_API_KEY?: string;      // Google Gemini API for embeddings (recommended)
 }
 
 /**
