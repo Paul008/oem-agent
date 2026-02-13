@@ -394,6 +394,17 @@ export class OemAgentOrchestrator {
 
     console.log(`[Orchestrator] extractFromDiscoveredApis: ${productApis.length} product APIs, ${offerApis.length} offer APIs`);
     console.log(`[Orchestrator] Total networkResponses: ${smartModeResult.networkResponses.length}`);
+    
+    // Debug: Log all API candidate URLs and response URLs
+    if (productApis.length > 0) {
+      console.log(`[Orchestrator] API Candidate URLs:`);
+      productApis.forEach(api => console.log(`  - ${api.url}`));
+    }
+    if (smartModeResult.networkResponses.length > 0) {
+      const jsonResponses = smartModeResult.networkResponses.filter(r => r.contentType?.includes('json'));
+      console.log(`[Orchestrator] JSON Response URLs (${jsonResponses.length}):`);
+      jsonResponses.forEach(r => console.log(`  - ${r.url.substring(0, 100)} (body: ${r.body?.length || 0} chars)`));
+    }
 
     for (const api of productApis) {
       console.log(`[Orchestrator] Looking for response matching: ${api.url}`);
