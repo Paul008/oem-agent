@@ -329,7 +329,12 @@ export class OemAgentOrchestrator {
         extractionResult = this.mergeLlmResults(extractionResult, llmResult);
       }
 
-      // Step 7: Process changes
+      // Step 7: Store raw API responses to R2 for debugging
+      if (smartModeResult?.networkResponses) {
+        await this.storeRawResponses(oemId, page.url, smartModeResult.networkResponses);
+      }
+
+      // Step 8: Process changes
       console.log(`[Orchestrator] About to process changes. Products: ${extractionResult.products?.data?.length || 0}`);
       try {
         await this.processChanges(oemId, page, extractionResult);
@@ -1609,6 +1614,44 @@ export class OemAgentOrchestrator {
     }
 
     return result.html;
+  }
+
+  /**
+   * Store raw API responses to R2 for debugging.
+   */
+  private async storeRawResponses(
+    oemId: OemId,
+    sourceUrl: string,
+    responses: NetworkResponse[]
+  ): Promise<void> {
+    try {
+      const jsonResponses = responses.filter(r => r.contentType?.includes('json') && r.body && r.body.length > 100);
+      if (jsonResponses.length === 0) return;
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const key = `raw-responses/${oemId}/${timestamp}.json`;
+      
+      const data = {
+        oemId,
+        sourceUrl,
+        timestamp: new Date().toISOString(),
+        responses: jsonResponses.map(r => ({
+          url: r.url,
+          status: r.status,
+          contentType: r.contentType,
+          bodyLength: r.body?.length,
+          body: r.body,
+        })),
+      };
+
+      await this.config.r2Bucket.put(key, JSON.stringify(data, null, 2), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+      
+      console.log(`[Orchestrator] Stored ${jsonResponses.length} raw responses to R2: ${key}`);
+    } catch (error) {
+      console.error(`[Orchestrator] Failed to store raw responses:`, error);
+    }
   }
 
   /**
