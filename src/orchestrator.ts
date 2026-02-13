@@ -415,10 +415,15 @@ export class OemAgentOrchestrator {
       if (!response) {
         const apiUrlObj = new URL(api.url);
         const apiPath = apiUrlObj.pathname;
+        console.log(`[Orchestrator] Trying path match: ${apiPath}`);
         response = smartModeResult.networkResponses.find((r) => {
           try {
             const rUrlObj = new URL(r.url);
-            return rUrlObj.pathname === apiPath;
+            const match = rUrlObj.pathname === apiPath;
+            if (r.url.includes('vehiclesmenu')) {
+              console.log(`[Orchestrator]   Comparing: ${rUrlObj.pathname} === ${apiPath} ? ${match}`);
+            }
+            return match;
           } catch {
             return false;
           }
