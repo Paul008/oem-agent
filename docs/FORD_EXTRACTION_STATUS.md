@@ -42,10 +42,17 @@ https://ford.com.au   Puppeteer CDP            vehiclesmenu.data    23 Products 
    - `networkResponses` array may not contain vehiclesmenu.data body
    - OR URL matching between `apiCandidates` and `networkResponses` failing
 
-2. **Product Database Insert** ❌
-   - Products extracted but not saved to database
-   - Despite extraction showing 2 products, `products` table has 0
-   - Possible database schema mismatch (fixed `meta` → `meta_json`)
+2. **Product Unique Identifier** ⚠️
+   - All products share same `source_url` (https://www.ford.com.au/)
+   - Upsert logic only saves 1 product per source_url
+   - Need to use `external_key` or build unique identifier
+
+### Issues Fixed
+
+1. **Database Schema Mismatches** ✅
+   - Fixed `meta` → `meta_json` column name
+   - Removed `first_seen_at` (doesn't exist in schema, use `created_at`)
+   - Products now successfully insert into database
 
 ## Technical Details
 

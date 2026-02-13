@@ -1678,11 +1678,12 @@ ${html.substring(0, 50000)}
     productData: any
   ): Promise<void> {
     // Check for existing product
+    // Match by oem_id + title (multiple products can come from same source_url)
     const { data: existing } = await this.config.supabaseClient
       .from('products')
       .select('*')
       .eq('oem_id', oemId)
-      .eq('source_url', sourceUrl)
+      .eq('title', productData.title)
       .maybeSingle();
 
     // Use database column names (meta_json, not meta)
