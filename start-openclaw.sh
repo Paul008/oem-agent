@@ -287,6 +287,7 @@ if (process.env.WORKER_URL && process.env.CDP_SECRET) {
     config.browser.profiles = config.browser.profiles || {};
     config.browser.profiles.cloudflare = {
         cdpUrl: cdpUrl,
+        color: 'blue'
     };
     console.log('Browser profile configured: cloudflare -> ' + cdpUrl.replace(process.env.CDP_SECRET, '***'));
 }
