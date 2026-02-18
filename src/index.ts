@@ -21,6 +21,7 @@
  */
 
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
 
 import type { AppEnv, MoltbotEnv } from './types';
@@ -121,6 +122,14 @@ const app = new Hono<AppEnv>();
 // =============================================================================
 // MIDDLEWARE: Applied to ALL routes
 // =============================================================================
+
+// Middleware: CORS — allow dashboard and external API consumers
+app.use('*', cors({
+  origin: (origin) => origin,
+  credentials: true,
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'CF-Access-Jwt-Assertion'],
+}));
 
 // Middleware: Log every request
 app.use('*', async (c, next) => {
