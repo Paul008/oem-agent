@@ -17,7 +17,7 @@ ARG TARGETARCH
 RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64").tar.xz" | tar -xJf - --strip-components=1 -C /usr/local
 
 # Install pnpm and OpenClaw
-RUN npm install -g pnpm@9.15.0 openclaw@latest
+RUN npm install -g pnpm@9.15.0 openclaw@0.8.1
 
 # Create config directories (legacy .clawdbot path preserved for compatibility)
 RUN mkdir -p /root/.openclaw /root/.clawdbot
@@ -25,7 +25,7 @@ RUN mkdir -p /root/.openclaw /root/.clawdbot
 # Create clawd workspace directory
 RUN mkdir -p /root/clawd/skills
 
-# Build cache bust: 2026-02-18-browser-config
+# Build cache bust: 2026-02-18-v3-openclaw-0.8.1
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
