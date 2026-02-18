@@ -25,7 +25,7 @@ RUN mkdir -p /root/.openclaw /root/.clawdbot
 # Create clawd workspace directory
 RUN mkdir -p /root/clawd/skills
 
-# Build cache bust: 2026-02-18-v6-sandbox-0.7.2-onboard-flow
+# Build cache bust: 2026-02-18-v7-force-fresh-init
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
