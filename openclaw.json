@@ -1,0 +1,186 @@
+{
+  // OpenClaw Production Configuration for OEM Agent
+  // This file will be copied into the container at ~/.openclaw/openclaw.json
+
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "lan",
+    "auth": {
+      "mode": "token",
+      "allowTailscale": false
+    },
+    "controlUi": {
+      "enabled": true,
+      "allowInsecureAuth": true
+    },
+    "trustedProxies": ["10.1.0.0"]
+  },
+
+  "models": {
+    "providers": {
+      "groq": {
+        "baseUrl": "https://api.groq.com/openai/v1",
+        "apiKey": "${GROQ_API_KEY}",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "llama-4-scout",
+            "name": "Llama 4 Scout (Groq)",
+            "contextWindow": 131072,
+            "maxTokens": 32768
+          },
+          {
+            "id": "llama-3.3-70b-versatile",
+            "name": "Llama 3.3 70B (Groq)",
+            "contextWindow": 131072,
+            "maxTokens": 32768
+          }
+        ]
+      },
+      "together": {
+        "baseUrl": "https://api.together.xyz/v1",
+        "apiKey": "${TOGETHER_API_KEY}",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "Kimi/k2.5",
+            "name": "Kimi K2.5 (Together)",
+            "contextWindow": 131072,
+            "maxTokens": 16384
+          },
+          {
+            "id": "Kimi/k2.5-vision",
+            "name": "Kimi K2.5 Vision (Together)",
+            "contextWindow": 131072,
+            "maxTokens": 16384,
+            "supportsVision": true
+          }
+        ]
+      }
+    }
+  },
+
+  "agents": {
+    "defaults": {
+      "name": "OEM Agent",
+      "theme": "blue",
+      "emoji": "🚗",
+      "workspace": "/root/.openclaw/workspace",
+
+      // Model configuration - Multi-provider with Groq for fast inference
+      "model": {
+        "primary": "groq/llama-4-scout",
+        "fallback": ["anthropic/claude-sonnet-4-5", "together/Kimi/k2.5"],
+        "image": "together/Kimi/k2.5-vision"
+      },
+
+      // Sandbox configuration for safe code execution
+      "sandbox": {
+        "mode": "off",
+        "scope": "agent"
+      },
+
+      // Performance settings
+      "contextTokens": 200000,
+      "maxConcurrent": 3,
+      "maxSubagents": 5,
+
+      // Message handling
+      "messageCollection": {
+        "strategy": "steer",
+        "debounceMs": 1000
+      },
+
+      // Typing indicators for better UX
+      "typing": {
+        "mode": "thinking",
+        "intervalMs": 5000
+      }
+    }
+  },
+
+  // Session management for memory persistence
+  "session": {
+    "scope": "per-sender",
+    "reset": {
+      "dmDaily": null,
+      "groupDaily": null,
+      "channelDaily": null,
+      "dmIdle": "7d",
+      "groupIdle": "3d",
+      "channelIdle": "1d"
+    },
+    "history": {
+      "direct": 200,
+      "group": 100,
+      "channel": 50
+    },
+    "compaction": {
+      "enabled": true,
+      "flushMemory": true
+    },
+    "maintenance": {
+      "mode": "enforce",
+      "pruneAfter": "30d"
+    }
+  },
+
+  // Skills configuration - your custom OEM skills
+  "skills": {
+    "load": {
+      "watch": true,
+      "watchDebounceMs": 250
+    },
+    "entries": {
+      "oem-agent-hooks": {
+        "enabled": true
+      },
+      "oem-sales-rep": {
+        "enabled": true
+      },
+      "oem-report": {
+        "enabled": true
+      },
+      "oem-crawl": {
+        "enabled": true
+      },
+      "oem-extract": {
+        "enabled": true
+      },
+      "oem-design-capture": {
+        "enabled": true
+      },
+      "oem-api-discover": {
+        "enabled": true
+      },
+      "oem-build-price-discover": {
+        "enabled": true
+      },
+      "oem-semantic-search": {
+        "enabled": true
+      },
+      "cloudflare-browser": {
+        "enabled": true
+      }
+    }
+  },
+
+  // Tools configuration - coding profile for development
+  "tools": {
+    "profile": "coding",
+    "allow": [],
+    "deny": []
+  },
+
+  // Logging configuration
+  "logging": {
+    "level": "info",
+    "redactSensitive": "tools"
+  },
+
+  // Heartbeat for maintenance tasks
+  "heartbeat": {
+    "intervalMs": 1800000
+  }
+}

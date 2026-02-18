@@ -54,6 +54,8 @@ export interface MoltbotEnv {
   PERPLEXITY_API_KEY?: string;  // Perplexity API for AI-powered research
   // Embedding APIs
   GOOGLE_API_KEY?: string;      // Google Gemini API for embeddings (recommended)
+  // Additional AI Providers for OpenClaw
+  KIMI_API_KEY?: string;        // Kimi API for vision models
 }
 
 /**

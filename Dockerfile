@@ -2,7 +2,7 @@
 # Based on Moltworker Sandbox SDK patterns
 # Uses cloudflare/sandbox base image with OpenClaw gateway
 
-FROM docker.io/cloudflare/sandbox:0.7.0
+FROM docker.io/cloudflare/sandbox:0.7.2
 
 # Install system dependencies first (including xz-utils for node tarball)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,7 +25,10 @@ RUN mkdir -p /root/.openclaw /root/.clawdbot
 # Create clawd workspace directory
 RUN mkdir -p /root/clawd/skills
 
-# Build cache bust: 2026-02-18-v4-openclaw-2026.2.15
+# Copy optimized OpenClaw configuration
+COPY openclaw.json /root/.openclaw/openclaw.json
+
+# Build cache bust: 2026-02-18-v5-sandbox-0.7.2-with-config
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 

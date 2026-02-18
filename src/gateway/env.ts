@@ -66,5 +66,8 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   // Embedding APIs
   if (env.GOOGLE_API_KEY) envVars.GOOGLE_API_KEY = env.GOOGLE_API_KEY;
 
+  // Additional AI Providers for OpenClaw
+  if (env.KIMI_API_KEY) envVars.KIMI_API_KEY = env.KIMI_API_KEY;
+
   return envVars;
 }
