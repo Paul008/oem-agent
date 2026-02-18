@@ -310,6 +310,24 @@ if r2_configured; then
 fi
 
 # ============================================================
+# WORKSPACE SETUP (skills symlink)
+# ============================================================
+echo "Setting up workspace..."
+WORKSPACE_DIR_OC="/root/.openclaw/workspace"
+mkdir -p "$WORKSPACE_DIR_OC"
+
+# Symlink skills directory so OpenClaw can find them
+if [ -d "$SKILLS_DIR" ]; then
+    if [ ! -e "$WORKSPACE_DIR_OC/skills" ]; then
+        ln -s "$SKILLS_DIR" "$WORKSPACE_DIR_OC/skills"
+        echo "Skills symlink created: $WORKSPACE_DIR_OC/skills -> $SKILLS_DIR"
+    fi
+    echo "Skills available: $(ls -1 "$SKILLS_DIR" 2>/dev/null | wc -l)"
+else
+    echo "WARNING: Skills directory not found at $SKILLS_DIR"
+fi
+
+# ============================================================
 # START GATEWAY
 # ============================================================
 echo "Starting OpenClaw Gateway..."
