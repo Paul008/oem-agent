@@ -327,6 +327,20 @@ else
     echo "WARNING: Skills directory not found at $SKILLS_DIR"
 fi
 
+# Copy workspace bootstrap files (SOUL.md, AGENTS.md, MEMORY.md)
+WORKSPACE_SOURCE="/root/clawd/workspace"
+if [ -d "$WORKSPACE_SOURCE" ]; then
+    echo "Copying workspace bootstrap files..."
+    for file in SOUL.md AGENTS.md MEMORY.md; do
+        if [ -f "$WORKSPACE_SOURCE/$file" ]; then
+            cp "$WORKSPACE_SOURCE/$file" "$WORKSPACE_DIR_OC/$file"
+            echo "Copied $file to workspace"
+        fi
+    done
+else
+    echo "WARNING: Workspace source directory not found at $WORKSPACE_SOURCE"
+fi
+
 # ============================================================
 # START GATEWAY
 # ============================================================
