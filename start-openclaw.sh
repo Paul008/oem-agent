@@ -280,18 +280,6 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
-// Browser Rendering configuration (Cloudflare Browser via CDP)
-if (process.env.WORKER_URL && process.env.CDP_SECRET) {
-    const cdpUrl = process.env.WORKER_URL.replace(/\/$/, '') + '/cdp?secret=' + encodeURIComponent(process.env.CDP_SECRET);
-    config.browser = config.browser || {};
-    config.browser.profiles = config.browser.profiles || {};
-    config.browser.profiles.cloudflare = {
-        cdpUrl: cdpUrl,
-        color: 'blue'
-    };
-    console.log('Browser profile configured: cloudflare -> ' + cdpUrl.replace(process.env.CDP_SECRET, '***'));
-}
-
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Configuration patched successfully');
 EOFPATCH
