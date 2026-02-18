@@ -21,6 +21,7 @@ export interface MoltbotEnv {
   OPENAI_API_KEY?: string;
   MOLTBOT_GATEWAY_TOKEN?: string; // Gateway token (mapped to OPENCLAW_GATEWAY_TOKEN for container)
   DEV_MODE?: string; // Set to 'true' for local dev (skips CF Access auth + openclaw device pairing)
+  OPENCLAW_DEV_MODE?: string; // Set to 'true' to enable OpenClaw control UI with insecure auth
   E2E_TEST_MODE?: string; // Set to 'true' for E2E tests (skips CF Access auth but keeps device pairing)
   DEBUG_ROUTES?: string; // Set to 'true' to enable /debug/* routes
   SANDBOX_SLEEP_AFTER?: string; // How long before sandbox sleeps: 'never' (default), or duration like '10m', '1h'
