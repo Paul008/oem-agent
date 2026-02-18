@@ -266,17 +266,21 @@ try {
     const briefingContent = fs.readFileSync(briefingPath, 'utf8');
     config.agents = config.agents || {};
     config.agents.defaults = config.agents.defaults || {};
-    config.agents.defaults.systemPrompt = `You are an AI agent running on Cloudflare Workers with specialized capabilities for automotive OEM data collection and analysis.
-
-## System Context
-
-${briefingContent}
-
-## Your Capabilities
-
-You have access to 10 specialized skills in /root/clawd/skills/ - refer to their SKILL.md documentation for detailed usage instructions. You can use browser automation, web scraping, API discovery, and data extraction to help users with automotive intelligence tasks.
-
-When asked about the system architecture, infrastructure, or your capabilities, refer to the briefing above.`;
+    // Properly escape the briefing content to avoid breaking JSON
+    const systemPrompt = [
+        'You are an AI agent running on Cloudflare Workers with specialized capabilities for automotive OEM data collection and analysis.',
+        '',
+        '## System Context',
+        '',
+        briefingContent,
+        '',
+        '## Your Capabilities',
+        '',
+        'You have access to 10 specialized skills in /root/clawd/skills/ - refer to their SKILL.md documentation for detailed usage instructions. You can use browser automation, web scraping, API discovery, and data extraction to help users with automotive intelligence tasks.',
+        '',
+        'When asked about the system architecture, infrastructure, or your capabilities, refer to the briefing above.'
+    ].join('\n');
+    config.agents.defaults.systemPrompt = systemPrompt;
 
     console.log('System context configured from BRIEFING.md');
 } catch (e) {
