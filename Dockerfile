@@ -25,10 +25,7 @@ RUN mkdir -p /root/.openclaw /root/.clawdbot
 # Create clawd workspace directory
 RUN mkdir -p /root/clawd/skills
 
-# Copy optimized OpenClaw configuration
-COPY openclaw.json /root/.openclaw/openclaw.json
-
-# Build cache bust: 2026-02-18-v5-sandbox-0.7.2-with-config
+# Build cache bust: 2026-02-18-v6-sandbox-0.7.2-onboard-flow
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
