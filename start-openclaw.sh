@@ -260,49 +260,9 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
-// System context from BRIEFING.md - TEMPORARILY DISABLED FOR DEBUGGING
-// TODO: Re-enable once gateway starts successfully
-/*try {
-    const briefingPath = '/root/clawd/BRIEFING.md';
-    const briefingContent = fs.readFileSync(briefingPath, 'utf8');
-    config.agents = config.agents || {};
-    config.agents.defaults = config.agents.defaults || {};
-    // Properly escape the briefing content to avoid breaking JSON
-    const systemPrompt = [
-        'You are an AI agent running on Cloudflare Workers with specialized capabilities for automotive OEM data collection and analysis.',
-        '',
-        '## System Context',
-        '',
-        briefingContent,
-        '',
-        '## Your Capabilities',
-        '',
-        'You have access to 10 specialized skills in /root/clawd/skills/ - refer to their SKILL.md documentation for detailed usage instructions. You can use browser automation, web scraping, API discovery, and data extraction to help users with automotive intelligence tasks.',
-        '',
-        'When asked about the system architecture, infrastructure, or your capabilities, refer to the briefing above.'
-    ].join('\n');
-    config.agents.defaults.systemPrompt = systemPrompt;
-
-    console.log('System context configured from BRIEFING.md');
-} catch (e) {
-    console.log('Could not load BRIEFING.md, skipping system context:', e.message);
-}*/
-console.log('System context DISABLED for debugging');
-
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Configuration patched successfully');
 EOFPATCH
-
-# Immediately sync config to R2 (don't wait for background sync)
-# This ensures systemPrompt and other config changes are persisted
-if r2_configured; then
-    echo "Syncing config to R2 immediately..."
-    rclone sync "$CONFIG_DIR/" "r2:${R2_BUCKET}/openclaw/" \
-        $RCLONE_FLAGS --exclude='*.lock' --exclude='*.log' --exclude='*.tmp' --exclude='.git/**' 2>&1 || \
-        echo "WARNING: immediate config sync failed with exit code $?"
-    date -Iseconds > "$LAST_SYNC_FILE"
-    echo "Config synced to R2"
-fi
 
 # ============================================================
 # BACKGROUND SYNC LOOP
@@ -347,42 +307,6 @@ if r2_configured; then
         done
     ) &
     echo "Background sync loop started (PID: $!)"
-fi
-
-# ============================================================
-# WORKSPACE SETUP (skills symlink)
-# ============================================================
-echo "Setting up workspace..."
-WORKSPACE_DIR_OC="/root/.openclaw/workspace"
-mkdir -p "$WORKSPACE_DIR_OC"
-
-# Symlink skills directory so OpenClaw can find them
-if [ -d "$SKILLS_DIR" ]; then
-    if [ -L "$WORKSPACE_DIR_OC/skills" ]; then
-        echo "Skills symlink already exists"
-    elif [ -e "$WORKSPACE_DIR_OC/skills" ]; then
-        echo "WARNING: $WORKSPACE_DIR_OC/skills exists but is not a symlink, removing..."
-        rm -rf "$WORKSPACE_DIR_OC/skills"
-        ln -s "$SKILLS_DIR" "$WORKSPACE_DIR_OC/skills"
-        echo "Skills symlink created: $WORKSPACE_DIR_OC/skills -> $SKILLS_DIR"
-    else
-        ln -s "$SKILLS_DIR" "$WORKSPACE_DIR_OC/skills"
-        echo "Skills symlink created: $WORKSPACE_DIR_OC/skills -> $SKILLS_DIR"
-    fi
-
-    # List available skills
-    SKILL_COUNT=$(ls -1 "$SKILLS_DIR" 2>/dev/null | wc -l)
-    echo "Skills available: $SKILL_COUNT"
-    ls -la "$WORKSPACE_DIR_OC/skills" 2>/dev/null || echo "Skills directory listing failed"
-else
-    echo "WARNING: Skills directory not found at $SKILLS_DIR"
-fi
-
-# Verify BRIEFING.md exists
-if [ -f "/root/clawd/BRIEFING.md" ]; then
-    echo "BRIEFING.md found ($(wc -l < /root/clawd/BRIEFING.md) lines)"
-else
-    echo "WARNING: BRIEFING.md not found"
 fi
 
 # ============================================================
