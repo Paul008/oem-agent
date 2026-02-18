@@ -58,7 +58,8 @@
     "ENVIRONMENT": "production",
     "SANDBOX_SLEEP_AFTER": "never",
     "DEV_MODE": "true",
-    "OPENCLAW_DEV_MODE": "true"
+    "OPENCLAW_DEV_MODE": "true",
+    "R2_BUCKET_NAME": "oem-agent-assets"
   },
 
   // Secrets (set via `wrangler secret put`):
