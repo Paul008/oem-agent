@@ -260,8 +260,9 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
-// System context from BRIEFING.md
-try {
+// System context from BRIEFING.md - TEMPORARILY DISABLED FOR DEBUGGING
+// TODO: Re-enable once gateway starts successfully
+/*try {
     const briefingPath = '/root/clawd/BRIEFING.md';
     const briefingContent = fs.readFileSync(briefingPath, 'utf8');
     config.agents = config.agents || {};
@@ -285,7 +286,8 @@ try {
     console.log('System context configured from BRIEFING.md');
 } catch (e) {
     console.log('Could not load BRIEFING.md, skipping system context:', e.message);
-}
+}*/
+console.log('System context DISABLED for debugging');
 
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Configuration patched successfully');
