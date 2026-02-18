@@ -119,10 +119,16 @@ if [ -d "$BACKUP_DIR/skills" ] && [ "$(ls -A $BACKUP_DIR/skills 2>/dev/null)" ];
 fi
 
 # ============================================================
-# ONBOARD (only if no config exists yet)
+# ONBOARD (force fresh initialization)
 # ============================================================
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "No existing config found, running openclaw onboard..."
+# Force fresh initialization by removing any existing config
+# This ensures we always run onboard with current environment variables
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Removing existing config to force fresh initialization..."
+    rm -f "$CONFIG_FILE"
+fi
+
+echo "Running openclaw onboard to create fresh configuration..."
 
     AUTH_ARGS=""
     if [ -n "$CLOUDFLARE_AI_GATEWAY_API_KEY" ] && [ -n "$CF_AI_GATEWAY_ACCOUNT_ID" ] && [ -n "$CF_AI_GATEWAY_GATEWAY_ID" ]; then
@@ -145,10 +151,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
         --skip-skills \
         --skip-health
 
-    echo "Onboard completed"
-else
-    echo "Using existing config"
-fi
+echo "Onboard completed"
 
 # ============================================================
 # PATCH CONFIG (channels, gateway auth, trusted proxies)
