@@ -57,7 +57,8 @@
   "vars": {
     "ENVIRONMENT": "production",
     "SANDBOX_SLEEP_AFTER": "never",
-    "DEV_MODE": "true"
+    "DEV_MODE": "true",
+    "OPENCLAW_DEV_MODE": "true"
   },
 
   // Secrets (set via `wrangler secret put`):
