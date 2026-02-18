@@ -260,6 +260,29 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
+// System context from BRIEFING.md
+try {
+    const briefingPath = '/root/clawd/BRIEFING.md';
+    const briefingContent = fs.readFileSync(briefingPath, 'utf8');
+    config.agents = config.agents || {};
+    config.agents.defaults = config.agents.defaults || {};
+    config.agents.defaults.systemPrompt = `You are an AI agent running on Cloudflare Workers with specialized capabilities for automotive OEM data collection and analysis.
+
+## System Context
+
+${briefingContent}
+
+## Your Capabilities
+
+You have access to 10 specialized skills in /root/clawd/skills/ - refer to their SKILL.md documentation for detailed usage instructions. You can use browser automation, web scraping, API discovery, and data extraction to help users with automotive intelligence tasks.
+
+When asked about the system architecture, infrastructure, or your capabilities, refer to the briefing above.`;
+
+    console.log('System context configured from BRIEFING.md');
+} catch (e) {
+    console.log('Could not load BRIEFING.md, skipping system context:', e.message);
+}
+
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Configuration patched successfully');
 EOFPATCH
