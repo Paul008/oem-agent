@@ -25,8 +25,8 @@ RUN mkdir -p /root/.openclaw /root/.clawdbot
 # Create clawd workspace directory
 RUN mkdir -p /root/clawd/skills
 
-# Build cache bust: 2026-02-18-v8-minimal-test
-COPY start-openclaw-simple.sh /usr/local/bin/start-openclaw.sh
+# Build cache bust: 2026-02-18-v9-openclaw-debug
+COPY test-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
 # Copy custom skills if available
