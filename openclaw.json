@@ -1,7 +1,4 @@
 {
-  // OpenClaw Production Configuration for OEM Agent
-  // This file will be copied into the container at ~/.openclaw/openclaw.json
-
   "gateway": {
     "port": 18789,
     "mode": "local",
@@ -67,32 +64,22 @@
       "theme": "blue",
       "emoji": "🚗",
       "workspace": "/root/.openclaw/workspace",
-
-      // Model configuration - Multi-provider with Groq for fast inference
       "model": {
         "primary": "groq/llama-4-scout",
         "fallback": ["anthropic/claude-sonnet-4-5", "together/Kimi/k2.5"],
         "image": "together/Kimi/k2.5-vision"
       },
-
-      // Sandbox configuration for safe code execution
       "sandbox": {
         "mode": "off",
         "scope": "agent"
       },
-
-      // Performance settings
       "contextTokens": 200000,
       "maxConcurrent": 3,
       "maxSubagents": 5,
-
-      // Message handling
       "messageCollection": {
         "strategy": "steer",
         "debounceMs": 1000
       },
-
-      // Typing indicators for better UX
       "typing": {
         "mode": "thinking",
         "intervalMs": 5000
@@ -100,7 +87,6 @@
     }
   },
 
-  // Session management for memory persistence
   "session": {
     "scope": "per-sender",
     "reset": {
@@ -126,7 +112,6 @@
     }
   },
 
-  // Skills configuration - your custom OEM skills
   "skills": {
     "load": {
       "watch": true,
@@ -166,20 +151,17 @@
     }
   },
 
-  // Tools configuration - coding profile for development
   "tools": {
     "profile": "coding",
     "allow": [],
     "deny": []
   },
 
-  // Logging configuration
   "logging": {
     "level": "info",
     "redactSensitive": "tools"
   },
 
-  // Heartbeat for maintenance tasks
   "heartbeat": {
     "intervalMs": 1800000
   }
