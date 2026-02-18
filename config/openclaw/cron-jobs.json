@@ -30,7 +30,7 @@
       "skill": "oem-extract",
       "enabled": true,
       "config": {
-        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au"],
+        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au", "nissan-au", "gwm-au"],
         "extraction_layers": ["L2_FAST_PATH", "L3_ADAPTIVE"],
         "max_concurrent": 3,
         "notify_on_change": true,
