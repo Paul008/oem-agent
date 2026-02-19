@@ -32,13 +32,14 @@ RUN mkdir -p /root/.openclaw \
     && mkdir -p /root/clawd/skills
 
 # Copy startup script
-# Build cache bust: 2026-02-19-workspace-bootstrap-files
+# Build cache bust: 2026-02-19-workspace-plus-docs
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
-# Copy custom skills and workspace files
+# Copy custom skills, workspace files, and documentation
 COPY skills/ /root/clawd/skills/
 COPY workspace/ /root/clawd/workspace/
+COPY docs/ /root/clawd/docs/
 
 # Set working directory
 WORKDIR /root/clawd

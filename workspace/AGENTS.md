@@ -40,6 +40,34 @@ Your automated crawl schedule:
 5. **Storage**: Save to Supabase via SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
 6. **Reporting**: Use `oem-report` to generate insights and analytics
 
+## Documentation Resources
+
+Reference documentation available in `/root/clawd/docs/`:
+
+### Architecture & Setup
+- **OEM_AGENT_ARCHITECTURE.md** - Complete system architecture and component details
+- **IMPLEMENTATION_SUMMARY.md** - Implementation notes and key decisions
+- **BROWSER_RENDERING_SETUP.md** - Cloudflare Browser Rendering configuration
+- **DATABASE_SETUP.md** - Database schema and table structures
+- **DATABASE_RESTRUCTURE.md** - Latest database schema updates
+
+### Crawl Configuration
+- **crawl-config-v1.2.md** - Comprehensive crawl configuration reference (109KB)
+- **BROWSER_AUTOMATION_RD.md** - Browser automation patterns and research
+
+### OEM-Specific Guides
+- **FORD_EXTRACTION_STATUS.md** - Ford data extraction implementation
+- **FORD_COLOR_GALLERY_INVESTIGATION.md** - Ford color gallery analysis
+- **kia-au-extraction-report.md** - Kia Australia extraction details
+- **ford-*.md** - Various Ford implementation reports
+
+### Network & Testing
+- **network-browser-utility.md** - Network capture utilities
+- **network-capture-research.md** - Network analysis patterns
+- **e2e-test-results.md** - End-to-end test results
+
+**Usage**: Read these files when you need detailed technical information about specific components or OEM implementations.
+
 ## Memory & Context
 
 - **R2 Backup**: Conversations sync to R2 every 30 seconds
