@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import cronJobsConfig from '../../config/openclaw/cron-jobs.json';
+import cronDashboardHtml from '../assets/cron-dashboard.html';
 
 interface CronJob {
   id: string;
@@ -135,12 +136,20 @@ cron.get('/', async (c) => {
     })
   );
 
-  return c.json({
+  const payload = {
     version: cronJobsConfig.version,
     description: cronJobsConfig.description,
     jobs: jobStatuses,
     globalConfig: cronJobsConfig.global_config,
-  });
+  };
+
+  // Return HTML dashboard for browser requests, JSON for API requests
+  if (c.req.header('Accept')?.includes('text/html')) {
+    const html = cronDashboardHtml.replace('{{JOBS_JSON}}', JSON.stringify(payload));
+    return c.html(html);
+  }
+
+  return c.json(payload);
 });
 
 /**

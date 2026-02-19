@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cron Jobs - OEM Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e4e4e4;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 2rem; margin-bottom: 0.25rem; color: #fff; }
+    .subtitle { color: #888; font-size: 1rem; margin-bottom: 1.5rem; }
+    .meta { display: flex; gap: 1rem; margin-bottom: 2rem; font-size: 0.85rem; color: #888; }
+    .meta span { background: rgba(255,255,255,0.06); padding: 0.3rem 0.75rem; border-radius: 6px; }
+    .job-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+    .job-card:hover { border-color: rgba(255,255,255,0.25); }
+    .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .job-name { font-size: 1.1rem; font-weight: 600; color: #fff; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-enabled { background: #22c55e33; color: #22c55e; }
+    .badge-disabled { background: #ef444433; color: #ef4444; }
+    .badge-success { background: #22c55e33; color: #22c55e; }
+    .badge-failed { background: #ef444433; color: #ef4444; }
+    .badge-running { background: #3b82f633; color: #3b82f6; }
+    .badge-none { background: rgba(255,255,255,0.08); color: #888; }
+    .job-desc { color: #aaa; font-size: 0.9rem; margin-bottom: 0.75rem; }
+    .job-details { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; color: #999; }
+    .job-details dt { color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .job-details dd { color: #ccc; margin-top: 0.15rem; }
+    .actions { margin-top: 0.75rem; }
+    .btn {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #2563eb; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: rgba(255,255,255,0.1); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: #1e293b; border: 1px solid rgba(255,255,255,0.15);
+      padding: 0.75rem 1.25rem; border-radius: 8px;
+      font-size: 0.85rem; color: #e4e4e4;
+      display: none; z-index: 100;
+    }
+    .toast.show { display: block; }
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      .job-details { flex-direction: column; gap: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Cron Jobs</h1>
+    <p class="subtitle">OEM Agent Scheduled Tasks</p>
+    <div class="meta" id="meta"></div>
+    <div id="jobs"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+    const data = {{JOBS_JSON}};
+
+    // Render meta
+    const meta = document.getElementById('meta');
+    meta.innerHTML = `
+      <span>Version ${data.version}</span>
+      <span>Max concurrent: ${data.globalConfig?.max_concurrent_jobs ?? '—'}</span>
+      <span>Timeout: ${data.globalConfig?.job_timeout_minutes ?? '—'}m</span>
+    `;
+
+    // Render jobs
+    const container = document.getElementById('jobs');
+    container.innerHTML = data.jobs.map(job => {
+      const statusBadge = job.enabled
+        ? '<span class="badge badge-enabled">Enabled</span>'
+        : '<span class="badge badge-disabled">Disabled</span>';
+
+      let lastRunHtml = '<span class="badge badge-none">No runs</span>';
+      if (job.lastRun) {
+        const cls = 'badge-' + job.lastRun.status;
+        const time = new Date(job.lastRun.completedAt || job.lastRun.startedAt).toLocaleString();
+        lastRunHtml = `<span class="badge ${cls}">${job.lastRun.status}</span> <span style="margin-left:0.25rem">${time}</span>`;
+      }
+
+      return `
+        <div class="job-card">
+          <div class="job-header">
+            <span class="job-name">${esc(job.name)}</span>
+            <span>${statusBadge}</span>
+          </div>
+          <p class="job-desc">${esc(job.description)}</p>
+          <dl class="job-details">
+            <div><dt>Schedule</dt><dd>${esc(job.nextRun || job.schedule)}</dd></div>
+            <div><dt>Skill</dt><dd><code>${esc(job.skill)}</code></dd></div>
+            <div><dt>Timezone</dt><dd>${esc(job.timezone)}</dd></div>
+            <div><dt>Runs</dt><dd>${job.runCount}</dd></div>
+            <div><dt>Last Run</dt><dd>${lastRunHtml}</dd></div>
+          </dl>
+          <div class="actions">
+            <button class="btn" onclick="triggerJob('${esc(job.id)}')" ${job.enabled ? '' : 'disabled'}>Run Now</button>
+            <a class="btn btn-secondary" href="/cron/runs/${esc(job.id)}" style="text-decoration:none; margin-left:0.5rem">History</a>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    async function triggerJob(jobId) {
+      try {
+        const res = await fetch('/cron/run/' + jobId, { method: 'POST' });
+        const result = await res.json();
+        showToast(res.ok ? 'Triggered: ' + result.runId : 'Error: ' + (result.error || 'Unknown'));
+      } catch (e) {
+        showToast('Failed: ' + e.message);
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 4000);
+    }
+  </script>
+</body>
+</html>
