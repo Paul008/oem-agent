@@ -59,7 +59,8 @@
     "SANDBOX_SLEEP_AFTER": "never",
     "DEV_MODE": "true",
     "OPENCLAW_DEV_MODE": "true",
-    "R2_BUCKET_NAME": "oem-agent-assets"
+    "R2_BUCKET_NAME": "oem-agent-assets",
+    "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17"
   },
 
   // Secrets (set via `wrangler secret put`):
