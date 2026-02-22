@@ -1,0 +1,165 @@
+const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+
+export async function workerFetch(path: string, options?: RequestInit) {
+  const res = await fetch(`${WORKER_BASE}${path}`, {
+    credentials: 'include',
+    ...options,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Worker API error ${res.status}: ${text}`)
+  }
+  return res.json()
+}
+
+export async function triggerCrawl(oemId: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/crawl/${oemId}`, { method: 'POST' })
+}
+
+export async function triggerCrawlAll() {
+  return workerFetch(`/api/v1/oem-agent/admin/crawl`, { method: 'POST' })
+}
+
+export async function triggerForceCrawl(oemId: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/force-crawl/${oemId}`, { method: 'POST' })
+}
+
+export async function triggerDesignCapture(oemId: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/design-capture/${oemId}`, { method: 'POST' })
+}
+
+export async function fetchCronJobs() {
+  return workerFetch('/cron')
+}
+
+export async function triggerCronJob(jobId: string) {
+  return workerFetch(`/cron/run/${jobId}`, { method: 'POST' })
+}
+
+export async function fetchCronRuns(jobId: string, limit = 20) {
+  return workerFetch(`/cron/runs/${jobId}?limit=${limit}`)
+}
+
+export async function restartGateway() {
+  return workerFetch('/api/admin/gateway/restart', { method: 'POST' })
+}
+
+export async function triggerR2Sync() {
+  return workerFetch('/api/admin/storage/sync', { method: 'POST' })
+}
+
+export async function fetchWorkerHealth() {
+  return workerFetch('/api/v1/oem-agent/health')
+}
+
+export async function fetchGeneratedPages(oemId: string) {
+  return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`)
+}
+
+export async function fetchGeneratedPage(slug: string) {
+  return workerFetch(`/api/v1/oem-agent/pages/${slug}`)
+}
+
+export async function generatePage(oemId: string, modelSlug: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
+    method: 'POST',
+  })
+}
+
+export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/clone-page/${oemId}/${modelSlug}`, {
+    method: 'POST',
+    ...(sourceUrl ? {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_url: sourceUrl }),
+    } : {}),
+  })
+}
+
+export async function structurePage(oemId: string, modelSlug: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/structure-page/${oemId}/${modelSlug}`, {
+    method: 'POST',
+  })
+}
+
+export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
+  return workerFetch(`/api/v1/oem-agent/admin/update-sections/${oemId}/${modelSlug}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sections }),
+  })
+}
+
+export async function regenerateSection(oemId: string, modelSlug: string, sectionId: string, sectionType: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/regenerate-section/${oemId}/${modelSlug}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sectionId, sectionType }),
+  })
+}
+
+export async function createCustomPage(oemId: string, slug: string, name: string) {
+  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error('Invalid slug format')
+  if (!name?.trim()) throw new Error('Name is required')
+  return workerFetch(`/api/v1/oem-agent/admin/create-custom-page/${encodeURIComponent(oemId)}/${encodeURIComponent(slug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name.trim() }),
+  })
+}
+
+export async function deleteCustomPage(oemId: string, slug: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/delete-custom-page/${encodeURIComponent(oemId)}/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function createSubpage(oemId: string, modelSlug: string, subpageSlug: string, name: string, subpageType?: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/create-subpage/${encodeURIComponent(oemId)}/${encodeURIComponent(modelSlug)}/${encodeURIComponent(subpageSlug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, subpage_type: subpageType }),
+  })
+}
+
+export async function deleteSubpage(oemId: string, modelSlug: string, subpageSlug: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/delete-subpage/${encodeURIComponent(oemId)}/${encodeURIComponent(modelSlug)}/${encodeURIComponent(subpageSlug)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/adaptive-pipeline/${oemId}/${modelSlug}`, {
+    method: 'POST',
+    ...(sourceUrl ? {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_url: sourceUrl }),
+    } : {}),
+  })
+}
+
+export async function uploadMedia(oemId: string, modelSlug: string, file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch(`${WORKER_BASE}/api/v1/oem-agent/admin/upload-media/${oemId}/${modelSlug}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Upload failed ${res.status}: ${text}`)
+  }
+  return res.json() as Promise<{ success: boolean; url: string; filename: string; size: number; type: string }>
+}
+
+export async function fetchDesignMemory(oemId: string) {
+  return workerFetch(`/api/v1/oem-agent/design-memory/${oemId}`)
+}
+
+export async function fetchExtractionRuns(oemId?: string, limit = 20) {
+  const params = new URLSearchParams()
+  if (oemId) params.set('oemId', oemId)
+  params.set('limit', String(limit))
+  return workerFetch(`/api/v1/oem-agent/extraction-runs?${params}`)
+}

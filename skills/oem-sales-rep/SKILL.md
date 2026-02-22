@@ -31,12 +31,24 @@ Conversational AI assistant for querying OEM product and offer information.
 
 ## Queryable Data
 
+### Supabase Tables
+- `oems` — 14 OEM records (id like 'ford-au', 'kia-au')
+- `vehicle_models` — Models per OEM (name, body_type, category, model_year)
+- `products` — Variants/grades linked to models via model_id FK
+- `variant_colors` — Colour options per product (color_name, color_code, price_delta)
+- `variant_pricing` — Per-state driveaway pricing (driveaway_nsw/vic/qld/wa/sa/tas/act/nt)
+- `accessories` — Accessory catalog per OEM (name, price, category, part_number, inc_fitting)
+- `accessory_models` — Many-to-many join: accessories ↔ vehicle_models
+- `offers` — Promotional offers and deals
+- `discovered_apis` — OEM API endpoints with schema_json documentation
+
 ### Product Fields
 - **Basic**: title, subtitle, body_type, fuel_type, availability
 - **Pricing**: price_amount, price_currency, price_type, price_qualifier
-- **Vehicle Specs**: engine_size, cylinders, transmission, gears, drive, doors, seats
+- **Vehicle Specs**: engine_size, cylinders, transmission, gears, drive, doors, seats, drivetrain, engine_desc
+- **Variant**: variant_name, variant_code, model_id (FK to vehicle_models)
 - **Features**: key_features (OEM marketing features like "Apple CarPlay", "Blind Spot Monitor")
-- **Metadata**: VIN, registration, odometer, build year, exterior colour, location
+- **Metadata**: meta_json (VIN, registration, odometer, source system references)
 
 ### Example Queries
 - "What 4-cylinder SUVs are available under $35,000?"

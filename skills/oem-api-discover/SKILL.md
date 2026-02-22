@@ -26,7 +26,7 @@ Intercepts network traffic during browser rendering to discover callable APIs.
 1. During full render (via oem-crawl), enable CDP Network domain using `cloudflare-browser` skill
 2. Call `client.getApiCandidates()` to get filtered JSON endpoints
 3. Classify API pattern using Groq Llama
-4. Store discovered API in R2 agent memory + Supabase
+4. Store discovered API in `discovered_apis` table (unique: oem_id, url) with schema_json, reliability_score, status
 5. On future crawls, try direct API call before falling back to browser render
 
 ## Integration with cloudflare-browser

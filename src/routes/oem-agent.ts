@@ -1325,6 +1325,515 @@ app.get('/admin/offers/:oemId', async (c) => {
 });
 
 // ============================================================================
+// Pages Routes (AI-generated model pages)
+// ============================================================================
+
+/**
+ * GET /api/v1/oem-agent/pages/:slug
+ * Get an AI-generated VehicleModelPage by slug
+ */
+app.get('/pages/:slug', async (c) => {
+  const slug = c.req.param('slug');
+
+  const { PageGenerator } = await import('../design/page-generator');
+  const { DesignAgent } = await import('../design/agent');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  const designAgent = new DesignAgent(
+    c.env.TOGETHER_API_KEY,
+    c.env.MOLTBOT_BUCKET,
+  );
+
+  const generator = new PageGenerator({
+    supabase,
+    aiRouter,
+    designAgent,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    browser: c.env.BROWSER!,
+  });
+
+  const page = await generator.getPageBySlug(slug);
+
+  if (!page) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  // Attach cost from ai_inference_log if available
+  try {
+    const { data: costRows } = await supabase
+      .from('ai_inference_log')
+      .select('cost_usd')
+      .eq('task_type', 'page_structuring')
+      .eq('status', 'success')
+      .or(`metadata_json->>model_slug.eq.${slug.replace(/^[a-z]+-au-/, '')}`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (costRows && costRows.length > 0) {
+      (page as any).total_cost_usd = costRows[0].cost_usd;
+    }
+  } catch { /* cost lookup is non-critical */ }
+
+  // Strip cloned HTML from API response when structured sections exist.
+  // The raw HTML stays in R2 for re-extraction but shouldn't be in the API payload.
+  const includeRendered = c.req.query('includeRendered') === 'true';
+  if (!includeRendered && page.content?.sections?.length) {
+    delete (page as any).content.rendered;
+  }
+
+  return c.json(page);
+});
+
+/**
+ * GET /api/v1/oem-agent/pages
+ * List generated pages for an OEM
+ */
+app.get('/pages', async (c) => {
+  const oemId = c.req.query('oemId') as OemId | undefined;
+
+  if (!oemId) {
+    return c.json({ error: 'oemId query parameter is required' }, 400);
+  }
+
+  const { PageGenerator } = await import('../design/page-generator');
+  const { DesignAgent } = await import('../design/agent');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  const designAgent = new DesignAgent(
+    c.env.TOGETHER_API_KEY,
+    c.env.MOLTBOT_BUCKET,
+  );
+
+  const generator = new PageGenerator({
+    supabase,
+    aiRouter,
+    designAgent,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    browser: c.env.BROWSER!,
+  });
+
+  const slugs = await generator.listGeneratedPages(oemId);
+
+  return c.json({ oemId, pages: slugs, count: slugs.length });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/generate-page/:oemId/:modelSlug
+ * Manually trigger page generation for a specific model
+ */
+app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const def = getOemDefinition(oemId);
+  if (!def) {
+    return c.json({ error: 'OEM not found' }, 404);
+  }
+
+  const { PageGenerator } = await import('../design/page-generator');
+  const { DesignAgent } = await import('../design/agent');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  const designAgent = new DesignAgent(
+    c.env.TOGETHER_API_KEY,
+    c.env.MOLTBOT_BUCKET,
+  );
+
+  const generator = new PageGenerator({
+    supabase,
+    aiRouter,
+    designAgent,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    browser: c.env.BROWSER!,
+  });
+
+  // Derive the Worker's public base URL from the request
+  const reqUrl = new URL(c.req.url);
+  const workerBaseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+
+  const result = await generator.generateModelPage(oemId, modelSlug, workerBaseUrl);
+
+  return c.json({
+    ...result,
+    oemId,
+    modelSlug,
+  }, result.success ? 200 : 500);
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/clone-page/:oemId/:modelSlug
+ * Capture OEM page via computed-style extraction — pixel-faithful, zero AI cost.
+ */
+app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  // Accept optional source_url override in body (used for subpages)
+  let bodySourceUrl: string | undefined;
+  try {
+    const body = await c.req.json();
+    bodySourceUrl = body?.source_url;
+  } catch { /* no body is fine */ }
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // For subpage slugs (e.g. haval-h6--performance), look up the parent model
+  const dbSlug = modelSlug.includes('--') ? modelSlug.split('--')[0] : modelSlug;
+
+  const { data } = await supabase
+    .from('vehicle_models')
+    .select('name, source_url')
+    .eq('oem_id', oemId)
+    .eq('slug', dbSlug)
+    .single();
+
+  const sourceUrl = bodySourceUrl || data?.source_url;
+  if (!sourceUrl) {
+    return c.json({ error: 'No source_url for this model. Provide a source_url in the request body.' }, 400);
+  }
+
+  const { PageCapturer } = await import('../design/page-capturer');
+  const capturer = new PageCapturer({
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    browser: c.env.BROWSER!,
+  });
+
+  const result = await capturer.captureModelPage(oemId, modelSlug, sourceUrl, data?.name || modelSlug);
+  return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/structure-page/:oemId/:modelSlug
+ * Extract structured sections from a cloned page using Gemini 3.1 Pro.
+ */
+app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const { PageStructurer } = await import('../design/page-structurer');
+  const { DesignMemoryManager } = await import('../design/memory');
+  const { SmartPromptBuilder } = await import('../design/prompt-builder');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  const memoryManager = new DesignMemoryManager(supabase);
+  const promptBuilder = new SmartPromptBuilder(memoryManager);
+
+  const structurer = new PageStructurer({
+    aiRouter,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    promptBuilder,
+  });
+
+  const result = await structurer.structurePage(oemId, modelSlug);
+
+  return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
+});
+
+/**
+ * PUT /api/v1/oem-agent/admin/update-sections/:oemId/:modelSlug
+ * Save reordered/edited sections back to R2.
+ */
+app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const body = await c.req.json<{ sections: any[] }>();
+  if (!Array.isArray(body.sections)) {
+    return c.json({ error: 'sections array is required' }, 400);
+  }
+
+  const R2_PREFIX = 'pages/definitions';
+  const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(latestKey);
+
+  if (!obj) {
+    return c.json({ error: 'Page not found in R2' }, 404);
+  }
+
+  const pageData = await obj.json() as any;
+  pageData.content.sections = body.sections;
+  pageData.version = (pageData.version || 0) + 1;
+  pageData.generated_at = new Date().toISOString();
+
+  const jsonStr = JSON.stringify(pageData);
+  const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
+
+  await Promise.all([
+    c.env.MOLTBOT_BUCKET.put(latestKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'page-builder', oem_id: oemId, model_slug: modelSlug },
+    }),
+    c.env.MOLTBOT_BUCKET.put(versionKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'page-builder' },
+    }),
+  ]);
+
+  return c.json({
+    success: true,
+    version: pageData.version,
+    sections_count: body.sections.length,
+  });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/upload-media/:oemId/:modelSlug
+ * Upload a media file (image/video) to R2 for use in page sections.
+ */
+app.post('/admin/upload-media/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId');
+  const modelSlug = c.req.param('modelSlug');
+
+  const ALLOWED_TYPES = new Set([
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'video/mp4', 'video/webm',
+  ]);
+  const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+
+  let formData: FormData;
+  try {
+    formData = await c.req.formData();
+  } catch {
+    return c.json({ error: 'Invalid multipart/form-data' }, 400);
+  }
+
+  const file = formData.get('file');
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: 'file field is required' }, 400);
+  }
+
+  if (!ALLOWED_TYPES.has(file.type)) {
+    return c.json({ error: `Unsupported file type: ${file.type}` }, 400);
+  }
+
+  const isVideo = file.type.startsWith('video/');
+  const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  if (file.size > maxSize) {
+    return c.json({ error: `File too large (max ${maxSize / 1024 / 1024}MB)` }, 400);
+  }
+
+  const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+  const filename = `${Date.now()}-${sanitized}`;
+  const r2Key = `pages/assets/${oemId}/${modelSlug}/${filename}`;
+
+  await c.env.MOLTBOT_BUCKET.put(r2Key, file.stream(), {
+    httpMetadata: { contentType: file.type },
+    customMetadata: { oem_id: oemId, model_slug: modelSlug, original_name: file.name },
+  });
+
+  return c.json({
+    success: true,
+    url: `/media/pages/${oemId}/${modelSlug}/${filename}`,
+    filename,
+    size: file.size,
+    type: file.type,
+  });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/regenerate-section/:oemId/:modelSlug
+ * Regenerate a single section via Gemini.
+ */
+app.post('/admin/regenerate-section/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const body = await c.req.json<{ sectionId: string; sectionType: string }>();
+  if (!body.sectionId || !body.sectionType) {
+    return c.json({ error: 'sectionId and sectionType are required' }, 400);
+  }
+
+  const { PageStructurer } = await import('../design/page-structurer');
+  const { DesignMemoryManager } = await import('../design/memory');
+  const { SmartPromptBuilder } = await import('../design/prompt-builder');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  const memoryManager = new DesignMemoryManager(supabase);
+  const promptBuilder = new SmartPromptBuilder(memoryManager);
+
+  const structurer = new PageStructurer({
+    aiRouter,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    promptBuilder,
+  });
+
+  const result = await structurer.regenerateSection(oemId, modelSlug, body.sectionId, body.sectionType);
+
+  if (!result.success) {
+    return c.json({ error: result.error, ...result }, 500);
+  }
+
+  // Find the regenerated section
+  const section = result.page?.content?.sections?.find((s: any) => s.id === body.sectionId);
+
+  return c.json({
+    success: true,
+    section,
+    version: result.page?.version,
+    cost_usd: result.gemini_cost_usd,
+    tokens_used: result.gemini_tokens_used,
+    structuring_time_ms: result.structuring_time_ms,
+  });
+});
+
+/**
+ * PUT /api/v1/oem-agent/admin/screenshot/:oemId/:modelSlug
+ * Upload a pre-captured screenshot for page generation pipeline.
+ * Accepts raw PNG body (Content-Type: image/png).
+ */
+app.put('/admin/screenshot/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const def = getOemDefinition(oemId);
+  if (!def) {
+    return c.json({ error: 'OEM not found' }, 404);
+  }
+
+  const imageData = await c.req.arrayBuffer();
+  if (!imageData || imageData.byteLength < 1000) {
+    return c.json({ error: 'No image data or image too small' }, 400);
+  }
+
+  const r2Key = `pages/captures/${oemId}/${modelSlug}/desktop.png`;
+  await c.env.MOLTBOT_BUCKET.put(r2Key, imageData, {
+    httpMetadata: { contentType: 'image/png' },
+    customMetadata: {
+      oem_id: oemId,
+      model_slug: modelSlug,
+      uploaded_at: new Date().toISOString(),
+      source: 'manual-upload',
+    },
+  });
+
+  return c.json({
+    success: true,
+    r2_key: r2Key,
+    size_bytes: imageData.byteLength,
+    message: `Screenshot uploaded for ${oemId}/${modelSlug}. Run generate-page to use it.`,
+  });
+});
+
+/**
+ * GET /api/v1/oem-agent/admin/debug-screenshot/:oemId/:modelSlug
+ * Check if pre-captured screenshot exists in R2
+ */
+app.get('/admin/debug-screenshot/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId');
+  const modelSlug = c.req.param('modelSlug');
+  const r2Key = `pages/captures/${oemId}/${modelSlug}/desktop.png`;
+  try {
+    const obj = await c.env.MOLTBOT_BUCKET.head(r2Key);
+    if (!obj) {
+      return c.json({ exists: false, r2Key });
+    }
+    return c.json({
+      exists: true,
+      r2Key,
+      size: obj.size,
+      contentType: obj.httpMetadata?.contentType,
+      uploaded: obj.uploaded?.toISOString(),
+      customMetadata: obj.customMetadata,
+    });
+  } catch (e) {
+    return c.json({ error: String(e), r2Key }, 500);
+  }
+});
+
+/**
+ * GET /api/v1/oem-agent/admin/debug-moonshot
+ * Test Moonshot API connectivity from Worker
+ */
+app.get('/admin/debug-moonshot', async (c) => {
+  const key = c.env.MOONSHOT_API_KEY;
+  const hasKey = !!key;
+  const keyPrefix = key ? key.substring(0, 8) + '...' : 'MISSING';
+
+  try {
+    const resp = await fetch('https://api.moonshot.ai/v1/models', {
+      headers: { 'Authorization': `Bearer ${key}` },
+    });
+    const body = await resp.text();
+    return c.json({
+      hasKey,
+      keyPrefix,
+      status: resp.status,
+      models: resp.ok ? JSON.parse(body) : body,
+    });
+  } catch (e) {
+    return c.json({
+      hasKey,
+      keyPrefix,
+      error: e instanceof Error ? e.message : String(e),
+    }, 500);
+  }
+});
+
+// ============================================================================
 // Sales Rep Agent Routes
 // ============================================================================
 
@@ -1764,6 +2273,287 @@ app.post('/admin/capture-ford-advanced', async (c) => {
 });
 
 // ============================================================================
+// Design Memory Endpoints
+// ============================================================================
+
+/**
+ * GET /api/v1/oem-agent/design-memory/:oemId
+ * Get the OEM's accumulated design profile.
+ */
+app.get('/design-memory/:oemId', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+
+  const { DesignMemoryManager } = await import('../design/memory');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const memory = new DesignMemoryManager(supabase);
+  const profile = await memory.getOemProfile(oemId);
+
+  return c.json({ oemId, profile });
+});
+
+/**
+ * GET /api/v1/oem-agent/extraction-runs
+ * List recent extraction runs, optionally filtered by OEM.
+ */
+app.get('/extraction-runs', async (c) => {
+  const oemId = c.req.query('oemId') as OemId | undefined;
+  const limit = parseInt(c.req.query('limit') || '20', 10);
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  let query = supabase
+    .from('extraction_runs')
+    .select('*')
+    .order('started_at', { ascending: false })
+    .limit(limit);
+
+  if (oemId) {
+    query = query.eq('oem_id', oemId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return c.json({ error: error.message }, 500);
+  }
+
+  return c.json({ runs: data || [], count: data?.length || 0 });
+});
+
+// ============================================================================
+// Adaptive Pipeline
+// ============================================================================
+
+app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  if (!allOemIds.includes(oemId)) {
+    return c.json({ error: `Unknown OEM: ${oemId}` }, 400);
+  }
+
+  // Accept optional source_url override in body (used for subpages)
+  let bodySourceUrl: string | undefined;
+  try {
+    const body = await c.req.json();
+    bodySourceUrl = body?.source_url;
+  } catch { /* no body is fine */ }
+
+  // Look up source URL from vehicle_models
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // For subpage slugs (e.g. haval-h6--performance), look up the parent model
+  const dbSlug = modelSlug.includes('--') ? modelSlug.split('--')[0] : modelSlug;
+
+  const { data: model } = await supabase
+    .from('vehicle_models')
+    .select('name, source_url')
+    .eq('oem_id', oemId)
+    .eq('slug', dbSlug)
+    .single();
+
+  const sourceUrl = bodySourceUrl || model?.source_url;
+  if (!sourceUrl) {
+    return c.json({ error: `No source URL found for ${oemId}/${modelSlug}. Provide a source_url in the request body.` }, 404);
+  }
+
+  const { AdaptivePipeline } = await import('../design/pipeline');
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  if (!c.env.BROWSER) {
+    return c.json({ error: 'BROWSER binding not configured' }, 500);
+  }
+
+  const pipeline = new AdaptivePipeline({
+    aiRouter,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    browser: c.env.BROWSER,
+    supabase,
+    vectorize: c.env.UX_KNOWLEDGE,
+    googleApiKey: c.env.GOOGLE_API_KEY,
+  });
+
+  const result = await pipeline.run(oemId, modelSlug, sourceUrl, model?.name);
+  return c.json(result);
+});
+
+// POST /admin/create-custom-page/:oemId/:slug — Create a blank custom page in R2
+app.post('/admin/create-custom-page/:oemId/:slug', async (c) => {
+  const { oemId, slug } = c.req.param();
+
+  // Validate slug format
+  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug) && !/^[a-z0-9]$/.test(slug)) {
+    return c.json({ error: 'Slug must be lowercase alphanumeric with hyphens, not starting/ending with hyphen' }, 400);
+  }
+
+  let body: { name?: string; page_type?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  const name = String(body.name || '').trim().replace(/[<>]/g, '').substring(0, 100);
+  if (!name) {
+    return c.json({ error: 'name is required' }, 400);
+  }
+
+  const bucket = c.env.MOLTBOT_BUCKET;
+  const key = `pages/definitions/${oemId}/${slug}/latest.json`;
+
+  // Check for existing page with this slug
+  const existing = await bucket.head(key);
+  if (existing) {
+    return c.json({ error: 'A page with this slug already exists' }, 409);
+  }
+
+  const page = {
+    id: crypto.randomUUID(),
+    slug,
+    name,
+    oem_id: oemId,
+    header: { slides: [] },
+    content: { rendered: '', sections: [] },
+    form: false,
+    variant_link: '',
+    generated_at: new Date().toISOString(),
+    source_url: '',
+    version: 1,
+    page_type: 'custom',
+  };
+
+  await bucket.put(key, JSON.stringify(page), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+
+  return c.json({ success: true, slug, page });
+});
+
+// POST /admin/create-subpage/:oemId/:modelSlug/:subpageSlug — Create a subpage under a model page
+app.post('/admin/create-subpage/:oemId/:modelSlug/:subpageSlug', async (c) => {
+  const { oemId, modelSlug, subpageSlug } = c.req.param();
+
+  // Validate subpage slug format
+  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subpageSlug) && !/^[a-z0-9]$/.test(subpageSlug)) {
+    return c.json({ error: 'Subpage slug must be lowercase alphanumeric with hyphens' }, 400);
+  }
+
+  let body: { name?: string; subpage_type?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  const name = String(body.name || '').trim().replace(/[<>]/g, '').substring(0, 100);
+  if (!name) {
+    return c.json({ error: 'name is required' }, 400);
+  }
+
+  const bucket = c.env.MOLTBOT_BUCKET;
+
+  // Check parent model page exists
+  const parentKey = `pages/definitions/${oemId}/${modelSlug}/latest.json`;
+  const parentExists = await bucket.head(parentKey);
+  if (!parentExists) {
+    return c.json({ error: 'Parent model page not found' }, 404);
+  }
+
+  // Build composite slug and check for collision
+  const compositeSlug = `${modelSlug}--${subpageSlug}`;
+  const key = `pages/definitions/${oemId}/${compositeSlug}/latest.json`;
+
+  const existing = await bucket.head(key);
+  if (existing) {
+    return c.json({ error: 'A subpage with this slug already exists' }, 409);
+  }
+
+  const subpageType = body.subpage_type || 'custom';
+  const page = {
+    id: crypto.randomUUID(),
+    slug: compositeSlug,
+    name,
+    oem_id: oemId,
+    header: { slides: [] },
+    content: { rendered: '', sections: [] },
+    form: false,
+    variant_link: '',
+    generated_at: new Date().toISOString(),
+    source_url: '',
+    version: 1,
+    page_type: 'subpage' as const,
+    parent_slug: modelSlug,
+    subpage_type: subpageType,
+    subpage_name: name,
+  };
+
+  await bucket.put(key, JSON.stringify(page), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+
+  return c.json({ success: true, slug: compositeSlug, page });
+});
+
+// DELETE /admin/delete-subpage/:oemId/:modelSlug/:subpageSlug — Delete a subpage from R2
+app.delete('/admin/delete-subpage/:oemId/:modelSlug/:subpageSlug', async (c) => {
+  const { oemId, modelSlug, subpageSlug } = c.req.param();
+  const bucket = c.env.MOLTBOT_BUCKET;
+  const compositeSlug = `${modelSlug}--${subpageSlug}`;
+  const key = `pages/definitions/${oemId}/${compositeSlug}/latest.json`;
+
+  const obj = await bucket.get(key);
+  if (!obj) {
+    return c.json({ error: 'Subpage not found' }, 404);
+  }
+
+  const page = await obj.json<{ page_type?: string }>();
+  if (page.page_type !== 'subpage') {
+    return c.json({ error: 'Only subpages can be deleted via this endpoint' }, 403);
+  }
+
+  await bucket.delete(key);
+  return c.json({ success: true });
+});
+
+// DELETE /admin/delete-custom-page/:oemId/:slug — Delete a custom page from R2
+app.delete('/admin/delete-custom-page/:oemId/:slug', async (c) => {
+  const { oemId, slug } = c.req.param();
+  const bucket = c.env.MOLTBOT_BUCKET;
+  const key = `pages/definitions/${oemId}/${slug}/latest.json`;
+
+  const obj = await bucket.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found' }, 404);
+  }
+
+  const page = await obj.json<{ page_type?: string }>();
+  if (page.page_type !== 'custom') {
+    return c.json({ error: 'Only custom pages can be deleted' }, 403);
+  }
+
+  await bucket.delete(key);
+  return c.json({ success: true });
+});
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -1776,8 +2566,10 @@ function createOrchestratorFromEnv(env: MoltbotEnv): OemAgentOrchestrator {
   const aiRouter = new AiRouter({
     groq: env.GROQ_API_KEY,
     together: env.TOGETHER_API_KEY,
+    moonshot: env.MOONSHOT_API_KEY,
     anthropic: env.ANTHROPIC_API_KEY,
-  });
+    google: env.GOOGLE_API_KEY,
+  }, supabaseClient);
 
   const notifier = env.SLACK_WEBHOOK_URL
     ? new MultiChannelNotifier({ slackWebhookUrl: env.SLACK_WEBHOOK_URL })

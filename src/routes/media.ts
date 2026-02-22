@@ -90,6 +90,7 @@ const ALLOWED_HOSTS = new Set([
   'img-ik.cars.co.za',
   'www.volkswagen-genuine-accessories.com',
   'content.dam',
+  'cdn.rotorint.com',
 ]);
 
 /**
@@ -118,6 +119,26 @@ function resolveUrl(raw: string, oemId: string): string | null {
   const base = OEM_URL_BASES[oemId];
   return base ? base + raw : null;
 }
+
+// GET /media/pages/:oemId/:modelSlug/:filename — serve R2-stored page assets
+// Must be registered BEFORE the catch-all /:oemId/:encodedUrl route
+media.get('/pages/:oemId/:modelSlug/:filename', async (c) => {
+  const { oemId, modelSlug, filename } = c.req.param();
+  const r2Key = `pages/assets/${oemId}/${modelSlug}/${filename}`;
+  const bucket = (c.env as any).MOLTBOT_BUCKET as R2Bucket;
+
+  const obj = await bucket.get(r2Key);
+  if (!obj) {
+    return c.notFound();
+  }
+
+  const headers = new Headers();
+  headers.set('Content-Type', obj.httpMetadata?.contentType || 'image/jpeg');
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Access-Control-Allow-Origin', '*');
+
+  return new Response(obj.body, { status: 200, headers });
+});
 
 // GET /media/:oemId/:encodedUrl
 media.get('/:oemId/:encodedUrl', async (c) => {

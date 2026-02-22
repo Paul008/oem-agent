@@ -10,7 +10,7 @@ This document provides instructions for setting up the Supabase database for the
 
 ## Migration Files
 
-There are 4 migration files to execute in order:
+There are 5 migration files to execute in order:
 
 1. **`00001_initial_schema.sql`** (495 lines)
    - Creates all core tables
@@ -32,6 +32,12 @@ There are 4 migration files to execute in order:
    - Creates HNSW indexes for fast similarity search
    - Adds semantic search RPC functions
    - Creates monitoring views for embedding coverage
+
+5. **`20260222_design_memory.sql`**
+   - Creates `extraction_runs` table for tracking page extraction pipeline runs
+   - Adds `design_profile_json` JSONB column to `oems` table for accumulated design learning
+   - Creates indexes on oem_id, status, model_slug, started_at
+   - Enables RLS with service_role policy
 
 ## Setup Instructions
 
@@ -59,7 +65,7 @@ There are 4 migration files to execute in order:
    ```sql
    -- Check OEMs were created
    SELECT COUNT(*) FROM oems;
-   -- Should return: 13
+   -- Should return: 14
 
    -- Check source pages were seeded
    SELECT COUNT(*) FROM source_pages;
@@ -102,20 +108,23 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 
 | Table | Purpose |
 |-------|---------|
-| `oems` | OEM registry (13 Australian automotive brands) |
+| `oems` | OEM registry (14 Australian automotive brands) with config_json.api_docs, design_profile_json |
+| `vehicle_models` | Models per OEM (unique: oem_id, slug). Links OEM → model hierarchy |
+| `products` | Vehicle variants/grades with model_id FK, specs, pricing |
+| `variant_colors` | Colour options per product (unique: product_id, color_code) |
+| `variant_pricing` | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `accessories` | Accessory catalog per OEM (unique: oem_id, external_key) |
+| `accessory_models` | Many-to-many join: accessories ↔ vehicle_models |
+| `discovered_apis` | API endpoints per OEM (unique: oem_id, url) with schema_json |
 | `import_runs` | Crawl job tracking |
 | `source_pages` | URLs to monitor for each OEM |
-| `products` | Vehicle models extracted from OEM sites |
-| `product_images` | Vehicle images stored in R2 |
-| `product_versions` | Historical snapshots of product data |
-| `offers` | Promotional offers and deals |
-| `offer_assets` | Offer images and PDFs |
+| `offers` | Promotional offers and deals (price_amount=private/RRP, abn_price_amount=ABN price) |
 | `banners` | Homepage banner/carousel content |
 | `change_events` | Audit log of all detected changes |
 | `ai_inference_log` | LLM API call tracking for cost monitoring |
-| `brand_tokens` | Design system extraction (colors, typography) |
-| `page_layouts` | Page structure decomposition |
-| `design_captures` | Screenshots and computed styles |
+| `extraction_runs` | Design pipeline run history with quality metrics and cost tracking |
+
+**Note**: Tables `product_images`, `product_versions`, `offer_assets`, `offer_versions`, `banner_versions`, `oem_members` were dropped (0 rows, unused). Colors and pricing now use dedicated `variant_colors` and `variant_pricing` tables.
 
 ### Vector Embedding Tables
 
@@ -155,7 +164,8 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 | ldv-au | LDV Australia | https://www.ldvautomotive.com.au/ |
 | isuzu-au | Isuzu UTE Australia | https://www.isuzuute.com.au/ |
 | mazda-au | Mazda Australia | https://www.mazda.com.au/ |
-| kgm-au | Genesis Australia | https://www.genesis.com/au/ |
+| kgm-au | KGM (formerly SsangYong) | https://www.kgm.com/au/ |
+| subaru-au | Subaru Australia | https://www.subaru.com.au/ |
 | gwm-au | Great Wall Motors Australia | https://www.gwmaustralia.com.au/ |
 | suzuki-au | Suzuki Australia | https://www.suzuki.com.au/ |
 | hyundai-au | Hyundai Australia | https://www.hyundai.com.au/ |

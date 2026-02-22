@@ -130,6 +130,29 @@ POST /api/oem-agent/semantic/changes
 - **Embedding generation**: ~100ms per query
 - **Similarity threshold**: 0.7+ recommended for relevance
 
+### PDF / Brochure Search
+
+Search vectorized brochure and brand guidelines PDFs via `search_pdfs_semantic()` RPC:
+
+```json
+{
+  "action": "search_pdfs",
+  "query": "towing capacity for SUV models",
+  "options": {
+    "match_threshold": 0.7,
+    "match_count": 10,
+    "oem_id": "toyota-au",
+    "source_type": "brochure"
+  }
+}
+```
+
+**Source Types:**
+- `brochure` — Vehicle model brochures (96/132 models have PDFs)
+- `guidelines` — Brand guidelines from OEM portals
+
+**Pipeline:** `vectorize-pdfs.mjs` → download PDFs → pdf-parse → chunk (1000 chars, 200 overlap) → Google text-embedding-004 (768 dims) → upsert to `pdf_embeddings`
+
 ## Example Queries
 
 | Query | Best For |
@@ -139,6 +162,8 @@ POST /api/oem-agent/semantic/changes
 | "hybrid with low emissions" | Specification search |
 | "special financing deal" | Offer search |
 | "recent price drops" | Change pattern search |
+| "towing capacity brochure specs" | PDF brochure search |
+| "brand colour guidelines" | Brand guidelines search |
 
 ## Output Schema
 

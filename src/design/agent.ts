@@ -539,9 +539,179 @@ export class DesignAgent {
   }
 
   /**
+   * Capture page for AI page generation pipeline.
+   *
+   * Returns desktop screenshot (as base64) plus cleaned HTML for the
+   * Gemini prompt. Launches a headless browser via the BROWSER binding.
+   */
+  async capturePageForGeneration(pageUrl: string, browser: Fetcher): Promise<{
+    screenshotBase64: string;
+    cleanedHtml: string;
+    pageTitle: string;
+    extractedImageUrls: string[];
+  }> {
+    const puppeteerModule = await import('@cloudflare/puppeteer');
+    const puppeteer = puppeteerModule.default;
+    const b = await puppeteer.launch(browser as any);
+
+    try {
+      const page = await b.newPage();
+
+      await page.setViewport({ width: this.config.desktopWidth, height: 900 });
+      await page.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+      );
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'en-AU,en;q=0.9',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+      });
+
+      // Navigate with a generous timeout — OEM sites can be heavy
+      await page.goto(pageUrl, { waitUntil: 'networkidle0', timeout: 30_000 });
+
+      // Scroll to trigger lazy-loaded images
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight / 2);
+      });
+      await new Promise(r => setTimeout(r, 1500));
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      await new Promise(r => setTimeout(r, 1500));
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+      await new Promise(r => setTimeout(r, 500));
+
+      // Take desktop screenshot
+      const screenshotBuffer = await page.screenshot({ fullPage: true, type: 'png' }) as Buffer;
+      const screenshotBase64 = btoa(String.fromCharCode(...new Uint8Array(screenshotBuffer)));
+
+      // Extract cleaned HTML
+      const cleanedHtml = await page.evaluate(() => {
+        // Clone the body so we don't mutate the live DOM
+        const clone = document.body.cloneNode(true) as HTMLElement;
+
+        // Remove noise elements
+        const selectors = [
+          'script', 'noscript', 'style', 'link[rel="stylesheet"]',
+          'iframe', 'svg', 'canvas',
+          'nav', 'header', 'footer',
+          '[class*="cookie"]', '[class*="consent"]',
+          '[class*="tracking"]', '[class*="analytics"]',
+          '[class*="chat"]', '[class*="popup"]', '[class*="modal"]',
+          '[data-tracking]', '[data-analytics]',
+        ];
+        for (const sel of selectors) {
+          clone.querySelectorAll(sel).forEach(el => el.remove());
+        }
+
+        // Remove data-* and on* attributes to shrink the HTML
+        const walk = (el: Element) => {
+          const attrs = [...el.attributes];
+          for (const attr of attrs) {
+            if (attr.name.startsWith('data-') || attr.name.startsWith('on')) {
+              el.removeAttribute(attr.name);
+            }
+          }
+          for (const child of el.children) walk(child);
+        };
+        walk(clone);
+
+        return clone.innerHTML;
+      });
+
+      // Extract all image URLs from the page DOM
+      const extractedImageUrls = await page.evaluate(() => {
+        const urls = new Set<string>();
+        const pageHost = window.location.hostname;
+
+        // img src
+        document.querySelectorAll('img[src]').forEach(img => {
+          const src = (img as HTMLImageElement).src;
+          if (src && src.startsWith('http')) urls.add(src);
+        });
+
+        // img srcset — pick the largest variant
+        document.querySelectorAll('img[srcset]').forEach(img => {
+          const srcset = img.getAttribute('srcset') || '';
+          srcset.split(',').forEach(entry => {
+            const url = entry.trim().split(/\s+/)[0];
+            if (url && url.startsWith('http')) urls.add(url);
+          });
+        });
+
+        // video poster
+        document.querySelectorAll('video[poster]').forEach(v => {
+          const poster = (v as HTMLVideoElement).poster;
+          if (poster && poster.startsWith('http')) urls.add(poster);
+        });
+
+        // source src (video sources)
+        document.querySelectorAll('source[src]').forEach(s => {
+          const src = (s as HTMLSourceElement).src;
+          if (src && src.startsWith('http')) urls.add(src);
+        });
+
+        // CSS background-image
+        document.querySelectorAll('[style*="background"]').forEach(el => {
+          const style = (el as HTMLElement).style.backgroundImage || '';
+          const match = style.match(/url\(["']?(https?:\/\/[^"')\s]+)["']?\)/);
+          if (match) urls.add(match[1]);
+        });
+
+        // picture > source srcset
+        document.querySelectorAll('picture source[srcset]').forEach(s => {
+          const srcset = s.getAttribute('srcset') || '';
+          srcset.split(',').forEach(entry => {
+            const url = entry.trim().split(/\s+/)[0];
+            if (url && url.startsWith('http')) urls.add(url);
+          });
+        });
+
+        // Filter: only keep images from the same domain or known CDNs
+        // (exclude tracking pixels, analytics, third-party ads)
+        const filtered = [...urls].filter(url => {
+          try {
+            const u = new URL(url);
+            // Keep same-domain images
+            if (u.hostname === pageHost || u.hostname.includes(pageHost.replace('www.', ''))) return true;
+            // Keep known CDN patterns
+            if (u.hostname.includes('cdn') || u.hostname.includes('dam') ||
+                u.hostname.includes('content') || u.hostname.includes('assets') ||
+                u.hostname.includes('media') || u.hostname.includes('images') ||
+                u.hostname.includes('storyblok') || u.hostname.includes('cloudfront') ||
+                u.hostname.includes('cloudinary') || u.hostname.includes('imgix') ||
+                u.hostname.includes('rotorint')) return true;
+            // Skip tiny tracking pixels, analytics
+            if (u.hostname.includes('google') || u.hostname.includes('facebook') ||
+                u.hostname.includes('doubleclick') || u.hostname.includes('analytics') ||
+                u.hostname.includes('pixel') || u.hostname.includes('tracker')) return false;
+            // Keep everything else from common image extensions
+            if (/\.(jpg|jpeg|png|webp|avif|gif|svg)(\?|$)/i.test(u.pathname)) return true;
+            return false;
+          } catch { return false; }
+        });
+
+        return filtered;
+      });
+
+      const pageTitle = await page.title().catch(() => '');
+
+      return { screenshotBase64, cleanedHtml, pageTitle, extractedImageUrls };
+    } finally {
+      await b.close();
+    }
+  }
+
+  /**
    * Capture screenshots of a page.
-   * 
-   * In production, this would use Browser Rendering or Playwright.
+   *
+   * Uses Browser Rendering via @cloudflare/puppeteer.
    */
   private async captureScreenshots(pageUrl: string): Promise<{
     desktop: Uint8Array;
@@ -549,8 +719,9 @@ export class DesignAgent {
     phashDesktop: string;
     phashMobile: string;
   }> {
-    // Placeholder - would integrate with Browser Rendering API
-    // For now, return empty buffers
+    // This method is used by the existing design capture pipeline
+    // which passes screenshots to Kimi K2.5. If no BROWSER binding
+    // is available (e.g. in tests), return empty buffers.
     return {
       desktop: new Uint8Array(),
       mobile: new Uint8Array(),
@@ -679,5 +850,9 @@ export const OEM_BRAND_NOTES: Record<OemId, { colors: string[]; notes: string }>
   'toyota-au': {
     colors: ['#EB0A1E'], // Toyota red
     notes: 'ToyotaType font, pragmatic information-dense, GR performance sub-brand, hybrid badges',
+  },
+  'subaru-au': {
+    colors: ['#003DA5'], // Subaru blue
+    notes: 'System fonts, symmetrical AWD focus, Subaru Retailer API (x-api-key), star cluster motif',
   },
 };

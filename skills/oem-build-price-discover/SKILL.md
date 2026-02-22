@@ -97,11 +97,13 @@ Automated discovery of OEM vehicle configurator patterns for extraction skill co
 }
 ```
 
-## Agent Memory Integration
+## Storage
 
-Discoveries are stored in agent memory at:
-- `memory/oem-discovery/{oem_id}.md` - Human-readable discovery notes
-- `discoveries/{oem_id}.json` - Machine-readable extraction config
+Discoveries are stored in:
+- `discovered_apis` table — API endpoints with schema_json (unique: oem_id, url)
+- `oems.config_json.api_docs` — Comprehensive API documentation per OEM
+- `memory/oem-discovery/{oem_id}.md` — Human-readable discovery notes (agent memory)
+- `discoveries/{oem_id}.json` — Machine-readable extraction config (agent memory)
 
 The agent can be prompted: "What patterns have you discovered for Kia's configurator?"
 

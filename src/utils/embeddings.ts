@@ -568,6 +568,78 @@ export async function searchProductsSemantic(
 }
 
 /**
+ * Search PDF embeddings using semantic query
+ */
+export async function searchPdfsSemantic(
+  query: string,
+  config: SupabaseEmbeddingConfig,
+  options: {
+    matchThreshold?: number;
+    matchCount?: number;
+    oemId?: string;
+    sourceType?: 'brochure' | 'guidelines';
+  } = {}
+): Promise<Array<{
+  sourceId: string;
+  sourceType: string;
+  oemId: string;
+  pdfUrl: string;
+  chunkIndex: number;
+  chunkText: string;
+  similarity: number;
+  metadata: Record<string, unknown>;
+}>> {
+  const { matchThreshold = 0.7, matchCount = 10, oemId, sourceType } = options;
+
+  // Generate embedding for query
+  const queryResult = await generateEmbedding(query, config);
+
+  // Call Supabase RPC function
+  const response = await fetch(`${config.supabaseUrl}/rest/v1/rpc/search_pdfs_semantic`, {
+    method: 'POST',
+    headers: {
+      'apikey': config.supabaseKey,
+      'Authorization': `Bearer ${config.supabaseKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query_embedding: `[${queryResult.embedding.join(',')}]`,
+      match_threshold: matchThreshold,
+      match_count: matchCount,
+      filter_oem_id: oemId || null,
+      filter_source_type: sourceType || null,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`PDF search failed: ${response.status} - ${error}`);
+  }
+
+  const results = await response.json() as Array<{
+    source_id: string;
+    source_type: string;
+    oem_id: string;
+    pdf_url: string;
+    chunk_index: number;
+    chunk_text: string;
+    similarity: number;
+    metadata: Record<string, unknown>;
+  }>;
+
+  return results.map((r) => ({
+    sourceId: r.source_id,
+    sourceType: r.source_type,
+    oemId: r.oem_id,
+    pdfUrl: r.pdf_url,
+    chunkIndex: r.chunk_index,
+    chunkText: r.chunk_text,
+    similarity: r.similarity,
+    metadata: r.metadata,
+  }));
+}
+
+/**
  * Find similar products across OEMs
  */
 export async function findSimilarProducts(

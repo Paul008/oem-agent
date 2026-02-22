@@ -9,11 +9,11 @@
 // Base Types
 // ============================================================================
 
-export type OemId = 
-  | 'kia-au' 
-  | 'nissan-au' 
-  | 'ford-au' 
-  | 'volkswagen-au' 
+export type OemId =
+  | 'kia-au'
+  | 'nissan-au'
+  | 'ford-au'
+  | 'volkswagen-au'
   | 'mitsubishi-au'
   | 'ldv-au'
   | 'isuzu-au'
@@ -22,7 +22,8 @@ export type OemId =
   | 'gwm-au'
   | 'suzuki-au'
   | 'hyundai-au'
-  | 'toyota-au';
+  | 'toyota-au'
+  | 'subaru-au';
 
 export type BodyType = 'suv' | 'sedan' | 'hatch' | 'ute' | 'van' | 'bus' | 'people_mover' | 'sports' | 'cab_chassis' | 'campervan' | null;
 export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'phev' | 'electric' | null;
@@ -645,16 +646,25 @@ export interface DesignCapture {
 // AI Inference Logging
 // ============================================================================
 
-export type AiProvider = 'groq' | 'together' | 'anthropic' | 'cloudflare_ai_gateway';
-export type AiTaskType = 
-  | 'html_normalisation' 
-  | 'llm_extraction' 
-  | 'diff_classification' 
-  | 'change_summary' 
-  | 'design_pre_screening' 
-  | 'design_vision' 
-  | 'sales_conversation' 
-  | 'content_generation';
+export type AiProvider = 'groq' | 'together' | 'moonshot' | 'anthropic' | 'cloudflare_ai_gateway' | 'google_gemini';
+export type AiTaskType =
+  | 'html_normalisation'
+  | 'llm_extraction'
+  | 'diff_classification'
+  | 'change_summary'
+  | 'design_pre_screening'
+  | 'design_vision'
+  | 'sales_conversation'
+  | 'content_generation'
+  | 'page_generation'
+  | 'page_visual_extraction'
+  | 'page_content_generation'
+  | 'page_screenshot_to_code'
+  | 'page_structuring'
+  | 'quick_scan'
+  | 'extraction_quality_check'
+  | 'section_deep_analysis'
+  | 'bespoke_component';
 export type AiInferenceStatus = 'success' | 'error' | 'timeout' | 'rate_limited';
 
 export interface AiInferenceLog {
@@ -900,4 +910,324 @@ export interface AiRouterConfig {
     supports_vision: boolean;
     use_for: string[];
   };
+}
+
+// ============================================================================
+// Page Generation Pipeline (Brand Ambassador)
+// ============================================================================
+
+export interface VehicleModelPageSlide {
+  heading: string;
+  sub_heading: string;
+  button: string;
+  desktop: string;
+  mobile: string;
+  bottom_strip: Array<{ heading: string; sub_heading: string }>;
+}
+
+export interface VehicleModelPage {
+  id: string;
+  slug: string;
+  name: string;
+  oem_id: OemId;
+  header: {
+    slides: VehicleModelPageSlide[];
+  };
+  content: {
+    rendered: string;
+    sections?: PageSection[];
+  };
+  form: boolean;
+  variant_link: string;
+  generated_at: string;
+  source_url: string;
+  version: number;
+  page_type?: 'model' | 'custom' | 'subpage';
+  parent_slug?: string;
+  subpage_type?: string;
+  subpage_name?: string;
+}
+
+export type PageGenerationStatus = 'pending' | 'capturing' | 'generating' | 'validating' | 'completed' | 'failed';
+
+export interface PageGenerationJob {
+  oem_id: OemId;
+  model_slug: string;
+  source_url: string;
+  trigger: 'manual' | 'cron' | 'change_detected';
+  status: PageGenerationStatus;
+  started_at: string;
+  completed_at: string | null;
+  error: string | null;
+}
+
+export interface PageGenerationResult {
+  success: boolean;
+  page?: VehicleModelPage;
+  r2_key?: string;
+  generation_time_ms: number;
+  gemini_tokens_used?: number;
+  gemini_cost_usd?: number;
+  claude_tokens_used?: number;
+  claude_cost_usd?: number;
+  total_cost_usd?: number;
+  images_uploaded?: number;
+  validation_errors: string[];
+  error?: string;
+  _debug?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Structured Page Sections (Gemini 3.1 Pro extraction)
+// ============================================================================
+
+export type PageSectionType = 'hero' | 'intro' | 'tabs' | 'color-picker' | 'specs-grid'
+  | 'gallery' | 'feature-cards' | 'video' | 'cta-banner' | 'content-block'
+  | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider';
+
+export interface HeroSection {
+  type: 'hero'; id: string; order: number;
+  heading: string; sub_heading: string;
+  cta_text: string; cta_url: string;
+  desktop_image_url: string; mobile_image_url: string;
+}
+
+export interface IntroSection {
+  type: 'intro'; id: string; order: number;
+  title?: string; body_html: string;
+  image_url?: string; image_position: 'left' | 'right' | 'background';
+}
+
+export interface TabsSection {
+  type: 'tabs'; id: string; order: number;
+  title?: string;
+  tabs: Array<{ label: string; content_html: string; image_url?: string }>;
+  default_tab: number;
+}
+
+export interface ColorPickerSection {
+  type: 'color-picker'; id: string; order: number;
+  title?: string;
+  colors: Array<{
+    name: string; code?: string; swatch_url?: string;
+    hero_image_url?: string; hex?: string;
+  }>;
+}
+
+export interface SpecsGridSection {
+  type: 'specs-grid'; id: string; order: number;
+  title?: string;
+  categories: Array<{
+    name: string;
+    specs: Array<{ label: string; value: string; unit?: string }>;
+  }>;
+}
+
+export interface GallerySection {
+  type: 'gallery'; id: string; order: number;
+  title?: string;
+  images: Array<{ url: string; alt?: string; caption?: string }>;
+  layout: 'carousel' | 'grid';
+}
+
+export interface FeatureCardsSection {
+  type: 'feature-cards'; id: string; order: number;
+  title?: string;
+  cards: Array<{ title: string; description: string; image_url?: string }>;
+  columns: 2 | 3 | 4;
+}
+
+export interface VideoSection {
+  type: 'video'; id: string; order: number;
+  title?: string;
+  video_url: string; poster_url?: string; autoplay: boolean;
+}
+
+export interface CtaBannerSection {
+  type: 'cta-banner'; id: string; order: number;
+  heading: string; body?: string;
+  cta_text: string; cta_url: string;
+  background_color?: string;
+}
+
+export interface ContentBlockSection {
+  type: 'content-block';
+  id: string;
+  order: number;
+  title?: string;
+  content_html: string;
+  layout: 'full-width' | 'contained' | 'two-column';
+  background?: string;
+  image_url?: string;
+}
+
+export interface AccordionSection {
+  type: 'accordion'; id: string; order: number;
+  title?: string;
+  items: Array<{ question: string; answer: string }>;
+  section_id?: string;
+}
+
+export interface EnquiryFormSection {
+  type: 'enquiry-form'; id: string; order: number;
+  heading: string;
+  sub_heading?: string;
+  form_type: 'contact' | 'test-drive' | 'service';
+  vehicle_context: boolean;
+}
+
+export interface MapSection {
+  type: 'map'; id: string; order: number;
+  title?: string;
+  sub_heading?: string;
+  embed_url: string;
+}
+
+export interface AlertSection {
+  type: 'alert'; id: string; order: number;
+  title?: string;
+  message: string;
+  variant: 'info' | 'warning' | 'success' | 'destructive';
+  dismissible: boolean;
+}
+
+export interface DividerSection {
+  type: 'divider'; id: string; order: number;
+  style: 'line' | 'space' | 'dots';
+  spacing: 'sm' | 'md' | 'lg';
+}
+
+export type PageSection =
+  | HeroSection | IntroSection | TabsSection | ColorPickerSection
+  | SpecsGridSection | GallerySection | FeatureCardsSection
+  | VideoSection | CtaBannerSection | ContentBlockSection
+  | AccordionSection | EnquiryFormSection | MapSection
+  | AlertSection | DividerSection;
+
+export interface PageStructuringResult {
+  success: boolean;
+  page?: VehicleModelPage;
+  r2_key?: string;
+  structuring_time_ms: number;
+  sections_extracted: number;
+  section_types: PageSectionType[];
+  gemini_tokens_used?: number;
+  gemini_cost_usd?: number;
+  error?: string;
+}
+
+// ============================================================================
+// Design Memory — OEM Profiles & Extraction Runs
+// ============================================================================
+
+export interface OemDesignProfile {
+  brand_tokens: {
+    primary_color: string;
+    secondary_colors: string[];
+    font_family: string;
+    border_radius: string;
+    button_style: string;
+  };
+  extraction_hints: {
+    hero_selectors: string[];
+    gallery_selectors: string[];
+    tab_selectors: string[];
+    known_failures: string[];
+    bot_detection: 'none' | 'cloudflare' | 'custom';
+    wait_ms_after_load: number;
+  };
+  quality_history: {
+    avg_quality_score: number;
+    total_runs: number;
+    last_run_at: string;
+    common_errors: Array<{ message: string; count: number }>;
+  };
+  last_updated: string;
+}
+
+export type ExtractionPipeline = 'capturer' | 'cloner' | 'structurer' | 'generator' | 'adaptive';
+export type ExtractionRunStatus = 'running' | 'completed' | 'failed';
+
+export interface ExtractionRun {
+  id: string;
+  oem_id: OemId;
+  model_slug: string;
+  pipeline: ExtractionPipeline;
+  status: ExtractionRunStatus;
+  started_at: string;
+  finished_at: string | null;
+  sections_extracted: number;
+  quality_score: number | null;
+  total_tokens: number | null;
+  total_cost_usd: number | null;
+  errors_json: Array<{ message: string; selector?: string }>;
+  successful_selectors: string[];
+  failed_selectors: string[];
+  prompt_version: string | null;
+  created_at: string;
+}
+
+export interface ExtractionRunInput {
+  oem_id: OemId;
+  model_slug: string;
+  pipeline: ExtractionPipeline;
+  prompt_version?: string;
+}
+
+export interface ExtractionRunResult {
+  sections_extracted: number;
+  quality_score: number;
+  total_tokens: number;
+  total_cost_usd: number;
+  errors: Array<{ message: string; selector?: string }>;
+  successful_selectors: string[];
+  failed_selectors: string[];
+}
+
+// ============================================================================
+// Adaptive Pipeline Types (Phase 3)
+// ============================================================================
+
+export interface QuickScanResult {
+  section_id: string;
+  layout_type: 'hero' | 'gallery' | 'tabs' | 'video' | 'feature-cards' | 'specs' | 'cta' | 'content' | 'unknown';
+  has_video: boolean;
+  has_carousel: boolean;
+  dominant_colors: string[];
+  confidence: number;
+}
+
+export interface QualityCheckResult {
+  overall_score: number;
+  issues: Array<{
+    severity: 'critical' | 'warning' | 'info';
+    message: string;
+    section_id?: string;
+  }>;
+  missing_section_types: string[];
+  empty_content_sections: string[];
+  broken_url_count: number;
+}
+
+export interface PipelineStepResult {
+  step: 'clone' | 'screenshot' | 'classify' | 'extract' | 'validate' | 'generate' | 'learn';
+  status: 'success' | 'skipped' | 'failed';
+  duration_ms: number;
+  tokens_used?: number;
+  cost_usd?: number;
+  details?: Record<string, unknown>;
+}
+
+export interface PipelineResult {
+  success: boolean;
+  oem_id: OemId;
+  model_slug: string;
+  steps: PipelineStepResult[];
+  sections: PageSection[];
+  quality_score: number;
+  total_tokens: number;
+  total_cost_usd: number;
+  total_duration_ms: number;
+  screenshots_captured: number;
+  error?: string;
 }

@@ -10,9 +10,10 @@
 4. [Browser Automation Stack](#browser-automation-stack)
 5. [Self-Healing Extraction](#self-healing-extraction)
 6. [Memory & Learning System](#memory--learning-system)
-7. [Semantic Search & Vector Embeddings](#semantic-search--vector-embeddings)
-8. [Scheduling & Cost Control](#scheduling--cost-control)
-9. [API Reference](#api-reference)
+7. [Design Memory & Adaptive Pipeline](#design-memory--adaptive-pipeline)
+8. [Semantic Search & Vector Embeddings](#semantic-search--vector-embeddings)
+9. [Scheduling & Cost Control](#scheduling--cost-control)
+10. [API Reference](#api-reference)
 
 ---
 
@@ -35,7 +36,10 @@ The OEM Agent is an intelligent web scraping and monitoring system designed to e
 | Runtime | Cloudflare Sandbox | Container hosting |
 | Agent Framework | OpenClaw | Cron, memory, skills |
 | Browser Automation | CDP (Chrome DevTools Protocol) | Page rendering, network interception |
-| LLM Inference | Groq (llama-3.1-70b) | Classification, analysis |
+| LLM Inference | Groq (llama-3.3-70b) | Classification, validation |
+| LLM Extraction | Gemini 2.5 Pro | Page structure extraction |
+| LLM Generation | Claude Sonnet 4.5 | Bespoke component generation |
+| Embeddings | Google text-embedding-004 | 768-dim vectors |
 | Database | Supabase (PostgreSQL) | Data persistence |
 | Research | Brave Search + Perplexity | OEM tech stack discovery |
 
@@ -562,6 +566,118 @@ interface DiscoveryCache {
 
 ---
 
+## Design Memory & Adaptive Pipeline
+
+The Design Memory system enables intelligent, learning-based page generation that improves over time by remembering what works for each OEM's design patterns.
+
+### 7-Step Adaptive Pipeline
+
+```
+Clone → Screenshot → Classify → Extract → Validate → Generate → Learn
+```
+
+| Step | Purpose | AI Provider |
+|------|---------|-------------|
+| Clone | Fetch OEM model page HTML | — |
+| Screenshot | Capture visual snapshot | Cloudflare Browser Rendering |
+| Classify | Identify section types (hero, gallery, specs, etc.) | Groq Llama 3.3 70B / Workers AI Llama Vision |
+| Extract | Parse structured data from each section | Gemini 2.5 Pro |
+| Validate | Quality-check extracted data | Groq Llama 3.3 70B |
+| Generate | Build bespoke page components | Claude Sonnet 4.5 |
+| Learn | Store results and update OEM design profile | Google text-embedding-004 |
+
+### Section Types
+
+`hero`, `gallery`, `specs-table`, `pricing-grid`, `color-picker`, `cta-banner`, `content-block`
+
+### Source Files
+
+| File | Purpose |
+|------|---------|
+| `src/design/memory.ts` | Design memory store and retrieval |
+| `src/design/prompt-builder.ts` | Dynamic prompt construction from OEM profile |
+| `src/design/extraction-runner.ts` | Orchestrates extraction across sections |
+| `src/design/pipeline.ts` | 7-step pipeline coordinator |
+| `src/design/ux-knowledge.ts` | UX pattern knowledge base |
+| `src/design/component-generator.ts` | Bespoke component generation |
+
+### Storage
+
+- **`extraction_runs`** table: Tracks every pipeline run with quality_score, cost, tokens, errors
+- **`oems.design_profile_json`**: Accumulated per-OEM design learning (color preferences, layout patterns, section frequency)
+- **Cloudflare Vectorize**: `ux-knowledge-base` index (768-dim cosine) for UX pattern similarity search
+- **Migration**: `supabase/migrations/20260222_design_memory.sql`
+
+### Dashboard Pages
+
+- **Design Memory** (`design-memory.vue`): Extraction run history, quality scores, pipeline analytics
+- **Page Builder Docs** (`page-builder-docs.vue`): Documentation for the adaptive pipeline
+- **Template Gallery** (`page-builder/index.vue`): Browse OEM section templates, filter by OEM/type/search, curated templates
+- **Page Builder** (`page-builder/[slug].vue`): Visual section editor with live preview, undo/redo, template gallery drawer
+
+### Page Builder Components
+
+```
+dashboard/src/
+├── composables/
+│   ├── use-page-builder.ts       # Editor state: sections, dirty tracking, undo/redo, copy/paste
+│   └── use-template-gallery.ts   # Fetch/cache/filter sections from all OEM pages
+├── pages/dashboard/
+│   ├── page-builder/
+│   │   ├── index.vue             # Template gallery landing page
+│   │   └── [slug].vue            # Visual editor (responsive toolbar, split-pane)
+│   └── components/
+│       ├── page-builder/
+│       │   ├── PageBuilderCanvas.vue      # Live preview canvas with async section renderers
+│       │   ├── PageBuilderSidebar.vue     # Section list, metadata, template gallery drawer
+│       │   ├── SectionProperties.vue      # Per-type property editor with image thumbnails
+│       │   ├── SectionListItem.vue        # Draggable section list item
+│       │   ├── AddSectionPicker.vue       # Popover for adding sections by type/template
+│       │   ├── SectionTemplateCard.vue    # Visual card for template preview
+│       │   ├── TemplateGalleryDrawer.vue  # In-editor Sheet drawer for templates
+│       │   ├── MediaUploadButton.vue      # R2 media upload button
+│       │   ├── HistoryPanel.vue           # Undo/redo history list
+│       │   ├── JsonEditorView.vue         # Raw JSON section editor
+│       │   ├── SectionBrowserDialog.vue   # Section browser dialog
+│       │   ├── SectionEditorDialog.vue    # Section editor modal
+│       │   ├── section-templates.ts       # Section type definitions and defaults
+│       │   └── oem-templates.ts           # 10 curated OEM-branded templates
+│       └── sections/                      # 11 async section renderers
+│           ├── SectionHero.vue
+│           ├── SectionIntro.vue
+│           ├── SectionTabs.vue            # Variants: default, kia-feature-bullets
+│           ├── SectionColorPicker.vue
+│           ├── SectionSpecs.vue
+│           ├── SectionGallery.vue
+│           ├── SectionFeatureCards.vue
+│           ├── SectionVideo.vue
+│           ├── SectionCta.vue
+│           ├── SectionContentBlock.vue
+│           └── SectionRenderer.vue        # Dynamic section type router
+```
+
+### Section Types (15)
+
+| Type | Description | Variants |
+|------|-------------|----------|
+| `hero` | Full-width hero with heading, CTA, desktop/mobile images, optional video | — |
+| `intro` | Title + body HTML + image, configurable image position (left/right) | — |
+| `tabs` | Tabbed content with images and HTML | `default` (horizontal bar), `kia-feature-bullets` (two-column bullets) |
+| `color-picker` | Vehicle colour selector, loads from database, 360° start angle | — |
+| `specs-grid` | Technical specifications by category, managed via data seed | — |
+| `gallery` | Image carousel or grid with captions and descriptions | `carousel`, `grid` |
+| `feature-cards` | Grid of feature cards (2/3/4 columns) with images | — |
+| `video` | Video player with poster image and autoplay option | — |
+| `cta-banner` | Call-to-action banner with heading, body, CTA, background color | — |
+| `content-block` | Free-form HTML content with image, layout options | `contained`, `full-width`, `two-column` |
+| `accordion` | Expandable FAQ / Q&A panels with title and item array | — |
+| `enquiry-form` | Placeholder for platform-rendered form (contact/test-drive/service) | — |
+| `map` | Google Maps embed with title and sub-heading | — |
+| `alert` | Coloured notification banner (info/warning/success/destructive) | — |
+| `divider` | Visual separator between sections | `line`, `space`, `dots` |
+
+---
+
 ## Semantic Search & Vector Embeddings
 
 The OEM Agent includes a vector embedding system for semantic search capabilities, enabling natural language queries across products, offers, and change events.
@@ -600,6 +716,8 @@ The OEM Agent includes a vector embedding system for semantic search capabilitie
 | **Gemini** | text-embedding-004 | 768 | ~$0.001/1M tokens | Default (best value) |
 | OpenAI | text-embedding-3-small | 768 | $0.02/1M tokens | Fallback |
 | Groq | nomic-embed-text-v1.5 | 768 | Free tier | Budget option |
+| **Groq** | llama-3.3-70b-versatile | — | Fast | Classification/validation |
+| **Workers AI** | Llama Vision | — | Free | Free classification fallback |
 
 ### Use Cases
 
@@ -754,6 +872,7 @@ For 13 OEMs with ~20 pages each:
 | `product_embeddings` | Vector embeddings for product search |
 | `offer_embeddings` | Vector embeddings for offer search |
 | `change_event_embeddings` | Vector embeddings for pattern detection |
+| `extraction_runs` | Design pipeline run history with quality metrics |
 
 ---
 

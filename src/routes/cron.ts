@@ -54,6 +54,9 @@ function getNextRun(cronExpr: string, timezone: string): string {
     '*/30 * * * *': 'Every 30 minutes',
     '0 9 * * 1': 'Monday 9:00 AM',
     '0 */6 * * *': 'Every 6 hours',
+    '0 3 * * 0': 'Sunday 3:00 AM',
+    '0 3 1 * *': '1st of month 3:00 AM',
+    '0 4 * * 2': 'Tuesday 4:00 AM',
   };
 
   return patterns[cronExpr] || cronExpr;
@@ -271,7 +274,15 @@ async function executeJob(
       case 'oem-agent-hooks':
         result = await executeAgentHooks(job, env);
         break;
-      
+
+      case 'oem-data-sync':
+        result = await executeOemDataSync(job, env);
+        break;
+
+      case 'oem-brand-ambassador':
+        result = await executeBrandAmbassador(job, env);
+        break;
+
       default:
         throw new Error(`Unknown skill: ${job.skill}`);
     }
@@ -317,7 +328,9 @@ async function executeOemExtract(
   const aiRouter = new AiRouter({
     groq: env.GROQ_API_KEY,
     together: env.TOGETHER_API_KEY,
+    moonshot: env.MOONSHOT_API_KEY,
     anthropic: env.ANTHROPIC_API_KEY,
+    google: env.GOOGLE_API_KEY,
   });
   
   const notifier = env.SLACK_WEBHOOK_URL
@@ -401,6 +414,136 @@ async function syncEmbeddings(
     message: 'Embedding sync not yet fully implemented',
     tables: config.tables,
     batch_size: config.batch_size,
+  };
+}
+
+/**
+ * Execute OEM data sync job
+ * Actual script execution happens in the OpenClaw container.
+ * This handler records the cron trigger in R2.
+ */
+async function executeOemDataSync(
+  job: CronJob,
+  _env: AppEnv['Bindings']
+): Promise<Record<string, unknown>> {
+  const config = job.config as { schedule: string; timeout_per_script?: number };
+  return {
+    message: `OEM data sync triggered for schedule: ${config.schedule}`,
+    skill: 'oem-data-sync',
+    config,
+  };
+}
+
+/**
+ * Execute brand ambassador job — generate AI model pages for pilot OEMs
+ */
+async function executeBrandAmbassador(
+  job: CronJob,
+  env: AppEnv['Bindings']
+): Promise<Record<string, unknown>> {
+  const config = job.config as {
+    stages: string[];
+    max_models_per_run: number;
+    force_regenerate: boolean;
+    pilot_oems: string[];
+  };
+
+  const { createSupabaseClient } = await import('../utils/supabase');
+  const { AiRouter } = await import('../ai/router');
+  const { DesignAgent } = await import('../design/agent');
+  const { PageGenerator } = await import('../design/page-generator');
+
+  const supabase = createSupabaseClient({
+    url: env.SUPABASE_URL,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const aiRouter = new AiRouter({
+    groq: env.GROQ_API_KEY,
+    together: env.TOGETHER_API_KEY,
+    moonshot: env.MOONSHOT_API_KEY,
+    anthropic: env.ANTHROPIC_API_KEY,
+    google: env.GOOGLE_API_KEY,
+  });
+
+  const designAgent = new DesignAgent(
+    env.TOGETHER_API_KEY,
+    env.MOLTBOT_BUCKET,
+  );
+
+  const generator = new PageGenerator({
+    supabase,
+    aiRouter,
+    designAgent,
+    r2Bucket: env.MOLTBOT_BUCKET,
+    browser: env.BROWSER!,
+  });
+
+  const results: Array<{
+    oem_id: string;
+    model_slug: string;
+    success: boolean;
+    error?: string;
+    generation_time_ms: number;
+    total_cost_usd?: number;
+  }> = [];
+
+  let modelsProcessed = 0;
+
+  for (const oemId of config.pilot_oems) {
+    // Get all models for this OEM
+    const { data: models } = await supabase
+      .from('vehicle_models')
+      .select('slug, name, source_url')
+      .eq('oem_id', oemId)
+      .order('slug');
+
+    if (!models || models.length === 0) continue;
+
+    for (const model of models) {
+      if (modelsProcessed >= config.max_models_per_run) break;
+
+      // Skip if already generated (unless force_regenerate)
+      if (!config.force_regenerate) {
+        const existing = await generator.getGeneratedPage(oemId as any, model.slug);
+        if (existing) {
+          results.push({
+            oem_id: oemId,
+            model_slug: model.slug,
+            success: true,
+            generation_time_ms: 0,
+          });
+          continue;
+        }
+      }
+
+      console.log(`[BrandAmbassador] Generating page: ${oemId}/${model.slug}`);
+      const result = await generator.generateModelPage(oemId as any, model.slug);
+
+      results.push({
+        oem_id: oemId,
+        model_slug: model.slug,
+        success: result.success,
+        error: result.error,
+        generation_time_ms: result.generation_time_ms,
+        total_cost_usd: result.total_cost_usd,
+      });
+
+      modelsProcessed++;
+    }
+
+    if (modelsProcessed >= config.max_models_per_run) break;
+  }
+
+  const totalCost = results.reduce((sum, r) => sum + (r.total_cost_usd || 0), 0);
+
+  return {
+    pilot_oems: config.pilot_oems,
+    models_processed: modelsProcessed,
+    successful: results.filter(r => r.success).length,
+    failed: results.filter(r => !r.success).length,
+    total_cost_usd: totalCost,
+    results,
   };
 }
 

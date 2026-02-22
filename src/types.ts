@@ -39,6 +39,10 @@ export interface MoltbotEnv {
   R2_SECRET_ACCESS_KEY?: string;
   R2_BUCKET_NAME?: string; // Override bucket name (default: 'moltbot-data')
   CF_ACCOUNT_ID?: string; // Cloudflare account ID for R2 endpoint
+  // Workers AI binding (for quick scan classification)
+  AI?: Ai;
+  // Vectorize binding (UX knowledge base)
+  UX_KNOWLEDGE?: VectorizeIndex;
   // Browser Rendering binding for CDP shim
   BROWSER?: Fetcher;
   CDP_SECRET?: string; // Shared secret for CDP endpoint authentication
@@ -54,8 +58,9 @@ export interface MoltbotEnv {
   PERPLEXITY_API_KEY?: string;  // Perplexity API for AI-powered research
   // Embedding APIs
   GOOGLE_API_KEY?: string;      // Google Gemini API for embeddings (recommended)
-  // Additional AI Providers for OpenClaw
-  KIMI_API_KEY?: string;        // Kimi API for vision models
+  // Additional AI Providers
+  MOONSHOT_API_KEY?: string;    // Moonshot/Kimi API for vision models (direct)
+  KIMI_API_KEY?: string;        // Kimi API for vision models (legacy)
 }
 
 /**

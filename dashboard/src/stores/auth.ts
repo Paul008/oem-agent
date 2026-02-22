@@ -11,8 +11,20 @@ export const useAuthStore = defineStore('auth', () => {
   async function init() {
     if (initialized.value) return
 
-    const { data } = await supabase.auth.getSession()
-    user.value = data.session?.user ?? null
+    try {
+      const { data } = await supabase.auth.getSession()
+      user.value = data.session?.user ?? null
+    }
+    catch (e: any) {
+      if (e?.isAcquireTimeout) {
+        console.warn('Supabase auth lock timed out — treating as signed out')
+        user.value = null
+      }
+      else {
+        console.error('Supabase auth init error:', e)
+        user.value = null
+      }
+    }
 
     supabase.auth.onAuthStateChange((_event, session) => {
       user.value = session?.user ?? null

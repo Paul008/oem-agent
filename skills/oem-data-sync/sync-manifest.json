@@ -1,0 +1,334 @@
+{
+  "version": "1.0",
+  "scripts_base": "dashboard/scripts",
+  "operations": [
+    {
+      "id": "mitsubishi-au:products",
+      "oem_id": "mitsubishi-au",
+      "operation": "products",
+      "script": "seed-mitsubishi-products.mjs",
+      "tables_affected": ["vehicle_models", "products", "variant_pricing"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "suzuki-au:products",
+      "oem_id": "suzuki-au",
+      "operation": "products",
+      "script": "seed-suzuki-products.mjs",
+      "tables_affected": ["vehicle_models", "products", "variant_pricing"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "nissan-au:products",
+      "oem_id": "nissan-au",
+      "operation": "products",
+      "script": "seed-nissan-products.mjs",
+      "tables_affected": ["vehicle_models", "products"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "kgm-au:products",
+      "oem_id": "kgm-au",
+      "operation": "products",
+      "script": "seed-kgm-products.mjs",
+      "tables_affected": ["vehicle_models", "products", "variant_pricing"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "mitsubishi-au:accessories",
+      "oem_id": "mitsubishi-au",
+      "operation": "accessories",
+      "script": "seed-mitsubishi-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "mazda-au:accessories",
+      "oem_id": "mazda-au",
+      "operation": "accessories",
+      "script": "seed-mazda-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "isuzu-au:accessories",
+      "oem_id": "isuzu-au",
+      "operation": "accessories",
+      "script": "seed-isuzu-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "hyundai-au:accessories",
+      "oem_id": "hyundai-au",
+      "operation": "accessories",
+      "script": "seed-hyundai-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "kia-au:accessories",
+      "oem_id": "kia-au",
+      "operation": "accessories",
+      "script": "seed-kia-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "subaru-au:accessories",
+      "oem_id": "subaru-au",
+      "operation": "accessories",
+      "script": "seed-subaru-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "nissan-au:accessories",
+      "oem_id": "nissan-au",
+      "operation": "accessories",
+      "script": "seed-nissan-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "low",
+      "schedule": "weekly"
+    },
+    {
+      "id": "volkswagen-au:accessories",
+      "oem_id": "volkswagen-au",
+      "operation": "accessories",
+      "script": "seed-vw-accessories.mjs",
+      "tables_affected": ["accessories"],
+      "stability": "low",
+      "schedule": "weekly"
+    },
+    {
+      "id": "gwm-au:accessories",
+      "oem_id": "gwm-au",
+      "operation": "accessories",
+      "script": "seed-gwm-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "kgm-au:accessories",
+      "oem_id": "kgm-au",
+      "operation": "accessories",
+      "script": "seed-kgm-accessories.mjs",
+      "tables_affected": ["accessories", "accessory_models"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "kia-au:colors",
+      "oem_id": "kia-au",
+      "operation": "colors",
+      "script": "seed-kia-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "subaru-au:colors",
+      "oem_id": "subaru-au",
+      "operation": "colors",
+      "script": "seed-subaru-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "mazda-au:colors",
+      "oem_id": "mazda-au",
+      "operation": "colors",
+      "script": "seed-mazda-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "isuzu-au:colors",
+      "oem_id": "isuzu-au",
+      "operation": "colors",
+      "script": "seed-isuzu-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "hyundai-au:colors",
+      "oem_id": "hyundai-au",
+      "operation": "colors",
+      "script": "seed-hyundai-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "suzuki-au:colors",
+      "oem_id": "suzuki-au",
+      "operation": "colors",
+      "script": "seed-suzuki-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "gwm-au:colors",
+      "oem_id": "gwm-au",
+      "operation": "colors",
+      "script": "seed-gwm-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "nissan-au:colors",
+      "oem_id": "nissan-au",
+      "operation": "colors",
+      "script": "seed-nissan-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "mitsubishi-au:enrich",
+      "oem_id": "mitsubishi-au",
+      "operation": "enrich",
+      "script": "enrich-mitsubishi-heroes.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "kia-au:enrich",
+      "oem_id": "kia-au",
+      "operation": "enrich",
+      "script": "enrich-kia-heroes.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "ford-au:enrich",
+      "oem_id": "ford-au",
+      "operation": "enrich",
+      "script": "enrich-ford-heroes.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "gwm-au:enrich",
+      "oem_id": "gwm-au",
+      "operation": "enrich",
+      "script": "enrich-gwm-storyblok.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
+      "id": "mitsubishi-au:apis",
+      "oem_id": "mitsubishi-au",
+      "operation": "apis",
+      "script": "seed-mitsubishi-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "suzuki-au:apis",
+      "oem_id": "suzuki-au",
+      "operation": "apis",
+      "script": "seed-suzuki-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "nissan-au:apis",
+      "oem_id": "nissan-au",
+      "operation": "apis",
+      "script": "seed-nissan-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "kgm-au:apis",
+      "oem_id": "kgm-au",
+      "operation": "apis",
+      "script": "seed-kgm-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "subaru-au:apis",
+      "oem_id": "subaru-au",
+      "operation": "apis",
+      "script": "seed-subaru-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "isuzu-au:apis",
+      "oem_id": "isuzu-au",
+      "operation": "apis",
+      "script": "seed-isuzu-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "mazda-au:apis",
+      "oem_id": "mazda-au",
+      "operation": "apis",
+      "script": "seed-mazda-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "all:discovered-apis",
+      "oem_id": "all",
+      "operation": "apis",
+      "script": "seed-discovered-apis.mjs",
+      "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "all:oem-docs",
+      "oem_id": "all",
+      "operation": "apis",
+      "script": "seed-oem-docs.mjs",
+      "tables_affected": ["oems"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "all:rewrite-colors",
+      "oem_id": "all",
+      "operation": "rewrite",
+      "script": "rewrite-colors-to-proxy.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "high",
+      "schedule": "weekly"
+    }
+  ],
+  "schedules": {
+    "weekly": "0 3 * * 0",
+    "monthly": "0 3 1 * *"
+  }
+}

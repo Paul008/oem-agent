@@ -71,11 +71,27 @@ Generates vector embeddings for products, offers, and change events to enable se
 ```json
 {
   "action": "sync_embeddings",
-  "tables": ["products", "offers", "change_events"],
+  "tables": ["products", "offers", "change_events"],  // Also: vehicle_models, variant_colors, variant_pricing
   "batch_size": 50,
   "provider": "gemini",
   "model": "text-embedding-004",
   "max_items_per_run": 200
+}
+```
+
+### `vectorize_pdfs`
+
+Vectorizes brochure and brand guidelines PDFs for semantic search via `search_pdfs_semantic()`.
+
+**Configuration:**
+```json
+{
+  "action": "vectorize_pdfs",
+  "source_types": ["brochure", "guidelines"],
+  "chunk_size": 1000,
+  "chunk_overlap": 200,
+  "provider": "gemini",
+  "model": "text-embedding-004"
 }
 ```
 

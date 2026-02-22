@@ -5,15 +5,15 @@
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
 | **cloudflare-browser** | Browser automation | CDP control, screenshots, videos, network monitoring |
-| **oem-agent-hooks** | Lifecycle hooks | Pre/post crawl actions, data validation |
-| **oem-api-discover** | API discovery | Classify network requests, identify data APIs |
-| **oem-build-price-discover** | Pricing extraction | Build & Price tools, trim/package pricing |
-| **oem-crawl** | Page crawling | Scheduled crawls, change detection, content extraction |
-| **oem-design-capture** | Design assets | Screenshots, color palettes, visual themes |
-| **oem-extract** | Content parsing | Structured data extraction from HTML |
-| **oem-report** | Reporting | Generate crawl reports, analytics dashboards |
-| **oem-sales-rep** | Sales intelligence | Dealer locators, inventory availability |
-| **oem-semantic-search** | Search & discovery | Vector embeddings, semantic similarity |
+| **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
+| **oem-api-discover** | API discovery | CDP network interception, classify data APIs |
+| **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
+| **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
+| **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
+| **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
+| **oem-report** | Reporting | Slack alerts, daily digests across 14 OEMs |
+| **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
+| **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 
 **Skills Location**: /root/clawd/skills/ (each has detailed SKILL.md documentation)
 
@@ -31,21 +31,77 @@ Your automated crawl schedule:
 
 **Handler**: `src/scheduled.ts` → `OemAgentOrchestrator.runScheduledCrawl()`
 
+## Supabase Database
+
+All skills store data in Supabase. Key tables:
+
+| Table | Purpose | Key Constraints |
+|-------|---------|----------------|
+| `oems` | 14 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
+| `vehicle_models` | Models per OEM | Unique: oem_id, slug |
+| `products` | Variants/grades, `specs_json` JSONB (692/709, 8 categories at 100%) | external_key pattern: `{oem}-{code}-{variant}` |
+| `variant_colors` | Colour options per product | Unique: product_id, color_code |
+| `variant_pricing` | Per-state driveaway pricing | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
+| `accessories` | Accessory catalog per OEM | Unique: oem_id, external_key. Has parent_id, inc_fitting |
+| `accessory_models` | Accessories ↔ models join | Unique: accessory_id, model_id |
+| `discovered_apis` | API endpoints per OEM | Unique: oem_id, url |
+| `source_pages` | URLs monitored for changes | |
+| `change_events` | Audit log of detected changes | |
+| `offers` (~194) | Promotional offers (5 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `banners` (50) | Homepage/offers hero banners (12 OEMs) | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
+| `oem_portals` (31) | Marketing portal credentials (14 OEMs) | portal_url, username, password, guidelines_pdf_url |
+| `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
+| `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
+| `import_runs` | Crawl job tracking | |
+
+**OEM IDs**: ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+
 ## Workflow Guidelines
 
 1. **Browser Automation**: Use `cloudflare-browser` skill for visual inspection and interaction
 2. **Data Collection**: Use `oem-crawl` for systematic page crawling
 3. **API Discovery**: Use `oem-api-discover` to find hidden data endpoints
-4. **Content Extraction**: Use `oem-extract` for structured data parsing
+4. **Content Extraction**: Use `oem-extract` for structured data parsing (products, offers, banners, specs)
 5. **Storage**: Save to Supabase via SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
-6. **Reporting**: Use `oem-report` to generate insights and analytics
+6. **Semantic Search**: Use `oem-semantic-search` for product/offer queries + `search_pdfs_semantic()` for brochure/guidelines PDF search
+7. **Reporting**: Use `oem-report` to generate insights and analytics
+
+## Accessories Data (2702 items across 12 OEMs)
+
+Accessories are seeded via `dashboard/scripts/seed-{oem}-accessories.mjs`. Each OEM uses a different data source:
+
+| OEM | Source | Auth | Items | Edge Cases |
+|-----|--------|------|-------|------------|
+| Hyundai | Content API v3 | None | 526 | groupIds scraped from model-series-id HTML attr |
+| Volkswagen | E-catalogue GraphQL (OSSE) | Guest JWT (auto) | 353 | No car model associations; introspection disabled |
+| Subaru | Retailer API v1 | x-api-key | 299 | Duplicate models in API (dedupe by name) |
+| Mazda | React hydration inline JSON | None | 266 | CX-8/MX-30 have no data (discontinued) |
+| Kia | JSON-LD structured data | None | 246 | Rio/Niro pages return no data |
+| KGM | Payload CMS REST API | None (Origin/Referer) | 225 | Sub-accessories with parent_id |
+| Mitsubishi | Magento 2 GraphQL | None | 223 | Category IDs per model-year |
+| Isuzu | Sitecore BuildandQuote API | None | 204 | 2.2L variants share with 3.0L (skip dupes) |
+| GWM | Storyblok CDN API | None (Origin/Referer) | 181 | 220 model joins, $52–$4,949 |
+| Nissan | HTML scraping (2 templates) | None | 179 | Structured vs rich-text templates |
+
+**Remaining OEMs without accessories**: Toyota (403 blocked), Ford (13MB HTML, no API), LDV/Suzuki (no API found)
+
+## Page Builder
+
+The dashboard includes a visual page builder for editing AI-generated model pages:
+
+- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 14 OEM generated pages + 10 curated OEM-branded templates
+- **Page Editor** (`/dashboard/page-builder/[slug]`): Split-pane visual editor with live preview, responsive toolbar, undo/redo, copy/paste, media upload
+- **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
+- **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list with disclaimers)
+- **Key files**: `use-page-builder.ts` (editor state, subpage context), `use-template-gallery.ts` (template browsing), `SectionProperties.vue` (per-type editor with image thumbnails)
+- **Subpages**: Models can have child subpages using `{modelSlug}--{subpageSlug}` convention (e.g., `sportage--performance`). 9 predefined types (specs, design, performance, safety, gallery, pricing, lifestyle, accessories, colours) + custom freeform. Nested list in `model-pages.vue`, breadcrumb + source URL input in editor. Endpoints: `POST /admin/create-subpage/:oemId/:modelSlug/:subpageSlug`, `DELETE /admin/delete-subpage/...`
 
 ## Documentation Resources
 
 Reference documentation available in `/root/clawd/docs/`:
 
 ### Architecture & Setup
-- **OEM_AGENT_ARCHITECTURE.md** - Complete system architecture and component details
+- **OEM_AGENT_ARCHITECTURE.md** - Complete system architecture and component details (includes page builder component tree)
 - **IMPLEMENTATION_SUMMARY.md** - Implementation notes and key decisions
 - **BROWSER_RENDERING_SETUP.md** - Cloudflare Browser Rendering configuration
 - **DATABASE_SETUP.md** - Database schema and table structures

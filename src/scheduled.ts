@@ -122,7 +122,9 @@ function createOrchestratorFromEnv(env: MoltbotEnv): OemAgentOrchestrator {
   const aiRouter = new AiRouter({
     groq: env.GROQ_API_KEY,
     together: env.TOGETHER_API_KEY,
+    moonshot: env.MOONSHOT_API_KEY,
     anthropic: env.ANTHROPIC_API_KEY,
+    google: env.GOOGLE_API_KEY,
   });
 
   const notifier = env.SLACK_WEBHOOK_URL

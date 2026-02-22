@@ -6,6 +6,7 @@ const props = defineProps<{
   heroUrl: string
   galleryUrls?: string[]
   name?: string
+  initialThumb?: number // 0-based thumbnail position (0-5) to start on
 }>()
 
 // Detect URL pattern: Helios (pov=E01) vs Kia (_00000) vs gallery array
@@ -66,7 +67,16 @@ const thumbUrls = computed(() => thumbIndices.value.map(i => {
   return props.heroUrl
 }))
 
-const currentFrame = ref(0)
+function resolveInitialFrame(): number {
+  if (props.initialThumb == null) return 0
+  const total = TOTAL_FRAMES.value
+  if (total <= 6) return Math.min(props.initialThumb, total - 1)
+  const step = total / 6
+  const idx = Math.max(0, Math.min(props.initialThumb, 5))
+  return Math.round(idx * step)
+}
+
+const currentFrame = ref(resolveInitialFrame())
 const loadedCount = ref(0)
 const isLoading = ref(true)
 const isDragging = ref(false)
@@ -133,15 +143,6 @@ function onPointerUp() {
   isDragging.value = false
 }
 
-// Mouse wheel rotation
-function onWheel(e: WheelEvent) {
-  e.preventDefault()
-  const direction = e.deltaY > 0 ? 1 : -1
-  let newFrame = (currentFrame.value + direction) % TOTAL_FRAMES.value
-  if (newFrame < 0) newFrame += TOTAL_FRAMES.value
-  currentFrame.value = newFrame
-}
-
 // Keyboard
 function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'ArrowLeft') {
@@ -170,7 +171,7 @@ onUnmounted(() => {
 
 watch(() => props.heroUrl, () => {
   preloadImages()
-  currentFrame.value = 0
+  currentFrame.value = resolveInitialFrame()
 })
 </script>
 
@@ -185,7 +186,6 @@ watch(() => props.heroUrl, () => {
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
-      @wheel.prevent="onWheel"
     >
       <!-- Loading overlay -->
       <div

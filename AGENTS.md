@@ -97,10 +97,58 @@ When adding new functionality, add corresponding tests.
 - Keep route handlers thin - extract logic to separate modules
 - Use Hono's context methods (`c.json()`, `c.html()`) for responses
 
+## Supabase Database
+
+All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
+
+**Entity hierarchy**: `oems` → `vehicle_models` → `products` → `variant_colors` / `variant_pricing`
+                                              → `accessories` (via `accessory_models` join)
+
+| Table | Purpose | Key Constraints |
+|-------|---------|----------------|
+| `oems` (14) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
+| `vehicle_models` (132) | Models per OEM | Unique: oem_id, slug. `brochure_url` (96/132) |
+| `products` (709) | Variants/grades | `specs_json` JSONB (692/709, 97.6%, 8 categories at 100%). model_id FK |
+| `variant_colors` (~4425) | Colour options | Unique: product_id, color_code. 12/14 OEMs seeded |
+| `pdf_embeddings` | Vectorized PDF chunks | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
+| `variant_pricing` (547) | Per-state driveaway | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
+| `accessories` (2702) | Accessory catalog per OEM | Unique: oem_id, external_key. Has parent_id self-ref, inc_fitting |
+| `accessory_models` (2826) | Accessories ↔ models join | Unique: accessory_id, model_id |
+| `discovered_apis` (466) | API endpoints | Unique: oem_id, url. Has schema_json, reliability_score |
+| `source_pages` | Monitored URLs | |
+| `change_events` | Change audit log | |
+| `offers` (~194) | Promotions (5 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
+| `import_runs` | Crawl jobs | |
+
+**OEM IDs**: ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+
+### Dashboard
+- **URL**: https://oem-agent.pages.dev (Cloudflare Pages)
+- **Stack**: Vue 3 + shadcn-vue-admin + Supabase client
+- **Auth**: Supabase magic link (email)
+- **Source**: `dashboard/` directory
+- **Seed scripts**: `dashboard/scripts/seed-{oem}-*.mjs` (products, colors, accessories, specs, brochures)
+- **Pages**: overview, oems, products (expandable specs panel), colors (grid), offers (grid), pricing, accessories, model-pages, banners, portals, apis, docs, operations, runs, changes, source-pages, design-memory, page-builder-docs, page-builder/index (template gallery), page-builder/[slug] (visual editor)
+
+#### Page Builder Architecture
+- **Editor** (`page-builder/[slug].vue`): Split-pane layout (sidebar + canvas), responsive toolbar, undo/redo, copy/paste
+- **Template Gallery** (`page-builder/index.vue`): Browse sections from all OEM pages + 10 curated OEM-branded templates
+- **In-editor Drawer** (`TemplateGalleryDrawer.vue`): Sheet drawer from Add Section picker, defaults to current OEM
+- **Section Types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
+- **Composables**: `use-page-builder.ts` (editor state, subpage context), `use-template-gallery.ts` (fetch/cache/filter)
+- **Section Renderers**: 16 async components in `components/sections/` for live canvas preview
+- **Section Editor** (`SectionProperties.vue`): Per-type property forms with image thumbnails, media upload (R2), theme/variant toggles
+- **Data**: `oem-templates.ts` (curated templates), `section-templates.ts` (type definitions + defaults)
+- **Subpages**: Convention-based `{modelSlug}--{subpageSlug}` stored flat in R2. 9 predefined types (specs, design, performance, safety, gallery, pricing, lifestyle, accessories, colours) + custom. Breadcrumb navigation in editor, source URL input for cloning. Endpoints: `POST /admin/create-subpage`, `DELETE /admin/delete-subpage`. Clone/Pipeline accept optional `source_url` body override.
+
 ## Documentation
 
 - `README.md` - User-facing documentation (setup, configuration, usage)
 - `AGENTS.md` - This file, for AI agents
+- `BRIEFING.md` - System overview and status
+- `docs/DATABASE_SETUP.md` - Database schema and setup
+- `docs/DATABASE_RESTRUCTURE.md` - Schema restructure status
 
 Development documentation goes in AGENTS.md, not README.md.
 

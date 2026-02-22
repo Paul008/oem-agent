@@ -5,9 +5,10 @@
  * Routes tasks to the cheapest, fastest model that can do the job.
  */
 
-import type { 
-  AiProvider, 
-  AiTaskType, 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type {
+  AiProvider,
+  AiTaskType,
   AiInferenceLog,
   OemId,
   GroqModelConfig,
@@ -17,6 +18,44 @@ import type {
 // ============================================================================
 // Model Configuration (from spec Section 10.3, 10.4)
 // ============================================================================
+
+// Gemini config (separate from AiRouterConfig since it has a different structure)
+export const GEMINI_CONFIG = {
+  api_base: 'https://generativelanguage.googleapis.com/v1beta',
+  api_key_env: 'GOOGLE_API_KEY',
+  model: 'gemini-2.5-pro',
+  default_params: {
+    temperature: 0.7,
+    maxOutputTokens: 65536,
+  },
+  cost_per_m_input: 1.25,
+  cost_per_m_output: 10.00,
+  max_context: 1048576,
+  supports_vision: true,
+  use_for: ['page_generation', 'content_generation_with_vision'],
+};
+
+// Gemini 3.1 Pro config (structured section extraction — lower temp, JSON output)
+export const GEMINI_31_CONFIG = {
+  model: 'gemini-3.1-pro-preview',
+  cost_per_m_input: 2.00,
+  cost_per_m_output: 12.00,
+  default_params: {
+    temperature: 0.3,
+    maxOutputTokens: 16384,
+  },
+};
+
+// Moonshot direct API (for Kimi K2.5 vision — user-provided key)
+export const MOONSHOT_CONFIG = {
+  api_base: 'https://api.moonshot.ai/v1',
+  api_key_env: 'MOONSHOT_API_KEY',
+  model: 'kimi-k2.5',
+  cost_per_m_input: 0.60,
+  cost_per_m_output: 2.50,
+  max_context: 262144,
+  supports_vision: true,
+};
 
 export const AI_ROUTER_CONFIG: AiRouterConfig = {
   groq: {
@@ -157,10 +196,11 @@ const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
   
   // Design Agent — Brand token extraction (VISION REQUIRED)
   design_vision: {
-    provider: 'together',
-    model: AI_ROUTER_CONFIG.kimi_k2_5.model,
-    modelConfig: null, // Not a Groq model
-    // No fallback - vision is required
+    provider: 'moonshot',
+    model: MOONSHOT_CONFIG.model,
+    modelConfig: null,
+    fallbackProvider: 'together',
+    fallbackModel: AI_ROUTER_CONFIG.kimi_k2_5.model,
   },
   
   // Sales Rep — Conversational agent
@@ -180,6 +220,84 @@ const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     fallbackProvider: 'anthropic',
     fallbackModel: 'claude-sonnet-4-5-20251022',
   },
+
+  // Brand Ambassador — Page generation (VISION REQUIRED) [legacy single-stage]
+  page_generation: {
+    provider: 'google_gemini',
+    model: GEMINI_CONFIG.model,
+    modelConfig: null,
+  },
+
+  // Brand Ambassador — Stage 1: Visual extraction (Gemini sees the page)
+  page_visual_extraction: {
+    provider: 'google_gemini',
+    model: GEMINI_CONFIG.model,
+    modelConfig: null,
+    // No fallback - vision is required
+  },
+
+  // Brand Ambassador — Stage 2: Content generation (Claude writes the page)
+  page_content_generation: {
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-5-20250929',
+    modelConfig: null,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_CONFIG.model,
+  },
+
+  // Brand Ambassador — Screenshot-to-code (Kimi K2.5 replicates the OEM page)
+  page_screenshot_to_code: {
+    provider: 'moonshot',
+    model: MOONSHOT_CONFIG.model,
+    modelConfig: null,
+    fallbackProvider: 'together',
+    fallbackModel: AI_ROUTER_CONFIG.kimi_k2_5.model,
+  },
+
+  // Brand Ambassador — Structured section extraction from cloned HTML
+  page_structuring: {
+    provider: 'google_gemini',
+    model: GEMINI_31_CONFIG.model,
+    modelConfig: null,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_CONFIG.model,
+  },
+
+  // Adaptive Pipeline — Quick layout classification (fast, cheap)
+  quick_scan: {
+    provider: 'groq',
+    model: AI_ROUTER_CONFIG.groq.models.fast_classify.model,
+    modelConfig: AI_ROUTER_CONFIG.groq.models.fast_classify,
+    fallbackProvider: 'groq',
+    fallbackModel: AI_ROUTER_CONFIG.groq.models.balanced.model,
+  },
+
+  // Adaptive Pipeline — Extraction quality validation (fast, cheap)
+  extraction_quality_check: {
+    provider: 'groq',
+    model: AI_ROUTER_CONFIG.groq.models.balanced.model,
+    modelConfig: AI_ROUTER_CONFIG.groq.models.balanced,
+    fallbackProvider: 'groq',
+    fallbackModel: AI_ROUTER_CONFIG.groq.models.powerful.model,
+  },
+
+  // Adaptive Pipeline — Deep section analysis with vision
+  section_deep_analysis: {
+    provider: 'google_gemini',
+    model: GEMINI_31_CONFIG.model,
+    modelConfig: null,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_CONFIG.model,
+  },
+
+  // Adaptive Pipeline — Bespoke component generation (Claude)
+  bespoke_component: {
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-5-20250929',
+    modelConfig: null,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_CONFIG.model,
+  },
 };
 
 // ============================================================================
@@ -189,10 +307,16 @@ const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
 export interface InferenceRequest {
   taskType: AiTaskType;
   prompt: string;
+  /** Base64-encoded image data for vision models */
+  imageBase64?: string;
+  /** MIME type of the image (default: image/png) */
+  imageMimeType?: string;
   oemId?: OemId;
   importRunId?: string;
   useBatch?: boolean;
   requireJson?: boolean;
+  /** Override max tokens for this request */
+  maxTokens?: number;
 }
 
 export interface InferenceResponse {
@@ -210,14 +334,18 @@ export interface InferenceResponse {
 
 export class AiRouter {
   private apiKeys: Record<string, string>;
-  private inferenceLog: AiInferenceLog[] = []; // In-memory for now, should persist to DB
+  private supabase: SupabaseClient | null;
+  private inferenceLog: AiInferenceLog[] = []; // Fallback when supabase is not provided
 
-  constructor(apiKeys: { groq?: string; together?: string; anthropic?: string }) {
+  constructor(apiKeys: { groq?: string; together?: string; moonshot?: string; anthropic?: string; google?: string }, supabase?: SupabaseClient) {
     this.apiKeys = {
       [AI_ROUTER_CONFIG.groq.api_key_env]: apiKeys.groq || '',
       [AI_ROUTER_CONFIG.kimi_k2_5.api_key_env]: apiKeys.together || '',
+      [MOONSHOT_CONFIG.api_key_env]: apiKeys.moonshot || '',
       ANTHROPIC_API_KEY: apiKeys.anthropic || '',
+      [GEMINI_CONFIG.api_key_env]: apiKeys.google || '',
     };
+    this.supabase = supabase || null;
   }
 
   /**
@@ -243,6 +371,7 @@ export class AiRouter {
     let wasFallback = false;
     let attempts = 0;
     const maxAttempts = 2;
+    let primaryError: Error | null = null;
 
     while (attempts < maxAttempts) {
       attempts++;
@@ -274,13 +403,20 @@ export class AiRouter {
 
         // If first attempt failed, try fallback
         if (attempts === 1 && route.fallbackProvider && route.fallbackModel) {
+          primaryError = error instanceof Error ? error : new Error(String(error));
+          console.warn(`[AiRouter] Primary ${provider}/${model} failed: ${primaryError.message}. Falling back to ${route.fallbackProvider}/${route.fallbackModel}`);
           provider = route.fallbackProvider;
           model = route.fallbackModel;
           wasFallback = true;
           continue;
         }
 
-        // Log error
+        // Log error - include primary error context if this is a fallback failure
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const fullErrorMsg = primaryError
+          ? `Primary (${route.provider}): ${primaryError.message} | Fallback (${provider}): ${errorMsg}`
+          : errorMsg;
+
         await this.logInference({
           request,
           response: null,
@@ -289,10 +425,10 @@ export class AiRouter {
           latency_ms,
           wasFallback,
           status: 'error',
-          errorMessage: error instanceof Error ? error.message : String(error),
+          errorMessage: fullErrorMsg,
         });
 
-        throw error;
+        throw new Error(fullErrorMsg);
       }
     }
 
@@ -312,10 +448,14 @@ export class AiRouter {
         return this.callGroq(model, request);
       case 'together':
         return this.callTogether(model, request);
+      case 'moonshot':
+        return this.callMoonshot(model, request);
       case 'anthropic':
         return this.callAnthropic(model, request);
       case 'cloudflare_ai_gateway':
         return this.callCloudflareAIGateway(model, request);
+      case 'google_gemini':
+        return this.callGemini(model, request);
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -341,7 +481,15 @@ export class AiRouter {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: request.prompt }],
+        messages: [{
+          role: 'user',
+          content: request.imageBase64
+            ? [
+                { type: 'image_url', image_url: { url: `data:${request.imageMimeType || 'image/jpeg'};base64,${request.imageBase64}` } },
+                { type: 'text', text: request.prompt },
+              ]
+            : request.prompt,
+        }],
         ...AI_ROUTER_CONFIG.groq.default_params,
         response_format: request.requireJson !== false ? { type: 'json_object' } : undefined,
       }),
@@ -368,6 +516,7 @@ export class AiRouter {
 
   /**
    * Call Together AI API (for Kimi K2.5).
+   * Supports vision via multimodal content (text + inline base64 image).
    */
   private async callTogether(
     model: string,
@@ -378,6 +527,25 @@ export class AiRouter {
       throw new Error('TOGETHER_API_KEY not set');
     }
 
+    // Build message content — multimodal if image is provided
+    let messageContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+
+    if (request.imageBase64) {
+      const mimeType = request.imageMimeType || 'image/png';
+      messageContent = [
+        {
+          type: 'image_url',
+          image_url: { url: `data:${mimeType};base64,${request.imageBase64}` },
+        },
+        {
+          type: 'text',
+          text: request.prompt,
+        },
+      ];
+    } else {
+      messageContent = request.prompt;
+    }
+
     const response = await fetch(`${AI_ROUTER_CONFIG.kimi_k2_5.api_base}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -386,8 +554,9 @@ export class AiRouter {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: request.prompt }],
+        messages: [{ role: 'user', content: messageContent }],
         ...AI_ROUTER_CONFIG.kimi_k2_5.default_params,
+        ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
         response_format: request.requireJson !== false ? { type: 'json_object' } : undefined,
       }),
     });
@@ -401,6 +570,72 @@ export class AiRouter {
     const choices = data.choices as Array<{ message?: { content?: string } }> | undefined;
     const usage = data.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
     
+    return {
+      content: choices?.[0]?.message?.content || '',
+      usage: {
+        prompt_tokens: usage?.prompt_tokens || 0,
+        completion_tokens: usage?.completion_tokens || 0,
+        total_tokens: usage?.total_tokens || 0,
+      },
+    };
+  }
+
+  /**
+   * Call Moonshot API directly (for Kimi K2.5 vision).
+   * OpenAI-compatible format at api.moonshot.cn/v1.
+   */
+  private async callMoonshot(
+    model: string,
+    request: InferenceRequest
+  ): Promise<Omit<InferenceResponse, 'provider' | 'model' | 'latency_ms' | 'wasFallback'>> {
+    const apiKey = this.apiKeys[MOONSHOT_CONFIG.api_key_env];
+    if (!apiKey) {
+      throw new Error('MOONSHOT_API_KEY not set');
+    }
+
+    // Build multimodal content if image is provided
+    let messageContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+
+    if (request.imageBase64) {
+      const mimeType = request.imageMimeType || 'image/png';
+      messageContent = [
+        {
+          type: 'image_url',
+          image_url: { url: `data:${mimeType};base64,${request.imageBase64}` },
+        },
+        {
+          type: 'text',
+          text: request.prompt,
+        },
+      ];
+    } else {
+      messageContent = request.prompt;
+    }
+
+    const response = await fetch(`${MOONSHOT_CONFIG.api_base}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: messageContent }],
+        // Kimi K2.5 is a reasoning model — only temperature=1 is allowed
+        ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
+        ...(request.requireJson !== false ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Moonshot API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json() as Record<string, unknown>;
+    const choices = data.choices as Array<{ message?: { content?: string } }> | undefined;
+    const usage = data.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
+
     return {
       content: choices?.[0]?.message?.content || '',
       usage: {
@@ -432,7 +667,7 @@ export class AiRouter {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: request.maxTokens || 4096,
         messages: [{ role: 'user', content: request.prompt }],
       }),
     });
@@ -466,6 +701,83 @@ export class AiRouter {
     // This would use the Cloudflare AI Gateway binding from the Worker environment
     // For now, delegate to Groq as the primary provider
     return this.callGroq(model, request);
+  }
+
+  /**
+   * Call Google Gemini API.
+   *
+   * Supports vision (inline image data) and large context.
+   * Uses the generateContent endpoint with structured JSON output.
+   */
+  private async callGemini(
+    model: string,
+    request: InferenceRequest
+  ): Promise<Omit<InferenceResponse, 'provider' | 'model' | 'latency_ms' | 'wasFallback'>> {
+    const apiKey = this.apiKeys[GEMINI_CONFIG.api_key_env];
+    if (!apiKey) {
+      throw new Error('GOOGLE_API_KEY not set');
+    }
+
+    // Build content parts
+    const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+
+    // Add image if provided (for vision tasks)
+    if (request.imageBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: request.imageMimeType || 'image/png',
+          data: request.imageBase64,
+        },
+      });
+    }
+
+    // Add text prompt
+    parts.push({ text: request.prompt });
+
+    // Use model-specific defaults
+    const isGemini31 = model === GEMINI_31_CONFIG.model;
+    const defaults = isGemini31 ? GEMINI_31_CONFIG.default_params : GEMINI_CONFIG.default_params;
+
+    const body: Record<string, unknown> = {
+      contents: [{ parts }],
+      generationConfig: {
+        temperature: defaults.temperature,
+        maxOutputTokens: request.maxTokens || defaults.maxOutputTokens,
+        responseMimeType: request.requireJson !== false ? 'application/json' : 'text/plain',
+      },
+    };
+
+    const url = `${GEMINI_CONFIG.api_base}/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json() as Record<string, unknown>;
+    const candidates = data.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }> | undefined;
+    const usageMetadata = data.usageMetadata as {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      totalTokenCount?: number;
+    } | undefined;
+
+    const content = candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    return {
+      content,
+      usage: {
+        prompt_tokens: usageMetadata?.promptTokenCount || 0,
+        completion_tokens: usageMetadata?.candidatesTokenCount || 0,
+        total_tokens: usageMetadata?.totalTokenCount || 0,
+      },
+    };
   }
 
   /**
@@ -508,9 +820,16 @@ export class AiRouter {
       },
     };
 
-    // In a real implementation, this would insert to Supabase
-    // await supabase.from('ai_inference_log').insert(logEntry);
-    this.inferenceLog.push(logEntry as AiInferenceLog);
+    if (this.supabase) {
+      try {
+        await this.supabase.from('ai_inference_log').insert(logEntry);
+      } catch (e) {
+        console.warn('[AiRouter] Failed to persist inference log:', e);
+        this.inferenceLog.push(logEntry as AiInferenceLog);
+      }
+    } else {
+      this.inferenceLog.push(logEntry as AiInferenceLog);
+    }
   }
 
   /**
@@ -534,14 +853,27 @@ export class AiRouter {
     }
 
     if (provider === 'together' && model === AI_ROUTER_CONFIG.kimi_k2_5.model) {
-      return promptM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_input + 
+      return promptM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_input +
              completionM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_output;
+    }
+
+    if (provider === 'moonshot') {
+      return promptM * MOONSHOT_CONFIG.cost_per_m_input +
+             completionM * MOONSHOT_CONFIG.cost_per_m_output;
     }
 
     // Anthropic costs vary by model
     if (provider === 'anthropic') {
       // Claude Sonnet 4.5: ~$3/1M input, ~$15/1M output
       return promptM * 3 + completionM * 15;
+    }
+
+    // Gemini models
+    if (provider === 'google_gemini') {
+      if (model === GEMINI_31_CONFIG.model) {
+        return promptM * GEMINI_31_CONFIG.cost_per_m_input + completionM * GEMINI_31_CONFIG.cost_per_m_output;
+      }
+      return promptM * GEMINI_CONFIG.cost_per_m_input + completionM * GEMINI_CONFIG.cost_per_m_output;
     }
 
     return null;

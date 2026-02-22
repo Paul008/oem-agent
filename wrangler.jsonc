@@ -25,6 +25,14 @@
     "binding": "AI"
   },
 
+  // Vectorize (UX knowledge base for semantic retrieval)
+  "vectorize": [
+    {
+      "binding": "UX_KNOWLEDGE",
+      "index_name": "ux-knowledge-base"
+    }
+  ],
+
   // Cloudflare Containers (Sandbox for code execution)
   "containers": [
     {

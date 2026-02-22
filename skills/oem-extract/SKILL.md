@@ -47,14 +47,20 @@ Vehicle listings with specifications, pricing, and features.
 - `availability` - For Sale, Coming Soon, Sold Out
 - `price_amount`, `price_currency`, `price_type`, `price_qualifier`
 
-**Vehicle Specifications (separate columns):**
-- `engine_size` - Engine displacement (e.g., "1373", "2.0L")
-- `cylinders` - Number of cylinders (e.g., 4, 6)
-- `transmission` - Transmission type (e.g., "Sports Automatic", "CVT")
-- `gears` - Number of gears (e.g., 6, 8)
-- `drive` - Drive type (e.g., "Front Wheel Drive", "AWD")
-- `doors` - Number of doors (e.g., 5)
-- `seats` - Seating capacity (e.g., 5, 7)
+**Technical Specifications (`specs_json` JSONB — 692/709 products, 97.6%):**
+- `engine` - type, displacement_cc, cylinders, power_kw, torque_nm
+- `transmission` - type, gears, drive
+- `dimensions` - length_mm, width_mm, height_mm, wheelbase_mm, kerb_weight_kg
+- `performance` - fuel_combined_l100km (ICE) or range_km, battery_kwh (EV)
+- `towing` - braked_kg, unbraked_kg
+- `capacity` - doors, seats, boot_litres, fuel_tank_litres
+- `safety` - ancap_stars, airbags
+- `wheels` - size, type
+
+All 8 categories at 100% coverage. 12/14 OEMs fully complete (only Ford 11 + Nissan 6 legacy entries missing).
+
+**Vehicle Specifications (legacy scalar columns):**
+- `engine_size`, `cylinders`, `transmission`, `gears`, `drive`, `doors`, `seats`
 
 **OEM Marketing Features (`key_features` array):**
 - Features displayed on OEM vehicle pages (e.g., "Apple CarPlay", "Blind Spot Monitor", "Adaptive Cruise Control")
@@ -82,17 +88,74 @@ Vehicle listings with specifications, pricing, and features.
 - Source system references (network_id, specification_code)
 
 ### Offers
-- Financing deals, lease specials, incentives
+
+Promotional offers including factory bonuses, run-out sales, value-add deals, and financing specials.
+
+**Core Fields:**
+- `title` - Offer headline (e.g., "Musso Factory Bonus - Save $2,000")
+- `description` - Offer details and conditions
+- `offer_type` - Classification: `factory_bonus`, `run_out`, `value_add`, `finance`, `lease`
+- `price_amount` - Private/RRP starting price for the applicable model
+- `abn_price_amount` - ABN holder price (when different from private price)
+- `saving_amount` - Dollar amount saved (e.g., 2000, 5010)
+- `price_currency` - Always `AUD`
+- `price_type` - `rrp`, `driveaway`, etc.
+
+**Validity:**
+- `validity_start` - Offer start date (ISO 8601)
+- `validity_end` - Offer end date (ISO 8601)
+- `validity_raw` - Raw validity text from source (e.g., "Limited time, while stocks last")
+
+**Display:**
+- `hero_image_r2_key` - URL to offer hero image (OEM CDN or CMS media)
+- `cta_text` - Call-to-action button text
+- `cta_url` - Call-to-action link URL
+- `disclaimer_text` - Legal disclaimer text
+
+**Linking:**
+- `model_id` - FK to `vehicle_models` (when offer applies to a single model)
+- `applicable_models` - Comma-separated model slugs (when offer applies to multiple models)
+- `external_key` - Unique identifier for deduplication (e.g., `offer-musso-factory-bonus`)
+- `source_url` - URL where the offer was found
 
 ### Banners
-- Homepage promotional content
+
+Homepage and offers page hero banners across 12 OEMs (50 banners, 2 with video).
+
+**Core Fields:**
+- `page_url` - Which page the banner appears on (homepage, offers page)
+- `position` - Slide/carousel order (0-indexed)
+- `headline` - Primary heading text
+- `sub_headline` - Secondary heading text
+- `cta_text` - Call-to-action button label
+- `cta_url` - Call-to-action link URL
+- `image_url_desktop` - Desktop hero image URL
+- `image_url_mobile` - Mobile hero image URL
+- `image_r2_key` - R2 proxy key (after rewrite)
+- `image_sha256` - Content hash for change detection
+- `video_url_desktop` - Desktop video URL (mp4 or Brightcove)
+- `video_url_mobile` - Mobile video URL
+- `disclaimer_text` - Legal disclaimer text
+
+**Extraction Methods:**
+- **Server-rendered HTML** (cheerio): Ford, GWM, KGM, Isuzu, Mazda, VW, Kia, Nissan — extract from slick/swiper carousels, background-image CSS, img tags
+- **Browser-rendered** (Chrome MCP): Hyundai, Toyota, Suzuki — client-side JS carousels with lazy-loaded images
+- **Video banners**: Ford (Brightcove Playback API — account 4082198814001, policy key needed), Suzuki (direct mp4 URLs)
+- **Offers page banners**: GWM (`/special-offers/`), Suzuki (`/latest-offers/`)
 
 ## Output
 
 - Extracted data mapped to canonical schemas (`product.v1`, `offer.v1`, `banner.v1`)
 - Content hash for change detection
-- Upserted to Supabase with diff computation
-- Change events fired if data differs from current record
+- Upserted to Supabase tables:
+  - `products` — Vehicle variants/grades with `specs_json` (linked to `vehicle_models` via model_id)
+  - `variant_colors` — Colour options per product
+  - `variant_pricing` — Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT)
+  - `accessories` — Accessory catalog per OEM (via `accessory_models` join to vehicle_models)
+  - `offers` — Promotional offers
+  - `banners` — Homepage promotional content
+  - `pdf_embeddings` — Vectorized brochure/guidelines chunks for semantic search
+- Change events fired to `change_events` table if data differs from current record
 
 ## Input
 

@@ -3179,7 +3179,9 @@ export function createOrchestrator(config: {
   slackWebhookUrl?: string;
   groqApiKey?: string;
   togetherApiKey?: string;
+  moonshotApiKey?: string;
   anthropicApiKey?: string;
+  googleApiKey?: string;
 }): OemAgentOrchestrator {
   // Create Supabase client
   const supabaseClient = {
@@ -3207,7 +3209,9 @@ export function createOrchestrator(config: {
   const aiRouter = new AiRouter({
     groq: config.groqApiKey,
     together: config.togetherApiKey,
+    moonshot: config.moonshotApiKey,
     anthropic: config.anthropicApiKey,
+    google: config.googleApiKey,
   });
 
   // Create notifier

@@ -421,6 +421,35 @@ export const toyotaAu: OemDefinition = {
   },
 };
 
+export const subaruAu: OemDefinition = {
+  id: 'subaru-au',
+  name: 'Subaru Australia',
+  baseUrl: 'https://www.subaru.com.au/',
+  config: {
+    homepage: '/',
+    vehicles_index: '/vehicles',
+    offers: '/offers',
+    news: '/newsroom',
+    schedule: {
+      homepage_minutes: 120,
+      offers_minutes: 240,
+      vehicles_minutes: 720,
+      news_minutes: 1440,
+    },
+    sub_brands: [],
+  },
+  selectors: {
+    vehicleLinks: 'a[href*="/vehicles/"]',
+    heroSlides: '[class*="hero"], [class*="banner"]',
+    offerTiles: '[class*="offer"], [class*="special"]',
+  },
+  flags: {
+    requiresBrowserRendering: true,
+    isNextJs: false,
+    hasSubBrands: false,
+  },
+};
+
 // ============================================================================
 // Registry Collection
 // ============================================================================
@@ -439,6 +468,7 @@ export const oemRegistry: Record<OemId, OemDefinition> = {
   'suzuki-au': suzukiAu,
   'hyundai-au': hyundaiAu,
   'toyota-au': toyotaAu,
+  'subaru-au': subaruAu,
 };
 
 export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];

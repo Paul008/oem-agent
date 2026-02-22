@@ -1,6 +1,6 @@
 # OEM Agent System Briefing
 
-**Last Updated**: 2026-02-18
+**Last Updated**: 2026-02-22
 **Deployment**: https://oem-agent.adme-dev.workers.dev/
 **Status**: ✅ Operational (conversation persistence enabled)
 
@@ -11,7 +11,8 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 - R2-backed conversation persistence
 - Headless Chrome automation via Cloudflare Browser Rendering
 - Supabase for structured data storage
-- Scheduled crawls for 30+ automotive manufacturers
+- Scheduled crawls for 14 Australian automotive manufacturers
+- Dashboard UI for monitoring (Cloudflare Pages, shadcn-vue-admin)
 
 ## Architecture
 
@@ -74,29 +75,117 @@ r2://oem-agent-assets/
 **Background Sync**: Runs every 30 seconds via rclone in container startup script
 
 ### 3. Supabase Database
-- **Tables**: oem_manufacturers, pages, page_snapshots, api_endpoints, crawl_jobs
-- **Purpose**: Structured storage for automotive data
+- **URL**: https://nnihmdmsglkxpmilmjjc.supabase.co
 - **Access**: Via SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+
+**Core Tables:**
+
+| Table | Rows | Purpose |
+|-------|------|---------|
+| `oems` | 14 | OEM registry with config_json.api_docs, design_profile_json |
+| `vehicle_models` | 132 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (96/132 populated) |
+| `products` | 709 | Variants/grades with `specs_json` JSONB (692/709, 97.6%, all 8 categories at 100%) |
+| `variant_colors` | ~4425 | Colour options per product (12/14 OEMs) |
+| `variant_pricing` | 547 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index |
+| `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
+| `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
+| `discovered_apis` | 466 | API endpoints per OEM (unique: oem_id, url) |
+| `source_pages` | 110 | URLs monitored for changes |
+| `change_events` | 516 | Audit log of detected changes |
+| `offers` | ~194 | Promotional offers (hero_image_r2_key, abn_price_amount, saving_amount). 5 OEMs: hyundai(46), kia(52), gwm(35), nissan(18), kgm(8) |
+| `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
+| `import_runs` | 1823 | Crawl job tracking |
+| `banners` | 50 | Homepage/offers hero banners (12 OEMs, 2 with video) |
+| `oem_portals` | 31 | Marketing portal credentials per OEM (14 OEMs, sourced from Monday.com) |
+
+**Entity Hierarchy:**
+```
+oems → vehicle_models → products → variant_colors
+                                 → variant_pricing
+                     → accessories (via accessory_models join)
+     → oem_portals (portal credentials, brand guidelines)
+     → pdf_embeddings (vectorized brochures + guidelines)
+     → extraction_runs (design pipeline run history)
+```
 
 ### 4. Cloudflare Browser Rendering
 - **CDP WebSocket**: /cdp?secret=$CDP_SECRET
 - **Purpose**: Headless Chrome for screenshots, scraping, video capture
 - **Binding**: Available to container as BROWSER env binding
 
+### 4. Dashboard UI
+- **URL**: https://oem-agent.pages.dev (Cloudflare Pages)
+- **Stack**: Vue 3 + shadcn-vue-admin + Supabase client
+- **Auth**: Supabase magic link (email)
+- **Source**: `dashboard/` directory
+
+**Dashboard Pages** (`dashboard/src/pages/dashboard/`):
+
+| Page | View | Description |
+|------|------|-------------|
+| `index.vue` | Overview | Summary stats and counts |
+| `oems.vue` | OEMs | OEM registry (14 manufacturers) |
+| `products.vue` | Models & Variants | Expandable model → variant table |
+| `colors.vue` | Variant Colors | Grid with hero images, swatch picker, 360 viewer, pagination |
+| `offers.vue` | Offers | Grid with hero images, savings/price badges, ABN pricing, pagination |
+| `pricing.vue` | Pricing | Per-state driveaway pricing |
+| `accessories.vue` | Accessories | Accessory catalog with model links |
+| `apis.vue` | APIs | Discovered API endpoints |
+| `docs.vue` | Docs | OEM API documentation |
+| `operations.vue` | Operations | System operations dashboard |
+| `runs.vue` | Import Runs | Crawl job history |
+| `changes.vue` | Changes | Change event audit log |
+| `source-pages.vue` | Source Pages | Monitored URLs |
+| `model-pages.vue` | Model Pages | AI-generated model pages (Gemini + Claude pipeline), preview & regenerate |
+| `design-memory.vue` | Design Memory | Extraction run history, quality scores, pipeline analytics |
+| `page-builder-docs.vue` | Page Builder Docs | Documentation for the adaptive pipeline and page builder |
+| `page-builder/index.vue` | Template Gallery | Browse OEM section templates, curated templates, filter by OEM/type |
+| `page-builder/[slug].vue` | Page Builder | Visual section editor with live preview, undo/redo, template gallery drawer |
+| `portals.vue` | OEM Portals | Portal credentials with password toggle, copy-to-clipboard, brand guidelines PDFs |
+
+### 5. Design Memory & Adaptive Pipeline
+- **Pipeline**: 7-step adaptive page generation: Clone → Screenshot → Classify → Extract → Validate → Generate → Learn
+- **Source files**: `src/design/memory.ts`, `src/design/prompt-builder.ts`, `src/design/extraction-runner.ts`, `src/design/pipeline.ts`, `src/design/ux-knowledge.ts`, `src/design/component-generator.ts`
+- **AI model routing**: Groq Llama 3.3 70B (classification/validation), Gemini 2.5 Pro (extraction), Claude Sonnet 4.5 (bespoke components), Google text-embedding-004 (vectors), Workers AI Llama Vision (free classification)
+- **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
+- **Storage**: `extraction_runs` table (run history + quality metrics), `oems.design_profile_json` (accumulated OEM design learning)
+- **Migration**: `supabase/migrations/20260222_design_memory.sql`
+- **Vectorize**: Cloudflare Vectorize index `ux-knowledge-base` (768-dim cosine)
+
+### 6. Page Builder UI
+- **Editor**: `page-builder/[slug].vue` — split-pane layout (sidebar + canvas), responsive toolbar with hamburger overflow menu
+- **Section editor**: Per-type property editors with image thumbnails, media upload (R2), theme/variant toggles
+- **Tab variants**: `default` (horizontal tab bar) and `kia-feature-bullets` (two-column bullet list with disclaimers)
+- **History**: Undo/redo system with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z), history panel
+- **Copy/paste**: Section clipboard (copy JSON, paste from clipboard), cross-page section reuse
+- **Template gallery**: In-editor Sheet drawer + landing page at `/dashboard/page-builder/`
+  - Fetches sections from all 14 OEM generated pages via Worker API
+  - 10 curated OEM-branded templates (Kia dark hero, Toyota split CTA, Hyundai tech tabs, etc.)
+  - Filter by OEM, section type, search query
+- **Subpages**: Convention-based `{modelSlug}--{subpageSlug}` stored flat in R2
+  - 9 predefined types (specs, design, performance, safety, gallery, pricing, lifestyle, accessories, colours) + custom
+  - Model pages UI: nested subpage list with expand/collapse, add/delete controls
+  - Editor: breadcrumb navigation (Parent > Subpage), source URL input for cloning OEM subpages
+  - Endpoints: `POST /admin/create-subpage/:oemId/:modelSlug/:subpageSlug`, `DELETE /admin/delete-subpage/...`
+  - Clone/Pipeline endpoints accept optional `source_url` body param for subpage URL override
+- **Composables**: `use-page-builder.ts` (editor state, sections, dirty tracking), `use-template-gallery.ts` (fetch/cache/filter)
+- **Section renderers**: 16 async components in `components/sections/` for live preview (hero, intro, tabs, color-picker, specs, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider, renderer)
+
 ## Available Skills (10 Total)
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
 | **cloudflare-browser** | Browser automation | CDP control, screenshots, videos, network monitoring |
-| **oem-agent-hooks** | Lifecycle hooks | Pre/post crawl actions, data validation |
-| **oem-api-discover** | API discovery | Classify network requests, identify data APIs |
-| **oem-build-price-discover** | Pricing extraction | Build & Price tools, trim/package pricing |
-| **oem-crawl** | Page crawling | Scheduled crawls, change detection, content extraction |
-| **oem-design-capture** | Design assets | Screenshots, color palettes, visual themes |
-| **oem-extract** | Content parsing | Structured data extraction from HTML |
-| **oem-report** | Reporting | Generate crawl reports, analytics dashboards |
-| **oem-sales-rep** | Sales intelligence | Dealer locators, inventory availability |
-| **oem-semantic-search** | Search & discovery | Vector embeddings, semantic similarity |
+| **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
+| **oem-api-discover** | API discovery | CDP network interception, classify data APIs |
+| **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
+| **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
+| **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
+| **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
+| **oem-report** | Reporting | Slack alerts, daily digests across 14 OEMs |
+| **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
+| **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 
 ## Scheduled Cron Jobs
 
@@ -135,8 +224,9 @@ r2://oem-agent-assets/
 ### OEM Agent
 - `SUPABASE_URL` - Database endpoint
 - `SUPABASE_SERVICE_ROLE_KEY` - Database auth
-- `GROQ_API_KEY` - Fast inference
+- `GROQ_API_KEY` - Fast inference (classification, validation via Llama 3.3 70B)
 - `TOGETHER_API_KEY` - Alternative models
+- `GEMINI_API_KEY` / `GOOGLE_API_KEY` - Gemini 2.5 Pro (extraction), text-embedding-004 (vectors)
 
 ### Browser & Research
 - `CDP_SECRET` - Browser Rendering auth
@@ -173,6 +263,7 @@ if (env.R2_BUCKET_NAME) envVars.R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 | `AGENTS.md` | Development guide for AI agents (architecture, patterns, commands) |
 | `CONTRIBUTING.md` | Contribution guidelines |
 | `docs/IMPLEMENTATION_SUMMARY.md` | Implementation notes |
+| `docs/ACCESSORIES_DISCOVERY.md` | Accessory data sources, methodology, edge cases per OEM |
 | `docs/crawl-config-v1.2.md` | Crawl configuration reference |
 | `skills/*/SKILL.md` | Individual skill documentation |
 | `README.md` | User-facing setup and usage (if exists) |
@@ -242,6 +333,68 @@ wrangler secret list  # List configured secrets
 
 ---
 
+## Monitored OEMs (14)
+
+| ID | Name |
+|----|------|
+| ford-au | Ford Australia |
+| gwm-au | Great Wall Motors Australia |
+| hyundai-au | Hyundai Australia |
+| isuzu-au | Isuzu UTE Australia |
+| kgm-au | KGM (formerly SsangYong) |
+| kia-au | Kia Australia |
+| ldv-au | LDV Australia |
+| mazda-au | Mazda Australia |
+| mitsubishi-au | Mitsubishi Motors Australia |
+| nissan-au | Nissan Australia |
+| subaru-au | Subaru Australia |
+| suzuki-au | Suzuki Australia |
+| toyota-au | Toyota Australia |
+| volkswagen-au | Volkswagen Australia |
+
+## Seed Scripts (dashboard/scripts/)
+
+Pre-built scripts for populating OEM data:
+
+| Script | OEM | Data |
+|--------|-----|------|
+| `seed-mitsubishi-apis.mjs` | Mitsubishi | 3 APIs + docs (Magento 2 GraphQL) |
+| `seed-mitsubishi-products.mjs` | Mitsubishi | 5 families, state pricing |
+| `seed-suzuki-apis.mjs` | Suzuki | 3 APIs + docs (static S3/CloudFront) |
+| `seed-suzuki-products.mjs` | Suzuki | 7 models, 18 products, 18 pricing rows |
+| `seed-nissan-apis.mjs` | Nissan | 5 APIs + docs (multi-API: GraphQL+Apigee+Helios) |
+| `seed-nissan-products.mjs` | Nissan | 10 models, 41 products (pricing needs browser session) |
+| `seed-kgm-apis.mjs` | KGM | 6 APIs + docs (Payload CMS, no auth) |
+| `seed-kgm-products.mjs` | KGM | 8 models, 26 products, 134 colours, 26 pricing rows |
+| `seed-kgm-accessories.mjs` | KGM | 225 accessories, 300+ model links, 7 categories (Payload CMS) |
+| `seed-mitsubishi-accessories.mjs` | Mitsubishi | 223 accessories, 264+ model links (Magento GraphQL) |
+| `seed-mazda-accessories.mjs` | Mazda | 266 accessories, 387 model links (React hydration HTML) |
+| `seed-isuzu-accessories.mjs` | Isuzu | 204 accessories (BuildandQuote Sitecore API) |
+| `seed-hyundai-accessories.mjs` | Hyundai | 526 accessories, 526 model links (Content API v3, no auth) |
+| `seed-kia-accessories.mjs` | Kia | 246 accessories, 391 model links (JSON-LD structured data) |
+| `seed-subaru-accessories.mjs` | Subaru | 299 accessories, 414 model links (Retailer API v1, x-api-key) |
+| `seed-nissan-accessories.mjs` | Nissan | 179 accessories, 207 model links (HTML scraping, dual templates) |
+| `seed-vw-accessories.mjs` | Volkswagen | 353 accessories (e-catalogue GraphQL, OSSE/CARIAD) |
+| `seed-gwm-accessories.mjs` | GWM | 181 accessories, 220 model links (Storyblok CDN API) |
+| `seed-gwm-accessories.mjs` | GWM | 181 accessories, 220 model links (Storyblok CDN API) |
+| `seed-gwm-colors.mjs` | GWM | 184 variant_colors enriched with Storyblok names + images |
+| `seed-nissan-colors.mjs` | Nissan | 422 variant_colors (AEM version-explorer JSON) |
+| `enrich-gwm-storyblok.mjs` | GWM | Enrich 184 colors with real names + hero/gallery (Storyblok) |
+| `enrich-kia-heroes.mjs` | Kia | Enrich 328 hero images from CDN slug matching |
+| `seed-ford-colors.mjs` | Ford | 388 variant_colors from GPAS reference data (100% hero/swatch/gallery) |
+| `seed-kia-offers.mjs` | Kia | 52 offers (15 main + 37 variant, two-tier AEM HTML scraping) |
+| `seed-kgm-offers.mjs` | KGM | 8 offers (factory bonus, run-out, value-add from Payload CMS) |
+| `seed-gwm-offer-images.mjs` | GWM | Enrich 35 offers with Storyblok images + ABN pricing |
+
+| `seed-oem-portals.mjs` | All | 31 portal credentials from Monday.com board 15373501 |
+| `seed-brochures.mjs` | Multi | 96/132 brochure URLs (11 OEMs: Kia, Toyota, Hyundai, Mazda, Ford, KGM, Nissan, Mitsubishi, Isuzu, Subaru, GWM) |
+| `seed-{oem}-specs.mjs` (13) | All | Technical specs for 692/709 products (97.6%), all 8 categories at 100% |
+| `vectorize-pdfs.mjs` | Multi | PDF vectorization pipeline: download → pdf-parse → chunk → embed → upsert |
+
+**Toyota** (21 models, 149 products, 802 colors, 132 pricing rows) was seeded via direct browser-to-Supabase REST API using Chrome MCP tools (Cloudflare-protected APIs, no seed script file).
+
+---
+
 **Status**: ✅ Production Ready
-**Last Deployment**: 2026-02-18 (7d04469e)
-**Next Maintenance**: Monitor R2 backup size, optimize scheduled crawls
+**Last Deployment**: 2026-02-22
+**Next Maintenance**: Monitor R2 backup size, optimize scheduled crawls, populate Nissan pricing via Choices API, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings

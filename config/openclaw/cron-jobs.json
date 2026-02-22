@@ -109,6 +109,47 @@
         "model": "text-embedding-004",
         "max_items_per_run": 200
       }
+    },
+    {
+      "id": "oem-data-sync-weekly",
+      "name": "Weekly OEM Data Sync",
+      "description": "Run all weekly seed scripts (accessories, colors, products, enrichment)",
+      "schedule": "0 3 * * 0",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-data-sync",
+      "enabled": true,
+      "config": {
+        "schedule": "weekly",
+        "timeout_per_script": 120
+      }
+    },
+    {
+      "id": "oem-data-sync-monthly",
+      "name": "Monthly OEM API/Docs Sync",
+      "description": "Re-seed discovered APIs and OEM documentation",
+      "schedule": "0 3 1 * *",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-data-sync",
+      "enabled": true,
+      "config": {
+        "schedule": "monthly",
+        "timeout_per_script": 60
+      }
+    },
+    {
+      "id": "oem-brand-ambassador",
+      "name": "Brand Ambassador - Page Generation",
+      "description": "Generate AI-powered dealer model pages from OEM websites via Gemini 2.5 Vision",
+      "schedule": "0 4 * * 2",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-brand-ambassador",
+      "enabled": true,
+      "config": {
+        "stages": ["audit", "capture", "generate", "validate", "publish"],
+        "max_models_per_run": 10,
+        "force_regenerate": false,
+        "pilot_oems": ["gwm-au", "kia-au", "hyundai-au"]
+      }
     }
   ],
   "hooks": {

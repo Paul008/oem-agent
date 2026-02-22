@@ -33,7 +33,7 @@ const { isMobile, open } = useSidebar()
             <UiAvatar class="size-8 rounded-lg">
               <UiAvatarImage :src="user.avatar" :alt="user.name" />
               <UiAvatarFallback class="rounded-lg">
-                CN
+                {{ user.name?.slice(0, 2).toUpperCase() ?? 'OA' }}
               </UiAvatarFallback>
             </UiAvatar>
             <div class="grid flex-1 text-sm leading-tight text-left">
@@ -54,7 +54,7 @@ const { isMobile, open } = useSidebar()
               <UiAvatar class="size-8 rounded-lg">
                 <UiAvatarImage :src="user.avatar" :alt="user.name" />
                 <UiAvatarFallback class="rounded-lg">
-                  CN
+                  {{ user.name?.slice(0, 2).toUpperCase() ?? 'OA' }}
                 </UiAvatarFallback>
               </UiAvatar>
               <div class="grid flex-1 text-sm leading-tight text-left">

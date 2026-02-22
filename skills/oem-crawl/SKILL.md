@@ -15,7 +15,7 @@ Monitors OEM websites for changes using a two-stage pipeline.
 
 ## Prerequisites
 
-- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for source pages and results
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for `source_pages`, `import_runs`, and `change_events` tables
 - `WORKER_URL` for CDP proxy access
 - `CDP_SECRET` for browser rendering authentication
 
