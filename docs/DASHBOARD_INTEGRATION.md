@@ -199,6 +199,7 @@ GET /cron/runs/{jobId}?limit={limit}
 - `products_upserted` - Number of products created/updated
 - `offers_upserted` - Number of offers created/updated
 - `banners_upserted` - Number of banners created/updated
+- `brochures_upserted` - Number of models with brochure_url updated
 - `changes_found` - Total number of changes detected
 
 ### 4. Configuration Editor
@@ -408,8 +409,10 @@ export function useGeneratedPages(oemId?: string) {
    - Added Products column (products_upserted with green highlight)
    - Added Offers column (offers_upserted with blue highlight)
    - Added Banners column (banners_upserted with purple highlight)
+   - Added Brochures column (brochures_upserted with orange highlight)
    - Improved visual hierarchy with color-coded values
    - Implemented full banner tracking in orchestrator (upsertBanner method)
+   - Implemented brochures_upserted tracking infrastructure (ready for model extraction)
 7. ✅ Built regeneration settings editor at `/dashboard/settings/regeneration`:
    - Quick presets (Conservative, Balanced, Aggressive)
    - Configurable age thresholds and check options

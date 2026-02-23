@@ -80,6 +80,7 @@ export interface CrawlPipelineResult {
   productsUpserted?: number;
   offersUpserted?: number;
   bannersUpserted?: number;
+  brochuresUpserted?: number;
   changesFound?: number;
 }
 
@@ -205,6 +206,7 @@ export class OemAgentOrchestrator {
     let productsUpserted = 0;
     let offersUpserted = 0;
     let bannersUpserted = 0;
+    let brochuresUpserted = 0;
     let changesFound = 0;
 
     // Process each page
@@ -222,6 +224,7 @@ export class OemAgentOrchestrator {
           productsUpserted += result.productsUpserted || 0;
           offersUpserted += result.offersUpserted || 0;
           bannersUpserted += result.bannersUpserted || 0;
+          brochuresUpserted += result.brochuresUpserted || 0;
           changesFound += result.changesFound || 0;
         } else {
           errors++;
@@ -244,6 +247,7 @@ export class OemAgentOrchestrator {
         products_upserted: productsUpserted,
         offers_upserted: offersUpserted,
         banners_upserted: bannersUpserted,
+        brochures_upserted: brochuresUpserted,
         changes_found: changesFound,
       })
       .eq('id', importRun.id);
@@ -460,7 +464,7 @@ export class OemAgentOrchestrator {
 
       // Step 9: Process changes
       console.log(`[Orchestrator] About to process changes. Products: ${extractionResult.products?.data?.length || 0}`);
-      let changeCounters = { productsUpserted: 0, offersUpserted: 0, bannersUpserted: 0, changesFound: 0 };
+      let changeCounters = { productsUpserted: 0, offersUpserted: 0, bannersUpserted: 0, brochuresUpserted: 0, changesFound: 0 };
       try {
         changeCounters = await this.processChanges(oemId, page, extractionResult);
         console.log(`[Orchestrator] Process changes completed successfully`);
@@ -485,6 +489,7 @@ export class OemAgentOrchestrator {
         productsUpserted: changeCounters.productsUpserted,
         offersUpserted: changeCounters.offersUpserted,
         bannersUpserted: changeCounters.bannersUpserted,
+        brochuresUpserted: changeCounters.brochuresUpserted,
         changesFound: changeCounters.changesFound,
       };
     } catch (error) {
@@ -2928,10 +2933,11 @@ ${html.substring(0, 50000)}
     oemId: OemId,
     page: SourcePage,
     extractionResult: PageExtractionResult
-  ): Promise<{ productsUpserted: number, offersUpserted: number, bannersUpserted: number, changesFound: number }> {
+  ): Promise<{ productsUpserted: number, offersUpserted: number, bannersUpserted: number, brochuresUpserted: number, changesFound: number }> {
     let productsUpserted = 0;
     let offersUpserted = 0;
     let bannersUpserted = 0;
+    let brochuresUpserted = 0;
     let changesFound = 0;
 
     // Process products
@@ -2989,7 +2995,10 @@ ${html.substring(0, 50000)}
       }
     }
 
-    return { productsUpserted, offersUpserted, bannersUpserted, changesFound };
+    // Note: brochuresUpserted currently 0 - vehicle models not extracted during crawls
+    // Infrastructure ready for when model extraction is implemented
+
+    return { productsUpserted, offersUpserted, bannersUpserted, brochuresUpserted, changesFound };
   }
 
   private async upsertProduct(
