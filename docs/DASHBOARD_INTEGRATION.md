@@ -428,8 +428,78 @@ export function useGeneratedPages(oemId?: string) {
    - Complete counter tracking pattern documentation
    - File location references
 
+10. ✅ Built Agent Profile pages at `/dashboard/agents/{workflow-id}`:
+   - Moved `agents.vue` → `agents/index.vue` directory structure
+   - Added clickable Workflow Cards grid (8 cards) to index page
+   - Created per-workflow profile page with:
+     - Identity card (agent type, skill, tools, thresholds, rate limits)
+     - 6-stat grid (Total Runs, Success Rate, Avg Time, Total Cost, Avg Cost/Run, This Week)
+     - 30-day CSS bar chart (green = completed, red = failed, with hover tooltips)
+     - Recent actions table with pagination
+     - Error analysis (top errors grouped by count, with first/last seen dates)
+     - Configuration card (thresholds, rate limits, raw JSON)
+   - Created composable `dashboard/src/composables/use-agent-profile.ts`:
+     - `WORKFLOW_METADATA` — static map of all 8 workflows
+     - `useAgentProfile(workflowId)` — all profile data via Supabase client
+   - No new backend endpoints needed — all data from existing tables
+
+11. ✅ Updated OpenClaw tool names across all workflow definitions:
+   - Replaced `playwright` → `browser`, `bash` → `exec`, `grep` → removed, `groq` → `image`
+   - Updated in: `src/workflows/router.ts`, `dashboard/src/composables/use-agent-profile.ts`, `docs/AUTONOMOUS_AGENT_WORKFLOWS.md`
+   - Added "OpenClaw Tool Architecture" section to `AUTONOMOUS_AGENT_WORKFLOWS.md`
+   - Tool badges on agent profile pages now show correct OpenClaw tool names
+   - See [OpenClaw tools docs](https://docs.openclaw.ai/tools) for full reference
+
+### Understanding Tool Badges on Agent Profile Pages
+
+The agent profile page (`/dashboard/agents/{workflow-id}`) displays tool badges in the Identity Card section. These are **OpenClaw tool names**, not library names:
+
+| Badge | What it means |
+|-------|--------------|
+| `browser` | Agent can control a browser via CDP (backed by Cloudflare Browser Rendering) |
+| `exec` | Agent can run shell commands in the sandbox |
+| `read` / `write` / `edit` | Agent can access workspace files |
+| `image` | Agent can analyze images via vision model |
+| `web_fetch` | Agent can fetch and parse web pages |
+
+These tools are declared in `src/workflows/router.ts` and mirrored in `dashboard/src/composables/use-agent-profile.ts`. The underlying browser implementation uses `@cloudflare/puppeteer` via the CDP shim at `src/routes/cdp.ts` — but agents never see this directly. See `docs/AUTONOMOUS_AGENT_WORKFLOWS.md` → "OpenClaw Tool Architecture" for the full two-layer diagram.
+
+12. ✅ Added Supabase Realtime live updates:
+   - Created `supabase/migrations/20260226_enable_realtime.sql` (publication + RLS)
+   - Created `dashboard/src/composables/use-realtime.ts` — generic composable
+   - Wired into `runs.vue`, `changes.vue`, `index.vue`, `agents/index.vue`, `agents/[id].vue`
+   - Data appears instantly without page refresh
+
+## Real-Time Architecture
+
+### Current: Supabase Realtime (`postgres_changes`)
+
+The dashboard uses Supabase Realtime to stream `INSERT`, `UPDATE`, and `DELETE` events from 5 tables (`import_runs`, `change_events`, `agent_actions`, `offers`, `banners`) directly to Vue reactive refs. Zero backend code — the client subscribes via WebSocket to Postgres WAL changes.
+
+**Composable**: `dashboard/src/composables/use-realtime.ts`
+**Migration**: `supabase/migrations/20260226_enable_realtime.sql`
+
+### Future Option: Cloudflare Durable Objects
+
+Since the backend already runs on Cloudflare Workers, Durable Objects are a natural upgrade path when Supabase Realtime limits become a bottleneck (connection caps, fan-out latency, or cost at scale).
+
+**How it would work**:
+- Supabase remains the persistence layer (writes go to Postgres as today)
+- A Durable Object acts as the real-time hub, maintaining WebSocket connections to dashboard clients
+- Workers write to Supabase *and* notify the Durable Object, which fans out to connected clients
+- No third-party real-time dependency — everything stays within the Cloudflare stack
+
+**When to consider migrating**:
+- Supabase Realtime connection limits become a constraint (currently 200 concurrent)
+- Need sub-100ms delivery guarantees (Durable Objects colocate with the Worker)
+- Want to add custom fan-out logic (e.g. per-OEM channels, role-based filtering)
+- Cost optimization at scale — Durable Object WebSockets are very cheap after initial build cost
+
+**Trade-offs**:
+- More complex to build (WebSocket upgrade handling, message serialization, reconnect logic)
+- Need to manage connection state and heartbeats manually
+- Supabase Realtime is zero-code and works today — only migrate when there's a concrete reason
+
 **Next Actions** (Optional):
 1. Add regeneration status column to model-pages table
-2. Implement Phase 2: Cron dashboard
-3. Implement Phase 3: Enhanced import runs
-4. Document API endpoints in OpenAPI spec
+2. Document API endpoints in OpenAPI spec
