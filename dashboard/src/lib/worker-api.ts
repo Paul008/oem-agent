@@ -40,6 +40,14 @@ export async function fetchCronRuns(jobId: string, limit = 20) {
   return workerFetch(`/cron/runs/${jobId}?limit=${limit}`)
 }
 
+export async function updateCronJobOverride(jobId: string, enabled: boolean) {
+  return workerFetch(`/cron/jobs/${jobId}/override`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  })
+}
+
 export async function restartGateway() {
   return workerFetch('/api/admin/gateway/restart', { method: 'POST' })
 }

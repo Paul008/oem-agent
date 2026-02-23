@@ -8,6 +8,8 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import cronJobsConfig from '../../config/openclaw/cron-jobs.json';
 import cronDashboardHtml from '../assets/cron-dashboard.html';
+import { getRunHistory, saveRun, type JobRun } from '../utils/cron-runs';
+import { CLOUDFLARE_TRIGGERS } from '../scheduled';
 
 interface CronJob {
   id: string;
@@ -18,16 +20,6 @@ interface CronJob {
   skill: string;
   enabled: boolean;
   config: Record<string, unknown>;
-}
-
-interface JobRun {
-  id: string;
-  jobId: string;
-  startedAt: string;
-  completedAt?: string;
-  status: 'running' | 'success' | 'failed';
-  result?: Record<string, unknown>;
-  error?: string;
 }
 
 interface JobStatus extends CronJob {
@@ -63,77 +55,61 @@ function getNextRun(cronExpr: string, timezone: string): string {
 }
 
 /**
- * Get run history from R2
- */
-async function getRunHistory(
-  bucket: R2Bucket,
-  jobId: string,
-  limit = 10
-): Promise<JobRun[]> {
-  try {
-    const key = `openclaw/cron-runs/${jobId}.json`;
-    const obj = await bucket.get(key);
-    if (!obj) return [];
-    
-    const runs: JobRun[] = await obj.json();
-    return runs.slice(-limit).reverse(); // Most recent first
-  } catch (e) {
-    console.error(`[Cron] Failed to get run history for ${jobId}:`, e);
-    return [];
-  }
-}
-
-/**
- * Save run to history in R2
- */
-async function saveRun(bucket: R2Bucket, run: JobRun): Promise<void> {
-  try {
-    const key = `openclaw/cron-runs/${run.jobId}.json`;
-    const obj = await bucket.get(key);
-    
-    let runs: JobRun[] = [];
-    if (obj) {
-      runs = await obj.json();
-    }
-    
-    // Update existing run or add new one
-    const existingIdx = runs.findIndex(r => r.id === run.id);
-    if (existingIdx >= 0) {
-      runs[existingIdx] = run;
-    } else {
-      runs.push(run);
-    }
-    
-    // Keep last 100 runs
-    if (runs.length > 100) {
-      runs = runs.slice(-100);
-    }
-    
-    await bucket.put(key, JSON.stringify(runs, null, 2));
-  } catch (e) {
-    console.error(`[Cron] Failed to save run:`, e);
-  }
-}
-
-/**
  * GET /cron - List all jobs with status
  */
 cron.get('/', async (c) => {
   const jobs = cronJobsConfig.jobs as CronJob[];
   const bucket = c.env.MOLTBOT_BUCKET;
-  
+
+  // Fetch runtime overrides from Supabase
+  let overrides: Record<string, { enabled: boolean }> = {};
+  try {
+    const { createSupabaseClient } = await import('../utils/supabase');
+    const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
+    const { data } = await supabase
+      .from('cron_job_overrides')
+      .select('id, enabled');
+    if (data) {
+      for (const row of data) {
+        overrides[row.id] = { enabled: row.enabled };
+      }
+    }
+  } catch (_) {
+    // Overrides table may not exist yet
+  }
+
   const jobStatuses: JobStatus[] = await Promise.all(
     jobs.map(async (job) => {
       const runs = await getRunHistory(bucket, job.id, 1);
       const lastRun = runs[0];
-      
+
       // Count total runs
       const allRuns = await getRunHistory(bucket, job.id, 100);
-      
+
+      // Apply runtime override if present
+      const override = overrides[job.id];
+      const effectiveEnabled = override?.enabled !== undefined ? override.enabled : job.enabled;
+
       return {
         ...job,
+        enabled: effectiveEnabled,
+        enabledOverride: override?.enabled,
         lastRun,
         nextRun: getNextRun(job.schedule, job.timezone),
+        runCount: allRuns.length,
+      };
+    })
+  );
+
+  // Build Cloudflare trigger statuses (with run history from R2)
+  const cfTriggerStatuses = await Promise.all(
+    CLOUDFLARE_TRIGGERS.map(async (trigger) => {
+      const runs = await getRunHistory(bucket, trigger.id, 1);
+      const allRuns = await getRunHistory(bucket, trigger.id, 100);
+      return {
+        ...trigger,
+        lastRun: runs[0],
+        nextRun: getNextRun(trigger.schedule, trigger.timezone),
         runCount: allRuns.length,
       };
     })
@@ -143,6 +119,7 @@ cron.get('/', async (c) => {
     version: cronJobsConfig.version,
     description: cronJobsConfig.description,
     jobs: jobStatuses,
+    cloudflareTriggers: cfTriggerStatuses,
     globalConfig: cronJobsConfig.global_config,
   };
 
@@ -192,7 +169,24 @@ cron.post('/run/:jobId', async (c) => {
   if (!job.enabled) {
     return c.json({ error: 'Job is disabled', jobId }, 400);
   }
-  
+
+  // Check runtime override
+  try {
+    const { createSupabaseClient } = await import('../utils/supabase');
+    const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
+    const { data: override } = await supabase
+      .from('cron_job_overrides')
+      .select('enabled')
+      .eq('id', jobId)
+      .single();
+
+    if (override?.enabled === false) {
+      return c.json({ error: 'Job disabled via dashboard', jobId }, 400);
+    }
+  } catch (_) {
+    // No override row = use static config default
+  }
+
   const bucket = c.env.MOLTBOT_BUCKET;
   const runId = `${jobId}-${Date.now()}`;
   
@@ -207,8 +201,12 @@ cron.post('/run/:jobId', async (c) => {
   
   // Execute job in background
   c.executionCtx.waitUntil(
-    executeJob(job, run, bucket, c.env).catch((e) => {
+    executeJob(job, run, bucket, c.env).catch(async (e) => {
       console.error(`[Cron] Job ${jobId} failed:`, e);
+      run.status = 'failed';
+      run.completedAt = new Date().toISOString();
+      run.error = e instanceof Error ? e.message : String(e);
+      await saveRun(bucket, run);
     })
   );
   
@@ -229,20 +227,21 @@ cron.post('/run/:jobId', async (c) => {
 cron.get('/runs/:jobId', async (c) => {
   const { jobId } = c.req.param();
   const limit = parseInt(c.req.query('limit') || '20');
-  
+
   const jobs = cronJobsConfig.jobs as CronJob[];
   const job = jobs.find(j => j.id === jobId);
-  
-  if (!job) {
+  const cfTrigger = CLOUDFLARE_TRIGGERS.find(t => t.id === jobId);
+
+  if (!job && !cfTrigger) {
     return c.json({ error: 'Job not found', jobId }, 404);
   }
-  
+
   const bucket = c.env.MOLTBOT_BUCKET;
   const runs = await getRunHistory(bucket, jobId, limit);
-  
+
   return c.json({
     jobId,
-    jobName: job.name,
+    jobName: job?.name ?? cfTrigger?.name,
     runs,
     total: runs.length,
   });
@@ -258,10 +257,32 @@ async function executeJob(
   env: AppEnv['Bindings']
 ): Promise<void> {
   console.log(`[Cron] Executing job: ${job.id} (${job.skill})`);
-  
+
+  // Check for runtime enabled override
+  try {
+    const { createSupabaseClient } = await import('../utils/supabase');
+    const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+    const { data: override } = await supabase
+      .from('cron_job_overrides')
+      .select('enabled')
+      .eq('id', job.id)
+      .single();
+
+    if (override?.enabled === false) {
+      console.log(`[Cron] Job ${job.id} disabled via dashboard override`);
+      run.status = 'failed';
+      run.error = 'Job disabled via dashboard';
+      run.completedAt = new Date().toISOString();
+      await saveRun(bucket, run);
+      return;
+    }
+  } catch (_) {
+    // No override row = use static config default, continue execution
+  }
+
   try {
     let result: Record<string, unknown> = {};
-    
+
     switch (job.skill) {
       case 'oem-extract':
         result = await executeOemExtract(job, env);
@@ -465,6 +486,18 @@ async function executeBrandAmbassador(
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   });
 
+  // Check for runtime config override from workflow_settings (dashboard)
+  const { data: wsOverride } = await supabase
+    .from('workflow_settings')
+    .select('config')
+    .eq('id', 'new-model-page')
+    .single();
+
+  if (wsOverride?.config?.regeneration_strategy) {
+    config.regeneration_strategy = wsOverride.config.regeneration_strategy;
+    console.log('[BrandAmbassador] Using runtime config override from workflow_settings');
+  }
+
   const aiRouter = new AiRouter({
     groq: env.GROQ_API_KEY,
     together: env.TOGETHER_API_KEY,
@@ -574,5 +607,24 @@ async function executeBrandAmbassador(
     results,
   };
 }
+
+/**
+ * PATCH /cron/jobs/:jobId/override - Save enable/disable overrides
+ */
+cron.patch('/jobs/:jobId/override', async (c) => {
+  const { jobId } = c.req.param();
+  const body = await c.req.json<{ enabled: boolean }>();
+  const { createSupabaseClient } = await import('../utils/supabase');
+  const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
+
+  const { data, error } = await supabase
+    .from('cron_job_overrides')
+    .upsert({ id: jobId, enabled: body.enabled, updated_at: new Date().toISOString() })
+    .select()
+    .single();
+
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json({ data });
+});
 
 export { cron };

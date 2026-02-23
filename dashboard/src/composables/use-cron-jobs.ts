@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { fetchCronJobs, triggerCronJob, fetchCronRuns } from '@/lib/worker-api'
+import { fetchCronJobs, triggerCronJob, fetchCronRuns, updateCronJobOverride } from '@/lib/worker-api'
 
 export interface CronJob {
   id: string
@@ -26,12 +26,28 @@ export interface JobStatus extends CronJob {
   lastRun?: JobRun
   nextRun?: string
   runCount: number
+  enabledOverride?: boolean
+}
+
+export interface CloudflareTriggerStatus {
+  id: string
+  name: string
+  description: string
+  schedule: string
+  timezone: string
+  skill: string
+  enabled: boolean
+  config: Record<string, unknown>
+  lastRun?: JobRun
+  nextRun?: string
+  runCount: number
 }
 
 export interface CronJobsResponse {
   version: string
   description: string
   jobs: JobStatus[]
+  cloudflareTriggers?: CloudflareTriggerStatus[]
   globalConfig: Record<string, unknown>
 }
 
@@ -39,6 +55,7 @@ export function useCronJobs() {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const jobs = ref<JobStatus[]>([])
+  const cloudflareTriggers = ref<CloudflareTriggerStatus[]>([])
   const runHistory = ref<Record<string, JobRun[]>>({})
 
   async function loadJobs() {
@@ -48,6 +65,7 @@ export function useCronJobs() {
     try {
       const response = await fetchCronJobs() as CronJobsResponse
       jobs.value = response.jobs
+      cloudflareTriggers.value = response.cloudflareTriggers ?? []
       return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load cron jobs'
@@ -85,6 +103,21 @@ export function useCronJobs() {
     }
   }
 
+  async function toggleJob(jobId: string, enabled: boolean) {
+    try {
+      await updateCronJobOverride(jobId, enabled)
+      // Update local state immediately
+      const job = jobs.value.find(j => j.id === jobId)
+      if (job) {
+        job.enabled = enabled
+        job.enabledOverride = enabled
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to toggle job'
+      throw err
+    }
+  }
+
   function getJobById(jobId: string): JobStatus | undefined {
     return jobs.value.find(j => j.id === jobId)
   }
@@ -93,9 +126,11 @@ export function useCronJobs() {
     loading,
     error,
     jobs,
+    cloudflareTriggers,
     runHistory,
     loadJobs,
     triggerJob,
+    toggleJob,
     loadRunHistory,
     getJobById,
   }

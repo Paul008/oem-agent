@@ -1,8 +1,9 @@
 /**
  * Scheduled Crawl Handler
- * 
+ *
  * Handles Cloudflare Cron Triggers for the OEM Agent.
  * Each cron interval corresponds to a different crawl frequency.
+ * Run history is saved to R2 alongside OpenClaw cron runs.
  */
 
 import type { MoltbotEnv } from './types';
@@ -10,104 +11,131 @@ import { OemAgentOrchestrator } from './orchestrator';
 import { createSupabaseClient } from './utils/supabase';
 import { AiRouter } from './ai/router';
 import { MultiChannelNotifier } from './notify/slack';
+import { saveRun, type JobRun } from './utils/cron-runs';
+
+/**
+ * Cloudflare Workers cron trigger definitions.
+ * Shared with cron.ts so the dashboard can display these alongside OpenClaw jobs.
+ */
+export const CLOUDFLARE_TRIGGERS = [
+  {
+    id: 'cf-homepage-crawl',
+    name: 'Homepage Crawl',
+    description: 'Crawl OEM homepages for changes',
+    schedule: '0 */2 * * *',
+    timezone: 'Australia/Sydney',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'homepage' },
+  },
+  {
+    id: 'cf-offers-crawl',
+    name: 'Offers Crawl',
+    description: 'Crawl OEM offers and promotions pages',
+    schedule: '0 */4 * * *',
+    timezone: 'Australia/Sydney',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'offers' },
+  },
+  {
+    id: 'cf-vehicles-crawl',
+    name: 'Vehicles Crawl',
+    description: 'Crawl OEM vehicle model pages',
+    schedule: '0 */12 * * *',
+    timezone: 'Australia/Sydney',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'vehicles' },
+  },
+  {
+    id: 'cf-news-crawl',
+    name: 'News Crawl',
+    description: 'Daily crawl of OEM news and announcements',
+    schedule: '0 6 * * *',
+    timezone: 'Australia/Sydney',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'news' },
+  },
+  {
+    id: 'cf-sitemap-crawl',
+    name: 'Sitemap & Design Checks',
+    description: 'Daily sitemap discovery and design capture',
+    schedule: '0 7 * * *',
+    timezone: 'Australia/Sydney',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'sitemap' },
+  },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  name: string;
+  description: string;
+  schedule: string;
+  timezone: string;
+  skill: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+}>;
+
+/** Map cron expression → trigger definition */
+const TRIGGER_BY_CRON = new Map<string, (typeof CLOUDFLARE_TRIGGERS)[number]>(
+  CLOUDFLARE_TRIGGERS.map(t => [t.schedule, t])
+);
 
 /**
  * Cron trigger handler
- * 
- * Cron schedules from wrangler.jsonc:
- * - 0 * /2 * * *  - Every 2 hours (homepage crawl)
- * - 0 * /4 * * *  - Every 4 hours (offers crawl)
- * - 0 * /12 * * * - Every 12 hours (vehicles crawl)
- * - 0 6 * * *     - Daily at 6am (news crawl)
- * - 0 7 * * *     - Daily at 7am (sitemap crawl)
  */
 export async function handleScheduled(
   event: ScheduledEvent,
   env: MoltbotEnv,
   ctx: ExecutionContext
 ): Promise<void> {
-  const cron = event.cron;
-  console.log(`[Scheduled] Triggered with cron: ${cron}`);
+  const cronExpr = event.cron;
+  console.log(`[Scheduled] Triggered with cron: ${cronExpr}`);
+
+  const trigger = TRIGGER_BY_CRON.get(cronExpr);
+  const jobId = trigger?.id ?? `cf-unknown-${cronExpr.replace(/\s+/g, '-')}`;
+  const label = trigger?.name ?? `Unknown (${cronExpr})`;
 
   const orchestrator = createOrchestratorFromEnv(env);
+  const bucket = env.MOLTBOT_BUCKET;
 
-  switch (cron) {
-    case '0 */2 * * *':
-      // Every 2 hours - Homepage crawl
-      console.log('[Scheduled] Running homepage crawl cycle');
-      ctx.waitUntil(runHomepageCrawl(orchestrator));
-      break;
+  // Create run record
+  const run: JobRun = {
+    id: `${jobId}-${Date.now()}`,
+    jobId,
+    startedAt: new Date().toISOString(),
+    status: 'running',
+  };
+  await saveRun(bucket, run);
 
-    case '0 */4 * * *':
-      // Every 4 hours - Offers crawl
-      console.log('[Scheduled] Running offers crawl cycle');
-      ctx.waitUntil(runOffersCrawl(orchestrator));
-      break;
+  ctx.waitUntil(
+    (async () => {
+      try {
+        console.log(`[Scheduled] Running ${label}`);
+        const result = await orchestrator.runScheduledCrawl();
+        console.log(`[${label}] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
 
-    case '0 */12 * * *':
-      // Every 12 hours - Vehicles crawl
-      console.log('[Scheduled] Running vehicles crawl cycle');
-      ctx.waitUntil(runVehiclesCrawl(orchestrator));
-      break;
+        run.status = 'success';
+        run.completedAt = new Date().toISOString();
+        run.result = {
+          crawl_type: trigger?.config.crawl_type ?? 'full',
+          jobsProcessed: result.jobsProcessed,
+          pagesChanged: result.pagesChanged,
+          errors: result.errors,
+        };
+      } catch (e) {
+        console.error(`[Scheduled] ${label} failed:`, e);
+        run.status = 'failed';
+        run.completedAt = new Date().toISOString();
+        run.error = e instanceof Error ? e.message : String(e);
+      }
 
-    case '0 6 * * *':
-      // Daily at 6am - News crawl
-      console.log('[Scheduled] Running news crawl cycle');
-      ctx.waitUntil(runNewsCrawl(orchestrator));
-      break;
-
-    case '0 7 * * *':
-      // Daily at 7am - Sitemap and design checks
-      console.log('[Scheduled] Running sitemap and design checks');
-      ctx.waitUntil(runSitemapCrawl(orchestrator));
-      break;
-
-    default:
-      // Full crawl for any other trigger
-      console.log('[Scheduled] Running full scheduled crawl');
-      ctx.waitUntil(orchestrator.runScheduledCrawl());
-  }
-}
-
-/**
- * Run homepage crawl for all OEMs
- */
-async function runHomepageCrawl(orchestrator: OemAgentOrchestrator): Promise<void> {
-  // Get pages due for homepage crawl
-  const result = await orchestrator.runScheduledCrawl();
-  console.log(`[Homepage Crawl] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
-}
-
-/**
- * Run offers crawl for all OEMs
- */
-async function runOffersCrawl(orchestrator: OemAgentOrchestrator): Promise<void> {
-  const result = await orchestrator.runScheduledCrawl();
-  console.log(`[Offers Crawl] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
-}
-
-/**
- * Run vehicles crawl for all OEMs
- */
-async function runVehiclesCrawl(orchestrator: OemAgentOrchestrator): Promise<void> {
-  const result = await orchestrator.runScheduledCrawl();
-  console.log(`[Vehicles Crawl] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
-}
-
-/**
- * Run news crawl for all OEMs
- */
-async function runNewsCrawl(orchestrator: OemAgentOrchestrator): Promise<void> {
-  const result = await orchestrator.runScheduledCrawl();
-  console.log(`[News Crawl] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
-}
-
-/**
- * Run sitemap crawl for all OEMs
- */
-async function runSitemapCrawl(orchestrator: OemAgentOrchestrator): Promise<void> {
-  const result = await orchestrator.runScheduledCrawl();
-  console.log(`[Sitemap Crawl] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
+      await saveRun(bucket, run);
+    })()
+  );
 }
 
 /**
