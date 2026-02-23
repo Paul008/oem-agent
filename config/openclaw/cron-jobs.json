@@ -148,7 +148,14 @@
         "stages": ["audit", "capture", "generate", "validate", "publish"],
         "max_models_per_run": 10,
         "force_regenerate": false,
-        "pilot_oems": ["gwm-au", "kia-au", "hyundai-au"]
+        "pilot_oems": ["gwm-au", "kia-au", "hyundai-au"],
+        "regeneration_strategy": {
+          "max_age_days": 30,
+          "min_age_days": 7,
+          "check_source_timestamps": true,
+          "check_content_hash": true,
+          "priority_threshold": "medium"
+        }
       }
     }
   ],

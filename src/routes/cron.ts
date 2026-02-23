@@ -446,6 +446,13 @@ async function executeBrandAmbassador(
     max_models_per_run: number;
     force_regenerate: boolean;
     pilot_oems: string[];
+    regeneration_strategy?: {
+      max_age_days: number;
+      min_age_days: number;
+      check_source_timestamps: boolean;
+      check_content_hash: boolean;
+      priority_threshold: 'low' | 'medium' | 'high' | 'critical';
+    };
   };
 
   const { createSupabaseClient } = await import('../utils/supabase');
@@ -486,9 +493,15 @@ async function executeBrandAmbassador(
     error?: string;
     generation_time_ms: number;
     total_cost_usd?: number;
+    skipped?: boolean;
+    skip_reason?: string;
+    regeneration_reason?: string;
+    checks_done?: string[];
+    page_age?: number;
   }> = [];
 
   let modelsProcessed = 0;
+  let modelsSkipped = 0;
 
   for (const oemId of config.pilot_oems) {
     // Get all models for this OEM
@@ -503,18 +516,31 @@ async function executeBrandAmbassador(
     for (const model of models) {
       if (modelsProcessed >= config.max_models_per_run) break;
 
-      // Skip if already generated (unless force_regenerate)
+      // Smart regeneration check (unless force_regenerate)
       if (!config.force_regenerate) {
-        const existing = await generator.getGeneratedPage(oemId as any, model.slug);
-        if (existing) {
+        const decision = await generator.shouldRegeneratePage(
+          oemId as any,
+          model.slug,
+          config.regeneration_strategy
+        );
+
+        if (!decision.shouldRegenerate) {
+          console.log(`[BrandAmbassador] Skipping ${oemId}/${model.slug}: ${decision.reason}`);
           results.push({
             oem_id: oemId,
             model_slug: model.slug,
             success: true,
             generation_time_ms: 0,
+            skipped: true,
+            skip_reason: decision.reason,
+            checks_done: decision.checksDone,
+            page_age: decision.pageAge,
           });
+          modelsSkipped++;
           continue;
         }
+
+        console.log(`[BrandAmbassador] Regenerating ${oemId}/${model.slug}: ${decision.reason} (priority: ${decision.priority})`);
       }
 
       console.log(`[BrandAmbassador] Generating page: ${oemId}/${model.slug}`);
@@ -527,6 +553,7 @@ async function executeBrandAmbassador(
         error: result.error,
         generation_time_ms: result.generation_time_ms,
         total_cost_usd: result.total_cost_usd,
+        skipped: false,
       });
 
       modelsProcessed++;
@@ -540,7 +567,8 @@ async function executeBrandAmbassador(
   return {
     pilot_oems: config.pilot_oems,
     models_processed: modelsProcessed,
-    successful: results.filter(r => r.success).length,
+    models_skipped: modelsSkipped,
+    successful: results.filter(r => r.success && !r.skipped).length,
     failed: results.filter(r => !r.success).length,
     total_cost_usd: totalCost,
     results,

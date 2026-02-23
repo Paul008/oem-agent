@@ -946,6 +946,8 @@ export interface VehicleModelPage {
   parent_slug?: string;
   subpage_type?: string;
   subpage_name?: string;
+  source_data_hash?: string;
+  source_data_updated_at?: string;
 }
 
 export type PageGenerationStatus = 'pending' | 'capturing' | 'generating' | 'validating' | 'completed' | 'failed';
@@ -975,6 +977,15 @@ export interface PageGenerationResult {
   validation_errors: string[];
   error?: string;
   _debug?: Record<string, unknown>;
+}
+
+export interface RegenerationDecision {
+  shouldRegenerate: boolean;
+  reason: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  checksDone: string[];
+  pageAge?: number;
+}
 }
 
 // ============================================================================

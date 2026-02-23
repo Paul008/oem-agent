@@ -47,6 +47,26 @@ const MAX_IMAGE_DOWNLOADS = 150; // Limit concurrent image downloads per page (i
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000; // 8s per image download
 
 // ============================================================================
+// Regeneration Strategy Configuration
+// ============================================================================
+
+interface RegenerationConfig {
+  max_age_days: number;
+  min_age_days: number;
+  check_source_timestamps: boolean;
+  check_content_hash: boolean;
+  priority_threshold: 'low' | 'medium' | 'high' | 'critical';
+}
+
+const DEFAULT_REGENERATION_CONFIG: RegenerationConfig = {
+  max_age_days: 30,
+  min_age_days: 7,
+  check_source_timestamps: true,
+  check_content_hash: true,
+  priority_threshold: 'medium',
+};
+
+// ============================================================================
 // Data Assembly
 // ============================================================================
 
@@ -1122,12 +1142,18 @@ export class PageGenerator {
 
         try {
           const parsed = JSON.parse(stripCodeFences(claudeResponse.content));
+
+          // Compute source data hash for change detection
+          const sourceDataHash = await this.computeSourceDataHash(oemId, modelSlug);
+
           page = {
             ...parsed,
             oem_id: oemId,
             generated_at: new Date().toISOString(),
             source_url: modelData.model.source_url,
             version: 1,
+            source_data_hash: sourceDataHash,
+            source_data_updated_at: new Date().toISOString(),
           };
         } catch (parseError) {
           return {
@@ -1240,6 +1266,238 @@ export class PageGenerator {
     }
 
     return null;
+  }
+
+  /**
+   * Determine if a page should be regenerated using multi-tier checks.
+   *
+   * Tier 1: Fast existence & age checks (0ms cost)
+   * Tier 2: Source data timestamp checks (~50ms cost)
+   * Tier 3: Content hash verification (~100ms cost)
+   */
+  async shouldRegeneratePage(
+    oemId: OemId,
+    modelSlug: string,
+    config: Partial<RegenerationConfig> = {}
+  ): Promise<import('../oem/types').RegenerationDecision> {
+    const finalConfig = { ...DEFAULT_REGENERATION_CONFIG, ...config };
+    const checksDone: string[] = [];
+
+    // ===== TIER 1: EXISTENCE & AGE CHECKS =====
+    checksDone.push('existence');
+    const existingPage = await this.getGeneratedPage(oemId, modelSlug);
+
+    // 1. Does page exist?
+    if (!existingPage) {
+      return {
+        shouldRegenerate: true,
+        reason: 'Page does not exist',
+        priority: 'high',
+        checksDone,
+      };
+    }
+
+    // 2. Age-based staleness
+    checksDone.push('age');
+    const pageGeneratedAt = new Date(existingPage.generated_at);
+    const pageAge = Date.now() - pageGeneratedAt.getTime();
+    const daysOld = pageAge / (1000 * 60 * 60 * 24);
+
+    // Force refresh after max_age_days
+    if (daysOld > finalConfig.max_age_days) {
+      return {
+        shouldRegenerate: true,
+        reason: `Page is ${Math.floor(daysOld)} days old (>${finalConfig.max_age_days} day threshold)`,
+        priority: 'medium',
+        checksDone,
+        pageAge: daysOld,
+      };
+    }
+
+    // Skip if page is very recent (<min_age_days)
+    if (daysOld < finalConfig.min_age_days) {
+      return {
+        shouldRegenerate: false,
+        reason: `Page is only ${Math.floor(daysOld)} days old (<${finalConfig.min_age_days} day threshold)`,
+        priority: 'low',
+        checksDone,
+        pageAge: daysOld,
+      };
+    }
+
+    // ===== TIER 2: SOURCE DATA TIMESTAMP CHECKS =====
+    if (finalConfig.check_source_timestamps) {
+      checksDone.push('timestamps');
+      try {
+      // Query latest update timestamps for this model's data
+      const { data: model } = await this.supabase
+        .from('vehicle_models')
+        .select('updated_at')
+        .eq('oem_id', oemId)
+        .eq('slug', modelSlug)
+        .single();
+
+      if (!model) {
+        return {
+          shouldRegenerate: false,
+          reason: 'Model not found in database',
+          priority: 'low',
+          checksDone,
+          pageAge: daysOld,
+        };
+      }
+
+      // Get latest timestamps from related tables
+      const [productsRes, offersRes, colorsRes] = await Promise.all([
+        this.supabase
+          .from('products')
+          .select('updated_at')
+          .eq('oem_id', oemId)
+          .eq('model_slug', modelSlug)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single(),
+
+        this.supabase
+          .from('offers')
+          .select('updated_at')
+          .eq('oem_id', oemId)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single(),
+
+        this.supabase
+          .from('vehicle_colors')
+          .select('updated_at')
+          .eq('oem_id', oemId)
+          .eq('model_slug', modelSlug)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single(),
+      ]);
+
+      // Find the latest update timestamp across all sources
+      const timestamps = [
+        new Date(model.updated_at),
+        productsRes.data ? new Date(productsRes.data.updated_at) : new Date(0),
+        offersRes.data ? new Date(offersRes.data.updated_at) : new Date(0),
+        colorsRes.data ? new Date(colorsRes.data.updated_at) : new Date(0),
+      ];
+
+      const latestUpdate = new Date(Math.max(...timestamps.map(d => d.getTime())));
+
+      // Check if ANY source data is newer than generated page
+        if (latestUpdate > pageGeneratedAt) {
+          const daysSinceUpdate = (Date.now() - latestUpdate.getTime()) / (1000 * 60 * 60 * 24);
+          return {
+            shouldRegenerate: true,
+            reason: `Source data updated ${Math.floor(daysSinceUpdate)} days ago (page is ${Math.floor(daysOld)} days old)`,
+            priority: 'high',
+            checksDone,
+            pageAge: daysOld,
+          };
+        }
+      } catch (error) {
+        console.warn(`[PageGenerator] Timestamp check failed for ${oemId}/${modelSlug}:`, error);
+        // Continue to Tier 3 even if timestamp check fails
+      }
+    }
+
+    // ===== TIER 3: CONTENT HASH VERIFICATION =====
+    if (finalConfig.check_content_hash) {
+      checksDone.push('content_hash');
+      try {
+      const currentDataHash = await this.computeSourceDataHash(oemId, modelSlug);
+
+      // Compare with stored hash
+      if (existingPage.source_data_hash && existingPage.source_data_hash !== currentDataHash) {
+        return {
+          shouldRegenerate: true,
+          reason: 'Source data content has changed (hash mismatch)',
+          priority: 'high',
+          checksDone,
+          pageAge: daysOld,
+        };
+      }
+
+      // If page doesn't have a hash yet, store one for next time but don't regenerate
+      if (!existingPage.source_data_hash) {
+        return {
+          shouldRegenerate: false,
+          reason: 'Page has no hash - will be added on next regeneration',
+          priority: 'low',
+          checksDone,
+          pageAge: daysOld,
+        };
+        }
+      } catch (error) {
+        console.warn(`[PageGenerator] Hash check failed for ${oemId}/${modelSlug}:`, error);
+        // If hash check fails, don't regenerate based on this alone
+      }
+    }
+
+    // All checks passed - no regeneration needed
+    return {
+      shouldRegenerate: false,
+      reason: `Page is up-to-date (${Math.floor(daysOld)} days old, no content changes)`,
+      priority: 'low',
+      checksDone,
+      pageAge: daysOld,
+    };
+  }
+
+  /**
+   * Compute a hash of the source data that affects page content.
+   * Used for change detection to avoid unnecessary regeneration.
+   */
+  async computeSourceDataHash(oemId: OemId, modelSlug: string): Promise<string> {
+    const data = await assembleModelData(this.supabase, oemId, modelSlug);
+
+    if (!data) {
+      return 'no-data';
+    }
+
+    // Hash only the data that affects page content
+    const keyData = {
+      modelName: data.model.name,
+      brochureUrl: data.model.brochure_url,
+      productCount: data.products.length,
+      products: data.products.map(p => ({
+        title: p.title,
+        price: p.price_amount,
+        bodyType: p.body_type,
+        fuelType: p.fuel_type,
+      })),
+      priceRange: data.products.length > 0 ? {
+        min: Math.min(...data.products.map(p => p.price_amount || 0).filter(p => p > 0)),
+        max: Math.max(...data.products.map(p => p.price_amount || 0)),
+      } : null,
+      colorCount: data.colors.length,
+      colors: data.colors.map(c => ({
+        name: c.color_name,
+        code: c.color_code,
+        type: c.color_type,
+      })),
+      accessoryCount: data.accessories.length,
+      offerCount: data.offers.length,
+      offers: data.offers.map(o => ({
+        title: o.title,
+        type: o.offer_type,
+        amount: o.price_amount,
+        saving: o.saving_amount,
+      })),
+    };
+
+    // Simple hash function (could use crypto.subtle.digest for production)
+    const jsonString = JSON.stringify(keyData);
+    let hash = 0;
+    for (let i = 0; i < jsonString.length; i++) {
+      const char = jsonString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+
+    return Math.abs(hash).toString(36);
   }
 
   /**
