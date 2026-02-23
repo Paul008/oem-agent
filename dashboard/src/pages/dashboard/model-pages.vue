@@ -1081,8 +1081,13 @@ function openPageBuilder(item: { oem_id: string; slug: string }) {
                 :alt="getPageData(item)?.name ?? item.slug"
                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
+                @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
               />
-              <div v-else class="w-full h-full flex items-center justify-center">
+              <div v-if="!heroImage(item)" class="w-full h-full flex items-center justify-center">
+                <ImageOff class="size-8 text-muted-foreground/20" />
+              </div>
+              <!-- Fallback for broken images -->
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <ImageOff class="size-8 text-muted-foreground/20" />
               </div>
               <!-- OEM badge -->
