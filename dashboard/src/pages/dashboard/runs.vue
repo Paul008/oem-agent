@@ -4,6 +4,7 @@ import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { useRealtimeSubscription } from '@/composables/use-realtime'
 import type { ImportRun } from '@/composables/use-oem-data'
 
 const { fetchImportRuns, fetchOems } = useOemData()
@@ -23,6 +24,14 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
+})
+
+useRealtimeSubscription<ImportRun>({
+  channelName: 'import-runs-live',
+  table: 'import_runs',
+  event: '*',
+  dataRef: runs,
+  maxItems: 200,
 })
 
 const runTypes = computed(() => {

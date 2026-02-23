@@ -4,6 +4,7 @@ import { Activity, Bell, BellOff, Loader2 } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { useRealtimeSubscription } from '@/composables/use-realtime'
 import type { ChangeEvent } from '@/composables/use-oem-data'
 
 const { fetchChangeEvents, fetchOems } = useOemData()
@@ -24,6 +25,14 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
+})
+
+useRealtimeSubscription<ChangeEvent>({
+  channelName: 'change-events-live',
+  table: 'change_events',
+  event: 'INSERT',
+  dataRef: changes,
+  maxItems: 500,
 })
 
 const unnotifiedCount = computed(() => changes.value.filter(c => !c.notified_at).length)

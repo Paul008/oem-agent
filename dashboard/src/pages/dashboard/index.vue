@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useGeneratedPages } from '@/composables/use-generated-pages'
+import { useRealtimeSubscription } from '@/composables/use-realtime'
 import { supabase } from '@/lib/supabase'
 import type { ImportRun, ChangeEvent, SourcePage } from '@/composables/use-oem-data'
 import type { PageStats } from '@/composables/use-generated-pages'
@@ -56,6 +57,30 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
+})
+
+// Live import runs feed
+useRealtimeSubscription<ImportRun>({
+  channelName: 'home-runs-live',
+  table: 'import_runs',
+  event: '*',
+  dataRef: recentRuns,
+  maxItems: 10,
+  onEvent: (_payload, eventType) => {
+    if (eventType === 'INSERT') counts.value.runs++
+  },
+})
+
+// Live change events feed
+useRealtimeSubscription<ChangeEvent>({
+  channelName: 'home-changes-live',
+  table: 'change_events',
+  event: 'INSERT',
+  dataRef: recentChanges,
+  maxItems: 15,
+  onEvent: (payload) => {
+    if (!(payload.new as any)?.notified_at) unnotifiedCount.value++
+  },
 })
 
 function timeAgo(dateStr: string) {
