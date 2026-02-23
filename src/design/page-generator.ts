@@ -66,6 +66,10 @@ interface ModelData {
     color_code: string | null;
     swatch_url: string | null;
     hero_image_url: string | null;
+    gallery_urls: string[];
+    color_type: string | null;
+    price_delta: number | null;
+    is_standard: boolean;
   }>;
   pricing: Array<{
     product_title: string;
@@ -141,10 +145,19 @@ async function assembleModelData(
   if (productIds.length > 0) {
     const { data: colorRows } = await supabase
       .from('variant_colors')
-      .select('color_name, color_code, swatch_url, hero_image_url')
+      .select('color_name, color_code, swatch_url, hero_image_url, gallery_urls, color_type, price_delta, is_standard')
       .in('product_id', productIds)
       .limit(50);
-    colors = colorRows || [];
+    colors = (colorRows || []).map((c: any) => ({
+      color_name: c.color_name,
+      color_code: c.color_code,
+      swatch_url: c.swatch_url,
+      hero_image_url: c.hero_image_url,
+      gallery_urls: c.gallery_urls || [],
+      color_type: c.color_type || null,
+      price_delta: c.price_delta != null ? Number(c.price_delta) : null,
+      is_standard: c.is_standard ?? false,
+    }));
   }
 
   // 4. Get pricing for these products
@@ -417,6 +430,122 @@ ${modelData.model.brochure_url ? `- Include a "Download Brochure" CTA button lin
 - Do NOT use generic gray for accents — always use the brand's ${primaryColor}
 - Target 4000-8000 characters of HTML
 
+## Interactive Patterns (Alpine.js)
+
+Use Alpine.js directives to make sections interactive. Each interactive section gets its own scoped \`x-data\` — no global state. All data is inline in the HTML (no external API calls or fetch). Add \`style="display:none;"\` on initially hidden elements to prevent flash of unstyled content before Alpine initialises.
+
+### Color Picker (vehicle360 component)
+When rendering the Colour Range section, use the pre-built \`vehicle360()\` Alpine.js component. This provides 360° rotation for colors with gallery images, drag-to-rotate, preloading, and thumbnail strips. The component JS is loaded externally — just emit the HTML template.
+
+Emit this HTML structure EXACTLY (substituting real color data from the Color Options above):
+\`\`\`html
+<section class="py-16 px-6 md:px-12">
+  <h2 class="text-3xl md:text-4xl font-bold mb-8 text-center" style="color: ${primaryColor}">Colour Range</h2>
+  <div x-data="vehicle360({ colors: ${JSON.stringify(modelData.colors.slice(0, 20).map(c => ({ name: c.color_name || '', code: c.color_code || '', swatch: c.swatch_url || '', hero: c.hero_image_url || '', gallery: c.gallery_urls || [], type: c.color_type || '', priceDelta: c.price_delta || 0, isStandard: c.is_standard ?? false })))}, primaryColor: '${primaryColor}', startAngle: 0 })" class="max-w-4xl mx-auto">
+    <!-- 360° Viewer / Hero Image -->
+    <div data-viewer @pointerdown="onDown($event)" @pointermove="onMove($event)" @pointerup="onUp()" @pointercancel="onUp()" :class="is360 ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : ''" class="relative w-full bg-white rounded-xl overflow-hidden select-none">
+      <!-- Loading overlay -->
+      <div x-show="loading" style="display:none;" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90">
+        <div class="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div class="h-full rounded-full transition-all" :style="'width:' + progress + '%; background-color: ${primaryColor}'"></div></div>
+        <p class="text-xs text-gray-400 mt-2" x-text="'Loading ' + frames.length + ' frames... ' + progress + '%'"></p>
+      </div>
+      <div class="aspect-video relative">
+        <template x-for="(url, idx) in frames" :key="idx">
+          <img :src="url" :alt="color.name + ' — ' + angle + '°'" class="absolute inset-0 w-full h-full object-contain" :class="idx === frame ? 'opacity-100' : 'opacity-0 pointer-events-none'" draggable="false" />
+        </template>
+      </div>
+      <div x-show="is360" style="display:none;" class="absolute top-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full" x-text="angle + '°'"></div>
+    </div>
+    <!-- Thumbnail strip -->
+    <div x-show="is360 && thumbs.length > 1" style="display:none;" class="flex items-center gap-2 mt-3 justify-center">
+      <template x-for="(tIdx, i) in thumbs" :key="i">
+        <button @click="goTo(tIdx)" class="w-16 h-10 rounded-md overflow-hidden border-2 transition-all hover:scale-105 bg-white" :class="frame === tIdx ? 'border-gray-800 ring-1 ring-gray-800/20' : 'border-gray-200 opacity-60 hover:opacity-100'">
+          <img :src="thumbUrl(i)" :alt="'Angle ' + Math.round((tIdx / frames.length) * 360) + '°'" class="w-full h-full object-contain" draggable="false" />
+        </button>
+      </template>
+    </div>
+    <!-- Color swatches -->
+    <div class="flex flex-wrap gap-3 justify-center mt-6">
+      <template x-for="(c, i) in colors" :key="i">
+        <button @click="pick(i)" :class="selected === i ? 'ring-2 ring-offset-2' : 'hover:scale-110'" :style="selected === i ? 'ring-color: ${primaryColor}' : ''" class="w-10 h-10 rounded-full border overflow-hidden transition-transform cursor-pointer">
+          <img :src="c.swatch || c.hero" :alt="c.name" class="w-full h-full object-cover" />
+        </button>
+      </template>
+    </div>
+    <!-- Color info -->
+    <div class="text-center mt-4">
+      <p class="text-lg font-semibold" x-text="color.name"></p>
+      <div class="flex items-center justify-center gap-2 mt-1">
+        <span x-show="color.type" style="display:none;" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize" x-text="color.type"></span>
+        <span x-show="color.priceDelta > 0" style="display:none;" class="text-xs font-medium" :style="'color: ${primaryColor}'" x-text="'+ $' + color.priceDelta.toLocaleString()"></span>
+        <span x-show="color.isStandard" style="display:none;" class="text-xs text-green-600">Included</span>
+      </div>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+IMPORTANT: The \`vehicle360()\` function is loaded from an external JS file — do NOT write any inline JavaScript for the color picker. Just emit the HTML template above with the real color data injected into the x-data attribute.
+
+### Specifications Accordion
+When rendering the Specifications section, use an accordion for each category:
+\`\`\`html
+<div x-data="{ open: '' }">
+  <!-- Repeat for each spec category: engine, transmission, dimensions, performance, towing, capacity, safety, wheels -->
+  <div class="border-b">
+    <button @click="open = open === 'engine' ? '' : 'engine'" class="w-full flex justify-between items-center py-4 text-left">
+      <span class="text-lg font-semibold">Engine</span>
+      <svg :class="open === 'engine' ? 'rotate-180' : ''" class="w-5 h-5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    </button>
+    <div x-show="open === 'engine'" x-collapse style="display:none;">
+      <div class="pb-4 grid grid-cols-2 gap-2 text-sm">
+        <!-- Spec rows with real data from specs_json -->
+        <span class="text-gray-500">Displacement</span><span>2.0L</span>
+      </div>
+    </div>
+  </div>
+</div>
+\`\`\`
+Use x-collapse for smooth animation. Populate with real data from specs_json.
+
+### Gallery Lightbox
+When showing multiple vehicle images, add a clickable lightbox:
+\`\`\`html
+<div x-data="{ lightbox: null }">
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <!-- Thumbnail grid — use real image URLs from all_image_urls or hero_image_url -->
+    <img src="REAL_IMAGE_URL" @click="lightbox = 'REAL_IMAGE_URL'" class="w-full aspect-video object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity" alt="Gallery" loading="lazy" />
+  </div>
+  <!-- Lightbox overlay -->
+  <div x-show="lightbox" x-transition.opacity @click.self="lightbox = null" style="display:none;"
+    class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <button @click="lightbox = null" class="absolute top-4 right-4 text-white text-3xl">&times;</button>
+    <img :src="lightbox" class="max-w-full max-h-[90vh] object-contain rounded-lg" alt="Full size" />
+  </div>
+</div>
+\`\`\`
+
+### Tabbed Content
+For variant comparison or feature grouping:
+\`\`\`html
+<div x-data="{ tab: 0 }">
+  <div class="flex border-b mb-6 overflow-x-auto">
+    <button @click="tab = 0" :class="tab === 0 ? 'border-b-2 font-semibold' : 'text-gray-500'" :style="tab === 0 ? 'border-color: ${primaryColor}; color: ${primaryColor}' : ''" class="px-6 py-3 whitespace-nowrap">Tab 1</button>
+    <button @click="tab = 1" :class="tab === 1 ? 'border-b-2 font-semibold' : 'text-gray-500'" :style="tab === 1 ? 'border-color: ${primaryColor}; color: ${primaryColor}' : ''" class="px-6 py-3 whitespace-nowrap">Tab 2</button>
+  </div>
+  <div x-show="tab === 0">Content for tab 1</div>
+  <div x-show="tab === 1" style="display:none;">Content for tab 2</div>
+</div>
+\`\`\`
+
+### Alpine.js Rules
+- ALWAYS add \`style="display:none;"\` to elements with \`x-show\` that start hidden
+- Use \`x-transition\` or \`x-collapse\` for smooth animations
+- Keep each section's \`x-data\` self-contained — no shared global state
+- Use \`x-text\`, \`:src\`, \`:class\`, \`:style\` for dynamic bindings
+- Use \`@click\` for interaction, \`x-for\` with \`<template>\` for lists
+- All data must be inline in the x-data attribute — no external API calls
+
 ## Header Rules
 - Use hero image URLs from the visual extraction (or first variant_color hero_image_url)
 - Use key_specs from the visual extraction for bottom_strip (limit to 3-4 items)
@@ -449,6 +578,9 @@ function buildScreenshotToCodePrompt(
   for (const color of modelData.colors) {
     if (color.hero_image_url) availableImages.push(color.hero_image_url);
     if (color.swatch_url) availableImages.push(color.swatch_url);
+    for (const gUrl of color.gallery_urls) {
+      if (gUrl) availableImages.push(gUrl);
+    }
   }
 
   const productsJson = JSON.stringify(modelData.products.slice(0, 10), null, 2);
@@ -536,6 +668,16 @@ Return a JSON object with this exact structure:
 - Apply \`loading="lazy"\` to images below the fold
 - Do NOT include navigation, header, footer, or scripts
 - Do NOT invent any URLs — only use URLs from the Available Images list
+
+## Interactive Patterns (Alpine.js)
+
+Make sections interactive using Alpine.js directives. Each section gets its own scoped \`x-data\`. Add \`style="display:none;"\` on initially hidden elements.
+
+- **Color picker**: Use \`x-data="vehicle360({ colors: [...], primaryColor: '${primaryColor}', startAngle: 0 })"\` — this pre-built component provides 360° rotation, drag, preloading, and swatch picking. Map DB fields: color_name→name, color_code→code, swatch_url→swatch, hero_image_url→hero, gallery_urls→gallery, color_type→type, price_delta→priceDelta, is_standard→isStandard. Emit the viewer container (\`data-viewer\` with pointer handlers), thumbnail strip, swatch buttons, and color info. Do NOT write inline JS — the component is loaded externally.
+- **Specs accordion**: \`x-data="{ open: '' }"\` → \`@click="open = open === 'cat' ? '' : 'cat'"\` on category headers, \`x-show="open === 'cat'" x-collapse style="display:none;"\` on content panels, chevron rotation via \`:class\`
+- **Gallery lightbox**: \`x-data="{ lightbox: null }"\` → \`@click="lightbox = 'URL'"\` on thumbnails, \`x-show="lightbox" x-transition.opacity style="display:none;"\` on overlay, \`:src="lightbox"\` on hero, close via \`@click.self\` or X button
+- **Tabbed content**: \`x-data="{ tab: 0 }"\` → \`@click="tab = N"\` on tab buttons, \`x-show="tab === N"\` on panels, active styling via \`:class\` and \`:style\`
+- All data inline in x-data — no external API calls. Use \`x-transition\` or \`x-collapse\` for animation.
 
 Return ONLY the JSON object. No markdown fences, no explanation.`;
 }
@@ -768,6 +910,7 @@ export class PageGenerator {
         ...c,
         hero_image_url: replace(c.hero_image_url),
         swatch_url: replace(c.swatch_url),
+        gallery_urls: c.gallery_urls.map(url => urlMapping.get(url) || url),
       })),
     };
   }
@@ -854,6 +997,9 @@ export class PageGenerator {
       for (const color of modelData.colors) {
         if (color.hero_image_url?.startsWith('http')) allImageUrls.add(color.hero_image_url);
         if (color.swatch_url?.startsWith('http')) allImageUrls.add(color.swatch_url);
+        for (const gUrl of color.gallery_urls) {
+          if (gUrl?.startsWith('http')) allImageUrls.add(gUrl);
+        }
       }
 
       console.log(`[PageGenerator] Collected ${allImageUrls.size} unique image URLs for ${oemId}/${modelSlug}`);
