@@ -1,13 +1,14 @@
 /**
- * OpenClaw Agent Spawner
+ * AI Agent Spawner
  *
- * Spawns OpenClaw agents to execute autonomous workflows in response to change events.
- * Integrates with the workflow router to dispatch appropriate agents.
+ * Spawns AI agents to execute autonomous workflows in response to change events.
+ * Uses multi-provider client (Groq, Kimi, Gemini, Claude) for cost-optimized inference.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ChangeEvent, OemId } from '../oem/types';
 import type { WorkflowDefinition, MatchedWorkflow } from './router';
+import { MultiProviderClient, buildMessages, type AIRequest, type AIResponse } from '../ai/multi-provider';
 
 // ============================================================================
 // Agent Action Types
@@ -18,42 +19,23 @@ export interface AgentAction {
   workflow_id: string;
   change_event_id: string;
   oem_id: OemId;
-  agent_id: string; // OpenClaw agent session ID
+  agent_id: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'requires_approval';
   confidence_score: number | null;
-  actions_taken: string[]; // List of actions performed
-  reasoning: string | null; // Agent's explanation
+  actions_taken: string[];
+  reasoning: string | null;
   execution_time_ms: number | null;
   cost_usd: number | null;
   error_message: string | null;
-  rollback_data: Record<string, unknown> | null; // Data needed to rollback
+  rollback_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
 }
 
-// ============================================================================
-// OpenClaw Integration
-// ============================================================================
-
-export interface OpenClawAgentRequest {
-  skill: string; // Skill file to use
-  prompt: string; // Initial prompt/task for the agent
-  context: Record<string, unknown>; // Additional context data
-  tools?: string[]; // Tools available to agent
-  max_execution_time?: number; // milliseconds
-  callback_url?: string; // Webhook URL for completion notification
-}
-
-export interface OpenClawAgentResponse {
-  agent_id: string;
-  status: 'started' | 'error';
-  message?: string;
-}
-
-export interface OpenClawSkillResult {
+export interface AgentResult {
   success: boolean;
-  confidence: number; // 0.0-1.0
+  confidence: number;
   actions_taken: string[];
   reasoning: string;
   data: Record<string, unknown>;
@@ -63,34 +45,40 @@ export interface OpenClawSkillResult {
 }
 
 // ============================================================================
+// Model Selection Strategy
+// ============================================================================
+
+const WORKFLOW_MODELS: Record<string, { provider: 'groq' | 'kimi' | 'gemini' | 'claude'; model: string }> = {
+  'price-validation': { provider: 'groq', model: 'llama-3.1-8b-instant' },
+  'product-enrichment': { provider: 'gemini', model: 'gemini-2.0-flash' },
+  'link-repair': { provider: 'groq', model: 'llama-3.1-8b-instant' },
+  'offer-expiry': { provider: 'groq', model: 'llama-3.1-8b-instant' },
+  'image-quality': { provider: 'groq', model: 'mixtral-8x7b-32768' },
+  'new-model-page': { provider: 'gemini', model: 'gemini-2.0-flash-thinking' },
+  'disclaimer-compliance': { provider: 'groq', model: 'llama-3.1-8b-instant' },
+  'variant-sync': { provider: 'groq', model: 'mixtral-8x7b-32768' },
+};
+
+// ============================================================================
 // Agent Spawner
 // ============================================================================
 
 export class AgentSpawner {
   private supabase: SupabaseClient;
-  private openclawApiUrl: string;
-  private openclawApiKey: string;
-  private dashboardUrl: string;
+  private aiClient: MultiProviderClient;
 
-  constructor(
-    supabase: SupabaseClient,
-    openclawApiUrl: string,
-    openclawApiKey: string,
-    dashboardUrl: string
-  ) {
+  constructor(supabase: SupabaseClient, aiClient: MultiProviderClient) {
     this.supabase = supabase;
-    this.openclawApiUrl = openclawApiUrl;
-    this.openclawApiKey = openclawApiKey;
-    this.dashboardUrl = dashboardUrl;
+    this.aiClient = aiClient;
   }
 
   /**
-   * Spawn an OpenClaw agent to execute a workflow
+   * Spawn an AI agent to execute a workflow
    */
   async spawnAgent(match: MatchedWorkflow): Promise<string> {
     const { workflow, changeEvent } = match;
 
-    console.log(`[AgentSpawner] Spawning ${workflow.agent.skill} for change event ${changeEvent.id}`);
+    console.log(`[AgentSpawner] Spawning ${workflow.id} for change event ${changeEvent.id}`);
 
     // Create agent action record
     const agentActionId = crypto.randomUUID();
@@ -99,7 +87,7 @@ export class AgentSpawner {
       workflow_id: workflow.id,
       change_event_id: changeEvent.id,
       oem_id: changeEvent.oem_id,
-      agent_id: '', // Will be set after spawn
+      agent_id: `agent-${agentActionId.slice(0, 8)}`,
       status: 'pending',
       confidence_score: null,
       actions_taken: [],
@@ -114,42 +102,49 @@ export class AgentSpawner {
 
     await this.supabase.from('agent_actions').insert(agentAction);
 
-    // Build agent prompt
-    const prompt = this.buildAgentPrompt(workflow, changeEvent);
-
-    // Build context data
-    const context = await this.buildAgentContext(workflow, changeEvent);
-
-    // Spawn OpenClaw agent
+    // Execute agent workflow
     try {
-      const openclawRequest: OpenClawAgentRequest = {
-        skill: workflow.agent.skill,
-        prompt,
-        context,
-        tools: workflow.agent.tools,
-        max_execution_time: workflow.agent.max_execution_time,
-        callback_url: `${this.dashboardUrl}/api/v1/workflows/agent-callback/${agentActionId}`,
-      };
+      const startTime = Date.now();
 
-      const openclawResponse = await this.callOpenClawAPI(openclawRequest);
+      // Update status to running
+      await this.supabase
+        .from('agent_actions')
+        .update({ status: 'running', updated_at: new Date().toISOString() })
+        .eq('id', agentActionId);
 
-      if (openclawResponse.status === 'error') {
-        throw new Error(openclawResponse.message || 'OpenClaw agent spawn failed');
-      }
+      // Execute the agent
+      const result = await this.executeAgent(workflow, changeEvent);
 
-      // Update agent action with agent ID
+      const executionTime = Date.now() - startTime;
+
+      // Determine if requires approval
+      const requiresApproval = result.confidence < workflow.agent.confidence_threshold;
+      const status = requiresApproval ? 'requires_approval' : (result.success ? 'completed' : 'failed');
+
+      // Update agent action with results
       await this.supabase
         .from('agent_actions')
         .update({
-          agent_id: openclawResponse.agent_id,
-          status: 'running',
+          status,
+          confidence_score: result.confidence,
+          actions_taken: result.actions_taken,
+          reasoning: result.reasoning,
+          execution_time_ms: executionTime,
+          cost_usd: result.cost_usd || 0,
+          error_message: result.error || null,
           updated_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
         })
         .eq('id', agentActionId);
 
-      console.log(`[AgentSpawner] Agent ${openclawResponse.agent_id} spawned successfully`);
+      // If auto-approved, execute actions
+      if (!requiresApproval && result.success) {
+        await this.executeAgentActions(agentActionId, result);
+      } else if (requiresApproval) {
+        console.log(`[AgentSpawner] Action ${agentActionId} requires manual approval (confidence: ${result.confidence})`);
+      }
 
-      return openclawResponse.agent_id;
+      return agentAction.agent_id!;
     } catch (error) {
       console.error(`[AgentSpawner] Failed to spawn agent:`, error);
 
@@ -169,252 +164,108 @@ export class AgentSpawner {
   }
 
   /**
-   * Build agent prompt based on workflow and change event
+   * Execute agent using multi-provider AI client
    */
-  private buildAgentPrompt(workflow: WorkflowDefinition, changeEvent: ChangeEvent): string {
-    const prompts: Record<string, string> = {
-      'price-validator': `
-A price change has been detected for a product.
+  private async executeAgent(
+    workflow: WorkflowDefinition,
+    changeEvent: ChangeEvent
+  ): Promise<AgentResult> {
+    // Get model selection for this workflow
+    const modelConfig = WORKFLOW_MODELS[workflow.id] || { provider: 'groq', model: 'llama-3.1-8b-instant' };
 
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Event Type: ${changeEvent.event_type}
-- Severity: ${changeEvent.severity}
-- Summary: ${changeEvent.summary}
+    // Build agent prompt
+    const systemPrompt = this.buildSystemPrompt(workflow);
+    const userPrompt = this.buildUserPrompt(workflow, changeEvent);
 
-**Your Task**:
-1. Navigate to the product's source URL
-2. Extract the current price from the OEM website
-3. Compare with the detected change in our database
-4. Validate the price format and currency
-5. Check for any pricing disclaimers or conditions
-6. Determine confidence level (0.0-1.0) for the extracted price
+    // Fetch entity data for context
+    const entityData = await this.fetchEntityData(changeEvent.entity_type, changeEvent.entity_id);
 
-**Actions**:
-- If confidence >= 0.95: Auto-update the price in database
-- If confidence < 0.95: Flag for manual review
+    // Add entity data to user prompt
+    const fullUserPrompt = `${userPrompt}\n\n**Entity Data**:\n\`\`\`json\n${JSON.stringify(entityData, null, 2)}\n\`\`\``;
 
-Provide your analysis in JSON format with:
-- confidence: number (0.0-1.0)
-- current_price: number | null
-- currency: string
-- price_type: string (e.g., "driveaway", "rrp")
-- disclaimer: string | null
-- actions_taken: string[] (list of actions performed)
-- reasoning: string (explain your analysis)
-      `.trim(),
+    const messages = buildMessages(systemPrompt, fullUserPrompt);
 
-      'product-enricher': `
-A new product has been detected with missing data fields.
-
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Summary: ${changeEvent.summary}
-
-**Your Task**:
-1. Analyze the product record to identify missing fields
-2. Navigate to the source URL
-3. Extract missing data: specs, features, images, descriptions
-4. Download and optimize product images
-5. Upload images to R2 bucket (if applicable)
-6. Determine confidence level for each extracted field
-
-**Actions**:
-- If confidence >= 0.85: Auto-enrich product record
-- If confidence < 0.85: Flag fields for manual review
-
-Provide your analysis in JSON format with:
-- confidence: number (0.0-1.0)
-- extracted_fields: Record<string, any>
-- images_uploaded: string[] (R2 keys)
-- actions_taken: string[]
-- reasoning: string
-      `.trim(),
-
-      'link-validator': `
-Potential broken links have been detected in entity records.
-
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Summary: ${changeEvent.summary}
-
-**Your Task**:
-1. Extract all URLs from the entity record
-2. Validate each URL (HTTP status code check)
-3. For broken links (404, 500, etc.):
-   - Search OEM site for correct URL
-   - Check sitemap for alternative pages
-   - Find replacement URLs on the same domain
-4. Determine confidence level for each replacement
-
-**Actions**:
-- If replacement URL is on same domain AND confidence >= 0.90: Auto-fix
-- If replacement URL is external OR confidence < 0.90: Flag for review
-
-Provide your analysis in JSON format with:
-- confidence: number (0.0-1.0)
-- broken_links: Array<{ url: string; status: number }>
-- replacements: Array<{ old_url: string; new_url: string; confidence: number }>
-- actions_taken: string[]
-- reasoning: string
-      `.trim(),
-
-      'offer-manager': `
-An offer validity date update has been detected or expiry is approaching.
-
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Summary: ${changeEvent.summary}
-
-**Your Task**:
-1. Check if the offer is still active on the OEM website
-2. Verify the expiry date accuracy
-3. Determine if the offer should be archived
-4. Check if the offer appears on the homepage
-
-**Actions**:
-- If offer is confirmed expired (confidence = 1.0): Archive and remove from homepage
-- If offer status is uncertain: Flag for manual review
-
-Provide your analysis in JSON format with:
-- confidence: number (must be 1.0 for auto-archive)
-- is_active_on_site: boolean
-- actual_expiry_date: string | null
-- actions_taken: string[]
-- reasoning: string
-      `.trim(),
-
-      'image-validator': `
-A product image change has been detected.
-
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Summary: ${changeEvent.summary}
-
-**Your Task**:
-1. Download the image from R2 bucket
-2. Check image resolution (minimum 1200x800 required)
-3. Validate aspect ratio (should be 3:2 or 4:3)
-4. Check file size (target < 500KB)
-5. Run AI image quality analysis if available
-6. If quality issues detected, check source for better version
-
-**Actions**:
-- If source has better quality AND confidence >= 0.80: Replace image
-- If quality is acceptable: Approve current image
-- If uncertain: Flag for manual review
-
-Provide your analysis in JSON format with:
-- confidence: number (0.0-1.0)
-- resolution: { width: number; height: number }
-- file_size_kb: number
-- quality_score: number (0.0-1.0)
-- actions_taken: string[]
-- reasoning: string
-      `.trim(),
-
-      'compliance-checker': `
-A disclaimer text change has been detected.
-
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Summary: ${changeEvent.summary}
-
-**Your Task**:
-1. Extract the disclaimer text
-2. Check for required legal terms and phrases
-3. Compare against approved compliance templates
-4. Validate character limits for display contexts
-5. Flag any non-compliant or suspicious content
-
-**Actions**:
-- If disclaimer matches approved patterns (confidence >= 0.95): Approve
-- If disclaimer has issues: Flag for legal review
-
-Provide your analysis in JSON format with:
-- confidence: number (0.0-1.0)
-- is_compliant: boolean
-- missing_terms: string[]
-- issues: string[]
-- actions_taken: string[]
-- reasoning: string
-      `.trim(),
-
-      'variant-sync': `
-Variant data changes have been detected for a product.
-
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Summary: ${changeEvent.summary}
-
-**Your Task**:
-1. Detect variant additions, removals, or modifications
-2. Cross-reference with OEM source data
-3. Update variant pricing tables
-4. Sync variant colors and specifications
-5. Ensure all variants have complete data
-
-**Actions**:
-- If variant IDs match source AND confidence >= 0.85: Auto-sync
-- If variants removed from source: Flag for approval before deletion
-
-Provide your analysis in JSON format with:
-- confidence: number (0.0-1.0)
-- variants_added: string[]
-- variants_removed: string[]
-- variants_updated: string[]
-- actions_taken: string[]
-- reasoning: string
-      `.trim(),
+    // Execute AI request
+    const request: AIRequest = {
+      provider: modelConfig.provider,
+      model: modelConfig.model,
+      messages,
+      temperature: 0.1,
+      max_tokens: 4096,
+      response_format: 'json',
     };
 
-    return prompts[workflow.agent.skill] || `
-Analyze and fix the following change event:
+    let totalCost = 0;
+    const aiResponse = await this.aiClient.chat(request);
+    totalCost += aiResponse.usage.cost_usd;
 
-**Change Event**:
-- Entity: ${changeEvent.entity_type} (ID: ${changeEvent.entity_id})
-- Event Type: ${changeEvent.event_type}
-- Severity: ${changeEvent.severity}
-- Summary: ${changeEvent.summary}
+    // Parse response
+    try {
+      const result: AgentResult = JSON.parse(aiResponse.content);
+      result.cost_usd = totalCost;
 
-Provide your analysis and recommended actions.
-    `.trim();
+      return result;
+    } catch (error) {
+      console.error('[AgentSpawner] Failed to parse AI response:', aiResponse.content);
+      return {
+        success: false,
+        confidence: 0,
+        actions_taken: [],
+        reasoning: 'Failed to parse AI response as JSON',
+        data: {},
+        error: error instanceof Error ? error.message : String(error),
+        cost_usd: totalCost,
+      };
+    }
   }
 
   /**
-   * Build context data for the agent
+   * Build system prompt for agent
    */
-  private async buildAgentContext(
-    workflow: WorkflowDefinition,
-    changeEvent: ChangeEvent
-  ): Promise<Record<string, unknown>> {
-    const context: Record<string, unknown> = {
-      workflow_id: workflow.id,
-      change_event_id: changeEvent.id,
-      entity_type: changeEvent.entity_type,
-      entity_id: changeEvent.entity_id,
-      oem_id: changeEvent.oem_id,
-      event_type: changeEvent.event_type,
-      severity: changeEvent.severity,
-      summary: changeEvent.summary,
-      diff_json: changeEvent.diff_json,
-      confidence_threshold: workflow.agent.confidence_threshold,
-      auto_approve_actions: workflow.actions.auto_approve,
-      require_approval_actions: workflow.actions.require_approval,
-    };
+  private buildSystemPrompt(workflow: WorkflowDefinition): string {
+    return `You are an autonomous AI agent executing the "${workflow.name}" workflow.
 
-    // Fetch entity data from database
-    try {
-      const entityData = await this.fetchEntityData(
-        changeEvent.entity_type,
-        changeEvent.entity_id
-      );
-      context.entity_data = entityData;
-    } catch (error) {
-      console.error(`[AgentSpawner] Failed to fetch entity data:`, error);
-    }
+**Your Task**: ${workflow.description}
 
-    return context;
+**Confidence Threshold**: ${workflow.agent.confidence_threshold} (minimum confidence required for auto-execution)
+
+**Auto-Approve Actions**: ${workflow.actions.auto_approve.join(', ')}
+**Require Approval Actions**: ${workflow.actions.require_approval.join(', ')}
+
+**Response Format**: You MUST respond with valid JSON matching this schema:
+\`\`\`json
+{
+  "success": boolean,
+  "confidence": number (0.0-1.0),
+  "actions_taken": string[],
+  "reasoning": string,
+  "data": object
+}
+\`\`\`
+
+**Guidelines**:
+- Analyze the change event and entity data carefully
+- Only recommend actions from the auto-approve or require-approval lists
+- Set confidence based on how certain you are about your analysis
+- If confidence >= threshold, your actions will execute automatically
+- If confidence < threshold, human approval will be required
+- Provide clear reasoning for your decisions`;
+  }
+
+  /**
+   * Build user prompt with change event details
+   */
+  private buildUserPrompt(workflow: WorkflowDefinition, changeEvent: ChangeEvent): string {
+    return `**Change Event Detected**:
+- ID: ${changeEvent.id}
+- Entity Type: ${changeEvent.entity_type}
+- Entity ID: ${changeEvent.entity_id}
+- Event Type: ${changeEvent.event_type}
+- Severity: ${changeEvent.severity}
+- Summary: ${changeEvent.summary}
+- OEM: ${changeEvent.oem_id}
+
+**Your Task**: Investigate this change event and recommend actions based on the workflow guidelines.`;
   }
 
   /**
@@ -440,71 +291,11 @@ Provide your analysis and recommended actions.
   }
 
   /**
-   * Call OpenClaw API to spawn agent
-   */
-  private async callOpenClawAPI(request: OpenClawAgentRequest): Promise<OpenClawAgentResponse> {
-    // TODO: Implement actual OpenClaw API call
-    // For now, return mock response
-
-    console.log(`[AgentSpawner] OpenClaw API request:`, {
-      skill: request.skill,
-      tools: request.tools,
-      max_execution_time: request.max_execution_time,
-    });
-
-    // Mock response
-    return {
-      agent_id: `agent-${crypto.randomUUID()}`,
-      status: 'started',
-      message: 'Agent spawned successfully (mock)',
-    };
-  }
-
-  /**
-   * Handle agent callback (called when agent completes)
-   */
-  async handleAgentCallback(
-    agentActionId: string,
-    result: OpenClawSkillResult
-  ): Promise<void> {
-    console.log(`[AgentSpawner] Agent callback for action ${agentActionId}`);
-
-    const status = result.success ? 'completed' : 'failed';
-    const requiresApproval = result.confidence < 0.85; // Threshold for auto-execution
-
-    await this.supabase
-      .from('agent_actions')
-      .update({
-        status: requiresApproval ? 'requires_approval' : status,
-        confidence_score: result.confidence,
-        actions_taken: result.actions_taken,
-        reasoning: result.reasoning,
-        execution_time_ms: result.execution_time_ms || null,
-        cost_usd: result.cost_usd || null,
-        error_message: result.error || null,
-        updated_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-      })
-      .eq('id', agentActionId);
-
-    // If requires approval, notify team
-    if (requiresApproval) {
-      console.log(`[AgentSpawner] Action ${agentActionId} requires manual approval (confidence: ${result.confidence})`);
-      // TODO: Send Slack notification
-    }
-
-    // If auto-approved, execute actions
-    if (!requiresApproval && result.success) {
-      await this.executeAgentActions(agentActionId, result);
-    }
-  }
-
-  /**
    * Execute actions recommended by agent (if auto-approved)
    */
   private async executeAgentActions(
     agentActionId: string,
-    result: OpenClawSkillResult
+    result: AgentResult
   ): Promise<void> {
     console.log(`[AgentSpawner] Executing auto-approved actions for ${agentActionId}`);
 
@@ -546,12 +337,12 @@ Provide your analysis and recommended actions.
    */
   private async createRollbackData(
     agentAction: any,
-    result: OpenClawSkillResult
+    result: AgentResult
   ): Promise<Record<string, unknown>> {
     // Fetch current entity state
     const entityData = await this.fetchEntityData(
-      agentAction.entity_type,
-      agentAction.entity_id
+      agentAction.change_event?.entity_type || 'product',
+      agentAction.change_event?.entity_id || agentAction.entity_id
     );
 
     return {
@@ -573,6 +364,7 @@ Provide your analysis and recommended actions.
 
     // Map action names to database operations
     // TODO: Implement actual action execution based on workflow type
+    // For now, just log the action
   }
 
   /**
@@ -602,12 +394,13 @@ Provide your analysis and recommended actions.
       banner: 'banners',
     };
 
-    const table = tableMap[agentAction.entity_type];
+    const entityType = agentAction.change_event?.entity_type || 'product';
+    const table = tableMap[entityType];
     if (table && entitySnapshot) {
       await this.supabase
         .from(table)
         .update(entitySnapshot)
-        .eq('id', agentAction.entity_id);
+        .eq('id', agentAction.change_event?.entity_id || agentAction.entity_id);
     }
 
     // Update agent action status
