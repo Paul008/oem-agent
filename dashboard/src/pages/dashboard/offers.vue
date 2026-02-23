@@ -4,6 +4,7 @@ import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff } f
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { useRealtimeSubscription } from '@/composables/use-realtime'
 import type { Offer } from '@/composables/use-oem-data'
 
 const { fetchOffers, fetchOems } = useOemData()
@@ -25,6 +26,14 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
+})
+
+useRealtimeSubscription<Offer>({
+  channelName: 'offers-live',
+  table: 'offers',
+  event: '*',
+  dataRef: offers,
+  maxItems: 2000,
 })
 
 const filtered = computed(() => {
