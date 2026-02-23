@@ -7,6 +7,7 @@ import { BasicPage } from '@/components/global-layout'
 import { useOemData, type VehicleModel } from '@/composables/use-oem-data'
 import { fetchGeneratedPages, fetchGeneratedPage, adaptivePipeline, createCustomPage, deleteCustomPage, createSubpage, deleteSubpage } from '@/lib/worker-api'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
+import env from '@/utils/env'
 
 const router = useRouter()
 const { fetchOems, fetchVehicleModels } = useOemData()
@@ -551,7 +552,14 @@ function getPageData(item: { oem_id: string; slug: string }) {
 
 function heroImage(item: { oem_id: string; slug: string }) {
   const p = getPageData(item)
-  return p?.header?.slides?.[0]?.desktop || null
+  let url = p?.header?.slides?.[0]?.desktop || null
+
+  // Convert relative URLs to absolute by prepending the Worker URL
+  if (url && url.startsWith('/')) {
+    url = `${env.VITE_SERVER_API_URL}${url}`
+  }
+
+  return url
 }
 
 function formatDate(iso: string | undefined) {
