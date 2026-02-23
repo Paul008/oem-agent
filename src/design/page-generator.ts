@@ -926,7 +926,8 @@ export class PageGenerator {
         ...c,
         hero_image_url: replace(c.hero_image_url),
         swatch_url: replace(c.swatch_url),
-        gallery_urls: c.gallery_urls.map(url => urlMapping.get(url) || url),
+        // Keep gallery URLs as-is (OEM CDN) for vehicle360 component — not downloaded to R2
+        gallery_urls: c.gallery_urls,
       })),
     };
   }
@@ -1009,13 +1010,11 @@ export class PageGenerator {
       // From browser capture
       for (const url of capturedImageUrls) allImageUrls.add(url);
 
-      // From DB variant_colors
+      // From DB variant_colors (hero + swatch only, skip gallery to preserve download slots for section images)
       for (const color of modelData.colors) {
         if (color.hero_image_url?.startsWith('http')) allImageUrls.add(color.hero_image_url);
         if (color.swatch_url?.startsWith('http')) allImageUrls.add(color.swatch_url);
-        for (const gUrl of color.gallery_urls) {
-          if (gUrl?.startsWith('http')) allImageUrls.add(gUrl);
-        }
+        // Skip gallery_urls — the vehicle360 component uses them directly from OEM CDN
       }
 
       console.log(`[PageGenerator] Collected ${allImageUrls.size} unique image URLs for ${oemId}/${modelSlug}`);
