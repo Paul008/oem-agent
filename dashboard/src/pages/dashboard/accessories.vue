@@ -4,6 +4,7 @@ import { Loader2, ImageOff, Search, ChevronLeft, ChevronRight, ChevronsLeft, Che
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { useRealtimeSubscription } from '@/composables/use-realtime'
 import type { Accessory, AccessoryModel, VehicleModel } from '@/composables/use-oem-data'
 
 const { fetchAccessories, fetchAccessoryModels, fetchVehicleModels, fetchOems } = useOemData()
@@ -41,6 +42,14 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
+})
+
+useRealtimeSubscription<Accessory>({
+  channelName: 'accessories-live',
+  table: 'accessories',
+  event: '*',
+  dataRef: accessories,
+  maxItems: 5000,
 })
 
 // ── Computed data ──────────────────────────────────────────────────────────
