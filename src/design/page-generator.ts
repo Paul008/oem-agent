@@ -43,7 +43,7 @@ const R2_PREFIX = 'pages/definitions';
 const R2_ASSETS_PREFIX = 'pages/assets';
 const MAX_HTML_LENGTH = 80_000; // Truncate cleaned HTML to fit Gemini context
 const MIN_CONTENT_LENGTH = 500; // Minimum content.rendered length
-const MAX_IMAGE_DOWNLOADS = 30; // Limit concurrent image downloads per page
+const MAX_IMAGE_DOWNLOADS = 150; // Limit concurrent image downloads per page (increased for galleries + tabs)
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000; // 8s per image download
 
 // ============================================================================
@@ -532,17 +532,26 @@ When showing multiple vehicle images, add a clickable lightbox with descriptions
 \`\`\`
 
 ### Tabbed Content
-For variant comparison or feature grouping:
+For variant comparison or feature grouping with images:
 \`\`\`html
 <div x-data="{ tab: 0 }">
   <div class="flex border-b mb-6 overflow-x-auto">
-    <button @click="tab = 0" :class="tab === 0 ? 'border-b-2 font-semibold' : 'text-gray-500'" :style="tab === 0 ? 'border-color: ${primaryColor}; color: ${primaryColor}' : ''" class="px-6 py-3 whitespace-nowrap">Tab 1</button>
-    <button @click="tab = 1" :class="tab === 1 ? 'border-b-2 font-semibold' : 'text-gray-500'" :style="tab === 1 ? 'border-color: ${primaryColor}; color: ${primaryColor}' : ''" class="px-6 py-3 whitespace-nowrap">Tab 2</button>
+    <button @click="tab = 0" :class="tab === 0 ? 'border-b-2 font-semibold' : 'text-gray-500'" :style="tab === 0 ? 'border-color: ${primaryColor}; color: ${primaryColor}' : ''" class="px-6 py-3 whitespace-nowrap">Interior</button>
+    <button @click="tab = 1" :class="tab === 1 ? 'border-b-2 font-semibold' : 'text-gray-500'" :style="tab === 1 ? 'border-color: ${primaryColor}; color: ${primaryColor}' : ''" class="px-6 py-3 whitespace-nowrap">Exterior</button>
   </div>
-  <div x-show="tab === 0">Content for tab 1</div>
-  <div x-show="tab === 1" style="display:none;">Content for tab 2</div>
+  <!-- Tab 1: Use real images from Available Images list -->
+  <div x-show="tab === 0" class="grid md:grid-cols-2 gap-6">
+    <img src="REAL_IMAGE_URL_1" class="w-full rounded-lg" alt="Interior view" loading="lazy" />
+    <div><h3 class="font-bold mb-2">Premium Interior</h3><p>Description text</p></div>
+  </div>
+  <!-- Tab 2: Must have style="display:none;" to prevent FOUC -->
+  <div x-show="tab === 1" style="display:none;" class="grid md:grid-cols-2 gap-6">
+    <img src="REAL_IMAGE_URL_2" class="w-full rounded-lg" alt="Exterior view" loading="lazy" />
+    <div><h3 class="font-bold mb-2">Bold Exterior</h3><p>Description text</p></div>
+  </div>
 </div>
 \`\`\`
+IMPORTANT: Each tab must include actual images from the Available Images list. Match tab content to the visual extraction data.
 
 ### Alpine.js Rules
 - ALWAYS add \`style="display:none;"\` to elements with \`x-show\` that start hidden
@@ -613,7 +622,8 @@ function buildScreenshotToCodePrompt(
 5. **Brand color**: ${oemName}'s primary brand color is ${primaryColor}
 
 ## Available Image URLs (USE ONLY THESE)
-${availableImages.slice(0, 30).map(url => `- ${url}`).join('\n')}
+${availableImages.slice(0, 100).map(url => `- ${url}`).join('\n')}
+${availableImages.length > 100 ? `\n... and ${availableImages.length - 100} more images available` : ''}
 
 ## Real Data to Inject
 
@@ -682,7 +692,7 @@ Make sections interactive using Alpine.js directives. Each section gets its own 
 - **Color picker**: Use \`x-data="vehicle360({ colors: [...], primaryColor: '${primaryColor}', startAngle: 0 })"\` — this pre-built component provides 360° rotation, drag, preloading, and swatch picking. Map DB fields: color_name→name, color_code→code, swatch_url→swatch, hero_image_url→hero, gallery_urls→gallery, color_type→type, price_delta→priceDelta, is_standard→isStandard. Emit the viewer container (\`data-viewer\` with pointer handlers), thumbnail strip, swatch buttons, and color info. Do NOT write inline JS — the component is loaded externally.
 - **Specs accordion**: \`x-data="{ open: '' }"\` → \`@click="open = open === 'cat' ? '' : 'cat'"\` on category headers, \`x-show="open === 'cat'" x-collapse style="display:none;"\` on content panels, chevron rotation via \`:class\`
 - **Gallery lightbox**: \`x-data="{ lightbox: null }"\` → \`@click="lightbox = { url: 'URL', desc: 'Description' }"\` on thumbnails with description below, \`x-show="lightbox" x-transition.opacity style="display:none;"\` on overlay, \`:src="lightbox?.url"\` on hero image, \`x-text="lightbox?.desc"\` for caption, close via \`@click.self\` or X button
-- **Tabbed content**: \`x-data="{ tab: 0 }"\` → \`@click="tab = N"\` on tab buttons, \`x-show="tab === N"\` on panels, active styling via \`:class\` and \`:style\`
+- **Tabbed content**: \`x-data="{ tab: 0 }"\` → \`@click="tab = N"\` on tab buttons, \`x-show="tab === N"\` on panels with \`style="display:none;"\` on non-first tabs, active styling via \`:class\` and \`:style\`. Include real images from Available Images list in each tab panel
 - All data inline in x-data — no external API calls. Use \`x-transition\` or \`x-collapse\` for animation.
 
 Return ONLY the JSON object. No markdown fences, no explanation.`;
