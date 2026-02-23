@@ -308,6 +308,192 @@ adminApi.post('/gateway/restart', async (c) => {
   }
 });
 
+// ============================================================================
+// Pages API - Brand Ambassador generated pages
+// ============================================================================
+
+// GET /api/pages - List all generated pages or filter by OEM
+api.get('/pages', async (c) => {
+  const oemId = c.req.query('oem_id');
+  const limit = parseInt(c.req.query('limit') || '100');
+
+  try {
+    const { PageGenerator } = await import('../design/page-generator');
+    const { createSupabaseClient } = await import('../utils/supabase');
+
+    const supabase = createSupabaseClient({
+      url: c.env.SUPABASE_URL,
+      serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    // Get all vehicle models
+    let query = supabase
+      .from('vehicle_models')
+      .select('oem_id, slug, name, source_url')
+      .order('oem_id')
+      .order('slug')
+      .limit(limit);
+
+    if (oemId) {
+      query = query.eq('oem_id', oemId);
+    }
+
+    const { data: models, error } = await query;
+
+    if (error) {
+      return c.json({ error: error.message }, 500);
+    }
+
+    // For each model, check if page exists and get metadata
+    const pages = [];
+    for (const model of models || []) {
+      const r2Key = `pages/definitions/${model.oem_id}/${model.slug}/latest.json`;
+      const obj = await c.env.MOLTBOT_BUCKET.get(r2Key);
+
+      if (obj) {
+        const page = await obj.json() as any;
+        pages.push({
+          oem_id: model.oem_id,
+          model_slug: model.slug,
+          model_name: model.name,
+          generated_at: page.generated_at,
+          source_data_hash: page.source_data_hash,
+          source_data_updated_at: page.source_data_updated_at,
+          version: page.version,
+          r2_key: r2Key,
+        });
+      }
+    }
+
+    return c.json({
+      total: pages.length,
+      pages,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// GET /api/pages/:oemId/:modelSlug - Get specific page
+api.get('/pages/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId');
+  const modelSlug = c.req.param('modelSlug');
+
+  try {
+    const r2Key = `pages/definitions/${oemId}/${modelSlug}/latest.json`;
+    const obj = await c.env.MOLTBOT_BUCKET.get(r2Key);
+
+    if (!obj) {
+      return c.json({ error: 'Page not found' }, 404);
+    }
+
+    const page = await obj.json();
+    return c.json(page);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// GET /api/pages/:oemId/:modelSlug/should-regenerate - Check if regeneration needed
+api.get('/pages/:oemId/:modelSlug/should-regenerate', async (c) => {
+  const oemId = c.req.param('oemId') as any;
+  const modelSlug = c.req.param('modelSlug');
+
+  try {
+    const { PageGenerator } = await import('../design/page-generator');
+    const { createSupabaseClient } = await import('../utils/supabase');
+    const { AiRouter } = await import('../ai/router');
+    const { DesignAgent } = await import('../design/agent');
+
+    const supabase = createSupabaseClient({
+      url: c.env.SUPABASE_URL,
+      serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    const aiRouter = new AiRouter({
+      groq: c.env.GROQ_API_KEY,
+      together: c.env.TOGETHER_API_KEY,
+      moonshot: c.env.MOONSHOT_API_KEY,
+      anthropic: c.env.ANTHROPIC_API_KEY,
+      google: c.env.GOOGLE_API_KEY,
+    });
+
+    const designAgent = new DesignAgent(
+      c.env.TOGETHER_API_KEY,
+      c.env.MOLTBOT_BUCKET,
+    );
+
+    const generator = new PageGenerator({
+      supabase,
+      aiRouter,
+      designAgent,
+      r2Bucket: c.env.MOLTBOT_BUCKET,
+      browser: c.env.BROWSER!,
+    });
+
+    const decision = await generator.shouldRegeneratePage(oemId, modelSlug);
+
+    return c.json(decision);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// GET /api/pages/stats - Get overall stats
+api.get('/pages/stats', async (c) => {
+  const oemId = c.req.query('oem_id');
+
+  try {
+    const { createSupabaseClient } = await import('../utils/supabase');
+
+    const supabase = createSupabaseClient({
+      url: c.env.SUPABASE_URL,
+      serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    // Get total models
+    let modelsQuery = supabase
+      .from('vehicle_models')
+      .select('oem_id, slug', { count: 'exact', head: true });
+
+    if (oemId) {
+      modelsQuery = modelsQuery.eq('oem_id', oemId);
+    }
+
+    const { count: totalModels } = await modelsQuery;
+
+    // Count generated pages in R2
+    const prefix = oemId ? `pages/definitions/${oemId}/` : 'pages/definitions/';
+    const listing = await c.env.MOLTBOT_BUCKET.list({ prefix });
+
+    // Count pages by checking for latest.json files
+    const generatedPages = listing.objects.filter(obj => obj.key.endsWith('/latest.json')).length;
+
+    // Get last brand ambassador run
+    const lastRunKey = 'openclaw/cron-runs/oem-brand-ambassador.json';
+    const lastRunObj = await c.env.MOLTBOT_BUCKET.get(lastRunKey);
+    let lastRun = null;
+
+    if (lastRunObj) {
+      const runs = await lastRunObj.json() as any[];
+      lastRun = runs && runs.length > 0 ? runs[runs.length - 1] : null;
+    }
+
+    return c.json({
+      total_models: totalModels || 0,
+      generated_pages: generatedPages,
+      pending_generation: (totalModels || 0) - generatedPages,
+      last_run: lastRun,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
 // Mount admin API routes under /admin
 api.route('/admin', adminApi);
 

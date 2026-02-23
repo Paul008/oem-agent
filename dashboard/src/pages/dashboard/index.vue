@@ -1,13 +1,16 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign, Factory, FileText, Globe, Palette, Shield, Tag, Wrench } from 'lucide-vue-next'
+import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign, Factory, FileText, Globe, Palette, Shield, Tag, Wrench, Sparkles } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { useGeneratedPages } from '@/composables/use-generated-pages'
 import { supabase } from '@/lib/supabase'
 import type { ImportRun, ChangeEvent, SourcePage } from '@/composables/use-oem-data'
+import type { PageStats } from '@/composables/use-generated-pages'
 
 const { fetchCounts, fetchImportRuns, fetchChangeEvents, fetchSourcePages, fetchOems } = useOemData()
+const { fetchPageStats } = useGeneratedPages()
 
 const oems = ref<{ id: string, name: string }[]>([])
 
@@ -18,6 +21,7 @@ const sourcePages = ref<SourcePage[]>([])
 const apiCount = ref(0)
 const unnotifiedCount = ref(0)
 const loading = ref(true)
+const pageStats = ref<PageStats | null>(null)
 
 const feedHealth = computed(() => {
   const active = sourcePages.value.filter(p => p.status === 'active').length
@@ -28,13 +32,14 @@ const feedHealth = computed(() => {
 
 onMounted(async () => {
   try {
-    const [c, runs, changes, sp, o, unnotified] = await Promise.all([
+    const [c, runs, changes, sp, o, unnotified, stats] = await Promise.all([
       fetchCounts(),
       fetchImportRuns(10),
       fetchChangeEvents(15),
       fetchSourcePages(),
       fetchOems(),
       supabase.from('change_events').select('*', { count: 'exact', head: true }).is('notified_at', null),
+      fetchPageStats(),
     ])
     counts.value = c
     recentRuns.value = runs
@@ -43,6 +48,7 @@ onMounted(async () => {
     sourcePages.value = sp
     apiCount.value = c.discoveredApis
     unnotifiedCount.value = unnotified.count ?? 0
+    pageStats.value = stats
   }
   catch (err) {
     console.error('Failed to load dashboard data:', err)
@@ -178,6 +184,19 @@ function severityColor(severity: string) {
           <UiCardContent>
             <div class="text-2xl font-bold">{{ counts.runs }}</div>
             <p class="text-xs text-muted-foreground">Total crawl executions</p>
+          </UiCardContent>
+        </UiCard>
+
+        <UiCard class="cursor-pointer hover:bg-accent/50 transition-colors" @click="$router.push('/dashboard/model-pages')">
+          <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+            <UiCardTitle class="text-sm font-medium">AI Pages</UiCardTitle>
+            <Sparkles class="size-4 text-purple-500" />
+          </UiCardHeader>
+          <UiCardContent>
+            <div class="text-2xl font-bold">{{ pageStats?.generated_pages ?? '—' }}</div>
+            <p class="text-xs text-muted-foreground">
+              {{ pageStats?.pending_generation ?? 0 }} pending generation
+            </p>
           </UiCardContent>
         </UiCard>
       </div>

@@ -986,7 +986,6 @@ export interface RegenerationDecision {
   checksDone: string[];
   pageAge?: number;
 }
-}
 
 // ============================================================================
 // Structured Page Sections (Gemini 3.1 Pro extraction)
