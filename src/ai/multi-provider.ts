@@ -50,12 +50,12 @@ export interface ProviderConfig {
 // ============================================================================
 
 const MODEL_COSTS = {
-  // Groq models
+  // Groq models (2026 pricing)
   'llama-3.1-8b-instant': { input: 0.05, output: 0.08 },
-  'mixtral-8x7b-32768': { input: 0.24, output: 0.24 },
-  'meta-llama/llama-4-scout-17b-16e-instruct': { input: 0.11, output: 0.34 },
+  'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
   'openai/gpt-oss-20b': { input: 0.075, output: 0.30 },
   'openai/gpt-oss-120b': { input: 0.15, output: 0.60 },
+  'meta-llama/llama-4-scout-17b-16e-instruct': { input: 0.11, output: 0.34 },
 
   // Kimi models
   'kimi-k2': { input: 0.60, output: 2.50 },

@@ -99,7 +99,7 @@ Response Format (JSON):
 }
 
 async function testComplexExtraction() {
-  console.log('\n🧪 Test 2: Complex Data Extraction (Mixtral)');
+  console.log('\n🧪 Test 2: Complex Data Extraction (GPT-OSS 20B)');
   console.log('═'.repeat(60));
 
   const client = new MultiProviderClient({ groqApiKey: GROQ_API_KEY });
@@ -141,7 +141,7 @@ Response Format (JSON):
 
   const request: AIRequest = {
     provider: 'groq',
-    model: 'mixtral-8x7b-32768',
+    model: 'openai/gpt-oss-20b',
     messages,
     temperature: 0.2,
     max_tokens: 3072,

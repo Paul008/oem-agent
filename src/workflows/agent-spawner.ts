@@ -53,10 +53,10 @@ const WORKFLOW_MODELS: Record<string, { provider: 'groq' | 'kimi' | 'gemini' | '
   'product-enrichment': { provider: 'gemini', model: 'gemini-2.0-flash' },
   'link-repair': { provider: 'groq', model: 'llama-3.1-8b-instant' },
   'offer-expiry': { provider: 'groq', model: 'llama-3.1-8b-instant' },
-  'image-quality': { provider: 'groq', model: 'mixtral-8x7b-32768' },
+  'image-quality': { provider: 'groq', model: 'openai/gpt-oss-20b' },
   'new-model-page': { provider: 'gemini', model: 'gemini-2.0-flash-thinking' },
   'disclaimer-compliance': { provider: 'groq', model: 'llama-3.1-8b-instant' },
-  'variant-sync': { provider: 'groq', model: 'mixtral-8x7b-32768' },
+  'variant-sync': { provider: 'groq', model: 'openai/gpt-oss-20b' },
 };
 
 // ============================================================================
