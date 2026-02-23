@@ -79,6 +79,7 @@ export interface CrawlPipelineResult {
   durationMs: number;
   productsUpserted?: number;
   offersUpserted?: number;
+  bannersUpserted?: number;
   changesFound?: number;
 }
 
@@ -203,6 +204,7 @@ export class OemAgentOrchestrator {
     let errors = 0;
     let productsUpserted = 0;
     let offersUpserted = 0;
+    let bannersUpserted = 0;
     let changesFound = 0;
 
     // Process each page
@@ -219,6 +221,7 @@ export class OemAgentOrchestrator {
           // Accumulate counters
           productsUpserted += result.productsUpserted || 0;
           offersUpserted += result.offersUpserted || 0;
+          bannersUpserted += result.bannersUpserted || 0;
           changesFound += result.changesFound || 0;
         } else {
           errors++;
@@ -240,6 +243,7 @@ export class OemAgentOrchestrator {
         pages_errored: errors,
         products_upserted: productsUpserted,
         offers_upserted: offersUpserted,
+        banners_upserted: bannersUpserted,
         changes_found: changesFound,
       })
       .eq('id', importRun.id);
@@ -456,7 +460,7 @@ export class OemAgentOrchestrator {
 
       // Step 9: Process changes
       console.log(`[Orchestrator] About to process changes. Products: ${extractionResult.products?.data?.length || 0}`);
-      let changeCounters = { productsUpserted: 0, offersUpserted: 0, changesFound: 0 };
+      let changeCounters = { productsUpserted: 0, offersUpserted: 0, bannersUpserted: 0, changesFound: 0 };
       try {
         changeCounters = await this.processChanges(oemId, page, extractionResult);
         console.log(`[Orchestrator] Process changes completed successfully`);
@@ -480,6 +484,7 @@ export class OemAgentOrchestrator {
         durationMs: Date.now() - startTime,
         productsUpserted: changeCounters.productsUpserted,
         offersUpserted: changeCounters.offersUpserted,
+        bannersUpserted: changeCounters.bannersUpserted,
         changesFound: changeCounters.changesFound,
       };
     } catch (error) {
@@ -2923,9 +2928,10 @@ ${html.substring(0, 50000)}
     oemId: OemId,
     page: SourcePage,
     extractionResult: PageExtractionResult
-  ): Promise<{ productsUpserted: number, offersUpserted: number, changesFound: number }> {
+  ): Promise<{ productsUpserted: number, offersUpserted: number, bannersUpserted: number, changesFound: number }> {
     let productsUpserted = 0;
     let offersUpserted = 0;
+    let bannersUpserted = 0;
     let changesFound = 0;
 
     // Process products
@@ -2966,12 +2972,24 @@ ${html.substring(0, 50000)}
 
     // Process banners
     if (extractionResult.bannerSlides?.data) {
+      console.log(`[Orchestrator] Processing ${extractionResult.bannerSlides.data.length} banners for ${page.url}`);
       for (const slide of extractionResult.bannerSlides.data) {
-        await this.upsertBanner(oemId, page.url, slide);
+        try {
+          const result = await this.upsertBanner(oemId, page.url, slide);
+          if (result.created || result.updated) {
+            bannersUpserted++;
+          }
+          if (result.changeDetected) {
+            changesFound++;
+          }
+          console.log(`[Orchestrator] Upserted banner: position ${slide.position} (created: ${result.created}, updated: ${result.updated}, changed: ${result.changeDetected})`);
+        } catch (error) {
+          console.error(`[Orchestrator] Failed to upsert banner:`, error);
+        }
       }
     }
 
-    return { productsUpserted, offersUpserted, changesFound };
+    return { productsUpserted, offersUpserted, bannersUpserted, changesFound };
   }
 
   private async upsertProduct(
@@ -3101,8 +3119,89 @@ ${html.substring(0, 50000)}
     oemId: OemId,
     pageUrl: string,
     slideData: any
-  ): Promise<void> {
-    // ... implementation
+  ): Promise<{ created: boolean, updated: boolean, changeDetected: boolean }> {
+    console.log(`[UpsertBanner] Processing: position ${slideData.position} from ${pageUrl}`);
+
+    // Check for existing banner
+    // Match by oem_id + page_url + position
+    const { data: existing, error: queryError } = await this.config.supabaseClient
+      .from('banners')
+      .select('id, headline, position')
+      .eq('oem_id', oemId)
+      .eq('page_url', pageUrl)
+      .eq('position', slideData.position || 0)
+      .maybeSingle();
+
+    if (queryError) {
+      console.error(`[UpsertBanner] Query error for position ${slideData.position}:`, queryError);
+      return { created: false, updated: false, changeDetected: false };
+    }
+
+    // Prepare banner object
+    const banner: Record<string, any> = {
+      oem_id: oemId,
+      page_url: pageUrl,
+      position: slideData.position || 0,
+      headline: slideData.headline,
+      sub_headline: slideData.sub_headline,
+      cta_text: slideData.cta_text,
+      cta_url: slideData.cta_url,
+      image_url_desktop: slideData.image_url_desktop || slideData.image_url,
+      image_url_mobile: slideData.image_url_mobile || slideData.image_url,
+      disclaimer_text: slideData.disclaimer_text,
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existing) {
+      console.log(`[UpsertBanner] Existing banner found: ${existing.id}`);
+
+      // Simple change detection - check if headline or image changed
+      const headlineChanged = existing.headline !== banner.headline;
+      const changeDetected = headlineChanged; // Can expand this logic
+
+      if (changeDetected) {
+        console.log(`[UpsertBanner] Changes detected, updating banner at position ${slideData.position}`);
+
+        const { error: updateError } = await this.config.supabaseClient
+          .from('banners')
+          .update(banner)
+          .eq('id', existing.id);
+
+        if (updateError) {
+          console.error(`[UpsertBanner] Update error for position ${slideData.position}:`, updateError);
+          return { created: false, updated: false, changeDetected: false };
+        }
+
+        return { created: false, updated: true, changeDetected: true };
+      } else {
+        console.log(`[UpsertBanner] No changes for banner at position ${slideData.position}`);
+
+        // Still update last_seen_at
+        await this.config.supabaseClient
+          .from('banners')
+          .update({ last_seen_at: banner.last_seen_at, updated_at: banner.updated_at })
+          .eq('id', existing.id);
+
+        return { created: false, updated: true, changeDetected: false };
+      }
+    } else {
+      console.log(`[UpsertBanner] NEW banner, inserting at position ${slideData.position}`);
+
+      banner.id = crypto.randomUUID();
+
+      const { error: insertError } = await this.config.supabaseClient
+        .from('banners')
+        .insert(banner);
+
+      if (insertError) {
+        console.error(`[UpsertBanner] Failed to insert banner:`, insertError);
+        return { created: false, updated: false, changeDetected: false };
+      }
+
+      console.log(`[UpsertBanner] Successfully inserted banner: ${banner.id}`);
+      return { created: true, updated: false, changeDetected: true };
+    }
   }
 
   private async createChangeEvent(

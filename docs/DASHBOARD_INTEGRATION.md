@@ -159,8 +159,15 @@ GET /cron/runs/{jobId}?limit={limit}
       </Column>
       <Column field="offers_upserted" header="Offers Updated">
         <template #body="{ data }">
-          <span :class="data.offers_upserted > 0 ? 'text-green' : ''">
+          <span :class="data.offers_upserted > 0 ? 'text-blue' : ''">
             {{ data.offers_upserted }}
+          </span>
+        </template>
+      </Column>
+      <Column field="banners_upserted" header="Banners Updated">
+        <template #body="{ data }">
+          <span :class="data.banners_upserted > 0 ? 'text-purple' : ''">
+            {{ data.banners_upserted }}
           </span>
         </template>
       </Column>
@@ -188,7 +195,11 @@ GET /cron/runs/{jobId}?limit={limit}
 </template>
 ```
 
-**Data Source**: These fields now exist in `import_runs` table (orchestrator fix)
+**Data Source**: These fields now exist in `import_runs` table:
+- `products_upserted` - Number of products created/updated
+- `offers_upserted` - Number of offers created/updated
+- `banners_upserted` - Number of banners created/updated
+- `changes_found` - Total number of changes detected
 
 ### 4. Configuration Editor
 
@@ -396,14 +407,23 @@ export function useGeneratedPages(oemId?: string) {
 6. ✅ Enhanced import runs table at `/dashboard/runs`:
    - Added Products column (products_upserted with green highlight)
    - Added Offers column (offers_upserted with blue highlight)
+   - Added Banners column (banners_upserted with purple highlight)
    - Improved visual hierarchy with color-coded values
+   - Implemented full banner tracking in orchestrator (upsertBanner method)
 7. ✅ Built regeneration settings editor at `/dashboard/settings/regeneration`:
    - Quick presets (Conservative, Balanced, Aggressive)
    - Configurable age thresholds and check options
    - Real-time impact estimation
    - Cost savings calculator
    - Added navigation link in sidebar
-8. ✅ Updated agent memory (MEMORY.md)
+8. ✅ Added Banners stats card to dashboard homepage:
+   - Image icon with banner count
+   - Links to /dashboard/banners
+   - Shows total banner slides tracked
+9. ✅ Updated agent memory (MEMORY.md) with:
+   - Banner tracking implementation details
+   - Complete counter tracking pattern documentation
+   - File location references
 
 **Next Actions** (Optional):
 1. Add regeneration status column to model-pages table

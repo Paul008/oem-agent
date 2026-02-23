@@ -20,6 +20,7 @@ export interface ImportRun {
   pages_errored: number
   products_upserted: number
   offers_upserted: number
+  banners_upserted: number
   changes_found: number
   error_log: string | null
   created_at: string

@@ -98,6 +98,7 @@ function duration(run: ImportRun) {
             <UiTableHead class="text-right">Pages</UiTableHead>
             <UiTableHead class="text-right">Products</UiTableHead>
             <UiTableHead class="text-right">Offers</UiTableHead>
+            <UiTableHead class="text-right">Banners</UiTableHead>
             <UiTableHead class="text-right">Changes</UiTableHead>
           </UiTableRow>
         </UiTableHeader>
@@ -127,6 +128,11 @@ function duration(run: ImportRun) {
             <UiTableCell class="text-right">
               <span :class="run.offers_upserted ? 'text-blue-600 font-medium' : 'text-muted-foreground'">
                 {{ run.offers_upserted ?? 0 }}
+              </span>
+            </UiTableCell>
+            <UiTableCell class="text-right">
+              <span :class="run.banners_upserted ? 'text-purple-600 font-medium' : 'text-muted-foreground'">
+                {{ run.banners_upserted ?? 0 }}
               </span>
             </UiTableCell>
             <UiTableCell class="text-right">

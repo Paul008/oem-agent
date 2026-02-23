@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign, Factory, FileText, Globe, Palette, Shield, Tag, Wrench, Sparkles } from 'lucide-vue-next'
+import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign, Factory, FileText, Globe, Image, Palette, Shield, Tag, Wrench, Sparkles } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -197,6 +197,17 @@ function severityColor(severity: string) {
             <p class="text-xs text-muted-foreground">
               {{ pageStats?.pending_generation ?? 0 }} pending generation
             </p>
+          </UiCardContent>
+        </UiCard>
+
+        <UiCard class="cursor-pointer hover:bg-accent/50 transition-colors" @click="$router.push('/dashboard/banners')">
+          <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+            <UiCardTitle class="text-sm font-medium">Banners</UiCardTitle>
+            <Image class="size-4 text-muted-foreground" />
+          </UiCardHeader>
+          <UiCardContent>
+            <div class="text-2xl font-bold">{{ counts.banners }}</div>
+            <p class="text-xs text-muted-foreground">Hero slides & carousels</p>
           </UiCardContent>
         </UiCard>
       </div>
