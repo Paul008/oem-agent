@@ -509,18 +509,24 @@ When rendering the Specifications section, use an accordion for each category:
 Use x-collapse for smooth animation. Populate with real data from specs_json.
 
 ### Gallery Lightbox
-When showing multiple vehicle images, add a clickable lightbox:
+When showing multiple vehicle images, add a clickable lightbox with descriptions:
 \`\`\`html
 <div x-data="{ lightbox: null }">
   <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
     <!-- Thumbnail grid — use real image URLs from all_image_urls or hero_image_url -->
-    <img src="REAL_IMAGE_URL" @click="lightbox = 'REAL_IMAGE_URL'" class="w-full aspect-video object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity" alt="Gallery" loading="lazy" />
+    <div @click="lightbox = { url: 'REAL_IMAGE_URL', desc: 'Image description or caption' }" class="cursor-pointer group">
+      <img src="REAL_IMAGE_URL" class="w-full aspect-video object-cover rounded-lg group-hover:opacity-80 transition-opacity" alt="Gallery thumbnail" loading="lazy" />
+      <p class="text-sm text-gray-600 mt-1">Image description</p>
+    </div>
   </div>
   <!-- Lightbox overlay -->
   <div x-show="lightbox" x-transition.opacity @click.self="lightbox = null" style="display:none;"
-    class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-    <button @click="lightbox = null" class="absolute top-4 right-4 text-white text-3xl">&times;</button>
-    <img :src="lightbox" class="max-w-full max-h-[90vh] object-contain rounded-lg" alt="Full size" />
+    class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+    <button @click="lightbox = null" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 transition-colors">&times;</button>
+    <div class="max-w-6xl w-full">
+      <img :src="lightbox?.url" class="w-full max-h-[80vh] object-contain rounded-lg mb-4" alt="Full size" />
+      <p x-show="lightbox?.desc" x-text="lightbox?.desc" class="text-white text-center text-lg" style="display:none;"></p>
+    </div>
   </div>
 </div>
 \`\`\`
@@ -675,7 +681,7 @@ Make sections interactive using Alpine.js directives. Each section gets its own 
 
 - **Color picker**: Use \`x-data="vehicle360({ colors: [...], primaryColor: '${primaryColor}', startAngle: 0 })"\` — this pre-built component provides 360° rotation, drag, preloading, and swatch picking. Map DB fields: color_name→name, color_code→code, swatch_url→swatch, hero_image_url→hero, gallery_urls→gallery, color_type→type, price_delta→priceDelta, is_standard→isStandard. Emit the viewer container (\`data-viewer\` with pointer handlers), thumbnail strip, swatch buttons, and color info. Do NOT write inline JS — the component is loaded externally.
 - **Specs accordion**: \`x-data="{ open: '' }"\` → \`@click="open = open === 'cat' ? '' : 'cat'"\` on category headers, \`x-show="open === 'cat'" x-collapse style="display:none;"\` on content panels, chevron rotation via \`:class\`
-- **Gallery lightbox**: \`x-data="{ lightbox: null }"\` → \`@click="lightbox = 'URL'"\` on thumbnails, \`x-show="lightbox" x-transition.opacity style="display:none;"\` on overlay, \`:src="lightbox"\` on hero, close via \`@click.self\` or X button
+- **Gallery lightbox**: \`x-data="{ lightbox: null }"\` → \`@click="lightbox = { url: 'URL', desc: 'Description' }"\` on thumbnails with description below, \`x-show="lightbox" x-transition.opacity style="display:none;"\` on overlay, \`:src="lightbox?.url"\` on hero image, \`x-text="lightbox?.desc"\` for caption, close via \`@click.self\` or X button
 - **Tabbed content**: \`x-data="{ tab: 0 }"\` → \`@click="tab = N"\` on tab buttons, \`x-show="tab === N"\` on panels, active styling via \`:class\` and \`:style\`
 - All data inline in x-data — no external API calls. Use \`x-transition\` or \`x-collapse\` for animation.
 
