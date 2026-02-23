@@ -165,6 +165,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/cron': RouteRecordInfo<
+      '/dashboard/cron',
+      '/dashboard/cron',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/design-memory': RouteRecordInfo<
       '/dashboard/design-memory',
       '/dashboard/design-memory',
@@ -252,6 +259,13 @@ declare module 'vue-router/auto-routes' {
     '/dashboard/runs': RouteRecordInfo<
       '/dashboard/runs',
       '/dashboard/runs',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/settings/regeneration': RouteRecordInfo<
+      '/dashboard/settings/regeneration',
+      '/dashboard/settings/regeneration',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -535,6 +549,12 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/pages/dashboard/cron.vue': {
+      routes:
+        | '/dashboard/cron'
+      views:
+        | never
+    }
     'src/pages/dashboard/design-memory.vue': {
       routes:
         | '/dashboard/design-memory'
@@ -610,6 +630,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/runs.vue': {
       routes:
         | '/dashboard/runs'
+      views:
+        | never
+    }
+    'src/pages/dashboard/settings/regeneration.vue': {
+      routes:
+        | '/dashboard/settings/regeneration'
       views:
         | never
     }

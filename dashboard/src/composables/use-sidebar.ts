@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, KeyRound, List, Palette, Play, Shield, Tag, TrendingUp, Users, Wrench } from 'lucide-vue-next'
+import { Activity, BookOpen, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, KeyRound, List, Palette, Play, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -11,6 +11,7 @@ export function useSidebar() {
         { title: 'Import Runs', url: '/dashboard/runs', icon: Clock },
         { title: 'Change Feed', url: '/dashboard/changes', icon: Activity },
         { title: 'Operations', url: '/dashboard/operations', icon: Play },
+        { title: 'Cron Jobs', url: '/dashboard/cron', icon: Calendar },
       ],
     },
     {
@@ -35,6 +36,7 @@ export function useSidebar() {
         { title: 'OEM Portals', url: '/dashboard/portals', icon: KeyRound },
         { title: 'API Docs', url: '/dashboard/docs', icon: BookOpen },
         { title: 'Page Builder', url: '/dashboard/page-builder-docs', icon: Cpu },
+        { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },
       ],
     },
     {

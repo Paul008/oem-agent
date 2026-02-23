@@ -376,10 +376,10 @@ export function useGeneratedPages(oemId?: string) {
 1. ✅ **Documentation** (Done - this file, BRAND_AMBASSADOR.md, CRON_SYSTEM.md)
 2. ✅ **Quick Win**: Add Brand Ambassador stats to existing dashboard home (COMPLETED Feb 23, 2026)
 3. ✅ **Phase 1**: API endpoints and composables (COMPLETED Feb 23, 2026)
-4. 📊 **Phase 1 (Optional)**: Enhanced `/dashboard/pages` view with regeneration status
-5. ⏰ **Phase 2**: Create `/dashboard/cron` with manual triggers
-6. 📈 **Phase 3**: Enhance import runs table with new counters
-7. ⚙️ **Phase 4**: Build configuration editor (nice-to-have)
+4. ✅ **Phase 2**: Create `/dashboard/cron` with manual triggers (COMPLETED Feb 23, 2026)
+5. ✅ **Phase 3**: Enhance import runs table with new counters (COMPLETED Feb 23, 2026)
+6. ✅ **Phase 4**: Build configuration editor (COMPLETED Feb 23, 2026)
+7. 📊 **Phase 5 (Future)**: Enhanced `/dashboard/pages` view with regeneration status
 
 **Completed Actions** ✅:
 1. ✅ Created API endpoints in `src/routes/oem-agent.ts`:
@@ -388,7 +388,22 @@ export function useGeneratedPages(oemId?: string) {
 2. ✅ Built composable `dashboard/src/composables/use-generated-pages.ts`
 3. ✅ Added Brand Ambassador stats card to dashboard homepage
 4. ✅ Integrated with existing `model-pages.vue` view
-5. ✅ Updated agent memory (MEMORY.md)
+5. ✅ Created cron dashboard at `/dashboard/cron`:
+   - Built composable `dashboard/src/composables/use-cron-jobs.ts`
+   - Created full cron dashboard page with job cards and manual triggers
+   - Added navigation link in sidebar
+   - Run history modal with detailed results
+6. ✅ Enhanced import runs table at `/dashboard/runs`:
+   - Added Products column (products_upserted with green highlight)
+   - Added Offers column (offers_upserted with blue highlight)
+   - Improved visual hierarchy with color-coded values
+7. ✅ Built regeneration settings editor at `/dashboard/settings/regeneration`:
+   - Quick presets (Conservative, Balanced, Aggressive)
+   - Configurable age thresholds and check options
+   - Real-time impact estimation
+   - Cost savings calculator
+   - Added navigation link in sidebar
+8. ✅ Updated agent memory (MEMORY.md)
 
 **Next Actions** (Optional):
 1. Add regeneration status column to model-pages table

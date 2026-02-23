@@ -95,8 +95,10 @@ function duration(run: ImportRun) {
             <UiTableHead>Status</UiTableHead>
             <UiTableHead>Started</UiTableHead>
             <UiTableHead>Duration</UiTableHead>
-            <UiTableHead class="text-right">Processed</UiTableHead>
-            <UiTableHead class="text-right">Changed</UiTableHead>
+            <UiTableHead class="text-right">Pages</UiTableHead>
+            <UiTableHead class="text-right">Products</UiTableHead>
+            <UiTableHead class="text-right">Offers</UiTableHead>
+            <UiTableHead class="text-right">Changes</UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -116,10 +118,20 @@ function duration(run: ImportRun) {
             </UiTableCell>
             <UiTableCell class="text-sm text-muted-foreground">{{ formatDate(run.created_at) }}</UiTableCell>
             <UiTableCell class="text-sm">{{ duration(run) }}</UiTableCell>
-            <UiTableCell class="text-right">{{ run.pages_checked ?? '-' }}</UiTableCell>
+            <UiTableCell class="text-right text-muted-foreground">{{ run.pages_checked ?? '-' }}</UiTableCell>
             <UiTableCell class="text-right">
-              <span :class="(run.changes_found || run.pages_changed) ? 'text-primary font-medium' : 'text-muted-foreground'">
-                {{ run.changes_found || run.pages_changed || 0 }}
+              <span :class="run.products_upserted ? 'text-green-600 font-medium' : 'text-muted-foreground'">
+                {{ run.products_upserted ?? 0 }}
+              </span>
+            </UiTableCell>
+            <UiTableCell class="text-right">
+              <span :class="run.offers_upserted ? 'text-blue-600 font-medium' : 'text-muted-foreground'">
+                {{ run.offers_upserted ?? 0 }}
+              </span>
+            </UiTableCell>
+            <UiTableCell class="text-right">
+              <span :class="run.changes_found ? 'text-primary font-medium' : 'text-muted-foreground'">
+                {{ run.changes_found ?? 0 }}
               </span>
             </UiTableCell>
           </UiTableRow>

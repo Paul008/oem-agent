@@ -69,8 +69,10 @@ declare global {
   const useAuth: typeof import('../composables/use-auth').useAuth
   const useAuthStore: typeof import('../stores/auth').useAuthStore
   const useAxios: typeof import('../composables/use-axios').useAxios
+  const useCronJobs: typeof import('../composables/use-cron-jobs').useCronJobs
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
+  const useGeneratedPages: typeof import('../composables/use-generated-pages').useGeneratedPages
   const useId: typeof import('vue').useId
   const useLink: typeof import('vue-router')['useLink']
   const useModal: typeof import('../composables/use-modal').useModal
@@ -96,6 +98,12 @@ declare global {
   // @ts-ignore
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
+  // @ts-ignore
+  export type { CronJob, JobRun, JobStatus, CronJobsResponse } from '../composables/use-cron-jobs'
+  import('../composables/use-cron-jobs')
+  // @ts-ignore
+  export type { RegenerationDecision, PageStats } from '../composables/use-generated-pages'
+  import('../composables/use-generated-pages')
   // @ts-ignore
   export type { Oem, ImportRun, ChangeEvent, VehicleModel, OemPortal, ProductSpecs, Product, Offer, VariantColor, VariantPricing, Banner, SourcePage, Accessory, AccessoryModel } from '../composables/use-oem-data'
   import('../composables/use-oem-data')
