@@ -873,6 +873,36 @@ For 13 OEMs with ~20 pages each:
 | `offer_embeddings` | Vector embeddings for offer search |
 | `change_event_embeddings` | Vector embeddings for pattern detection |
 | `extraction_runs` | Design pipeline run history with quality metrics |
+| `banners` | Hero slides and carousel banners |
+| `import_runs` | Crawl execution history with counter metrics |
+
+### Import Run Counter Tracking
+
+The `import_runs` table tracks detailed metrics for each crawl execution:
+
+| Counter | Purpose | Color | Status |
+|---------|---------|-------|--------|
+| `products_upserted` | Vehicle variants created/updated | 🟢 Green | Active |
+| `offers_upserted` | Promotions created/updated | 🔵 Blue | Active |
+| `banners_upserted` | Hero slides created/updated | 🟣 Purple | Active |
+| `brochures_upserted` | Models with brochure_url updated | 🟠 Orange | Ready* |
+| `changes_found` | Total change events detected | ⚫ Primary | Active |
+
+\* Infrastructure ready; currently tracks 0 (models not extracted during crawls)
+
+**Implementation Pattern**:
+All entity tracking follows the 9-step counter pattern:
+1. Return `{ created, updated, changeDetected }` from upsert method
+2. Track counter in `processChanges()`
+3. Update `PageCrawlResult` interface
+4. Accumulate in `orchestrate()` loop
+5. Store in `import_runs` database record
+6. Add to dashboard `ImportRun` TypeScript interface
+7. Display in Import Runs table with color coding
+8. Add stats badge to dashboard homepage
+9. Log operations for debugging
+
+**Example**: See `upsertBanner()` implementation in `src/orchestrator.ts` (lines 3100-3189)
 
 ---
 
