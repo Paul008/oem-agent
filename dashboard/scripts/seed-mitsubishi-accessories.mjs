@@ -122,6 +122,12 @@ const accessoryRows = allItems.map(item => {
     }
   }
 
+  // Filter out Magento placeholder images
+  let imageUrl = item.image?.url || null
+  if (imageUrl && imageUrl.includes('/placeholder/image.jpg')) {
+    imageUrl = null
+  }
+
   return {
     oem_id: OEM_ID,
     external_key: item.sku,
@@ -131,7 +137,7 @@ const accessoryRows = allItems.map(item => {
     category,
     price,
     description_html: descHtml,
-    image_url: item.image?.url || null,
+    image_url: imageUrl,
     inc_fitting: 'none',
     parent_id: null,
     meta_json: {

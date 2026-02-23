@@ -37,6 +37,22 @@ function cleanHtml(str) {
   return str.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+function extractImageUrl(html, searchContext) {
+  // Look for accessory-picture or style-pack-picture within searchContext
+  const pictureMatch = searchContext.match(/<picture[^>]*class="[^"]*(?:accessory-picture|style-pack-picture)[^"]*"[^>]*>([\s\S]*?)<\/picture>/i)
+  if (!pictureMatch) return null
+
+  const pictureContent = pictureMatch[1]
+  // Extract img src from picture element
+  const imgMatch = pictureContent.match(/<img[^>]*src=["']([^"']+)["']/i)
+  if (!imgMatch) return null
+
+  let url = imgMatch[1]
+  // Add https: protocol if it's protocol-relative
+  if (url.startsWith('//')) url = 'https:' + url
+  return url
+}
+
 // ── 1. Ensure vehicle_models exist ──
 console.log('Ensuring Nissan vehicle_models exist...')
 const modelUpsertRows = MODELS.map(m => ({ oem_id: OEM_ID, slug: m.slug, name: m.name }))
@@ -50,7 +66,7 @@ const modelMap = new Map(upsertedModels.map(m => [m.slug, m]))
 
 // ── 2. Fetch and extract accessories from each model page ──
 console.log('\nFetching accessories from Nissan model pages...')
-const allAccessories = new Map() // key -> { name, partNumber, price, isFitted, isPack, modelSlugs }
+const allAccessories = new Map() // key -> { name, partNumber, price, isFitted, isPack, imageUrl, modelSlugs }
 
 for (const model of MODELS) {
   const url = `https://www.nissan.com.au/vehicles/browse-range/${model.slug}/accessories.html`
@@ -75,12 +91,23 @@ for (const model of MODELS) {
       const priceNum = parseFloat(priceText.replace(/[^0-9.]/g, ''))
       const isFitted = priceText.toLowerCase().includes('fitted')
 
+      // Extract image by looking for nearest accessory div
+      let imageUrl = null
+      const searchStart = Math.max(0, nameMatches[i].index - 2000)
+      const searchEnd = Math.min(html.length, nameMatches[i].index + 2000)
+      const contextHtml = html.substring(searchStart, searchEnd)
+      imageUrl = extractImageUrl(html, contextHtml)
+
       if (name && priceNum > 0 && priceNum < 50000) {
         const key = partNumber || `${name}|${priceNum}`
         if (!allAccessories.has(key)) {
-          allAccessories.set(key, { name, partNumber, price: priceNum, isFitted, isPack: false, modelSlugs: new Set([model.slug]) })
+          allAccessories.set(key, { name, partNumber, price: priceNum, isFitted, isPack: false, imageUrl, modelSlugs: new Set([model.slug]) })
         } else {
           allAccessories.get(key).modelSlugs.add(model.slug)
+          // Update imageUrl if we found one and didn't have one before
+          if (imageUrl && !allAccessories.get(key).imageUrl) {
+            allAccessories.get(key).imageUrl = imageUrl
+          }
         }
         count++
       }
@@ -135,15 +162,23 @@ for (const model of MODELS) {
     // Clean name (remove part number in parens if present)
     const cleanName = name.replace(/\s*\([A-Z][A-Z0-9]+\)\s*$/, '').trim()
 
+    // Extract image from surrounding context
+    const contextHtml = html.substring(Math.max(0, fMatch.index - 2000), Math.min(html.length, fMatch.index + 1000))
+    const imageUrl = extractImageUrl(html, contextHtml)
+
     const isPack = cleanName.toLowerCase().includes('pack')
     const key = partNumber || `${cleanName}|${price}`
 
     // Skip if already found via Strategy 1 (avoid dupes on Navara/Qashqai)
     if (!allAccessories.has(key)) {
-      allAccessories.set(key, { name: cleanName, partNumber, price, isFitted: true, isPack, modelSlugs: new Set([model.slug]) })
+      allAccessories.set(key, { name: cleanName, partNumber, price, isFitted: true, isPack, imageUrl, modelSlugs: new Set([model.slug]) })
       count++
     } else {
       allAccessories.get(key).modelSlugs.add(model.slug)
+      // Update imageUrl if we found one and didn't have one before
+      if (imageUrl && !allAccessories.get(key).imageUrl) {
+        allAccessories.get(key).imageUrl = imageUrl
+      }
     }
   }
 
@@ -159,10 +194,16 @@ for (const model of MODELS) {
     const desc = packDescMatches[i] ? cleanHtml(packDescMatches[i][1]) : null
     const price = parseFloat(priceText.replace(/[^0-9.]/g, ''))
 
+    // Extract image for style pack
+    const searchStart = Math.max(0, packNameMatches[i].index - 2000)
+    const searchEnd = Math.min(html.length, packNameMatches[i].index + 1000)
+    const contextHtml = html.substring(searchStart, searchEnd)
+    const imageUrl = extractImageUrl(html, contextHtml)
+
     if (name && price > 0 && price < 50000) {
       const key = `pack-${slugify(name)}-${model.slug}`
       if (!allAccessories.has(key)) {
-        allAccessories.set(key, { name, partNumber: null, price, isFitted: true, isPack: true, description: desc, modelSlugs: new Set([model.slug]) })
+        allAccessories.set(key, { name, partNumber: null, price, isFitted: true, isPack: true, description: desc, imageUrl, modelSlugs: new Set([model.slug]) })
         count++
       }
     }
@@ -208,7 +249,7 @@ for (const [key, acc] of allAccessories) {
     category: acc.isPack ? 'Packs' : null,
     price: acc.price,
     description_html: acc.description || null,
-    image_url: null, // No reliable image URLs from HTML extraction
+    image_url: acc.imageUrl || null,
     inc_fitting: acc.isFitted ? 'includes' : 'none',
     parent_id: null,
     meta_json: Object.keys(meta).length > 0 ? meta : {},

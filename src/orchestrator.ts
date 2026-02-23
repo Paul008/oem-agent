@@ -77,6 +77,9 @@ export interface CrawlPipelineResult {
   discoveredApis?: ApiCandidate[];
   error?: string;
   durationMs: number;
+  productsUpserted?: number;
+  offersUpserted?: number;
+  changesFound?: number;
 }
 
 export interface ChangePipelineResult {
@@ -198,6 +201,9 @@ export class OemAgentOrchestrator {
     let jobsProcessed = 0;
     let pagesChanged = 0;
     let errors = 0;
+    let productsUpserted = 0;
+    let offersUpserted = 0;
+    let changesFound = 0;
 
     // Process each page
     for (const page of pages) {
@@ -206,10 +212,14 @@ export class OemAgentOrchestrator {
         jobsProcessed++;
 
         if (result.success) {
-          if (result.extractionResult?.products?.data?.length || 
+          if (result.extractionResult?.products?.data?.length ||
               result.extractionResult?.offers?.data?.length) {
             pagesChanged++;
           }
+          // Accumulate counters
+          productsUpserted += result.productsUpserted || 0;
+          offersUpserted += result.offersUpserted || 0;
+          changesFound += result.changesFound || 0;
         } else {
           errors++;
         }
@@ -228,6 +238,9 @@ export class OemAgentOrchestrator {
         pages_checked: jobsProcessed,
         pages_changed: pagesChanged,
         pages_errored: errors,
+        products_upserted: productsUpserted,
+        offers_upserted: offersUpserted,
+        changes_found: changesFound,
       })
       .eq('id', importRun.id);
 
@@ -443,8 +456,9 @@ export class OemAgentOrchestrator {
 
       // Step 9: Process changes
       console.log(`[Orchestrator] About to process changes. Products: ${extractionResult.products?.data?.length || 0}`);
+      let changeCounters = { productsUpserted: 0, offersUpserted: 0, changesFound: 0 };
       try {
-        await this.processChanges(oemId, page, extractionResult);
+        changeCounters = await this.processChanges(oemId, page, extractionResult);
         console.log(`[Orchestrator] Process changes completed successfully`);
       } catch (processError) {
         console.error(`[Orchestrator] Process changes FAILED:`, processError);
@@ -464,6 +478,9 @@ export class OemAgentOrchestrator {
         extractionResult,
         discoveredApis,
         durationMs: Date.now() - startTime,
+        productsUpserted: changeCounters.productsUpserted,
+        offersUpserted: changeCounters.offersUpserted,
+        changesFound: changeCounters.changesFound,
       };
     } catch (error) {
       // Update page with error
@@ -2906,14 +2923,24 @@ ${html.substring(0, 50000)}
     oemId: OemId,
     page: SourcePage,
     extractionResult: PageExtractionResult
-  ): Promise<void> {
+  ): Promise<{ productsUpserted: number, offersUpserted: number, changesFound: number }> {
+    let productsUpserted = 0;
+    let offersUpserted = 0;
+    let changesFound = 0;
+
     // Process products
     if (extractionResult.products?.data) {
       console.log(`[Orchestrator] Processing ${extractionResult.products.data.length} products for ${page.url}`);
       for (const extractedProduct of extractionResult.products.data) {
         try {
-          await this.upsertProduct(oemId, page.url, extractedProduct);
-          console.log(`[Orchestrator] Upserted product: ${extractedProduct.title}`);
+          const result = await this.upsertProduct(oemId, page.url, extractedProduct);
+          if (result.created || result.updated) {
+            productsUpserted++;
+          }
+          if (result.changeDetected) {
+            changesFound++;
+          }
+          console.log(`[Orchestrator] Upserted product: ${extractedProduct.title} (created: ${result.created}, updated: ${result.updated}, changed: ${result.changeDetected})`);
         } catch (error) {
           console.error(`[Orchestrator] Failed to upsert product ${extractedProduct.title}:`, error);
         }
@@ -2923,7 +2950,17 @@ ${html.substring(0, 50000)}
     // Process offers
     if (extractionResult.offers?.data) {
       for (const extractedOffer of extractionResult.offers.data) {
-        await this.upsertOffer(oemId, page.url, extractedOffer);
+        try {
+          const result = await this.upsertOffer(oemId, page.url, extractedOffer);
+          if (result.created || result.updated) {
+            offersUpserted++;
+          }
+          if (result.changeDetected) {
+            changesFound++;
+          }
+        } catch (error) {
+          console.error(`[Orchestrator] Failed to upsert offer:`, error);
+        }
       }
     }
 
@@ -2933,13 +2970,15 @@ ${html.substring(0, 50000)}
         await this.upsertBanner(oemId, page.url, slide);
       }
     }
+
+    return { productsUpserted, offersUpserted, changesFound };
   }
 
   private async upsertProduct(
     oemId: OemId,
     sourceUrl: string,
     productData: any
-  ): Promise<void> {
+  ): Promise<{ created: boolean, updated: boolean, changeDetected: boolean }> {
     console.log(`[UpsertProduct] Processing: ${productData.title}`);
     
     // Check for existing product
@@ -2953,7 +2992,7 @@ ${html.substring(0, 50000)}
     
     if (queryError) {
       console.error(`[UpsertProduct] Query error for ${productData.title}:`, queryError);
-      return;
+      return { created: false, updated: false, changeDetected: false };
     }
 
     // Use database column names (meta_json, not meta)
@@ -2993,7 +3032,7 @@ ${html.substring(0, 50000)}
         
         if (updateError) {
           console.error(`[UpsertProduct] Update error for ${productData.title}:`, updateError);
-          return;
+          return { created: false, updated: false, changeDetected: false };
         }
 
         // Create version record
@@ -3011,6 +3050,7 @@ ${html.substring(0, 50000)}
 
         // Queue alert
         this.alertBatcher.add(analysis, oemId);
+        return { created: false, updated: true, changeDetected: true };
       } else {
         console.log(`[UpsertProduct] No changes for: ${productData.title}`);
         // Still update last_seen_at
@@ -3018,6 +3058,7 @@ ${html.substring(0, 50000)}
           .from('products')
           .update({ last_seen_at: product.last_seen_at })
           .eq('id', existing.id);
+        return { created: false, updated: true, changeDetected: false };
       }
     } else {
       console.log(`[UpsertProduct] NEW product, inserting: ${productData.title}`);
@@ -3031,7 +3072,7 @@ ${html.substring(0, 50000)}
 
       if (insertError) {
         console.error(`[UpsertProduct] Failed to insert ${product.title}:`, insertError);
-        return;
+        return { created: false, updated: false, changeDetected: false };
       }
       console.log(`[UpsertProduct] Successfully inserted: ${product.title} (${product.id})`);
 
@@ -3041,6 +3082,7 @@ ${html.substring(0, 50000)}
         await this.createChangeEvent(oemId, analysis);
         this.alertBatcher.add(analysis, oemId);
       }
+      return { created: true, updated: false, changeDetected: true };
     }
   }
 
@@ -3048,9 +3090,11 @@ ${html.substring(0, 50000)}
     oemId: OemId,
     sourceUrl: string,
     offerData: any
-  ): Promise<void> {
+  ): Promise<{ created: boolean, updated: boolean, changeDetected: boolean }> {
     // Similar to upsertProduct
+    // TODO: Implement offer upserting with proper tracking
     // ... implementation
+    return { created: false, updated: false, changeDetected: false };
   }
 
   private async upsertBanner(

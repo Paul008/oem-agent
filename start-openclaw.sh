@@ -167,7 +167,19 @@ if (process.env.OPENCLAW_GATEWAY_TOKEN) {
 if (process.env.OPENCLAW_DEV_MODE === 'true') {
     config.gateway.controlUi = config.gateway.controlUi || {};
     config.gateway.controlUi.allowInsecureAuth = true;
+    config.gateway.controlUi.dangerouslyDisableDeviceAuth = true;
 }
+
+// Multi-agent configuration
+config.agents = config.agents || {};
+config.agents.list = [
+    { id: 'main',      workspace: '/root/.openclaw/workspace' },
+    { id: 'crawler',   workspace: '/root/.openclaw/workspace-crawler' },
+    { id: 'extractor', workspace: '/root/.openclaw/workspace-extractor' },
+    { id: 'designer',  workspace: '/root/.openclaw/workspace-designer' },
+    { id: 'reporter',  workspace: '/root/.openclaw/workspace-reporter' },
+];
+console.log('Multi-agent config: ' + config.agents.list.map(a => a.id).join(', '));
 
 // Legacy AI Gateway base URL override:
 // ANTHROPIC_BASE_URL is picked up natively by the Anthropic SDK,
@@ -310,36 +322,69 @@ if r2_configured; then
 fi
 
 # ============================================================
-# WORKSPACE SETUP (skills symlink)
+# WORKSPACE SETUP (multi-agent workspaces with skill symlinks)
 # ============================================================
-echo "Setting up workspace..."
+echo "Setting up workspaces..."
+
+# Agent skill assignments (space-separated skill names per agent)
+CRAWLER_SKILLS="oem-crawl oem-api-discover oem-build-price-discover cloudflare-browser oem-agent-hooks"
+EXTRACTOR_SKILLS="oem-extract oem-data-sync oem-semantic-search oem-agent-hooks"
+DESIGNER_SKILLS="oem-design-capture oem-ux-knowledge oem-brand-ambassador cloudflare-browser oem-agent-hooks"
+REPORTER_SKILLS="oem-report oem-sales-rep oem-agent-hooks"
+
+# Setup a workspace: setup_workspace <workspace_path> <source_dir> <skills_list>
+setup_workspace() {
+    local ws_path="$1"
+    local source_dir="$2"
+    local skill_list="$3"
+
+    mkdir -p "$ws_path/skills"
+
+    # Copy workspace bootstrap files
+    if [ -d "$source_dir" ]; then
+        for file in SOUL.md AGENTS.md MEMORY.md; do
+            if [ -f "$source_dir/$file" ]; then
+                cp "$source_dir/$file" "$ws_path/$file"
+            fi
+        done
+    fi
+
+    # Symlink specific skills
+    if [ -n "$skill_list" ] && [ -d "$SKILLS_DIR" ]; then
+        for skill in $skill_list; do
+            if [ -d "$SKILLS_DIR/$skill" ] && [ ! -e "$ws_path/skills/$skill" ]; then
+                ln -s "$SKILLS_DIR/$skill" "$ws_path/skills/$skill"
+            fi
+        done
+        echo "Workspace $ws_path: $(ls -1 "$ws_path/skills" 2>/dev/null | wc -l) skills linked"
+    fi
+}
+
+# Main agent workspace (all skills)
 WORKSPACE_DIR_OC="/root/.openclaw/workspace"
 mkdir -p "$WORKSPACE_DIR_OC"
-
-# Symlink skills directory so OpenClaw can find them
 if [ -d "$SKILLS_DIR" ]; then
     if [ ! -e "$WORKSPACE_DIR_OC/skills" ]; then
         ln -s "$SKILLS_DIR" "$WORKSPACE_DIR_OC/skills"
-        echo "Skills symlink created: $WORKSPACE_DIR_OC/skills -> $SKILLS_DIR"
     fi
-    echo "Skills available: $(ls -1 "$SKILLS_DIR" 2>/dev/null | wc -l)"
-else
-    echo "WARNING: Skills directory not found at $SKILLS_DIR"
+    echo "Main workspace: $(ls -1 "$SKILLS_DIR" 2>/dev/null | wc -l) skills (all)"
 fi
-
-# Copy workspace bootstrap files (SOUL.md, AGENTS.md, MEMORY.md)
 WORKSPACE_SOURCE="/root/clawd/workspace"
 if [ -d "$WORKSPACE_SOURCE" ]; then
-    echo "Copying workspace bootstrap files..."
     for file in SOUL.md AGENTS.md MEMORY.md; do
         if [ -f "$WORKSPACE_SOURCE/$file" ]; then
             cp "$WORKSPACE_SOURCE/$file" "$WORKSPACE_DIR_OC/$file"
-            echo "Copied $file to workspace"
         fi
     done
-else
-    echo "WARNING: Workspace source directory not found at $WORKSPACE_SOURCE"
 fi
+
+# Specialized agent workspaces
+setup_workspace "/root/.openclaw/workspace-crawler" "/root/clawd/workspace-crawler" "$CRAWLER_SKILLS"
+setup_workspace "/root/.openclaw/workspace-extractor" "/root/clawd/workspace-extractor" "$EXTRACTOR_SKILLS"
+setup_workspace "/root/.openclaw/workspace-designer" "/root/clawd/workspace-designer" "$DESIGNER_SKILLS"
+setup_workspace "/root/.openclaw/workspace-reporter" "/root/clawd/workspace-reporter" "$REPORTER_SKILLS"
+
+echo "All agent workspaces configured"
 
 # ============================================================
 # START GATEWAY

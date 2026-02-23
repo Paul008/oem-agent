@@ -22,7 +22,7 @@ RUN npm install -g pnpm
 
 # Install OpenClaw (formerly clawdbot/moltbot)
 # Pin to specific version for reproducible builds
-RUN npm install -g openclaw@2026.2.17 \
+RUN npm install -g openclaw@2026.2.21-2 \
     && openclaw --version
 
 # Create OpenClaw directories
@@ -32,13 +32,17 @@ RUN mkdir -p /root/.openclaw \
     && mkdir -p /root/clawd/skills
 
 # Copy startup script
-# Build cache bust: 2026-02-19-openclaw-2.17
+# Build cache bust: 2026-02-23-disable-device-pairing
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
 # Copy custom skills, workspace files, and documentation
 COPY skills/ /root/clawd/skills/
 COPY workspace/ /root/clawd/workspace/
+COPY workspace-crawler/ /root/clawd/workspace-crawler/
+COPY workspace-extractor/ /root/clawd/workspace-extractor/
+COPY workspace-designer/ /root/clawd/workspace-designer/
+COPY workspace-reporter/ /root/clawd/workspace-reporter/
 COPY docs/ /root/clawd/docs/
 
 # Set working directory
