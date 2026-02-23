@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, KeyRound, List, Palette, Play, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+import { Activity, BookOpen, Bot, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, KeyRound, Layers, List, Palette, Play, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -11,6 +11,7 @@ export function useSidebar() {
         { title: 'Import Runs', url: '/dashboard/runs', icon: Clock },
         { title: 'Change Feed', url: '/dashboard/changes', icon: Activity },
         { title: 'Operations', url: '/dashboard/operations', icon: Play },
+        { title: 'AI Agents', url: '/dashboard/agents/', icon: Bot },
         { title: 'Cron Jobs', url: '/dashboard/cron', icon: Calendar },
       ],
     },
@@ -31,6 +32,7 @@ export function useSidebar() {
     {
       title: 'Infrastructure',
       items: [
+        { title: 'Agent Architecture', url: '/dashboard/agent-infra', icon: Layers },
         { title: 'Source Pages', url: '/dashboard/source-pages', icon: Shield },
         { title: 'Discovered APIs', url: '/dashboard/apis', icon: Globe },
         { title: 'OEM Portals', url: '/dashboard/portals', icon: KeyRound },

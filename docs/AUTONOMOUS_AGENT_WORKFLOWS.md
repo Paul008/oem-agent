@@ -38,6 +38,66 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
 └─────────────────┘
 ```
 
+## OpenClaw Tool Architecture
+
+Agents are spawned via OpenClaw and granted access to specific **OpenClaw tools** — not the underlying libraries. Understanding this separation is critical for infrastructure work.
+
+### Two-Layer Browser System
+
+```
+Layer 1 — OpenClaw Agent Tools (what agents see)
+  ┌──────────────────────────────────────────────────────┐
+  │  browser · exec · read · write · edit · image        │
+  │  web_fetch · web_search · apply_patch · process      │
+  └──────────────────────┬───────────────────────────────┘
+                         │ CDP WebSocket
+Layer 2 — Backend Infrastructure (what runs on the server)
+  ┌──────────────────────┴───────────────────────────────┐
+  │  src/routes/cdp.ts          CDP shim (WebSocket)     │
+  │  @cloudflare/puppeteer      Browser Rendering API    │
+  │  src/design/page-capturer   Direct Puppeteer usage   │
+  │  src/utils/network-browser  Network interception     │
+  └──────────────────────────────────────────────────────┘
+```
+
+**Layer 1 — OpenClaw tools**: When an agent is granted `browser`, OpenClaw provides a browser tool that sends CDP commands over WebSocket to our Worker. The agent never touches Puppeteer directly.
+
+**Layer 2 — Cloudflare infrastructure**: The Worker's `/cdp` endpoint (`src/routes/cdp.ts`) receives CDP commands and translates them to `@cloudflare/puppeteer` calls against the Cloudflare Browser Rendering binding. This same Puppeteer binding is also used directly by the page capturer and network browser utilities.
+
+### OpenClaw Tool Reference
+
+These are the actual tool names from the [OpenClaw docs](https://docs.openclaw.ai/tools). Always use these in workflow definitions — never use library names like `playwright`, `puppeteer`, `bash`, or `grep`.
+
+| Tool | Purpose | Workflows Using It |
+|------|---------|-------------------|
+| `browser` | Navigate pages, take screenshots, interact with UI | Price, Product, Offer, Image, Page Gen, Variant |
+| `exec` | Run shell commands (replaces `bash`) | Product, Link, Image |
+| `read` | Read files from workspace | All workflows |
+| `write` | Write files to workspace | Product, Image, Page Gen |
+| `edit` | Modify existing files | Price, Product, Link, Offer, Variant |
+| `image` | Analyze images via vision model | Product, Image, Page Gen |
+| `web_fetch` | HTTP fetch with markdown extraction | Link |
+| `web_search` | Brave Search API queries | (available, not yet assigned) |
+| `apply_patch` | Multi-hunk file edits | (available, not yet assigned) |
+| `process` | Manage background processes | (available, not yet assigned) |
+
+### Tool Profiles
+
+OpenClaw supports security profiles that restrict tool access:
+
+- **minimal**: Only `session_status` (monitoring only)
+- **coding**: File system + runtime + sessions + image
+- **messaging**: Chat operations + session visibility
+- **full**: No restrictions (default for autonomous agents)
+
+Tool groups can be referenced as shorthands: `group:fs`, `group:runtime`, `group:web`, `group:ui`, `group:sessions`.
+
+### Key Distinction: Tools vs Models
+
+The `tools` array controls what **actions** the agent can take. The AI model (Groq, Gemini, Claude) is selected separately in `agent-spawner.ts` via `WORKFLOW_MODELS`. Don't confuse model providers (like `groq`) with tools (like `exec`).
+
+---
+
 ## Workflow Definitions
 
 ### 1. Price Validation & Correction
@@ -68,7 +128,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "browser-validator",
     skill: "price-validator",
-    tools: ["playwright", "grep", "read", "edit"],
+    tools: ["browser", "read", "edit"],
     confidence_threshold: 0.95
   },
   actions: {
@@ -109,7 +169,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "data-enricher",
     skill: "product-enricher",
-    tools: ["playwright", "grep", "bash", "edit"],
+    tools: ["browser", "exec", "read", "write", "edit", "image"],
     confidence_threshold: 0.85
   },
   actions: {
@@ -148,7 +208,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "link-validator",
     skill: "link-validator",
-    tools: ["bash", "grep", "read", "edit"],
+    tools: ["web_fetch", "exec", "read", "edit"],
     confidence_threshold: 0.90
   },
   actions: {
@@ -187,7 +247,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "offer-manager",
     skill: "offer-manager",
-    tools: ["playwright", "grep", "edit"],
+    tools: ["browser", "read", "edit"],
     confidence_threshold: 1.0
   },
   actions: {
@@ -227,7 +287,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "image-validator",
     skill: "image-validator",
-    tools: ["bash", "playwright", "read"],
+    tools: ["browser", "exec", "read", "write", "image"],
     confidence_threshold: 0.80
   },
   actions: {
@@ -267,7 +327,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "brand-ambassador",
     skill: "page-generator",
-    tools: ["playwright", "groq", "read", "write"],
+    tools: ["browser", "read", "write", "image"],
     confidence_threshold: 0.90
   },
   actions: {
@@ -306,7 +366,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "compliance-checker",
     skill: "compliance-checker",
-    tools: ["grep", "read"],
+    tools: ["read"],
     confidence_threshold: 0.95
   },
   actions: {
@@ -346,7 +406,7 @@ The Autonomous Agent System monitors change events and dispatches specialized Cl
   agent: {
     type: "variant-sync",
     skill: "variant-sync",
-    tools: ["playwright", "grep", "edit"],
+    tools: ["browser", "read", "edit"],
     confidence_threshold: 0.85
   },
   actions: {

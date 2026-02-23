@@ -1,17 +1,10 @@
-# Product Enricher Skill
-
-> Autonomous agent skill for enriching missing product data
-
-## Skill Configuration
-
-```yaml
+---
 name: product-enricher
 description: Extracts and enriches missing product data from OEM source
-category: autonomous-agent
-tools: [playwright, grep, bash, edit, read, write]
-confidence_threshold: 0.85
-max_execution_time: 300000 # 5 minutes
-```
+user-invocable: false
+---
+
+# Product Enricher
 
 ## Task Definition
 

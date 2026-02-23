@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { Save, RotateCcw, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
+import { useAgents } from '@/composables/use-agents'
 
 interface RegenerationStrategy {
   max_age_days: number
@@ -11,6 +12,8 @@ interface RegenerationStrategy {
   check_content_hash: boolean
   priority_threshold: 'low' | 'medium' | 'high' | 'critical'
 }
+
+const WORKFLOW_ID = 'new-model-page'
 
 const DEFAULT_CONFIG: RegenerationStrategy = {
   max_age_days: 30,
@@ -43,6 +46,8 @@ const PRESETS: Record<string, RegenerationStrategy> = {
     priority_threshold: 'low',
   },
 }
+
+const { fetchWorkflowConfig, updateWorkflow } = useAgents()
 
 const config = ref<RegenerationStrategy>({ ...DEFAULT_CONFIG })
 const loading = ref(false)
@@ -96,15 +101,11 @@ async function saveConfiguration() {
   errorMessage.value = null
 
   try {
-    // In a real implementation, this would call the API
-    // await fetch('/api/config/regeneration', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(config.value)
-    // })
+    const success = await updateWorkflow(WORKFLOW_ID, {
+      config: { regeneration_strategy: { ...config.value } },
+    })
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    if (!success) throw new Error('Failed to save configuration')
 
     saveStatus.value = 'success'
     setTimeout(() => { saveStatus.value = 'idle' }, 3000)
@@ -116,9 +117,19 @@ async function saveConfiguration() {
   }
 }
 
-onMounted(() => {
-  // In a real implementation, load current config from API
-  config.value = { ...DEFAULT_CONFIG }
+onMounted(async () => {
+  loading.value = true
+  try {
+    const wfConfig = await fetchWorkflowConfig(WORKFLOW_ID)
+    const saved = wfConfig.regeneration_strategy as RegenerationStrategy | undefined
+    if (saved) {
+      config.value = { ...DEFAULT_CONFIG, ...saved }
+    }
+  } catch (e) {
+    console.error('[Regeneration] Failed to load config:', e)
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -308,9 +319,9 @@ onMounted(() => {
 
       <!-- Note -->
       <p class="text-xs text-muted-foreground mt-6">
-        <strong>Note:</strong> This is a preview interface. In production, changes would be saved to
-        <code class="text-xs bg-muted px-1 py-0.5 rounded">config/openclaw/cron-jobs.json</code>
-        and require a worker redeployment to take effect.
+        Changes are saved to the database and take effect on the next Brand Ambassador cron run.
+        Static defaults from <code class="text-xs bg-muted px-1 py-0.5 rounded">cron-jobs.json</code>
+        are used as fallback if no override is saved.
       </p>
     </div>
   </BasicPage>

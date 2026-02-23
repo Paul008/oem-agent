@@ -15,6 +15,8 @@ declare global {
   const THEMES: typeof import('../constants/themes').THEMES
   const THEMES_COLOR: typeof import('../constants/themes')['THEMES_COLOR']
   const THEME_PRIMARY_COLORS: typeof import('../constants/themes').THEME_PRIMARY_COLORS
+  const TOOL_DESCRIPTIONS: typeof import('../composables/use-agent-profile').TOOL_DESCRIPTIONS
+  const WORKFLOW_METADATA: typeof import('../composables/use-agent-profile').WORKFLOW_METADATA
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
   const customRef: typeof import('vue').customRef
@@ -65,6 +67,8 @@ declare global {
   const toValue: typeof import('vue').toValue
   const triggerRef: typeof import('vue').triggerRef
   const unref: typeof import('vue').unref
+  const useAgentProfile: typeof import('../composables/use-agent-profile').useAgentProfile
+  const useAgents: typeof import('../composables/use-agents').useAgents
   const useAttrs: typeof import('vue').useAttrs
   const useAuth: typeof import('../composables/use-auth').useAuth
   const useAuthStore: typeof import('../stores/auth').useAuthStore
@@ -79,6 +83,7 @@ declare global {
   const useModel: typeof import('vue').useModel
   const useOemData: typeof import('../composables/use-oem-data').useOemData
   const usePageBuilder: typeof import('../composables/use-page-builder').usePageBuilder
+  const useRealtimeSubscription: typeof import('../composables/use-realtime').useRealtimeSubscription
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
   const useSidebar: typeof import('../composables/use-sidebar').useSidebar
@@ -99,7 +104,13 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { CronJob, JobRun, JobStatus, CronJobsResponse } from '../composables/use-cron-jobs'
+  export type { WorkflowMeta, ProfileStats, DailyActivity, ErrorGroup } from '../composables/use-agent-profile'
+  import('../composables/use-agent-profile')
+  // @ts-ignore
+  export type { AgentAction, AgentStats, WorkflowSetting } from '../composables/use-agents'
+  import('../composables/use-agents')
+  // @ts-ignore
+  export type { CronJob, JobRun, JobStatus, CloudflareTriggerStatus, CronJobsResponse } from '../composables/use-cron-jobs'
   import('../composables/use-cron-jobs')
   // @ts-ignore
   export type { RegenerationDecision, PageStats } from '../composables/use-generated-pages'

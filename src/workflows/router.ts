@@ -67,7 +67,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'browser-validator',
       skill: 'price-validator',
-      tools: ['playwright', 'grep', 'read', 'edit'],
+      tools: ['browser', 'read', 'edit'],
       confidence_threshold: 0.95,
       max_execution_time: 120000, // 2 minutes
     },
@@ -95,7 +95,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'data-enricher',
       skill: 'product-enricher',
-      tools: ['playwright', 'grep', 'bash', 'edit'],
+      tools: ['browser', 'exec', 'read', 'write', 'edit', 'image'],
       confidence_threshold: 0.85,
       max_execution_time: 300000, // 5 minutes
     },
@@ -122,7 +122,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'link-validator',
       skill: 'link-validator',
-      tools: ['bash', 'grep', 'read', 'edit'],
+      tools: ['web_fetch', 'exec', 'read', 'edit'],
       confidence_threshold: 0.90,
       max_execution_time: 60000, // 1 minute
     },
@@ -149,7 +149,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'offer-manager',
       skill: 'offer-manager',
-      tools: ['playwright', 'grep', 'edit'],
+      tools: ['browser', 'read', 'edit'],
       confidence_threshold: 1.0, // Require 100% confidence for auto-archive
       max_execution_time: 90000, // 1.5 minutes
     },
@@ -176,7 +176,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'image-validator',
       skill: 'image-validator',
-      tools: ['bash', 'playwright', 'read'],
+      tools: ['browser', 'exec', 'read', 'write', 'image'],
       confidence_threshold: 0.80,
       max_execution_time: 180000, // 3 minutes
     },
@@ -204,7 +204,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'brand-ambassador',
       skill: 'page-generator',
-      tools: ['playwright', 'groq', 'read', 'write'],
+      tools: ['browser', 'read', 'write', 'image'],
       confidence_threshold: 0.90,
       max_execution_time: 600000, // 10 minutes
     },
@@ -231,7 +231,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'compliance-checker',
       skill: 'compliance-checker',
-      tools: ['grep', 'read'],
+      tools: ['read'],
       confidence_threshold: 0.95,
       max_execution_time: 30000, // 30 seconds
     },
@@ -258,7 +258,7 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     agent: {
       type: 'variant-sync',
       skill: 'variant-sync',
-      tools: ['playwright', 'grep', 'edit'],
+      tools: ['browser', 'read', 'edit'],
       confidence_threshold: 0.85,
       max_execution_time: 240000, // 4 minutes
     },

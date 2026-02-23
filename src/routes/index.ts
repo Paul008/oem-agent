@@ -6,3 +6,4 @@ export { cdp } from './cdp';
 export { cron } from './cron';
 export { media } from './media';
 export { default as oemAgent } from './oem-agent';
+export { default as agentRoutes } from './agents';

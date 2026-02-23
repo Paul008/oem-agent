@@ -1,17 +1,10 @@
-# Price Validator Skill
-
-> Autonomous agent skill for validating and correcting price changes
-
-## Skill Configuration
-
-```yaml
+---
 name: price-validator
 description: Validates price changes against OEM source and corrects mismatches
-category: autonomous-agent
-tools: [playwright, grep, read, edit, bash]
-confidence_threshold: 0.95
-max_execution_time: 120000 # 2 minutes
-```
+user-invocable: false
+---
+
+# Price Validator
 
 ## Task Definition
 

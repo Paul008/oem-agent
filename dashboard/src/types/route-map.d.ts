@@ -137,6 +137,27 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/agent-infra': RouteRecordInfo<
+      '/dashboard/agent-infra',
+      '/dashboard/agent-infra',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/agents/': RouteRecordInfo<
+      '/dashboard/agents/',
+      '/dashboard/agents',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/agents/[id]': RouteRecordInfo<
+      '/dashboard/agents/[id]',
+      '/dashboard/agents/:id',
+      { id: ParamValue<true> },
+      { id: ParamValue<false> },
+      | never
+    >,
     '/dashboard/apis': RouteRecordInfo<
       '/dashboard/apis',
       '/dashboard/apis',
@@ -522,6 +543,24 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/accessories.vue': {
       routes:
         | '/dashboard/accessories'
+      views:
+        | never
+    }
+    'src/pages/dashboard/agent-infra.vue': {
+      routes:
+        | '/dashboard/agent-infra'
+      views:
+        | never
+    }
+    'src/pages/dashboard/agents/index.vue': {
+      routes:
+        | '/dashboard/agents/'
+      views:
+        | never
+    }
+    'src/pages/dashboard/agents/[id].vue': {
+      routes:
+        | '/dashboard/agents/[id]'
       views:
         | never
     }
