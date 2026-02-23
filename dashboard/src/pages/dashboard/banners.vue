@@ -4,6 +4,7 @@ import { Loader2, Search, ChevronLeft, ChevronRight, Image, ImageOff, ExternalLi
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { useRealtimeSubscription } from '@/composables/use-realtime'
 import type { Banner } from '@/composables/use-oem-data'
 
 const { fetchBanners, fetchOems } = useOemData()
@@ -27,6 +28,14 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
+})
+
+useRealtimeSubscription<Banner>({
+  channelName: 'banners-live',
+  table: 'banners',
+  event: '*',
+  dataRef: banners,
+  maxItems: 2000,
 })
 
 const filtered = computed(() => {
