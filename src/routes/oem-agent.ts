@@ -1329,6 +1329,60 @@ app.get('/admin/offers/:oemId', async (c) => {
 // ============================================================================
 
 /**
+ * GET /api/v1/oem-agent/pages/stats
+ * Get overall statistics for generated pages
+ * NOTE: Must be registered BEFORE /pages/:slug to avoid :slug capturing "stats"
+ */
+app.get('/pages/stats', async (c) => {
+  const oemId = c.req.query('oemId') as OemId | undefined;
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  try {
+    // Get total models count
+    let modelsQuery = supabase
+      .from('vehicle_models')
+      .select('oem_id, slug', { count: 'exact', head: true });
+
+    if (oemId) {
+      modelsQuery = modelsQuery.eq('oem_id', oemId);
+    }
+
+    const { count: totalModels } = await modelsQuery;
+
+    // Count generated pages in R2
+    const prefix = oemId ? `pages/definitions/${oemId}/` : 'pages/definitions/';
+    const listing = await c.env.MOLTBOT_BUCKET.list({ prefix });
+
+    // Count pages by checking for latest.json files
+    const generatedPages = listing.objects.filter((obj) => obj.key.endsWith('/latest.json')).length;
+
+    // Get last brand ambassador run
+    const lastRunKey = 'openclaw/cron-runs/oem-brand-ambassador.json';
+    const lastRunObj = await c.env.MOLTBOT_BUCKET.get(lastRunKey);
+    let lastRun = null;
+
+    if (lastRunObj) {
+      const runs = (await lastRunObj.json()) as any[];
+      lastRun = runs && runs.length > 0 ? runs[runs.length - 1] : null;
+    }
+
+    return c.json({
+      total_models: totalModels || 0,
+      generated_pages: generatedPages,
+      pending_generation: (totalModels || 0) - generatedPages,
+      last_run: lastRun,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+/**
  * GET /api/v1/oem-agent/pages/:slug
  * Get an AI-generated VehicleModelPage by slug
  */
@@ -1482,59 +1536,6 @@ app.get('/pages/:oemId/:modelSlug/should-regenerate', async (c) => {
   try {
     const decision = await generator.shouldRegeneratePage(oemId, modelSlug);
     return c.json(decision);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return c.json({ error: errorMessage }, 500);
-  }
-});
-
-/**
- * GET /api/v1/oem-agent/pages/stats
- * Get overall statistics for generated pages
- */
-app.get('/pages/stats', async (c) => {
-  const oemId = c.req.query('oemId') as OemId | undefined;
-
-  const supabase = createSupabaseClient({
-    url: c.env.SUPABASE_URL,
-    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
-  });
-
-  try {
-    // Get total models count
-    let modelsQuery = supabase
-      .from('vehicle_models')
-      .select('oem_id, slug', { count: 'exact', head: true });
-
-    if (oemId) {
-      modelsQuery = modelsQuery.eq('oem_id', oemId);
-    }
-
-    const { count: totalModels } = await modelsQuery;
-
-    // Count generated pages in R2
-    const prefix = oemId ? `pages/definitions/${oemId}/` : 'pages/definitions/';
-    const listing = await c.env.MOLTBOT_BUCKET.list({ prefix });
-
-    // Count pages by checking for latest.json files
-    const generatedPages = listing.objects.filter((obj) => obj.key.endsWith('/latest.json')).length;
-
-    // Get last brand ambassador run
-    const lastRunKey = 'openclaw/cron-runs/oem-brand-ambassador.json';
-    const lastRunObj = await c.env.MOLTBOT_BUCKET.get(lastRunKey);
-    let lastRun = null;
-
-    if (lastRunObj) {
-      const runs = (await lastRunObj.json()) as any[];
-      lastRun = runs && runs.length > 0 ? runs[runs.length - 1] : null;
-    }
-
-    return c.json({
-      total_models: totalModels || 0,
-      generated_pages: generatedPages,
-      pending_generation: (totalModels || 0) - generatedPages,
-      last_run: lastRun,
-    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ error: errorMessage }, 500);
