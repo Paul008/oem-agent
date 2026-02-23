@@ -451,6 +451,36 @@ export const subaruAu: OemDefinition = {
 };
 
 // ============================================================================
+// 1.15 GMSV Australia
+// ============================================================================
+export const gmsvAu: OemDefinition = {
+  id: 'gmsv-au',
+  name: 'GMSV Australia',
+  baseUrl: 'https://www.gmspecialtyvehicles.com',
+  config: {
+    homepage: '/au-en',
+    vehicles_index: '/au-en/chevrolet/trucks',
+    offers: '/au-en', // No dedicated offers page — homepage features promos
+    schedule: {
+      homepage_minutes: 120,
+      offers_minutes: 240,
+      vehicles_minutes: 720,
+      news_minutes: 1440,
+    },
+    sub_brands: ['chevrolet', 'corvette', 'gmc'],
+  },
+  selectors: {
+    vehicleLinks: 'a[href*="/trucks/silverado"], a[href*="/corvette/"], a[href*="/gmc/"]',
+    heroSlides: '[role="tabpanel"] a, .hero-carousel',
+    offerTiles: '[class*="offer"], [class*="promo"]',
+  },
+  flags: {
+    requiresBrowserRendering: true,
+    hasSubBrands: true,
+  },
+};
+
+// ============================================================================
 // Registry Collection
 // ============================================================================
 
@@ -469,6 +499,7 @@ export const oemRegistry: Record<OemId, OemDefinition> = {
   'hyundai-au': hyundaiAu,
   'toyota-au': toyotaAu,
   'subaru-au': subaruAu,
+  'gmsv-au': gmsvAu,
 };
 
 export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];
@@ -500,7 +531,7 @@ export function generateOemSeedData(): string {
   });
 
   return `
--- Seed data for 13 Australian OEMs
+-- Seed data for 15 Australian OEMs
 INSERT INTO oems (id, name, base_url, config_json, is_active)
 VALUES
 ${values.join(',\n')}

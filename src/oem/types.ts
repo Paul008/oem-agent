@@ -23,7 +23,8 @@ export type OemId =
   | 'suzuki-au'
   | 'hyundai-au'
   | 'toyota-au'
-  | 'subaru-au';
+  | 'subaru-au'
+  | 'gmsv-au';
 
 export type BodyType = 'suv' | 'sedan' | 'hatch' | 'ute' | 'van' | 'bus' | 'people_mover' | 'sports' | 'cab_chassis' | 'campervan' | null;
 export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'phev' | 'electric' | null;

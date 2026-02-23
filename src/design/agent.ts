@@ -855,4 +855,8 @@ export const OEM_BRAND_NOTES: Record<OemId, { colors: string[]; notes: string }>
     colors: ['#003DA5'], // Subaru blue
     notes: 'System fonts, symmetrical AWD focus, Subaru Retailer API (x-api-key), star cluster motif',
   },
+  'gmsv-au': {
+    colors: ['#000000', '#CF9F2B'], // GMSV black + gold
+    notes: 'Multi-sub-brand (Chevrolet, Corvette, GMC), JS-rendered SPA, /au-en locale prefix, Z06 uses /performance/ path',
+  },
 };
