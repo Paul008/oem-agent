@@ -54,10 +54,10 @@ r2://oem-agent-assets/
 
 | Table | Rows | Purpose |
 |-------|------|---------|
-| `oems` | 14 | OEM registry with config_json.api_docs, design_profile_json |
+| `oems` | 16 | OEM registry with config_json.api_docs, design_profile_json |
 | `vehicle_models` | 132 | Models per OEM (unique: oem_id, slug), has `brochure_url` (96/132) |
 | `products` | 709 | Variants/grades, `specs_json` JSONB (692/709, 97.6%, 8 categories at 100%), model_id FK |
-| `variant_colors` | ~4425 | Colour options per product (12/14 OEMs) |
+| `variant_colors` | ~4496 | Colour options per product (14/16 OEMs) |
 | `variant_pricing` | 547 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
 | `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
@@ -67,13 +67,13 @@ r2://oem-agent-assets/
 | `offers` | ~194 | Promotional offers (5 OEMs: hyundai 46, kia 52, gwm 35, nissan 18, kgm 8) |
 | `import_runs` | 1823 | Crawl job tracking |
 | `banners` | 50 | Homepage/offers hero banners (12 OEMs, 2 with video) |
-| `oem_portals` | 31 | Marketing portal credentials per OEM (14 OEMs, from Monday.com) |
+| `oem_portals` | 31 | Marketing portal credentials per OEM (from Monday.com) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 
 #### Entity Hierarchy
 ```
-oems (14) → vehicle_models (132) → products (709) → variant_colors (~4425)
+oems (16) → vehicle_models (132) → products (709) → variant_colors (~4496)
                                                    → variant_pricing (547)
                                  → accessories (2702) via accessory_models (2826)
            → oem_portals (31) — portal credentials, brand guidelines
@@ -82,7 +82,7 @@ oems (14) → vehicle_models (132) → products (709) → variant_colors (~4425)
 ```
 
 #### OEM IDs
-ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ### Cloudflare Browser Rendering
 - **CDP WebSocket**: /cdp?secret=$CDP_SECRET
@@ -103,7 +103,7 @@ ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubi
 
 ### Page Builder
 - **Editor** (`page-builder/[slug].vue`): Visual section editor with live preview, responsive toolbar, undo/redo, copy/paste
-- **Template Gallery** (`page-builder/index.vue`): Browse sections from all 14 OEM generated pages + 10 curated templates
+- **Template Gallery** (`page-builder/index.vue`): Browse sections from all 16 OEM generated pages + 10 curated templates
 - **In-editor drawer**: Sheet drawer from Add Section picker, defaults to current page's OEM
 - **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
 - **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list)
@@ -149,6 +149,8 @@ ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubi
 | Isuzu | 2 | 18 | 18/18 | 94 | — | 204 | — | 7 | 2/2 | Sitecore API |
 | VW | — | 20 | 20/20 | — | 353 | — | 3 | — | — | E-catalogue GraphQL |
 | LDV | — | 1 | 1/1 | — | — | — | — | — | — | Minimal data |
+| GMSV | 7 | 7 | 7/7 | 55 | — | — | — | — | — | Dual-source: HTML scraping + Chevy API |
+| Foton | 2 | 2 | 2/2 | 16 | — | — | — | — | — | HTML color dots, premium +$690 |
 
 ## Key URLs
 
@@ -171,4 +173,4 @@ ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubi
 - BRAVE_API_KEY, PERPLEXITY_API_KEY, GOOGLE_API_KEY
 
 **Status**: ✅ All systems operational
-**Last Updated**: 2026-02-22
+**Last Updated**: 2026-02-24

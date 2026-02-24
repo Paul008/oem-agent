@@ -4,7 +4,7 @@
  * Handles:
  * - Immediate Slack alerts for CRITICAL/HIGH severity changes
  * - Hourly batch for MEDIUM severity changes
- * - Daily digest summarising all changes across 13 OEMs
+ * - Daily digest summarising all changes across 16 OEMs
  *
  * Triggered by:
  * - Cron (daily at 7am AEDT for digest)

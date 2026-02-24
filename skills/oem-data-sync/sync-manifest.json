@@ -201,6 +201,24 @@
       "schedule": "weekly"
     },
     {
+      "id": "gmsv-au:colors",
+      "oem_id": "gmsv-au",
+      "operation": "colors",
+      "script": "seed-gmsv-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
+      "id": "foton-au:colors",
+      "oem_id": "foton-au",
+      "operation": "colors",
+      "script": "seed-foton-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
       "id": "mitsubishi-au:enrich",
       "oem_id": "mitsubishi-au",
       "operation": "enrich",

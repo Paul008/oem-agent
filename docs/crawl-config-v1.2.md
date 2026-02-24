@@ -721,6 +721,136 @@ Large hero carousel with model showcase and promotional offers. Below hero: vehi
 
 ---
 
+### 1.14 GMSV Australia
+
+| Field | Value |
+|-------|-------|
+| **OEM ID** | `gmsv-au` |
+| **Base URL** | `https://www.gmsvaustralia.com.au/` |
+| **Homepage** | `/` |
+| **CMS Platform** | Adobe Experience Manager (GM global) |
+| **JS-Heavy** | Yes — AEM clientlibs, lazy-loaded colorizer images |
+| **Browser Rendering Required** | No (color data in initial HTML; colorizer images server-rendered) |
+
+#### Seed URLs
+```json
+{
+  "homepage": "/",
+  "vehicles": "/vehicles",
+  "silverado_ltz_premium": "/vehicles/silverado/ltz-premium",
+  "silverado_zr2": "/vehicles/silverado/zr2",
+  "silverado_2500_hd": "/vehicles/silverado-2500-hd",
+  "corvette_stingray": "/vehicles/corvette/stingray",
+  "corvette_e_ray": "/vehicles/corvette/e-ray",
+  "corvette_z06": "/vehicles/corvette/z06",
+  "yukon_denali": "/vehicles/yukon/denali"
+}
+```
+
+#### Vehicle URL Pattern
+`/vehicles/{model}/{variant}` — two-level hierarchy with model family + variant
+
+#### Known Models (as of 2026-02-24)
+**Trucks:** Silverado LTZ Premium, Silverado ZR2, Silverado 2500 HD
+**Sports Cars:** Corvette Stingray, Corvette E-Ray, Corvette Z06
+**SUVs:** Yukon Denali
+
+#### Color Extraction Architecture — Dual Source
+
+GMSV uses two distinct data sources for color information:
+
+**Source 1: GMSV AU HTML Scraping** (Trucks + SUV)
+- Pages contain `<img>` tags with `colorizer/` in the path
+- Two image types in `colorizer/` directory:
+  - **Chip textures**: Close-up metallic paint surfaces (e.g., `25ch-gxd-189x199.jpg`) — **MUST FILTER OUT**
+  - **Jelly renders**: Actual vehicle photos (e.g., `silverado-2500-hd-sterling-grey-metallic-jelly.png`)
+- Filter chip textures by filename pattern: `\d+ch-[a-z0-9]+[-_]?\d+x\d+`
+- Color names extracted from image `alt` text, stripping `(CODE)` suffix
+- Swatch hex colors from chip image `data-color` or `style` attributes
+
+**Source 2: Chevrolet US Colorizer JSON API** (Corvettes)
+- Endpoint: `https://www.chevrolet.com/content/gm/api/services/colorizerContent`
+- Query params: `brand=chevrolet`, `locale=en_US`, `country=US`, `postalCode=90210`, `modelYear`, `model`, `carlineCode`, `styleId`
+- Returns: trims with exterior colors including GM RPO codes, chip image paths, and 30-frame flipbook render paths
+- Hero image: `ext.flipbook.desktopImagePathFormat.replace('{framenumber}', '001')` — frame `001` is front 3/4 view
+- Swatch: `ext.primaryChipImagePath` on `images.chevrolet.com` CDN
+
+**Known issues:**
+- ZR2 has no per-color jelly renders on the AU site; script uses a generic vehicle image from the page nav as fallback hero
+- Chip texture images (`25ch-xxx-WxH.jpg`) appear in the same `colorizer/` directory as actual jellies — the regex `colorizer\/(?!chip)` alone is insufficient; must also filter by filename pattern
+- Chevrolet US API may return different trims than sold in Australia — script maps Corvette colors generically since AU site lacks per-color configurator data
+
+#### Image CDN Pattern
+- GMSV AU: `https://www.gmsvaustralia.com.au/content/dam/gmsv/...` (AEM DAM)
+- Chevrolet US: `https://images.chevrolet.com/is/image/gm/...` (Scene7/Dynamic Media)
+
+#### Special Notes
+- Multi-sub-brand: Chevrolet (trucks), Corvette (sports), GMC (Yukon) — all under GMSV umbrella in Australia.
+- 55 colors across 7 vehicles. Corvettes have the most (10 each), trucks have 5-7 each.
+- GM global platform uses AEM with a common colorizer component — if the chip texture format changes, update the filter pattern in `seed-gmsv-colors.mjs`.
+
+---
+
+### 1.15 Foton Australia
+
+| Field | Value |
+|-------|-------|
+| **OEM ID** | `foton-au` |
+| **Base URL** | `https://www.fotonaustralia.com.au/` |
+| **Homepage** | `/` |
+| **CMS Platform** | Custom (Next.js-like SSR) |
+| **JS-Heavy** | No — server-rendered HTML with inline color data |
+| **Browser Rendering Required** | No |
+
+#### Seed URLs
+```json
+{
+  "homepage": "/",
+  "vehicles": "/vehicles/",
+  "trucks_series": "/truck/",
+  "tunland_ute": "/ute/tunland/",
+  "aumark_s_truck": "/truck/aumark-s/",
+  "accessories": "/accessories/",
+  "news": "/news/",
+  "dealer_locator": "/dealer-locator/"
+}
+```
+
+#### Vehicle URL Pattern
+`/{category}/{model}/` — e.g., `/ute/tunland/`, `/truck/aumark-s/`
+
+#### Known Models (as of 2026-02-24)
+**Utes:** Tunland (V7 4x2, V7 4x4, V9 L 4x4, V9 S 4x4)
+**Trucks:** Aumark S
+
+#### Color Extraction
+
+Color data is on the Tunland page (`/ute/tunland/`) as HTML data attributes:
+
+```html
+<div class="colours_wrapper__colourDots__dot"
+     label="FLARE WHITE" image="/media/.../image.png"
+     style="background-color:#ffffff">
+```
+
+- `label`: Color name (trailing `*` indicates premium, +$690)
+- `image`: Vehicle render URL (relative path, needs base URL prefix)
+- `style`: Swatch hex from `background-color` CSS property
+- Variant identified from image URL filename (e.g., `v7-c-4x2`, `v9-l-4x4`)
+- 4 drivetrain variants map to 2 products (V7, V9) — deduplicated by `product_id + color_name` with extra angles stored in `gallery_urls`
+- Aumark S trucks have no color data on their pages
+
+#### Discovered API
+- `POST /api/v1/custompricing/vehicles` with `Api-Key` header — postcode-gated RDP pricing
+
+#### Special Notes
+- Single brand (no sub-brands), smallest vehicle lineup of all OEMs.
+- Brand color: `#D4002A` (Foton red).
+- 16 colors total: 8 per product (Tunland V7, Tunland V9), with 5 standard + 3 premium (+$690 each).
+- Server-rendered pages — no browser rendering needed for any extraction.
+
+---
+
 ## 2. Canonical JSON Schemas
 
 ### 2.1 Product Schema (`product.v1`)
@@ -1729,7 +1859,7 @@ This section defines which AI model/provider handles each task in the pipeline. 
 }
 ```
 
-### 10.5 Estimated Monthly AI Costs (13 OEMs)
+### 10.5 Estimated Monthly AI Costs (16 OEMs)
 
 | Task Category | Model | Est. Monthly Calls | Avg Tokens/Call | Monthly Cost |
 |--------------|-------|-------------------|----------------|-------------|
@@ -2258,7 +2388,7 @@ Design captures are **infrequent and event-driven** — not on the same high-fre
 - 3 passes × ~5 pages × ~2 screenshots each = ~30 API calls
 - Average ~5K input tokens + ~3K output tokens per call
 - Cost: ~$0.09 per full OEM capture (input) + ~$0.075 (output) ≈ **$0.17 per OEM**
-- Quarterly full audit of 13 OEMs: ~**$2.20**
+- Quarterly full audit of 16 OEMs: ~**$2.20**
 - Event-triggered re-captures (est. ~5/month): ~**$0.85/month**
 
 ### 12.6 Per-OEM Brand Identity Notes

@@ -11,7 +11,7 @@
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 14 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 
@@ -37,7 +37,7 @@ All skills store data in Supabase. Key tables:
 
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
-| `oems` | 14 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
+| `oems` | 16 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
 | `vehicle_models` | Models per OEM | Unique: oem_id, slug |
 | `products` | Variants/grades, `specs_json` JSONB (692/709, 8 categories at 100%) | external_key pattern: `{oem}-{code}-{variant}` |
 | `variant_colors` | Colour options per product | Unique: product_id, color_code |
@@ -49,12 +49,12 @@ All skills store data in Supabase. Key tables:
 | `change_events` | Audit log of detected changes | |
 | `offers` (~194) | Promotional offers (5 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
 | `banners` (50) | Homepage/offers hero banners (12 OEMs) | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
-| `oem_portals` (31) | Marketing portal credentials (14 OEMs) | portal_url, username, password, guidelines_pdf_url |
+| `oem_portals` (31) | Marketing portal credentials (16 OEMs) | portal_url, username, password, guidelines_pdf_url |
 | `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl job tracking | |
 
-**OEM IDs**: ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+**OEM IDs**: ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ## Workflow Guidelines
 
@@ -89,7 +89,7 @@ Accessories are seeded via `dashboard/scripts/seed-{oem}-accessories.mjs`. Each 
 
 The dashboard includes a visual page builder for editing AI-generated model pages:
 
-- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 14 OEM generated pages + 10 curated OEM-branded templates
+- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 16 OEM generated pages + 10 curated OEM-branded templates
 - **Page Editor** (`/dashboard/page-builder/[slug]`): Split-pane visual editor with live preview, responsive toolbar, undo/redo, copy/paste, media upload
 - **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
 - **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list with disclaimers)
@@ -99,6 +99,9 @@ The dashboard includes a visual page builder for editing AI-generated model page
 ## Documentation Resources
 
 Reference documentation available in `/root/clawd/docs/`:
+
+### Onboarding & Operations
+- **OEM_ONBOARDING.md** - Step-by-step guide for adding new OEMs (prerequisites, 9 steps, migration templates, verification, common gotchas)
 
 ### Architecture & Setup
 - **OEM_AGENT_ARCHITECTURE.md** - Complete system architecture and component details (includes page builder component tree)

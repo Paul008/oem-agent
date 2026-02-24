@@ -106,10 +106,10 @@ All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
 
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
-| `oems` (14) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
+| `oems` (16) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
 | `vehicle_models` (132) | Models per OEM | Unique: oem_id, slug. `brochure_url` (96/132) |
 | `products` (709) | Variants/grades | `specs_json` JSONB (692/709, 97.6%, 8 categories at 100%). model_id FK |
-| `variant_colors` (~4425) | Colour options | Unique: product_id, color_code. 12/14 OEMs seeded |
+| `variant_colors` (~4496) | Colour options | Unique: product_id, color_code. 14/16 OEMs seeded |
 | `pdf_embeddings` | Vectorized PDF chunks | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `variant_pricing` (547) | Per-state driveaway | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
 | `accessories` (2702) | Accessory catalog per OEM | Unique: oem_id, external_key. Has parent_id self-ref, inc_fitting |

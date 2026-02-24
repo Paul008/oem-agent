@@ -57,7 +57,7 @@ Vehicle listings with specifications, pricing, and features.
 - `safety` - ancap_stars, airbags
 - `wheels` - size, type
 
-All 8 categories at 100% coverage. 12/14 OEMs fully complete (only Ford 11 + Nissan 6 legacy entries missing).
+All 8 categories at 100% coverage. 12/16 OEMs fully complete (only Ford 11 + Nissan 6 legacy entries missing).
 
 **Vehicle Specifications (legacy scalar columns):**
 - `engine_size`, `cylinders`, `transmission`, `gears`, `drive`, `doors`, `seats`

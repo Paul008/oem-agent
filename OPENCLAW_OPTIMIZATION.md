@@ -193,7 +193,7 @@ User: What's the latest from Ford's website?
 
 ### **Complex Analysis (Anthropic)**
 ```
-User: Analyze pricing trends across all 13 OEMs
+User: Analyze pricing trends across all 16 OEMs
 → Fallback to: anthropic/claude-sonnet-4-5 (deep reasoning)
 ```
 

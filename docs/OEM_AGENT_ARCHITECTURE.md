@@ -819,7 +819,7 @@ interface CostControlConfig {
 
 ### Cost Estimation
 
-For 13 OEMs with ~20 pages each:
+For 16 OEMs with ~20 pages each:
 
 | Metric | Monthly Estimate |
 |--------|------------------|

@@ -24,7 +24,8 @@ export type OemId =
   | 'hyundai-au'
   | 'toyota-au'
   | 'subaru-au'
-  | 'gmsv-au';
+  | 'gmsv-au'
+  | 'foton-au';
 
 export type BodyType = 'suv' | 'sedan' | 'hatch' | 'ute' | 'van' | 'bus' | 'people_mover' | 'sports' | 'cab_chassis' | 'campervan' | null;
 export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'phev' | 'electric' | null;

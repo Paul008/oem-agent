@@ -11,7 +11,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 - R2-backed conversation persistence
 - Headless Chrome automation via Cloudflare Browser Rendering
 - Supabase for structured data storage
-- Scheduled crawls for 14 Australian automotive manufacturers
+- Scheduled crawls for 16 Australian automotive manufacturers
 - Dashboard UI for monitoring (Cloudflare Pages, shadcn-vue-admin)
 
 ## Architecture
@@ -82,10 +82,10 @@ r2://oem-agent-assets/
 
 | Table | Rows | Purpose |
 |-------|------|---------|
-| `oems` | 14 | OEM registry with config_json.api_docs, design_profile_json |
+| `oems` | 16 | OEM registry with config_json.api_docs, design_profile_json |
 | `vehicle_models` | 132 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (96/132 populated) |
 | `products` | 709 | Variants/grades with `specs_json` JSONB (692/709, 97.6%, all 8 categories at 100%) |
-| `variant_colors` | ~4425 | Colour options per product (12/14 OEMs) |
+| `variant_colors` | ~4496 | Colour options per product (14/16 OEMs) |
 | `variant_pricing` | 547 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
@@ -97,7 +97,7 @@ r2://oem-agent-assets/
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 | `import_runs` | 1823 | Crawl job tracking |
 | `banners` | 50 | Homepage/offers hero banners (12 OEMs, 2 with video) |
-| `oem_portals` | 31 | Marketing portal credentials per OEM (14 OEMs, sourced from Monday.com) |
+| `oem_portals` | 31 | Marketing portal credentials per OEM (sourced from Monday.com) |
 
 **Entity Hierarchy:**
 ```
@@ -125,7 +125,7 @@ oems → vehicle_models → products → variant_colors
 | Page | View | Description |
 |------|------|-------------|
 | `index.vue` | Overview | Summary stats and counts |
-| `oems.vue` | OEMs | OEM registry (14 manufacturers) |
+| `oems.vue` | OEMs | OEM registry (16 manufacturers) |
 | `products.vue` | Models & Variants | Expandable model → variant table |
 | `colors.vue` | Variant Colors | Grid with hero images, swatch picker, 360 viewer, pagination |
 | `offers.vue` | Offers | Grid with hero images, savings/price badges, ABN pricing, pagination |
@@ -160,7 +160,7 @@ oems → vehicle_models → products → variant_colors
 - **History**: Undo/redo system with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z), history panel
 - **Copy/paste**: Section clipboard (copy JSON, paste from clipboard), cross-page section reuse
 - **Template gallery**: In-editor Sheet drawer + landing page at `/dashboard/page-builder/`
-  - Fetches sections from all 14 OEM generated pages via Worker API
+  - Fetches sections from all 16 OEM generated pages via Worker API
   - 10 curated OEM-branded templates (Kia dark hero, Toyota split CTA, Hyundai tech tabs, etc.)
   - Filter by OEM, section type, search query
 - **Subpages**: Convention-based `{modelSlug}--{subpageSlug}` stored flat in R2
@@ -183,7 +183,7 @@ oems → vehicle_models → products → variant_colors
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 14 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 
@@ -333,7 +333,7 @@ wrangler secret list  # List configured secrets
 
 ---
 
-## Monitored OEMs (14)
+## Monitored OEMs (16)
 
 | ID | Name |
 |----|------|
@@ -351,6 +351,8 @@ wrangler secret list  # List configured secrets
 | suzuki-au | Suzuki Australia |
 | toyota-au | Toyota Australia |
 | volkswagen-au | Volkswagen Australia |
+| gmsv-au | GMSV Australia |
+| foton-au | Foton Australia |
 
 ## Seed Scripts (dashboard/scripts/)
 
@@ -392,6 +394,42 @@ Pre-built scripts for populating OEM data:
 | `vectorize-pdfs.mjs` | Multi | PDF vectorization pipeline: download → pdf-parse → chunk → embed → upsert |
 
 **Toyota** (21 models, 149 products, 802 colors, 132 pricing rows) was seeded via direct browser-to-Supabase REST API using Chrome MCP tools (Cloudflare-protected APIs, no seed script file).
+
+---
+
+## New OEM Onboarding Checklist
+
+When adding a new OEM to the platform, complete **all** steps below. See `docs/OEM_ONBOARDING.md` for full details.
+
+### 1. Core Code (4 files)
+- [ ] Add `'<oem>-au'` to `OemId` union in `src/oem/types.ts`
+- [ ] Add OEM definition + registry entry in `src/oem/registry.ts`
+- [ ] Add brand notes (colors, rendering notes) in `src/design/agent.ts` → `OEM_BRAND_NOTES`
+- [ ] Create Supabase migration `supabase/migrations/<date>_<oem>_oem.sql` (OEM record + source pages)
+
+### 2. Discovered APIs
+- [ ] Add any discovered APIs to `dashboard/scripts/seed-discovered-apis.mjs`
+- [ ] Insert discovered APIs into database (run seed script or direct insert)
+
+### 3. Documentation & Count References (~25 files)
+- [ ] Run `grep -rn "N OEM\|N Australian" --include="*.md" --include="*.ts" --include="*.mjs" --include="*.json" --include="*.vue"` and update **all** stale counts
+- [ ] Key files: `BRIEFING.md`, `AGENTS.md`, `package.json`, `workspace/*.md`, `workspace-*/*.md`, `skills/*/SKILL.md`, `skills/*/index.ts`, `docs/*.md`, `dashboard/scripts/*.mjs`, `dashboard/src/pages/**/*.vue`
+- [ ] Add OEM to the "Monitored OEMs" table in `BRIEFING.md`
+- [ ] Add OEM to the "OEMs Seeded" table in `docs/DATABASE_SETUP.md`
+- [ ] Update OEM ID lists in `workspace/MEMORY.md`, `workspace/AGENTS.md`, `workspace-crawler/SOUL.md`
+
+### 4. Deploy
+- [ ] `npx supabase db push` (use `--include-all` if needed, rename duplicate-timestamp files temporarily)
+- [ ] `npm run deploy` (Cloudflare Worker)
+
+### 5. Verify
+- [ ] `npx tsc --noEmit` — no new errors
+- [ ] `SELECT * FROM oems WHERE id = '<oem>-au'` returns 1 row
+- [ ] `SELECT count(*) FROM source_pages WHERE oem_id = '<oem>-au'` returns expected count
+- [ ] Dashboard OEM count is correct
+
+### 6. Memory
+- [ ] Update auto memory (`~/.claude/projects/.../memory/MEMORY.md`) with onboarding details
 
 ---
 

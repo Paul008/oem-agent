@@ -284,6 +284,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/settings/ai-models': RouteRecordInfo<
+      '/dashboard/settings/ai-models',
+      '/dashboard/settings/ai-models',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/settings/regeneration': RouteRecordInfo<
       '/dashboard/settings/regeneration',
       '/dashboard/settings/regeneration',
@@ -669,6 +676,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/runs.vue': {
       routes:
         | '/dashboard/runs'
+      views:
+        | never
+    }
+    'src/pages/dashboard/settings/ai-models.vue': {
+      routes:
+        | '/dashboard/settings/ai-models'
       views:
         | never
     }

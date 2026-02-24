@@ -76,7 +76,7 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 - Kia accessories: Parses JSON-LD `<script type="application/ld+json">` blocks. Rio and Niro return no data.
 - VW has no model joins (accessories are categorized by type, not vehicle model).
 
-### Colors (8 scripts)
+### Colors (10 scripts)
 
 | OEM | Script | API Source | Tables | Stability | Schedule |
 |-----|--------|-----------|--------|-----------|----------|
@@ -88,11 +88,15 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 | suzuki-au | `seed-suzuki-colors.mjs` | Finance calculator JSON | variant_colors | high | weekly |
 | gwm-au | `seed-gwm-colors.mjs` | Storyblok CDN API | variant_colors | high | weekly |
 | nissan-au | `seed-nissan-colors.mjs` | AEM version-explorer JSON | variant_colors | medium | weekly |
+| gmsv-au | `seed-gmsv-colors.mjs` | Dual: GMSV AU HTML + Chevy US colorizer API | variant_colors | medium | weekly |
+| foton-au | `seed-foton-colors.mjs` | HTML data attributes (color dots) | variant_colors | medium | weekly |
 
 **Notes:**
 - Nissan colors: AEM endpoint at `/content/nissan_prod/en_AU/index/vehicles/browse-range/{slug}/version-explorer/jcr:content/core.versionexplorerdata.json`. Navara MY26 on separate Storyblok microsite (no images). Juke needs model code remapping (30113 → 30304).
 - Suzuki colors: Uses `paintColours` field (plural with 's'). Color types: Solid, Premium Metallic, Two-Tone Metallic.
 - GWM colors: Match DB records by hex code (DB stores `hex-{6chars}`, Storyblok has real names + UUIDs).
+- GMSV colors: **Dual-source architecture**. Trucks/SUV (Silverado, Yukon) scraped from GMSV AU HTML pages — color chips in `<img>` with `colorizer/` path, jelly renders matched by alt text or slug. Corvettes (Stingray, E-Ray, Z06) from Chevrolet US colorizer JSON API (`/content/gm/api/services/colorizerContent`) — returns GM RPO codes, chip images, and 30-frame flipbook renders (frame `001` = front 3/4 hero). **Critical**: GM AEM pages contain chip texture images (pattern `\d+ch-\w+-?\d+x\d+`) in same `colorizer/` directory as jelly renders — must filter these out or hero images show metallic paint close-ups instead of vehicles. ZR2 has no per-color jellies; uses generic fallback hero from nav.
+- Foton colors: Color dots on Tunland page at `/ute/tunland/` have `label`, `image`, and `style` (background-color) attributes. 4 variants (V7 4x2/4x4, V9 L/S) map to 2 products via image URL pattern matching. Premium colors marked with `*` suffix (+$690). Gallery URLs store multiple drivetrain angles per color.
 
 ### Enrichment (3 scripts)
 
@@ -167,9 +171,9 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 
 **Notes:**
 - Fetches portal credentials from Monday.com board via GraphQL API (account 229224, user 574175).
-- Fuzzy-matches board item names to 14 OEM IDs.
+- Fuzzy-matches board item names to 16 OEM IDs.
 - Extracts: portal_url, username, password, marketing_contact, guidelines_pdf_url (from Monday files column).
-- 31 portals across all 14 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
+- 31 portals across all 16 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
 
 ### Brochures (1 script)
 
@@ -258,6 +262,11 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 | Page removals | kia-au | Rio and Niro accessories pages return no data (discontinued models). |
 | Model code remapping | nissan-au | Juke version-explorer returns 30113 but products table uses 30304. |
 | Payload CMS stability | kgm-au | Third-party CMS at `therefinerydesign.com` — could go offline or change schema. |
+| Chip texture vs jelly images | gmsv-au | GM AEM `colorizer/` directory contains both chip textures (`25ch-gxd-189x199.jpg`) and actual vehicle jelly renders. Filter by filename pattern `\d+ch-[a-z0-9]+[-_]?\d+x\d+` to exclude chips. |
+| Chevrolet US colorizer API | gmsv-au | Corvettes use US API at `/content/gm/api/services/colorizerContent`. Endpoint or schema could change with GM platform updates. |
+| Flipbook frame format | gmsv-au | Corvette hero images use 3-digit frame numbers (`001`). If GM changes render pipeline, frame numbering may shift. |
+| ZR2 fallback hero | gmsv-au | Silverado ZR2 has no per-color jelly renders. Uses generic vehicle image from nav menu as fallback. |
+| Color dot HTML structure | foton-au | Color data in `colours_wrapper__colourDots__dot` divs with `label`/`image` attributes. Any page redesign breaks extraction. |
 
 ## Database Tables Affected
 

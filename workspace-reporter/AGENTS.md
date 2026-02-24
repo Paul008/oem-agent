@@ -4,7 +4,7 @@
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
-| **oem-report** | Reporting | Slack alerts, daily digests across 14 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
 

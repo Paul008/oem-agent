@@ -113,6 +113,40 @@ Vectorizes brochure and brand guidelines PDFs for semantic search via `search_pd
 }
 ```
 
+### `validate_onboarding`
+
+Validates that a newly onboarded OEM was set up correctly by checking all required database records.
+
+**Configuration:**
+```json
+{
+  "action": "validate_onboarding",
+  "oem_id": "foton-au"
+}
+```
+
+**Checks performed:**
+1. OEM record exists in `oems` table with `is_active = true`
+2. Source pages seeded in `source_pages` (homepage + at least 1 vehicle page)
+3. Discovered APIs recorded in `discovered_apis` (if any were found)
+4. OEM config_json has required fields (homepage, vehicles_index, schedule)
+
+**Output:**
+```json
+{
+  "oem_id": "foton-au",
+  "checks": {
+    "oem_record": { "pass": true, "name": "Foton Australia", "base_url": "https://www.fotonaustralia.com.au" },
+    "source_pages": { "pass": true, "count": 8, "types": ["homepage", "vehicle", "category", "other", "news"] },
+    "discovered_apis": { "pass": true, "count": 1, "types": ["pricing"] },
+    "config_json": { "pass": true, "has_schedule": true, "has_vehicles_index": true }
+  },
+  "overall": "pass"
+}
+```
+
+**Reference**: See `/root/clawd/docs/OEM_ONBOARDING.md` for the full onboarding checklist.
+
 ### `repair_selectors`
 
 Manually triggers self-healing selector repair for degraded OEMs.

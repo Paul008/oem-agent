@@ -22,8 +22,16 @@
 
 ## Workflow
 
-1. Use `oem-crawl` for systematic page crawling across all 14 OEMs
+1. Use `oem-crawl` for systematic page crawling across all 16 OEMs
 2. Use `cloudflare-browser` for pages that need JavaScript rendering
 3. Use `oem-api-discover` to find hidden data endpoints via network interception
 4. Use `oem-build-price-discover` to find configurator URLs and pricing APIs
 5. Report discovered APIs and changes to the data pipeline
+
+## New OEM Initial Crawl
+
+When a new OEM is onboarded (see `/root/clawd/docs/OEM_ONBOARDING.md`), run initial crawls:
+1. Crawl all `source_pages` for the new OEM (`SELECT url, page_type FROM source_pages WHERE oem_id = '<new-oem>'`)
+2. Run `oem-api-discover` on each page to find hidden data APIs
+3. Run `oem-build-price-discover` if the OEM has a configurator
+4. Report results — newly discovered APIs should be added to `discovered_apis`

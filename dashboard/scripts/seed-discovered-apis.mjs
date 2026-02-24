@@ -419,6 +419,25 @@ const apis = [
     },
   },
 
+  // ═══════════════ FOTON ═══════════════
+  {
+    oem_id: 'foton-au',
+    url: 'https://www.fotonaustralia.com.au/api/v1/custompricing/vehicles',
+    method: 'POST',
+    content_type: 'application/json',
+    response_type: 'json',
+    data_type: 'pricing',
+    reliability_score: 0.85,
+    status: 'discovered',
+    schema_json: {
+      required_headers: { 'Api-Key': 'Cdl7SZbG-swkp-VvdV-mFw2-b4P6-dJh6L8TJ' },
+      body: { postCode: '2000', modelId: '{modelId}', variantIds: ['V7-4x2'], colorIndex: 0 },
+      returns: ['rdp_pricing', 'mlp_pricing', 'government_charges_breakdown'],
+      note: 'Postcode-gated RDP pricing. Returns full government charges breakdown (stamp duty, CTP, rego, luxury car tax). Api-Key header required.',
+      discovery_source: 'browser network interception',
+    },
+  },
+
   // ═══════════════ SUZUKI ═══════════════
   {
     oem_id: 'suzuki-au',

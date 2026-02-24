@@ -1,7 +1,7 @@
 /**
  * OEM Registry
  * 
- * Configuration for all 13 Australian automotive OEMs.
+ * Configuration for all 16 Australian automotive OEMs.
  * Based on crawl-config-v1.2 specification.
  */
 
@@ -481,6 +481,35 @@ export const gmsvAu: OemDefinition = {
 };
 
 // ============================================================================
+// 1.16 Foton Australia
+// ============================================================================
+export const fotonAu: OemDefinition = {
+  id: 'foton-au',
+  name: 'Foton Australia',
+  baseUrl: 'https://www.fotonaustralia.com.au',
+  config: {
+    homepage: '/',
+    vehicles_index: '/vehicles/foton/',
+    offers: '/', // No dedicated offers page
+    news: '/about-us/news/',
+    schedule: {
+      homepage_minutes: 120,
+      offers_minutes: 240,
+      vehicles_minutes: 720,
+      news_minutes: 1440,
+    },
+  },
+  selectors: {
+    vehicleLinks: 'a[href*="/ute/"], a[href*="/trucks/series/"]',
+    heroSlides: '.hero, [class*="hero"]',
+    offerTiles: '[class*="offer"], [class*="promo"]',
+  },
+  flags: {
+    requiresBrowserRendering: false,
+  },
+};
+
+// ============================================================================
 // Registry Collection
 // ============================================================================
 
@@ -500,6 +529,7 @@ export const oemRegistry: Record<OemId, OemDefinition> = {
   'toyota-au': toyotaAu,
   'subaru-au': subaruAu,
   'gmsv-au': gmsvAu,
+  'foton-au': fotonAu,
 };
 
 export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];
@@ -531,7 +561,7 @@ export function generateOemSeedData(): string {
   });
 
   return `
--- Seed data for 15 Australian OEMs
+-- Seed data for 16 Australian OEMs
 INSERT INTO oems (id, name, base_url, config_json, is_active)
 VALUES
 ${values.join(',\n')}
