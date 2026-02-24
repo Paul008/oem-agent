@@ -68,25 +68,37 @@ export async function fetchGeneratedPage(slug: string) {
   return workerFetch(`/api/v1/oem-agent/pages/${slug}`)
 }
 
-export async function generatePage(oemId: string, modelSlug: string) {
+export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
-  })
-}
-
-export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string) {
-  return workerFetch(`/api/v1/oem-agent/admin/clone-page/${oemId}/${modelSlug}`, {
-    method: 'POST',
-    ...(sourceUrl ? {
+    ...(modelOverride ? {
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source_url: sourceUrl }),
+      body: JSON.stringify({ modelOverride }),
     } : {}),
   })
 }
 
-export async function structurePage(oemId: string, modelSlug: string) {
+export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string; model: string }) {
+  const bodyData: Record<string, unknown> = {}
+  if (sourceUrl) bodyData.source_url = sourceUrl
+  if (modelOverride) bodyData.modelOverride = modelOverride
+  const hasBody = Object.keys(bodyData).length > 0
+  return workerFetch(`/api/v1/oem-agent/admin/clone-page/${oemId}/${modelSlug}`, {
+    method: 'POST',
+    ...(hasBody ? {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyData),
+    } : {}),
+  })
+}
+
+export async function structurePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/structure-page/${oemId}/${modelSlug}`, {
     method: 'POST',
+    ...(modelOverride ? {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modelOverride }),
+    } : {}),
   })
 }
 
@@ -136,12 +148,16 @@ export async function deleteSubpage(oemId: string, modelSlug: string, subpageSlu
   })
 }
 
-export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string) {
+export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string; model: string }) {
+  const bodyData: Record<string, unknown> = {}
+  if (sourceUrl) bodyData.source_url = sourceUrl
+  if (modelOverride) bodyData.modelOverride = modelOverride
+  const hasBody = Object.keys(bodyData).length > 0
   return workerFetch(`/api/v1/oem-agent/admin/adaptive-pipeline/${oemId}/${modelSlug}`, {
     method: 'POST',
-    ...(sourceUrl ? {
+    ...(hasBody ? {
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source_url: sourceUrl }),
+      body: JSON.stringify(bodyData),
     } : {}),
   })
 }
@@ -159,6 +175,18 @@ export async function uploadMedia(oemId: string, modelSlug: string, file: File) 
     throw new Error(`Upload failed ${res.status}: ${text}`)
   }
   return res.json() as Promise<{ success: boolean; url: string; filename: string; size: number; type: string }>
+}
+
+export async function fetchAiModelConfig() {
+  return workerFetch('/api/v1/oem-agent/admin/ai-model-config')
+}
+
+export async function saveAiModelConfig(overrides: Record<string, { provider?: string; model?: string; fallbackProvider?: string; fallbackModel?: string }>) {
+  return workerFetch('/api/v1/oem-agent/admin/ai-model-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ overrides }),
+  })
 }
 
 export async function fetchDesignMemory(oemId: string) {

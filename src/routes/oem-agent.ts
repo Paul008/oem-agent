@@ -13,7 +13,8 @@ import { Hono } from 'hono';
 import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
-import { AiRouter } from '../ai/router';
+import { AiRouter, TASK_ROUTING, AVAILABLE_MODELS, TASK_TYPE_GROUPS, TASK_TYPE_LABELS } from '../ai/router';
+import type { RouteDecision } from '../ai/router';
 import { SalesRepAgent } from '../ai/sales-rep';
 import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition } from '../oem/registry';
@@ -1550,6 +1551,13 @@ app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
 
+  // Accept optional modelOverride in body for A/B testing
+  let modelOverride: { provider?: string; model?: string } | undefined;
+  try {
+    const body = await c.req.json();
+    modelOverride = body?.modelOverride;
+  } catch { /* no body is fine */ }
+
   const def = getOemDefinition(oemId);
   if (!def) {
     return c.json({ error: 'OEM not found' }, 404);
@@ -1570,6 +1578,7 @@ app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
     anthropic: c.env.ANTHROPIC_API_KEY,
     google: c.env.GOOGLE_API_KEY,
   }, supabase);
+  if (modelOverride) await aiRouter.loadModelOverrides();
 
   const designAgent = new DesignAgent(
     c.env.TOGETHER_API_KEY,
@@ -1605,11 +1614,12 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
 
-  // Accept optional source_url override in body (used for subpages)
+  // Accept optional source_url override and modelOverride in body
   let bodySourceUrl: string | undefined;
   try {
     const body = await c.req.json();
     bodySourceUrl = body?.source_url;
+    // Note: clone-page doesn't use AI, but we accept modelOverride for API consistency
   } catch { /* no body is fine */ }
 
   const supabase = createSupabaseClient({
@@ -1650,6 +1660,13 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
 
+  // Accept optional modelOverride in body for A/B testing
+  let modelOverride: { provider?: string; model?: string } | undefined;
+  try {
+    const body = await c.req.json();
+    modelOverride = body?.modelOverride;
+  } catch { /* no body is fine */ }
+
   const { PageStructurer } = await import('../design/page-structurer');
   const { DesignMemoryManager } = await import('../design/memory');
   const { SmartPromptBuilder } = await import('../design/prompt-builder');
@@ -1666,6 +1683,7 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
     anthropic: c.env.ANTHROPIC_API_KEY,
     google: c.env.GOOGLE_API_KEY,
   }, supabase);
+  if (modelOverride) await aiRouter.loadModelOverrides();
 
   const memoryManager = new DesignMemoryManager(supabase);
   const promptBuilder = new SmartPromptBuilder(memoryManager);
@@ -1932,6 +1950,89 @@ app.get('/admin/debug-moonshot', async (c) => {
       error: e instanceof Error ? e.message : String(e),
     }, 500);
   }
+});
+
+// ============================================================================
+// AI Model Configuration Routes
+// ============================================================================
+
+/**
+ * GET /api/v1/oem-agent/admin/ai-model-config
+ * Read current model routing config (defaults + overrides + available models)
+ */
+app.get('/admin/ai-model-config', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  let overrides: Record<string, Partial<RouteDecision>> = {};
+  try {
+    const { data } = await supabase
+      .from('workflow_settings')
+      .select('config')
+      .eq('id', 'ai-model-routing')
+      .single();
+
+    const config = data?.config as Record<string, unknown> | undefined;
+    overrides = (config?.ai_model_overrides as Record<string, Partial<RouteDecision>>) || {};
+  } catch { /* no overrides yet */ }
+
+  // Build a serialisable version of defaults (strip modelConfig which has internal details)
+  const defaults: Record<string, { provider: string; model: string; fallbackProvider?: string; fallbackModel?: string }> = {};
+  for (const [key, val] of Object.entries(TASK_ROUTING)) {
+    defaults[key] = {
+      provider: val.provider,
+      model: val.model,
+      ...(val.fallbackProvider ? { fallbackProvider: val.fallbackProvider } : {}),
+      ...(val.fallbackModel ? { fallbackModel: val.fallbackModel } : {}),
+    };
+  }
+
+  return c.json({
+    defaults,
+    overrides,
+    availableModels: AVAILABLE_MODELS,
+    taskTypeGroups: TASK_TYPE_GROUPS,
+    taskTypeLabels: TASK_TYPE_LABELS,
+  });
+});
+
+/**
+ * PUT /api/v1/oem-agent/admin/ai-model-config
+ * Save per-task-type model overrides
+ */
+app.put('/admin/ai-model-config', async (c) => {
+  const body = await c.req.json<{
+    overrides: Record<string, { provider?: string; model?: string; fallbackProvider?: string; fallbackModel?: string }>;
+  }>();
+
+  if (!body.overrides || typeof body.overrides !== 'object') {
+    return c.json({ error: 'overrides object is required' }, 400);
+  }
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // Upsert into workflow_settings with id = 'ai-model-routing'
+  const { error } = await supabase
+    .from('workflow_settings')
+    .upsert({
+      id: 'ai-model-routing',
+      enabled: true,
+      priority: 0,
+      confidence_threshold: 0,
+      config: { ai_model_overrides: body.overrides },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+  if (error) {
+    return c.json({ error: error.message }, 500);
+  }
+
+  return c.json({ success: true, overridesCount: Object.keys(body.overrides).length });
 });
 
 // ============================================================================
@@ -2441,11 +2542,13 @@ app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
     return c.json({ error: `Unknown OEM: ${oemId}` }, 400);
   }
 
-  // Accept optional source_url override in body (used for subpages)
+  // Accept optional source_url override and modelOverride in body
   let bodySourceUrl: string | undefined;
+  let modelOverride: { provider?: string; model?: string } | undefined;
   try {
     const body = await c.req.json();
     bodySourceUrl = body?.source_url;
+    modelOverride = body?.modelOverride;
   } catch { /* no body is fine */ }
 
   // Look up source URL from vehicle_models
@@ -2478,6 +2581,7 @@ app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
     anthropic: c.env.ANTHROPIC_API_KEY,
     google: c.env.GOOGLE_API_KEY,
   }, supabase);
+  if (modelOverride) await aiRouter.loadModelOverrides();
 
   if (!c.env.BROWSER) {
     return c.json({ error: 'BROWSER binding not configured' }, 500);

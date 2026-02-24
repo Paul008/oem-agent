@@ -136,6 +136,94 @@ export const AI_ROUTER_CONFIG: AiRouterConfig = {
 };
 
 // ============================================================================
+// Available Models Registry (powers settings page dropdowns)
+// ============================================================================
+
+export interface AvailableModel {
+  id: string;
+  provider: AiProvider;
+  model: string;
+  displayName: string;
+  costTier: 'free' | 'low' | 'medium' | 'high';
+  capabilities: ('vision' | 'json_mode' | 'reasoning' | 'tools')[];
+}
+
+export const AVAILABLE_MODELS: AvailableModel[] = [
+  // Groq models
+  { id: 'groq-scout', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.fast_classify.model, displayName: 'Llama 4 Scout 17B (Groq)', costTier: 'free', capabilities: ['vision', 'json_mode', 'tools'] },
+  { id: 'groq-gpt-oss-20b', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.balanced.model, displayName: 'GPT-OSS 20B (Groq)', costTier: 'free', capabilities: ['json_mode', 'tools'] },
+  { id: 'groq-gpt-oss-120b', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.powerful.model, displayName: 'GPT-OSS 120B (Groq)', costTier: 'low', capabilities: ['json_mode', 'tools'] },
+  { id: 'groq-kimi-k2', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.reasoning.model, displayName: 'Kimi K2 Instruct (Groq)', costTier: 'low', capabilities: ['json_mode', 'reasoning', 'tools'] },
+  // Kimi K2.5 (Together / Moonshot)
+  { id: 'kimi-k2.5-together', provider: 'together', model: AI_ROUTER_CONFIG.kimi_k2_5.model, displayName: 'Kimi K2.5 (Together)', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
+  { id: 'kimi-k2.5-moonshot', provider: 'moonshot', model: MOONSHOT_CONFIG.model, displayName: 'Kimi K2.5 (Moonshot)', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
+  // Gemini
+  { id: 'gemini-2.5-pro', provider: 'google_gemini', model: GEMINI_CONFIG.model, displayName: 'Gemini 2.5 Pro', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
+  { id: 'gemini-3.1-pro', provider: 'google_gemini', model: GEMINI_31_CONFIG.model, displayName: 'Gemini 3.1 Pro', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
+  // Anthropic
+  { id: 'claude-sonnet-4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5', costTier: 'high', capabilities: ['json_mode', 'reasoning'] },
+  { id: 'claude-sonnet-4.5-latest', provider: 'anthropic', model: 'claude-sonnet-4-5-20251022', displayName: 'Claude Sonnet 4.5 (Latest)', costTier: 'high', capabilities: ['json_mode', 'reasoning'] },
+];
+
+// ============================================================================
+// Task Type Labels (human-readable, grouped by domain)
+// ============================================================================
+
+export interface TaskTypeGroup {
+  label: string;
+  taskTypes: { type: AiTaskType; label: string }[];
+}
+
+export const TASK_TYPE_GROUPS: TaskTypeGroup[] = [
+  {
+    label: 'Crawl & Extraction',
+    taskTypes: [
+      { type: 'html_normalisation', label: 'HTML Normalisation' },
+      { type: 'llm_extraction', label: 'LLM Extraction Fallback' },
+      { type: 'diff_classification', label: 'Diff Classification' },
+      { type: 'change_summary', label: 'Change Summary' },
+    ],
+  },
+  {
+    label: 'Design Agent',
+    taskTypes: [
+      { type: 'design_pre_screening', label: 'Visual Pre-Screening' },
+      { type: 'design_vision', label: 'Brand Token Extraction (Vision)' },
+    ],
+  },
+  {
+    label: 'Sales Rep',
+    taskTypes: [
+      { type: 'sales_conversation', label: 'Sales Conversation' },
+      { type: 'content_generation', label: 'Content Generation' },
+    ],
+  },
+  {
+    label: 'Page Builder',
+    taskTypes: [
+      { type: 'page_generation', label: 'Page Generation (Legacy)' },
+      { type: 'page_visual_extraction', label: 'Visual Extraction (Vision)' },
+      { type: 'page_content_generation', label: 'Content Generation' },
+      { type: 'page_screenshot_to_code', label: 'Screenshot to Code (Vision)' },
+      { type: 'page_structuring', label: 'Structured Section Extraction' },
+    ],
+  },
+  {
+    label: 'Adaptive Pipeline',
+    taskTypes: [
+      { type: 'quick_scan', label: 'Quick Layout Scan' },
+      { type: 'extraction_quality_check', label: 'Extraction Quality Check' },
+      { type: 'section_deep_analysis', label: 'Section Deep Analysis (Vision)' },
+      { type: 'bespoke_component', label: 'Bespoke Component Generation' },
+    ],
+  },
+];
+
+export const TASK_TYPE_LABELS: Record<AiTaskType, string> = Object.fromEntries(
+  TASK_TYPE_GROUPS.flatMap(g => g.taskTypes.map(t => [t.type, t.label]))
+) as Record<AiTaskType, string>;
+
+// ============================================================================
 // Task Routing Rules (from spec Section 10.2)
 // ============================================================================
 
@@ -148,7 +236,7 @@ export interface RouteDecision {
   useBatch?: boolean;
 }
 
-const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
+export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
   // Crawl — HTML normalisation
   html_normalisation: {
     provider: 'groq',
@@ -224,25 +312,28 @@ const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
   // Brand Ambassador — Page generation (VISION REQUIRED) [legacy single-stage]
   page_generation: {
     provider: 'google_gemini',
-    model: GEMINI_CONFIG.model,
+    model: GEMINI_31_CONFIG.model,
     modelConfig: null,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_CONFIG.model,
   },
 
   // Brand Ambassador — Stage 1: Visual extraction (Gemini sees the page)
   page_visual_extraction: {
     provider: 'google_gemini',
-    model: GEMINI_CONFIG.model,
-    modelConfig: null,
-    // No fallback - vision is required
-  },
-
-  // Brand Ambassador — Stage 2: Content generation (Claude writes the page)
-  page_content_generation: {
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-5-20250929',
+    model: GEMINI_31_CONFIG.model,
     modelConfig: null,
     fallbackProvider: 'google_gemini',
     fallbackModel: GEMINI_CONFIG.model,
+  },
+
+  // Brand Ambassador — Stage 2: Content generation (Gemini 3.1 Pro writes structured HTML)
+  page_content_generation: {
+    provider: 'google_gemini',
+    model: GEMINI_31_CONFIG.model,
+    modelConfig: null,
+    fallbackProvider: 'anthropic',
+    fallbackModel: 'claude-sonnet-4-5-20250929',
   },
 
   // Brand Ambassador — Screenshot-to-code (Kimi K2.5 replicates the OEM page)
@@ -317,6 +408,8 @@ export interface InferenceRequest {
   requireJson?: boolean;
   /** Override max tokens for this request */
   maxTokens?: number;
+  /** Per-request model override (highest priority — used by page builder A/B testing) */
+  overrideRoute?: Partial<Pick<RouteDecision, 'provider' | 'model' | 'fallbackProvider' | 'fallbackModel'>>;
 }
 
 export interface InferenceResponse {
@@ -336,6 +429,7 @@ export class AiRouter {
   private apiKeys: Record<string, string>;
   private supabase: SupabaseClient | null;
   private inferenceLog: AiInferenceLog[] = []; // Fallback when supabase is not provided
+  private overrides: Record<string, Partial<RouteDecision>> | null = null;
 
   constructor(apiKeys: { groq?: string; together?: string; moonshot?: string; anthropic?: string; google?: string }, supabase?: SupabaseClient) {
     this.apiKeys = {
@@ -349,8 +443,38 @@ export class AiRouter {
   }
 
   /**
+   * Load per-task-type model overrides from workflow_settings.
+   * Called lazily on first route() or eagerly by the caller.
+   */
+  async loadModelOverrides(): Promise<Record<string, Partial<RouteDecision>>> {
+    if (this.overrides) return this.overrides;
+
+    if (!this.supabase) {
+      this.overrides = {};
+      return this.overrides;
+    }
+
+    try {
+      const { data } = await this.supabase
+        .from('workflow_settings')
+        .select('config')
+        .eq('id', 'ai-model-routing')
+        .single();
+
+      const config = data?.config as Record<string, unknown> | undefined;
+      this.overrides = (config?.ai_model_overrides as Record<string, Partial<RouteDecision>>) || {};
+    } catch {
+      this.overrides = {};
+    }
+
+    return this.overrides;
+  }
+
+  /**
    * Route a task to the appropriate model.
-   * 
+   *
+   * 3-tier merge: TASK_ROUTING defaults → DB overrides → per-request override.
+   *
    * Implements routing rules from spec Section 10.6:
    * 1. Route to cheapest capable model
    * 2. Use Groq batch API for non-time-sensitive tasks
@@ -360,10 +484,16 @@ export class AiRouter {
    * 6. Log all LLM calls to ai_inference_log table
    */
   async route(request: InferenceRequest): Promise<InferenceResponse> {
-    const route = TASK_ROUTING[request.taskType];
-    if (!route) {
+    const baseRoute = TASK_ROUTING[request.taskType];
+    if (!baseRoute) {
       throw new Error(`Unknown task type: ${request.taskType}`);
     }
+
+    // 3-tier merge: defaults → DB overrides → per-request override
+    await this.loadModelOverrides();
+    const dbOverride = this.overrides?.[request.taskType];
+    const merged = dbOverride ? { ...baseRoute, ...dbOverride } : baseRoute;
+    const route = request.overrideRoute ? { ...merged, ...request.overrideRoute } : merged;
 
     const startTime = Date.now();
     let provider = route.provider;

@@ -393,12 +393,12 @@ export function usePageBuilder() {
 
   const cloning = ref(false)
 
-  async function handleClone() {
+  async function handleClone(modelOverride?: { provider: string; model: string }) {
     if (!oemId.value || !modelSlug.value) return
     cloning.value = true
     try {
       const overrideUrl = sourceUrlOverride.value?.trim() || undefined
-      await clonePage(oemId.value, modelSlug.value, overrideUrl)
+      await clonePage(oemId.value, modelSlug.value, overrideUrl, modelOverride)
       await refreshPage()
     } catch (err: any) {
       error.value = err.message || 'Clone failed'
@@ -409,11 +409,11 @@ export function usePageBuilder() {
 
   const structuring = ref(false)
 
-  async function handleStructure() {
+  async function handleStructure(modelOverride?: { provider: string; model: string }) {
     if (!oemId.value || !modelSlug.value) return
     structuring.value = true
     try {
-      await structurePage(oemId.value, modelSlug.value)
+      await structurePage(oemId.value, modelSlug.value, modelOverride)
       await refreshPage()
     } catch (err: any) {
       error.value = err.message || 'Structuring failed'
@@ -425,13 +425,13 @@ export function usePageBuilder() {
   const pipelining = ref(false)
   const pipelineResult = ref<any>(null)
 
-  async function handleAdaptivePipeline() {
+  async function handleAdaptivePipeline(modelOverride?: { provider: string; model: string }) {
     if (!oemId.value || !modelSlug.value) return
     pipelining.value = true
     pipelineResult.value = null
     try {
       const overrideUrl = sourceUrlOverride.value?.trim() || undefined
-      const result = await apiAdaptivePipeline(oemId.value, modelSlug.value, overrideUrl)
+      const result = await apiAdaptivePipeline(oemId.value, modelSlug.value, overrideUrl, modelOverride)
       pipelineResult.value = result
       await refreshPage()
     } catch (err: any) {

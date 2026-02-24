@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft, Copy, Sparkles, Save, ExternalLink, Code,
   Loader2, Zap, Check, Circle, ChevronRight, Globe,
-  Undo2, Redo2, Import, ClipboardPaste, History, Menu,
+  Undo2, Redo2, Import, ClipboardPaste, History, Menu, Cpu,
 } from 'lucide-vue-next'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { useOemData } from '@/composables/use-oem-data'
@@ -43,6 +43,21 @@ const showSectionBrowser = ref(false)
 const oems = ref<{ id: string; name: string }[]>([])
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+
+// Model selector for A/B testing
+const MODEL_OPTIONS = [
+  { value: '', label: 'Default (from settings)', provider: '', model: '' },
+  { value: 'google_gemini::gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', provider: 'google_gemini', model: 'gemini-3.1-pro-preview' },
+  { value: 'google_gemini::gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google_gemini', model: 'gemini-2.5-pro' },
+  { value: 'moonshot::kimi-k2.5', label: 'Kimi K2.5', provider: 'moonshot', model: 'kimi-k2.5' },
+  { value: 'anthropic::claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929' },
+]
+const selectedModel = ref('')
+const selectedModelOverride = computed(() => {
+  if (!selectedModel.value) return undefined
+  const opt = MODEL_OPTIONS.find(o => o.value === selectedModel.value)
+  return opt ? { provider: opt.provider, model: opt.model } : undefined
+})
 
 function handleKeyboard(e: KeyboardEvent) {
   const mod = e.metaKey || e.ctrlKey
@@ -266,6 +281,21 @@ const workflowSteps = computed(() => {
           />
         </div>
 
+        <!-- Model selector for A/B testing -->
+        <div v-if="!isCustomPage" class="hidden xl:flex items-center gap-1.5">
+          <Cpu class="size-3.5 text-muted-foreground shrink-0" />
+          <UiSelect v-model="selectedModel">
+            <UiSelectTrigger class="h-7 w-44 text-xs">
+              <UiSelectValue placeholder="Default (from settings)" />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem v-for="opt in MODEL_OPTIONS" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+
         <!-- Clone -->
         <UiButton
           v-if="!isCustomPage"
@@ -273,7 +303,7 @@ const workflowSteps = computed(() => {
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
           class="hidden xl:inline-flex"
-          @click="handleClone"
+          @click="handleClone(selectedModelOverride)"
         >
           <Copy v-if="!cloning" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -287,7 +317,7 @@ const workflowSteps = computed(() => {
           variant="outline"
           :disabled="structuring || pipelining"
           class="hidden xl:inline-flex"
-          @click="handleStructure"
+          @click="handleStructure(selectedModelOverride)"
         >
           <Sparkles v-if="!structuring" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -301,7 +331,7 @@ const workflowSteps = computed(() => {
           :variant="pipelining ? 'default' : 'outline'"
           :disabled="pipelining || cloning || structuring || (needsSourceUrl && !sourceUrlOverride?.trim())"
           class="hidden xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
-          @click="handleAdaptivePipeline"
+          @click="handleAdaptivePipeline(selectedModelOverride)"
         >
           <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -389,7 +419,7 @@ const workflowSteps = computed(() => {
               </UiDropdownMenuLabel>
               <UiDropdownMenuItem
                 :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
-                @select="handleClone"
+                @select="handleClone(selectedModelOverride)"
               >
                 <Copy class="size-3.5 mr-2" />
                 Clone{{ needsSourceUrl && !sourceUrlOverride?.trim() ? ' (enter URL first)' : '' }}
@@ -397,14 +427,14 @@ const workflowSteps = computed(() => {
               <UiDropdownMenuItem
                 v-if="isCloned || isStructured"
                 :disabled="structuring || pipelining"
-                @select="handleStructure"
+                @select="handleStructure(selectedModelOverride)"
               >
                 <Sparkles class="size-3.5 mr-2" />
                 Structure
               </UiDropdownMenuItem>
               <UiDropdownMenuItem
                 :disabled="pipelining || cloning || structuring || (needsSourceUrl && !sourceUrlOverride?.trim())"
-                @select="handleAdaptivePipeline"
+                @select="handleAdaptivePipeline(selectedModelOverride)"
               >
                 <Zap class="size-3.5 mr-2 text-violet-500" />
                 Adaptive Pipeline
