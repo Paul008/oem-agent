@@ -83,6 +83,7 @@ declare global {
   const useModel: typeof import('vue').useModel
   const useOemData: typeof import('../composables/use-oem-data').useOemData
   const usePageBuilder: typeof import('../composables/use-page-builder').usePageBuilder
+  const usePortalAssets: typeof import('../composables/use-portal-assets').usePortalAssets
   const useRealtimeSubscription: typeof import('../composables/use-realtime').useRealtimeSubscription
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
@@ -121,6 +122,9 @@ declare global {
   // @ts-ignore
   export type { HistoryEntry } from '../composables/use-page-builder'
   import('../composables/use-page-builder')
+  // @ts-ignore
+  export type { PortalAsset, PortalAssetCoverage } from '../composables/use-portal-assets'
+  import('../composables/use-portal-assets')
   // @ts-ignore
   export type { SlugEntry, CachedSection } from '../composables/use-template-gallery'
   import('../composables/use-template-gallery')

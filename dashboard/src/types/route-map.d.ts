@@ -256,6 +256,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/portal-assets': RouteRecordInfo<
+      '/dashboard/portal-assets',
+      '/dashboard/portal-assets',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/portals': RouteRecordInfo<
       '/dashboard/portals',
       '/dashboard/portals',
@@ -652,6 +659,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/page-builder-docs.vue': {
       routes:
         | '/dashboard/page-builder-docs'
+      views:
+        | never
+    }
+    'src/pages/dashboard/portal-assets.vue': {
+      routes:
+        | '/dashboard/portal-assets'
       views:
         | never
     }

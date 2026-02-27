@@ -168,7 +168,11 @@ if (process.env.OPENCLAW_GATEWAY_TOKEN) {
 if (process.env.OPENCLAW_DEV_MODE === 'true') {
     config.gateway.controlUi = config.gateway.controlUi || {};
     config.gateway.controlUi.allowInsecureAuth = true;
+    // Skip device pairing — the Worker is protected by Cloudflare Access
     config.gateway.controlUi.dangerouslyDisableDeviceAuth = true;
+    // Required for non-loopback Control UI: explicitly allow the Worker origin
+    const workerUrl = process.env.WORKER_URL || 'https://oem-agent.adme-dev.workers.dev';
+    config.gateway.controlUi.allowedOrigins = [workerUrl];
 }
 
 // Multi-agent configuration

@@ -3007,7 +3007,14 @@ ${html.substring(0, 50000)}
     productData: any
   ): Promise<{ created: boolean, updated: boolean, changeDetected: boolean }> {
     console.log(`[UpsertProduct] Processing: ${productData.title}`);
-    
+
+    // Skip products without external_key — these are bare model-level entries
+    // from listing pages that create orphan records with no model_id
+    if (!productData.external_key) {
+      console.log(`[UpsertProduct] Skipping "${productData.title}" — no external_key (likely a model listing entry)`);
+      return { created: false, updated: false, changeDetected: false };
+    }
+
     // Check for existing product
     // Match by oem_id + title (multiple products can come from same source_url)
     const { data: existing, error: queryError } = await this.config.supabaseClient

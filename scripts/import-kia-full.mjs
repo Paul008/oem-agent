@@ -224,14 +224,6 @@ async function main() {
     );
     const trims = extractTrims(trimHtml);
     
-    // Get hero images per trim (from trim page labels)
-    const heroMap = {};
-    const heroRegex = /label[^>]*path="([^"]*)"[^>]*value="([^"]*)"/g;
-    let hm;
-    while ((hm = heroRegex.exec(trimHtml)) !== null) {
-      heroMap[hm[1]] = `https://www.kia.com${hm[2]}`;
-    }
-    
     // For each trim, find the matching product and import colors
     for (const trim of trims) {
       const product = findProduct(productsByKey, model, trim.code);
@@ -240,20 +232,23 @@ async function main() {
         continue;
       }
 
-      // Build per-color hero images from the color page
-      // Pattern: /byo/{model-slug}/{trim-slug}/kia-{model}-colours-{trim}-{color-name}.webp
-      const colorRows = colors.map((c, i) => ({
-        product_id: product.id,
-        color_code: c.code,
-        color_name: c.name,
-        color_type: c.type,
-        is_standard: c.is_standard,
-        price_delta: 0, // Will be set from pricing data
-        swatch_url: c.swatch_url,
-        hero_image_url: heroMap[trim.code] ? 
-          heroMap[trim.code].replace('clear-white', c.name.toLowerCase().replace(/\s+/g, '-')) : null,
-        sort_order: i,
-      }));
+      // Build per-color hero images using the BYO CDN pattern
+      // Pattern: /byo/{model}/{trim-slug}/kia-{model}-colours-{trim-slug}-{color-slug}.webp
+      const trimSlug = trim.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+      const colorRows = colors.map((c, i) => {
+        const colorSlug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+        return {
+          product_id: product.id,
+          color_code: c.code,
+          color_name: c.name,
+          color_type: c.type,
+          is_standard: c.is_standard,
+          price_delta: 0, // Updated in Step 2 from pricing API premium delta
+          swatch_url: c.swatch_url,
+          hero_image_url: `https://www.kia.com/content/dam/kwcms/au/en/images/shopping-tools/byo/${model}/${trimSlug}/kia-${model}-colours-${trimSlug}-${colorSlug}.webp`,
+          sort_order: i,
+        };
+      });
 
       if (hasColorTable) {
         const status = await supabasePost('/product_colors', colorRows);
@@ -270,8 +265,11 @@ async function main() {
         code: c.code, name: c.name, type: c.type,
         swatch_url: c.swatch_url,
       }));
+      // Set primary_image_r2_key to the standard color (Clear White) BYO hero
+      const standardColor = colorRows.find(c => c.is_standard) || colorRows[0];
       await supabasePatch(`/products?id=eq.${product.id}`, {
         meta_json: { ...(product.meta_json || {}), colours: metaColours },
+        primary_image_r2_key: standardColor?.hero_image_url || null,
         updated_at: new Date().toISOString(),
       });
     }
@@ -386,25 +384,106 @@ async function main() {
       };
 
       const updatedMeta = { ...(product.meta_json || {}), ...pricingMeta };
+      const now = new Date().toISOString();
       const patchStatus = await supabasePatch(`/products?id=eq.${product.id}`, {
         price_amount: rrp,
         price_currency: 'AUD',
         price_type: 'RRP',
         meta_json: updatedMeta,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
+        last_seen_at: now,
       });
       
       if (patchStatus === 204) stats.products++;
       else stats.errors++;
+
+      // Update product_colors price_delta for non-standard colors
+      if (hasColorTable && premiumDelta > 0) {
+        await supabasePatch(
+          `/product_colors?product_id=eq.${product.id}&is_standard=eq.false`,
+          { price_delta: Math.round(premiumDelta * 100) / 100 }
+        );
+      }
     }
     
     await new Promise(r => setTimeout(r, 100));
   }
 
+  // ========================================================================
+  // Step 3: Fetch and import brochure URLs from carInfo API
+  // ========================================================================
+  console.log('\n\n=== BROCHURE IMPORT ===\n');
+
+  const KIA_BASE = 'https://www.kia.com';
+  const carInfoRes = await fetch(`${KIA_BASE}/api/kia_australia/base/carInfo.selectVehicleList`, {
+    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+  });
+  const carInfoData = await carInfoRes.json();
+
+  // Map API vehicle codes → our DB slugs (many-to-one: multiple codes share a slug)
+  const CODE_TO_SLUG = {
+    'YB_CUV_RHD': 'stonic', 'YB_CUV_PE2': 'stonic',
+    'CV_RHD': 'ev6', 'CV_PE': 'ev6',
+    'MV_RHD': 'ev9', 'OVC': 'ev5', 'SV_RHD': 'ev3', 'CT': 'ev4',
+    'CL4M': 'k4-sedan', 'CL4M_5DR': 'k4-hatch',
+    'MQ4_PE': 'sorento', 'MQ4_PE_HEV_RHD': 'sorento-hybrid', 'MQ4_PE_PHEV_RHD': 'sorento-plug-in-hybrid',
+    'NQ5_PE_RHD': 'sportage', 'NQ5_PE_HEV_RHD': 'sportage-hybrid',
+    'SP2_PE_RHD': 'seltos', 'JA_PE2_RHD': 'picanto',
+    'KA4_PE_RHD': 'carnival', 'KA4_PE_HEV_RHD': 'carnival-hybrid',
+    'TK_RHD': 'tasman', 'TK_RHD_DCC': 'tasman', 'TK_RHD_SCC': 'tasman',
+    'SG2_EV': 'niro-ev', 'SG2_HEV': 'niro-hybrid',
+    'BD_PE_4DR': 'cerato', 'BD_PE_5DR': 'cerato',
+  };
+
+  // Flatten all vehicles across categories, deduplicate by slug (prefer first match with brochure)
+  const vehicleBySlug = {};
+  for (const [, vehicles] of Object.entries(carInfoData.dataInfo || {})) {
+    if (!Array.isArray(vehicles)) continue;
+    for (const v of vehicles) {
+      const slug = CODE_TO_SLUG[v.code];
+      if (slug && v.brochure && !vehicleBySlug[slug]) {
+        vehicleBySlug[slug] = v;
+      }
+    }
+  }
+  console.log(`  Found ${Object.keys(vehicleBySlug).length} models with brochure URLs\n`);
+
+  // Load vehicle_models for matching
+  const allModels = await supabaseGet('/vehicle_models?oem_id=eq.kia-au&select=id,slug,oem_model_code,brochure_url');
+  let brochuresUpdated = 0;
+
+  for (const model of allModels) {
+    const vehicle = vehicleBySlug[model.slug];
+    if (!vehicle) continue;
+
+    const brochureUrl = `${KIA_BASE}${vehicle.brochure}`;
+    const patch = {};
+
+    if (model.brochure_url !== brochureUrl) patch.brochure_url = brochureUrl;
+    if (!model.oem_model_code) patch.oem_model_code = vehicle.code;
+
+    if (Object.keys(patch).length === 0) continue; // Nothing to update
+
+    patch.updated_at = new Date().toISOString();
+    const status = await supabasePatch(`/vehicle_models?id=eq.${model.id}`, patch);
+
+    if (status === 204) {
+      brochuresUpdated++;
+      const changes = Object.keys(patch).filter(k => k !== 'updated_at').join(', ');
+      console.log(`  ✓ ${model.slug}: ${changes}`);
+    } else {
+      console.log(`  ✗ ${model.slug}: HTTP ${status}`);
+      stats.errors++;
+    }
+  }
+
+  console.log(`\n  Brochures updated: ${brochuresUpdated}/${allModels.length} models`);
+
   console.log('\n========================================');
   console.log(`Colors inserted:   ${stats.colors}`);
   console.log(`Pricing inserted:  ${stats.pricing}`);
   console.log(`Products updated:  ${stats.products}`);
+  console.log(`Brochures updated: ${brochuresUpdated}`);
   console.log(`Not found:         ${stats.notFound}`);
   console.log(`Errors:            ${stats.errors}`);
   console.log('========================================');

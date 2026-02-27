@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Bot, BrainCircuit, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, KeyRound, Layers, List, Palette, Play, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+import { Activity, BookOpen, Bot, BrainCircuit, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, Images, KeyRound, Layers, List, Palette, Play, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -36,6 +36,7 @@ export function useSidebar() {
         { title: 'Source Pages', url: '/dashboard/source-pages', icon: Shield },
         { title: 'Discovered APIs', url: '/dashboard/apis', icon: Globe },
         { title: 'OEM Portals', url: '/dashboard/portals', icon: KeyRound },
+        { title: 'Portal Assets', url: '/dashboard/portal-assets', icon: Images },
         { title: 'API Docs', url: '/dashboard/docs', icon: BookOpen },
         { title: 'Page Builder', url: '/dashboard/page-builder-docs', icon: Cpu },
         { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },

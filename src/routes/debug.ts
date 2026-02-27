@@ -95,6 +95,30 @@ debug.get('/processes', async (c) => {
   }
 });
 
+// POST /debug/restart-gateway - Kill existing gateway process to trigger a fresh start
+debug.post('/restart-gateway', async (c) => {
+  const sandbox = c.get('sandbox');
+  try {
+    const existing = await findExistingMoltbotProcess(sandbox);
+    if (!existing) {
+      return c.json({ status: 'no_process', message: 'No gateway process found' });
+    }
+
+    const processId = existing.id;
+    console.log('[DEBUG] Killing gateway process:', processId);
+    await existing.kill();
+
+    return c.json({
+      status: 'killed',
+      process_id: processId,
+      message: 'Gateway process killed. Next request will start a fresh one with current env vars.',
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
 // GET /debug/gateway-api - Probe the moltbot gateway HTTP API
 debug.get('/gateway-api', async (c) => {
   const sandbox = c.get('sandbox');

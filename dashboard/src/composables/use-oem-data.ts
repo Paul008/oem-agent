@@ -361,7 +361,7 @@ export function useOemData() {
   }
 
   async function fetchCounts() {
-    const [oems, models, products, offers, colors, pricing, pages, runs, accessories, accessoryModels, discoveredApis, banners, portals, specsProducts, brochureModels] = await Promise.all([
+    const [oems, models, products, offers, colors, pricing, pages, runs, accessories, accessoryModels, discoveredApis, banners, portals, specsProducts, brochureModels, portalAssets] = await Promise.all([
       supabase.from('oems').select('*', { count: 'exact', head: true }),
       supabase.from('vehicle_models').select('*', { count: 'exact', head: true }),
       supabase.from('products').select('*', { count: 'exact', head: true }),
@@ -377,6 +377,7 @@ export function useOemData() {
       supabase.from('oem_portals').select('*', { count: 'exact', head: true }),
       supabase.from('products').select('*', { count: 'exact', head: true }).not('specs_json', 'is', null),
       supabase.from('vehicle_models').select('*', { count: 'exact', head: true }).not('brochure_url', 'is', null),
+      supabase.from('portal_assets').select('*', { count: 'exact', head: true }),
     ])
     return {
       oems: oems.count ?? 0,
@@ -394,6 +395,7 @@ export function useOemData() {
       portals: portals.count ?? 0,
       specsProducts: specsProducts.count ?? 0,
       brochureModels: brochureModels.count ?? 0,
+      portalAssets: portalAssets.count ?? 0,
     }
   }
 
