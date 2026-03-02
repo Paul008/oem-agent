@@ -440,18 +440,27 @@ async function syncEmbeddings(
 
 /**
  * Execute OEM data sync job
- * Actual script execution happens in the OpenClaw container.
- * This handler records the cron trigger in R2.
+ * Runs Kia AU color sync (and future OEM-specific sync tasks).
  */
 async function executeOemDataSync(
   job: CronJob,
-  _env: AppEnv['Bindings']
+  env: AppEnv['Bindings']
 ): Promise<Record<string, unknown>> {
   const config = job.config as { schedule: string; timeout_per_script?: number };
+  const { createSupabaseClient } = await import('../utils/supabase');
+  const { executeKiaColorSync } = await import('../sync/kia-colors');
+
+  const supabase = createSupabaseClient({
+    url: env.SUPABASE_URL,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const kiaResult = await executeKiaColorSync(supabase);
+
   return {
-    message: `OEM data sync triggered for schedule: ${config.schedule}`,
     skill: 'oem-data-sync',
-    config,
+    schedule: config.schedule,
+    kia_color_sync: kiaResult,
   };
 }
 
