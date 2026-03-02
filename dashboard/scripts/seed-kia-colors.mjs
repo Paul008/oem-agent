@@ -56,6 +56,14 @@ const MANUAL_CDN_DATA = {
   },
 };
 
+// KWCMS CDN filename overrides — where directory slug differs from filename slug
+// e.g. K4 uses British "grey" in directory but American "gray" in filename
+const FILENAME_OVERRIDES = {
+  'steel-grey': 'steel-gray',
+  'interstellar-grey': 'interstellar-gray',
+  'wave-blue': 'wavy-blue',
+};
+
 // Known render type/directory names to exclude from color slugs
 const RENDER_TYPE_DIRS = new Set([
   'exterior', 'interior', '360vr', '360VR', 'exterior360',
@@ -289,8 +297,20 @@ for (const [cdnModel, colorMap] of colorsByModel) {
         ];
 
         for (const slug of slugsToTry) {
-          const probeUrl = templateUrl.replaceAll(templateSlug, slug);
-          if (probeUrl === templateUrl) continue; // No substitution happened
+          // Build probe URL — handle directory vs filename slug mismatches
+          // Directory uses the slug as-is, filename may need an override
+          const fileSlug = FILENAME_OVERRIDES[slug] || slug;
+          const templateFileSlug = FILENAME_OVERRIDES[templateSlug] || templateSlug;
+          let probeUrl;
+          if (fileSlug !== slug) {
+            // Split-replace: directory gets slug, filename gets fileSlug
+            probeUrl = templateUrl
+              .replace(new RegExp(`/${templateSlug}/`, 'g'), `/${slug}/`)
+              .replace(new RegExp(templateFileSlug || templateSlug, 'g'), fileSlug);
+          } else {
+            probeUrl = templateUrl.replaceAll(templateSlug, slug);
+          }
+          if (probeUrl === templateUrl && slug !== colorSlug) continue; // No substitution happened (but allow exact template slug match)
           const valid = await headCheck(probeUrl);
           if (valid) {
             heroUrl = probeUrl;

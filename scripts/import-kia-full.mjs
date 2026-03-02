@@ -3,8 +3,8 @@
  * Full Kia AU Import: Colors, Pricing, Gallery Images → Supabase
  * 
  * Populates:
- * - product_colors: per-color swatch + hero images
- * - product_pricing: RRP + drive-away per state (standard + premium)
+ * - variant_colors: per-color swatch + hero images
+ * - variant_pricing: RRP + drive-away per state (standard + premium)
  * - products: updates price_amount, primary_image_r2_key
  * 
  * Usage: SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-kia-full.mjs
@@ -189,7 +189,7 @@ async function main() {
   // Check if new tables exist
   let hasColorTable = true;
   try {
-    const test = await fetch(`${SUPABASE_URL}/rest/v1/product_colors?select=id&limit=0`, { headers });
+    const test = await fetch(`${SUPABASE_URL}/rest/v1/variant_colors?select=id&limit=0`, { headers });
     if (test.status === 404 || test.status === 406) hasColorTable = false;
     const body = await test.json();
     if (body.code === 'PGRST205') hasColorTable = false;
@@ -197,14 +197,19 @@ async function main() {
 
   let hasPricingTable = true;
   try {
-    const test = await fetch(`${SUPABASE_URL}/rest/v1/product_pricing?select=id&limit=0`, { headers });
+    const test = await fetch(`${SUPABASE_URL}/rest/v1/variant_pricing?select=id&limit=0`, { headers });
     if (test.status === 404 || test.status === 406) hasPricingTable = false;
     const body = await test.json();
     if (body.code === 'PGRST205') hasPricingTable = false;
   } catch { hasPricingTable = false; }
 
-  console.log(`product_colors table: ${hasColorTable ? '✓ exists' : '✗ NOT FOUND - will store in meta_json'}`);
-  console.log(`product_pricing table: ${hasPricingTable ? '✓ exists' : '✗ NOT FOUND - will store in meta_json'}\n`);
+  console.log(`variant_colors table: ${hasColorTable ? '✓ exists' : '✗ NOT FOUND - will store in meta_json'}`);
+  console.log(`variant_pricing table: ${hasPricingTable ? '✓ exists' : '✗ NOT FOUND - will store in meta_json'}\n`);
+
+  // Track products whose model has a standard (solid) color like Clear White.
+  // Models without a standard color include premium paint in the base RRP,
+  // so price_delta should stay $0 for all their colors.
+  const productsWithStandardColor = new Set();
 
   // ========================================================================
   // Step 1: Fetch and import colors per model
@@ -232,32 +237,33 @@ async function main() {
         continue;
       }
 
-      // Build per-color hero images using the BYO CDN pattern
-      // Pattern: /byo/{model}/{trim-slug}/kia-{model}-colours-{trim-slug}-{color-slug}.webp
-      const trimSlug = trim.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-      const colorRows = colors.map((c, i) => {
-        const colorSlug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-        return {
-          product_id: product.id,
-          color_code: c.code,
-          color_name: c.name,
-          color_type: c.type,
-          is_standard: c.is_standard,
-          price_delta: 0, // Updated in Step 2 from pricing API premium delta
-          swatch_url: c.swatch_url,
-          hero_image_url: `https://www.kia.com/content/dam/kwcms/au/en/images/shopping-tools/byo/${model}/${trimSlug}/kia-${model}-colours-${trimSlug}-${colorSlug}.webp`,
-          sort_order: i,
-        };
-      });
+      // Color rows — hero_image_url explicitly null; populated by seed-kia-colors.mjs
+      // which scrapes real 360VR render URLs from kia.com model pages
+      const colorRows = colors.map((c, i) => ({
+        product_id: product.id,
+        color_code: c.code,
+        color_name: c.name,
+        color_type: c.type,
+        is_standard: c.is_standard,
+        price_delta: 0, // Updated in Step 2 from pricing API premium delta
+        swatch_url: c.swatch_url,
+        hero_image_url: null,
+        sort_order: i,
+      }));
 
       if (hasColorTable) {
-        const status = await supabasePost('/product_colors', colorRows);
+        const status = await supabasePost('/variant_colors?on_conflict=product_id,color_code', colorRows);
         if (status === 201 || status === 200) {
           stats.colors += colorRows.length;
         } else {
           console.log(`  ✗ Colors failed for ${trim.code} (HTTP ${status})`);
           stats.errors++;
         }
+      }
+
+      // Track if this product's model has a standard color (e.g. Clear White)
+      if (colors.some(c => c.is_standard)) {
+        productsWithStandardColor.add(product.id);
       }
 
       // Also keep meta_json.colours updated for backward compat
@@ -333,8 +339,8 @@ async function main() {
           price_qualifier: 'driveaway_estimate',
           source_url: `https://www.kia.com/au/shopping-tools/build-and-price.trim.${carKey}.html`,
         };
-        await supabasePost('/product_pricing', [stdPricing]);
-        
+        await supabasePost('/variant_pricing?on_conflict=product_id,price_type', [stdPricing]);
+
         // Insert premium pricing
         const premPricing = {
           product_id: product.id,
@@ -351,7 +357,7 @@ async function main() {
           price_qualifier: 'driveaway_estimate',
           source_url: `https://www.kia.com/au/shopping-tools/build-and-price.trim.${carKey}.html`,
         };
-        await supabasePost('/product_pricing', [premPricing]);
+        await supabasePost('/variant_pricing?on_conflict=product_id,price_type', [premPricing]);
         stats.pricing += 2;
       }
       
@@ -397,10 +403,12 @@ async function main() {
       if (patchStatus === 204) stats.products++;
       else stats.errors++;
 
-      // Update product_colors price_delta for non-standard colors
-      if (hasColorTable && premiumDelta > 0) {
+      // Update variant_colors price_delta for non-standard colors, but ONLY if
+      // the model has a standard color (e.g. Clear White). Models without a standard
+      // color include premium paint in the base RRP — all colors are $0 extra.
+      if (hasColorTable && premiumDelta > 0 && productsWithStandardColor.has(product.id)) {
         await supabasePatch(
-          `/product_colors?product_id=eq.${product.id}&is_standard=eq.false`,
+          `/variant_colors?product_id=eq.${product.id}&is_standard=eq.false`,
           { price_delta: Math.round(premiumDelta * 100) / 100 }
         );
       }
