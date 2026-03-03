@@ -2,13 +2,15 @@
  * Kia AU Color Sync
  *
  * Fetches exterior color data from Kia's Build-Your-Own pages and pricing API,
- * then upserts into `variant_colors`. Designed to run inside the weekly
- * `oem-data-sync` cron job on Cloudflare Workers.
+ * then upserts into `variant_colors`. Also enriches with 360 hero images from
+ * the KWCMS CDN. Designed to run inside the weekly `oem-data-sync` cron job.
  *
  * Data sources:
  *  - BYO color page HTML  → color codes, swatch URLs
  *  - BYO trim page HTML   → trim list (maps colors → products)
  *  - selectPriceByTrim API → premium paint price delta
+ *  - Model pages HTML      → 360 render URLs (hero images + gallery)
+ *  - KWCMS CDN HEAD probes → verify render URLs for unmatched colors
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -105,6 +107,53 @@ const DEAD_MODELS = ['cerato'];
 
 const KIA_BYO_BASE = 'https://www.kia.com/au/shopping-tools/build-and-price';
 const KIA_PRICING_API = 'https://www.kia.com/api/kia_australia/common/trimPrice.selectPriceByTrim';
+const KIA_BASE = 'https://www.kia.com';
+
+// ============================================================================
+// 360 Hero Image CDN configuration (ported from seed-kia-colors.mjs)
+// ============================================================================
+
+/** Model pages to scrape for 360 render discovery */
+const CDN_MODEL_PAGES = [
+  'seltos', 'sportage', 'sorento', 'carnival',
+  'ev6', 'ev9', 'picanto', 'stonic',
+  'k4', 'ev5', 'ev3', 'ev4', 'tasman', 'niro',
+];
+
+/** DB model slug → CDN model page name (many-to-one) */
+const SLUG_TO_CDN: Record<string, string> = {
+  'carnival-hybrid': 'carnival',
+  'sorento-hybrid': 'sorento',
+  'sorento-plug-in-hybrid': 'sorento',
+  'sportage-hev': 'sportage',
+  'k4-hatch': 'k4',
+  'k4-sedan': 'k4',
+  'niro-ev': 'niro',
+  'niro-hybrid': 'niro',
+  'ev6-my24': 'ev6',
+  'stonic-my25': 'stonic',
+};
+
+/** Manual CDN data for models where page scraping finds no 360 renders */
+const MANUAL_CDN_DATA: Record<string, { templateUrl: string; templateSlug: string }> = {
+  'ev6': {
+    templateUrl: KIA_BASE + '/content/dam/kwcms/au/en/images/showroom/ev6-pe/360vr/snow-white-pearl/Kia-ev6-gt-snow-white-pearl_00000.png',
+    templateSlug: 'snow-white-pearl',
+  },
+};
+
+/** KWCMS CDN filename overrides — where directory slug differs from filename slug */
+const FILENAME_OVERRIDES: Record<string, string> = {
+  'steel-grey': 'steel-gray',
+  'interstellar-grey': 'interstellar-gray',
+  'wave-blue': 'wavy-blue',
+};
+
+/** Known render type directories to exclude from color slug detection */
+const RENDER_TYPE_DIRS = new Set([
+  'exterior', 'interior', '360vr', '360VR', 'exterior360',
+  'Features', 'features', 'color-chip',
+]);
 
 // ============================================================================
 // HTML extraction (proven regex from import-kia-full.mjs)
@@ -171,6 +220,7 @@ interface ProductRef {
   id: string;
   external_key: string | null;
   meta_json: Record<string, unknown> | null;
+  model_id: string | null;
 }
 
 function findProduct(
@@ -209,6 +259,7 @@ export interface KiaColorSyncResult {
   models_processed: number;
   colors_upserted: number;
   price_deltas_set: number;
+  hero_images_set: number;
   dead_entries_removed: number;
   errors: string[];
 }
@@ -228,6 +279,129 @@ async function fetchText(url: string): Promise<string> {
   return res.text();
 }
 
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+/** HEAD-check a CDN URL — returns true if it's a real image >5KB */
+async function headCheck(url: string): Promise<boolean> {
+  try {
+    const r = await fetch(url, { method: 'HEAD' });
+    if (!r.ok) return false;
+    const ct = r.headers.get('content-type') || '';
+    const size = parseInt(r.headers.get('content-length') || '0');
+    return ct.startsWith('image/') && size > 5000;
+  } catch {
+    return false;
+  }
+}
+
+/** Build 6-angle gallery from a hero URL (every 60 from 36 frames) */
+function buildGalleryUrls(heroUrl: string): string[] {
+  return [0, 6, 12, 18, 24, 30].map(i =>
+    heroUrl.replace(/_00000\./, `_${String(i).padStart(5, '0')}.`),
+  );
+}
+
+interface CdnModelData {
+  heroMap: Record<string, string>;
+  templateUrl: string | null;
+  templateSlug: string | null;
+}
+
+/** Scrape a Kia model page for 360 render _00000 frame URLs */
+function extractCdnHeroes(html: string): CdnModelData {
+  const frameRe = /(?:"|')(\/content\/dam\/kwcms\/au\/en\/images\/showroom\/[^"']*?_00000\.(?:png|webp|jpg))(?:"|')/gi;
+  const heroMap: Record<string, string> = {};
+  let m: RegExpExecArray | null;
+
+  while ((m = frameRe.exec(html)) !== null) {
+    const fullUrl = KIA_BASE + m[1];
+    const parts = m[1].split('/');
+    const colorSlug = parts[parts.length - 2].toLowerCase();
+    if (RENDER_TYPE_DIRS.has(colorSlug)) continue;
+    if (colorSlug.includes('feature') || colorSlug.includes('chip')) continue;
+    if (!heroMap[colorSlug]) heroMap[colorSlug] = fullUrl;
+  }
+
+  // Pick template URL for CDN probing (prefer common colors)
+  let templateUrl: string | null = null;
+  let templateSlug: string | null = null;
+  for (const pref of ['clear-white', 'snow-white-pearl', 'aurora-black-pearl', 'fusion-black', 'steel-grey']) {
+    if (heroMap[pref]) { templateUrl = heroMap[pref]; templateSlug = pref; break; }
+  }
+  if (!templateUrl) {
+    const entry = Object.entries(heroMap).find(([s]) =>
+      !s.includes('roof') && !s.includes('two-tone') && !s.includes('hatch') && !s.includes('sedan'),
+    );
+    if (entry) { templateSlug = entry[0]; templateUrl = entry[1]; }
+  }
+
+  return { heroMap, templateUrl, templateSlug };
+}
+
+/** Try to find a hero URL for a color slug via direct match, variation, partial, or CDN probe */
+async function resolveHeroUrl(
+  colorSlug: string,
+  data: CdnModelData,
+  probeCache: Map<string, string | null>,
+  cacheKey: string,
+): Promise<string | null> {
+  const { heroMap, templateUrl, templateSlug } = data;
+
+  // 1. Direct match
+  if (heroMap[colorSlug]) return heroMap[colorSlug];
+
+  // 2. Variation matching (strip/add suffix)
+  const variations = [
+    colorSlug.replace(/-pearl$/, ''),
+    colorSlug.replace(/-metallic$/, ''),
+    colorSlug.replace(/-matte$/, ''),
+    colorSlug + '-pearl',
+    colorSlug + '-metallic',
+  ];
+  for (const v of variations) {
+    if (v !== colorSlug && heroMap[v]) return heroMap[v];
+  }
+
+  // 3. Partial match
+  for (const [knownSlug, knownUrl] of Object.entries(heroMap)) {
+    if (knownSlug.includes('roof') || knownSlug.includes('two-tone')) continue;
+    if (colorSlug.includes(knownSlug) || knownSlug.includes(colorSlug)) return knownUrl;
+  }
+
+  // 4. CDN probe — replace color slug in template URL and HEAD check
+  if (!templateUrl || !templateSlug) return null;
+  if (probeCache.has(cacheKey)) return probeCache.get(cacheKey) ?? null;
+
+  const slugsToTry = [
+    colorSlug,
+    colorSlug.replace(/-pearl$/, ''),
+    colorSlug.replace(/-metallic$/, ''),
+  ];
+
+  for (const slug of slugsToTry) {
+    const fileSlug = FILENAME_OVERRIDES[slug] || slug;
+    const templateFileSlug = FILENAME_OVERRIDES[templateSlug] || templateSlug;
+    let probeUrl: string;
+    if (fileSlug !== slug) {
+      probeUrl = templateUrl
+        .replace(new RegExp(`/${templateSlug}/`, 'g'), `/${slug}/`)
+        .replace(new RegExp(templateFileSlug, 'g'), fileSlug);
+    } else {
+      probeUrl = templateUrl.replaceAll(templateSlug, slug);
+    }
+    if (probeUrl === templateUrl && slug !== templateSlug) continue;
+    if (await headCheck(probeUrl)) {
+      probeCache.set(cacheKey, probeUrl);
+      return probeUrl;
+    }
+  }
+
+  probeCache.set(cacheKey, null);
+  return null;
+}
+
 export async function executeKiaColorSync(
   supabase: SupabaseClient,
 ): Promise<KiaColorSyncResult> {
@@ -235,6 +409,7 @@ export async function executeKiaColorSync(
     models_processed: 0,
     colors_upserted: 0,
     price_deltas_set: 0,
+    hero_images_set: 0,
     dead_entries_removed: 0,
     errors: [],
   };
@@ -242,7 +417,7 @@ export async function executeKiaColorSync(
   // 1. Load all kia-au products, index by external_key
   const { data: products, error: prodErr } = await supabase
     .from('products')
-    .select('id, external_key, meta_json')
+    .select('id, external_key, meta_json, model_id')
     .eq('oem_id', 'kia-au');
 
   if (prodErr || !products) {
@@ -384,7 +559,109 @@ export async function executeKiaColorSync(
     }
   }
 
-  // 4. Clean up dead model entries
+  // 4. Enrich with 360 hero images from KWCMS CDN
+  console.log('[KiaColorSync] Phase 4: Hero image enrichment');
+
+  // 4a. Load vehicle_models to map product → CDN model key
+  const { data: vehicleModels } = await supabase
+    .from('vehicle_models')
+    .select('id, slug')
+    .eq('oem_id', 'kia-au');
+
+  const modelSlugById: Record<string, string> = {};
+  if (vehicleModels) {
+    for (const vm of vehicleModels) modelSlugById[vm.id] = vm.slug;
+  }
+
+  // Build product_id → CDN model key
+  const productToCdn: Record<string, string> = {};
+  for (const p of products) {
+    if (!p.model_id) continue;
+    const slug = modelSlugById[p.model_id];
+    if (!slug) continue;
+    const baseSlug = slug.replace(/-\d{4}$/, '');
+    productToCdn[p.id] = SLUG_TO_CDN[baseSlug] || baseSlug;
+  }
+
+  // 4b. Scrape model pages for 360 render URLs
+  const cdnData: Record<string, CdnModelData> = {};
+  for (const modelGroup of batch(CDN_MODEL_PAGES, 5)) {
+    const settled = await Promise.allSettled(
+      modelGroup.map(async (model) => {
+        try {
+          const html = await fetchText(`${KIA_BASE}/au/cars/${model}.html`);
+          cdnData[model] = extractCdnHeroes(html);
+        } catch {
+          // Model page not found — skip
+        }
+      }),
+    );
+    for (const s of settled) {
+      if (s.status === 'rejected') {
+        result.errors.push(`CDN scrape error: ${String(s.reason)}`);
+      }
+    }
+  }
+
+  // Inject manual CDN data for models where page scraping finds nothing
+  for (const [model, manual] of Object.entries(MANUAL_CDN_DATA)) {
+    if (!cdnData[model] || (!cdnData[model].templateUrl && Object.keys(cdnData[model].heroMap).length === 0)) {
+      cdnData[model] = { heroMap: {}, templateUrl: manual.templateUrl, templateSlug: manual.templateSlug };
+    }
+  }
+
+  // 4c. Load variant_colors that need hero images
+  const productIds = products.map(p => p.id);
+  interface VcRow { id: string; product_id: string; color_name: string; hero_image_url: string | null }
+  let allVc: VcRow[] = [];
+  for (const chunk of batch(productIds, 100)) {
+    const { data } = await supabase
+      .from('variant_colors')
+      .select('id, product_id, color_name, hero_image_url')
+      .in('product_id', chunk);
+    if (data) allVc = allVc.concat(data as VcRow[]);
+  }
+
+  // 4d. Match colors to CDN URLs and update
+  const probeCache = new Map<string, string | null>();
+  // Group by (cdnModel, colorSlug) for efficient matching
+  const colorsByModel = new Map<string, Map<string, VcRow[]>>();
+  for (const vc of allVc) {
+    const cdnModel = productToCdn[vc.product_id];
+    if (!cdnModel) continue;
+    const colorSlug = slugify(vc.color_name);
+    if (!colorsByModel.has(cdnModel)) colorsByModel.set(cdnModel, new Map());
+    const modelColors = colorsByModel.get(cdnModel)!;
+    if (!modelColors.has(colorSlug)) modelColors.set(colorSlug, []);
+    modelColors.get(colorSlug)!.push(vc);
+  }
+
+  for (const [cdnModel, colorMap] of colorsByModel) {
+    const data = cdnData[cdnModel];
+    if (!data) continue;
+
+    for (const [colorSlug, vcs] of colorMap) {
+      const cacheKey = `${cdnModel}:${colorSlug}`;
+      const heroUrl = await resolveHeroUrl(colorSlug, data, probeCache, cacheKey);
+      if (!heroUrl) continue;
+
+      const gallery = buildGalleryUrls(heroUrl);
+
+      for (const vc of vcs) {
+        // Skip if already has a valid 360 hero
+        if (vc.hero_image_url && vc.hero_image_url.includes('_00000')) continue;
+
+        const { error } = await supabase
+          .from('variant_colors')
+          .update({ hero_image_url: heroUrl, gallery_urls: gallery })
+          .eq('id', vc.id);
+
+        if (!error) result.hero_images_set++;
+      }
+    }
+  }
+
+  // 5. Clean up dead model entries
   for (const slug of DEAD_MODELS) {
     const { data: deadModels } = await supabase
       .from('vehicle_models')
@@ -420,8 +697,9 @@ export async function executeKiaColorSync(
 
   console.log(
     `[KiaColorSync] Done — ${result.models_processed} models, ` +
-    `${result.colors_upserted} colors, ${result.price_deltas_set} deltas, ` +
-    `${result.dead_entries_removed} dead removed, ${result.errors.length} errors`,
+    `${result.colors_upserted} colors, ${result.hero_images_set} heroes, ` +
+    `${result.price_deltas_set} deltas, ${result.dead_entries_removed} dead removed, ` +
+    `${result.errors.length} errors`,
   );
 
   return result;
