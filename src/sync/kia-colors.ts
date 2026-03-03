@@ -195,6 +195,8 @@ function findProduct(
   trimCode: string,
 ): ProductRef | null {
   const lc = trimCode.toLowerCase();
+  // Strip body-style suffix for models like ev4-sedan → ev4
+  const modelShort = model.replace(/-(sedan|hatch)$/, '');
   const candidates = [
     `${model}-${lc}`,
     `${model}-${trimCode}`,
@@ -204,6 +206,10 @@ function findProduct(
     `tasman-dual-cab-chassis-${lc}`,
     `tasman-single-cab-chassis-${lc}`,
   ];
+  // Also try without body-style suffix (ev4-sedan → ev4-air)
+  if (modelShort !== model) {
+    candidates.push(`${modelShort}-${lc}`, `${modelShort}-${trimCode}`);
+  }
 
   for (const key of candidates) {
     if (productsByKey[key]) return productsByKey[key];
@@ -213,6 +219,12 @@ function findProduct(
   const modelBase = model.replace(/-my24|-my25/g, '');
   for (const [key, p] of Object.entries(productsByKey)) {
     if (key.includes(lc) && key.includes(modelBase)) return p;
+  }
+  // Also try partial match with short model name
+  if (modelShort !== modelBase) {
+    for (const [key, p] of Object.entries(productsByKey)) {
+      if (key.includes(lc) && key.includes(modelShort)) return p;
+    }
   }
   return null;
 }
