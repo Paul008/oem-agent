@@ -302,7 +302,6 @@ export async function executeKiaColorSync(
             swatch_url: c.swatch_url,
             hero_image_url: null as string | null,
             sort_order: i,
-            updated_at: new Date().toISOString(),
           }));
 
           const { error: upsertErr } = await supabase
