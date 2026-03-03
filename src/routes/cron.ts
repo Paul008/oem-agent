@@ -198,26 +198,27 @@ cron.post('/run/:jobId', async (c) => {
   };
   
   await saveRun(bucket, run);
-  
-  // Execute job in background
-  c.executionCtx.waitUntil(
-    executeJob(job, run, bucket, c.env).catch(async (e) => {
-      console.error(`[Cron] Job ${jobId} failed:`, e);
-      run.status = 'failed';
-      run.completedAt = new Date().toISOString();
-      run.error = e instanceof Error ? e.message : String(e);
-      await saveRun(bucket, run);
-    })
-  );
-  
+
+  // Run inline (awaited) so long-running jobs like oem-data-sync aren't
+  // killed by the waitUntil grace period. The HTTP response stays open
+  // until the job completes (Workers Standard allows up to 30s CPU).
+  try {
+    await executeJob(job, run, bucket, c.env);
+  } catch (e) {
+    console.error(`[Cron] Job ${jobId} failed:`, e);
+    run.status = 'failed';
+    run.completedAt = new Date().toISOString();
+    run.error = e instanceof Error ? e.message : String(e);
+    await saveRun(bucket, run);
+  }
+
   return c.json({
-    message: 'Job triggered',
+    message: run.status === 'success' ? 'Job completed' : `Job ${run.status}`,
     jobId,
     runId,
-    job: {
-      name: job.name,
-      skill: job.skill,
-    },
+    status: run.status,
+    result: run.result,
+    error: run.error,
   });
 });
 
