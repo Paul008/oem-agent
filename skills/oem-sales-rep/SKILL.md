@@ -56,6 +56,16 @@ Conversational AI assistant for querying OEM product and offer information.
 - "Compare automatic vs manual transmission options"
 - "What electric vehicles have 5+ seats?"
 
+### Dealer API (WP-Compatible)
+
+Public REST endpoints for dealer websites — serves the same data in WordPress REST API format:
+
+- `GET /api/wp/v2/catalog?oem_id={id}` — Full catalog (models + nested variants + colours + pricing)
+- `GET /api/wp/v2/models?oem_id={id}` — Active model list
+- `GET /api/wp/v2/variants?filter[variant_category]={slug}&oem_id={id}` — Paginated variants per model
+
+Base URL: `https://oem-agent.adme-dev.workers.dev` (no auth required)
+
 ## Input
 
 ```json

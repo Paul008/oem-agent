@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 import { Activity, BookOpen, Bot, BrainCircuit, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, Images, KeyRound, Layers, List, Palette, Play, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+=======
+import { Activity, BookOpen, Bot, BrainCircuit, Car, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, Images, KeyRound, Layers, List, Palette, Play, Plug, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+>>>>>>> Stashed changes
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -37,6 +41,7 @@ export function useSidebar() {
         { title: 'Discovered APIs', url: '/dashboard/apis', icon: Globe },
         { title: 'OEM Portals', url: '/dashboard/portals', icon: KeyRound },
         { title: 'Portal Assets', url: '/dashboard/portal-assets', icon: Images },
+        { title: 'Dealer API', url: '/dashboard/dealer-api', icon: Plug },
         { title: 'API Docs', url: '/dashboard/docs', icon: BookOpen },
         { title: 'Page Builder', url: '/dashboard/page-builder-docs', icon: Cpu },
         { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },

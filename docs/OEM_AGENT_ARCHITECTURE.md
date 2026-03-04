@@ -832,6 +832,38 @@ For 16 OEMs with ~20 pages each:
 
 ---
 
+## Dealer API (WP-Compatible Middleware)
+
+Public REST API that serves vehicle variant data from Supabase in WordPress REST API format, enabling dealer website components to work as a drop-in replacement for the legacy WP endpoints.
+
+**Implementation**: `src/routes/dealer-api.ts`
+**Auth**: None (public, mounted before CF Access middleware)
+**Cache**: 5 minutes (`Cache-Control: public, max-age=300`)
+
+### Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/wp/v2/catalog?oem_id={id}` | All models + nested variants for an OEM |
+| `GET /api/wp/v2/models?oem_id={id}` | Active model list |
+| `GET /api/wp/v2/variants?filter[variant_category]={slug}&oem_id={id}` | Paginated variants per model |
+
+### Data Pipeline
+
+```
+vehicle_models → products → ┬─ variant_colors
+                             ├─ variant_pricing
+                             └─ oem_color_palette
+                                    ↓
+                            transformProduct()
+                                    ↓
+                             WP JSON schema
+```
+
+For full schema documentation, see `docs/DEALER_API.md`.
+
+---
+
 ## API Reference
 
 ### Skills

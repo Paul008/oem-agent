@@ -193,6 +193,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/dealer-api': RouteRecordInfo<
+      '/dashboard/dealer-api',
+      '/dashboard/dealer-api',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/design-memory': RouteRecordInfo<
       '/dashboard/design-memory',
       '/dashboard/design-memory',
@@ -619,6 +626,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/cron.vue': {
       routes:
         | '/dashboard/cron'
+      views:
+        | never
+    }
+    'src/pages/dashboard/dealer-api.vue': {
+      routes:
+        | '/dashboard/dealer-api'
       views:
         | never
     }

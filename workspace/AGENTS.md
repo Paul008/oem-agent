@@ -56,6 +56,30 @@ All skills store data in Supabase. Key tables:
 
 **OEM IDs**: ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
+## Dealer API (WP-Compatible Middleware)
+
+Public REST endpoints serving vehicle variant data in WordPress REST API format for dealer websites.
+
+**Base URL**: `https://oem-agent.adme-dev.workers.dev`
+**Auth**: None (public, no CF Access required)
+**Implementation**: `src/routes/dealer-api.ts`
+
+### Endpoints
+
+| Endpoint | Purpose | Key Params |
+|----------|---------|------------|
+| `GET /api/wp/v2/catalog?oem_id={id}` | All models + nested variants for an OEM | `oem_id` |
+| `GET /api/wp/v2/models?oem_id={id}` | Active model list | `oem_id` |
+| `GET /api/wp/v2/variants?filter[variant_category]={slug}&oem_id={id}` | Paginated variants for a model | `filter[variant_category]`, `oem_id`, `per_page`, `page` |
+
+### Data Flow
+`vehicle_models` → `products` → parallel(`variant_colors`, `variant_pricing`, `oem_color_palette`) → WP JSON schema
+
+### WP Variant Schema
+Each variant includes: `title.rendered`, `slug`, `engine`, `fuel`, `transmission`, `drive_train`, `seats`, `doors`, `colours[]` (images, swatches, paint_price), `drive_away`, `features` (HTML), `specifications`.
+
+**Full docs**: `/root/clawd/docs/DEALER_API.md`
+
 ## Workflow Guidelines
 
 1. **Browser Automation**: Use `cloudflare-browser` skill for visual inspection and interaction
@@ -105,6 +129,7 @@ Reference documentation available in `/root/clawd/docs/`:
 
 ### Architecture & Setup
 - **OEM_AGENT_ARCHITECTURE.md** - Complete system architecture and component details (includes page builder component tree)
+- **DEALER_API.md** - WP-compatible dealer API middleware (endpoints, schema, data sources, examples)
 - **IMPLEMENTATION_SUMMARY.md** - Implementation notes and key decisions
 - **BROWSER_RENDERING_SETUP.md** - Cloudflare Browser Rendering configuration
 - **DATABASE_SETUP.md** - Database schema and table structures
