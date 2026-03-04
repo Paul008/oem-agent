@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, FileText, ImageOff, LayoutGrid, LayoutList } from 'lucide-vue-next'
+import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, FileText, ImageOff, LayoutGrid, LayoutList, AlertTriangle } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -14,6 +15,7 @@ const models = ref<VehicleModel[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const heroMap = ref<Map<string, string>>(new Map())
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 
 const filterOem = ref('all')
 const filterModel = ref('all')
@@ -60,8 +62,10 @@ onMounted(async () => {
     models.value = m
     oems.value = o
     heroMap.value = heroes
-  }
-  finally {
+  } catch (err: any) {
+    loadError.value = err.message || 'Failed to load variant data'
+    toast.error(loadError.value!)
+  } finally {
     loading.value = false
   }
 })
@@ -391,6 +395,11 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center h-64">
       <Loader2 class="size-6 animate-spin" />
+    </div>
+
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
+      <AlertTriangle class="size-8 text-destructive" />
+      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
     </div>
 
     <!-- Card View -->

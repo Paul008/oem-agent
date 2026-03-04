@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Loader2, Globe, Factory, Car, Palette, ExternalLink, Copy, Check, RefreshCw } from 'lucide-vue-next'
+import { Loader2, Globe, Factory, Car, Palette, ExternalLink, Copy, Check, RefreshCw, AlertTriangle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
@@ -31,6 +31,7 @@ const oems = ref<Oem[]>([])
 const models = ref<VehicleModel[]>([])
 const endpoints = ref<EndpointStatus[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const checking = ref(false)
 const copiedUrl = ref<string | null>(null)
 const filterOem = ref('all')
@@ -76,6 +77,9 @@ onMounted(async () => {
         variantCountFromApi: null,
       }
     })
+  } catch (err: any) {
+    loadError.value = err.message || 'Failed to load dealer API data'
+    toast.error(loadError.value!)
   } finally {
     loading.value = false
   }
@@ -321,6 +325,11 @@ function statusBadge(status: string) {
 
     <div v-if="loading" class="flex items-center justify-center h-64">
       <Loader2 class="size-6 animate-spin" />
+    </div>
+
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
+      <AlertTriangle class="size-8 text-destructive" />
+      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
     </div>
 
     <!-- Endpoints Table -->

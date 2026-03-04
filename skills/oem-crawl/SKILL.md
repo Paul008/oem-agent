@@ -40,7 +40,7 @@ Monitors OEM websites for changes using a two-stage pipeline.
 
 ```json
 {
-  "oem_id": "ford",
+  "oem_id": "ford-au",
   "page_type": "offers",
   "trigger": "cron",
   "cron": "0 */2 * * *"

@@ -141,7 +141,7 @@ Always provide detailed reasoning in the result.
     "source_url": "https://www.toyota.com.au/hilux/sr5",
     "price_amount": 46990,
     "price_type": "driveaway",
-    "oem_id": "toyota"
+    "oem_id": "toyota-au"
   },
   "confidence_threshold": 0.95,
   "auto_approve_actions": ["update_price", "log_validation"],

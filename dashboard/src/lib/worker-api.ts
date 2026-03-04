@@ -6,8 +6,13 @@ export async function workerFetch(path: string, options?: RequestInit) {
     ...options,
   })
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Worker API error ${res.status}: ${text}`)
+    const text = await res.text().catch(() => 'No response body')
+    throw new Error(`Worker API error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Expected JSON from ${path} but got ${contentType || 'unknown'}: ${text.slice(0, 200)}`)
   }
   return res.json()
 }

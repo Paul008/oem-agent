@@ -48,7 +48,7 @@ Or for immediate alerts:
   "trigger": "change_event",
   "change_events": [
     {
-      "oem_id": "ford",
+      "oem_id": "ford-au",
       "event_type": "offer_updated",
       "severity": "high",
       "details": "Explorer financing changed from 2.9% to 0.9%"

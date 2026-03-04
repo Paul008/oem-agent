@@ -50,7 +50,7 @@ const apis = client.getApiCandidates();
 
 ```json
 {
-  "oem_id": "ford",
+  "oem_id": "ford-au",
   "page_url": "https://ford.com/suvs/explorer",
   "network_log": [
     {

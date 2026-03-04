@@ -1,13 +1,13 @@
 # OEM Agent System Briefing
 
-**Last Updated**: 2026-02-22
+**Last Updated**: 2026-03-04
 **Deployment**: https://oem-agent.adme-dev.workers.dev/
 **Status**: ✅ Operational (conversation persistence enabled)
 
 ## Executive Summary
 
 Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Workers with:
-- 10 specialized skills for automotive data collection
+- 14 specialized skills for automotive data collection
 - R2-backed conversation persistence
 - Headless Chrome automation via Cloudflare Browser Rendering
 - Supabase for structured data storage
@@ -31,7 +31,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 │  │  OpenClaw Gateway (Node.js 22, OpenClaw 2026.2.3)    │  │
 │  │  - Control UI on port 18789                           │  │
 │  │  - WebSocket RPC protocol                             │  │
-│  │  - Agent runtime with 10 custom skills                │  │
+│  │  - Agent runtime with 14 custom skills                │  │
 │  │  - R2 sync every 30s (rclone)                         │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -172,20 +172,24 @@ oems → vehicle_models → products → variant_colors
 - **Composables**: `use-page-builder.ts` (editor state, sections, dirty tracking), `use-template-gallery.ts` (fetch/cache/filter)
 - **Section renderers**: 16 async components in `components/sections/` for live preview (hero, intro, tabs, color-picker, specs, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider, renderer)
 
-## Available Skills (10 Total)
+## Available Skills (14 Total)
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
 | **cloudflare-browser** | Browser automation | CDP control, screenshots, videos, network monitoring |
 | **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
 | **oem-api-discover** | API discovery | CDP network interception, classify data APIs |
+| **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
 | **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
+| **oem-data-sync** | Data synchronization | 37 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
 | **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
+| **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
+| **autonomous-agents** | Workflow automation | 7 sub-skills: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker |
 
 ## Scheduled Cron Jobs
 

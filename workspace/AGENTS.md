@@ -1,6 +1,6 @@
 # Operating Instructions
 
-## Your 10 Specialized Skills
+## Your 14 Specialized Skills
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
@@ -14,6 +14,10 @@
 | **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
+| **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
+| **oem-data-sync** | Data synchronization | 37 seed/enrich scripts for products, accessories, colors, offers |
+| **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
+| **autonomous-agents** | Workflow automation | 7 sub-skills: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker |
 
 **Skills Location**: /root/clawd/skills/ (each has detailed SKILL.md documentation)
 
@@ -71,6 +75,7 @@ Public REST endpoints serving vehicle variant data in WordPress REST API format 
 | `GET /api/wp/v2/catalog?oem_id={id}` | All models + nested variants for an OEM | `oem_id` |
 | `GET /api/wp/v2/models?oem_id={id}` | Active model list | `oem_id` |
 | `GET /api/wp/v2/variants?filter[variant_category]={slug}&oem_id={id}` | Paginated variants for a model | `filter[variant_category]`, `oem_id`, `per_page`, `page` |
+| `GET /api/wp/v2/variants-import?oem={id}` | Flat variant list for WP All Import | `oem` (accepts both `gwm` and `gwm-au`) |
 
 ### Data Flow
 `vehicle_models` → `products` → parallel(`variant_colors`, `variant_pricing`, `oem_color_palette`) → WP JSON schema

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
 import { Loader2, Globe, Zap, AlertTriangle } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { supabase } from '@/lib/supabase'
@@ -27,6 +28,7 @@ const { fetchOems } = useOemData()
 const apis = ref<DiscoveredApi[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const filterOem = ref('all')
 const filterDataType = ref('all')
 
@@ -38,8 +40,10 @@ onMounted(async () => {
     ])
     oems.value = o
     apis.value = (data ?? []) as DiscoveredApi[]
-  }
-  finally {
+  } catch (err: any) {
+    loadError.value = err.message || 'Failed to load discovered APIs'
+    toast.error(loadError.value!)
+  } finally {
     loading.value = false
   }
 })
@@ -163,7 +167,12 @@ function shortenUrl(url: string) {
       <Loader2 class="size-6 animate-spin" />
     </div>
 
-    <UiCard v-else>
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
+      <AlertTriangle class="size-8 text-destructive" />
+      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+    </div>
+
+    <UiCard v-else-if="filtered.length > 0">
       <div class="overflow-x-auto">
         <UiTable>
           <UiTableHeader>
@@ -212,5 +221,10 @@ function shortenUrl(url: string) {
         </UiTable>
       </div>
     </UiCard>
+
+    <div v-else class="text-center py-16">
+      <Globe class="size-10 text-muted-foreground/30 mx-auto mb-3" />
+      <p class="text-sm text-muted-foreground">No APIs found matching your filters</p>
+    </div>
   </BasicPage>
 </template>

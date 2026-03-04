@@ -42,7 +42,7 @@ Analyses OEM websites for brand identity and layout patterns.
 
 ```json
 {
-  "oem_id": "ford",
+  "oem_id": "ford-au",
   "trigger": "onboarding",
   "page_type": "homepage"
 }

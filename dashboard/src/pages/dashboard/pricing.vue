@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, AlertTriangle } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -13,6 +14,7 @@ const models = ref<VehicleModel[]>([])
 const pricing = ref<VariantPricing[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const filterOem = ref('all')
 
 onMounted(async () => {
@@ -27,8 +29,10 @@ onMounted(async () => {
     models.value = m
     pricing.value = pr
     oems.value = o
-  }
-  finally {
+  } catch (err: any) {
+    loadError.value = err.message || 'Failed to load pricing data'
+    toast.error(loadError.value!)
+  } finally {
     loading.value = false
   }
 })
@@ -89,6 +93,11 @@ function formatPrice(amount: number | null) {
 
     <div v-if="loading" class="flex items-center justify-center h-64">
       <Loader2 class="size-6 animate-spin" />
+    </div>
+
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
+      <AlertTriangle class="size-8 text-destructive" />
+      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
     </div>
 
     <UiCard v-else>

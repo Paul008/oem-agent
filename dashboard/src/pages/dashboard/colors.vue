@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, reactive } from 'vue'
-import { Loader2, Palette, Image, ImageOff, ChevronLeft, ChevronRight, X, Search, RotateCw } from 'lucide-vue-next'
-
+import { Loader2, Palette, Image, ImageOff, ChevronLeft, ChevronRight, X, Search, RotateCw, AlertTriangle } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import Vehicle360Viewer from '@/components/Vehicle360Viewer.vue'
@@ -32,6 +32,7 @@ const { fetchOems, fetchVariantColorsWithProducts } = useOemData()
 const allColors = ref<ColorWithOem[]>([])
 const oems = ref<{ id: string; name: string }[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const filterOem = ref('all')
 const searchQuery = ref('')
 const page = ref(1)
@@ -54,6 +55,9 @@ onMounted(async () => {
     ])
     oems.value = o
     allColors.value = c
+  } catch (err: any) {
+    loadError.value = err.message || 'Failed to load color data'
+    toast.error(loadError.value!)
   } finally {
     loading.value = false
   }
@@ -266,6 +270,11 @@ function closePreview() {
 
     <div v-if="loading" class="flex items-center justify-center h-64">
       <Loader2 class="size-6 animate-spin" />
+    </div>
+
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
+      <AlertTriangle class="size-8 text-destructive" />
+      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
     </div>
 
     <template v-else>

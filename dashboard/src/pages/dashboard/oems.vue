@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
-import { ExternalLink, Loader2, Play, RefreshCw } from 'lucide-vue-next'
+import { ExternalLink, Loader2, Play, RefreshCw, AlertTriangle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
@@ -14,6 +14,7 @@ const oems = ref<Oem[]>([])
 const runs = ref<ImportRun[]>([])
 const pages = ref<SourcePage[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const actionLoading = ref<string | null>(null)
 
 onMounted(async () => {
@@ -22,8 +23,10 @@ onMounted(async () => {
     oems.value = o
     runs.value = r
     pages.value = p
-  }
-  finally {
+  } catch (err: any) {
+    loadError.value = err.message || 'Failed to load OEM data'
+    toast.error(loadError.value!)
+  } finally {
     loading.value = false
   }
 })
@@ -94,6 +97,11 @@ async function handleForceCrawl(oemId: string, oemName: string) {
   <BasicPage title="OEMs" description="Monitored Australian OEM manufacturers" sticky>
     <div v-if="loading" class="flex items-center justify-center h-64">
       <Loader2 class="size-6 animate-spin" />
+    </div>
+
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
+      <AlertTriangle class="size-8 text-destructive" />
+      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
     </div>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -315,6 +315,7 @@ export function useOemData() {
 
   async function fetchAllRows<T>(table: string, select = '*', order?: string, filter?: { column: string, value: string }): Promise<T[]> {
     const PAGE = 1000
+    const MAX_ROWS = 50_000
     const rows: T[] = []
     let from = 0
     while (true) {
@@ -327,6 +328,10 @@ export function useOemData() {
       rows.push(...(data as T[]))
       if (data.length < PAGE) break
       from += PAGE
+      if (rows.length >= MAX_ROWS) {
+        console.warn(`[use-oem-data] fetchAllRows('${table}') hit ${MAX_ROWS} row limit`)
+        break
+      }
     }
     return rows
   }

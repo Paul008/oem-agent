@@ -161,7 +161,7 @@ Homepage and offers page hero banners across 12 OEMs (50 banners, 2 with video).
 
 ```json
 {
-  "oem_id": "ford",
+  "oem_id": "ford-au",
   "url": "https://ford.com/suvs/explorer",
   "page_type": "vehicle",
   "rendered_html": "<html>...</html>",
