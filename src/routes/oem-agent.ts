@@ -19,6 +19,7 @@ import { SalesRepAgent } from '../ai/sales-rep';
 import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition } from '../oem/registry';
 import type { OemId } from '../oem/types';
+import onboardingRoutes from './onboarding';
 
 // Extend AppEnv for OEM agent routes
 type OemAgentEnv = {
@@ -52,6 +53,9 @@ app.use('/admin/*', async (c, next) => {
   }
   await next();
 });
+
+// Mount onboarding routes (inherits /admin/* auth middleware)
+app.route('/admin/onboarding', onboardingRoutes);
 
 // ============================================================================
 // Public Routes

@@ -26,6 +26,30 @@ Before starting, gather this information about the new OEM:
 
 ---
 
+## Dashboard Wizard (Recommended)
+
+The fastest way to onboard a new OEM is the **dashboard wizard** at `/dashboard/onboarding`. It automates steps 1-5 and generates the code snippets for steps that require a code deploy.
+
+**What the wizard handles automatically:**
+1. Site discovery (sitemap crawl, framework detection, brand color, page classification)
+2. Source page selection and configuration
+3. Database registration (OEM record + source pages + discovered APIs)
+4. First crawl trigger
+5. Code snippet generation for TypeScript files
+
+**What still requires a code deploy:**
+- Adding to `OemId` union in `types.ts`
+- Adding `OemDefinition` to `registry.ts`
+- Adding `OEM_BRAND_NOTES` entry in `agent.ts`
+- Creating the Supabase migration file
+- Updating OEM count references across the codebase
+
+After the wizard completes, use the generated snippets directly or run the `/oem-onboard` Claude agent — if the wizard was used, it will skip discovery + DB steps and focus on applying the TypeScript code changes and updating counts.
+
+---
+
+## Manual Steps (if not using the wizard)
+
 ## Step 1 — Add to OemId union type
 
 **File**: `src/oem/types.ts`

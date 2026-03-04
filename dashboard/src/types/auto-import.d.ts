@@ -82,6 +82,7 @@ declare global {
   const useModal: typeof import('../composables/use-modal').useModal
   const useModel: typeof import('vue').useModel
   const useOemData: typeof import('../composables/use-oem-data').useOemData
+  const useOnboarding: typeof import('../composables/use-onboarding').useOnboarding
   const usePageBuilder: typeof import('../composables/use-page-builder').usePageBuilder
   const usePortalAssets: typeof import('../composables/use-portal-assets').usePortalAssets
   const useRealtimeSubscription: typeof import('../composables/use-realtime').useRealtimeSubscription
@@ -119,6 +120,9 @@ declare global {
   // @ts-ignore
   export type { Oem, ImportRun, ChangeEvent, VehicleModel, OemPortal, ProductSpecs, Product, Offer, VariantColor, VariantPricing, Banner, SourcePage, Accessory, AccessoryModel } from '../composables/use-oem-data'
   import('../composables/use-oem-data')
+  // @ts-ignore
+  export type { DiscoveredPage, DiscoveredApi, CodeSnippet, RegistrationResult } from '../composables/use-onboarding'
+  import('../composables/use-onboarding')
   // @ts-ignore
   export type { HistoryEntry } from '../composables/use-page-builder'
   import('../composables/use-page-builder')

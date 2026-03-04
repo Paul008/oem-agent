@@ -7,6 +7,8 @@ description: Run, monitor, and diagnose the 37 seed/enrich scripts that populate
 
 Wraps the existing `dashboard/scripts/seed-*.mjs` and `enrich-*.mjs` scripts with optional `import_runs` tracking. Each script fetches data from an OEM's API/website and upserts it into Supabase.
 
+> **Adding a new OEM?** Use the dashboard onboarding wizard at `/dashboard/onboarding` for guided setup, or see `docs/OEM_ONBOARDING.md` for the manual process.
+
 ## Quick Start
 
 ```bash

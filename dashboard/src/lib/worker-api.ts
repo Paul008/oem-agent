@@ -199,3 +199,49 @@ export async function fetchExtractionRuns(oemId?: string, limit = 20) {
   params.set('limit', String(limit))
   return workerFetch(`/api/v1/oem-agent/extraction-runs?${params}`)
 }
+
+// ============================================================================
+// Onboarding Wizard
+// ============================================================================
+
+export async function discoverOem(baseUrl: string, oemName?: string) {
+  return workerFetch('/api/v1/oem-agent/admin/onboarding/discover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base_url: baseUrl, oem_name: oemName || undefined }),
+  })
+}
+
+export async function registerOem(payload: {
+  oem_id: string
+  oem_name: string
+  base_url: string
+  brand_color?: string
+  source_pages: Array<{ url: string; page_type: string }>
+  config: Record<string, unknown>
+  flags: Record<string, unknown>
+  discovered_apis?: Array<{ url: string; method: string; data_type: string; content_type?: string; notes?: string }>
+}) {
+  return workerFetch('/api/v1/oem-agent/admin/onboarding/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function generateOnboardingSnippets(payload: {
+  oem_id: string
+  oem_name: string
+  base_url: string
+  brand_color?: string
+  config: Record<string, unknown>
+  flags: Record<string, unknown>
+  source_pages: Array<{ url: string; page_type: string }>
+  notes?: string
+}) {
+  return workerFetch('/api/v1/oem-agent/admin/onboarding/generate-snippets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}

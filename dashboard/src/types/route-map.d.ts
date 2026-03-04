@@ -228,6 +228,20 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/onboarding': RouteRecordInfo<
+      '/dashboard/onboarding',
+      '/dashboard/onboarding',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/onboarding-docs': RouteRecordInfo<
+      '/dashboard/onboarding-docs',
+      '/dashboard/onboarding-docs',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/operations': RouteRecordInfo<
       '/dashboard/operations',
       '/dashboard/operations',
@@ -635,6 +649,18 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/offers.vue': {
       routes:
         | '/dashboard/offers'
+      views:
+        | never
+    }
+    'src/pages/dashboard/onboarding.vue': {
+      routes:
+        | '/dashboard/onboarding'
+      views:
+        | never
+    }
+    'src/pages/dashboard/onboarding-docs.vue': {
+      routes:
+        | '/dashboard/onboarding-docs'
       views:
         | never
     }
