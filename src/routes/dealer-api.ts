@@ -8,6 +8,7 @@
  * GET /api/wp/v2/variants?filter[variant_category]=musso-ev&oem_id=kgm-au
  * GET /api/wp/v2/models?oem_id=kgm-au
  * GET /api/wp/v2/catalog?oem_id=kgm-au
+ * GET /api/wp/v2/variants-import?oem=gwm-au  (WP All Import compatible flat JSON)
  */
 
 import { Hono } from 'hono';
@@ -391,6 +392,129 @@ dealerApi.get('/catalog', async (c) => {
   } catch (err) {
     console.error('[dealer-api] catalog error:', err);
     return c.json({ code: 'internal_error', message: 'Failed to fetch catalog' }, 500);
+  }
+});
+
+// ── WP All Import endpoint — flat variant list matching oem-variants schema ──
+
+dealerApi.get('/variants-import', async (c) => {
+  const oem = c.req.query('oem');
+  if (!oem) {
+    return c.json({ code: 'rest_missing_parameter', message: 'oem is required', data: { status: 400 } }, 400);
+  }
+
+  // Support both short names (gwm) and full IDs (gwm-au)
+  const oemId = oem.includes('-') ? oem : `${oem}-au`;
+
+  const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
+
+  try {
+    const { data: models, error: modelsErr } = await supabase
+      .from('vehicle_models')
+      .select('id, slug, name, body_type, category, model_year')
+      .eq('oem_id', oemId)
+      .eq('is_active', true)
+      .order('name');
+
+    if (modelsErr) return c.json({ code: 'internal_error', message: modelsErr.message }, 500);
+    if (!models || models.length === 0) return c.json([], 200);
+
+    const modelIds = models.map((m: any) => m.id);
+    const modelMap = new Map(models.map((m: any) => [m.id, m]));
+
+    const { data: products, error: prodErr } = await supabase
+      .from('products')
+      .select(PRODUCT_SELECT)
+      .in('model_id', modelIds)
+      .order('price_amount', { ascending: true });
+
+    if (prodErr) return c.json({ code: 'internal_error', message: prodErr.message }, 500);
+
+    const allProducts = products || [];
+    if (allProducts.length === 0) return c.json([], 200);
+
+    const productIds = allProducts.map((p: any) => p.id);
+
+    const [colorsRes, pricingRes, paletteRes] = await Promise.all([
+      supabase.from('variant_colors')
+        .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
+        .in('product_id', productIds)
+        .order('sort_order', { ascending: true }),
+      supabase.from('variant_pricing')
+        .select('product_id, price_type, driveaway_vic, driveaway_nsw, rrp, price_qualifier')
+        .in('product_id', productIds),
+      supabase.from('oem_color_palette')
+        .select('color_code, hex_approx')
+        .eq('oem_id', oemId)
+        .eq('is_active', true),
+    ]);
+
+    const colorsByProduct = groupBy(colorsRes.data || [], 'product_id' as any);
+    const pricingByProduct = groupBy(pricingRes.data || [], 'product_id' as any);
+    const hexByCode: Record<string, string> = {};
+    for (const p of paletteRes.data || []) hexByCode[p.color_code] = p.hex_approx || '';
+
+    // Transform to flat oem-variants schema for WP All Import
+    const result = allProducts.map((product: any) => {
+      const model = modelMap.get(product.model_id);
+      const modelName = model?.name || '';
+      const pricingRows = pricingByProduct[product.id] || [];
+      const colors = colorsByProduct[product.id] || [];
+      const stdPricing = pricingRows.find((p: any) => p.price_type === 'standard');
+      const rrpPricing = pricingRows.find((p: any) => p.price_type === 'rrp');
+      const pricing = stdPricing || rrpPricing;
+      const meta = product.meta_json || {};
+      const specs = product.specs_json || {};
+
+      const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
+
+      const wpColors = colors.map((clr: any) => ({
+        images: clr.hero_image_url || '',
+        paint_price: String(clr.price_delta ?? (clr.is_standard ? '0' : '')),
+        swatch_colour_: hexByCode[clr.color_code] || '',
+        colour_main_frame_code: clr.color_code || '',
+        colour_name: clr.color_name || '',
+        images_360: clr.gallery_urls || [],
+      }));
+
+      return {
+        id: hashUuid(product.id),
+        slug_id: product.title || '',
+        title: product.title || '',
+        slug: slugify(product.title || ''),
+        year: String(model?.model_year || ''),
+        badge: product.subtitle || product.variant_name || '',
+        model: modelName,
+        grade_id: modelName,
+        grade: product.subtitle || product.variant_name || null,
+        segment: product.body_type || '',
+        body: product.body_type || '',
+        engine: buildEngine(product),
+        fuel: capitalize(product.fuel_type),
+        transmission: product.transmission || meta.transmission || specs.transmission?.type || '',
+        drive_train: product.drivetrain || product.drive || meta.drivetrain || '',
+        seats: String(product.seats || meta.seats || specs.dimensions?.seats || ''),
+        doors: String(product.doors || meta.doors || specs.dimensions?.doors || ''),
+        excerpt: { rendered: '' },
+        features: formatFeatures(Array.isArray(product.key_features) ? product.key_features : []),
+        vehicle_image: product.primary_image_r2_key || '',
+        offer_title: '&nbsp;',
+        offer_preview: '&nbsp;',
+        offer_disclaimer: '&nbsp;',
+        drive_away: formatDriveaway(driveawayAmount) || product.price_raw_string || '',
+        disclaimer: product.disclaimer_text || product.price_qualifier || pricing?.price_qualifier || '',
+        colors: {
+          images: wpColors,
+        },
+      };
+    });
+
+    c.header('Cache-Control', 'public, max-age=300');
+    c.header('Access-Control-Allow-Origin', '*');
+    return c.json(result);
+  } catch (err) {
+    console.error('[dealer-api] variants-import error:', err);
+    return c.json({ code: 'internal_error', message: 'Failed to fetch variant data' }, 500);
   }
 });
 

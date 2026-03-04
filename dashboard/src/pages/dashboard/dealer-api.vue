@@ -292,6 +292,13 @@ function statusBadge(status: string) {
               <p class="text-muted-foreground text-xs font-sans mt-0.5">Paginated variants for a specific model (supports per_page, page params)</p>
             </div>
           </div>
+          <div class="flex items-start gap-3">
+            <UiBadge variant="outline" class="shrink-0 mt-0.5">GET</UiBadge>
+            <div>
+              <p class="text-foreground">/api/wp/v2/variants-import?oem=<span class="text-blue-500">{oem_id}</span></p>
+              <p class="text-muted-foreground text-xs font-sans mt-0.5">Flat variant list for WP All Import (matches oem-variants schema)</p>
+            </div>
+          </div>
         </div>
       </UiCardContent>
     </UiCard>
