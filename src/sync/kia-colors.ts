@@ -189,6 +189,28 @@ interface ProductRef {
   meta_json: Record<string, unknown> | null;
 }
 
+/** BYO model slug → alternative prefixes used in product external_keys */
+const MODEL_ALIASES: Record<string, string[]> = {
+  'sportage-hev': ['sportage-hybrid'],
+  'sorento-hybrid': ['sorento-hybrid-my25'],
+};
+
+/** Normalize BYO trim code to variations found in external_keys */
+function trimVariants(trimCode: string): string[] {
+  const lc = trimCode.toLowerCase();
+  const variants = [lc];
+  // GT-LINE → gtl (e.g. GT-LINE-HF → gtl-hf, but also gtline-hf)
+  if (lc.includes('gt-line')) {
+    variants.push(lc.replace('gt-line', 'gtl'));
+    variants.push(lc.replace('gt-line', 'gtline'));
+  }
+  // GT → gt without hyphen (e.g. GT-AWD → gtawd)
+  if (lc.startsWith('gt')) {
+    variants.push(lc.replace(/-/g, ''));
+  }
+  return [...new Set(variants)];
+}
+
 function findProduct(
   productsByKey: Record<string, ProductRef>,
   model: string,
@@ -197,33 +219,42 @@ function findProduct(
   const lc = trimCode.toLowerCase();
   // Strip body-style suffix for models like ev4-sedan → ev4
   const modelShort = model.replace(/-(sedan|hatch)$/, '');
-  const candidates = [
-    `${model}-${lc}`,
-    `${model}-${trimCode}`,
-    `new-${model}-${lc}`,
-    `${model}-my25-${lc}`,
-    `tasman-dual-cab-pick-up-${lc}`,
-    `tasman-dual-cab-chassis-${lc}`,
-    `tasman-single-cab-chassis-${lc}`,
-  ];
-  // Also try without body-style suffix (ev4-sedan → ev4-air)
-  if (modelShort !== model) {
-    candidates.push(`${modelShort}-${lc}`, `${modelShort}-${trimCode}`);
+  // All model name variants to try
+  const modelNames = [model];
+  if (modelShort !== model) modelNames.push(modelShort);
+  const aliases = MODEL_ALIASES[model] ?? [];
+  modelNames.push(...aliases);
+
+  // Generate candidates from all model names × trim variants
+  const trims = trimVariants(trimCode);
+  const candidates: string[] = [];
+  for (const m of modelNames) {
+    for (const t of trims) {
+      candidates.push(`${m}-${t}`);
+    }
+    candidates.push(`${model}-${trimCode}`);
+    candidates.push(`new-${model}-${lc}`);
+    candidates.push(`${model}-my25-${lc}`);
+  }
+  // Tasman body-style variants
+  for (const t of trims) {
+    candidates.push(`tasman-dual-cab-pick-up-${t}`);
+    candidates.push(`tasman-dual-cab-chassis-${t}`);
+    candidates.push(`tasman-single-cab-chassis-${t}`);
   }
 
   for (const key of candidates) {
     if (productsByKey[key]) return productsByKey[key];
   }
 
-  // Partial-match fallback
+  // Partial-match fallback: check all model name variants
   const modelBase = model.replace(/-my24|-my25/g, '');
-  for (const [key, p] of Object.entries(productsByKey)) {
-    if (key.includes(lc) && key.includes(modelBase)) return p;
-  }
-  // Also try partial match with short model name
-  if (modelShort !== modelBase) {
-    for (const [key, p] of Object.entries(productsByKey)) {
-      if (key.includes(lc) && key.includes(modelShort)) return p;
+  const allModelBases = [...new Set([modelBase, modelShort, ...aliases])];
+  for (const t of trims) {
+    for (const mb of allModelBases) {
+      for (const [key, p] of Object.entries(productsByKey)) {
+        if (key.includes(t) && key.includes(mb)) return p;
+      }
     }
   }
   return null;

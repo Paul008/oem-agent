@@ -9,9 +9,8 @@ const props = defineProps<{
   initialThumb?: number // 0-based thumbnail position (0-5) to start on
 }>()
 
-// Detect URL pattern: Helios (pov=E01) vs Kia (_00000) vs gallery array
+// Detect URL pattern: Helios (pov=E01) vs gallery array
 const isHelios = computed(() => /pov=E\d{2}/.test(props.heroUrl))
-const isKia360 = computed(() => /_\d{5}\./.test(props.heroUrl))
 const hasGallery = computed(() => (props.galleryUrls?.length ?? 0) > 1)
 
 const TOTAL_FRAMES = computed(() => {
@@ -34,10 +33,6 @@ const frameUrls = computed(() => {
         .replace(/width=\d+/, 'width=1200')
         .replace(/quality=\d+/, 'quality=85')
       urls.push(url)
-    } else if (isKia360.value) {
-      // Kia: replace _00000 with _00000 through _00035
-      const frame = String(i).padStart(5, '0')
-      urls.push(props.heroUrl.replace(/_\d{5}\./, `_${frame}.`))
     } else {
       urls.push(props.heroUrl)
     }
@@ -60,9 +55,6 @@ const thumbUrls = computed(() => thumbIndices.value.map(i => {
       .replace(/pov=E\d{2}/, `pov=E${String(i + 1).padStart(2, '0')}`)
       .replace(/width=\d+/, 'width=200')
       .replace(/quality=\d+/, 'quality=60')
-  } else if (isKia360.value) {
-    const frame = String(i).padStart(5, '0')
-    return props.heroUrl.replace(/_\d{5}\./, `_${frame}.`)
   }
   return props.heroUrl
 }))
