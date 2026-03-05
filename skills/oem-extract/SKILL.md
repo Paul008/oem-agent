@@ -147,15 +147,16 @@ Homepage and offers page hero banners across 12 OEMs (50 banners, 2 with video).
 
 - Extracted data mapped to canonical schemas (`product.v1`, `offer.v1`, `banner.v1`)
 - Content hash for change detection
-- Upserted to Supabase tables:
-  - `products` — Vehicle variants/grades with `specs_json` (linked to `vehicle_models` via model_id)
+- Upserted to Supabase tables via orchestrator methods:
+  - `products` — `upsertProduct()`: match by oem_id + title, track via `last_seen_at`
+  - `offers` — `upsertOffer()`: match by oem_id + title, detect changes (price, validity, disclaimer), update `last_seen_at` on every crawl pass, create change events + Slack alerts for new/changed offers
+  - `banners` — `upsertBanner()`: match by oem_id + page_url + position, detect headline changes
   - `variant_colors` — Colour options per product
   - `variant_pricing` — Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT)
   - `accessories` — Accessory catalog per OEM (via `accessory_models` join to vehicle_models)
-  - `offers` — Promotional offers
-  - `banners` — Homepage promotional content
   - `pdf_embeddings` — Vectorized brochure/guidelines chunks for semantic search
 - Change events fired to `change_events` table if data differs from current record
+- `last_seen_at` updated on every crawl pass for products, offers, and banners — even if content unchanged. This timestamp indicates when the crawl last verified the entity still exists on the OEM website.
 
 ## Input
 

@@ -40,7 +40,7 @@ export const kiaAu: OemDefinition = {
   config: {
     homepage: '/au/main.html',
     vehicles_index: '/au/cars.html',
-    offers: '/au/offers.html',
+    offers: '/au/shopping-tools/offers/car-offers.html',
     news: '/au/discover/news.html',
     schedule: {
       homepage_minutes: 120,
@@ -52,7 +52,7 @@ export const kiaAu: OemDefinition = {
   selectors: {
     vehicleLinks: 'nav a[href^="/au/cars/"]',
     heroSlides: '.hero-carousel .slide, [class*="hero"] [class*="carousel"]',
-    offerTiles: '.offer-tile, [class*="offer"]',
+    offerTiles: '.resultList > li, .offer-tile, [class*="offer-card"]',
   },
   flags: {
     requiresBrowserRendering: true,

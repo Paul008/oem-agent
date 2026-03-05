@@ -1,6 +1,6 @@
 # OEM Agent System Briefing
 
-**Last Updated**: 2026-03-04
+**Last Updated**: 2026-03-05
 **Deployment**: https://oem-agent.adme-dev.workers.dev/
 **Status**: ✅ Operational (conversation persistence enabled)
 
@@ -93,7 +93,7 @@ r2://oem-agent-assets/
 | `discovered_apis` | 466 | API endpoints per OEM (unique: oem_id, url) |
 | `source_pages` | 110 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | ~194 | Promotional offers (hero_image_r2_key, abn_price_amount, saving_amount). 5 OEMs: hyundai(46), kia(52), gwm(35), nissan(18), kgm(8) |
+| `offers` | ~194+ | Promotional offers — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 | `import_runs` | 1823 | Crawl job tracking |
 | `banners` | 50 | Homepage/offers hero banners (12 OEMs, 2 with video) |
@@ -201,7 +201,14 @@ oems → vehicle_models → products → variant_colors
 | `0 6 * * *` | Daily 6am | News crawl | OEM news updates |
 | `0 7 * * *` | Daily 7am | Sitemap crawl | Sitemap + design checks |
 
-**Handler**: `src/scheduled.ts` → `OemAgentOrchestrator.runScheduledCrawl()`
+**Handler**: `src/scheduled.ts` → `OemAgentOrchestrator.runScheduledCrawl(crawlType)`
+
+Each cron trigger now passes its `crawl_type` to the orchestrator, which filters `source_pages` by `page_type`:
+- `homepage` → `homepage` pages only (banners)
+- `offers` → `offers` pages only (offers + offer-page banners)
+- `vehicles` → `vehicle`, `category`, `build_price` pages (variants/models)
+- `news` → `news` pages only
+- `sitemap` → `sitemap` pages only
 
 ## Environment Variables (Container)
 
@@ -438,5 +445,11 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 ---
 
 **Status**: ✅ Production Ready
-**Last Deployment**: 2026-02-22
-**Next Maintenance**: Monitor R2 backup size, optimize scheduled crawls, populate Nissan pricing via Choices API, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings
+**Last Deployment**: 2026-03-05
+**Recent Changes (2026-03-05)**:
+- Implemented `upsertOffer()` — was a TODO stub, offers are now auto-updated by scheduled crawls
+- Added `crawl_type` filtering to `runScheduledCrawl()` — each cron trigger now targets specific page types
+- Updated Kia offers URL to `/au/shopping-tools/offers/car-offers.html` and CSS selectors to match actual DOM
+- Dashboard offers page now shows `last_seen_at` and `updated_at` timestamps, sorted active-first
+
+**Next Maintenance**: Monitor R2 backup size, verify all OEM offer selectors match actual DOM structures, populate Nissan pricing via Choices API, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings

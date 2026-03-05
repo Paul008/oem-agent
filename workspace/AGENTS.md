@@ -33,7 +33,23 @@ Your automated crawl schedule:
 | `0 6 * * *` | Daily 6am | News crawl | OEM news updates |
 | `0 7 * * *` | Daily 7am | Sitemap crawl | Sitemap + design checks |
 
-**Handler**: `src/scheduled.ts` → `OemAgentOrchestrator.runScheduledCrawl()`
+**Handler**: `src/scheduled.ts` → `OemAgentOrchestrator.runScheduledCrawl(crawlType)`
+
+Each cron trigger passes its `crawl_type` to the orchestrator, which filters `source_pages` by `page_type`:
+- `homepage` → page types: `homepage`
+- `offers` → page types: `offers`
+- `vehicles` → page types: `vehicle`, `category`, `build_price`
+- `news` → page types: `news`
+- `sitemap` → page types: `sitemap`
+
+### Offer Upsert Pipeline
+
+When the crawl extracts offers from an OEM page, `upsertOffer()` in `src/orchestrator.ts`:
+1. Matches existing offers by `oem_id + title`
+2. Maps extracted data to DB columns (price, validity dates, disclaimer, CTA, hero image)
+3. Updates `last_seen_at` on every crawl pass (even if content unchanged)
+4. Detects changes via `changeDetector.detectOfferChanges()` and creates change events + Slack alerts
+5. Inserts brand-new offers with a generated UUID
 
 ## Supabase Database
 
@@ -51,7 +67,7 @@ All skills store data in Supabase. Key tables:
 | `discovered_apis` | API endpoints per OEM | Unique: oem_id, url |
 | `source_pages` | URLs monitored for changes | |
 | `change_events` | Audit log of detected changes | |
-| `offers` (~194) | Promotional offers (5 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `offers` (~194+) | Promotional offers (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
 | `banners` (50) | Homepage/offers hero banners (12 OEMs) | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
 | `oem_portals` (31) | Marketing portal credentials (16 OEMs) | portal_url, username, password, guidelines_pdf_url |
 | `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |

@@ -9,8 +9,14 @@ Monitors OEM websites for changes using a two-stage pipeline.
 
 ## Triggers
 
-- Cron schedule (every 2h/4h/12h/24h depending on page type)
-- Manual trigger via `/api/oems/:oemId/crawl`
+- Cron schedule — each trigger targets specific page types via `crawl_type` filter:
+  - Every 2h: `homepage` pages (banners)
+  - Every 4h: `offers` pages (offers + offer-page banners)
+  - Every 12h: `vehicle`, `category`, `build_price` pages (variants/models)
+  - Daily 6am: `news` pages
+  - Daily 7am: `sitemap` pages
+- Manual trigger via `POST /api/v1/oem-agent/admin/crawl/:oemId` (crawls all page types)
+- Force trigger via `POST /api/v1/oem-agent/admin/force-crawl/:oemId` (resets scheduler, bypasses backoff)
 - Slack command ("check Ford's offers")
 
 ## Prerequisites

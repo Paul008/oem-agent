@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff, Clock, RefreshCw } from 'lucide-vue-next'
+import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff, Clock, RefreshCw, Filter } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -13,6 +13,7 @@ const offers = ref<Offer[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
 const filterOem = ref('all')
+const filterStatus = ref<'all' | 'active' | 'expired'>('active')
 const searchQuery = ref('')
 const page = ref(1)
 const perPage = ref(24)
@@ -40,6 +41,11 @@ const filtered = computed(() => {
   let list = offers.value
   if (filterOem.value !== 'all') {
     list = list.filter(o => o.oem_id === filterOem.value)
+  }
+  if (filterStatus.value === 'active') {
+    list = list.filter(o => !isExpired(o))
+  } else if (filterStatus.value === 'expired') {
+    list = list.filter(o => isExpired(o))
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
@@ -128,6 +134,17 @@ function timeAgo(dateStr: string | null) {
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
+        </UiSelectContent>
+      </UiSelect>
+      <UiSelect :model-value="filterStatus" @update:model-value="v => { filterStatus = v as any; page = 1 }">
+        <UiSelectTrigger class="w-[150px]">
+          <Filter class="size-3.5 mr-1.5 text-muted-foreground" />
+          <UiSelectValue />
+        </UiSelectTrigger>
+        <UiSelectContent>
+          <UiSelectItem value="all">All Offers</UiSelectItem>
+          <UiSelectItem value="active">Current Only</UiSelectItem>
+          <UiSelectItem value="expired">Expired Only</UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <div class="relative">

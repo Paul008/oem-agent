@@ -12,13 +12,24 @@
 
 ## Scheduled Operations
 
-| Schedule | Frequency | Purpose | Target |
-|----------|-----------|---------|--------|
-| `0 */2 * * *` | Every 2 hours | Homepage crawl | OEM homepages |
-| `0 */4 * * *` | Every 4 hours | Offers crawl | Special promotions |
-| `0 */12 * * *` | Every 12 hours | Vehicles crawl | Vehicle inventory |
-| `0 6 * * *` | Daily 6am | News crawl | OEM news updates |
-| `0 7 * * *` | Daily 7am | Sitemap crawl | Sitemap + design checks |
+| Schedule | Frequency | crawl_type | Page Types Crawled |
+|----------|-----------|------------|-------------------|
+| `0 */2 * * *` | Every 2 hours | `homepage` | `homepage` |
+| `0 */4 * * *` | Every 4 hours | `offers` | `offers` |
+| `0 */12 * * *` | Every 12 hours | `vehicles` | `vehicle`, `category`, `build_price` |
+| `0 6 * * *` | Daily 6am | `news` | `news` |
+| `0 7 * * *` | Daily 7am | `sitemap` | `sitemap` |
+
+Each cron passes `crawl_type` to `runScheduledCrawl()`, filtering `source_pages` by `page_type`.
+
+### Upsert Pipeline
+
+After extraction, `processChanges()` upserts data and tracks freshness:
+- **Products**: `upsertProduct()` — match by oem_id + title
+- **Offers**: `upsertOffer()` — match by oem_id + title, detect price/validity changes
+- **Banners**: `upsertBanner()` — match by oem_id + page_url + position
+
+All update `last_seen_at` on every crawl pass.
 
 ## Workflow
 

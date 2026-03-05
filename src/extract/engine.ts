@@ -222,8 +222,8 @@ export function extractWithSelectors(
     $(selectors.offerTiles).each((_, el) => {
       const $tile = $(el);
       const offer: ExtractedOffer = {
-        title: $tile.find('h3, h4, .title').first().text().trim() || 'Special Offer',
-        description: $tile.find('p, .description').first().text().trim() || null,
+        title: $tile.find('h2, h3, h4, strong, b, .title, .heading').first().text().trim() || 'Special Offer',
+        description: $tile.find('p, .description, .subtitle, .sub-title').first().text().trim() || null,
         cta_text: $tile.find('a, button').first().text().trim() || null,
         cta_url: $tile.find('a').first().attr('href') || null,
         hero_image_url: extractImageUrl($tile, $) || null,

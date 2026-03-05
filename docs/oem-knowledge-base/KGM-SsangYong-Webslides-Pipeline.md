@@ -10,8 +10,11 @@ KGM Australia (formerly SsangYong) uses a Next.js website powered by **Payload C
 
 ### Homepage (`kgm.com.au/`)
 
-- Hero carousel with auto-play (4500ms interval)
-- Each slide has desktop + mobile background images and a text overlay image
+- Flickity carousel with auto-play (25 dots including clones)
+- Each slide has layered images:
+  - **Background**: Desktop/mobile background image (landscape hero shot of vehicle)
+  - **Text overlay**: Transparent PNG/WebP with pricing, offer headline
+  - **Disclaimer**: Small legal text at bottom of slide
 - Slides link to `/models/{model-slug}`
 
 ### Offers Page (`kgm.com.au/offers`)
@@ -21,36 +24,35 @@ KGM Australia (formerly SsangYong) uses a Next.js website powered by **Payload C
 
 ## Image Hosting
 
-Images are served from **Payload CMS** at:
-
+### Payload CMS (intermittently broken)
 ```
 https://payloadb.therefinerydesign.com/api/media/file/
 ```
+**Note**: Payload CMS file serving is unreliable (all files returned 404 as of March 2026). The CMS API database records still exist but the file storage is broken.
 
-### Naming Convention
-
+### AWS S3 (working)
 ```
-KGM-{Month}{Year}Offers-background-desktop-{model}.webp   # Desktop hero background
-KGM-{Month}{Year}Offers-background-mobile-{model}.webp    # Mobile hero background
-KGM-{Month}{Year}Offers-text-{model}.webp                 # Text overlay with pricing
+https://kgm-rebuild-nextjs-postgres-assets-s3.s3.ap-southeast-2.amazonaws.com/
 ```
 
-Example:
+### Our Supabase Storage (screenshots)
 ```
-KGM-Jan26Offers-background-desktop-musso-my26.webp
-KGM-Jan26Offers-background-mobile-musso-my26.webp
-KGM-Jan26Offers-text-musso-my26.2.webp
+https://nnihmdmsglkxpmilmjjc.supabase.co/storage/v1/object/public/banners/kgm/
 ```
 
 ## Extraction Method
 
-The carousel uses `background-image: url(...)` inline styles on divs inside a `[class*="carousel-banner"]` container. The seed script:
+Because the Payload CMS file serving is unreliable, we use **Puppeteer screenshots**:
 
-1. Fetches the homepage HTML
-2. Finds all `[style*="background-image"]` divs with `-desktop` in the URL
-3. Derives mobile URLs by replacing `-desktop` with `-mobile`
-4. Extracts headline text from nearby text overlay `<img>` alt attributes
-5. Maps model slug from filename to `/models/{model}` CTA link
+1. Launch headless Chrome at 1920×1080 (desktop) and 390×844 (mobile)
+2. Navigate to `kgm.com.au/`
+3. Wait for Flickity carousel to initialize
+4. Stop autoplay by clearing all interval timers
+5. For each slide: click the Flickity dot, wait for transition, screenshot the carousel element
+6. Upload JPEG screenshots to Supabase Storage (`banners/kgm/`)
+7. Insert banner records with public Storage URLs
+
+This produces **flat composited images** with background + text overlay + disclaimer baked in — exactly as the end user sees them.
 
 ## Seed Script
 
@@ -58,29 +60,50 @@ The carousel uses `background-image: url(...)` inline styles on divs inside a `[
 cd dashboard && node scripts/seed-kgm-banners.mjs
 ```
 
-The script deletes existing `kgm-au` banners and inserts freshly scraped ones. It does **not** affect other OEM banners.
+The script:
+- Requires `puppeteer` (installed in project)
+- Creates a `banners` Supabase Storage bucket if needed
+- Deletes existing `kgm-au` banners before inserting
+- Does NOT affect other OEM banners
 
-## Current Models in Carousel
+## Current Models in Carousel (March 2026)
 
-| Model | Type | Slug |
-|-------|------|------|
-| Musso MY26 | Diesel Ute | `musso` |
-| Musso EV | Electric Ute | `musso-ev` |
-| Rexton MY26 | 7-seat SUV | `rexton` |
-| Actyon | Petrol/Hybrid SUV | `actyon` |
-| Torres | Petrol SUV | `torres` |
-| Torres Hybrid | Hybrid SUV | `torres` |
-| Torres EVX | Electric SUV | `torres` |
-| Korando | Petrol SUV | `korando` |
+| # | Model | Headline | Link |
+|---|-------|----------|------|
+| 0 | Musso MY26 | KGM Musso | `/models/musso` |
+| 1 | Musso EV | Musso EV - Free Charger* | `/models/musso-ev` |
+| 2 | Rexton MY26 | New Rexton Factory Bonus - Save $2000* | `/models/rexton` |
+| 3 | Actyon | New Actyon Factory Bonus - Save $2000* | `/models/actyon` |
+| 4 | Torres Petrol | New Torres Factory Bonus - Save up to $5010* | `/models/torres` |
+| 5 | Torres Hybrid | Torres Hybrid Factory Bonus - Save $2000* | `/models/torres` |
+| 6 | Torres EVX | KGM Torres Evx | `/models/torres` |
+| 7 | Korando | Korando Factory Bonus - Save $5010* | `/models/korando` |
 
 ## Re-scraping
 
-KGM updates their offers monthly (naming pattern includes month+year). Re-run the seed script when offers change:
+KGM updates their offers monthly. Re-run the seed script when offers change:
 
 ```bash
 cd dashboard && node scripts/seed-kgm-banners.mjs
 ```
 
+After seeding, fix per-slide metadata (correct CTA links and disclaimers):
+
+```bash
+cd dashboard && node scripts/_fix-kgm-metadata.mjs
+```
+
 ## Dashboard
 
 View banners at: `http://localhost:5173/dashboard/banners` — filter by "KGM" OEM.
+
+## Payload CMS API
+
+The Payload CMS API is still accessible even when file serving is broken:
+
+```
+GET https://payloadb.therefinerydesign.com/api/media?limit=50&sort=-createdAt
+GET https://payloadb.therefinerydesign.com/api/media?where[filename][contains]=Mar26
+```
+
+This can be used to discover new upload filenames and alt text for headlines.
