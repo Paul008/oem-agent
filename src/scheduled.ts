@@ -114,8 +114,9 @@ export async function handleScheduled(
   ctx.waitUntil(
     (async () => {
       try {
-        console.log(`[Scheduled] Running ${label}`);
-        const result = await orchestrator.runScheduledCrawl();
+        const crawlType = trigger?.config.crawl_type as string | undefined;
+        console.log(`[Scheduled] Running ${label} (crawl_type: ${crawlType ?? 'full'})`);
+        const result = await orchestrator.runScheduledCrawl(crawlType);
         console.log(`[${label}] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
 
         run.status = 'success';

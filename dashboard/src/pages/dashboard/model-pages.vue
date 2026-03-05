@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, Search, ChevronLeft, ChevronRight, ImageOff, ExternalLink, FileText, Factory, Clock, DollarSign, AlertCircle, LayoutGrid, List, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Layers, FilePlus2, Plus, Trash2 } from 'lucide-vue-next'
+import { Loader2, Search, ChevronLeft, ChevronRight, ImageOff, ExternalLink, FileText, Factory, Clock, DollarSign, AlertCircle, LayoutGrid, List, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Layers, FilePlus2, Plus, Trash2, Zap, Square } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData, type VehicleModel } from '@/composables/use-oem-data'
@@ -416,6 +416,68 @@ function getGenerateError(model: VehicleModel): string | null {
   return generateErrors.value.get(modelKey(model)) ?? null
 }
 
+// Bulk generation: generate all pending models for an OEM
+const bulkProgress = ref<Record<string, { done: number; total: number; errors: number; running: boolean }>>({})
+
+function isBulkRunning(oemId: string): boolean {
+  return bulkProgress.value[oemId]?.running ?? false
+}
+
+function getBulkProgress(oemId: string) {
+  return bulkProgress.value[oemId] ?? null
+}
+
+// AbortController per OEM for cancellation
+const bulkAbort = ref<Record<string, AbortController>>({})
+
+async function triggerGenerateAll(oemId: string, event: Event) {
+  event.stopPropagation()
+  if (isBulkRunning(oemId)) return
+
+  const pendingModels = allModels.value.filter(m => m.oem_id === oemId && !isModelPageCreated(m))
+  if (!pendingModels.length) return
+
+  const controller = new AbortController()
+  bulkAbort.value[oemId] = controller
+  bulkProgress.value[oemId] = { done: 0, total: pendingModels.length, errors: 0, running: true }
+
+  for (const model of pendingModels) {
+    if (controller.signal.aborted) break
+
+    const key = modelKey(model)
+    generating.value.add(key)
+    generateErrors.value.delete(key)
+
+    try {
+      await adaptivePipeline(model.oem_id, model.slug)
+      if (!isModelPageCreated(model)) {
+        allSlugs.value = [...allSlugs.value, { oem_id: model.oem_id, slug: model.slug }]
+      }
+      await prefetchPages([{ oem_id: model.oem_id, slug: model.slug }])
+    } catch (err: any) {
+      generateErrors.value.set(key, err?.message || 'Generation failed')
+      bulkProgress.value[oemId] = {
+        ...bulkProgress.value[oemId],
+        errors: bulkProgress.value[oemId].errors + 1,
+      }
+    } finally {
+      generating.value.delete(key)
+      bulkProgress.value[oemId] = {
+        ...bulkProgress.value[oemId],
+        done: bulkProgress.value[oemId].done + 1,
+      }
+    }
+  }
+
+  bulkProgress.value[oemId] = { ...bulkProgress.value[oemId], running: false }
+  delete bulkAbort.value[oemId]
+}
+
+function stopBulkGenerate(oemId: string, event: Event) {
+  event.stopPropagation()
+  bulkAbort.value[oemId]?.abort()
+}
+
 // Coverage data grouped by OEM
 const coverageByOem = computed(() => {
   const groups: { oemId: string; oemName: string; models: VehicleModel[]; created: number; total: number }[] = []
@@ -743,8 +805,8 @@ function openPageBuilder(item: { oem_id: string; slug: string }) {
             class="border rounded-lg overflow-hidden"
           >
             <!-- OEM Header -->
-            <button
-              class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+            <div
+              class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors cursor-pointer"
               @click="toggleOemCollapse(group.oemId)"
             >
               <component
@@ -765,7 +827,51 @@ function openPageBuilder(item: { oem_id: string; slug: string }) {
               <span class="text-sm tabular-nums shrink-0" :class="group.created === group.total ? 'text-emerald-600 font-medium' : 'text-muted-foreground'">
                 {{ group.created }}/{{ group.total }}
               </span>
-            </button>
+
+              <!-- Bulk generate: progress indicator -->
+              <span
+                v-if="isBulkRunning(group.oemId)"
+                class="text-[11px] text-blue-600 font-medium tabular-nums shrink-0"
+              >
+                {{ getBulkProgress(group.oemId)!.done }}/{{ getBulkProgress(group.oemId)!.total }}
+                <span v-if="getBulkProgress(group.oemId)!.errors" class="text-red-500 ml-1">
+                  ({{ getBulkProgress(group.oemId)!.errors }} failed)
+                </span>
+              </span>
+              <!-- Bulk generate: completed summary -->
+              <span
+                v-else-if="getBulkProgress(group.oemId) && !isBulkRunning(group.oemId)"
+                class="text-[11px] tabular-nums shrink-0"
+                :class="getBulkProgress(group.oemId)!.errors ? 'text-amber-600' : 'text-emerald-600'"
+              >
+                Done{{ getBulkProgress(group.oemId)!.errors ? ` (${getBulkProgress(group.oemId)!.errors} failed)` : '' }}
+              </span>
+
+              <!-- Bulk generate: stop button -->
+              <UiButton
+                v-if="isBulkRunning(group.oemId)"
+                size="sm"
+                variant="outline"
+                class="h-7 text-xs px-2.5 shrink-0 border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                title="Stop generation"
+                @click="stopBulkGenerate(group.oemId, $event)"
+              >
+                <Square class="size-3 mr-1 fill-current" />
+                Stop
+              </UiButton>
+              <!-- Bulk generate: generate all button -->
+              <UiButton
+                v-else-if="group.created < group.total"
+                size="sm"
+                variant="outline"
+                class="h-7 text-xs px-2.5 shrink-0"
+                title="Generate all pending model pages for this OEM"
+                @click="triggerGenerateAll(group.oemId, $event)"
+              >
+                <Zap class="size-3 mr-1" />
+                Generate All
+              </UiButton>
+            </div>
 
             <!-- Model rows -->
             <div v-if="!collapsedOems.has(group.oemId)" class="border-t divide-y">

@@ -65,7 +65,7 @@ All skills store data in Supabase. Key tables:
 Public REST endpoints serving vehicle variant data in WordPress REST API format for dealer websites.
 
 **Base URL**: `https://oem-agent.adme-dev.workers.dev`
-**Auth**: None (public, no CF Access required)
+**Auth**: None (public, CORS enabled for all origins)
 **Implementation**: `src/routes/dealer-api.ts`
 
 ### Endpoints
@@ -75,7 +75,16 @@ Public REST endpoints serving vehicle variant data in WordPress REST API format 
 | `GET /api/wp/v2/catalog?oem_id={id}` | All models + nested variants for an OEM | `oem_id` |
 | `GET /api/wp/v2/models?oem_id={id}` | Active model list | `oem_id` |
 | `GET /api/wp/v2/variants?filter[variant_category]={slug}&oem_id={id}` | Paginated variants for a model | `filter[variant_category]`, `oem_id`, `per_page`, `page` |
-| `GET /api/wp/v2/variants-import?oem={id}` | Flat variant list for WP All Import | `oem` (accepts both `gwm` and `gwm-au`) |
+| `GET /api/wp/v2/variants-import?oem={id}` | Flat variant list for WP All Import | `oem` |
+
+**OEM ID format**: All endpoints accept both short (`kia`) and full (`kia-au`) OEM IDs via `normalizeOemId()`.
+
+### Resilience
+
+- **CORS**: Router-level middleware on all endpoints (`Access-Control-Allow-Origin: *`, OPTIONS preflight)
+- **Partial failure**: `Promise.allSettled` for parallel color/pricing/palette queries — one failing won't crash the response
+- **Error handling**: All endpoints wrapped in try/catch with structured JSON error responses
+- **Title fallback safety**: `ilike` fallback requires model name >= 3 chars, uses starts-with pattern to avoid over-matching
 
 ### Data Flow
 `vehicle_models` → `products` → parallel(`variant_colors`, `variant_pricing`, `oem_color_palette`) → WP JSON schema

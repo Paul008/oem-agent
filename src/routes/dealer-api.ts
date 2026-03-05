@@ -17,7 +17,21 @@ import { createSupabaseClient } from '../utils/supabase';
 
 const dealerApi = new Hono<AppEnv>();
 
+// CORS for all dealer-api routes (public, consumed by dealer websites)
+dealerApi.use('*', async (c, next) => {
+  c.header('Access-Control-Allow-Origin', '*');
+  c.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (c.req.method === 'OPTIONS') return c.body(null, 204);
+  return next();
+});
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Normalize OEM ID — accepts both 'kia' and 'kia-au' */
+function normalizeOemId(raw: string): string {
+  return raw.includes('-') ? raw : `${raw}-au`;
+}
 
 function slugify(text: string): string {
   return text
@@ -200,7 +214,7 @@ function transformProduct(
 
 dealerApi.get('/variants', async (c) => {
   const variantCategory = c.req.query('filter[variant_category]');
-  const oemId = c.req.query('oem_id');
+  const rawOemId = c.req.query('oem_id');
   const perPage = Math.min(parseInt(c.req.query('per_page') || '100', 10) || 100, 100);
   const page = Math.max(parseInt(c.req.query('page') || '1', 10) || 1, 1);
   const offset = (page - 1) * perPage;
@@ -208,9 +222,10 @@ dealerApi.get('/variants', async (c) => {
   if (!variantCategory) {
     return c.json({ code: 'rest_missing_parameter', message: 'filter[variant_category] is required', data: { status: 400 } }, 400);
   }
-  if (!oemId) {
+  if (!rawOemId) {
     return c.json({ code: 'rest_missing_parameter', message: 'oem_id is required', data: { status: 400 } }, 400);
   }
+  const oemId = normalizeOemId(rawOemId);
 
   const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
 
@@ -234,17 +249,20 @@ dealerApi.get('/variants', async (c) => {
 
     if (prodErr) return c.json({ code: 'internal_error', message: prodErr.message }, 500);
 
-    // Fallback: title match if no model_id linked products
+    // Fallback: title match if no model_id linked products (min 3 chars to avoid over-matching)
     if (!products || products.length === 0) {
-      const fallback = await supabase
-        .from('products')
-        .select(PRODUCT_SELECT, { count: 'exact' })
-        .eq('oem_id', oemId)
-        .ilike('title', `%${model.name}%`)
-        .order('price_amount', { ascending: true })
-        .range(offset, offset + perPage - 1);
-      products = fallback.data;
-      count = fallback.count;
+      if (model.name && model.name.length >= 3) {
+        console.warn(`[dealer-api] variants fallback: title ilike for model "${model.name}"`);
+        const fallback = await supabase
+          .from('products')
+          .select(PRODUCT_SELECT, { count: 'exact' })
+          .eq('oem_id', oemId)
+          .ilike('title', `${model.name}%`)
+          .order('price_amount', { ascending: true })
+          .range(offset, offset + perPage - 1);
+        products = fallback.data;
+        count = fallback.count;
+      }
     }
 
     if (!products || products.length === 0) {
@@ -255,7 +273,7 @@ dealerApi.get('/variants', async (c) => {
 
     const productIds = products.map((p: any) => p.id);
 
-    const [colorsRes, pricingRes, paletteRes] = await Promise.all([
+    const [colorsSettled, pricingSettled, paletteSettled] = await Promise.allSettled([
       supabase.from('variant_colors')
         .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
         .in('product_id', productIds)
@@ -269,10 +287,14 @@ dealerApi.get('/variants', async (c) => {
         .eq('is_active', true),
     ]);
 
-    const colorsByProduct = groupBy(colorsRes.data || [], 'product_id' as any);
-    const pricingByProduct = groupBy(pricingRes.data || [], 'product_id' as any);
+    const colorsData = colorsSettled.status === 'fulfilled' ? colorsSettled.value.data || [] : [];
+    const pricingData = pricingSettled.status === 'fulfilled' ? pricingSettled.value.data || [] : [];
+    const paletteData = paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [];
+
+    const colorsByProduct = groupBy(colorsData, 'product_id' as any);
+    const pricingByProduct = groupBy(pricingData, 'product_id' as any);
     const hexByCode: Record<string, string> = {};
-    for (const p of paletteRes.data || []) hexByCode[p.color_code] = p.hex_approx || '';
+    for (const p of paletteData) hexByCode[p.color_code] = p.hex_approx || '';
 
     const result = products.map((product: any) =>
       transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode),
@@ -291,33 +313,40 @@ dealerApi.get('/variants', async (c) => {
 // ── Models list endpoint ───────────────────────────────────────────────────
 
 dealerApi.get('/models', async (c) => {
-  const oemId = c.req.query('oem_id');
-  if (!oemId) {
+  const rawOemId = c.req.query('oem_id');
+  if (!rawOemId) {
     return c.json({ code: 'rest_missing_parameter', message: 'oem_id is required', data: { status: 400 } }, 400);
   }
+  const oemId = normalizeOemId(rawOemId);
 
   const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
 
-  const { data: models, error } = await supabase
-    .from('vehicle_models')
-    .select('id, slug, name, body_type, category, model_year, hero_image_url, is_active')
-    .eq('oem_id', oemId)
-    .eq('is_active', true)
-    .order('name');
+  try {
+    const { data: models, error } = await supabase
+      .from('vehicle_models')
+      .select('id, slug, name, body_type, category, model_year, hero_image_url, is_active')
+      .eq('oem_id', oemId)
+      .eq('is_active', true)
+      .order('name');
 
-  if (error) return c.json({ code: 'internal_error', message: error.message }, 500);
+    if (error) return c.json({ code: 'internal_error', message: error.message }, 500);
 
-  c.header('Cache-Control', 'public, max-age=300');
-  return c.json(models || []);
+    c.header('Cache-Control', 'public, max-age=300');
+    return c.json(models || []);
+  } catch (err) {
+    console.error('[dealer-api] models error:', err);
+    return c.json({ code: 'internal_error', message: 'Failed to fetch models' }, 500);
+  }
 });
 
 // ── Full catalog endpoint — all models + variants for an OEM ──────────────
 
 dealerApi.get('/catalog', async (c) => {
-  const oemId = c.req.query('oem_id');
-  if (!oemId) {
+  const rawOemId = c.req.query('oem_id');
+  if (!rawOemId) {
     return c.json({ code: 'rest_missing_parameter', message: 'oem_id is required', data: { status: 400 } }, 400);
   }
+  const oemId = normalizeOemId(rawOemId);
 
   const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
 
@@ -345,7 +374,7 @@ dealerApi.get('/catalog', async (c) => {
     const allProducts = products || [];
     const productIds = allProducts.map((p: any) => p.id);
 
-    const [colorsRes, pricingRes, paletteRes] = await Promise.all([
+    const [colorsSettled, pricingSettled, paletteSettled] = await Promise.allSettled([
       productIds.length > 0
         ? supabase.from('variant_colors')
             .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
@@ -363,11 +392,15 @@ dealerApi.get('/catalog', async (c) => {
         .eq('is_active', true),
     ]);
 
-    const colorsByProduct = groupBy(colorsRes.data || [], 'product_id' as any);
-    const pricingByProduct = groupBy(pricingRes.data || [], 'product_id' as any);
+    const colorsData = colorsSettled.status === 'fulfilled' ? colorsSettled.value.data || [] : [];
+    const pricingData = pricingSettled.status === 'fulfilled' ? pricingSettled.value.data || [] : [];
+    const paletteData = paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [];
+
+    const colorsByProduct = groupBy(colorsData, 'product_id' as any);
+    const pricingByProduct = groupBy(pricingData, 'product_id' as any);
     const productsByModel = groupBy(allProducts, 'model_id' as any);
     const hexByCode: Record<string, string> = {};
-    for (const p of paletteRes.data || []) hexByCode[p.color_code] = p.hex_approx || '';
+    for (const p of paletteData) hexByCode[p.color_code] = p.hex_approx || '';
 
     const catalog = models.map((model: any) => {
       const modelProducts = (productsByModel[model.id] || []) as any[];
@@ -403,8 +436,7 @@ dealerApi.get('/variants-import', async (c) => {
     return c.json({ code: 'rest_missing_parameter', message: 'oem is required', data: { status: 400 } }, 400);
   }
 
-  // Support both short names (gwm) and full IDs (gwm-au)
-  const oemId = oem.includes('-') ? oem : `${oem}-au`;
+  const oemId = normalizeOemId(oem);
 
   const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
 
@@ -435,7 +467,7 @@ dealerApi.get('/variants-import', async (c) => {
 
     const productIds = allProducts.map((p: any) => p.id);
 
-    const [colorsRes, pricingRes, paletteRes] = await Promise.all([
+    const [colorsSettled, pricingSettled, paletteSettled] = await Promise.allSettled([
       supabase.from('variant_colors')
         .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
         .in('product_id', productIds)
@@ -449,10 +481,10 @@ dealerApi.get('/variants-import', async (c) => {
         .eq('is_active', true),
     ]);
 
-    const colorsByProduct = groupBy(colorsRes.data || [], 'product_id' as any);
-    const pricingByProduct = groupBy(pricingRes.data || [], 'product_id' as any);
+    const colorsByProduct = groupBy(colorsSettled.status === 'fulfilled' ? colorsSettled.value.data || [] : [], 'product_id' as any);
+    const pricingByProduct = groupBy(pricingSettled.status === 'fulfilled' ? pricingSettled.value.data || [] : [], 'product_id' as any);
     const hexByCode: Record<string, string> = {};
-    for (const p of paletteRes.data || []) hexByCode[p.color_code] = p.hex_approx || '';
+    for (const p of (paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [])) hexByCode[p.color_code] = p.hex_approx || '';
 
     // Transform to flat oem-variants schema for WP All Import
     const result = allProducts.map((product: any) => {
@@ -510,7 +542,6 @@ dealerApi.get('/variants-import', async (c) => {
     });
 
     c.header('Cache-Control', 'public, max-age=300');
-    c.header('Access-Control-Allow-Origin', '*');
     return c.json(result);
   } catch (err) {
     console.error('[dealer-api] variants-import error:', err);

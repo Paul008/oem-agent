@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff } from 'lucide-vue-next'
+import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff, Clock, RefreshCw } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -49,7 +49,13 @@ const filtered = computed(() => {
       || o.offer_type?.toLowerCase().includes(q),
     )
   }
-  return list
+  // Sort: active first, then by updated_at descending
+  return [...list].sort((a, b) => {
+    const aExpired = isExpired(a) ? 1 : 0
+    const bExpired = isExpired(b) ? 1 : 0
+    if (aExpired !== bExpired) return aExpired - bExpired
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  })
 })
 
 const totalPages = computed(() => Math.ceil(filtered.value.length / perPage.value) || 1)
@@ -94,6 +100,18 @@ function isExpired(offer: Offer) {
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function timeAgo(dateStr: string | null) {
+  if (!dateStr) return 'never'
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
 </script>
 
@@ -271,9 +289,16 @@ function formatDate(dateStr: string | null) {
               </span>
             </div>
 
-            <!-- Updated -->
-            <div class="text-[10px] text-muted-foreground/60">
-              Updated {{ new Date(offer.updated_at).toLocaleDateString('en-AU') }}
+            <!-- Timestamps -->
+            <div class="flex items-center justify-between text-[10px] text-muted-foreground/60 gap-2">
+              <span class="flex items-center gap-1" :title="`Last crawl saw this offer: ${offer.last_seen_at}`">
+                <RefreshCw class="size-2.5" />
+                Seen {{ timeAgo(offer.last_seen_at) }}
+              </span>
+              <span class="flex items-center gap-1" :title="`Content last changed: ${offer.updated_at}`">
+                <Clock class="size-2.5" />
+                Updated {{ timeAgo(offer.updated_at) }}
+              </span>
             </div>
           </div>
         </UiCard>

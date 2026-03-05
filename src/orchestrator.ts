@@ -13,6 +13,7 @@
 
 import type {
   OemId,
+  PageType,
   SourcePage,
   ImportRun,
   Product,
@@ -118,17 +119,40 @@ export class OemAgentOrchestrator {
   // ==========================================================================
 
   /**
-   * Run a scheduled crawl for all due pages across all OEMs.
-   * 
-   * This is the main entry point called by the scheduled worker.
+   * Map crawl_type from cron triggers to the page_types they should crawl.
+   *
+   * - homepage  → homepage pages (banners)
+   * - offers    → offers pages (offers + banners on offer pages)
+   * - vehicles  → vehicle, category, build_price pages (variants/models)
+   * - news      → news pages
+   * - sitemap   → sitemap pages
+   * - full      → all page types (no filter)
    */
-  async runScheduledCrawl(): Promise<{
+  private static readonly CRAWL_TYPE_TO_PAGE_TYPES: Record<string, PageType[]> = {
+    homepage: ['homepage'],
+    offers: ['offers'],
+    vehicles: ['vehicle', 'category', 'build_price'],
+    news: ['news'],
+    sitemap: ['sitemap'],
+  };
+
+  /**
+   * Run a scheduled crawl for all due pages across all OEMs.
+   *
+   * This is the main entry point called by the scheduled worker.
+   * When crawlType is provided, only pages matching that type are crawled.
+   */
+  async runScheduledCrawl(crawlType?: string): Promise<{
     jobsProcessed: number;
     pagesChanged: number;
     errors: number;
   }> {
-    console.log('[Orchestrator] Starting scheduled crawl...');
-    
+    const pageTypes = crawlType
+      ? OemAgentOrchestrator.CRAWL_TYPE_TO_PAGE_TYPES[crawlType]
+      : undefined;
+
+    console.log(`[Orchestrator] Starting scheduled crawl (type: ${crawlType ?? 'full'}, pageTypes: ${pageTypes?.join(', ') ?? 'all'})...`);
+
     const startTime = Date.now();
     let jobsProcessed = 0;
     let pagesChanged = 0;
@@ -148,7 +172,7 @@ export class OemAgentOrchestrator {
     // Process each OEM
     for (const oem of oems) {
       try {
-        const result = await this.crawlOem(oem.id as OemId);
+        const result = await this.crawlOem(oem.id as OemId, pageTypes);
         jobsProcessed += result.jobsProcessed;
         pagesChanged += result.pagesChanged;
         errors += result.errors;
@@ -159,21 +183,21 @@ export class OemAgentOrchestrator {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[Orchestrator] Scheduled crawl complete: ${jobsProcessed} jobs, ${pagesChanged} changed, ${errors} errors in ${duration}ms`);
+    console.log(`[Orchestrator] Scheduled crawl complete (type: ${crawlType ?? 'full'}): ${jobsProcessed} jobs, ${pagesChanged} changed, ${errors} errors in ${duration}ms`);
 
     return { jobsProcessed, pagesChanged, errors };
   }
 
   /**
-   * Run a full crawl for a specific OEM.
+   * Run a crawl for a specific OEM, optionally filtered to specific page types.
    */
-  async crawlOem(oemId: OemId): Promise<{
+  async crawlOem(oemId: OemId, pageTypes?: PageType[]): Promise<{
     jobsProcessed: number;
     pagesChanged: number;
     errors: number;
     importRunId: string | null;
   }> {
-    console.log(`[Orchestrator] Crawling OEM: ${oemId}`);
+    console.log(`[Orchestrator] Crawling OEM: ${oemId}${pageTypes ? ` (page types: ${pageTypes.join(', ')})` : ''}`);
 
     // Create import run record
     const importRun = {
@@ -195,9 +219,9 @@ export class OemAgentOrchestrator {
       console.log(`[Orchestrator] Import run created: ${importRun.id}`);
     }
 
-    // Get due pages for this OEM
+    // Get due pages for this OEM (filtered by page type if specified)
     console.log(`[Orchestrator] Fetching due pages for ${oemId}...`);
-    const pages = await this.getDuePages(oemId);
+    const pages = await this.getDuePages(oemId, pageTypes);
     console.log(`[Orchestrator] Found ${pages.length} due pages for ${oemId}`);
     
     let jobsProcessed = 0;
@@ -1059,13 +1083,20 @@ export class OemAgentOrchestrator {
   // Helper Methods
   // ==========================================================================
 
-  private async getDuePages(oemId: OemId): Promise<SourcePage[]> {
-    console.log(`[Orchestrator] Querying source_pages for ${oemId}...`);
-    const { data, error } = await this.config.supabaseClient
+  private async getDuePages(oemId: OemId, pageTypes?: PageType[]): Promise<SourcePage[]> {
+    console.log(`[Orchestrator] Querying source_pages for ${oemId}${pageTypes ? ` (types: ${pageTypes.join(', ')})` : ''}...`);
+    let query = this.config.supabaseClient
       .from('source_pages')
       .select('*')
       .eq('oem_id', oemId)
-      .eq('status', 'active')
+      .eq('status', 'active');
+
+    // Filter by page types when a specific crawl type is targeted
+    if (pageTypes && pageTypes.length > 0) {
+      query = query.in('page_type', pageTypes);
+    }
+
+    const { data, error } = await query
       .order('last_checked_at', { ascending: true, nullsFirst: true })
       .limit(100);
 
@@ -2961,6 +2992,7 @@ ${html.substring(0, 50000)}
 
     // Process offers
     if (extractionResult.offers?.data) {
+      console.log(`[Orchestrator] Processing ${extractionResult.offers.data.length} offers for ${page.url}`);
       for (const extractedOffer of extractionResult.offers.data) {
         try {
           const result = await this.upsertOffer(oemId, page.url, extractedOffer);
@@ -2970,8 +3002,9 @@ ${html.substring(0, 50000)}
           if (result.changeDetected) {
             changesFound++;
           }
+          console.log(`[Orchestrator] Upserted offer: ${extractedOffer.title} (created: ${result.created}, updated: ${result.updated}, changed: ${result.changeDetected})`);
         } catch (error) {
-          console.error(`[Orchestrator] Failed to upsert offer:`, error);
+          console.error(`[Orchestrator] Failed to upsert offer ${extractedOffer.title}:`, error);
         }
       }
     }
@@ -3125,10 +3158,104 @@ ${html.substring(0, 50000)}
     sourceUrl: string,
     offerData: any
   ): Promise<{ created: boolean, updated: boolean, changeDetected: boolean }> {
-    // Similar to upsertProduct
-    // TODO: Implement offer upserting with proper tracking
-    // ... implementation
-    return { created: false, updated: false, changeDetected: false };
+    console.log(`[UpsertOffer] Processing: ${offerData.title}`);
+
+    // Build a content hash for deduplication (title + oem is the match key)
+    const now = new Date().toISOString();
+
+    // Check for existing offer by oem_id + title
+    const { data: existing, error: queryError } = await this.config.supabaseClient
+      .from('offers')
+      .select('id, title, price_amount, saving_amount, validity_end, disclaimer_text')
+      .eq('oem_id', oemId)
+      .eq('title', offerData.title)
+      .maybeSingle();
+
+    if (queryError) {
+      console.error(`[UpsertOffer] Query error for "${offerData.title}":`, queryError);
+      return { created: false, updated: false, changeDetected: false };
+    }
+
+    // Map extracted offer data to DB columns
+    const offer: Record<string, any> = {
+      oem_id: oemId,
+      source_url: sourceUrl,
+      title: offerData.title,
+      description: offerData.description || null,
+      offer_type: offerData.offer_type || null,
+      applicable_models: offerData.applicable_models || null,
+      price_amount: offerData.price?.amount || null,
+      price_type: offerData.price?.type || null,
+      price_raw_string: offerData.price?.raw_string || null,
+      saving_amount: offerData.price?.saving_amount || null,
+      validity_start: offerData.validity?.start_date || null,
+      validity_end: offerData.validity?.end_date || null,
+      validity_raw: offerData.validity?.raw_string || null,
+      cta_text: offerData.cta_text || null,
+      cta_url: offerData.cta_url || null,
+      hero_image_r2_key: offerData.hero_image_url || null,
+      disclaimer_text: offerData.disclaimer_text || null,
+      disclaimer_html: offerData.disclaimer_html || null,
+      eligibility: offerData.eligibility || null,
+      last_seen_at: now,
+      updated_at: now,
+    };
+
+    if (existing) {
+      console.log(`[UpsertOffer] Existing offer found: ${existing.id}`);
+
+      // Detect changes
+      const analysis = this.changeDetector.detectOfferChanges(existing as any, offer as any);
+
+      if (analysis) {
+        console.log(`[UpsertOffer] Changes detected, updating: ${offerData.title}`);
+
+        const { error: updateError } = await this.config.supabaseClient
+          .from('offers')
+          .update(offer)
+          .eq('id', existing.id);
+
+        if (updateError) {
+          console.error(`[UpsertOffer] Update error for "${offerData.title}":`, updateError);
+          return { created: false, updated: false, changeDetected: false };
+        }
+
+        // Create change event and queue alert
+        await this.createChangeEvent(oemId, analysis);
+        this.alertBatcher.add(analysis, oemId);
+        return { created: false, updated: true, changeDetected: true };
+      } else {
+        console.log(`[UpsertOffer] No changes for: ${offerData.title}`);
+        // Still update last_seen_at
+        await this.config.supabaseClient
+          .from('offers')
+          .update({ last_seen_at: now })
+          .eq('id', existing.id);
+        return { created: false, updated: true, changeDetected: false };
+      }
+    } else {
+      console.log(`[UpsertOffer] NEW offer, inserting: ${offerData.title}`);
+      offer.id = crypto.randomUUID();
+
+      const { error: insertError } = await this.config.supabaseClient
+        .from('offers')
+        .insert(offer);
+
+      if (insertError) {
+        console.error(`[UpsertOffer] Failed to insert "${offerData.title}":`, insertError);
+        return { created: false, updated: false, changeDetected: false };
+      }
+
+      console.log(`[UpsertOffer] Successfully inserted: ${offerData.title} (${offer.id})`);
+
+      // Create change event for new offer
+      const analysis = this.changeDetector.detectOfferChanges(null, offer as any);
+      if (analysis) {
+        await this.createChangeEvent(oemId, analysis);
+        this.alertBatcher.add(analysis, oemId);
+      }
+      return { created: true, updated: false, changeDetected: true };
+    }
   }
 
   private async upsertBanner(
