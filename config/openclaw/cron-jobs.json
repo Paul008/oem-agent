@@ -111,15 +111,15 @@
       }
     },
     {
-      "id": "oem-data-sync-weekly",
-      "name": "Weekly OEM Data Sync",
-      "description": "Run all weekly seed scripts (accessories, colors, products, enrichment)",
-      "schedule": "0 3 * * 0",
+      "id": "oem-data-sync-daily",
+      "name": "Daily Kia Color Sync",
+      "description": "Sync Kia AU variant colors, swatches, hero images, and price deltas from BYO pages",
+      "schedule": "0 3 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-data-sync",
       "enabled": true,
       "config": {
-        "schedule": "weekly",
+        "schedule": "daily",
         "timeout_per_script": 120
       }
     },

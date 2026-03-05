@@ -208,8 +208,6 @@ function is360Url(url: string | null) {
   if (!url) return false
   // Nissan Helios: pov=E01 pattern
   if (url.includes('heliosnissan.net/iris/iris')) return true
-  // Kia KWCMS: _00000 frame pattern
-  if (/_\d{5}\./.test(url)) return true
   return false
 }
 
