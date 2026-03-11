@@ -81,18 +81,56 @@ async function gacGet(url) {
   return data.data
 }
 
+// Map GAC section names → standard ProductSpecs categories
+const SECTION_MAP = {
+  'EXTERIOR': 'exterior',
+  'INTERIOR': 'interior',
+  'SAFETY': 'safety',
+  'ACTIVE AND PASSIVE SAFETY': 'safety',
+  'COMFORT AND CONVENIENCE': 'comfort',
+  'SEATS': 'seats',
+  'ENTERTAINMENT AND TECHNOLOGY': 'technology',
+  'Entertainment and Technology': 'technology',
+  'DRIVING ASSISTANCE': 'safety',
+  'Driving Assistance': 'safety',
+  'Battery and Range': 'battery',
+  'Emission Level': 'engine',
+}
+
+// BASIC INFORMATION items are mixed — classify by keyword
+const BASIC_INFO_RULES = [
+  { pattern: /length|width|height|wheelbase|ground clearance|turning|curb weight/i, category: 'dimensions' },
+  { pattern: /power|torque|horsepower|engine|displacement|emission/i, category: 'engine' },
+  { pattern: /top speed|fuel consumption|vehicle consumption/i, category: 'performance' },
+  { pattern: /seating|trunk|luggage|cargo|fuel tank|roof load/i, category: 'capacity' },
+  { pattern: /drive mode|drivetrain|transmission|steering/i, category: 'transmission' },
+  { pattern: /brake|suspension/i, category: 'chassis' },
+  { pattern: /charging/i, category: 'battery' },
+]
+
+function classifyBasicItem(name) {
+  for (const rule of BASIC_INFO_RULES) {
+    if (rule.pattern.test(name)) return rule.category
+  }
+  return 'dimensions' // default for unmatched basic info
+}
+
 function parseSpecs(configs, variantIndex) {
   const specs = {}
   for (const section of configs) {
-    const sectionSpecs = {}
     for (const item of section.content) {
       const val = item.content?.[variantIndex] || item.content?.[0]
-      if (val && val !== '-' && val !== '—') {
-        sectionSpecs[item.name] = val
+      if (!val || val === '-' || val === '—' || val === '——' || val === '━') continue
+
+      let category
+      if (section.name === 'BASIC INFORMATION') {
+        category = classifyBasicItem(item.name)
+      } else {
+        category = SECTION_MAP[section.name] || section.name.toLowerCase()
       }
-    }
-    if (Object.keys(sectionSpecs).length > 0) {
-      specs[section.name] = sectionSpecs
+
+      if (!specs[category]) specs[category] = {}
+      specs[category][item.name] = val
     }
   }
   return specs
