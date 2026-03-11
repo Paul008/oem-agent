@@ -510,6 +510,34 @@ export const fotonAu: OemDefinition = {
 };
 
 // ============================================================================
+// 1.17 GAC Australia
+// ============================================================================
+export const gacAu: OemDefinition = {
+  id: 'gac-au',
+  name: 'GAC Australia',
+  baseUrl: 'https://www.gacgroup.com/en-au/',
+  config: {
+    homepage: '/',
+    vehicles_index: '/en-au/',
+    offers: '/', // No dedicated offers page
+    schedule: {
+      homepage_minutes: 1440,
+      offers_minutes: 1440,
+      vehicles_minutes: 1440,
+      news_minutes: 1440,
+    },
+  },
+  selectors: {
+    vehicleLinks: 'a[href*="/en-au/suv/"], a[href*="/en-au/mpv/"], a[href*="/en-au/hatchback/"]',
+    heroSlides: '.hero, [class*="hero"], [class*="banner"]',
+    offerTiles: '[class*="offer"], [class*="promo"]',
+  },
+  flags: {
+    requiresBrowserRendering: true,
+  },
+};
+
+// ============================================================================
 // Registry Collection
 // ============================================================================
 
@@ -530,6 +558,7 @@ export const oemRegistry: Record<OemId, OemDefinition> = {
   'subaru-au': subaruAu,
   'gmsv-au': gmsvAu,
   'foton-au': fotonAu,
+  'gac-au': gacAu,
 };
 
 export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];

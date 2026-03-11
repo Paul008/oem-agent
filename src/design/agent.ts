@@ -863,4 +863,8 @@ export const OEM_BRAND_NOTES: Record<OemId, { colors: string[]; notes: string }>
     colors: ['#D4002A'], // Foton red
     notes: 'Server-rendered, postcode-gated pricing via API, /api/v1/custompricing/vehicles with Api-Key header, ute + truck range',
   },
+  'gac-au': {
+    colors: ['#0052CC'], // GAC blue
+    notes: 'Nuxt 3 SSR, HmacSHA256 signed API (eu-www-api.gacgroup.com), SUV/MPV/EV range, AION EV sub-brand',
+  },
 };
