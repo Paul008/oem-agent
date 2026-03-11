@@ -285,7 +285,7 @@ function getCustomPageData(item: { oem_id: string; slug: string }) {
 }
 
 const OEM_IDS = [
-  'ford-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
+  'ford-au', 'gac-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
   'mazda-au', 'mitsubishi-au', 'nissan-au', 'subaru-au', 'suzuki-au',
   'toyota-au', 'volkswagen-au', 'kgm-au',
 ]

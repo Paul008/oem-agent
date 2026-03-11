@@ -4,7 +4,7 @@ import { OEM_CURATED_TEMPLATES, type OemSectionTemplate } from '@/pages/dashboar
 import type { PageSectionType } from '@/pages/dashboard/components/page-builder/section-templates'
 
 const OEM_IDS = [
-  'ford-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
+  'ford-au', 'gac-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
   'mazda-au', 'mitsubishi-au', 'nissan-au', 'subaru-au', 'suzuki-au',
   'toyota-au', 'volkswagen-au', 'kgm-au',
 ]
