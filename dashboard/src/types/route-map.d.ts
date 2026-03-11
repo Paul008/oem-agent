@@ -333,6 +333,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/specs': RouteRecordInfo<
+      '/dashboard/specs',
+      '/dashboard/specs',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/variants': RouteRecordInfo<
       '/dashboard/variants',
       '/dashboard/variants',
@@ -746,6 +753,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/source-pages.vue': {
       routes:
         | '/dashboard/source-pages'
+      views:
+        | never
+    }
+    'src/pages/dashboard/specs.vue': {
+      routes:
+        | '/dashboard/specs'
       views:
         | never
     }

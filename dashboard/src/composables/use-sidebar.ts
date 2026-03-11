@@ -26,6 +26,7 @@ export function useSidebar() {
         { title: 'Accessories', url: '/dashboard/accessories', icon: Wrench },
         { title: 'Colors', url: '/dashboard/colors', icon: Palette },
         { title: 'Pricing', url: '/dashboard/pricing', icon: TrendingUp },
+        { title: 'Specifications', url: '/dashboard/specs', icon: FileText },
         { title: 'Model Pages', url: '/dashboard/model-pages', icon: FileText },
       ],
     },
