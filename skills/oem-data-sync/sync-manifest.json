@@ -39,6 +39,15 @@
       "schedule": "weekly"
     },
     {
+      "id": "gac-au:products",
+      "oem_id": "gac-au",
+      "operation": "products",
+      "script": "seed-gac-products.mjs",
+      "tables_affected": ["vehicle_models", "products", "variant_pricing"],
+      "stability": "high",
+      "schedule": "weekly"
+    },
+    {
       "id": "mitsubishi-au:accessories",
       "oem_id": "mitsubishi-au",
       "operation": "accessories",
@@ -210,6 +219,15 @@
       "schedule": "weekly"
     },
     {
+      "id": "gac-au:colors",
+      "oem_id": "gac-au",
+      "operation": "colors",
+      "script": "seed-gac-colors.mjs",
+      "tables_affected": ["variant_colors"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
       "id": "foton-au:colors",
       "oem_id": "foton-au",
       "operation": "colors",
@@ -314,6 +332,15 @@
       "operation": "apis",
       "script": "seed-mazda-apis.mjs",
       "tables_affected": ["discovered_apis"],
+      "stability": "high",
+      "schedule": "monthly"
+    },
+    {
+      "id": "gac-au:apis",
+      "oem_id": "gac-au",
+      "operation": "apis",
+      "script": "seed-gac-apis.mjs",
+      "tables_affected": ["discovered_apis", "oems"],
       "stability": "high",
       "schedule": "monthly"
     },

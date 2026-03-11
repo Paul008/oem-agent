@@ -32,6 +32,7 @@ const OEM_URL_PATTERNS = {
   'volkswagen-au':  (slug) => `https://www.volkswagen.com.au/en/models/${slug}.html`,
   'ldv-au':         (slug) => `https://www.ldvautomotive.com.au/models/${slug}`,
   'gwm-au':         (slug) => `https://www.gwmanz.com/au/models/${slug}`,
+  'gac-au':         (slug) => `https://www.gacgroup.com/en-au/${slug}`,
 }
 
 // ============================================================================
@@ -88,6 +89,14 @@ const SLUG_OVERRIDES = {
   'isuzu-au': {
     'd-max': 'https://www.isuzuute.com.au/d-max',
     'mu-x':  'https://www.isuzuute.com.au/mu-x',
+  },
+
+  // GAC has body-type prefixed URLs
+  'gac-au': {
+    'aion-v':  'https://www.gacgroup.com/en-au/suv/aion-v',
+    'm8-phev': 'https://www.gacgroup.com/en-au/mpv/gac-m8-phev',
+    'emzoom':  'https://www.gacgroup.com/en-au/suv/gac-emzoom',
+    'aion-ut': 'https://www.gacgroup.com/en-au/hatchback/aion-ut',
   },
 }
 

@@ -456,6 +456,59 @@ GWM (Great Wall Motors) uses **Storyblok CMS** as their headless content backend
 
 ## Last Verified
 February 2026 — Storyblok API confirmed working. Offers page accessible.`,
+
+  'gac-au': `# GAC Australia — API Architecture
+
+## Overview
+
+GAC Australia runs a **Nuxt 3 (Vue SSR) application** deployed on CDN with a separate API gateway. All data endpoints require **HmacSHA256 signed requests** with timestamp validation.
+
+## Architecture
+
+| Component | Detail |
+|-----------|--------|
+| Frontend | Nuxt 3 (Vue 3) SSR on CDN |
+| API Gateway | \`eu-www-api.gacgroup.com\` |
+| CDN (Assets) | \`eu-www-resouce-cdn.gacgroup.com\` |
+| Auth | HmacSHA256 request signing |
+| Region | AU (\`en-au\` locale) |
+
+## Request Signing
+
+Headers: \`fnc-app-id\` (fe-official), \`fnc-timestamp\` (ms), \`fnc-requestId\` (UUID), \`sig\` (HmacSHA256), \`locale\` (en), \`region\` (AU).
+
+Algorithm: Build parts array (body{JSON} for POST, param pairs for GET, plus header pairs), sort, join, HmacSHA256 with secret, uppercase hex.
+
+## Endpoints
+
+| # | URL | Method | Status | Returns |
+|---|-----|--------|--------|---------|
+| 1 | \`/showroom/vehicle/query/config-model\` | POST | Verified | Variants + full specs |
+| 2 | \`/showroom/veh-model/query/priceConfigModel\` | POST | Verified | RRP pricing + hero images |
+| 3 | \`/vehicle/driveaway/price/queryDriveAwayList\` | POST | **404 Deprecated** | — |
+| 4 | \`/experience/config/show\` | GET | Verified | Model discovery + vehStyleIds |
+| 5 | \`/showroom/vehicle/query/optional\` | POST | Verified | Colour options (AION V only) |
+| 6 | \`/showroom/vehicle/query/panorama\` | POST | Verified | Colour hero images |
+
+## Models (AU Market — March 2026)
+
+| Model | Series Code | vehStyleId | Type | Variants | Price Range |
+|-------|-------------|------------|------|----------|-------------|
+| AION V | aion-v | 10 | BEV | Premium, Luxury | \\$42,590 – \\$44,590 |
+| M8 PHEV | m8-phev | 11 | PHEV | Premium, Luxury, Luxury Plus | \\$76,590 – \\$84,990 |
+| EMZOOM | emzoom | 12 | ICE | Luxury | \\$25,590 |
+| AION UT | aion-ut | 13 | BEV | Coming soon | TBA |
+
+## Key Notes
+
+- **Signed requests required** — All endpoints need HmacSHA256 signatures with timestamps.
+- **vehSeriesCode casing** — Must use lowercase slugs (aion-v, m8-phev, emzoom). Uppercase with spaces fails.
+- **Driveaway API deprecated** — Returns 404. Only RRP available from priceConfigModel.
+- **Colour API partial** — Only AION V returns colours from API. EMZOOM + M8 PHEV use HTML-embedded CDN URLs.
+- **Colour surcharges** — White standard (free). EMZOOM/AION V: \\$600. M8 PHEV: \\$1,200.
+
+## Last Verified
+March 2026 — 3 active models, 6 variants, 6 variant_pricing (rrp), 27 variant_colors.`,
 }
 
 async function seed() {
