@@ -120,9 +120,9 @@ function resolveUrl(raw: string, oemId: string): string | null {
   return base ? base + raw : null;
 }
 
-// GET /media/pages/:oemId/:modelSlug/:filename — serve R2-stored page assets
+// GET /media/pages/assets/:oemId/:modelSlug/:filename — serve R2-stored page assets
 // Must be registered BEFORE the catch-all /:oemId/:encodedUrl route
-media.get('/pages/:oemId/:modelSlug/:filename', async (c) => {
+media.get('/pages/assets/:oemId/:modelSlug/:filename', async (c) => {
   const { oemId, modelSlug, filename } = c.req.param();
   const r2Key = `pages/assets/${oemId}/${modelSlug}/${filename}`;
   const bucket = (c.env as any).MOLTBOT_BUCKET as R2Bucket;
