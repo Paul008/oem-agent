@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff } from 'lucide-vue-next'
+import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff, ImageIcon } from 'lucide-vue-next'
 import MediaUploadButton from './MediaUploadButton.vue'
+import MediaLibraryDialog from './MediaLibraryDialog.vue'
 
 const brokenImages = ref(new Set<string>())
 function onImgError(url: string) {
@@ -51,6 +52,19 @@ function onNestedMediaUploaded(arrayKey: string, index: number, field: string, u
 }
 
 const sectionType = computed(() => props.section?.type)
+
+const showMediaLibrary = ref(false)
+const mediaLibraryCallback = ref<((url: string) => void) | null>(null)
+
+function openMediaLibrary(callback: (url: string) => void) {
+  mediaLibraryCallback.value = callback
+  showMediaLibrary.value = true
+}
+
+function onMediaLibrarySelect(url: string) {
+  mediaLibraryCallback.value?.(url)
+  mediaLibraryCallback.value = null
+}
 </script>
 
 <template>
@@ -96,6 +110,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.desktop_image_url || ''" class="h-8 text-xs" @update:model-value="update('desktop_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('desktop_image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('desktop_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
         <div>
@@ -108,6 +123,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.mobile_image_url || ''" class="h-8 text-xs" @update:model-value="update('mobile_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('mobile_image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('mobile_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
         <div>
@@ -115,6 +131,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.video_url || ''" class="h-8 text-xs" @update:model-value="update('video_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" accept="video/mp4,video/webm" @uploaded="onMediaUploaded('video_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
       </div>
@@ -153,6 +170,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.image_url || ''" class="h-8 text-xs" @update:model-value="update('image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
       </div>
@@ -248,6 +266,7 @@ const sectionType = computed(() => props.section?.type)
             <div class="flex gap-1">
               <UiInput :model-value="tab.image_url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('tabs', i, 'image_url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('tabs', i, 'image_url', $event)" />
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('tabs', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
             </div>
             <!-- Disclaimer fields only for kia-feature-bullets -->
             <template v-if="section.variant === 'kia-feature-bullets'">
@@ -336,6 +355,7 @@ const sectionType = computed(() => props.section?.type)
             <div class="flex items-center gap-1">
               <UiInput :model-value="img.url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('images', i, 'url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('images', i, 'url', $event)" />
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('images', i, 'url', url))"><ImageIcon class="size-3.5" /></UiButton>
               <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('images', i)">
                 <X class="size-3.5" />
               </button>
@@ -390,6 +410,7 @@ const sectionType = computed(() => props.section?.type)
             <div class="flex gap-1">
               <UiInput :model-value="card.image_url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('cards', i, 'image_url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('cards', i, 'image_url', $event)" />
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('cards', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
             </div>
           </div>
         </div>
@@ -408,6 +429,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.video_url || ''" class="h-8 text-xs" @update:model-value="update('video_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" accept="video/mp4,video/webm" @uploaded="onMediaUploaded('video_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
         <div>
@@ -420,6 +442,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.poster_url || ''" class="h-8 text-xs" @update:model-value="update('poster_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('poster_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('poster_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -489,6 +512,7 @@ const sectionType = computed(() => props.section?.type)
           <div class="flex gap-1">
             <UiInput :model-value="section.image_url || ''" class="h-8 text-xs" @update:model-value="update('image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
         <div>
@@ -669,5 +693,13 @@ const sectionType = computed(() => props.section?.type)
         Delete Section
       </UiButton>
     </div>
+
+    <MediaLibraryDialog
+      :open="showMediaLibrary"
+      :oem-id="oemId"
+      :model-slug="modelSlug"
+      @update:open="showMediaLibrary = $event"
+      @select="onMediaLibrarySelect"
+    />
   </div>
 </template>

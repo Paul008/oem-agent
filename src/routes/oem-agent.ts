@@ -1806,6 +1806,48 @@ app.post('/admin/upload-media/:oemId/:modelSlug', async (c) => {
 });
 
 /**
+ * GET /api/v1/oem-agent/admin/list-media/:oemId
+ * List uploaded media files from R2 for a given OEM.
+ * Optional query params: ?modelSlug=xxx&cursor=xxx
+ */
+app.get('/admin/list-media/:oemId', async (c) => {
+  const oemId = c.req.param('oemId');
+  const modelSlug = c.req.query('modelSlug');
+  const cursor = c.req.query('cursor') || undefined;
+
+  const prefix = modelSlug
+    ? `pages/assets/${oemId}/${modelSlug}/`
+    : `pages/assets/${oemId}/`;
+
+  const listing = await c.env.MOLTBOT_BUCKET.list({ prefix, cursor, limit: 1000 });
+
+  const items = listing.objects.map((obj) => {
+    const parts = obj.key.split('/');
+    const filename = parts[parts.length - 1];
+    const objModelSlug = parts.length >= 4 ? parts[3] : '';
+    // Parse timestamp from filename prefix: {Date.now()}-{sanitized_name}
+    const dashIdx = filename.indexOf('-');
+    const ts = dashIdx > 0 ? Number(filename.slice(0, dashIdx)) : 0;
+
+    return {
+      key: obj.key,
+      url: `/media/${obj.key}`,
+      filename,
+      size: obj.size,
+      contentType: obj.httpMetadata?.contentType || '',
+      modelSlug: objModelSlug,
+      uploadedAt: ts > 0 ? new Date(ts).toISOString() : obj.uploaded?.toISOString() || '',
+    };
+  });
+
+  return c.json({
+    success: true,
+    items,
+    cursor: listing.truncated ? listing.cursor : null,
+  });
+});
+
+/**
  * POST /api/v1/oem-agent/admin/regenerate-section/:oemId/:modelSlug
  * Regenerate a single section via Gemini.
  */

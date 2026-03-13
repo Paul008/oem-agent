@@ -182,6 +182,30 @@ export async function uploadMedia(oemId: string, modelSlug: string, file: File) 
   return res.json() as Promise<{ success: boolean; url: string; filename: string; size: number; type: string }>
 }
 
+export interface MediaItem {
+  key: string
+  url: string
+  filename: string
+  size: number
+  contentType: string
+  modelSlug: string
+  uploadedAt: string
+}
+
+export interface ListMediaResponse {
+  success: boolean
+  items: MediaItem[]
+  cursor: string | null
+}
+
+export async function listMedia(oemId: string, options?: { modelSlug?: string; cursor?: string }): Promise<ListMediaResponse> {
+  const params = new URLSearchParams()
+  if (options?.modelSlug) params.set('modelSlug', options.modelSlug)
+  if (options?.cursor) params.set('cursor', options.cursor)
+  const qs = params.toString()
+  return workerFetch(`/api/v1/oem-agent/admin/list-media/${oemId}${qs ? `?${qs}` : ''}`)
+}
+
 export async function fetchAiModelConfig() {
   return workerFetch('/api/v1/oem-agent/admin/ai-model-config')
 }
