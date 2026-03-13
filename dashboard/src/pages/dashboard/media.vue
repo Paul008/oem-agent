@@ -39,7 +39,9 @@ const totalFiles = computed(() => items.value.length)
 const imageCount = computed(() => items.value.filter(i => i.contentType.startsWith('image/')).length)
 const videoCount = computed(() => items.value.filter(i => i.contentType.startsWith('video/')).length)
 
-// Client-side filtering
+// Client-side filtering + display pagination
+const PAGE_SIZE = 60
+
 const filteredItems = computed(() => {
   let result = items.value
   if (filterModel.value !== 'all') {
@@ -57,6 +59,10 @@ const filteredItems = computed(() => {
   return result
 })
 
+const displayLimit = ref(PAGE_SIZE)
+const displayedItems = computed(() => filteredItems.value.slice(0, displayLimit.value))
+const hasMoreDisplay = computed(() => displayLimit.value < filteredItems.value.length)
+
 // Fetch when OEM changes
 watch(selectedOem, async (oemId) => {
   if (!oemId) return
@@ -65,6 +71,7 @@ watch(selectedOem, async (oemId) => {
   filterModel.value = 'all'
   searchQuery.value = ''
   filterType.value = 'all'
+  displayLimit.value = PAGE_SIZE
   await fetchItems(oemId)
 })
 
@@ -173,7 +180,7 @@ async function copyUrl(url: string) {
         </div>
 
         <span class="text-sm text-muted-foreground">
-          {{ filteredItems.length }} file{{ filteredItems.length !== 1 ? 's' : '' }}
+          {{ filteredItems.length }} file{{ filteredItems.length !== 1 ? 's' : '' }}{{ hasMoreDisplay ? ` (showing ${displayLimit})` : '' }}
         </span>
       </template>
     </div>
@@ -224,7 +231,7 @@ async function copyUrl(url: string) {
       <!-- Asset Grid -->
       <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         <div
-          v-for="item in filteredItems"
+          v-for="item in displayedItems"
           :key="item.key || item.url"
           class="group relative rounded-lg border bg-card overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
           @click="previewItem = item"
@@ -251,6 +258,13 @@ async function copyUrl(url: string) {
             </p>
           </div>
         </div>
+      </div>
+
+      <!-- Show More (client-side pagination) -->
+      <div v-if="hasMoreDisplay" class="flex justify-center pt-6">
+        <UiButton size="sm" variant="outline" @click="displayLimit += PAGE_SIZE">
+          Show More ({{ filteredItems.length - displayLimit }} remaining)
+        </UiButton>
       </div>
 
       <!-- Empty state -->

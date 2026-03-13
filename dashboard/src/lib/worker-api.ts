@@ -203,7 +203,13 @@ export async function listMedia(oemId: string, options?: { modelSlug?: string; c
   if (options?.modelSlug) params.set('modelSlug', options.modelSlug)
   if (options?.cursor) params.set('cursor', options.cursor)
   const qs = params.toString()
-  return workerFetch(`/api/v1/oem-agent/admin/list-media/${oemId}${qs ? `?${qs}` : ''}`)
+  const data: ListMediaResponse = await workerFetch(`/api/v1/oem-agent/admin/list-media/${oemId}${qs ? `?${qs}` : ''}`)
+  for (const item of data.items) {
+    if (item.url.startsWith('/')) {
+      item.url = `${WORKER_BASE}${item.url}`
+    }
+  }
+  return data
 }
 
 export async function fetchAiModelConfig() {
