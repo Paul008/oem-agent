@@ -46,15 +46,15 @@ const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-d
 
 // Model selector for A/B testing
 const MODEL_OPTIONS = [
-  { value: '', label: 'Default (from settings)', provider: '', model: '' },
+  { value: 'default', label: 'Default (from settings)', provider: '', model: '' },
   { value: 'google_gemini::gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', provider: 'google_gemini', model: 'gemini-3.1-pro-preview' },
   { value: 'google_gemini::gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google_gemini', model: 'gemini-2.5-pro' },
   { value: 'moonshot::kimi-k2.5', label: 'Kimi K2.5', provider: 'moonshot', model: 'kimi-k2.5' },
   { value: 'anthropic::claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929' },
 ]
-const selectedModel = ref('')
+const selectedModel = ref('default')
 const selectedModelOverride = computed(() => {
-  if (!selectedModel.value) return undefined
+  if (selectedModel.value === 'default') return undefined
   const opt = MODEL_OPTIONS.find(o => o.value === selectedModel.value)
   return opt ? { provider: opt.provider, model: opt.model } : undefined
 })

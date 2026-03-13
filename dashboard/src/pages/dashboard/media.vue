@@ -18,7 +18,7 @@ const loading = ref(false)
 const cursor = ref<string | null>(null)
 const loadingMore = ref(false)
 const searchQuery = ref('')
-const filterModel = ref('')
+const filterModel = ref('all')
 const filterType = ref('all')
 const previewItem = ref<MediaItem | null>(null)
 const copied = ref(false)
@@ -42,7 +42,7 @@ const videoCount = computed(() => items.value.filter(i => i.contentType.startsWi
 // Client-side filtering
 const filteredItems = computed(() => {
   let result = items.value
-  if (filterModel.value) {
+  if (filterModel.value !== 'all') {
     result = result.filter(i => i.modelSlug === filterModel.value)
   }
   if (filterType.value === 'images') {
@@ -62,7 +62,7 @@ watch(selectedOem, async (oemId) => {
   if (!oemId) return
   items.value = []
   cursor.value = null
-  filterModel.value = ''
+  filterModel.value = 'all'
   searchQuery.value = ''
   filterType.value = 'all'
   await fetchItems(oemId)
@@ -145,7 +145,7 @@ async function copyUrl(url: string) {
             <UiSelectValue placeholder="All models" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="">All Models</UiSelectItem>
+            <UiSelectItem value="all">All Models</UiSelectItem>
             <UiSelectItem v-for="[slug, count] in modelSlugs" :key="slug" :value="slug">
               {{ slug }} ({{ count }})
             </UiSelectItem>
