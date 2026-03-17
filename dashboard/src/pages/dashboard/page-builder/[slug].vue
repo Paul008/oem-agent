@@ -33,6 +33,7 @@ const {
   saveSections, regenerateSectionById, handleClone, handleStructure, handleAdaptivePipeline,
   undo, redo, jumpTo,
   pasteSections, copySectionToClipboard, pasteSectionFromClipboard, replaceSections,
+  convertSection, getConvertibleTypes,
 } = usePageBuilder()
 
 const themeStore = useThemeStore()
@@ -567,6 +568,7 @@ const workflowSteps = computed(() => {
             @delete-section="deleteSection"
             @duplicate-section="duplicateSection"
             @copy-section-json="copySectionToClipboard"
+            @convert-section="(id: string, type: string) => convertSection(id, type as any)"
             @add-section="addSection"
             @add-section-from-template="addSectionFromTemplate"
             @insert-from-gallery="addSectionFromLiveData"
@@ -585,6 +587,7 @@ const workflowSteps = computed(() => {
         @close="selectSection(null)"
         @regenerate="regenerateSectionById(selectedSection.id)"
         @delete="deleteSection(selectedSection.id)"
+        @convert="(type: string) => convertSection(selectedSection.id, type as any)"
         @update:section="updateSection(selectedSection.id, $event)"
       />
     </template>

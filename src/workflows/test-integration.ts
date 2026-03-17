@@ -49,15 +49,18 @@ async function runIntegrationTest() {
 
   const changeEvent = {
     id: 'evt-test-001',
-    oem_id: 'toyota',
+    oem_id: 'toyota-au' as const,
     entity_type: 'product' as const,
     entity_id: 'prod-hilux-sr5',
-    event_type: 'price_changed',
+    event_type: 'price_changed' as const,
     severity: 'critical' as const,
     summary: 'Toyota Hilux SR5: Price changed from $45,990 to $46,990',
     diff_json: {
       price_amount: { old: 45990, new: 46990 }
     },
+    import_run_id: null,
+    notified_at: null,
+    notification_channel: null,
     created_at: new Date().toISOString()
   };
 

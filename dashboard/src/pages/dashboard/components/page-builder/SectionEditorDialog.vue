@@ -14,6 +14,7 @@ const emit = defineEmits<{
   close: []
   regenerate: []
   delete: []
+  convert: [targetType: string]
   'update:section': [updates: Record<string, any>]
 }>()
 
@@ -121,6 +122,7 @@ function sectionLabel(s: any): string {
           :model-slug="modelSlug"
           @regenerate="emit('regenerate')"
           @delete="emit('delete')"
+          @convert="emit('convert', $event)"
           @update:section="emit('update:section', $event)"
         />
       </div>

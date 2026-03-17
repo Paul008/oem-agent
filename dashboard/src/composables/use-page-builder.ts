@@ -12,11 +12,15 @@ import {
   SECTION_TEMPLATES,
   type PageSectionType,
 } from '@/pages/dashboard/components/page-builder/section-templates'
+import {
+  convertSectionData,
+  getConvertibleTypes,
+} from '@/pages/dashboard/components/page-builder/section-converter'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const OEM_IDS = [
-  'ford-au', 'gac-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
+  'ford-au', 'foton-au', 'gac-au', 'gmsv-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
   'mazda-au', 'mitsubishi-au', 'nissan-au', 'subaru-au', 'suzuki-au',
   'toyota-au', 'volkswagen-au', 'kgm-au',
 ]
@@ -90,6 +94,24 @@ function resolveSectionMediaUrls(section: any): any {
       break
     case 'content-block':
       s.image_url = resolveMediaUrl(s.image_url) ?? s.image_url
+      break
+    case 'testimonial':
+      if (Array.isArray(s.testimonials)) {
+        s.testimonials = s.testimonials.map((t: any) => ({ ...t, avatar_url: resolveMediaUrl(t.avatar_url) ?? t.avatar_url }))
+      }
+      break
+    case 'stats':
+      if (Array.isArray(s.stats)) {
+        s.stats = s.stats.map((st: any) => ({ ...st, icon_url: resolveMediaUrl(st.icon_url) ?? st.icon_url }))
+      }
+      break
+    case 'logo-strip':
+      if (Array.isArray(s.logos)) {
+        s.logos = s.logos.map((l: any) => ({ ...l, image_url: resolveMediaUrl(l.image_url) ?? l.image_url }))
+      }
+      break
+    case 'countdown':
+      s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
       break
   }
   return s
@@ -349,6 +371,20 @@ export function usePageBuilder() {
     isDirty.value = true
   }
 
+  function convertSection(id: string, targetType: PageSectionType) {
+    const idx = sections.value.findIndex((s: any) => s.id === id)
+    if (idx === -1) return
+    const source = sections.value[idx]
+    const converted = convertSectionData(source, targetType)
+    if (!converted) return
+    pushHistory(`Converted ${source.type} → ${targetType}`)
+    const updated = [...sections.value]
+    updated[idx] = converted
+    sections.value = updated
+    isDirty.value = true
+    selectedSectionId.value = id
+  }
+
   async function saveSections() {
     if (!oemId.value || !modelSlug.value) return
     saving.value = true
@@ -556,5 +592,8 @@ export function usePageBuilder() {
     copySectionToClipboard,
     pasteSectionFromClipboard,
     replaceSections,
+    // Convert
+    convertSection,
+    getConvertibleTypes,
   }
 }

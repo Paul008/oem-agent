@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff, ImageIcon } from 'lucide-vue-next'
+import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff, ImageIcon, ArrowRightLeft } from 'lucide-vue-next'
 import MediaUploadButton from './MediaUploadButton.vue'
 import MediaLibraryDialog from './MediaLibraryDialog.vue'
+import { getConvertibleTypes } from './section-converter'
+import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
 
 const brokenImages = ref(new Set<string>())
 function onImgError(url: string) {
@@ -19,8 +21,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   regenerate: []
   delete: []
+  convert: [targetType: string]
   'update:section': [updates: Record<string, any>]
 }>()
+
+const convertibleTypes = computed(() => {
+  return getConvertibleTypes(props.section?.type as PageSectionType)
+})
 
 function update(key: string, value: any) {
   emit('update:section', { [key]: value })
@@ -666,6 +673,442 @@ function onMediaLibrarySelect(url: string) {
       </div>
     </template>
 
+    <!-- ===== TESTIMONIAL ===== -->
+    <template v-else-if="sectionType === 'testimonial'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
+          <UiSelect :model-value="section.layout || 'carousel'" @update:model-value="update('layout', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="carousel">Carousel</UiSelectItem>
+              <UiSelectItem value="grid">Grid</UiSelectItem>
+              <UiSelectItem value="stacked">Stacked</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Testimonials ({{ section.testimonials?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('testimonials', { quote: '', author: '', role: '', avatar_url: '', rating: 5 })">
+              <Plus class="size-3 inline mr-0.5" />Add
+            </button>
+          </div>
+          <div v-for="(t, i) in (section.testimonials || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="t.author || ''" class="h-7 text-xs" placeholder="Author name" @update:model-value="updateNested('testimonials', i, 'author', $event)" />
+              <button class="p-0.5 text-muted-foreground hover:text-destructive" @click="removeArrayItem('testimonials', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <UiInput :model-value="t.role || ''" class="h-7 text-xs" placeholder="Role (e.g. Owner, Driver)" @update:model-value="updateNested('testimonials', i, 'role', $event)" />
+            <UiTextarea :model-value="t.quote || ''" class="text-xs min-h-12" placeholder="Quote / review text" @update:model-value="updateNested('testimonials', i, 'quote', $event)" />
+            <div>
+              <label class="text-[10px] text-muted-foreground">Rating (1-5)</label>
+              <UiInput type="number" min="1" max="5" :model-value="String(t.rating ?? 5)" class="h-7 text-xs w-16" @update:model-value="updateNested('testimonials', i, 'rating', Number($event))" />
+            </div>
+            <div v-if="t.avatar_url && !brokenImages.has(t.avatar_url)" class="relative rounded overflow-hidden bg-muted">
+              <img :src="t.avatar_url" alt="Avatar" class="size-10 rounded-full object-cover" @error="onImgError(t.avatar_url)" />
+            </div>
+            <div class="flex gap-1">
+              <UiInput :model-value="t.avatar_url || ''" class="h-7 text-xs" placeholder="Avatar URL" @update:model-value="updateNested('testimonials', i, 'avatar_url', $event)" />
+              <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('testimonials', i, 'avatar_url', $event)" />
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('testimonials', i, 'avatar_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== COMPARISON TABLE ===== -->
+    <template v-else-if="sectionType === 'comparison-table'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Columns ({{ section.columns?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('columns', { label: `Col ${(section.columns?.length ?? 0) + 1}`, highlighted: false })">
+              <Plus class="size-3 inline mr-0.5" />Add Column
+            </button>
+          </div>
+          <div v-for="(col, i) in (section.columns || [])" :key="i" class="flex items-center gap-1 mb-1">
+            <UiInput :model-value="col.label || ''" class="h-7 text-xs" placeholder="Column label" @update:model-value="updateNested('columns', i, 'label', $event)" />
+            <UiSwitch :checked="!!col.highlighted" class="scale-75" @update:checked="updateNested('columns', i, 'highlighted', $event)" />
+            <span class="text-[9px] text-muted-foreground whitespace-nowrap">HL</span>
+            <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('columns', i)">
+              <X class="size-3.5" />
+            </button>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Rows ({{ section.rows?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('rows', { feature: '', values: Array((section.columns?.length ?? 2) - 1).fill('') })">
+              <Plus class="size-3 inline mr-0.5" />Add Row
+            </button>
+          </div>
+          <div v-for="(row, i) in (section.rows || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1">
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="row.feature || ''" class="h-7 text-xs font-medium" placeholder="Feature name" @update:model-value="updateNested('rows', i, 'feature', $event)" />
+              <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('rows', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <div v-for="(val, vi) in (row.values || [])" :key="vi" class="flex items-center gap-1">
+              <span class="text-[9px] text-muted-foreground w-12 shrink-0 truncate">{{ (section.columns || [])[vi + 1]?.label || `Col ${vi + 1}` }}</span>
+              <UiInput
+                :model-value="val || ''"
+                class="h-7 text-xs"
+                @update:model-value="(v: string) => {
+                  const vals = [...(row.values || [])]
+                  vals[vi] = v
+                  updateNested('rows', i, 'values', vals)
+                }"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== STATS ===== -->
+    <template v-else-if="sectionType === 'stats'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
+          <UiSelect :model-value="section.layout || 'row'" @update:model-value="update('layout', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="row">Row</UiSelectItem>
+              <UiSelectItem value="grid">Grid</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Background</label>
+          <UiInput :model-value="section.background || ''" class="h-8 text-xs" placeholder="#000000 or gradient" @update:model-value="update('background', $event)" />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Stats ({{ section.stats?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('stats', { value: '', label: '', unit: '', icon_url: '' })">
+              <Plus class="size-3 inline mr-0.5" />Add
+            </button>
+          </div>
+          <div v-for="(stat, i) in (section.stats || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="stat.value || ''" class="h-7 text-xs w-20" placeholder="Value" @update:model-value="updateNested('stats', i, 'value', $event)" />
+              <UiInput :model-value="stat.unit || ''" class="h-7 text-xs w-16" placeholder="Unit" @update:model-value="updateNested('stats', i, 'unit', $event)" />
+              <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('stats', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <UiInput :model-value="stat.label || ''" class="h-7 text-xs" placeholder="Label (e.g. 0-100 km/h)" @update:model-value="updateNested('stats', i, 'label', $event)" />
+            <div class="flex gap-1">
+              <UiInput :model-value="stat.icon_url || ''" class="h-7 text-xs" placeholder="Icon URL (optional)" @update:model-value="updateNested('stats', i, 'icon_url', $event)" />
+              <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('stats', i, 'icon_url', $event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== LOGO STRIP ===== -->
+    <template v-else-if="sectionType === 'logo-strip'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div class="flex items-center gap-2">
+          <UiSwitch :checked="!!section.grayscale" @update:checked="update('grayscale', $event)" />
+          <label class="text-xs">Greyscale logos</label>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Logos ({{ section.logos?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('logos', { name: '', image_url: '', link_url: '' })">
+              <Plus class="size-3 inline mr-0.5" />Add
+            </button>
+          </div>
+          <div v-for="(logo, i) in (section.logos || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="logo.name || ''" class="h-7 text-xs" placeholder="Logo name" @update:model-value="updateNested('logos', i, 'name', $event)" />
+              <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('logos', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <div v-if="logo.image_url && !brokenImages.has(logo.image_url)" class="relative rounded overflow-hidden bg-muted">
+              <img :src="logo.image_url" :alt="logo.name" class="h-10 object-contain" @error="onImgError(logo.image_url)" />
+            </div>
+            <div class="flex gap-1">
+              <UiInput :model-value="logo.image_url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('logos', i, 'image_url', $event)" />
+              <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('logos', i, 'image_url', $event)" />
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('logos', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            </div>
+            <UiInput :model-value="logo.link_url || ''" class="h-7 text-xs" placeholder="Link URL (optional)" @update:model-value="updateNested('logos', i, 'link_url', $event)" />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== EMBED ===== -->
+    <template v-else-if="sectionType === 'embed'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Embed URL</label>
+          <UiInput :model-value="section.embed_url || ''" class="h-8 text-xs" placeholder="https://..." @update:model-value="update('embed_url', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Embed Type</label>
+          <UiSelect :model-value="section.embed_type || 'iframe'" @update:model-value="update('embed_type', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="iframe">iFrame</UiSelectItem>
+              <UiSelectItem value="script">Script Tag</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Aspect Ratio</label>
+          <UiSelect :model-value="section.aspect_ratio || '16:9'" @update:model-value="update('aspect_ratio', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="16:9">16:9 (Widescreen)</UiSelectItem>
+              <UiSelectItem value="4:3">4:3 (Standard)</UiSelectItem>
+              <UiSelectItem value="1:1">1:1 (Square)</UiSelectItem>
+              <UiSelectItem value="auto">Auto</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Max Width</label>
+          <UiInput :model-value="section.max_width || ''" class="h-8 text-xs" placeholder="e.g. 800px or 100%" @update:model-value="update('max_width', $event)" />
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== PRICING TABLE ===== -->
+    <template v-else-if="sectionType === 'pricing-table'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Subtitle</label>
+          <UiInput :model-value="section.subtitle || ''" class="h-8 text-xs" @update:model-value="update('subtitle', $event)" />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Tiers ({{ section.tiers?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('tiers', { name: '', price: '', price_suffix: '', features: [], cta_text: 'Enquire', cta_url: '#', highlighted: false, badge_text: '' })">
+              <Plus class="size-3 inline mr-0.5" />Add Tier
+            </button>
+          </div>
+          <div v-for="(tier, i) in (section.tiers || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="tier.name || ''" class="h-7 text-xs" placeholder="Tier name (e.g. Sport)" @update:model-value="updateNested('tiers', i, 'name', $event)" />
+              <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('tiers', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <div class="flex gap-1">
+              <UiInput :model-value="tier.price || ''" class="h-7 text-xs" placeholder="$29,990" @update:model-value="updateNested('tiers', i, 'price', $event)" />
+              <UiInput :model-value="tier.price_suffix || ''" class="h-7 text-xs w-24" placeholder="Drive Away" @update:model-value="updateNested('tiers', i, 'price_suffix', $event)" />
+            </div>
+            <UiTextarea
+              :model-value="(tier.features || []).join('\n')"
+              class="text-xs min-h-12"
+              placeholder="One feature per line"
+              @update:model-value="(v: string) => updateNested('tiers', i, 'features', v.split('\n').filter(Boolean))"
+            />
+            <div class="flex gap-1">
+              <UiInput :model-value="tier.cta_text || ''" class="h-7 text-xs" placeholder="CTA text" @update:model-value="updateNested('tiers', i, 'cta_text', $event)" />
+              <UiInput :model-value="tier.cta_url || ''" class="h-7 text-xs" placeholder="CTA URL" @update:model-value="updateNested('tiers', i, 'cta_url', $event)" />
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1">
+                <UiSwitch :checked="!!tier.highlighted" class="scale-75" @update:checked="updateNested('tiers', i, 'highlighted', $event)" />
+                <span class="text-[10px] text-muted-foreground">Highlight</span>
+              </div>
+              <UiInput :model-value="tier.badge_text || ''" class="h-7 text-xs flex-1" placeholder="Badge (e.g. Most Popular)" @update:model-value="updateNested('tiers', i, 'badge_text', $event)" />
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Disclaimer</label>
+          <UiTextarea :model-value="section.disclaimer || ''" class="text-xs min-h-12" placeholder="Legal disclaimer" @update:model-value="update('disclaimer', $event)" />
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== STICKY BAR ===== -->
+    <template v-else-if="sectionType === 'sticky-bar'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Position</label>
+          <UiSelect :model-value="section.position || 'bottom'" @update:model-value="update('position', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="top">Top</UiSelectItem>
+              <UiSelectItem value="bottom">Bottom</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Model Name</label>
+          <UiInput :model-value="section.model_name || ''" class="h-8 text-xs" @update:model-value="update('model_name', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Price Text</label>
+          <UiInput :model-value="section.price_text || ''" class="h-8 text-xs" placeholder="From $29,990" @update:model-value="update('price_text', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Show After Scroll (px)</label>
+          <UiInput type="number" :model-value="String(section.show_after_scroll_px ?? 300)" class="h-8 text-xs" @update:model-value="update('show_after_scroll_px', Number($event))" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Background Color</label>
+          <UiInput :model-value="section.background_color || ''" class="h-8 text-xs" placeholder="#000000" @update:model-value="update('background_color', $event)" />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Buttons ({{ section.buttons?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('buttons', { text: 'Button', url: '#', variant: 'secondary' })">
+              <Plus class="size-3 inline mr-0.5" />Add
+            </button>
+          </div>
+          <div v-for="(btn, i) in (section.buttons || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="btn.text || ''" class="h-7 text-xs" placeholder="Button text" @update:model-value="updateNested('buttons', i, 'text', $event)" />
+              <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('buttons', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <UiInput :model-value="btn.url || ''" class="h-7 text-xs" placeholder="URL" @update:model-value="updateNested('buttons', i, 'url', $event)" />
+            <UiSelect :model-value="btn.variant || 'primary'" @update:model-value="updateNested('buttons', i, 'variant', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="primary">Primary</UiSelectItem>
+                <UiSelectItem value="secondary">Secondary</UiSelectItem>
+                <UiSelectItem value="ghost">Ghost</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== COUNTDOWN ===== -->
+    <template v-else-if="sectionType === 'countdown'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Subtitle</label>
+          <UiInput :model-value="section.subtitle || ''" class="h-8 text-xs" @update:model-value="update('subtitle', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Target Date</label>
+          <UiInput type="datetime-local" :model-value="section.target_date ? section.target_date.slice(0, 16) : ''" class="h-8 text-xs" @update:model-value="update('target_date', $event ? new Date($event).toISOString() : '')" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Expired Message</label>
+          <UiInput :model-value="section.expired_message || ''" class="h-8 text-xs" @update:model-value="update('expired_message', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">CTA Text</label>
+          <UiInput :model-value="section.cta_text || ''" class="h-8 text-xs" @update:model-value="update('cta_text', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">CTA URL</label>
+          <UiInput :model-value="section.cta_url || ''" class="h-8 text-xs" @update:model-value="update('cta_url', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Background Color</label>
+          <UiInput :model-value="section.background_color || ''" class="h-8 text-xs" placeholder="#0f172a" @update:model-value="update('background_color', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Background Image</label>
+          <div class="flex gap-1">
+            <UiInput :model-value="section.background_image_url || ''" class="h-8 text-xs" placeholder="Image URL" @update:model-value="update('background_image_url', $event)" />
+            <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('background_image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('background_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== FINANCE CALCULATOR ===== -->
+    <template v-else-if="sectionType === 'finance-calculator'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Subtitle</label>
+          <UiInput :model-value="section.subtitle || ''" class="h-8 text-xs" @update:model-value="update('subtitle', $event)" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Default Price ($)</label>
+            <UiInput type="number" :model-value="String(section.default_price ?? 40000)" class="h-8 text-xs" @update:model-value="update('default_price', Number($event))" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Default Deposit ($)</label>
+            <UiInput type="number" :model-value="String(section.default_deposit ?? 5000)" class="h-8 text-xs" @update:model-value="update('default_deposit', Number($event))" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Default Term (mo)</label>
+            <UiInput type="number" :model-value="String(section.default_term_months ?? 60)" class="h-8 text-xs" @update:model-value="update('default_term_months', Number($event))" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Default Rate (%)</label>
+            <UiInput type="number" step="0.1" :model-value="String(section.default_rate ?? 6.5)" class="h-8 text-xs" @update:model-value="update('default_rate', Number($event))" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Min Deposit ($)</label>
+            <UiInput type="number" :model-value="String(section.min_deposit ?? 0)" class="h-8 text-xs" @update:model-value="update('min_deposit', Number($event))" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Max Term (mo)</label>
+            <UiInput type="number" :model-value="String(section.max_term ?? 84)" class="h-8 text-xs" @update:model-value="update('max_term', Number($event))" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">CTA Text</label>
+          <UiInput :model-value="section.cta_text || ''" class="h-8 text-xs" @update:model-value="update('cta_text', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">CTA URL</label>
+          <UiInput :model-value="section.cta_url || ''" class="h-8 text-xs" @update:model-value="update('cta_url', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Disclaimer</label>
+          <UiTextarea :model-value="section.disclaimer || ''" class="text-xs min-h-12" placeholder="Legal disclaimer" @update:model-value="update('disclaimer', $event)" />
+        </div>
+      </div>
+    </template>
+
     <!-- ===== FALLBACK ===== -->
     <template v-else>
       <p class="text-xs text-muted-foreground">Unknown section type: {{ sectionType }}</p>
@@ -673,6 +1116,28 @@ function onMediaLibrarySelect(url: string) {
 
     <!-- Action buttons -->
     <div class="flex flex-col gap-2 pt-2 border-t">
+      <!-- Convert To dropdown -->
+      <UiDropdownMenu v-if="convertibleTypes.length > 0">
+        <UiDropdownMenuTrigger as-child>
+          <UiButton size="sm" variant="outline">
+            <ArrowRightLeft class="size-3.5 mr-1.5" />
+            Convert To...
+          </UiButton>
+        </UiDropdownMenuTrigger>
+        <UiDropdownMenuContent align="start" class="w-48">
+          <UiDropdownMenuLabel class="text-[10px] text-muted-foreground">
+            Convert to a different type
+          </UiDropdownMenuLabel>
+          <UiDropdownMenuSeparator />
+          <UiDropdownMenuItem
+            v-for="targetType in convertibleTypes"
+            :key="targetType"
+            @select="emit('convert', targetType)"
+          >
+            {{ SECTION_TYPE_INFO[targetType]?.label || targetType }}
+          </UiDropdownMenuItem>
+        </UiDropdownMenuContent>
+      </UiDropdownMenu>
       <UiButton
         size="sm"
         variant="outline"

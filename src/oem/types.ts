@@ -996,7 +996,9 @@ export interface RegenerationDecision {
 
 export type PageSectionType = 'hero' | 'intro' | 'tabs' | 'color-picker' | 'specs-grid'
   | 'gallery' | 'feature-cards' | 'video' | 'cta-banner' | 'content-block'
-  | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider';
+  | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
+  | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
+  | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator';
 
 export interface HeroSection {
   type: 'hero'; id: string; order: number;
@@ -1110,12 +1112,133 @@ export interface DividerSection {
   spacing: 'sm' | 'md' | 'lg';
 }
 
+export interface TestimonialSection {
+  type: 'testimonial'; id: string; order: number;
+  title?: string;
+  testimonials: Array<{
+    quote: string;
+    author: string;
+    role?: string;
+    avatar_url?: string;
+    rating?: number; // 1-5
+  }>;
+  layout: 'carousel' | 'grid' | 'stacked';
+}
+
+export interface ComparisonTableSection {
+  type: 'comparison-table'; id: string; order: number;
+  title?: string;
+  columns: Array<{
+    label: string;
+    highlighted?: boolean;
+  }>;
+  rows: Array<{
+    feature: string;
+    values: string[];
+  }>;
+}
+
+export interface StatsSection {
+  type: 'stats'; id: string; order: number;
+  title?: string;
+  stats: Array<{
+    value: string;
+    label: string;
+    unit?: string;
+    icon_url?: string;
+  }>;
+  layout: 'row' | 'grid';
+  background?: string;
+}
+
+export interface LogoStripSection {
+  type: 'logo-strip'; id: string; order: number;
+  title?: string;
+  logos: Array<{
+    name: string;
+    image_url: string;
+    link_url?: string;
+  }>;
+  grayscale: boolean;
+}
+
+export interface EmbedSection {
+  type: 'embed'; id: string; order: number;
+  title?: string;
+  embed_url: string;
+  embed_type: 'iframe' | 'script';
+  aspect_ratio: '16:9' | '4:3' | '1:1' | 'auto';
+  max_width?: string;
+}
+
+export interface PricingTableSection {
+  type: 'pricing-table'; id: string; order: number;
+  title?: string;
+  subtitle?: string;
+  tiers: Array<{
+    name: string;
+    price: string;
+    price_suffix?: string;
+    features: string[];
+    cta_text: string;
+    cta_url: string;
+    highlighted?: boolean;
+    badge_text?: string;
+  }>;
+  disclaimer?: string;
+}
+
+export interface StickyBarSection {
+  type: 'sticky-bar'; id: string; order: number;
+  position: 'top' | 'bottom';
+  model_name: string;
+  price_text?: string;
+  buttons: Array<{
+    text: string;
+    url: string;
+    variant: 'primary' | 'secondary' | 'ghost';
+  }>;
+  show_after_scroll_px: number;
+  background_color?: string;
+}
+
+export interface CountdownSection {
+  type: 'countdown'; id: string; order: number;
+  title?: string;
+  subtitle?: string;
+  target_date: string; // ISO 8601
+  expired_message: string;
+  cta_text?: string;
+  cta_url?: string;
+  background_color?: string;
+  background_image_url?: string;
+}
+
+export interface FinanceCalculatorSection {
+  type: 'finance-calculator'; id: string; order: number;
+  title?: string;
+  subtitle?: string;
+  default_price: number;
+  default_deposit: number;
+  default_term_months: number;
+  default_rate: number;
+  min_deposit: number;
+  max_term: number;
+  cta_text?: string;
+  cta_url?: string;
+  disclaimer?: string;
+}
+
 export type PageSection =
   | HeroSection | IntroSection | TabsSection | ColorPickerSection
   | SpecsGridSection | GallerySection | FeatureCardsSection
   | VideoSection | CtaBannerSection | ContentBlockSection
   | AccordionSection | EnquiryFormSection | MapSection
-  | AlertSection | DividerSection;
+  | AlertSection | DividerSection
+  | TestimonialSection | ComparisonTableSection | StatsSection
+  | LogoStripSection | EmbedSection
+  | PricingTableSection | StickyBarSection | CountdownSection
+  | FinanceCalculatorSection;
 
 export interface PageStructuringResult {
   success: boolean;

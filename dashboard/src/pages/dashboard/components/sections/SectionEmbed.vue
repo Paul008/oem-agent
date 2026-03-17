@@ -1,0 +1,60 @@
+<script lang="ts" setup>
+import { computed } from 'vue'
+
+const props = defineProps<{
+  section: {
+    type: 'embed'
+    title?: string
+    embed_url: string
+    embed_type: 'iframe' | 'script'
+    aspect_ratio: '16:9' | '4:3' | '1:1' | 'auto'
+    max_width?: string
+  }
+}>()
+
+const paddingTop = computed(() => {
+  const ratios: Record<string, string> = {
+    '16:9': '56.25%',
+    '4:3': '75%',
+    '1:1': '100%',
+    'auto': '56.25%',
+  }
+  return ratios[props.section.aspect_ratio] || '56.25%'
+})
+</script>
+
+<template>
+  <div class="px-8 py-8">
+    <h2 v-if="section.title" class="text-lg font-bold text-center mb-4">{{ section.title }}</h2>
+    <div
+      class="mx-auto"
+      :style="section.max_width ? { maxWidth: section.max_width } : {}"
+    >
+      <div
+        v-if="section.embed_url"
+        class="relative w-full overflow-hidden rounded-lg bg-muted"
+        :style="{ paddingTop }"
+      >
+        <iframe
+          v-if="section.embed_type === 'iframe'"
+          :src="section.embed_url"
+          class="absolute inset-0 w-full h-full border-0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        />
+        <div
+          v-else
+          class="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground"
+        >
+          Script embed — preview not available in editor
+        </div>
+      </div>
+      <div
+        v-else
+        class="flex items-center justify-center h-40 rounded-lg border-2 border-dashed border-muted-foreground/20 text-sm text-muted-foreground"
+      >
+        No embed URL configured
+      </div>
+    </div>
+  </div>
+</template>

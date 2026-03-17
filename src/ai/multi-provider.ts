@@ -163,7 +163,7 @@ export class MultiProviderClient {
       throw new Error(`Groq API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     const inputTokens = data.usage?.prompt_tokens || 0;
     const outputTokens = data.usage?.completion_tokens || 0;
@@ -228,7 +228,7 @@ export class MultiProviderClient {
       throw new Error(`Kimi API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     const inputTokens = data.usage?.prompt_tokens || 0;
     const outputTokens = data.usage?.completion_tokens || 0;
@@ -305,7 +305,7 @@ export class MultiProviderClient {
       throw new Error(`Gemini API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const reasoning = data.candidates?.[0]?.content?.parts?.find((p: any) => p.thought)?.thought;
@@ -371,7 +371,7 @@ export class MultiProviderClient {
       throw new Error(`Claude API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     const inputTokens = data.usage?.input_tokens || 0;
     const outputTokens = data.usage?.output_tokens || 0;

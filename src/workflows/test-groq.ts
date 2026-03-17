@@ -242,12 +242,15 @@ async function runAllTests() {
   console.log('📊 Test Summary');
   console.log('═'.repeat(60));
 
-  const totalCost = (results.test1.success ? results.test1.cost : 0) +
-                    (results.test2.success ? results.test2.cost : 0);
+  const cost1 = (results.test1 as any).cost ?? 0;
+  const cost2 = (results.test2 as any).cost ?? 0;
+  const dur1 = (results.test1 as any).duration ?? 0;
+  const dur2 = (results.test2 as any).duration ?? 0;
+  const totalCost = (results.test1.success ? cost1 : 0) + (results.test2.success ? cost2 : 0);
 
   console.log(`\n✅ Tests passed: ${Object.values(results).filter(r => r.success).length}/2`);
   console.log(`💰 Total cost: $${totalCost.toFixed(6)}`);
-  console.log(`⏱️  Avg duration: ${Math.round((results.test1.duration + results.test2.duration) / 2)}ms`);
+  console.log(`⏱️  Avg duration: ${Math.round((dur1 + dur2) / 2)}ms`);
 
   // Cost comparison
   console.log('\n💡 Cost Comparison:');

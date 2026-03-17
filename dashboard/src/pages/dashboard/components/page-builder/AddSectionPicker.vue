@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
-import { Plus, Image, Type, Columns3, Palette, TableProperties, Images, LayoutGrid, Video, Megaphone, FileText, ChevronRight, Library, ClipboardPaste } from 'lucide-vue-next'
+import { Plus, Image, Type, Columns3, Palette, TableProperties, Images, LayoutGrid, Video, Megaphone, FileText, ChevronRight, Library, ClipboardPaste, Quote, Table2, BarChart3, Award, Code2, DollarSign, PanelBottom, Timer, Calculator } from 'lucide-vue-next'
 import {
   SECTION_TEMPLATES,
   SECTION_TYPE_INFO,
@@ -28,6 +28,15 @@ const typeIcons: Record<string, any> = {
   'video': Video,
   'cta-banner': Megaphone,
   'content-block': FileText,
+  'testimonial': Quote,
+  'comparison-table': Table2,
+  'stats': BarChart3,
+  'logo-strip': Award,
+  'embed': Code2,
+  'pricing-table': DollarSign,
+  'sticky-bar': PanelBottom,
+  'countdown': Timer,
+  'finance-calculator': Calculator,
 }
 
 const sectionTypes = computed(() =>

@@ -33,6 +33,15 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'map': defineAsyncComponent(() => import('../sections/SectionMap.vue')),
   'alert': defineAsyncComponent(() => import('../sections/SectionAlert.vue')),
   'divider': defineAsyncComponent(() => import('../sections/SectionDivider.vue')),
+  'testimonial': defineAsyncComponent(() => import('../sections/SectionTestimonial.vue')),
+  'comparison-table': defineAsyncComponent(() => import('../sections/SectionComparisonTable.vue')),
+  'stats': defineAsyncComponent(() => import('../sections/SectionStats.vue')),
+  'logo-strip': defineAsyncComponent(() => import('../sections/SectionLogoStrip.vue')),
+  'embed': defineAsyncComponent(() => import('../sections/SectionEmbed.vue')),
+  'pricing-table': defineAsyncComponent(() => import('../sections/SectionPricingTable.vue')),
+  'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
+  'countdown': defineAsyncComponent(() => import('../sections/SectionCountdown.vue')),
+  'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
 }
 
 function oemName(id: string) {

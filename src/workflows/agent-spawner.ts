@@ -178,7 +178,7 @@ export class AgentSpawner {
     const userPrompt = this.buildUserPrompt(workflow, changeEvent);
 
     // Fetch entity data for context
-    const entityData = await this.fetchEntityData(changeEvent.entity_type, changeEvent.entity_id);
+    const entityData = await this.fetchEntityData(changeEvent.entity_type, changeEvent.entity_id ?? '');
 
     // Add entity data to user prompt
     const fullUserPrompt = `${userPrompt}\n\n**Entity Data**:\n\`\`\`json\n${JSON.stringify(entityData, null, 2)}\n\`\`\``;

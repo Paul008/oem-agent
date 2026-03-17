@@ -1,5 +1,13 @@
 <script lang="ts" setup>
-import { ChevronUp, ChevronDown, Trash2, Copy, Clipboard, Image, Type, Columns3, Palette, TableProperties, Images, LayoutGrid, Video, Megaphone } from 'lucide-vue-next'
+import { computed } from 'vue'
+import {
+  ChevronUp, ChevronDown, Trash2, Copy, Clipboard, Image, Type, Columns3,
+  Palette, TableProperties, Images, LayoutGrid, Video, Megaphone,
+  ArrowRightLeft, Quote, BarChart3, Award, Code2, Table2,
+  DollarSign, PanelBottom, Timer, Calculator,
+} from 'lucide-vue-next'
+import { getConvertibleTypes } from './section-converter'
+import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
 
 const props = defineProps<{
   section: any
@@ -15,6 +23,7 @@ const emit = defineEmits<{
   duplicate: []
   delete: []
   copyJson: []
+  convert: [targetType: string]
 }>()
 
 const typeIcons: Record<string, any> = {
@@ -27,7 +36,20 @@ const typeIcons: Record<string, any> = {
   'feature-cards': LayoutGrid,
   'video': Video,
   'cta-banner': Megaphone,
+  'testimonial': Quote,
+  'comparison-table': Table2,
+  'stats': BarChart3,
+  'logo-strip': Award,
+  'embed': Code2,
+  'pricing-table': DollarSign,
+  'sticky-bar': PanelBottom,
+  'countdown': Timer,
+  'finance-calculator': Calculator,
 }
+
+const convertibleTypes = computed(() => {
+  return getConvertibleTypes(props.section.type as PageSectionType)
+})
 
 function sectionLabel(s: any): string {
   return s.heading || s.title || s.type
@@ -86,6 +108,34 @@ function sectionLabel(s: any): string {
         >
           <Copy class="size-3.5" />
         </button>
+
+        <!-- Convert To dropdown -->
+        <UiDropdownMenu v-if="convertibleTypes.length > 0">
+          <UiDropdownMenuTrigger as-child>
+            <button
+              class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
+              title="Convert to..."
+              @click.stop
+            >
+              <ArrowRightLeft class="size-3.5" />
+            </button>
+          </UiDropdownMenuTrigger>
+          <UiDropdownMenuContent align="end" class="w-48">
+            <UiDropdownMenuLabel class="text-[10px] text-muted-foreground">
+              Convert to...
+            </UiDropdownMenuLabel>
+            <UiDropdownMenuSeparator />
+            <UiDropdownMenuItem
+              v-for="targetType in convertibleTypes"
+              :key="targetType"
+              @select="emit('convert', targetType)"
+            >
+              <component :is="typeIcons[targetType] || Type" class="size-3.5 mr-2" />
+              {{ SECTION_TYPE_INFO[targetType]?.label || targetType }}
+            </UiDropdownMenuItem>
+          </UiDropdownMenuContent>
+        </UiDropdownMenu>
+
         <button
           class="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
           title="Delete section"
