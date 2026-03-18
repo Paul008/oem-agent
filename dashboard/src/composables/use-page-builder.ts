@@ -380,6 +380,33 @@ export function usePageBuilder() {
     const idx = sections.value.findIndex((s: any) => s.id === id)
     if (idx === -1) return
     const source = sections.value[idx]
+
+    // Check if source has multiple items — if so, split & convert each
+    const field = SPLITTABLE_FIELDS[source.type]
+    const items = field ? source[field] : null
+    if (Array.isArray(items) && items.length >= 2) {
+      // Split into individual sections, then convert each
+      const singles = items.map((item: any) => {
+        const single = JSON.parse(JSON.stringify(source))
+        single.id = genId()
+        single[field] = [item]
+        return single
+      })
+      const convertedSections = singles.map((s: any) => {
+        const c = convertSectionData(s, targetType)
+        return c || s
+      })
+      pushHistory(`Split & converted ${source.type} → ${convertedSections.length}x ${targetType}`)
+      const updated = [...sections.value]
+      updated.splice(idx, 1, ...convertedSections)
+      updated.forEach((s: any, i: number) => { s.order = i })
+      sections.value = updated
+      isDirty.value = true
+      selectedSectionId.value = convertedSections[0].id
+      return
+    }
+
+    // Standard 1:1 conversion
     const converted = convertSectionData(source, targetType)
     if (!converted) return
     pushHistory(`Converted ${source.type} → ${targetType}`)
