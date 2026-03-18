@@ -18,6 +18,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'specs-grid': defineAsyncComponent(() => import('./SectionSpecs.vue')),
   'gallery': defineAsyncComponent(() => import('./SectionGallery.vue')),
   'image': defineAsyncComponent(() => import('./SectionImage.vue')),
+  'image-showcase': defineAsyncComponent(() => import('./SectionImage.vue')),
   'feature-cards': defineAsyncComponent(() => import('./SectionFeatureCards.vue')),
   'video': defineAsyncComponent(() => import('./SectionVideo.vue')),
   'cta-banner': defineAsyncComponent(() => import('./SectionCta.vue')),
