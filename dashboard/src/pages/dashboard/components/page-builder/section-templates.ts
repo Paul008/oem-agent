@@ -4,6 +4,7 @@ export type PageSectionType =
   | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
   | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
+  | 'image-showcase'
 
 export interface SectionTemplate {
   id: string
@@ -20,6 +21,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'color-picker': () => ({ title: 'Colours', colors: [] }),
   'specs-grid': () => ({ title: 'Specifications', categories: [] }),
   'gallery': () => ({ title: 'Gallery', images: [], layout: 'carousel' }),
+  'image-showcase': () => ({ title: '', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
   'feature-cards': () => ({ title: '', cards: [{ title: '', description: '', image_url: '' }], columns: 3 }),
   'video': () => ({ title: '', video_url: '', poster_url: '', autoplay: false }),
   'cta-banner': () => ({ heading: '', body: '', cta_text: '', cta_url: '', background_color: '' }),
@@ -60,6 +62,13 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   // Gallery
   { id: 'gallery-carousel', name: 'Image Carousel', description: 'Swipeable image gallery', type: 'gallery', data: { layout: 'carousel', images: [] } },
   { id: 'gallery-grid', name: 'Image Grid', description: 'Grid of images', type: 'gallery', data: { layout: 'grid', images: [] } },
+
+  // Single Image
+  { id: 'image-full', name: 'Full-Width Image', description: 'Edge-to-edge image banner', type: 'image', data: { layout: 'full-width', aspect_ratio: '21:9', rounded: false } },
+  { id: 'image-center', name: 'Centered Image', description: 'Centered image with max width', type: 'image', data: { layout: 'center', aspect_ratio: 'auto', rounded: true } },
+  { id: 'image-contained', name: 'Contained Image', description: 'Contained image with optional caption', type: 'image', data: { layout: 'contained', aspect_ratio: '16:9', rounded: true, shadow: true } },
+  { id: 'image-left', name: 'Left-Aligned Image', description: 'Image aligned to the left', type: 'image', data: { layout: 'left', aspect_ratio: 'auto', rounded: true } },
+  { id: 'image-right', name: 'Right-Aligned Image', description: 'Image aligned to the right', type: 'image', data: { layout: 'right', aspect_ratio: 'auto', rounded: true } },
 
   // Content block
   { id: 'content-full', name: 'Full-Width Content', description: 'Full-width HTML content block', type: 'content-block', data: { layout: 'full-width', content_html: '' } },
@@ -128,6 +137,10 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   // Finance Calculator
   { id: 'finance-standard', name: 'Finance Calculator', description: 'Interactive loan repayment estimator', type: 'finance-calculator', data: { title: 'Finance Calculator', subtitle: 'Estimate your repayments', default_price: 40000, default_deposit: 5000, default_term_months: 60, default_rate: 6.5, min_deposit: 0, max_term: 84, cta_text: 'Apply for Finance', cta_url: '#', disclaimer: 'Indicative repayments only. Contact your dealer for a personalised quote.' } },
   { id: 'finance-compact', name: 'Compact Calculator', description: 'Simplified repayment calculator', type: 'finance-calculator', data: { title: 'Estimate Repayments', default_price: 35000, default_deposit: 3000, default_term_months: 48, default_rate: 7.0, min_deposit: 0, max_term: 60, cta_text: 'Get Finance Quote', cta_url: '#' } },
+
+  // Image Showcase
+  { id: 'showcase-stacked', name: 'Full-Bleed Stacked', description: 'Full-width stacked images with text overlays', type: 'image-showcase', data: { layout: 'stacked', height: 'large', overlay_style: 'dark', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' }] } },
+  { id: 'showcase-fullscreen', name: 'Fullscreen Scroll', description: 'Each image fills the viewport on scroll', type: 'image-showcase', data: { layout: 'fullscreen-scroll', height: 'screen', overlay_style: 'dark', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'center' }] } },
 ]
 
 export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; description: string }> = {
@@ -155,4 +168,5 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; descrip
   'sticky-bar': { label: 'Sticky Bar', description: 'Persistent floating bar with CTAs' },
   'countdown': { label: 'Countdown', description: 'Timer counting down to a date' },
   'finance-calculator': { label: 'Finance Calculator', description: 'Interactive loan repayment estimator' },
+  'image-showcase': { label: 'Image Showcase', description: 'Full-bleed stacked or fullscreen images' },
 }

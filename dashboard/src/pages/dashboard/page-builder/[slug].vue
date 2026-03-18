@@ -34,6 +34,7 @@ const {
   undo, redo, jumpTo,
   pasteSections, copySectionToClipboard, pasteSectionFromClipboard, replaceSections,
   convertSection, getConvertibleTypes,
+  splitSection, canSplitSection,
 } = usePageBuilder()
 
 const themeStore = useThemeStore()
@@ -569,6 +570,7 @@ const workflowSteps = computed(() => {
             @duplicate-section="duplicateSection"
             @copy-section-json="copySectionToClipboard"
             @convert-section="(id: string, type: string) => convertSection(id, type as any)"
+            @split-section="splitSection"
             @add-section="addSection"
             @add-section-from-template="addSectionFromTemplate"
             @insert-from-gallery="addSectionFromLiveData"

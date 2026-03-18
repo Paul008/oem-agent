@@ -4,7 +4,7 @@ import {
   ChevronUp, ChevronDown, Trash2, Copy, Clipboard, Image, Type, Columns3,
   Palette, TableProperties, Images, LayoutGrid, Video, Megaphone,
   ArrowRightLeft, Quote, BarChart3, Award, Code2, Table2,
-  DollarSign, PanelBottom, Timer, Calculator,
+  DollarSign, PanelBottom, Timer, Calculator, Maximize, Split,
 } from 'lucide-vue-next'
 import { getConvertibleTypes } from './section-converter'
 import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
@@ -24,6 +24,7 @@ const emit = defineEmits<{
   delete: []
   copyJson: []
   convert: [targetType: string]
+  split: []
 }>()
 
 const typeIcons: Record<string, any> = {
@@ -45,10 +46,25 @@ const typeIcons: Record<string, any> = {
   'sticky-bar': PanelBottom,
   'countdown': Timer,
   'finance-calculator': Calculator,
+  'image-showcase': Maximize,
 }
 
 const convertibleTypes = computed(() => {
   return getConvertibleTypes(props.section.type as PageSectionType)
+})
+
+const SPLITTABLE_FIELDS: Record<string, string> = {
+  'gallery': 'images', 'image-showcase': 'images', 'feature-cards': 'cards',
+  'tabs': 'tabs', 'accordion': 'items', 'testimonial': 'testimonials',
+  'logo-strip': 'logos', 'stats': 'stats', 'pricing-table': 'tiers',
+  'comparison-table': 'rows',
+}
+
+const canSplit = computed(() => {
+  const field = SPLITTABLE_FIELDS[props.section.type]
+  if (!field) return false
+  const arr = props.section[field]
+  return Array.isArray(arr) && arr.length >= 2
 })
 
 function sectionLabel(s: any): string {
@@ -107,6 +123,16 @@ function sectionLabel(s: any): string {
           @click.stop="emit('duplicate')"
         >
           <Copy class="size-3.5" />
+        </button>
+
+        <!-- Split into individual sections -->
+        <button
+          v-if="canSplit"
+          class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-orange-500"
+          title="Split into individual sections"
+          @click.stop="emit('split')"
+        >
+          <Split class="size-3.5" />
         </button>
 
         <!-- Convert To dropdown -->

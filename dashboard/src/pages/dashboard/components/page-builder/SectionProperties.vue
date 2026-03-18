@@ -88,6 +88,43 @@ function onMediaLibrarySelect(url: string) {
 
     <UiSeparator />
 
+    <!-- ===== SPACING (universal) ===== -->
+    <details class="group">
+      <summary class="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
+        <span class="group-open:rotate-90 transition-transform text-[10px]">&#9654;</span>
+        Spacing
+        <span v-if="section.spacing" class="text-[9px] text-primary">(custom)</span>
+      </summary>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <div>
+          <label class="text-[10px] text-muted-foreground">Padding Top</label>
+          <UiInput :model-value="section.spacing?.padding_top || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_top: $event || undefined })" />
+        </div>
+        <div>
+          <label class="text-[10px] text-muted-foreground">Padding Bottom</label>
+          <UiInput :model-value="section.spacing?.padding_bottom || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_bottom: $event || undefined })" />
+        </div>
+        <div>
+          <label class="text-[10px] text-muted-foreground">Padding Left</label>
+          <UiInput :model-value="section.spacing?.padding_left || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_left: $event || undefined })" />
+        </div>
+        <div>
+          <label class="text-[10px] text-muted-foreground">Padding Right</label>
+          <UiInput :model-value="section.spacing?.padding_right || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_right: $event || undefined })" />
+        </div>
+        <div>
+          <label class="text-[10px] text-muted-foreground">Margin Top</label>
+          <UiInput :model-value="section.spacing?.margin_top || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), margin_top: $event || undefined })" />
+        </div>
+        <div>
+          <label class="text-[10px] text-muted-foreground">Margin Bottom</label>
+          <UiInput :model-value="section.spacing?.margin_bottom || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), margin_bottom: $event || undefined })" />
+        </div>
+      </div>
+    </details>
+
+    <UiSeparator />
+
     <!-- ===== HERO ===== -->
     <template v-if="sectionType === 'hero'">
       <div class="space-y-3">
@@ -1105,6 +1142,83 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Disclaimer</label>
           <UiTextarea :model-value="section.disclaimer || ''" class="text-xs min-h-12" placeholder="Legal disclaimer" @update:model-value="update('disclaimer', $event)" />
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== IMAGE SHOWCASE ===== -->
+    <template v-else-if="sectionType === 'image-showcase'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Title</label>
+          <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
+          <UiSelect :model-value="section.layout || 'stacked'" @update:model-value="update('layout', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="stacked">Stacked (full-width)</UiSelectItem>
+              <UiSelectItem value="fullscreen-scroll">Fullscreen Scroll</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Height</label>
+          <UiSelect :model-value="section.height || 'large'" @update:model-value="update('height', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="screen">Full Screen (100vh)</UiSelectItem>
+              <UiSelectItem value="large">Large (500px)</UiSelectItem>
+              <UiSelectItem value="medium">Medium (320px)</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Overlay Style</label>
+          <UiSelect :model-value="section.overlay_style || 'dark'" @update:model-value="update('overlay_style', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="dark">Dark overlay</UiSelectItem>
+              <UiSelectItem value="light">Light overlay</UiSelectItem>
+              <UiSelectItem value="none">No overlay</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-muted-foreground">Images ({{ section.images?.length ?? 0 }})</label>
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('images', { url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' })">
+              <Plus class="size-3 inline mr-0.5" />Add
+            </button>
+          </div>
+          <div v-for="(img, i) in (section.images || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
+            <div v-if="img.url && !brokenImages.has(img.url)" class="relative rounded overflow-hidden bg-muted">
+              <a :href="img.url" target="_blank" class="block">
+                <img :src="img.url" :alt="img.alt || 'Showcase image'" class="w-full h-24 object-cover" @error="onImgError(img.url)" />
+              </a>
+            </div>
+            <div class="flex items-center gap-1">
+              <UiInput :model-value="img.url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('images', i, 'url', $event)" />
+              <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('images', i, 'url', $event)" />
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('images', i, 'url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('images', i)">
+                <X class="size-3.5" />
+              </button>
+            </div>
+            <UiInput :model-value="img.caption || ''" class="h-7 text-xs" placeholder="Caption / heading" @update:model-value="updateNested('images', i, 'caption', $event)" />
+            <UiTextarea :model-value="img.description || ''" class="text-xs min-h-12" placeholder="Description text" @update:model-value="updateNested('images', i, 'description', $event)" />
+            <UiSelect :model-value="img.overlay_position || 'bottom-left'" @update:model-value="updateNested('images', i, 'overlay_position', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="top-left">Top Left</UiSelectItem>
+                <UiSelectItem value="top-right">Top Right</UiSelectItem>
+                <UiSelectItem value="bottom-left">Bottom Left</UiSelectItem>
+                <UiSelectItem value="bottom-right">Bottom Right</UiSelectItem>
+                <UiSelectItem value="center">Center</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
         </div>
       </div>
     </template>

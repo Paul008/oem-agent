@@ -111,6 +111,72 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       grayscale: true,
     }),
+    'image-showcase': (s) => ({
+      title: s.title || '',
+      images: (s.images || []).map((img: any) => ({
+        url: img.url || '',
+        alt: img.alt || '',
+        caption: img.caption || '',
+        description: img.description || '',
+        overlay_position: 'bottom-left',
+      })),
+      layout: 'stacked',
+      height: 'large',
+      overlay_style: 'dark',
+    }),
+    'hero': (s) => ({
+      heading: s.title || '',
+      sub_heading: '',
+      cta_text: '',
+      cta_url: '',
+      desktop_image_url: (s.images || [])[0]?.url || '',
+      mobile_image_url: '',
+    }),
+    'content-block': (s) => ({
+      title: s.title || '',
+      content_html: (s.images || []).map((img: any) => img.caption || img.alt || '').filter(Boolean).join('<br>'),
+      layout: 'full-width',
+      image_url: (s.images || [])[0]?.url || '',
+      background: '',
+    }),
+  },
+
+  // ---- IMAGE SHOWCASE ----
+  'image-showcase': {
+    'gallery': (s) => ({
+      title: s.title || '',
+      images: (s.images || []).map((img: any) => ({
+        url: img.url || '',
+        alt: img.alt || '',
+        caption: img.caption || '',
+        description: img.description || '',
+      })),
+      layout: 'grid',
+    }),
+    'hero': (s) => ({
+      heading: (s.images || [])[0]?.caption || s.title || '',
+      sub_heading: (s.images || [])[0]?.description || '',
+      cta_text: '',
+      cta_url: '',
+      desktop_image_url: (s.images || [])[0]?.url || '',
+      mobile_image_url: '',
+    }),
+    'feature-cards': (s) => ({
+      title: s.title || '',
+      cards: (s.images || []).map((img: any) => ({
+        title: img.caption || img.alt || '',
+        description: img.description || '',
+        image_url: img.url || '',
+      })),
+      columns: Math.min((s.images || []).length, 4) as 2 | 3 | 4 || 3,
+    }),
+    'content-block': (s) => ({
+      title: s.title || '',
+      content_html: '',
+      layout: 'full-width',
+      image_url: (s.images || [])[0]?.url || '',
+      background: '',
+    }),
   },
 
   // ---- FEATURE CARDS ----

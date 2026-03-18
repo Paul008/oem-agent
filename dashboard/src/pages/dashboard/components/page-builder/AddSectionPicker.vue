@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
-import { Plus, Image, Type, Columns3, Palette, TableProperties, Images, LayoutGrid, Video, Megaphone, FileText, ChevronRight, Library, ClipboardPaste, Quote, Table2, BarChart3, Award, Code2, DollarSign, PanelBottom, Timer, Calculator } from 'lucide-vue-next'
+import { Plus, Image, Type, Columns3, Palette, TableProperties, Images, LayoutGrid, Video, Megaphone, FileText, ChevronRight, Library, ClipboardPaste, Quote, Table2, BarChart3, Award, Code2, DollarSign, PanelBottom, Timer, Calculator, Maximize } from 'lucide-vue-next'
 import {
   SECTION_TEMPLATES,
   SECTION_TYPE_INFO,
@@ -37,6 +37,7 @@ const typeIcons: Record<string, any> = {
   'sticky-bar': PanelBottom,
   'countdown': Timer,
   'finance-calculator': Calculator,
+  'image-showcase': Maximize,
 }
 
 const sectionTypes = computed(() =>

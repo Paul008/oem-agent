@@ -21,6 +21,7 @@ const emit = defineEmits<{
   duplicateSection: [id: string]
   copySectionJson: [id: string]
   convertSection: [id: string, targetType: string]
+  splitSection: [id: string]
   addSection: [type: PageSectionType]
   addSectionFromTemplate: [templateId: string]
   insertFromGallery: [section: any]
@@ -92,6 +93,7 @@ function formatCost(cost: number | undefined) {
             @duplicate="emit('duplicateSection', section.id)"
             @copy-json="emit('copySectionJson', section.id)"
             @convert="(targetType: string) => emit('convertSection', section.id, targetType)"
+            @split="emit('splitSection', section.id)"
             @delete="emit('deleteSection', section.id)"
           />
         </div>

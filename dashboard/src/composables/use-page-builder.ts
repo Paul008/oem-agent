@@ -113,6 +113,11 @@ function resolveSectionMediaUrls(section: any): any {
     case 'countdown':
       s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
       break
+    case 'image-showcase':
+      if (Array.isArray(s.images)) {
+        s.images = s.images.map((img: any) => ({ ...img, url: resolveMediaUrl(img.url) ?? img.url }))
+      }
+      break
   }
   return s
 }
@@ -385,6 +390,52 @@ export function usePageBuilder() {
     selectedSectionId.value = id
   }
 
+  /** Which array field holds the splittable items for a given section type */
+  const SPLITTABLE_FIELDS: Record<string, string> = {
+    'gallery': 'images',
+    'image-showcase': 'images',
+    'feature-cards': 'cards',
+    'tabs': 'tabs',
+    'accordion': 'items',
+    'testimonial': 'testimonials',
+    'logo-strip': 'logos',
+    'stats': 'stats',
+    'pricing-table': 'tiers',
+    'comparison-table': 'rows',
+  }
+
+  function canSplitSection(type: string): boolean {
+    const field = SPLITTABLE_FIELDS[type]
+    return !!field
+  }
+
+  function splitSection(id: string) {
+    const idx = sections.value.findIndex((s: any) => s.id === id)
+    if (idx === -1) return
+    const source = sections.value[idx]
+    const field = SPLITTABLE_FIELDS[source.type]
+    if (!field) return
+    const items = source[field]
+    if (!Array.isArray(items) || items.length < 2) return
+
+    pushHistory(`Split ${source.type} into ${items.length} sections`)
+    const updated = [...sections.value]
+    updated.splice(idx, 1) // remove original
+
+    const newSections = items.map((item: any) => {
+      const clone = JSON.parse(JSON.stringify(source))
+      clone.id = genId()
+      clone[field] = [item]
+      return clone
+    })
+
+    updated.splice(idx, 0, ...newSections)
+    updated.forEach((s: any, i: number) => { s.order = i })
+    sections.value = updated
+    isDirty.value = true
+    selectedSectionId.value = newSections[0].id
+  }
+
   async function saveSections() {
     if (!oemId.value || !modelSlug.value) return
     saving.value = true
@@ -592,8 +643,10 @@ export function usePageBuilder() {
     copySectionToClipboard,
     pasteSectionFromClipboard,
     replaceSections,
-    // Convert
+    // Convert & Split
     convertSection,
     getConvertibleTypes,
+    splitSection,
+    canSplitSection,
   }
 }

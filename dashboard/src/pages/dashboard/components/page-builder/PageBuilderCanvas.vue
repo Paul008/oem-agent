@@ -42,6 +42,20 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
   'countdown': defineAsyncComponent(() => import('../sections/SectionCountdown.vue')),
   'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
+  'image-showcase': defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue')),
+}
+
+function sectionSpacingStyle(section: any): Record<string, string> {
+  const s = section.spacing
+  if (!s) return {}
+  const style: Record<string, string> = {}
+  if (s.padding_top) style.paddingTop = s.padding_top
+  if (s.padding_bottom) style.paddingBottom = s.padding_bottom
+  if (s.padding_left) style.paddingLeft = s.padding_left
+  if (s.padding_right) style.paddingRight = s.padding_right
+  if (s.margin_top) style.marginTop = s.margin_top
+  if (s.margin_bottom) style.marginBottom = s.margin_bottom
+  return style
 }
 
 function oemName(id: string) {
@@ -89,6 +103,7 @@ ${rendered}
           :class="selectedSectionId === section.id
             ? 'ring-2 ring-primary ring-offset-2'
             : 'hover:ring-1 hover:ring-muted-foreground/30 hover:ring-offset-1'"
+          :style="sectionSpacingStyle(section)"
           @click="emit('selectSection', section.id)"
         >
           <!-- Type label overlay on hover -->
