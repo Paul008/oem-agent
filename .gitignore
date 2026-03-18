@@ -57,4 +57,5 @@ terraform.tfvars
 test/e2e/.dev.vars
 
 # Temporary e2e wrangler configs
-.wrangler-e2e-*.jsonc.wrangler-out/
+.wrangler-e2e-*.jsonc
+.wrangler-out/
