@@ -702,6 +702,22 @@ const apis = [
   },
   {
     oem_id: 'mazda-au',
+    url: 'https://www.mazda.com.au/cars/{model}/',
+    method: 'GET',
+    content_type: 'text/html',
+    response_type: 'html',
+    data_type: 'colors',
+    reliability_score: 0.95,
+    status: 'verified',
+    schema_json: {
+      params: { model: 'e.g. cx-5, bt-50, mazda3, mx-5' },
+      returns: ['colors', 'grades', 'body_styles', 'hero_images', 'swatch_urls', 'price_deltas'],
+      note: 'Model landing page with ReactDOM.hydrate JSON containing bodyStyle > grade > colors[] with ref, name, priceDifference, hex, imageSrc, icon. Used by seed-mazda-colors.mjs. 10 models, 56 products, 431 colors, 27 unique paints.',
+      discovery_source: 'dealer-theme-repo + seed-script',
+    },
+  },
+  {
+    oem_id: 'mazda-au',
     url: 'https://www.mazda.com.au/offers/?dealersession=1&dealerCode={code}',
     method: 'GET',
     content_type: 'text/html',
