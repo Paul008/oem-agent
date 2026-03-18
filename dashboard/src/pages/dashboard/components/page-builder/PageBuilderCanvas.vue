@@ -45,6 +45,26 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'image-showcase': defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue')),
 }
 
+function sectionStyle(section: any): Record<string, string> {
+  const style: Record<string, string> = {}
+  // Spacing
+  const s = section.spacing
+  if (s) {
+    if (s.padding_top) style.paddingTop = s.padding_top
+    if (s.padding_bottom) style.paddingBottom = s.padding_bottom
+    if (s.padding_left) style.paddingLeft = s.padding_left
+    if (s.padding_right) style.paddingRight = s.padding_right
+    if (s.margin_top) style.marginTop = s.margin_top
+    if (s.margin_bottom) style.marginBottom = s.margin_bottom
+  }
+  // Border radius
+  if (section.border_radius) style.borderRadius = section.border_radius
+  // Overflow hidden when radius is set (clip content to rounded corners)
+  if (section.border_radius && section.border_radius !== '0px') style.overflow = 'hidden'
+  return style
+}
+
+// Legacy compat — kept for reference but replaced by sectionStyle
 function sectionSpacingStyle(section: any): Record<string, string> {
   const s = section.spacing
   if (!s) return {}
@@ -103,7 +123,7 @@ ${rendered}
           :class="selectedSectionId === section.id
             ? 'ring-2 ring-primary ring-offset-2'
             : 'hover:ring-1 hover:ring-muted-foreground/30 hover:ring-offset-1'"
-          :style="sectionSpacingStyle(section)"
+          :style="sectionStyle(section)"
           @click="emit('selectSection', section.id)"
         >
           <!-- Type label overlay on hover -->

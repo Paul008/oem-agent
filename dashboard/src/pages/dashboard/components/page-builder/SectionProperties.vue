@@ -88,37 +88,76 @@ function onMediaLibrarySelect(url: string) {
 
     <UiSeparator />
 
-    <!-- ===== SPACING (universal) ===== -->
+    <!-- ===== LAYOUT & STYLING (universal) ===== -->
     <details class="group">
       <summary class="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
         <span class="group-open:rotate-90 transition-transform text-[10px]">&#9654;</span>
-        Spacing
-        <span v-if="section.spacing" class="text-[9px] text-primary">(custom)</span>
+        Layout & Style
+        <span v-if="section.full_width || section.border_radius || section.spacing" class="text-[9px] text-primary">(custom)</span>
       </summary>
-      <div class="grid grid-cols-2 gap-2 mt-2">
-        <div>
-          <label class="text-[10px] text-muted-foreground">Padding Top</label>
-          <UiInput :model-value="section.spacing?.padding_top || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_top: $event || undefined })" />
+      <div class="space-y-3 mt-2">
+        <!-- Full Width -->
+        <div class="flex items-center gap-2">
+          <UiSwitch :checked="!!section.full_width" @update:checked="update('full_width', $event)" />
+          <label class="text-xs">Full width (edge-to-edge)</label>
         </div>
+
+        <!-- Border Radius -->
         <div>
-          <label class="text-[10px] text-muted-foreground">Padding Bottom</label>
-          <UiInput :model-value="section.spacing?.padding_bottom || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_bottom: $event || undefined })" />
+          <label class="text-[10px] text-muted-foreground mb-1 block">Border Radius</label>
+          <div class="flex items-center gap-2">
+            <input
+              type="range"
+              :value="parseInt(section.border_radius) || 0"
+              min="0"
+              max="48"
+              step="2"
+              class="flex-1"
+              @input="update('border_radius', ($event.target as HTMLInputElement).value + 'px')"
+            />
+            <UiInput
+              :model-value="section.border_radius || ''"
+              class="h-7 text-xs w-20"
+              placeholder="0px"
+              @update:model-value="update('border_radius', $event || undefined)"
+            />
+          </div>
+          <div class="flex gap-1 mt-1">
+            <button v-for="preset in ['0px', '8px', '16px', '24px', '9999px']" :key="preset" class="text-[9px] px-1.5 py-0.5 rounded border hover:bg-muted" :class="section.border_radius === preset ? 'bg-primary/10 border-primary text-primary' : 'border-border'" @click="update('border_radius', preset)">
+              {{ preset === '9999px' ? 'Full' : preset }}
+            </button>
+          </div>
         </div>
-        <div>
-          <label class="text-[10px] text-muted-foreground">Padding Left</label>
-          <UiInput :model-value="section.spacing?.padding_left || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_left: $event || undefined })" />
-        </div>
-        <div>
-          <label class="text-[10px] text-muted-foreground">Padding Right</label>
-          <UiInput :model-value="section.spacing?.padding_right || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_right: $event || undefined })" />
-        </div>
-        <div>
-          <label class="text-[10px] text-muted-foreground">Margin Top</label>
-          <UiInput :model-value="section.spacing?.margin_top || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), margin_top: $event || undefined })" />
-        </div>
-        <div>
-          <label class="text-[10px] text-muted-foreground">Margin Bottom</label>
-          <UiInput :model-value="section.spacing?.margin_bottom || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), margin_bottom: $event || undefined })" />
+
+        <!-- Spacing -->
+        <div class="border-t pt-2">
+          <p class="text-[10px] text-muted-foreground mb-1.5 font-medium">Spacing</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-muted-foreground">Padding Top</label>
+              <UiInput :model-value="section.spacing?.padding_top || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_top: $event || undefined })" />
+            </div>
+            <div>
+              <label class="text-[10px] text-muted-foreground">Padding Bottom</label>
+              <UiInput :model-value="section.spacing?.padding_bottom || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_bottom: $event || undefined })" />
+            </div>
+            <div>
+              <label class="text-[10px] text-muted-foreground">Padding Left</label>
+              <UiInput :model-value="section.spacing?.padding_left || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_left: $event || undefined })" />
+            </div>
+            <div>
+              <label class="text-[10px] text-muted-foreground">Padding Right</label>
+              <UiInput :model-value="section.spacing?.padding_right || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), padding_right: $event || undefined })" />
+            </div>
+            <div>
+              <label class="text-[10px] text-muted-foreground">Margin Top</label>
+              <UiInput :model-value="section.spacing?.margin_top || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), margin_top: $event || undefined })" />
+            </div>
+            <div>
+              <label class="text-[10px] text-muted-foreground">Margin Bottom</label>
+              <UiInput :model-value="section.spacing?.margin_bottom || ''" class="h-7 text-xs" placeholder="0px" @update:model-value="update('spacing', { ...(section.spacing || {}), margin_bottom: $event || undefined })" />
+            </div>
+          </div>
         </div>
       </div>
     </details>
