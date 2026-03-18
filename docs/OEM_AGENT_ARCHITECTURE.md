@@ -641,9 +641,10 @@ dashboard/src/
 │       │   ├── JsonEditorView.vue         # Raw JSON section editor
 │       │   ├── SectionBrowserDialog.vue   # Section browser dialog
 │       │   ├── SectionEditorDialog.vue    # Section editor modal
-│       │   ├── section-templates.ts       # Section type definitions and defaults
+│       │   ├── section-converter.ts        # Section conversion logic (60+ mappings)
+│       │   ├── section-templates.ts       # Defaults, templates, type info for all 25 types
 │       │   └── oem-templates.ts           # 10 curated OEM-branded templates
-│       └── sections/                      # 11 async section renderers
+│       └── sections/                      # 25 async section preview components
 │           ├── SectionHero.vue
 │           ├── SectionIntro.vue
 │           ├── SectionTabs.vue            # Variants: default, kia-feature-bullets
@@ -654,10 +655,20 @@ dashboard/src/
 │           ├── SectionVideo.vue
 │           ├── SectionCta.vue
 │           ├── SectionContentBlock.vue
+│           ├── SectionTestimonial.vue
+│           ├── SectionComparisonTable.vue
+│           ├── SectionStats.vue
+│           ├── SectionLogoStrip.vue
+│           ├── SectionEmbed.vue
+│           ├── SectionPricingTable.vue
+│           ├── SectionStickyBar.vue
+│           ├── SectionCountdown.vue
+│           ├── SectionFinanceCalculator.vue
+│           ├── SectionImageShowcase.vue
 │           └── SectionRenderer.vue        # Dynamic section type router
 ```
 
-### Section Types (15)
+### Section Types (25)
 
 | Type | Description | Variants |
 |------|-------------|----------|
@@ -676,6 +687,34 @@ dashboard/src/
 | `map` | Google Maps embed with title and sub-heading | — |
 | `alert` | Coloured notification banner (info/warning/success/destructive) | — |
 | `divider` | Visual separator between sections | `line`, `space`, `dots` |
+| `testimonial` | Customer testimonial with quote, author, rating, avatar | — |
+| `comparison-table` | Side-by-side feature/spec comparison across columns | — |
+| `stats` | Key statistics with numbers, labels, and optional icons | — |
+| `logo-strip` | Row of partner/award logos with optional link and grayscale toggle | — |
+| `embed` | External embed (YouTube, social, iframe) with aspect ratio control | — |
+| `pricing-table` | Tiered pricing cards with features, CTA, and highlight toggle | — |
+| `sticky-bar` | Fixed-position bar (top/bottom) with CTA, dismissible | — |
+| `countdown` | Countdown timer to a target date with heading and CTA | — |
+| `finance-calculator` | Interactive finance/repayment calculator with configurable defaults | — |
+| `image-showcase` | Large image with overlay text, hotspots, or annotations | — |
+
+### Section Conversion System
+
+The page builder supports converting any section to a different type via a "Convert To..." action (available in the sidebar toolbar and section editor dialog). The conversion engine maps data fields between source and target types with 60+ conversion mappings.
+
+**Key behaviors**:
+- Auto-splits multi-item sections when converting (e.g., a gallery with 3 images becomes 3 content-blocks)
+- Preserves as much data as possible during conversion (titles, images, body text)
+- `canSplitSection()` determines if a section has multiple items that can be split into individual sections
+
+**Implementation**: `section-converter.ts` (conversion logic), `use-page-builder.ts` (`convertSection()`, `splitSection()`)
+
+### Universal Section Styling
+
+Every section supports Layout & Style controls in the property editor:
+- **Full width toggle**: Edge-to-edge rendering
+- **Border radius**: Slider with presets (0px, 8px, 16px, 24px, Full)
+- **Spacing**: Independent padding (top/bottom/left/right) and margin (top/bottom)
 
 ---
 

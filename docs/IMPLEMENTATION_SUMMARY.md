@@ -270,6 +270,13 @@ Browser Rendering additional: ~$276/month (5,520 renders @ $0.05/render)
 3. Set up monitoring and alerts
 4. Schedule quarterly design captures
 
+### Phase 5: Page Builder (Complete)
+1. Visual page builder with 25 section types (15 original + 10 new: testimonial, comparison-table, stats, logo-strip, embed, pricing-table, sticky-bar, countdown, finance-calculator, image-showcase)
+2. Section conversion system with 60+ data mappings between types, including auto-split for multi-item sections
+3. Universal section styling (full width, border radius, padding/margin controls)
+4. Dealer site integration — OemSectionRenderer supports all 25 types with live pricing enrichment
+5. Key files: `section-converter.ts`, `section-templates.ts`, `use-page-builder.ts`
+
 ---
 
 ## Usage Example

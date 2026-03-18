@@ -197,9 +197,27 @@ GET /api/pages/{oem_id}/{model_slug}/should-regenerate
 - **Type Definitions**: `src/oem/types.ts` → `VehicleModelPage`, `RegenerationDecision`
 - **Configuration**: `config/openclaw/cron-jobs.json`
 
+## Dealer Site Integration
+
+Generated pages are consumed by dealer promotion sites (e.g., promotion-knoxgwmhaval) via an `OemSectionRenderer` component that supports all 25 section types. Sections are fetched from OEM Agent R2 storage and rendered with dealer branding.
+
+**Key details**:
+- 18 dedicated renderer components in `components/vehicles/sections/` on the dealer site
+- Color-picker sections are enriched with live pricing data from the variants API (`/api/vehicles/by-slug/`)
+- Pages auto-update when the Brand Ambassador regenerates and pushes new JSON to R2
+
+## Page Builder Features
+
+The dashboard page builder (`page-builder/[slug].vue`) provides a visual editor for all 25 section types:
+
+- **Section conversion**: Convert any section to a different type with automatic data mapping (60+ conversion rules). Multi-item sections auto-split during conversion.
+- **Split section**: Break multi-item sections (gallery, tabs, accordion, etc.) into individual sections, one per item.
+- **Universal styling**: Every section has Layout & Style controls — full width toggle, border radius (0-24px presets), padding, and margin.
+- **Undo/redo**: Full history tracking with keyboard shortcuts.
+- **Template gallery**: Browse and insert sections from OEM extraction results.
+
 ## Future Enhancements
 
-- [ ] Dashboard UI for viewing/managing generated pages
 - [ ] A/B testing framework for page variations
 - [ ] Real-time regeneration on price changes >10%
 - [ ] Multi-language page generation
