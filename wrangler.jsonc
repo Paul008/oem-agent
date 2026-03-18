@@ -71,7 +71,9 @@
     "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
     // Optional: Lightpanda WebSocket URL for headless browser rendering.
     // When not set, falls back to Cloudflare Browser (env.BROWSER binding).
-    "LIGHTPANDA_URL": ""
+    "LIGHTPANDA_URL": "",
+    // Comma-separated webhook URLs to purge dealer site caches when page builder saves
+    "PAGE_CACHE_WEBHOOK_URLS": "https://knoxgwmhaval.com.au/api/webhooks/purge-model-cache"
   },
 
   // Secrets (set via `wrangler secret put`):

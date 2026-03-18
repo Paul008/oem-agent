@@ -1743,6 +1743,22 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
     }),
   ]);
 
+  // Fire cache purge webhooks (non-blocking)
+  const webhookUrls = (c.env.PAGE_CACHE_WEBHOOK_URLS || '').split(',').filter(Boolean);
+  if (webhookUrls.length > 0) {
+    const oemDef = getOemDefinition(oemId);
+    const oemCode = oemDef?.code?.replace(/-au$/, '') || oemId.replace(/-au$/, '');
+    for (const url of webhookUrls) {
+      c.executionCtx.waitUntil(
+        fetch(url.trim(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oem_code: oemCode, model_slug: modelSlug }),
+        }).catch(() => {}) // Silently ignore webhook failures
+      );
+    }
+  }
+
   return c.json({
     success: true,
     version: pageData.version,
