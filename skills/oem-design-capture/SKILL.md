@@ -29,7 +29,9 @@ Analyses OEM websites for brand identity and layout patterns.
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for storing design data
 - `GROQ_API_KEY` for pre-screening
 - `TOGETHER_API_KEY` for Kimi K2.5 vision analysis
-- `WORKER_URL` and `CDP_SECRET` for browser rendering
+- `LIGHTPANDA_URL` for browser rendering (primary) or `WORKER_URL` + `CDP_SECRET` (fallback)
+
+> **Note**: `specs_json` is now always populated on every product upsert via `orchestrator.buildSpecsJson()`, so page generation can rely on specs data being present for all products.
 
 ## Triggers
 

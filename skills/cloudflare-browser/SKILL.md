@@ -1,15 +1,19 @@
 ---
 name: cloudflare-browser
-description: Control headless Chrome via Cloudflare Browser Rendering CDP WebSocket. Use for screenshots, page navigation, scraping, and video capture when browser automation is needed in a Cloudflare Workers environment. Requires CDP_SECRET env var and cdpUrl configured in browser.profiles.
+description: Headless browser rendering with Lightpanda as primary engine and Cloudflare Browser Rendering as fallback. Use for screenshots, page navigation, scraping, and video capture when browser automation is needed.
 ---
 
-# Cloudflare Browser Rendering
+# Browser Rendering
 
-Control headless browsers via Cloudflare's Browser Rendering service using CDP (Chrome DevTools Protocol) over WebSocket.
+Headless browser rendering with a two-tier engine:
+
+1. **Lightpanda** (primary) — Fast headless browser via `LIGHTPANDA_URL` env var. Lower latency, used for most page renders.
+2. **Cloudflare Browser Rendering** (fallback) — CDP over WebSocket via `CDP_SECRET` env var. Used when Lightpanda is unavailable or for CDP-specific features (network interception, video capture).
 
 ## Prerequisites
 
-- `CDP_SECRET` environment variable set
+- `LIGHTPANDA_URL` environment variable set (primary browser engine)
+- `CDP_SECRET` environment variable set (fallback — Cloudflare Browser Rendering)
 - Browser profile configured in openclaw.json with `cdpUrl` pointing to the worker endpoint:
   ```json
   "browser": {

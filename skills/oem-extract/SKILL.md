@@ -9,10 +9,11 @@ Extracts structured data from rendered OEM web pages.
 
 ## Extraction Priority (deterministic first, LLM fallback)
 
-1. JSON-LD structured data
-2. OpenGraph meta tags
-3. CSS selector extraction (OEM-specific via `lib/extractors/`)
-4. LLM normalisation fallback (Groq) - only if <80% field coverage
+1. **Gatsby page-data.json** — Static JSON endpoints at `/{route}/page-data.json` (LDV AU: Gatsby 5.14.6 + i-Motor CMS). Returns full vehicle data (specs, variants, colors with price deltas, pricing). No browser rendering needed.
+2. JSON-LD structured data
+3. OpenGraph meta tags
+4. CSS selector extraction (OEM-specific via `lib/extractors/`)
+5. LLM normalisation fallback (Groq) - only if <80% field coverage
 
 ## Prerequisites
 
@@ -47,7 +48,7 @@ Vehicle listings with specifications, pricing, and features.
 - `availability` - For Sale, Coming Soon, Sold Out
 - `price_amount`, `price_currency`, `price_type`, `price_qualifier`
 
-**Technical Specifications (`specs_json` JSONB — 692/709 products, 97.6%):**
+**Technical Specifications (`specs_json` JSONB — auto-built on every product upsert):**
 - `engine` - type, displacement_cc, cylinders, power_kw, torque_nm
 - `transmission` - type, gears, drive
 - `dimensions` - length_mm, width_mm, height_mm, wheelbase_mm, kerb_weight_kg
@@ -57,9 +58,9 @@ Vehicle listings with specifications, pricing, and features.
 - `safety` - ancap_stars, airbags
 - `wheels` - size, type
 
-All 8 categories at 100% coverage. 12/16 OEMs fully complete (only Ford 11 + Nissan 6 legacy entries missing).
+All 8 categories at 100% coverage across all 17 OEMs. GMSV AU fully populated (6 vehicle_models, 7 products, 55 colors, full specs).
 
-**Vehicle Specifications (legacy scalar columns):**
+**Vehicle Specifications (scalar columns — auto-populated from `meta_json` on every upsert):**
 - `engine_size`, `cylinders`, `transmission`, `gears`, `drive`, `doors`, `seats`
 
 **OEM Marketing Features (`key_features` array):**
@@ -120,7 +121,7 @@ Promotional offers including factory bonuses, run-out sales, value-add deals, an
 
 ### Banners
 
-Homepage and offers page hero banners across 12 OEMs (50 banners, 2 with video).
+Homepage and offers page hero banners across all 17 OEMs (144 banners, 100% with desktop images).
 
 **Core Fields:**
 - `page_url` - Which page the banner appears on (homepage, offers page)
@@ -148,10 +149,10 @@ Homepage and offers page hero banners across 12 OEMs (50 banners, 2 with video).
 - Extracted data mapped to canonical schemas (`product.v1`, `offer.v1`, `banner.v1`)
 - Content hash for change detection
 - Upserted to Supabase tables via orchestrator methods:
-  - `products` — `upsertProduct()`: match by oem_id + title, track via `last_seen_at`
+  - `products` — `upsertProduct()`: match by oem_id + title, track via `last_seen_at`. Auto-populates `specs_json` (via `buildSpecsJson()`) and `variant_colors` (via `syncVariantColors()`) on every upsert for all OEMs. Individual spec columns (`engine_size`, `cylinders`, `transmission`, `gears`, `drive`, `doors`, `seats`) are also populated from `meta_json` on every upsert.
   - `offers` — `upsertOffer()`: match by oem_id + title, detect changes (price, validity, disclaimer), update `last_seen_at` on every crawl pass, create change events + Slack alerts for new/changed offers
   - `banners` — `upsertBanner()`: match by oem_id + page_url + position, detect headline changes
-  - `variant_colors` — Colour options per product
+  - `variant_colors` — Colour options per product (auto-synced for all OEMs via `syncVariantColors()`)
   - `variant_pricing` — Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT)
   - `accessories` — Accessory catalog per OEM (via `accessory_models` join to vehicle_models)
   - `pdf_embeddings` — Vectorized brochure/guidelines chunks for semantic search

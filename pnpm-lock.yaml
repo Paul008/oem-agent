@@ -36,6 +36,9 @@ importers:
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
+      playwright-core:
+        specifier: ^1.58.2
+        version: 1.58.2
       puppeteer:
         specifier: ^24.37.2
         version: 24.37.5(typescript@5.9.3)
@@ -1235,6 +1238,11 @@ packages:
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
+
+  playwright-core@1.58.2:
+    resolution: {integrity: sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   postcss@8.5.6:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
@@ -2551,6 +2559,8 @@ snapshots:
   pend@1.2.0: {}
 
   picocolors@1.1.1: {}
+
+  playwright-core@1.58.2: {}
 
   postcss@8.5.6:
     dependencies:

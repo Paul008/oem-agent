@@ -678,7 +678,7 @@ async function copyToClipboard(text: string) {
           <UiCardContent class="text-sm space-y-2">
             <ol class="list-decimal list-inside space-y-1">
               <li>Apply the code snippets above to the respective files</li>
-              <li>Update OEM count references (run <code>grep -rn "16 OEM" --include="*.md" --include="*.ts"</code>)</li>
+              <li>Update OEM count references (run <code>grep -rn "17 OEM" --include="*.md" --include="*.ts"</code>)</li>
               <li>Deploy: <code>npm run deploy</code></li>
               <li>Trigger first crawl from the Import Runs page</li>
             </ol>
@@ -849,7 +849,7 @@ async function copyToClipboard(text: string) {
                 <span :class="{ 'line-through': false }">Apply code snippets (types.ts, registry.ts, agent.ts, migration)</span>
                 <UiBadge v-if="snippets" variant="outline" class="ml-2 text-xs">Generated</UiBadge>
               </li>
-              <li class="text-muted-foreground">Update OEM count references (<code>grep -rn "16 OEM"</code>)</li>
+              <li class="text-muted-foreground">Update OEM count references (<code>grep -rn "17 OEM"</code>)</li>
               <li class="text-muted-foreground">Add to cron schedules (see above)</li>
               <li class="text-muted-foreground">Deploy: <code>npm run deploy</code></li>
               <li v-if="!crawlTriggered" class="text-muted-foreground">Trigger first crawl from Import Runs page</li>

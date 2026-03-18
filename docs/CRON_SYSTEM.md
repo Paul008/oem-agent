@@ -56,6 +56,9 @@ Maps cron expressions to crawl types:
 ### What It Does
 - Crawls OEM source pages based on check frequency
 - Updates products, offers, prices in database
+- Auto-syncs `variant_colors` for all OEMs during every product upsert (`orchestrator.syncVariantColors()`)
+- Auto-builds `specs_json` on every product upsert (`orchestrator.buildSpecsJson()`), consolidating `meta_json` + individual spec columns
+- Populates individual spec columns (`engine_size`, `cylinders`, `transmission`, `drive`, `drivetrain`) from `meta_json`
 - Tracks changes in import_runs table
 - Sends Slack notifications on changes
 

@@ -106,22 +106,22 @@ All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
 
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
-| `oems` (16) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
-| `vehicle_models` (132) | Models per OEM | Unique: oem_id, slug. `brochure_url` (96/132) |
-| `products` (709) | Variants/grades | `specs_json` JSONB (692/709, 97.6%, 8 categories at 100%). model_id FK |
-| `variant_colors` (~4496) | Colour options | Unique: product_id, color_code. 14/16 OEMs seeded |
+| `oems` (17) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
+| `vehicle_models` (~162) | Models per OEM | Unique: oem_id, slug. `brochure_url` (96/162) |
+| `products` (757) | Variants/grades | `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`). model_id FK |
+| `variant_colors` (~4543) | Colour options | Unique: product_id, color_code. Auto-synced for all OEMs via `orchestrator.syncVariantColors()` |
 | `pdf_embeddings` | Vectorized PDF chunks | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
-| `variant_pricing` (547) | Per-state driveaway | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
+| `variant_pricing` (~556) | Per-state driveaway | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
 | `accessories` (2702) | Accessory catalog per OEM | Unique: oem_id, external_key. Has parent_id self-ref, inc_fitting |
 | `accessory_models` (2826) | Accessories ↔ models join | Unique: accessory_id, model_id |
-| `discovered_apis` (466) | API endpoints | Unique: oem_id, url. Has schema_json, reliability_score |
+| `discovered_apis` (58+) | API endpoints | Unique: oem_id, url. Has schema_json, reliability_score |
 | `source_pages` | Monitored URLs | |
 | `change_events` | Change audit log | |
-| `offers` (~194) | Promotions (5 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `offers` (283) | Promotions (all 17 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl jobs | |
 
-**OEM IDs**: ford-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+**OEM IDs**: ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ### Dashboard
 - **URL**: https://oem-agent.pages.dev (Cloudflare Pages)

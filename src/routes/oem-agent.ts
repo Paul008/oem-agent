@@ -2832,6 +2832,7 @@ function createOrchestratorFromEnv(env: MoltbotEnv): OemAgentOrchestrator {
     browser: env.BROWSER!,
     aiRouter,
     notifier,
+    lightpandaUrl: env.LIGHTPANDA_URL,
   });
 }
 

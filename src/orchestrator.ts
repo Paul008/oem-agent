@@ -49,7 +49,8 @@ export interface OrchestratorConfig {
   browser: Fetcher; // Browser Rendering binding (BrowserWorker)
   aiRouter: AiRouter;
   notifier: MultiChannelNotifier;
-  
+  lightpandaUrl?: string; // Lightpanda CDP WebSocket endpoint
+
   // Optional overrides
   scheduler?: CrawlScheduler;
   changeDetector?: ChangeDetector;
@@ -323,8 +324,8 @@ export class OemAgentOrchestrator {
         // Check budget before rendering
         const budgetCheck = await this.checkRenderBudget(oemId);
         if (budgetCheck.allowed) {
-          // Use smart mode to render and capture network traffic
-          smartModeResult = await this.renderPageSmartMode(page.url, oemId);
+          // Try Lightpanda first (fast, lightweight), falls back to Smart Mode
+          smartModeResult = await this.renderPageLightpanda(page.url, oemId);
           finalHtml = smartModeResult.html;
           discoveredApis = smartModeResult.apiCandidates;
           wasRendered = true;
@@ -1546,6 +1547,151 @@ export class OemAgentOrchestrator {
         },
       };
     }
+  }
+
+  /**
+   * Render a page using Lightpanda headless browser via raw CDP WebSocket.
+   * Lightpanda is a lightweight Zig-based browser (Zig + V8) — 11x faster,
+   * 9x less memory than Chrome. Uses raw CDP because Lightpanda supports
+   * only 1 connection per process and puppeteer/playwright open multiple.
+   *
+   * Falls back to Cloudflare Browser (Smart Mode) if Lightpanda is
+   * unavailable or if the page fails to render within the timeout.
+   */
+  private async renderPageLightpanda(url: string, oemId: OemId): Promise<SmartModeResult> {
+    const lpUrl = this.config.lightpandaUrl;
+    if (!lpUrl) {
+      return this.renderPageSmartMode(url, oemId);
+    }
+
+    console.log(`[Lightpanda] Rendering ${url}`);
+    const startTime = Date.now();
+    const TIMEOUT_MS = 15000; // Fast timeout — fall back to Chrome quickly
+
+    try {
+      const html = await this.lightpandaCdpNavigate(lpUrl, url, TIMEOUT_MS);
+      const loadComplete = Date.now() - startTime;
+      console.log(`[Lightpanda] Success: ${html.length} chars in ${loadComplete}ms for ${url}`);
+
+      // Lightpanda doesn't support network interception yet (beta),
+      // so we return HTML only. API discovery will rely on the HTML
+      // extraction engine which parses inline JSON and script tags.
+      return {
+        html,
+        networkRequests: [],
+        networkResponses: [],
+        apiCandidates: [],
+        performanceMetrics: {
+          domContentLoaded: loadComplete,
+          loadComplete,
+          firstPaint: null,
+        },
+      };
+    } catch (err: any) {
+      const elapsed = Date.now() - startTime;
+      console.warn(`[Lightpanda] Failed in ${elapsed}ms: ${err?.message || err}`);
+      console.log(`[Lightpanda] Falling back to Smart Mode for ${url}`);
+      return this.renderPageSmartMode(url, oemId);
+    }
+  }
+
+  /**
+   * Low-level CDP navigation via raw WebSocket to Lightpanda.
+   * Uses Target.createTarget → Target.attachToTarget → Page.loadEventFired
+   * → Runtime.evaluate to extract HTML.
+   */
+  private lightpandaCdpNavigate(wsUrl: string, pageUrl: string, timeoutMs: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      // WebSocket is available in Cloudflare Workers runtime
+      const ws = new WebSocket(wsUrl);
+      let sessionId: string | undefined;
+      let resolved = false;
+
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          try { ws.close(); } catch {}
+          reject(new Error(`CDP timeout after ${timeoutMs}ms`));
+        }
+      }, timeoutMs);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        try { ws.close(); } catch {}
+      };
+
+      ws.addEventListener('open', () => {
+        // Step 1: Create a target with the URL (navigates immediately)
+        ws.send(JSON.stringify({
+          id: 1,
+          method: 'Target.createTarget',
+          params: { url: pageUrl },
+        }));
+      });
+
+      ws.addEventListener('message', (event: MessageEvent) => {
+        if (resolved) return;
+        try {
+          const msg = JSON.parse(typeof event.data === 'string' ? event.data : '');
+
+          // Step 2: Target created — attach to it
+          if (msg.id === 1 && msg.result?.targetId) {
+            ws.send(JSON.stringify({
+              id: 2,
+              method: 'Target.attachToTarget',
+              params: { targetId: msg.result.targetId, flatten: true },
+            }));
+          }
+
+          // Capture sessionId from attachment
+          if (msg.method === 'Target.attachedToTarget') {
+            sessionId = msg.params.sessionId;
+          }
+
+          // Step 3: Page loaded — extract HTML
+          if (msg.method === 'Page.loadEventFired' && sessionId) {
+            ws.send(JSON.stringify({
+              id: 10,
+              method: 'Runtime.evaluate',
+              params: { expression: 'document.documentElement.outerHTML' },
+              sessionId,
+            }));
+          }
+
+          // Step 4: HTML received — resolve
+          if (msg.id === 10 && msg.result?.result?.value) {
+            resolved = true;
+            cleanup();
+            resolve(msg.result.result.value);
+          }
+
+          // Handle CDP errors
+          if (msg.id === 1 && msg.error) {
+            resolved = true;
+            cleanup();
+            reject(new Error(`CDP createTarget error: ${msg.error.message}`));
+          }
+        } catch (parseErr) {
+          // Ignore parse errors for binary frames
+        }
+      });
+
+      ws.addEventListener('error', (err: Event) => {
+        if (!resolved) {
+          resolved = true;
+          cleanup();
+          reject(new Error(`WebSocket error: ${(err as any).message || 'connection failed'}`));
+        }
+      });
+
+      ws.addEventListener('close', () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          reject(new Error('WebSocket closed before page loaded'));
+        }
+      });
+    });
   }
 
   /**
@@ -3081,6 +3227,12 @@ ${html.substring(0, 50000)}
       variants: productData.variants || [],
       cta_links: productData.cta_links || [],
       meta_json: productData.meta || {}, // Database column is meta_json
+      specs_json: this.buildSpecsJson(productData),
+      engine_size: productData.meta?.engineSize || productData.engine_size || null,
+      cylinders: productData.meta?.cylinders ? parseInt(productData.meta.cylinders, 10) || null : null,
+      transmission: productData.meta?.transmission || productData.transmission || null,
+      drive: productData.meta?.drivetrain || productData.meta?.drive || productData.drive || null,
+      drivetrain: productData.meta?.drivetrain || productData.drivetrain || null,
       last_seen_at: new Date().toISOString(),
     };
 
@@ -3117,6 +3269,10 @@ ${html.substring(0, 50000)}
 
         // Queue alert
         this.alertBatcher.add(analysis, oemId);
+
+        // Sync variant_colors from extracted color data
+        await this.syncVariantColors(existing.id, oemId, productData);
+
         return { created: false, updated: true, changeDetected: true };
       } else {
         console.log(`[UpsertProduct] No changes for: ${productData.title}`);
@@ -3125,6 +3281,11 @@ ${html.substring(0, 50000)}
           .from('products')
           .update({ last_seen_at: product.last_seen_at })
           .eq('id', existing.id);
+
+        // Sync variant_colors even when no product changes — colors may come
+        // from a different data source (e.g. pricing API) than the product itself
+        await this.syncVariantColors(existing.id, oemId, productData);
+
         return { created: false, updated: true, changeDetected: false };
       }
     } else {
@@ -3143,6 +3304,9 @@ ${html.substring(0, 50000)}
       }
       console.log(`[UpsertProduct] Successfully inserted: ${product.title} (${product.id})`);
 
+      // Sync variant_colors from extracted color data
+      await this.syncVariantColors(product.id, oemId, productData);
+
       // Create change event for new product
       const analysis = this.changeDetector.detectProductChanges(null, product as Product);
       if (analysis) {
@@ -3151,6 +3315,133 @@ ${html.substring(0, 50000)}
       }
       return { created: true, updated: false, changeDetected: true };
     }
+  }
+
+  /**
+   * Build a standardized specs_json object from product data and meta fields.
+   * Consolidates individual spec columns + meta_json into the canonical shape
+   * that page-generator and dealer-api expect.
+   */
+  private buildSpecsJson(productData: any): Record<string, any> | null {
+    const meta = productData.meta || {};
+    const specs: Record<string, any> = {};
+
+    // Engine
+    const engine: Record<string, any> = {};
+    if (meta.engineSize || productData.engine_size) engine.displacement = meta.engineSize || productData.engine_size;
+    if (meta.engine || productData.fuel_type) engine.type = meta.engine || productData.fuel_type;
+    if (meta.cylinders) engine.cylinders = parseInt(meta.cylinders, 10) || undefined;
+    if (meta.power) engine.power = meta.power;
+    if (meta.torque) engine.torque = meta.torque;
+    if (Object.keys(engine).length > 0) specs.engine = engine;
+
+    // Transmission
+    const transmission: Record<string, any> = {};
+    if (meta.transmission || productData.transmission) transmission.type = meta.transmission || productData.transmission;
+    if (meta.gears) transmission.gears = parseInt(meta.gears, 10) || undefined;
+    if (meta.drivetrain || productData.drivetrain) transmission.drivetrain = meta.drivetrain || productData.drivetrain;
+    if (Object.keys(transmission).length > 0) specs.transmission = transmission;
+
+    // Dimensions (if available in meta)
+    const dimensions: Record<string, any> = {};
+    if (meta.length) dimensions.length = meta.length;
+    if (meta.width) dimensions.width = meta.width;
+    if (meta.height) dimensions.height = meta.height;
+    if (meta.wheelbase) dimensions.wheelbase = meta.wheelbase;
+    if (meta.groundClearance) dimensions.ground_clearance = meta.groundClearance;
+    if (meta.kerbWeight || meta.weight) dimensions.kerb_weight = meta.kerbWeight || meta.weight;
+    if (Object.keys(dimensions).length > 0) specs.dimensions = dimensions;
+
+    // Towing (if available)
+    const towing: Record<string, any> = {};
+    if (meta.towingCapacity || meta.maxTowing) towing.braked = meta.towingCapacity || meta.maxTowing;
+    if (meta.unbrakeTowing) towing.unbraked = meta.unbrakeTowing;
+    if (meta.payload || meta.maxPayload) towing.payload = meta.payload || meta.maxPayload;
+    if (meta.gvm) towing.gvm = meta.gvm;
+    if (Object.keys(towing).length > 0) specs.towing = towing;
+
+    // Capacity
+    const capacity: Record<string, any> = {};
+    if (meta.seats || productData.seats) capacity.seats = parseInt(meta.seats || productData.seats, 10) || undefined;
+    if (meta.doors || productData.doors) capacity.doors = parseInt(meta.doors || productData.doors, 10) || undefined;
+    if (meta.cargoVolume || meta.bootSpace) capacity.cargo_volume = meta.cargoVolume || meta.bootSpace;
+    if (meta.fuelCapacity || meta.tankSize) capacity.fuel_tank = meta.fuelCapacity || meta.tankSize;
+    if (Object.keys(capacity).length > 0) specs.capacity = capacity;
+
+    // Performance
+    const performance: Record<string, any> = {};
+    if (meta.fuelConsumption || meta.fuelEconomy) performance.fuel_consumption = meta.fuelConsumption || meta.fuelEconomy;
+    if (meta.co2Emissions) performance.co2_emissions = meta.co2Emissions;
+    if (meta.topSpeed) performance.top_speed = meta.topSpeed;
+    if (meta.acceleration || meta.zeroToHundred) performance.zero_to_hundred = meta.acceleration || meta.zeroToHundred;
+    if (Object.keys(performance).length > 0) specs.performance = performance;
+
+    return Object.keys(specs).length > 0 ? specs : null;
+  }
+
+  /**
+   * Sync extracted color data into the variant_colors table.
+   * Generalizes the pattern from kia-colors.ts to work for all OEMs.
+   * Colors are sourced from meta_json.availableColors (set during extraction).
+   */
+  private async syncVariantColors(
+    productId: string,
+    oemId: OemId,
+    productData: any,
+  ): Promise<void> {
+    const meta = productData.meta || {};
+    const colors: any[] = meta.availableColors || [];
+
+    if (colors.length === 0) return;
+
+    // Skip Kia AU — handled by dedicated kia-colors.ts sync with richer data
+    if (oemId === 'kia-au') return;
+
+    const rows = colors
+      .filter((c: any) => c.name) // Must have a name at minimum
+      .map((c: any, i: number) => ({
+        product_id: productId,
+        // Use code if available, otherwise generate a slug from the name
+        color_code: c.code || c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''),
+        color_name: c.name,
+        color_type: this.normalizeColorType(c.type, c.meta),
+        is_standard: c.meta?.isPremium === false || c.type === 'standard' || c.price === 0,
+        price_delta: typeof c.price === 'number' ? c.price : 0,
+        swatch_url: c.swatchImage || c.image || null,
+        hero_image_url: c.fullImage || null,
+        gallery_urls: null,
+        sort_order: i,
+      }));
+
+    if (rows.length === 0) return;
+
+    const { error } = await this.config.supabaseClient
+      .from('variant_colors')
+      .upsert(rows, { onConflict: 'product_id,color_code' });
+
+    if (error) {
+      console.error(`[SyncVariantColors] Failed for ${productData.title} (${productId}):`, error.message);
+    } else {
+      console.log(`[SyncVariantColors] ${productData.title}: upserted ${rows.length} colors`);
+    }
+  }
+
+  /**
+   * Normalize color type strings from various OEM formats into our canonical set:
+   * 'solid' | 'metallic' | 'pearl' | 'matte'
+   */
+  private normalizeColorType(type: string | undefined, meta?: any): string {
+    if (!type && !meta) return 'solid';
+
+    const raw = (type || '').toLowerCase();
+
+    if (meta?.isMetallic || raw.includes('metallic')) return 'metallic';
+    if (raw.includes('pearl') || raw.includes('pearlescent')) return 'pearl';
+    if (raw.includes('matte') || raw.includes('matt')) return 'matte';
+    if (raw.includes('premium') || meta?.isPremium) return 'metallic'; // premium is usually metallic
+    if (raw.includes('solid') || raw === 'standard') return 'solid';
+
+    return 'solid';
   }
 
   private async upsertOffer(
@@ -3468,6 +3759,7 @@ export function createOrchestrator(config: {
   moonshotApiKey?: string;
   anthropicApiKey?: string;
   googleApiKey?: string;
+  lightpandaUrl?: string;
 }): OemAgentOrchestrator {
   // Create Supabase client
   const supabaseClient = {
@@ -3511,5 +3803,6 @@ export function createOrchestrator(config: {
     browser: config.browser,
     aiRouter,
     notifier,
+    lightpandaUrl: config.lightpandaUrl,
   });
 }

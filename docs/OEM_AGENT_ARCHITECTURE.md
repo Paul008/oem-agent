@@ -19,7 +19,7 @@
 
 ## Overview
 
-The OEM Agent is an intelligent web scraping and monitoring system designed to extract vehicle data (prices, variants, colors, disclaimers) from 13+ Australian OEM websites. It runs on OpenClaw within a Cloudflare Sandbox container, leveraging browser automation, AI-powered discovery, and self-healing extraction patterns.
+The OEM Agent is an intelligent web scraping and monitoring system designed to extract vehicle data (prices, variants, colors, disclaimers) from 17 Australian OEM websites. It runs on OpenClaw within a Cloudflare Sandbox container, leveraging browser automation, AI-powered discovery, and self-healing extraction patterns.
 
 ### Key Capabilities
 
@@ -35,7 +35,8 @@ The OEM Agent is an intelligent web scraping and monitoring system designed to e
 |-----------|------------|---------|
 | Runtime | Cloudflare Sandbox | Container hosting |
 | Agent Framework | OpenClaw | Cron, memory, skills |
-| Browser Automation | CDP (Chrome DevTools Protocol) | Page rendering, network interception |
+| Browser (Primary) | Lightpanda (headless, raw CDP WebSocket) | Page rendering, 15s timeout, env `LIGHTPANDA_URL` |
+| Browser (Fallback) | Cloudflare Browser Rendering (CDP) | Fallback when Lightpanda unavailable |
 | LLM Inference | Groq (llama-3.3-70b) | Classification, validation |
 | LLM Extraction | Gemini 2.5 Pro | Page structure extraction |
 | LLM Generation | Claude Sonnet 4.5 | Bespoke component generation |
@@ -287,9 +288,9 @@ export const handler: HookHandler = async (event, context) => {
 
 ## Browser Automation Stack
 
-### Current Approach: Direct CDP
+### Current Approach: Lightpanda + Cloudflare Browser (CDP)
 
-We use Chrome DevTools Protocol directly via Cloudflare Browser Rendering:
+The primary render engine is **Lightpanda**, a lightweight headless browser connected via raw CDP WebSocket (`LIGHTPANDA_URL` env var, 15-second timeout). If Lightpanda is unavailable or times out, the system falls back to **Cloudflare Browser Rendering**.
 
 ```typescript
 // skills/cloudflare-browser/scripts/cdp-client.js
@@ -819,7 +820,7 @@ interface CostControlConfig {
 
 ### Cost Estimation
 
-For 16 OEMs with ~20 pages each:
+For 17 OEMs with ~20 pages each:
 
 | Metric | Monthly Estimate |
 |--------|------------------|

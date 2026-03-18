@@ -32,7 +32,7 @@ Conversational AI assistant for querying OEM product and offer information.
 ## Queryable Data
 
 ### Supabase Tables
-- `oems` — 16 OEM records (id like 'ford-au', 'kia-au')
+- `oems` — 17 OEM records (id like 'ford-au', 'kia-au')
 - `vehicle_models` — Models per OEM (name, body_type, category, model_year)
 - `products` — Variants/grades linked to models via model_id FK
 - `variant_colors` — Colour options per product (color_name, color_code, price_delta)

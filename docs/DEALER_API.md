@@ -183,7 +183,26 @@ The route is public (no auth required), mounted before the Cloudflare Access mid
 
 ## Available OEM IDs
 
-`ford-au`, `foton-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
+`ford-au`, `foton-au`, `gac-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
+
+---
+
+## specs_json Auto-Population
+
+As of March 2026, `specs_json` is automatically built on every product upsert via `orchestrator.buildSpecsJson()`. The canonical structure:
+
+```json
+{
+  "engine": { "displacement", "type", "cylinders", "power", "torque" },
+  "transmission": { "type", "gears", "drivetrain", "transfer_case" },
+  "dimensions": { "length", "width", "height", "kerb_weight", "ground_clearance" },
+  "towing": { "braked", "unbraked", "payload", "gvm", "gcm" },
+  "capacity": { "seats", "doors", "cargo_volume", "fuel_tank" },
+  "performance": { "zero_to_hundred", "fuel_consumption", "co2_emissions" }
+}
+```
+
+`variant_colors` are also auto-synced for all OEMs during product upsert — the `colours` array in the WP schema is populated from this table.
 
 ---
 
@@ -196,6 +215,18 @@ curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/catalog?oem_id=kgm-au"
 # Model list for Kia
 curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/models?oem_id=kia-au"
 
+# GMSV catalog (Silverado, Corvette, Yukon)
+curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/catalog?oem_id=gmsv-au"
+
+# GMSV Corvette variants
+curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/variants?filter[variant_category]=corvette-stingray&oem_id=gmsv-au"
+
 # Variants for a specific model
 curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/variants?filter[variant_category]=sportage&oem_id=kia-au"
+
+# LDV catalog (T60 MAX, Terron 9, D90, Deliver 7/9, MIFA 9, etc.)
+curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/catalog?oem_id=ldv-au"
+
+# LDV T60 MAX variants
+curl "https://oem-agent.adme-dev.workers.dev/api/wp/v2/variants?filter[variant_category]=t60-max&oem_id=ldv-au"
 ```

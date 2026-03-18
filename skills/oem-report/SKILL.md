@@ -11,7 +11,7 @@ Handles Slack notifications for OEM website changes.
 
 - **Immediate**: CRITICAL/HIGH severity changes sent instantly
 - **Hourly batch**: MEDIUM severity changes grouped and sent hourly
-- **Daily digest**: Summary of all changes across 16 OEMs (7am AEDT)
+- **Daily digest**: Summary of all changes across 17 OEMs (7am AEDT)
 
 ## Prerequisites
 

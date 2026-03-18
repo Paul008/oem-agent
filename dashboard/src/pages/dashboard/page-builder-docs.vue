@@ -21,7 +21,7 @@ const sections: DocSection[] = [
     icon: BookOpen,
     content: `# Adaptive Page Builder
 
-The Adaptive Page Builder is an AI-powered system that generates structured model pages for all 16 Australian OEMs. It combines multiple AI models, a learning memory layer, and semantic search to produce high-quality page extractions that **improve over time**.
+The Adaptive Page Builder is an AI-powered system that generates structured model pages for all 17 Australian OEMs. It combines multiple AI models, a learning memory layer, and semantic search to produce high-quality page extractions that **improve over time**.
 
 ## The Problem
 

@@ -27,6 +27,9 @@ Monitors OEM websites for changes using a two-stage pipeline.
 
 ## Pipeline
 
+### Stage 0: Gatsby Page-Data (Skip Browser)
+For Gatsby-based OEMs (e.g. LDV AU), structured data is available at `page-data.json` endpoints. These return pre-rendered JSON with full vehicle data (specs, variants, colors, pricing) — no browser rendering needed. Detection: check if `/{route}/page-data.json` returns valid JSON.
+
 ### Stage 1: Cheap Check
 1. Fetch HTML for each active source page
 2. Normalise HTML (strip scripts, styles, data attributes, etc.)
@@ -36,11 +39,13 @@ Monitors OEM websites for changes using a two-stage pipeline.
 6. If changed: queue for full render
 
 ### Stage 2: Full Render (if changed)
-1. Connect to Browser Rendering via CDP proxy
+1. Connect to headless browser — **Lightpanda** (primary, via `LIGHTPANDA_URL`) or **Cloudflare Browser Rendering** (fallback, via CDP proxy)
 2. Navigate page, wait for JS render
 3. Capture rendered DOM
 4. Hand off to `oem-extract` skill for data extraction
 5. Optionally capture network requests for API discovery
+
+**Auto-sync on upsert**: Every product upsert automatically runs `syncVariantColors()` (for all OEMs) and `buildSpecsJson()` to keep `variant_colors` and `specs_json` current without separate enrichment passes.
 
 ## Input
 

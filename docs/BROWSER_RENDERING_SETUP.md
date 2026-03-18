@@ -1,23 +1,49 @@
-# Cloudflare Browser Rendering Setup
+# Browser Rendering Setup
 
-**Status: ✅ PRODUCTION READY**
+**Status: ✅ PRODUCTION READY** (Lightpanda primary + Cloudflare Browser fallback)
 
-This document covers the setup and usage of Cloudflare Browser Rendering for web scraping, screenshot capture, and API discovery.
+This document covers the setup and usage of browser rendering for web scraping, screenshot capture, and API discovery.
+
+## Rendering Priority
+
+The orchestrator uses a tiered approach:
+
+1. **Lightpanda** (primary) — Zig-based headless browser with V8 JS, 11x faster, 9x less memory than Chrome. Connected via raw CDP WebSocket. 15s timeout before fallback.
+2. **Cloudflare Browser Rendering** (fallback) — Full Chrome via `@cloudflare/puppeteer`. Smart Mode with network interception for API discovery.
+3. **Basic fetch** — Plain HTTP fetch for server-rendered pages (e.g. Foton AU).
 
 ## Quick Status Check
 
 ```bash
-# Test if CDP endpoint is responding
+# Test Lightpanda (local dev)
+curl -s http://127.0.0.1:9222/json/version
+# Expected: {"webSocketDebuggerUrl": "ws://0.0.0.0:9222/"}
+
+# Test CDP endpoint (Cloudflare)
 curl -s "https://oem-agent.adme-dev.workers.dev/cdp"
 # Expected: {"error":"WebSocket upgrade required",...}
-
-# List secrets (should show CDP_SECRET and WORKER_URL)
-npx wrangler secret list | grep -E "(CDP_SECRET|WORKER_URL)"
 ```
+
+## Lightpanda Setup
+
+```bash
+# Docker (recommended for local dev)
+docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
+
+# Set env var (wrangler.jsonc or .dev.vars)
+LIGHTPANDA_URL=ws://127.0.0.1:9222
+```
+
+When `LIGHTPANDA_URL` is not set, the orchestrator skips Lightpanda and uses Cloudflare Browser directly.
+
+**Known limitations** (beta):
+- Complex sites with heavy third-party JS (Optimizely, Adobe DTM) may timeout
+- Single page per CDP connection (orchestrator handles this via raw WebSocket)
+- No visual rendering (screenshots require Cloudflare Browser)
 
 ## Overview
 
-The OEM Agent uses Cloudflare Browser Rendering to:
+The OEM Agent uses browser rendering to:
 - Render BYO (Build Your Own) vehicle configuration pages
 - Extract colour options and pricing data
 - Discover hidden APIs through network interception
@@ -26,16 +52,23 @@ The OEM Agent uses Cloudflare Browser Rendering to:
 ## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────────────┐     ┌─────────────────────┐
-│   Your Code     │────▶│  Cloudflare Worker      │────▶│  Browser Rendering  │
-│  (CDP Client)   │     │  (CDP WebSocket Shim)   │     │  (Headless Chrome)  │
-└─────────────────┘     └─────────────────────────┘     └─────────────────────┘
-                              │
-                              ▼
-                       ┌──────────────┐
-                       │  BROWSER     │
-                       │  Binding     │
-                       └──────────────┘
+                    ┌──────────────────────┐
+                    │   Orchestrator       │
+                    │  renderPageLightpanda│
+                    └────────┬─────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                              ▼ (fallback)
+┌─────────────────────┐      ┌─────────────────────────┐     ┌─────────────────────┐
+│  Lightpanda         │      │  Cloudflare Worker      │────▶│  Browser Rendering  │
+│  (Raw CDP WebSocket)│      │  (Puppeteer Smart Mode) │     │  (Headless Chrome)  │
+└─────────────────────┘      └─────────────────────────┘     └─────────────────────┘
+                                    │
+                                    ▼
+                             ┌──────────────┐
+                             │  BROWSER     │
+                             │  Binding     │
+                             └──────────────┘
 ```
 
 ## Configuration

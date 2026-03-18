@@ -135,25 +135,37 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 function orderedCategories(specs: ProductSpecs): { key: string, label: string, entries: [string, string][] }[] {
   const result: { key: string, label: string, entries: [string, string][] }[] = []
-  // Known categories first, in order
+  const otherEntries: [string, string][] = []
+
   for (const cat of SPEC_CATEGORY_ORDER) {
-    if (specs[cat] && Object.keys(specs[cat]!).length > 0) {
+    const section = specs[cat]
+    if (!section) continue
+    if (typeof section === 'string' || typeof section === 'number') {
+      otherEntries.push([formatSpecKey(cat), String(section)])
+    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({
         key: cat,
         label: CATEGORY_LABELS[cat] || cat.charAt(0).toUpperCase() + cat.slice(1),
-        entries: Object.entries(specs[cat]!),
+        entries: Object.entries(section).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]),
       })
     }
   }
-  // Any extra categories not in the known list
   for (const cat of Object.keys(specs)) {
-    if (!SPEC_CATEGORY_ORDER.includes(cat) && specs[cat] && Object.keys(specs[cat]!).length > 0) {
+    if (SPEC_CATEGORY_ORDER.includes(cat)) continue
+    const section = specs[cat]
+    if (!section) continue
+    if (typeof section === 'string' || typeof section === 'number') {
+      otherEntries.push([formatSpecKey(cat), String(section)])
+    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({
         key: cat,
         label: cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' '),
-        entries: Object.entries(specs[cat]!),
+        entries: Object.entries(section).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]),
       })
     }
+  }
+  if (otherEntries.length > 0) {
+    result.push({ key: '_other', label: 'Other', entries: otherEntries })
   }
   return result
 }

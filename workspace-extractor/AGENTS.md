@@ -14,8 +14,8 @@
 | Table | Purpose |
 |-------|---------|
 | `vehicle_models` | Models per OEM |
-| `products` | Variants/grades with `specs_json` |
-| `variant_colors` | Colour options per product |
+| `products` | Variants/grades with `specs_json` (auto-built on every upsert via `orchestrator.buildSpecsJson()`) |
+| `variant_colors` | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
 | `variant_pricing` | Per-state driveaway pricing |
 | `accessories` | Accessory catalog per OEM |
 | `offers` | Promotional offers |

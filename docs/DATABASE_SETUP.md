@@ -15,7 +15,7 @@ There are 5 migration files to execute in order:
 1. **`00001_initial_schema.sql`** (495 lines)
    - Creates all core tables
    - Sets up indexes and RLS policies
-   - Seeds 16 OEMs
+   - Seeds 17 OEMs
 
 2. **`00002_ai_inference_log.sql`** (143 lines)
    - Adds AI inference logging table
@@ -23,7 +23,7 @@ There are 5 migration files to execute in order:
    - Creates cost analysis view
 
 3. **`00003_seed_source_pages.sql`** (241 lines)
-   - Seeds ~100 source pages across all 16 OEMs
+   - Seeds ~100 source pages across all 17 OEMs
    - Creates indexes for query performance
 
 4. **`00008_vector_embeddings.sql`** (385 lines)
@@ -65,7 +65,7 @@ There are 5 migration files to execute in order:
    ```sql
    -- Check OEMs were created
    SELECT COUNT(*) FROM oems;
-   -- Should return: 14
+   -- Should return: 17
 
    -- Check source pages were seeded
    SELECT COUNT(*) FROM source_pages;
@@ -108,7 +108,7 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 
 | Table | Purpose |
 |-------|---------|
-| `oems` | OEM registry (16 Australian automotive brands) with config_json.api_docs, design_profile_json |
+| `oems` | OEM registry (17 Australian automotive brands) with config_json.api_docs, design_profile_json |
 | `vehicle_models` | Models per OEM (unique: oem_id, slug). Links OEM → model hierarchy |
 | `products` | Vehicle variants/grades with model_id FK, specs, pricing |
 | `variant_colors` | Colour options per product (unique: product_id, color_code) |
@@ -172,6 +172,7 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 | toyota-au | Toyota Australia | https://www.toyota.com.au/ |
 | gmsv-au | GMSV Australia | https://www.gmspecialtyvehicles.com |
 | foton-au | Foton Australia | https://www.fotonaustralia.com.au |
+| gac-au | GAC Australia | https://www.gaboroneauto.com.au |
 
 ### Indexes Created
 
@@ -223,7 +224,7 @@ WHERE schemaname = 'public';
 
 -- Count OEMs
 SELECT COUNT(*) as oem_count FROM oems;
--- Expected: 13
+-- Expected: 17
 
 -- Count source pages
 SELECT COUNT(*) as page_count FROM source_pages;

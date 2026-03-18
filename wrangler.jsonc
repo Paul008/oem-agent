@@ -68,7 +68,10 @@
     "DEV_MODE": "true",
     "OPENCLAW_DEV_MODE": "true",
     "R2_BUCKET_NAME": "oem-agent-assets",
-    "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17"
+    "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
+    // Optional: Lightpanda WebSocket URL for headless browser rendering.
+    // When not set, falls back to Cloudflare Browser (env.BROWSER binding).
+    "LIGHTPANDA_URL": ""
   },
 
   // Secrets (set via `wrangler secret put`):
@@ -101,7 +104,9 @@
         "DEV_MODE": "true",
         "OPENCLAW_DEV_MODE": "true",
         "R2_BUCKET_NAME": "oem-agent-assets-dev",
-        "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17"
+        "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
+        // Optional: Lightpanda WebSocket URL (falls back to Cloudflare Browser)
+        "LIGHTPANDA_URL": ""
       },
       "r2_buckets": [
         {

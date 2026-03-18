@@ -336,7 +336,10 @@ async function executeOemExtract(
     max_concurrent: number;
   };
   
-  // Import orchestrator dynamically to avoid circular deps
+  // Import orchestrator dynamically to avoid circular deps.
+  // Note: During product upserts the orchestrator automatically calls
+  // syncVariantColors() and buildSpecsJson(), so no separate cron jobs
+  // are needed for per-OEM color/spec sync (including GMSV).
   const { OemAgentOrchestrator } = await import('../orchestrator');
   const { createSupabaseClient } = await import('../utils/supabase');
   const { AiRouter } = await import('../ai/router');
@@ -365,6 +368,7 @@ async function executeOemExtract(
     browser: env.BROWSER!,
     aiRouter,
     notifier,
+    lightpandaUrl: env.LIGHTPANDA_URL,
   });
   
   // Run extraction for specified OEMs

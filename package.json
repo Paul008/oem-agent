@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
-  "description": "Multi-OEM AI Agent — OpenClaw on Moltworker fork. Crawl, extract, monitor, and design-capture across 16 Australian OEM websites.",
+  "description": "Multi-OEM AI Agent — OpenClaw on Moltworker fork. Crawl, extract, monitor, and design-capture across 17 Australian OEM websites.",
   "scripts": {
     "dev": "wrangler dev -c wrangler.jsonc",
     "deploy": "wrangler deploy -c wrangler.jsonc",
@@ -28,6 +28,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260305.0",
     "dotenv": "^17.3.1",
+    "playwright-core": "^1.58.2",
     "puppeteer": "^24.37.2",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0",

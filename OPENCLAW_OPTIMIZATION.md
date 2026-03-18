@@ -36,7 +36,7 @@ Your OpenClaw deployment has been optimized based on official production best pr
 
 ### 3. **Custom Skills (All Enabled)**
 
-Your 10 custom OEM skills are configured and active:
+Your 14 custom OEM skills are configured and active:
 
 | Skill | Purpose | Trigger |
 |-------|---------|---------|
@@ -50,6 +50,10 @@ Your 10 custom OEM skills are configured and active:
 | `oem-build-price-discover` | Pricing discovery | Research |
 | `oem-semantic-search` | Vector search | Queries |
 | `cloudflare-browser` | Browser automation | Tools |
+| `oem-brand-ambassador` | AI page generation | Cron + manual |
+| `oem-data-sync` | Data synchronization | Cron + manual |
+| `oem-ux-knowledge` | UX pattern knowledge base | Queries |
+| `autonomous-agents` | Workflow automation (7 sub-skills) | Events |
 
 **Skills Auto-Reload:** Changes detected within 250ms
 
@@ -193,7 +197,7 @@ User: What's the latest from Ford's website?
 
 ### **Complex Analysis (Anthropic)**
 ```
-User: Analyze pricing trends across all 16 OEMs
+User: Analyze pricing trends across all 17 OEMs
 → Fallback to: anthropic/claude-sonnet-4-5 (deep reasoning)
 ```
 

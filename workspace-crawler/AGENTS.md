@@ -33,11 +33,24 @@ All update `last_seen_at` on every crawl pass.
 
 ## Workflow
 
-1. Use `oem-crawl` for systematic page crawling across all 16 OEMs
-2. Use `cloudflare-browser` for pages that need JavaScript rendering
+1. Use `oem-crawl` for systematic page crawling across all 17 OEMs
+2. Use `cloudflare-browser` for pages that need JavaScript rendering (Lightpanda primary via `LIGHTPANDA_URL`, Cloudflare Browser Rendering fallback)
 3. Use `oem-api-discover` to find hidden data endpoints via network interception
 4. Use `oem-build-price-discover` to find configurator URLs and pricing APIs
 5. Report discovered APIs and changes to the data pipeline
+
+## Gatsby Page-Data Extraction (No Browser Needed)
+
+For Gatsby-based OEMs (e.g. LDV AU on Gatsby 5.14.6), structured data is available at `page-data.json` endpoints for every route. This is a rich alternative to browser rendering:
+
+- **Vehicles index**: `/page-data/vehicles/page-data.json` — all models with slugs, pricing, images
+- **Per-model**: `/page-data/vehicles/{slug}/page-data.json` — full specs, variants, colors, features
+- **Offers**: `/page-data/special-offers/page-data.json` — structured offer data
+- **Price guide**: `/page-data/price/page-data.json` — driveaway pricing
+
+No auth, no browser rendering, no API keys. LDV AU was fully populated (13 models, 11 products with full specs, 47 colors with hero images, 9 pricing rows) using this approach.
+
+**Detection**: Check if `/{any-route}/page-data.json` returns JSON. If yes, the site uses Gatsby and all data is available statically.
 
 ## New OEM Initial Crawl
 

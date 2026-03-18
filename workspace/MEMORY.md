@@ -17,7 +17,7 @@
 │  │  OpenClaw Gateway (Node.js 22, OpenClaw 2026.2.3)    │  │
 │  │  - Control UI on port 18789                           │  │
 │  │  - WebSocket RPC protocol                             │  │
-│  │  - Agent runtime with 10 custom skills                │  │
+│  │  - Agent runtime with 14 custom skills                │  │
 │  │  - R2 sync every 30s (rclone)                         │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -54,27 +54,27 @@ r2://oem-agent-assets/
 
 | Table | Rows | Purpose |
 |-------|------|---------|
-| `oems` | 16 | OEM registry with config_json.api_docs, design_profile_json |
-| `vehicle_models` | 132 | Models per OEM (unique: oem_id, slug), has `brochure_url` (96/132) |
-| `products` | 709 | Variants/grades, `specs_json` JSONB (692/709, 97.6%, 8 categories at 100%), model_id FK |
-| `variant_colors` | ~4496 | Colour options per product (14/16 OEMs) |
-| `variant_pricing` | 547 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
+| `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` (96/162) |
+| `products` | 757 | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`), model_id FK |
+| `variant_colors` | ~4543 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
+| `variant_pricing` | ~556 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
 | `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
-| `discovered_apis` | 466 | API endpoints per OEM (unique: oem_id, url) |
-| `source_pages` | 110 | URLs monitored for changes |
+| `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
+| `source_pages` | 147 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | ~194 | Promotional offers (5 OEMs: hyundai 46, kia 52, gwm 35, nissan 18, kgm 8) |
+| `offers` | 283 | Promotional offers across ALL 17 OEMs (279/283 with hero images, 98.6%) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 50 | Homepage/offers hero banners (12 OEMs, 2 with video) |
+| `banners` | 144 | Homepage/offers hero banners (all 17 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (from Monday.com) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 
 #### Entity Hierarchy
 ```
-oems (16) → vehicle_models (132) → products (709) → variant_colors (~4496)
-                                                   → variant_pricing (547)
+oems (17) → vehicle_models (~162) → products (757) → variant_colors (~4543)
+                                                    → variant_pricing (~556)
                                  → accessories (2702) via accessory_models (2826)
            → oem_portals (31) — portal credentials, brand guidelines
            → pdf_embeddings — vectorized brochures + guidelines for semantic search
@@ -82,7 +82,7 @@ oems (16) → vehicle_models (132) → products (709) → variant_colors (~4496)
 ```
 
 #### OEM IDs
-ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ### Cloudflare Browser Rendering
 - **CDP WebSocket**: /cdp?secret=$CDP_SECRET
@@ -103,7 +103,7 @@ ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au
 
 ### Page Builder
 - **Editor** (`page-builder/[slug].vue`): Visual section editor with live preview, responsive toolbar, undo/redo, copy/paste
-- **Template Gallery** (`page-builder/index.vue`): Browse sections from all 16 OEM generated pages + 10 curated templates
+- **Template Gallery** (`page-builder/index.vue`): Browse sections from all 17 OEM generated pages + 10 curated templates
 - **In-editor drawer**: Sheet drawer from Add Section picker, defaults to current page's OEM
 - **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
 - **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list)
@@ -129,7 +129,7 @@ ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au
 - **Issue**: Only 3 default skills visible instead of 10 custom ones
 - **Cause**: OpenClaw looks in /root/.openclaw/workspace/skills/ but files were in /root/clawd/skills/
 - **Fix**: Added symlink creation in startup script
-- **Result**: All 10 custom skills now available
+- **Result**: All 14 custom skills now available
 
 ## OEM Data Seeding Status
 
@@ -148,8 +148,8 @@ ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au
 | Suzuki | 7 | 18 | 18/18 | 115 | 18 | — | — | 5 | 0/7 | S3/CloudFront |
 | Isuzu | 2 | 18 | 18/18 | 94 | — | 204 | — | 7 | 2/2 | Sitecore API |
 | VW | — | 20 | 20/20 | — | 353 | — | 3 | — | — | E-catalogue GraphQL |
-| LDV | — | 1 | 1/1 | — | — | — | — | — | — | Minimal data |
-| GMSV | 7 | 7 | 7/7 | 55 | — | — | — | — | — | Dual-source: HTML scraping + Chevy API |
+| LDV | 13 | 11 | 11/11 | 47 | 9 | — | — | — | — | Gatsby 5.14.6 page-data.json, i-Motor CMS, full specs |
+| GMSV | 6 | 7 | 7/7 | 55 | — | — | — | — | — | 6 vehicle_models, 7 products, full specs |
 | Foton | 2 | 2 | 2/2 | 16 | — | — | — | — | — | HTML color dots, premium +$690 |
 
 ## Key URLs
@@ -173,4 +173,4 @@ ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au
 - BRAVE_API_KEY, PERPLEXITY_API_KEY, GOOGLE_API_KEY
 
 **Status**: ✅ All systems operational
-**Last Updated**: 2026-02-24
+**Last Updated**: 2026-03-17

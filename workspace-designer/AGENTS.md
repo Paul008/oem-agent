@@ -15,6 +15,7 @@
 | Table | Purpose |
 |-------|---------|
 | `oems.design_profile_json` | OEM design profiles (colours, typography, components) |
+| `products.specs_json` | Technical specs (auto-built on every upsert, always populated for page generation) |
 | `extraction_runs` | Design pipeline run history with quality scores |
 | `pdf_embeddings` | Vectorized brochure/guidelines chunks |
 | `oem_portals` | Marketing portal credentials and brand guidelines |

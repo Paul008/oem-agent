@@ -1,6 +1,6 @@
 # OEM Agent System Briefing
 
-**Last Updated**: 2026-03-05
+**Last Updated**: 2026-03-18
 **Deployment**: https://oem-agent.adme-dev.workers.dev/
 **Status**: ✅ Operational (conversation persistence enabled)
 
@@ -9,9 +9,9 @@
 Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Workers with:
 - 14 specialized skills for automotive data collection
 - R2-backed conversation persistence
-- Headless Chrome automation via Cloudflare Browser Rendering
+- Headless browser automation via Lightpanda (primary, raw CDP WebSocket) with Cloudflare Browser Rendering fallback
 - Supabase for structured data storage
-- Scheduled crawls for 16 Australian automotive manufacturers
+- Scheduled crawls for 17 Australian automotive manufacturers
 - Dashboard UI for monitoring (Cloudflare Pages, shadcn-vue-admin)
 
 ## Architecture
@@ -31,7 +31,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 │  │  OpenClaw Gateway (Node.js 22, OpenClaw 2026.2.3)    │  │
 │  │  - Control UI on port 18789                           │  │
 │  │  - WebSocket RPC protocol                             │  │
-│  │  - Agent runtime with 14 custom skills                │  │
+│  │  - Agent runtime with 14 custom skills               │  │
 │  │  - R2 sync every 30s (rclone)                         │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -51,7 +51,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 - **Package**: openclaw@2026.2.3
 - **Config**: /root/.openclaw/openclaw.json
 - **Workspace**: /root/clawd/
-- **Skills**: /root/clawd/skills/ (10 custom skills)
+- **Skills**: /root/clawd/skills/ (14 custom skills)
 
 ### 2. R2 Persistence (Fixed 2026-02-18)
 **Recent Fix**: Added R2 credentials to container environment variables
@@ -82,21 +82,21 @@ r2://oem-agent-assets/
 
 | Table | Rows | Purpose |
 |-------|------|---------|
-| `oems` | 16 | OEM registry with config_json.api_docs, design_profile_json |
-| `vehicle_models` | 132 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (96/132 populated) |
-| `products` | 709 | Variants/grades with `specs_json` JSONB (692/709, 97.6%, all 8 categories at 100%) |
-| `variant_colors` | ~4496 | Colour options per product (14/16 OEMs) |
-| `variant_pricing` | 547 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
+| `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (96/162 populated) |
+| `products` | 757 | Variants/grades with `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`) |
+| `variant_colors` | ~4543 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
+| `variant_pricing` | ~556 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
 | `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
-| `discovered_apis` | 466 | API endpoints per OEM (unique: oem_id, url) |
-| `source_pages` | 110 | URLs monitored for changes |
+| `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
+| `source_pages` | 147 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | ~194+ | Promotional offers — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
+| `offers` | 283 | Promotional offers across all 17 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 50 | Homepage/offers hero banners (12 OEMs, 2 with video) |
+| `banners` | 144 | Homepage/offers hero banners (all 17 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (sourced from Monday.com) |
 
 **Entity Hierarchy:**
@@ -109,10 +109,11 @@ oems → vehicle_models → products → variant_colors
      → extraction_runs (design pipeline run history)
 ```
 
-### 4. Cloudflare Browser Rendering
-- **CDP WebSocket**: /cdp?secret=$CDP_SECRET
-- **Purpose**: Headless Chrome for screenshots, scraping, video capture
-- **Binding**: Available to container as BROWSER env binding
+### 4. Browser Rendering (Lightpanda + Cloudflare Fallback)
+- **Primary**: Lightpanda browser via `LIGHTPANDA_URL` env var (raw CDP WebSocket)
+- **Fallback**: Cloudflare Browser Rendering via `/cdp?secret=$CDP_SECRET`
+- **Purpose**: Headless browser for screenshots, scraping, video capture
+- **Binding**: Cloudflare Browser available as BROWSER env binding
 
 ### 4. Dashboard UI
 - **URL**: https://oem-agent.pages.dev (Cloudflare Pages)
@@ -125,7 +126,7 @@ oems → vehicle_models → products → variant_colors
 | Page | View | Description |
 |------|------|-------------|
 | `index.vue` | Overview | Summary stats and counts |
-| `oems.vue` | OEMs | OEM registry (16 manufacturers) |
+| `oems.vue` | OEMs | OEM registry (17 manufacturers) |
 | `products.vue` | Models & Variants | Expandable model → variant table |
 | `colors.vue` | Variant Colors | Grid with hero images, swatch picker, 360 viewer, pagination |
 | `offers.vue` | Offers | Grid with hero images, savings/price badges, ABN pricing, pagination |
@@ -160,7 +161,7 @@ oems → vehicle_models → products → variant_colors
 - **History**: Undo/redo system with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z), history panel
 - **Copy/paste**: Section clipboard (copy JSON, paste from clipboard), cross-page section reuse
 - **Template gallery**: In-editor Sheet drawer + landing page at `/dashboard/page-builder/`
-  - Fetches sections from all 16 OEM generated pages via Worker API
+  - Fetches sections from all 17 OEM generated pages via Worker API
   - 10 curated OEM-branded templates (Kia dark hero, Toyota split CTA, Hyundai tech tabs, etc.)
   - Filter by OEM, section type, search query
 - **Subpages**: Convention-based `{modelSlug}--{subpageSlug}` stored flat in R2
@@ -185,7 +186,7 @@ oems → vehicle_models → products → variant_colors
 | **oem-data-sync** | Data synchronization | 37 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 17 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
@@ -240,7 +241,8 @@ Each cron trigger now passes its `crawl_type` to the orchestrator, which filters
 - `GEMINI_API_KEY` / `GOOGLE_API_KEY` - Gemini 2.5 Pro (extraction), text-embedding-004 (vectors)
 
 ### Browser & Research
-- `CDP_SECRET` - Browser Rendering auth
+- `LIGHTPANDA_URL` - Lightpanda browser CDP WebSocket URL (primary browser)
+- `CDP_SECRET` - Cloudflare Browser Rendering auth (fallback)
 - `BRAVE_API_KEY` - Web search
 - `PERPLEXITY_API_KEY` - Research API
 - `GOOGLE_API_KEY` - Embeddings
@@ -319,7 +321,7 @@ wrangler secret list  # List configured secrets
 ## Next Steps
 
 ### For OpenClaw Configuration
-- Skills are already loaded (10 skills in /root/clawd/skills/)
+- Skills are already loaded (14 skills in /root/clawd/skills/)
 - Documentation is in skills/*/SKILL.md
 - OpenClaw can read these on startup
 
@@ -344,7 +346,7 @@ wrangler secret list  # List configured secrets
 
 ---
 
-## Monitored OEMs (16)
+## Monitored OEMs (17)
 
 | ID | Name |
 |----|------|
@@ -364,6 +366,7 @@ wrangler secret list  # List configured secrets
 | volkswagen-au | Volkswagen Australia |
 | gmsv-au | GMSV Australia |
 | foton-au | Foton Australia |
+| gac-au | GAC Australia |
 
 ## Seed Scripts (dashboard/scripts/)
 
@@ -400,11 +403,13 @@ Pre-built scripts for populating OEM data:
 | `seed-gwm-offer-images.mjs` | GWM | Enrich 35 offers with Storyblok images + ABN pricing |
 
 | `seed-oem-portals.mjs` | All | 31 portal credentials from Monday.com board 15373501 |
-| `seed-brochures.mjs` | Multi | 96/132 brochure URLs (11 OEMs: Kia, Toyota, Hyundai, Mazda, Ford, KGM, Nissan, Mitsubishi, Isuzu, Subaru, GWM) |
-| `seed-{oem}-specs.mjs` (13) | All | Technical specs for 692/709 products (97.6%), all 8 categories at 100% |
+| `seed-brochures.mjs` | Multi | 96/~162 brochure URLs (11 OEMs: Kia, Toyota, Hyundai, Mazda, Ford, KGM, Nissan, Mitsubishi, Isuzu, Subaru, GWM) |
+| `seed-{oem}-specs.mjs` (13) | All | Technical specs for 757/757 products (100%), all 8 categories at 100% |
 | `vectorize-pdfs.mjs` | Multi | PDF vectorization pipeline: download → pdf-parse → chunk → embed → upsert |
 
 **Toyota** (21 models, 149 products, 802 colors, 132 pricing rows) was seeded via direct browser-to-Supabase REST API using Chrome MCP tools (Cloudflare-protected APIs, no seed script file).
+
+**LDV** (13 models, 11 products with full specs_json, 47 colors with hero images, 9 pricing rows) was populated via Gatsby 5.14.6 `page-data.json` endpoints (i-Motor CMS backend). No browser rendering or API keys needed. 4 discovered APIs added to `seed-discovered-apis.mjs`. Framework: `gatsby` in OEM registry.
 
 ---
 
@@ -445,11 +450,13 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 ---
 
 **Status**: ✅ Production Ready
-**Last Deployment**: 2026-03-05
-**Recent Changes (2026-03-05)**:
-- Implemented `upsertOffer()` — was a TODO stub, offers are now auto-updated by scheduled crawls
-- Added `crawl_type` filtering to `runScheduledCrawl()` — each cron trigger now targets specific page types
-- Updated Kia offers URL to `/au/shopping-tools/offers/car-offers.html` and CSS selectors to match actual DOM
-- Dashboard offers page now shows `last_seen_at` and `updated_at` timestamps, sorted active-first
+**Last Deployment**: 2026-03-18
+**Final State (2026-03-18)**:
+- 17 OEMs ALL complete, 757 products with 100% specs_json coverage
+- 737/757 priced (97%) — 20 legitimately unpriced (pre-production/quote-only)
+- 162 vehicle_models, 283 offers across ALL 17 OEMs, 279/283 offer images (98.6%)
+- 144 banners, 100% with desktop images; 58+ discovered APIs; 147 active source pages
+- CMS frameworks mapped for all 17 OEMs; Lightpanda primary browser, Cloudflare fallback
+- variant_colors auto-synced, specs_json auto-built on every product upsert
 
 **Next Maintenance**: Monitor R2 backup size, verify all OEM offer selectors match actual DOM structures, populate Nissan pricing via Choices API, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings

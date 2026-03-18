@@ -17,7 +17,16 @@ How we fetch variant data (pricing, colors, specs, images, features) for each Au
 | GWM | Storyblok CMS API | Public tokens in URL | Driveaway (retail + ABN) | Storyblok asset CDN | Parsed from feature text | Yes |
 | Isuzu | HTML scrape (offers only) | None | Driveaway (offers page only) | Page images only | From offers cards | No |
 
-**Current totals:** 7 OEMs in daily sync, ~86 models, ~470 variants, ~2,966 colors.
+**Current totals:** 17 OEMs complete, 162 vehicle_models, 757 products (100% specs_json), ~4543 variant_colors, 283 offers, 144 banners.
+
+> **Gatsby SSG OEMs**: LDV Australia uses Gatsby 5.14.6 with i-Motor CMS. All vehicle data (models, specs, variants, colors, pricing) is available via `page-data.json` endpoints — no browser rendering or API keys needed. See section 9 below.
+
+### Automatic Post-Processing (All OEMs)
+
+Every product upsert via the orchestrator now performs two automatic enrichment steps:
+
+1. **`syncVariantColors()`** — Auto-syncs `variant_colors` rows for all OEMs during product upsert. Colors are matched from `product_colors` and OEM color palettes. No separate seed script needed for basic color data.
+2. **`buildSpecsJson()`** — Builds a canonical `specs_json` JSONB column on every product upsert by consolidating `meta_json` fields + individual spec columns (`engine_size`, `cylinders`, `transmission`, `drive`, `drivetrain`). Individual spec columns are also populated from `meta_json` when present.
 
 ---
 
@@ -499,6 +508,59 @@ Everything comes from the single JSON endpoint:
 | Offer end date | Parsed from disclaimer text |
 
 **Output:** `output/isuzu/offers/latest-offers.json` only.
+
+---
+
+## 9. LDV Australia
+
+**Data source:** Gatsby 5.14.6 `page-data.json` endpoints (i-Motor CMS backend)
+**Models:** 13 | **Products:** 11 (with full `specs_json`) | **Colors:** 47 (with hero images) | **Pricing:** 9 rows
+**CDN:** `cdn.cms-uploads.i-motor.me` (images)
+**Framework field:** `framework: 'gatsby'` in OEM registry
+
+### Pipeline Flow
+
+```
+1. Fetch /page-data/vehicles/page-data.json (all models index)
+       |
+2. Fetch /page-data/vehicles/{model-slug}/page-data.json (per-model specs, variants, colors)
+       |
+3. Upsert to vehicle_models, products, variant_colors, variant_pricing via orchestrator
+```
+
+No browser rendering needed — Gatsby pre-renders all data into static JSON endpoints.
+
+### API Endpoints
+
+| # | URL | Method | Auth | Returns |
+|---|-----|--------|------|---------|
+| 1 | `https://www.ldvautomotive.com.au/page-data/vehicles/page-data.json` | GET | None | All models with slugs, categories, variants, pricing, images |
+| 2 | `https://www.ldvautomotive.com.au/page-data/vehicles/{model-slug}/page-data.json` | GET | None | Per-model full specs, variants, colors with price deltas, features |
+| 3 | `https://www.ldvautomotive.com.au/page-data/special-offers/page-data.json` | GET | None | Structured offer data |
+| 4 | `https://www.ldvautomotive.com.au/page-data/price/page-data.json` | GET | None | Price guide with driveaway pricing |
+
+### What Data Comes From Where
+
+| Data | Source |
+|------|--------|
+| Model list + slugs + categories | Endpoint 1 (vehicles index page-data) |
+| Variant names, pricing ($36,990–$104,990) | Endpoint 2 (per-model page-data) |
+| Engine specs, transmission, dimensions, towing | Endpoint 2 `specs_json` fields |
+| Colors with hex, swatch, hero images, price deltas | Endpoint 2 `colors` array |
+| Hero images | `cdn.cms-uploads.i-motor.me` CDN |
+| Offers | Endpoint 3 (offers page-data) |
+| Price guide / driveaway pricing | Endpoint 4 (price page-data) |
+
+### Vehicle Lineup
+
+T60 MAX (PRO/PLUS), Terron 9 (Origin/Evolve), eT60, D90 (2WD/4WD), MIFA 9, G10+, Deliver 7 (SWB/LWB), Deliver 9 (Van/Cab Chassis/Bus/Campervan), eDeliver 7, eDeliver 9
+
+### Key Notes
+
+- **Gatsby page-data pattern**: Any Gatsby site exposes `page-data.json` at every route — a rich structured data source that bypasses the need for browser rendering or API discovery.
+- **i-Motor CMS**: Backend CMS that feeds the Gatsby build. CDN at `cdn.cms-uploads.i-motor.me`.
+- **No auth required**: All endpoints are public static JSON files.
+- **Framework field**: OEM registry now includes `framework: 'gatsby'` for LDV, `'aem'` for Ford/Kia/Nissan/Hyundai/GMSV, `'nextjs'` for GWM/GAC/Mazda/Suzuki.
 
 ---
 

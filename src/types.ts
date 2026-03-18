@@ -47,6 +47,7 @@ export interface MoltbotEnv {
   BROWSER?: Fetcher;
   CDP_SECRET?: string; // Shared secret for CDP endpoint authentication
   WORKER_URL?: string; // Public URL of the worker (for CDP endpoint)
+  LIGHTPANDA_URL?: string; // Lightpanda CDP WebSocket endpoint e.g. "ws://127.0.0.1:9222"
   // OEM Agent configuration
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;

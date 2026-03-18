@@ -69,15 +69,21 @@ export interface OemPortal {
 }
 
 export interface ProductSpecs {
-  engine?: Record<string, string>
-  transmission?: Record<string, string>
-  dimensions?: Record<string, string>
-  performance?: Record<string, string>
-  towing?: Record<string, string>
-  capacity?: Record<string, string>
-  safety?: Record<string, string>
-  wheels?: Record<string, string>
-  [key: string]: Record<string, string> | undefined
+  engine?: Record<string, any>
+  transmission?: Record<string, any>
+  dimensions?: Record<string, any>
+  performance?: Record<string, any>
+  towing?: Record<string, any>
+  capacity?: Record<string, any>
+  safety?: Record<string, any>
+  wheels?: Record<string, any> | string
+  brakes?: Record<string, any> | string
+  tyres?: string
+  exhaust?: string
+  steering?: string
+  infotainment?: string
+  aero?: string
+  [key: string]: Record<string, any> | string | undefined
 }
 
 export interface Product {

@@ -140,7 +140,14 @@ export async function handleScheduled(
 }
 
 /**
- * Create orchestrator from environment
+ * Create orchestrator from environment.
+ *
+ * The orchestrator crawls ALL registered OEMs (including GMSV) on each
+ * cron trigger — no per-OEM scheduling is needed here.
+ *
+ * Browser rendering priority:
+ *   1. Lightpanda (env.LIGHTPANDA_URL) — fast, low-cost headless browser
+ *   2. Cloudflare Browser (env.BROWSER)  — fallback when Lightpanda is unset
  */
 function createOrchestratorFromEnv(env: MoltbotEnv): OemAgentOrchestrator {
   const supabaseClient = createSupabaseClient({
@@ -166,5 +173,6 @@ function createOrchestratorFromEnv(env: MoltbotEnv): OemAgentOrchestrator {
     browser: env.BROWSER!,
     aiRouter,
     notifier,
+    lightpandaUrl: env.LIGHTPANDA_URL,
   });
 }

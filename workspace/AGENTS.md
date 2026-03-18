@@ -1,6 +1,6 @@
 # Operating Instructions
 
-## Your 14 Specialized Skills
+## Your 14 Specialized Skills (all loaded)
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
@@ -11,7 +11,7 @@
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 16 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 17 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
@@ -42,6 +42,13 @@ Each cron trigger passes its `crawl_type` to the orchestrator, which filters `so
 - `news` → page types: `news`
 - `sitemap` → page types: `sitemap`
 
+### Product Upsert Pipeline
+
+When the crawl extracts products, `upsertProduct()` in `src/orchestrator.ts`:
+1. Matches existing products by oem_id + title
+2. Auto-builds `specs_json` via `orchestrator.buildSpecsJson()` on every upsert
+3. Auto-syncs `variant_colors` via `orchestrator.syncVariantColors()` for all OEMs
+
 ### Offer Upsert Pipeline
 
 When the crawl extracts offers from an OEM page, `upsertOffer()` in `src/orchestrator.ts`:
@@ -57,24 +64,24 @@ All skills store data in Supabase. Key tables:
 
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
-| `oems` | 16 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
+| `oems` | 17 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
 | `vehicle_models` | Models per OEM | Unique: oem_id, slug |
-| `products` | Variants/grades, `specs_json` JSONB (692/709, 8 categories at 100%) | external_key pattern: `{oem}-{code}-{variant}` |
-| `variant_colors` | Colour options per product | Unique: product_id, color_code |
+| `products` | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `buildSpecsJson()`) | external_key pattern: `{oem}-{code}-{variant}` |
+| `variant_colors` | Colour options per product (auto-synced for all OEMs via `syncVariantColors()`) | Unique: product_id, color_code |
 | `variant_pricing` | Per-state driveaway pricing | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
 | `accessories` | Accessory catalog per OEM | Unique: oem_id, external_key. Has parent_id, inc_fitting |
 | `accessory_models` | Accessories ↔ models join | Unique: accessory_id, model_id |
 | `discovered_apis` | API endpoints per OEM | Unique: oem_id, url |
 | `source_pages` | URLs monitored for changes | |
 | `change_events` | Audit log of detected changes | |
-| `offers` (~194+) | Promotional offers (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
-| `banners` (50) | Homepage/offers hero banners (12 OEMs) | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
-| `oem_portals` (31) | Marketing portal credentials (16 OEMs) | portal_url, username, password, guidelines_pdf_url |
+| `offers` (283) | Promotional offers across ALL 17 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
+| `banners` (144) | Homepage/offers hero banners (all 17 OEMs), 100% with desktop images | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
+| `oem_portals` (31) | Marketing portal credentials (17 OEMs) | portal_url, username, password, guidelines_pdf_url |
 | `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl job tracking | |
 
-**OEM IDs**: ford-au, foton-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+**OEM IDs**: ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ## Dealer API (WP-Compatible Middleware)
 
@@ -137,13 +144,13 @@ Accessories are seeded via `dashboard/scripts/seed-{oem}-accessories.mjs`. Each 
 | GWM | Storyblok CDN API | None (Origin/Referer) | 181 | 220 model joins, $52–$4,949 |
 | Nissan | HTML scraping (2 templates) | None | 179 | Structured vs rich-text templates |
 
-**Remaining OEMs without accessories**: Toyota (403 blocked), Ford (13MB HTML, no API), LDV/Suzuki (no API found)
+**Remaining OEMs without accessories**: Toyota (403 blocked), Ford (13MB HTML, no API), LDV (Gatsby page-data available but no accessories page), Suzuki (no API found)
 
 ## Page Builder
 
 The dashboard includes a visual page builder for editing AI-generated model pages:
 
-- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 16 OEM generated pages + 10 curated OEM-branded templates
+- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 17 OEM generated pages + 10 curated OEM-branded templates
 - **Page Editor** (`/dashboard/page-builder/[slug]`): Split-pane visual editor with live preview, responsive toolbar, undo/redo, copy/paste, media upload
 - **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
 - **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list with disclaimers)

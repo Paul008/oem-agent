@@ -10,6 +10,8 @@ user-invocable: false
 
 You are an autonomous product enrichment agent. A new product has been detected with incomplete data fields. Your job is to extract missing information from the OEM source.
 
+> **Note**: Basic enrichment for `specs_json`, `variant_colors`, and individual spec columns (`engine_size`, `cylinders`, `transmission`, `gears`, `drive`, `doors`, `seats`) is now **automatic** via `orchestrator.buildSpecsJson()` and `orchestrator.syncVariantColors()` on every product upsert. This agent focuses on **advanced enrichment** — fields that require browser navigation, image downloads, or cross-referencing (hero images, key features, disclaimers, missing pricing).
+
 ## Input Context
 
 You will receive:
@@ -34,7 +36,7 @@ Identify which fields are missing or incomplete:
 **Important Fields** (medium priority):
 - `subtitle` - Model variant details
 - `variant_name` - Specific trim level
-- `specs_json` - Technical specifications
+- `specs_json` - Technical specifications *(auto-populated by orchestrator — enrich only if missing/incomplete)*
 - `key_features` - Selling points
 - `primary_image_r2_key` - Hero image
 

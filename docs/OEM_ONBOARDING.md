@@ -2,7 +2,7 @@
 
 How to add a new Australian automotive OEM to the platform.
 
-**Last updated**: 2026-02-24 (Foton Australia, 16th OEM)
+**Last updated**: 2026-03-17 (LDV AU full data population)
 
 ---
 
@@ -102,7 +102,7 @@ export const fotonAu: OemDefinition = {
 
 Also update:
 - The `oemRegistry` object: add `'foton-au': fotonAu`
-- The file header comment count (e.g. "16 Australian OEMs")
+- The file header comment count (e.g. "17 Australian OEMs")
 - The `generateOemSeedData()` comment count
 
 ---
@@ -301,12 +301,25 @@ Update `~/.claude/projects/.../memory/MEMORY.md` with:
 |-------|----------|
 | `db push` fails with "Found local migration files to be inserted before the last migration" | Use `--include-all`, or rename conflicting files to `.sql.bak`, push, rename back |
 | Same-date migrations conflict on `version` PK | Use a different date for the new migration |
-| OEM count grep misses files | Search for the old count number (e.g. `15 OEM`) not just the word "OEM" |
+| OEM count grep misses files | Search for the old count number (e.g. `16 OEM`) not just the word "OEM" |
 | Forgot to add to OEM ID lists | Check `workspace/MEMORY.md`, `workspace/AGENTS.md`, `workspace-crawler/SOUL.md` |
+
+### Gatsby-Based OEM Example (LDV)
+
+For Gatsby-based OEMs (framework: `gatsby`), structured data is available via `page-data.json` endpoints at every route. This eliminates the need for browser rendering or API key discovery:
+
+1. Vehicles index: `https://{base}/page-data/vehicles/page-data.json` — all models
+2. Per-model: `https://{base}/page-data/vehicles/{slug}/page-data.json` — full specs, variants, colors, pricing
+3. Offers: `https://{base}/page-data/special-offers/page-data.json`
+4. Price guide: `https://{base}/page-data/price/page-data.json`
+
+Add `framework: 'gatsby'` to the OEM definition in `registry.ts`. LDV AU was fully populated this way (13 models, 11 products with specs, 47 colors, 9 pricing rows) with zero browser rendering.
 
 ---
 
 ## Step 11 — Seed variant colors (if available)
+
+> **Note**: Basic `variant_colors` rows and `specs_json` are now automatically populated during every product upsert by the orchestrator (`syncVariantColors()` and `buildSpecsJson()`). Individual spec columns (`engine_size`, `cylinders`, `transmission`, `drive`, `drivetrain`) are also auto-populated from `meta_json`. A dedicated seed script is only needed if the OEM provides richer color data (hero images, gallery renders, swatch URLs) beyond what the crawl extracts.
 
 If the OEM's website exposes color data (color names, swatches, vehicle renders per color), create a seed script:
 
@@ -331,6 +344,8 @@ If the OEM's website exposes color data (color names, swatches, vehicle renders 
 
 | Date | OEM | Count | Notes |
 |------|-----|-------|-------|
+| 2026-03-18 | GAC Australia (`gac-au`) | 17 | All 17 OEMs complete. 757 products, 283 offers, 144 banners |
+| 2026-03-17 | LDV Australia (`ldv-au`) full data | 16 | Gatsby page-data.json, 13 models, 11 products, 47 colors, 9 pricing |
 | 2026-02-24 | Foton Australia (`foton-au`) | 16 | Server-rendered, pricing API, ute+truck, 16 colors |
 | 2026-02-24 | GMSV Australia (`gmsv-au`) | 15 | Multi-sub-brand (Chevrolet, Corvette, GMC), 55 colors dual-source |
 | 2026-02-18 | Subaru Australia (`subaru-au`) | 14 | Retailer API v1 |

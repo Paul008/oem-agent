@@ -92,7 +92,7 @@ Waiting for: port 18789 (TCP)
 - `R2_ACCESS_KEY_ID` ✅
 - `R2_SECRET_ACCESS_KEY` ✅
 
-### Skills Configured (10 total)
+### Skills Configured (14 total)
 All custom OEM skills are included in the container at `/root/clawd/skills/`:
 - oem-agent-hooks
 - oem-sales-rep
@@ -104,6 +104,10 @@ All custom OEM skills are included in the container at `/root/clawd/skills/`:
 - oem-build-price-discover
 - oem-semantic-search
 - cloudflare-browser
+- oem-brand-ambassador
+- oem-data-sync
+- oem-ux-knowledge
+- autonomous-agents
 
 ---
 

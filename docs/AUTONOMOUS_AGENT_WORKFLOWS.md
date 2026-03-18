@@ -53,8 +53,9 @@ Layer 1 — OpenClaw Agent Tools (what agents see)
                          │ CDP WebSocket
 Layer 2 — Backend Infrastructure (what runs on the server)
   ┌──────────────────────┴───────────────────────────────┐
+  │  Lightpanda (primary)       Raw CDP WebSocket, 15s   │
+  │  @cloudflare/puppeteer      Fallback Browser API     │
   │  src/routes/cdp.ts          CDP shim (WebSocket)     │
-  │  @cloudflare/puppeteer      Browser Rendering API    │
   │  src/design/page-capturer   Direct Puppeteer usage   │
   │  src/utils/network-browser  Network interception     │
   └──────────────────────────────────────────────────────┘
@@ -62,7 +63,7 @@ Layer 2 — Backend Infrastructure (what runs on the server)
 
 **Layer 1 — OpenClaw tools**: When an agent is granted `browser`, OpenClaw provides a browser tool that sends CDP commands over WebSocket to our Worker. The agent never touches Puppeteer directly.
 
-**Layer 2 — Cloudflare infrastructure**: The Worker's `/cdp` endpoint (`src/routes/cdp.ts`) receives CDP commands and translates them to `@cloudflare/puppeteer` calls against the Cloudflare Browser Rendering binding. This same Puppeteer binding is also used directly by the page capturer and network browser utilities.
+**Layer 2 — Browser infrastructure**: The primary render engine is **Lightpanda**, a lightweight headless browser connected via raw CDP WebSocket (env `LIGHTPANDA_URL`, 15-second timeout). If Lightpanda is unavailable, the system falls back to **Cloudflare Browser Rendering** via `@cloudflare/puppeteer`. The Worker's `/cdp` endpoint (`src/routes/cdp.ts`) receives CDP commands and translates them to the active browser backend. The Puppeteer binding is also used directly by the page capturer and network browser utilities.
 
 ### OpenClaw Tool Reference
 

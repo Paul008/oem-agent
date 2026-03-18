@@ -23,12 +23,16 @@ The Brand Ambassador system generates AI-powered dealer model pages for OEM webs
    ↓
 3. Gemini 2.5 Vision → Visual Structure
    ↓
-4. Assemble DB Data (products, colors, offers, accessories)
+4. Assemble DB Data (products, colors, offers, accessories, specs_json)
    ↓
 5. Claude Sonnet 4.5 → Final Page JSON
    ↓
 6. Validation + R2 Storage
 ```
+
+### specs_json Availability
+
+The `specs_json` column on `products` is now automatically populated during every product upsert by `orchestrator.buildSpecsJson()`. This means page generation has access to consolidated specification data (engine, transmission, drivetrain, dimensions, etc.) for all OEMs — previously this field was null and specs were only available in scattered `meta_json` fields.
 
 ## Smart Regeneration System
 

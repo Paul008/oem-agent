@@ -9,12 +9,15 @@ Intercepts network traffic during browser rendering to discover callable APIs.
 
 ## Discovery Targets
 
+- **Gatsby page-data**: `/{route}/page-data.json` — Static JSON endpoints on Gatsby sites (e.g. LDV AU on Gatsby 5.14.6). Rich structured data without browser rendering or API keys. Detection: probe any route with `/page-data.json` suffix.
 - Next.js data routes: `/_next/data/{buildId}/...`
 - React/Vue API calls: `/api/*`, `/graphql`
 - AEM Content Services: `/content/dam/*`, `/api/assets/*`
 - Sitecore Layout Service: `/sitecore/api/layout/*`
 - WordPress REST API: `/wp-json/wp/v2/*`
 - Generic JSON endpoints with product/offer data
+- GM/Chevrolet colorizer APIs: `/content/gm/api/services/colorizerContent`
+- GM chip/jelly CDN patterns: `colorizer/` directory with chip textures and vehicle renders
 
 ## Prerequisites
 

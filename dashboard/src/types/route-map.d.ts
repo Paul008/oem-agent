@@ -214,6 +214,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/media': RouteRecordInfo<
+      '/dashboard/media',
+      '/dashboard/media',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/model-pages': RouteRecordInfo<
       '/dashboard/model-pages',
       '/dashboard/model-pages',
@@ -651,6 +658,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/docs.vue': {
       routes:
         | '/dashboard/docs'
+      views:
+        | never
+    }
+    'src/pages/dashboard/media.vue': {
+      routes:
+        | '/dashboard/media'
       views:
         | never
     }

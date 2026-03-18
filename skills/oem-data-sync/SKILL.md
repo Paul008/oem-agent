@@ -7,6 +7,8 @@ description: Run, monitor, and diagnose the 37 seed/enrich scripts that populate
 
 Wraps the existing `dashboard/scripts/seed-*.mjs` and `enrich-*.mjs` scripts with optional `import_runs` tracking. Each script fetches data from an OEM's API/website and upserts it into Supabase.
 
+> **Auto-sync**: `variant_colors` and `specs_json` are now automatically synced for **all OEMs** during every product upsert via `orchestrator.syncVariantColors()` and `orchestrator.buildSpecsJson()`. Individual spec columns (`engine_size`, `cylinders`, etc.) are also populated from `meta_json` on every upsert. Dedicated color seed scripts remain useful for OEM-specific sources (swatch images, gallery URLs, hero renders) that go beyond what the orchestrator auto-sync provides.
+
 > **Adding a new OEM?** Use the dashboard onboarding wizard at `/dashboard/onboarding` for guided setup, or see `docs/OEM_ONBOARDING.md` for the manual process.
 
 ## Quick Start
@@ -135,7 +137,7 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 - `seed-suzuki-banners.mjs`: Suzuki `/home/` hero carousel (3 slides) and `/latest-offers/` hero banner. Uses background-image CSS with desktop/mobile variants.
 - **Video scripts**: `seed-ford-video.mjs` (Brightcove Playback API), `seed-banner-videos.mjs` (Suzuki direct mp4).
 - Ford video: Brightcove account `4082198814001`, player `H1RIrS7kf`, policy key required. Mp4 URLs use Fastly signed tokens that expire — must call Playback API for fresh URLs.
-- Missing OEMs: Subaru (React client-side), Mitsubishi (no hero), LDV (minimal).
+- Missing OEMs: Subaru (React client-side), Mitsubishi (no hero), LDV (data via Gatsby page-data.json, no banner extraction yet).
 
 ### Ford Colors (1 script — replaces old enrichment)
 
@@ -173,9 +175,9 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 
 **Notes:**
 - Fetches portal credentials from Monday.com board via GraphQL API (account 229224, user 574175).
-- Fuzzy-matches board item names to 16 OEM IDs.
+- Fuzzy-matches board item names to 17 OEM IDs.
 - Extracts: portal_url, username, password, marketing_contact, guidelines_pdf_url (from Monday files column).
-- 31 portals across all 16 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
+- 31 portals across all 17 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
 
 ### Brochures (1 script)
 
@@ -194,8 +196,8 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 - **GWM**: Storyblok assets CDN (4/8).
 - **Isuzu**: B-CDN `models.json` with `brochure_pdfs` field (2/2).
 - **Subaru**: Predictable `docs.subaru.com.au/{Model}-Brochure.pdf` (2/7).
-- **Missing**: Hyundai (0/17), Suzuki (0/7, form-gated), KGM (0/8), LDV (0/1).
-- Total: 74/132 models (56% coverage).
+- **Missing**: Hyundai (0/17), Suzuki (0/7, form-gated), KGM (0/8), LDV (0/13).
+- Total: 74/~162 models (46% coverage).
 
 ### API Discovery (7 scripts)
 

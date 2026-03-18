@@ -1,7 +1,7 @@
 /**
  * Seed OEM portal credentials from Monday.com board 15373501.
  *
- * Fetches board items via Monday.com GraphQL API, maps to our 16 OEM IDs,
+ * Fetches board items via Monday.com GraphQL API, maps to our 17 OEM IDs,
  * and upserts into oem_portals table.
  *
  * Run: cd dashboard/scripts && node seed-oem-portals.mjs

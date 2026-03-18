@@ -1,7 +1,7 @@
 /**
  * OEM Registry
  * 
- * Configuration for all 16 Australian automotive OEMs.
+ * Configuration for all 17 Australian automotive OEMs.
  * Based on crawl-config-v1.2 specification.
  */
 
@@ -26,7 +26,11 @@ export interface OemDefinition {
     defaultPostcode?: string;
     isNextJs?: boolean;
     isAEM?: boolean;
+    isGatsby?: boolean;
     hasSubBrands?: boolean;
+    /** Frontend framework for extraction strategy and migration detection.
+     *  Checked during crawl — if detected framework differs, a change event is logged. */
+    framework?: 'gatsby' | 'nextjs' | 'nuxt' | 'aem' | 'react-spa' | 'vue' | 'static' | 'wordpress' | 'sitecore' | 'custom';
   };
 }
 
@@ -57,6 +61,7 @@ export const kiaAu: OemDefinition = {
   flags: {
     requiresBrowserRendering: true,
     isAEM: true,
+    framework: 'aem',
   },
 };
 
@@ -92,6 +97,8 @@ export const nissanAu: OemDefinition = {
     requiresBrowserRendering: true,
     requiresPostcode: true,
     defaultPostcode: '2000',
+    isAEM: true,
+    framework: 'aem',
   },
 };
 
@@ -121,6 +128,7 @@ export const fordAu: OemDefinition = {
   flags: {
     requiresBrowserRendering: true,
     isAEM: true,
+    framework: 'aem',
   },
 };
 
@@ -151,6 +159,8 @@ export const volkswagenAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    isAEM: true,
+    framework: 'aem',
   },
 };
 
@@ -180,6 +190,7 @@ export const mitsubishiAu: OemDefinition = {
   flags: {
     requiresBrowserRendering: true,
     isAEM: true,
+    framework: 'aem',
   },
 };
 
@@ -209,6 +220,8 @@ export const ldvAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    isGatsby: true,
+    framework: 'gatsby',
   },
 };
 
@@ -237,6 +250,7 @@ export const isuzuAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    framework: 'sitecore',
   },
 };
 
@@ -265,6 +279,7 @@ export const mazdaAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    framework: 'react-spa',
   },
 };
 
@@ -294,6 +309,7 @@ export const kgmAu: OemDefinition = {
   flags: {
     requiresBrowserRendering: true,
     isNextJs: true,
+    framework: 'nextjs',
   },
 };
 
@@ -324,8 +340,8 @@ export const gwmAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
-    isNextJs: true,
     hasSubBrands: true,
+    framework: 'nuxt',
   },
 };
 
@@ -354,6 +370,7 @@ export const suzukiAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    framework: 'wordpress',
   },
 };
 
@@ -386,6 +403,7 @@ export const hyundaiAu: OemDefinition = {
     requiresBrowserRendering: true,
     isAEM: true,
     hasSubBrands: true,
+    framework: 'aem',
   },
 };
 
@@ -418,6 +436,7 @@ export const toyotaAu: OemDefinition = {
     requiresBrowserRendering: true,
     isNextJs: true,
     hasSubBrands: true,
+    framework: 'nextjs',
   },
 };
 
@@ -445,8 +464,9 @@ export const subaruAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
-    isNextJs: false,
+    isNextJs: true,
     hasSubBrands: false,
+    framework: 'nextjs',
   },
 };
 
@@ -476,7 +496,9 @@ export const gmsvAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    isAEM: true,
     hasSubBrands: true,
+    framework: 'aem',
   },
 };
 
@@ -506,6 +528,7 @@ export const fotonAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: false,
+    framework: 'custom',
   },
 };
 
@@ -534,6 +557,7 @@ export const gacAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
+    framework: 'nuxt',
   },
 };
 
@@ -590,7 +614,7 @@ export function generateOemSeedData(): string {
   });
 
   return `
--- Seed data for 16 Australian OEMs
+-- Seed data for 17 Australian OEMs
 INSERT INTO oems (id, name, base_url, config_json, is_active)
 VALUES
 ${values.join(',\n')}
