@@ -36,9 +36,10 @@ const layout = computed(() => props.section.layout || 'contained')
   <div
     class="py-6"
     :class="{
-      'px-0': layout === 'full-width',
+      'px-0 full-bleed': layout === 'full-width',
       'px-8': layout !== 'full-width',
     }"
+    :style="section.text_align ? { textAlign: section.text_align } : undefined"
   >
     <h3
       v-if="section.title"

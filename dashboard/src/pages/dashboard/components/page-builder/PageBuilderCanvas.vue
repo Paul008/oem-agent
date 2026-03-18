@@ -57,6 +57,13 @@ function sectionStyle(section: any): Record<string, string> {
     if (s.margin_top) style.marginTop = s.margin_top
     if (s.margin_bottom) style.marginBottom = s.margin_bottom
   }
+  // Text alignment — applies to all text-bearing sections
+  if (section.text_align) style.textAlign = section.text_align
+  // Full-bleed breakout for full-width layouts
+  if (section.layout === 'full-width') {
+    style.width = '100vw'
+    style.marginLeft = 'calc(-50vw + 50%)'
+  }
   // Border radius
   if (section.border_radius) style.borderRadius = section.border_radius
   // Overflow hidden when radius is set (clip content to rounded corners)

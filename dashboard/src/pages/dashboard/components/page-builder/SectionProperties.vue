@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff, ImageIcon, ArrowRightLeft } from 'lucide-vue-next'
+import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff, ImageIcon, ArrowRightLeft, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-vue-next'
 import MediaUploadButton from './MediaUploadButton.vue'
 import MediaLibraryDialog from './MediaLibraryDialog.vue'
 import { getConvertibleTypes } from './section-converter'
@@ -100,6 +100,31 @@ function onMediaLibrarySelect(url: string) {
         <div class="flex items-center gap-2">
           <UiSwitch :checked="!!section.full_width" @update:checked="update('full_width', $event)" />
           <label class="text-xs">Full width (edge-to-edge)</label>
+        </div>
+
+        <!-- Text Alignment -->
+        <div>
+          <label class="text-[10px] text-muted-foreground mb-1 block">Text Align</label>
+          <div class="flex gap-1">
+            <button
+              v-for="align in [
+                { value: undefined, icon: AlignLeft, label: 'Default' },
+                { value: 'left', icon: AlignLeft, label: 'Left' },
+                { value: 'center', icon: AlignCenter, label: 'Center' },
+                { value: 'right', icon: AlignRight, label: 'Right' },
+                { value: 'justify', icon: AlignJustify, label: 'Justify' },
+              ]"
+              :key="align.label"
+              class="p-1.5 rounded border transition-colors"
+              :class="(section.text_align || undefined) === align.value
+                ? 'bg-primary/10 border-primary text-primary'
+                : 'border-border hover:bg-muted text-muted-foreground'"
+              :title="align.label"
+              @click="update('text_align', align.value)"
+            >
+              <component :is="align.icon" class="size-3.5" />
+            </button>
+          </div>
         </div>
 
         <!-- Border Radius -->
