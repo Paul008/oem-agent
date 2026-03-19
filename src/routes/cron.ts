@@ -650,27 +650,146 @@ async function executeWeeklyReport(
 /**
  * Sync vector embeddings for new records
  */
+/**
+ * Sync PDF embeddings — finds brochures not yet in pdf_embeddings
+ * and vectorizes them via Gemini 2.5 Flash (text extraction) +
+ * gemini-embedding-001 (768-dim vectors).
+ */
 async function syncEmbeddings(
   _job: CronJob,
   env: AppEnv['Bindings']
 ): Promise<Record<string, unknown>> {
-  // Embeddings are generated via the all-oem-sync pipeline
-  // This job ensures the variant_pricing table stays current
   const { createSupabaseClient } = await import('../utils/supabase');
   const supabase = createSupabaseClient({
     url: env.SUPABASE_URL,
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   });
 
-  // Count products without variant_pricing
-  const { data: unpriced } = await supabase
-    .from('products')
-    .select('id, oem_id, price_amount')
-    .is('price_amount', null);
+  const GOOGLE_API_KEY = env.GOOGLE_API_KEY;
+  if (!GOOGLE_API_KEY) {
+    return { message: 'GOOGLE_API_KEY not set, skipping embedding sync' };
+  }
+
+  // Find brochures not yet embedded
+  const { data: models } = await supabase
+    .from('vehicle_models')
+    .select('id, oem_id, name, brochure_url')
+    .not('brochure_url', 'is', null);
+
+  const { data: existing } = await supabase
+    .from('pdf_embeddings')
+    .select('source_id');
+
+  const alreadyDone = new Set((existing ?? []).map((e: any) => e.source_id));
+  const toDo = (models ?? []).filter((m: any) => !alreadyDone.has(m.id));
+
+  if (toDo.length === 0) {
+    return { message: 'All brochures already embedded', total: alreadyDone.size };
+  }
+
+  console.log(`[EmbeddingSync] ${toDo.length} new brochures to embed`);
+
+  let embedded = 0;
+  let failed = 0;
+
+  for (const model of toDo.slice(0, 10)) { // Max 10 per run to stay within Worker CPU limits
+    try {
+      // Download PDF
+      const res = await fetch(model.brochure_url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh)' },
+      });
+      if (!res.ok) { failed++; continue; }
+      const buffer = new Uint8Array(await res.arrayBuffer());
+
+      // Validate PDF header
+      const header = new TextDecoder().decode(buffer.slice(0, 5));
+      if (!header.startsWith('%PDF')) { failed++; continue; }
+
+      // Extract text via Gemini Vision
+      const base64 = btoa(String.fromCharCode(...buffer));
+      const extractRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { inline_data: { mime_type: 'application/pdf', data: base64 } },
+                { text: 'Extract ALL text from this automotive PDF. Include specs, features, prices, disclaimers. Plain text only.' },
+              ],
+            }],
+            generationConfig: { maxOutputTokens: 8192 },
+          }),
+        },
+      );
+
+      if (!extractRes.ok) { failed++; continue; }
+      const extractData = await extractRes.json() as any;
+      const text = extractData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (text.length < 50) { failed++; continue; }
+
+      // Chunk text
+      const CHUNK_SIZE = 800;
+      const OVERLAP = 100;
+      const chunks: string[] = [];
+      let i = 0;
+      while (i < text.length) {
+        const end = Math.min(i + CHUNK_SIZE, text.length);
+        const chunk = text.slice(i, end).trim();
+        if (chunk.length > 20) chunks.push(chunk);
+        if (end >= text.length) break;
+        i = end - OVERLAP;
+      }
+
+      // Generate embeddings + insert
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const embedRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GOOGLE_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'models/gemini-embedding-001',
+              content: { parts: [{ text: chunks[ci] }] },
+              taskType: 'RETRIEVAL_DOCUMENT',
+              outputDimensionality: 768,
+            }),
+          },
+        );
+
+        if (!embedRes.ok) continue;
+        const embedData = await embedRes.json() as any;
+        const vector = embedData.embedding?.values;
+        if (!vector) continue;
+
+        await supabase.from('pdf_embeddings').upsert({
+          source_type: 'brochure',
+          source_id: model.id,
+          oem_id: model.oem_id,
+          pdf_url: model.brochure_url,
+          chunk_index: ci,
+          chunk_text: chunks[ci],
+          embedding: JSON.stringify(vector),
+          metadata: { model_name: model.name, chunk_count: chunks.length },
+        }, { onConflict: 'source_id,source_type,chunk_index' });
+      }
+
+      embedded++;
+      console.log(`[EmbeddingSync] ${model.oem_id}/${model.name}: ${chunks.length} chunks embedded`);
+    } catch (e) {
+      failed++;
+      console.warn(`[EmbeddingSync] ${model.oem_id}/${model.name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 
   return {
-    message: 'Embedding sync check completed',
-    unpriced_products: unpriced?.length ?? 0,
+    message: 'Embedding sync completed',
+    new_brochures: toDo.length,
+    embedded,
+    failed,
+    remaining: Math.max(0, toDo.length - 10),
+    total_embeddings: (alreadyDone.size) + embedded,
   };
 }
 
