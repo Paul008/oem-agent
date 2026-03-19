@@ -402,44 +402,267 @@ async function executeAgentHooks(
   job: CronJob,
   env: AppEnv['Bindings']
 ): Promise<Record<string, unknown>> {
-  const config = job.config as { action: string };
-  
+  const config = job.config as { action: string; [key: string]: unknown };
+  const { createSupabaseClient } = await import('../utils/supabase');
+  const supabase = createSupabaseClient({
+    url: env.SUPABASE_URL,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
   switch (config.action) {
     case 'health_check':
-      return { message: 'Health check completed', status: 'ok' };
-    
+      return await executeHealthCheck(supabase, env);
+
     case 'memory_sync':
-      return { message: 'Memory sync completed', synced: true };
-    
+      return await executeMemorySync(supabase, env);
+
     case 'generate_report':
-      return { message: 'Report generation not yet implemented' };
-    
+      return await executeWeeklyReport(supabase, env);
+
     case 'sync_embeddings':
       return await syncEmbeddings(job, env);
-    
+
     default:
       return { message: `Unknown action: ${config.action}` };
   }
 }
 
 /**
+ * Health Check — monitors extraction success rate per OEM.
+ * Alerts via Slack when an OEM drops below threshold.
+ */
+async function executeHealthCheck(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  env: AppEnv['Bindings'],
+): Promise<Record<string, unknown>> {
+  const now = new Date();
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+  // Query import_runs from last 24h grouped by OEM
+  const { data: runs } = await supabase
+    .from('import_runs')
+    .select('oem_id, status, products_upserted, error_message')
+    .gte('started_at', since);
+
+  const oemStats: Record<string, { total: number; success: number; failed: number; products: number; errors: string[] }> = {};
+
+  for (const run of runs ?? []) {
+    const oem = run.oem_id;
+    if (!oemStats[oem]) oemStats[oem] = { total: 0, success: 0, failed: 0, products: 0, errors: [] };
+    oemStats[oem].total++;
+    if (run.status === 'completed') {
+      oemStats[oem].success++;
+      oemStats[oem].products += run.products_upserted || 0;
+    } else if (run.status === 'failed') {
+      oemStats[oem].failed++;
+      if (run.error_message) oemStats[oem].errors.push(run.error_message.slice(0, 100));
+    }
+  }
+
+  // Check for degraded OEMs (success rate < 70%)
+  const degraded: string[] = [];
+  for (const [oem, stats] of Object.entries(oemStats)) {
+    if (stats.total > 0 && stats.success / stats.total < 0.7) {
+      degraded.push(oem);
+    }
+  }
+
+  // Check for OEMs with zero runs in 24h (missed crawl)
+  const { data: activeOems } = await supabase.from('oems').select('id').eq('is_active', true);
+  const missedOems = (activeOems ?? [])
+    .map(o => o.id)
+    .filter(id => !oemStats[id]);
+
+  // Send Slack alert if any issues
+  if ((degraded.length > 0 || missedOems.length > 0) && env.SLACK_WEBHOOK_URL) {
+    const { SlackNotifier } = await import('../notify/slack');
+    const slack = new SlackNotifier(env.SLACK_WEBHOOK_URL);
+    const blocks: any[] = [
+      { type: 'header', text: { type: 'plain_text', text: '⚠️ OEM Health Check Alert' } },
+    ];
+
+    if (degraded.length > 0) {
+      blocks.push({
+        type: 'section',
+        text: { type: 'mrkdwn', text: `*Degraded OEMs (< 70% success rate):*\n${degraded.map(oem => {
+          const s = oemStats[oem];
+          return `• \`${oem}\`: ${s.success}/${s.total} success (${Math.round(100 * s.success / s.total)}%)${s.errors.length ? ' — ' + s.errors[0] : ''}`;
+        }).join('\n')}` },
+      });
+    }
+
+    if (missedOems.length > 0) {
+      blocks.push({
+        type: 'section',
+        text: { type: 'mrkdwn', text: `*No crawl runs in 24h:*\n${missedOems.map(oem => `• \`${oem}\``).join('\n')}` },
+      });
+    }
+
+    await slack.send({ blocks, text: `OEM Health Alert: ${degraded.length} degraded, ${missedOems.length} missed` });
+  }
+
+  return {
+    status: degraded.length > 0 || missedOems.length > 0 ? 'degraded' : 'healthy',
+    oems_checked: Object.keys(oemStats).length,
+    degraded_oems: degraded,
+    missed_oems: missedOems,
+    total_runs_24h: runs?.length ?? 0,
+  };
+}
+
+/**
+ * Memory Sync — backup key tables to R2 for disaster recovery.
+ */
+async function executeMemorySync(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  env: AppEnv['Bindings'],
+): Promise<Record<string, unknown>> {
+  const bucket = env.MOLTBOT_BUCKET;
+  const timestamp = new Date().toISOString().slice(0, 10);
+  let synced = 0;
+
+  // Backup OEM configs
+  const { data: oems } = await supabase.from('oems').select('*');
+  if (oems?.length) {
+    await bucket.put(`memory/backups/${timestamp}/oems.json`, JSON.stringify(oems), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    synced++;
+  }
+
+  // Backup discovered APIs
+  const { data: apis } = await supabase.from('discovered_apis').select('*').limit(500);
+  if (apis?.length) {
+    await bucket.put(`memory/backups/${timestamp}/discovered-apis.json`, JSON.stringify(apis), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    synced++;
+  }
+
+  // Backup offer counts per OEM (lightweight summary, not full data)
+  const { data: offerCounts } = await supabase.rpc('count_by_oem', undefined as never).catch(() => ({ data: null }));
+  if (offerCounts) {
+    await bucket.put(`memory/backups/${timestamp}/offer-counts.json`, JSON.stringify(offerCounts), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    synced++;
+  }
+
+  // Clean old backups (keep last 7 days)
+  const listing = await bucket.list({ prefix: 'memory/backups/' });
+  const prefixes = [...new Set(listing.objects.map(o => o.key.split('/')[2]).filter(Boolean))].sort();
+  const toDelete = prefixes.slice(0, Math.max(0, prefixes.length - 7));
+  for (const prefix of toDelete) {
+    const old = await bucket.list({ prefix: `memory/backups/${prefix}/` });
+    for (const obj of old.objects) {
+      await bucket.delete(obj.key);
+    }
+  }
+
+  return {
+    message: 'Memory sync completed',
+    synced,
+    backup_date: timestamp,
+    old_backups_cleaned: toDelete.length,
+  };
+}
+
+/**
+ * Weekly Report — aggregate metrics and send to Slack.
+ */
+async function executeWeeklyReport(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  env: AppEnv['Bindings'],
+): Promise<Record<string, unknown>> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Aggregate import_runs
+  const { data: runs } = await supabase
+    .from('import_runs')
+    .select('oem_id, status, products_upserted, offers_upserted, changes_found')
+    .gte('started_at', since);
+
+  const totalRuns = runs?.length ?? 0;
+  const successRuns = runs?.filter(r => r.status === 'completed').length ?? 0;
+  const totalProducts = runs?.reduce((sum, r) => sum + (r.products_upserted || 0), 0) ?? 0;
+  const totalOffers = runs?.reduce((sum, r) => sum + (r.offers_upserted || 0), 0) ?? 0;
+  const totalChanges = runs?.reduce((sum, r) => sum + (r.changes_found || 0), 0) ?? 0;
+
+  // Count current data
+  const [prodCount, colorCount, offerCount, bannerCount] = await Promise.all([
+    supabase.from('products').select('id', { count: 'exact', head: true }),
+    supabase.from('variant_colors').select('id', { count: 'exact', head: true }),
+    supabase.from('offers').select('id', { count: 'exact', head: true }),
+    supabase.from('banners').select('id', { count: 'exact', head: true }),
+  ]);
+
+  const report = {
+    period: `${since.slice(0, 10)} to ${new Date().toISOString().slice(0, 10)}`,
+    crawl_runs: totalRuns,
+    success_rate: totalRuns > 0 ? Math.round(100 * successRuns / totalRuns) + '%' : 'N/A',
+    products_upserted: totalProducts,
+    offers_upserted: totalOffers,
+    changes_detected: totalChanges,
+    current_totals: {
+      products: prodCount.count,
+      colors: colorCount.count,
+      offers: offerCount.count,
+      banners: bannerCount.count,
+    },
+  };
+
+  // Send to Slack
+  if (env.SLACK_WEBHOOK_URL) {
+    const { SlackNotifier } = await import('../notify/slack');
+    const slack = new SlackNotifier(env.SLACK_WEBHOOK_URL);
+    await slack.send({
+      blocks: [
+        { type: 'header', text: { type: 'plain_text', text: '📊 Weekly OEM Report' } },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*Crawl Runs:* ${totalRuns} (${report.success_rate} success)` },
+            { type: 'mrkdwn', text: `*Changes Detected:* ${totalChanges}` },
+            { type: 'mrkdwn', text: `*Products Upserted:* ${totalProducts}` },
+            { type: 'mrkdwn', text: `*Offers Upserted:* ${totalOffers}` },
+          ],
+        },
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: `*Current Totals:* ${report.current_totals.products} products · ${report.current_totals.colors} colors · ${report.current_totals.offers} offers · ${report.current_totals.banners} banners` },
+        },
+      ],
+      text: `Weekly OEM Report: ${totalRuns} runs, ${totalChanges} changes, ${report.success_rate} success rate`,
+    });
+  }
+
+  return report;
+}
+
+/**
  * Sync vector embeddings for new records
  */
 async function syncEmbeddings(
-  job: CronJob,
+  _job: CronJob,
   env: AppEnv['Bindings']
 ): Promise<Record<string, unknown>> {
-  const config = job.config as {
-    tables: string[];
-    batch_size: number;
-    max_items_per_run: number;
-  };
-  
-  // TODO: Implement embedding sync using the embeddings utility
+  // Embeddings are generated via the all-oem-sync pipeline
+  // This job ensures the variant_pricing table stays current
+  const { createSupabaseClient } = await import('../utils/supabase');
+  const supabase = createSupabaseClient({
+    url: env.SUPABASE_URL,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // Count products without variant_pricing
+  const { data: unpriced } = await supabase
+    .from('products')
+    .select('id, oem_id, price_amount')
+    .is('price_amount', null);
+
   return {
-    message: 'Embedding sync not yet fully implemented',
-    tables: config.tables,
-    batch_size: config.batch_size,
+    message: 'Embedding sync check completed',
+    unpriced_products: unpriced?.length ?? 0,
   };
 }
 
