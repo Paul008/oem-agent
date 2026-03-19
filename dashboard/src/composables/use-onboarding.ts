@@ -58,8 +58,8 @@ export function useOnboarding() {
   const requiresBrowserRendering = ref(false)
   const subBrands = ref<string[]>([])
   const schedule = ref({
-    homepage_minutes: 120,
-    offers_minutes: 240,
+    homepage_minutes: 1440,
+    offers_minutes: 1440,
     vehicles_minutes: 720,
     news_minutes: 1440,
   })
@@ -146,8 +146,12 @@ export function useOnboarding() {
       subBrands.value = result.discovery.sub_brands || []
 
       // Auto-detect rendering requirement
-      if (framework.value && ['nextjs', 'nuxt', 'storyblok'].includes(framework.value)) {
+      const spaFrameworks = ['nextjs', 'nuxt', 'storyblok', 'react', 'angular', 'vue']
+      const ssrFrameworks = ['gatsby', 'aem', 'magento', 'wordpress', 'sitecore']
+      if (framework.value && spaFrameworks.includes(framework.value)) {
         requiresBrowserRendering.value = true
+      } else if (framework.value && ssrFrameworks.includes(framework.value)) {
+        requiresBrowserRendering.value = false
       }
 
       // Map classified pages with include toggle
@@ -260,8 +264,8 @@ export function useOnboarding() {
     requiresBrowserRendering.value = false
     subBrands.value = []
     schedule.value = {
-      homepage_minutes: 120,
-      offers_minutes: 240,
+      homepage_minutes: 1440,
+      offers_minutes: 1440,
       vehicles_minutes: 720,
       news_minutes: 1440,
     }

@@ -430,9 +430,12 @@ async function copyToClipboard(text: string) {
                 </UiSelectTrigger>
                 <UiSelectContent>
                   <UiSelectItem value="products">products</UiSelectItem>
+                  <UiSelectItem value="colors">colors</UiSelectItem>
                   <UiSelectItem value="offers">offers</UiSelectItem>
                   <UiSelectItem value="pricing">pricing</UiSelectItem>
                   <UiSelectItem value="inventory">inventory</UiSelectItem>
+                  <UiSelectItem value="accessories">accessories</UiSelectItem>
+                  <UiSelectItem value="brochures">brochures</UiSelectItem>
                   <UiSelectItem value="config">config</UiSelectItem>
                   <UiSelectItem value="other">other</UiSelectItem>
                 </UiSelectContent>
@@ -813,28 +816,53 @@ async function copyToClipboard(text: string) {
           </UiCardContent>
         </UiCard>
 
-        <!-- Cron Setup -->
+        <!-- Automated Features -->
         <UiCard>
           <UiCardHeader>
-            <UiCardTitle>Cron Schedule Setup</UiCardTitle>
+            <UiCardTitle>What Happens Automatically</UiCardTitle>
             <UiCardDescription>
-              After deploying the code changes, add <code>{{ oemId }}</code> to the cron schedule so it's crawled automatically.
+              Once deployed, <code>{{ oemId }}</code> is included in all automated pipelines.
             </UiCardDescription>
           </UiCardHeader>
-          <UiCardContent class="space-y-3">
-            <div class="bg-muted rounded-md p-4 text-sm space-y-2">
-              <p class="font-medium">Two cron systems need updating:</p>
-              <div>
-                <p class="font-mono text-xs text-muted-foreground mb-1">1. wrangler.jsonc — Cloudflare Workers Cron (page crawling)</p>
-                <p class="text-xs">Add <code>{{ oemId }}</code> to the crawl trigger route if using per-OEM scheduling.</p>
+          <UiCardContent>
+            <div class="space-y-3 text-sm">
+              <div class="flex items-start gap-3">
+                <div class="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check class="size-3 text-primary" />
+                </div>
+                <div>
+                  <p class="font-medium">Daily Color + Pricing Sync (3am AEST)</p>
+                  <p class="text-muted-foreground text-xs">variant_colors and variant_pricing auto-populated from OEM APIs. Driveaway pricing across all 8 AU states where available.</p>
+                </div>
               </div>
-              <div>
-                <p class="font-mono text-xs text-muted-foreground mb-1">2. config/openclaw/cron-jobs.json — OpenClaw Cron (agent workflows)</p>
-                <p class="text-xs">Add <code>"{{ oemId }}"</code> to the <code>oem_ids</code> array in relevant jobs (e.g. daily crawl, brand ambassador).</p>
+              <div class="flex items-start gap-3">
+                <div class="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check class="size-3 text-primary" />
+                </div>
+                <div>
+                  <p class="font-medium">Daily Homepage + Offers Crawl (4-5am AEST)</p>
+                  <p class="text-muted-foreground text-xs">Monitors OEM homepage and offers pages for changes. Products auto-sync specs_json and variant_colors on every upsert.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check class="size-3 text-primary" />
+                </div>
+                <div>
+                  <p class="font-medium">Vehicle Crawl (every 12h)</p>
+                  <p class="text-muted-foreground text-xs">Crawls vehicle model pages. syncVariantColors() and buildSpecsJson() run automatically on every product upsert.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check class="size-3 text-primary" />
+                </div>
+                <div>
+                  <p class="font-medium">Brand Ambassador (weekly, Tuesdays 4am)</p>
+                  <p class="text-muted-foreground text-xs">AI-generated dealer model pages. Pages edited in the Page Builder are protected from overwrite.</p>
+                </div>
               </div>
             </div>
-            <pre class="bg-muted rounded-md p-3 overflow-x-auto text-xs"><code>// Add to cron-jobs.json oem_ids arrays:
-"{{ oemId }}"</code></pre>
           </UiCardContent>
         </UiCard>
 
@@ -846,14 +874,17 @@ async function copyToClipboard(text: string) {
           <UiCardContent class="text-sm">
             <ol class="list-decimal list-inside space-y-1.5">
               <li :class="snippets ? 'text-foreground' : 'text-muted-foreground'">
-                <span :class="{ 'line-through': false }">Apply code snippets (types.ts, registry.ts, agent.ts, migration)</span>
+                <span>Apply code snippets (types.ts, registry.ts, agent.ts, migration)</span>
                 <UiBadge v-if="snippets" variant="outline" class="ml-2 text-xs">Generated</UiBadge>
               </li>
-              <li class="text-muted-foreground">Update OEM count references (<code>grep -rn "17 OEM"</code>)</li>
-              <li class="text-muted-foreground">Add to cron schedules (see above)</li>
-              <li class="text-muted-foreground">Deploy: <code>npm run deploy</code></li>
+              <li class="text-muted-foreground">Update OEM count references across docs</li>
+              <li class="text-muted-foreground">Deploy: <code>npx wrangler deploy</code></li>
               <li v-if="!crawlTriggered" class="text-muted-foreground">Trigger first crawl from Import Runs page</li>
+              <li class="text-muted-foreground">Run color/pricing seed scripts if OEM has dedicated APIs</li>
             </ol>
+            <p class="text-xs text-muted-foreground mt-3">
+              No cron configuration needed — all OEMs are crawled automatically by the Cloudflare cron triggers.
+            </p>
           </UiCardContent>
         </UiCard>
 
