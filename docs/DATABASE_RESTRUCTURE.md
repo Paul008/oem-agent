@@ -1,7 +1,7 @@
 # Database Restructure ✅ COMPLETED
 
 **Proposed:** 2026-02-18 | **Completed:** 2026-02-19
-**Current state:** 18 OEMs, 179 vehicle_models, 796 products (100% specs_json), ~4952 variant_colors, ~1158 variant_pricing, 2702 accessories, 2826 accessory_models, 58+ discovered_apis, 302 offers, 176 banners
+**Current state:** 18 OEMs, 179 vehicle_models, 796 products (100% specs_json), ~4952 variant_colors, ~1158 variant_pricing, 2913 accessories, 2981 accessory_models, 58+ discovered_apis, 302 offers, 176 banners
 
 ---
 
@@ -234,7 +234,7 @@ oems
 ## Migration Status
 
 ### Phase 1: Add new tables ✅ DONE
-1. ✅ Created `vehicle_models` (~162 rows across 18 OEMs)
+1. ✅ Created `vehicle_models` (~179 rows across 18 OEMs)
 2. ✅ Created `variant_colors` (1649 rows)
 3. ✅ Created `variant_pricing` (410 rows with per-state driveaway)
 4. ⏳ `variant_interiors` — not yet created

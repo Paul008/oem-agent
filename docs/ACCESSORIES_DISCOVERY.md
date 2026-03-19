@@ -1,7 +1,7 @@
 # Accessories Discovery & Seeding Guide
 
-**Last Updated**: 2026-02-20
-**Total**: 2702 accessories across 12 OEMs, 2826 accessory-model joins
+**Last Updated**: 2026-03-19
+**Total**: 2,913 accessories across 13 OEMs (incl. Chery AU), 2,981 accessory-model joins
 
 ## Overview
 

@@ -55,16 +55,16 @@ r2://oem-agent-assets/
 | Table | Rows | Purpose |
 |-------|------|---------|
 | `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
-| `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` (96/162) |
+| `vehicle_models` | ~179 | Models per OEM (unique: oem_id, slug), has `brochure_url` (106/179) |
 | `products` | 796 | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`), model_id FK |
 | `variant_colors` | ~4952 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
 | `variant_pricing` | ~1158 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
-| `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
-| `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
+| `accessories` | 2913 | Accessory catalog per OEM (unique: oem_id, external_key) |
+| `accessory_models` | 2981 | Many-to-many join: accessories ↔ vehicle_models |
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
 | `source_pages` | 231 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | 302 | Promotional offers across ALL 18 OEMs (279/283 with hero images, 98.6%) |
+| `offers` | 302 | Promotional offers across ALL 18 OEMs (100% images, 100% disclaimers, 68 with HTML) |
 | `import_runs` | 1823 | Crawl job tracking |
 | `banners` | 176 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (from Monday.com) |
@@ -75,7 +75,7 @@ r2://oem-agent-assets/
 ```
 oems (18) → vehicle_models (~179) → products (796) → variant_colors (~4952)
                                                     → variant_pricing (~1158)
-                                 → accessories (2702) via accessory_models (2826)
+                                 → accessories (2913) via accessory_models (2981)
            → oem_portals (31) — portal credentials, brand guidelines
            → pdf_embeddings — vectorized brochures + guidelines for semantic search
            → extraction_runs — design pipeline run history with quality metrics

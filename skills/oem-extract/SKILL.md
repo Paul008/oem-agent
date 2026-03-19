@@ -121,7 +121,7 @@ Promotional offers including factory bonuses, run-out sales, value-add deals, an
 
 ### Banners
 
-Homepage and offers page hero banners across all 18 OEMs (144 banners, 100% with desktop images).
+Homepage and offers page hero banners across all 18 OEMs (176 banners, 100% with desktop images).
 
 **Core Fields:**
 - `page_url` - Which page the banner appears on (homepage, offers page)

@@ -148,7 +148,7 @@ Search vectorized brochure and brand guidelines PDFs via `search_pdfs_semantic()
 ```
 
 **Source Types:**
-- `brochure` — Vehicle model brochures (96/~162 models have PDFs)
+- `brochure` — Vehicle model brochures (96/~179 models have PDFs)
 - `guidelines` — Brand guidelines from OEM portals
 
 **Pipeline:** `vectorize-pdfs.mjs` → download PDFs → pdf-parse → chunk (1000 chars, 200 overlap) → Google text-embedding-004 (768 dims) → upsert to `pdf_embeddings`

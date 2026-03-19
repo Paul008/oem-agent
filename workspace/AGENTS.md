@@ -75,8 +75,8 @@ All skills store data in Supabase. Key tables:
 | `discovered_apis` | API endpoints per OEM | Unique: oem_id, url |
 | `source_pages` | URLs monitored for changes | |
 | `change_events` | Audit log of detected changes | |
-| `offers` (283) | Promotional offers across ALL 18 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
-| `banners` (144) | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
+| `offers` (302) | Promotional offers across ALL 18 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
+| `banners` (176) | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
 | `oem_portals` (31) | Marketing portal credentials (18 OEMs) | portal_url, username, password, guidelines_pdf_url |
 | `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |

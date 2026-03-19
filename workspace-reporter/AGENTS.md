@@ -13,8 +13,8 @@
 | Table | Purpose |
 |-------|---------|
 | `products` | Vehicle variants, specs (auto-built `specs_json`), pricing |
-| `offers` | Promotional offers (283 across all 18 OEMs) |
-| `banners` | Homepage/offers hero banners (144 across all 18 OEMs, 100% with desktop images) |
+| `offers` | Promotional offers (302 across all 18 OEMs, 100% with images + disclaimers) |
+| `banners` | Homepage/offers hero banners (176 across all 18 OEMs, 100% with desktop images) |
 | `change_events` | Audit log of detected changes |
 | `variant_pricing` | Per-state driveaway pricing |
 

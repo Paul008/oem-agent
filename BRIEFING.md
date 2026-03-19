@@ -83,20 +83,20 @@ r2://oem-agent-assets/
 | Table | Rows | Purpose |
 |-------|------|---------|
 | `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
-| `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (96/162 populated) |
-| `products` | 757 | Variants/grades with `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`) |
-| `variant_colors` | ~5900 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
-| `variant_pricing` | ~1098 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `vehicle_models` | ~179 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (106/179 populated) |
+| `products` | 796 | Variants/grades with `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`) |
+| `variant_colors` | ~4952 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
+| `variant_pricing` | ~1158 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index |
-| `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
-| `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
+| `accessories` | 2913 | Accessory catalog per OEM (unique: oem_id, external_key) |
+| `accessory_models` | 2981 | Many-to-many join: accessories ↔ vehicle_models |
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
-| `source_pages` | 147 | URLs monitored for changes |
+| `source_pages` | 231 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | 283 | Promotional offers across all 18 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
+| `offers` | 302 | Promotional offers across all 18 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 144 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
+| `banners` | 176 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (sourced from Monday.com) |
 
 **Entity Hierarchy:**
@@ -404,7 +404,7 @@ Pre-built scripts for populating OEM data:
 | `seed-gwm-offer-images.mjs` | GWM | Enrich 35 offers with Storyblok images + ABN pricing |
 
 | `seed-oem-portals.mjs` | All | 31 portal credentials from Monday.com board 15373501 |
-| `seed-brochures.mjs` | Multi | 96/~162 brochure URLs (11 OEMs: Kia, Toyota, Hyundai, Mazda, Ford, KGM, Nissan, Mitsubishi, Isuzu, Subaru, GWM) |
+| `seed-brochures.mjs` | Multi | 96/~179 brochure URLs (11 OEMs: Kia, Toyota, Hyundai, Mazda, Ford, KGM, Nissan, Mitsubishi, Isuzu, Subaru, GWM) |
 | `seed-{oem}-specs.mjs` (13) | All | Technical specs for 757/796 products (100%), all 8 categories at 100% |
 | `vectorize-pdfs.mjs` | Multi | PDF vectorization pipeline: download → pdf-parse → chunk → embed → upsert |
 
@@ -451,15 +451,16 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 ---
 
 **Status**: ✅ Production Ready
-**Last Deployment**: 2026-03-18
-**Final State (2026-03-18)**:
-- 18 OEMs ALL complete, 796 products with 100% specs_json coverage
-- 796 products priced with driveaway estimates — 1098 variant_pricing rows across all 8 AU states
-- Kia AU has true per-state driveaway pricing (standard + premium paint) from selectPriceByTrim API
-- 179 vehicle_models, 302 offers across ALL 18 OEMs, 279/283 offer images (98.6%)
-- ~4952 variant_colors with hero images and swatches; 176 banners, 100% with desktop images
-- 58+ discovered APIs; 231 active source pages; CMS frameworks mapped for all 18 OEMs
-- variant_colors auto-synced, specs_json auto-built on every product upsert
-- Lightpanda primary browser, Cloudflare fallback; Kia BYO renders replace Cloudinary images
+**Last Deployment**: 2026-03-19
+**Final State (2026-03-19)**:
+- 18 OEMs ALL complete (incl. Chery AU + VW AU rebuilt from OneHub API)
+- 796 products, 179 models, 4,952 colors, 1,158 pricing rows, 2,913 accessories
+- 302 offers (100% images, 100% disclaimers, 68 with HTML formatting)
+- 176 banners (desktop + mobile), 106 brochure PDFs, 231 source pages
+- Universal disclaimer on all 18 OEMs, served via dealer API /catalog endpoint
+- Offer detail dialog with collapsible disclaimers, finance breakdown, eligibility
+- Daily all-OEM color + pricing sync (Kia BYO, Hyundai CGI, Mazda, Mitsubishi GQL, VW OneHub)
+- Brand Ambassador protects page builder edits (manually_edited flag)
+- Dynamic Kia color name discovery from swatch filenames (no more Unknown codes)
 
-**Next Maintenance**: Monitor R2 backup size, verify all OEM offer selectors match actual DOM structures, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings, add state-specific pricing APIs for Hyundai/Mitsubishi/Ford when discovered
+**Next Maintenance**: Run vectorize-pdfs.mjs for pdf_embeddings, add state-specific pricing APIs for Hyundai/Mitsubishi/Ford when discovered, extract finance disclaimers for Kia/Hyundai/GWM offers

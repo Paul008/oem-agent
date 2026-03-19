@@ -203,7 +203,7 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 - **Isuzu**: B-CDN `models.json` with `brochure_pdfs` field (2/2).
 - **Subaru**: Predictable `docs.subaru.com.au/{Model}-Brochure.pdf` (2/7).
 - **Missing**: Hyundai (0/17), Suzuki (0/7, form-gated), KGM (0/8), LDV (0/13).
-- Total: 74/~162 models (46% coverage).
+- Total: 74/~179 models (46% coverage).
 
 ### API Discovery (7 scripts)
 
