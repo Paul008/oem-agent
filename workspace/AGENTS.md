@@ -5,7 +5,8 @@
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
 | **cloudflare-browser** | Browser automation | CDP control, screenshots, videos, network monitoring |
-| **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
+| **oem-agent-hooks** | Lifecycle hooks | Health check (4h), R2 memory sync (30min), weekly Slack report (Mon 9am) |
+| **oem-orchestrator** | Traffic Controller | Central orchestrator — monitors 18 OEMs (2h), auto-retries with backoff, Slack escalation |
 | **oem-api-discover** | API discovery | CDP network interception, classify data APIs |
 | **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |

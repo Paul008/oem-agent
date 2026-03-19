@@ -110,18 +110,26 @@ Provides:
 **Purpose**: Health check, memory sync, reports, embeddings
 **Schedule**: Various (every 30 min, every 4 hours, weekly)
 **Actions**:
-- `health_check` - Cache health monitoring
-- `memory_sync` - Persist in-memory cache to R2
-- `generate_report` - Weekly extraction reports
-- `sync_embeddings` - Generate vector embeddings
+- `health_check` — Queries import_runs per OEM, flags degraded (<70% success) and missed (0 runs/24h), sends Slack alert
+- `memory_sync` — Backs up OEM configs + discovered APIs to R2, auto-cleans >7 day old backups
+- `generate_report` — 7-day crawl metrics (runs, success rate, changes detected), current platform totals, Slack digest
+- `sync_embeddings` — Checks for unpriced products
 
 #### 4. `oem-data-sync`
-**Purpose**: Run seed scripts (accessories, colors, products)
-**Schedule**: Weekly Sunday 3am (`0 3 * * 0`)
+**Purpose**: Color + pricing sync for all 18 OEMs
+**Schedule**: Daily 3am (`0 3 * * *`) + Monthly 1st 3am
+**Syncs**: Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, VW OneHub + 13 OEMs generic pricing + auto-fix offer images
 
 #### 5. `oem-brand-ambassador`
 **Purpose**: Generate AI-powered dealer model pages
 **Schedule**: Tuesday at 4am (`0 4 * * 2`)
+**Note**: Respects `manually_edited` flag — pages edited in page builder are not overwritten
+
+#### 6. `oem-orchestrator` (Traffic Controller)
+**Purpose**: Central orchestrator — monitors all 18 OEMs, retries failed extractions with exponential backoff, escalates to Slack
+**Schedule**: Every 2 hours (`0 */2 * * *`)
+**API**: `GET /admin/system-status` for on-demand health check
+**State**: Retry state persisted in R2 (`memory/controller/retry-state.json`)
 **Pilot OEMs**: gwm-au, kia-au, hyundai-au
 **See**: `docs/BRAND_AMBASSADOR.md`
 

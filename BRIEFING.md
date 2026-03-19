@@ -7,7 +7,7 @@
 ## Executive Summary
 
 Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Workers with:
-- 14 specialized skills for automotive data collection
+- 15 specialized skills for automotive data collection
 - R2-backed conversation persistence
 - Headless browser automation via Lightpanda (primary, raw CDP WebSocket) with Cloudflare Browser Rendering fallback
 - Supabase for structured data storage
@@ -178,7 +178,8 @@ oems → vehicle_models → products → variant_colors
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
 | **cloudflare-browser** | Browser automation | CDP control, screenshots, videos, network monitoring |
-| **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
+| **oem-agent-hooks** | Lifecycle hooks | Health monitoring (4h), memory sync to R2 (30min), weekly Slack report (Mon 9am) |
+| **oem-orchestrator** | Traffic Controller | Central orchestrator — monitors 18 OEMs (2h), auto-retries failures with backoff, Slack escalation |
 | **oem-api-discover** | API discovery | CDP network interception, classify data APIs |
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
 | **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
@@ -194,16 +195,30 @@ oems → vehicle_models → products → variant_colors
 
 ## Scheduled Cron Jobs
 
-| Schedule | Frequency | Purpose | Target |
-|----------|-----------|---------|--------|
-| `0 3 * * *` | Daily 3am | All-OEM data sync | Colors, pricing, driveaway (Kia BYO + Hyundai CGI + Mazda + Mitsubishi GraphQL + generic) |
-| `0 4 * * *` | Daily 4am | Homepage crawl | OEM homepages |
-| `0 5 * * *` | Daily 5am | Offers crawl | Special promotions |
-| `0 */12 * * *` | Every 12 hours | Vehicles crawl | Vehicle inventory, specs, variant colors |
-| `0 6 * * *` | Daily 6am | News crawl | OEM news updates |
-| `0 7 * * *` | Daily 7am | Sitemap crawl | Sitemap + design checks |
+### Cloudflare Workers Cron (page crawling)
 
-**Handler**: `src/scheduled.ts` → `OemAgentOrchestrator.runScheduledCrawl(crawlType)`
+| Schedule | Purpose | Target |
+|----------|---------|--------|
+| `0 4 * * *` | Homepage crawl | OEM homepages |
+| `0 5 * * *` | Offers crawl | Special promotions |
+| `0 */12 * * *` | Vehicles crawl | Vehicle inventory, specs, variant colors |
+| `0 6 * * *` | News crawl | OEM news updates |
+| `0 7 * * *` | Sitemap crawl | Sitemap + design checks |
+
+### OpenClaw Cron (orchestration + data sync)
+
+| Schedule | Skill | Purpose |
+|----------|-------|---------|
+| Every 30min | `oem-agent-hooks` | Memory sync — R2 backup of OEM configs |
+| **Every 2h** | **`oem-orchestrator`** | **Traffic Controller — monitor, retry, escalate** |
+| Every 4h | `oem-agent-hooks` | Health check — per-OEM success rate alerts |
+| Daily 3am | `oem-data-sync` | Color + pricing sync (5 API syncs + generic) |
+| Daily 6am | `oem-extract` | Full crawl extraction |
+| Every 6h | `oem-agent-hooks` | Embeddings check |
+| Monday 9am | `oem-agent-hooks` | Weekly Slack report |
+| Tuesday 4am | `oem-brand-ambassador` | AI page generation |
+
+**Handlers**: `src/scheduled.ts` (Cloudflare) + `src/routes/cron.ts` (OpenClaw)
 
 Each cron trigger now passes its `crawl_type` to the orchestrator, which filters `source_pages` by `page_type`:
 - `homepage` → `homepage` pages only (banners)
