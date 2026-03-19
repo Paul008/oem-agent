@@ -17,7 +17,7 @@ import { AiRouter, TASK_ROUTING, AVAILABLE_MODELS, TASK_TYPE_GROUPS, TASK_TYPE_L
 import type { RouteDecision } from '../ai/router';
 import { SalesRepAgent } from '../ai/sales-rep';
 import { MultiChannelNotifier } from '../notify/slack';
-import { allOemIds, getOemDefinition } from '../oem/registry';
+import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/registry';
 import type { OemId } from '../oem/types';
 import onboardingRoutes from './onboarding';
 
@@ -77,8 +77,9 @@ app.get('/health', (c) => {
  * GET /api/v1/oem-agent/oems
  * List all configured OEMs
  */
-app.get('/oems', (c) => {
-  const oems = allOemIds.map(id => {
+app.get('/oems', async (c) => {
+  // Static registry OEMs
+  const staticOems = allOemIds.map(id => {
     const def = getOemDefinition(id);
     return {
       id,
@@ -88,16 +89,40 @@ app.get('/oems', (c) => {
     };
   });
 
-  return c.json({ oems });
+  // Include dynamically onboarded OEMs from the database
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const { data: dbOems } = await supabase
+    .from('oems')
+    .select('id, name, base_url, is_active')
+    .eq('is_active', true);
+
+  const staticIds = new Set(allOemIds as string[]);
+  const dynamicOems = (dbOems || [])
+    .filter((o: any) => !staticIds.has(o.id))
+    .map((o: any) => ({
+      id: o.id,
+      name: o.name,
+      baseUrl: o.base_url,
+      isActive: o.is_active,
+    }));
+
+  return c.json({ oems: [...staticOems, ...dynamicOems] });
 });
 
 /**
  * GET /api/v1/oem-agent/oems/:oemId
  * Get details for a specific OEM
  */
-app.get('/oems/:oemId', (c) => {
+app.get('/oems/:oemId', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
-  const def = getOemDefinition(oemId);
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const def = await resolveOemDefinition(oemId, supabase);
 
   if (!def) {
     return c.json({ error: 'OEM not found' }, 404);
@@ -219,8 +244,12 @@ app.post('/admin/crawl/:oemId', async (c) => {
     return c.json({ error: 'Orchestrator not initialized' }, 500);
   }
 
-  // Validate OEM
-  const def = getOemDefinition(oemId);
+  // Validate OEM (static registry first, then DB for onboarded OEMs)
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const def = await resolveOemDefinition(oemId, supabase);
   if (!def) {
     return c.json({ error: 'OEM not found' }, 404);
   }
@@ -1562,7 +1591,11 @@ app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
     modelOverride = body?.modelOverride;
   } catch { /* no body is fine */ }
 
-  const def = getOemDefinition(oemId);
+  const supabaseForResolve = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const def = await resolveOemDefinition(oemId, supabaseForResolve);
   if (!def) {
     return c.json({ error: 'OEM not found' }, 404);
   }
@@ -1928,7 +1961,11 @@ app.put('/admin/screenshot/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
 
-  const def = getOemDefinition(oemId);
+  const supabaseForResolve = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const def = await resolveOemDefinition(oemId, supabaseForResolve);
   if (!def) {
     return c.json({ error: 'OEM not found' }, 404);
   }
