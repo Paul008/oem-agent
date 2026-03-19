@@ -39,6 +39,7 @@ const COLOR_MAP: Record<string, { name: string; type: string }> = {
   'D2U': { name: 'Astra Blue', type: 'metallic' },
   'DFG': { name: 'Pebble Grey', type: 'matte' },
   'DM4': { name: 'Honeydew', type: 'solid' },
+  'DY2': { name: 'Honeycomb', type: 'solid' },
   'DU3': { name: 'Yacht Blue', type: 'metallic' },
   'EBB': { name: 'Frost Blue', type: 'metallic' },
   'EBD': { name: 'Shale Grey', type: 'metallic' },
@@ -68,6 +69,16 @@ const COLOR_MAP: Record<string, { name: string; type: string }> = {
 
 /** Clear White is the only standard (no-cost) color across Kia AU */
 const STANDARD_COLORS = new Set(['UD']);
+
+/** Derive color type from name when not in COLOR_MAP */
+function deriveTypeFromName(name: string): string {
+  const l = name.toLowerCase();
+  if (l.includes('pearl')) return 'pearl';
+  if (l.includes('matte')) return 'matte';
+  if (l.includes('roof')) return 'two-tone';
+  if (l.includes('metallic')) return 'metallic';
+  return 'solid';
+}
 
 // ============================================================================
 // Model → first trim code (used to load the BYO color page)
@@ -140,15 +151,44 @@ export function extractColors(html: string): ExtractedColor[] {
   while ((m = re.exec(flat)) !== null) {
     const code = m[1];
     const inner = m[2];
-    const info = COLOR_MAP[code] ?? { name: `Unknown (${code})`, type: 'unknown' };
 
-    // Swatch: <img src="...excolorchip/...">
+    // Swatch: <img src="...excolorchip/..." alt="Color Name">
     const swatchMatch = inner.match(/src="([^"]+)"/);
     const swatchUrl = swatchMatch ? `https://www.kia.com${swatchMatch[1]}` : null;
 
     // Hero: <a class="color_a" path="/content/dam/.../kia-{model}-byo-colours-{trim}-{color}.webp">
     const heroMatch = inner.match(/class="color_a"[^>]*path="(\/content\/dam\/[^"]+\.webp)"/);
     const heroUrl = heroMatch ? `https://www.kia.com${heroMatch[1]}` : null;
+
+    // Resolve color name: COLOR_MAP → swatch alt text → swatch filename → hero filename
+    let info = COLOR_MAP[code];
+    if (!info) {
+      // Try alt text from swatch img: alt="Honeycomb"
+      const altMatch = inner.match(/alt="([^"]+)"/);
+      if (altMatch && altMatch[1].length > 1) {
+        info = { name: altMatch[1], type: deriveTypeFromName(altMatch[1]) };
+      }
+    }
+    if (!info) {
+      // Try swatch filename: excolorchip/honeycomb-DY2.gif → "Honeycomb"
+      const fnMatch = swatchUrl?.match(/excolorchip\/([^.]+)/);
+      if (fnMatch) {
+        const raw = fnMatch[1].replace(/-[A-Z0-9]{2,5}$/, '');
+        const name = raw.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        info = { name, type: deriveTypeFromName(name) };
+      }
+    }
+    if (!info) {
+      // Try hero filename: colours-gt-line-honeycomb.webp → "Honeycomb"
+      const heroFnMatch = heroUrl?.match(/colours?-[^/]+-([^.]+)\.webp/);
+      if (heroFnMatch) {
+        const name = heroFnMatch[1].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        info = { name, type: deriveTypeFromName(name) };
+      }
+    }
+    if (!info) {
+      info = { name: `Unknown (${code})`, type: 'unknown' };
+    }
 
     colors.push({
       code,
