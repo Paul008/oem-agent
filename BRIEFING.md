@@ -196,9 +196,10 @@ oems → vehicle_models → products → variant_colors
 
 | Schedule | Frequency | Purpose | Target |
 |----------|-----------|---------|--------|
-| `0 */2 * * *` | Every 2 hours | Homepage crawl | OEM homepages |
-| `0 */4 * * *` | Every 4 hours | Offers crawl | Special promotions |
-| `0 */12 * * *` | Every 12 hours | Vehicles crawl | Vehicle inventory |
+| `0 3 * * *` | Daily 3am | All-OEM data sync | Colors, pricing, driveaway (Kia BYO + Hyundai CGI + Mazda + Mitsubishi GraphQL + generic) |
+| `0 4 * * *` | Daily 4am | Homepage crawl | OEM homepages |
+| `0 5 * * *` | Daily 5am | Offers crawl | Special promotions |
+| `0 */12 * * *` | Every 12 hours | Vehicles crawl | Vehicle inventory, specs, variant colors |
 | `0 6 * * *` | Daily 6am | News crawl | OEM news updates |
 | `0 7 * * *` | Daily 7am | Sitemap crawl | Sitemap + design checks |
 

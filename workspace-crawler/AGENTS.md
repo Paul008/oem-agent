@@ -14,8 +14,8 @@
 
 | Schedule | Frequency | crawl_type | Page Types Crawled |
 |----------|-----------|------------|-------------------|
-| `0 */2 * * *` | Every 2 hours | `homepage` | `homepage` |
-| `0 */4 * * *` | Every 4 hours | `offers` | `offers` |
+| `0 4 * * *` | Daily 4am | `homepage` | `homepage` |
+| `0 5 * * *` | Daily 5am | `offers` | `offers` |
 | `0 */12 * * *` | Every 12 hours | `vehicles` | `vehicle`, `category`, `build_price` |
 | `0 6 * * *` | Daily 6am | `news` | `news` |
 | `0 7 * * *` | Daily 7am | `sitemap` | `sitemap` |

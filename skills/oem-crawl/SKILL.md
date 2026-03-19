@@ -54,7 +54,7 @@ For Gatsby-based OEMs (e.g. LDV AU), structured data is available at `page-data.
   "oem_id": "ford-au",
   "page_type": "offers",
   "trigger": "cron",
-  "cron": "0 */2 * * *"
+  "cron": "0 5 * * *"
 }
 ```
 

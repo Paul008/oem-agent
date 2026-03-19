@@ -1092,8 +1092,8 @@ The schedule balances freshness against Browser Rendering costs. "Cheap check" =
 
 | Page Type | Cheap Check Frequency | Full Render Trigger | Rationale |
 |-----------|----------------------|-------------------|-----------|
-| **Homepage** | Every 2 hours | If HTML hash changed | Banners rotate frequently, especially during campaigns |
-| **Offers page** | Every 4 hours | If HTML hash changed | Offers update less frequently, but price changes are high-value alerts |
+| **Homepage** | Daily (4am AEST) | If HTML hash changed | Banners rotate during campaigns; daily check sufficient |
+| **Offers page** | Daily (5am AEST) | If HTML hash changed | Offers update daily; price changes detected via hash |
 | **Vehicle pages** (each model) | Every 12 hours | If HTML hash changed | Model pages change rarely except during launches or MY updates |
 | **News/blog** | Every 24 hours | Always (pages are mostly static HTML) | Low frequency, but new posts indicate launches/announcements |
 | **Price guide** (where available) | Every 24 hours | If HTML hash changed | Price guides update quarterly or on MY change |

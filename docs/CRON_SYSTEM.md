@@ -16,11 +16,11 @@ The OEM Agent uses **two separate cron systems** working in parallel:
 {
   "triggers": {
     "crons": [
-      "0 */2 * * *",   // Every 2 hours
-      "0 */4 * * *",   // Every 4 hours
-      "0 */12 * * *",  // Every 12 hours
-      "0 6 * * *",     // Daily at 6am
-      "0 7 * * *"      // Daily at 7am
+      "0 4 * * *",     // Daily at 4am — Homepage crawl
+      "0 5 * * *",     // Daily at 5am — Offers crawl
+      "0 */12 * * *",  // Every 12 hours — Vehicles crawl
+      "0 6 * * *",     // Daily at 6am — News crawl
+      "0 7 * * *"      // Daily at 7am — Sitemap crawl
     ]
   }
 }
@@ -30,11 +30,11 @@ The OEM Agent uses **two separate cron systems** working in parallel:
 **File**: `src/scheduled.ts`
 
 Maps cron expressions to crawl types:
-- `0 */2 * * *` → Homepage crawl
-- `0 */4 * * *` → Offers crawl
-- `0 */12 * * *` → Vehicles crawl
-- `0 6 * * *` → News crawl
-- `0 7 * * *` → Sitemap crawl
+- `0 4 * * *` → Homepage crawl (daily 4am AEST)
+- `0 5 * * *` → Offers crawl (daily 5am AEST)
+- `0 */12 * * *` → Vehicles crawl (every 12 hours)
+- `0 6 * * *` → News crawl (daily 6am AEST)
+- `0 7 * * *` → Sitemap crawl (daily 7am AEST)
 
 ### Execution Flow
 ```

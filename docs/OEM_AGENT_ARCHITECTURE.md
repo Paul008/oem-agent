@@ -217,7 +217,7 @@ Scheduled tasks run inside the Gateway and persist across restarts.
     {
       "id": "oem-crawl-scheduled",
       "name": "OEM Scheduled Crawls",
-      "cron": "0 */2 * * *",
+      "cron": "0 4 * * *",
       "session": "isolated",
       "systemEvent": "Run oem-extract for all due pages",
       "delivery": { "mode": "slack", "channel": "#oem-alerts" }

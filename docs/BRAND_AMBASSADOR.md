@@ -124,12 +124,25 @@ All thresholds are configurable via `config/openclaw/cron-jobs.json`:
 **Pilot OEMs**: gwm-au, kia-au, hyundai-au
 **Max Models per Run**: 10
 
+## Manual Edit Protection
+
+Pages edited in the **Page Builder** are automatically protected from Brand Ambassador overwrite.
+
+When sections are saved via the page builder (`PUT /admin/update-sections`), the page JSON is flagged:
+```json
+{ "manually_edited": true, "manually_edited_at": "2026-03-19T..." }
+```
+
+The `shouldRegeneratePage()` method checks this flag immediately after the existence check. If set, it returns `shouldRegenerate: false` — preserving all composition edits.
+
+To force-regenerate a manually edited page, set `force_regenerate: true` in the cron job config or use the admin API.
+
 ## Execution Logs
 
 The system provides detailed logging for transparency:
 
 ```
-[BrandAmbassador] Skipping kia-au/sportage: Page is only 5 days old (<7 day threshold)
+[BrandAmbassador] Skipping kia-au/sportage: Page was manually edited in page builder (2026-03-19) — skipping to preserve composition edits
 [BrandAmbassador] Skipping kia-au/seltos: Page is up-to-date (12 days old, no content changes)
 [BrandAmbassador] Regenerating kia-au/ev6: Source data updated 2 days ago (page is 15 days old) (priority: high)
 [BrandAmbassador] Regenerating gwm-au/haval-h6: Source data content has changed (hash mismatch) (priority: high)
