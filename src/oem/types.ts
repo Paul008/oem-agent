@@ -9,7 +9,8 @@
 // Base Types
 // ============================================================================
 
-export type OemId =
+/** Built-in OEM identifiers for the 17 pre-configured Australian OEMs. */
+export type BuiltInOemId =
   | 'kia-au'
   | 'nissan-au'
   | 'ford-au'
@@ -27,6 +28,13 @@ export type OemId =
   | 'gmsv-au'
   | 'foton-au'
   | 'gac-au';
+
+/**
+ * Accepts both built-in and dynamically onboarded OEM IDs (e.g. 'cherry-au').
+ * The `(string & {})` branch preserves autocomplete for known IDs while
+ * allowing any valid string at runtime.
+ */
+export type OemId = BuiltInOemId | (string & {});
 
 export type BodyType = 'suv' | 'sedan' | 'hatch' | 'ute' | 'van' | 'bus' | 'people_mover' | 'sports' | 'cab_chassis' | 'campervan' | null;
 export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'phev' | 'electric' | null;

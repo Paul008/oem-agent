@@ -565,7 +565,7 @@ export const gacAu: OemDefinition = {
 // Registry Collection
 // ============================================================================
 
-export const oemRegistry: Record<OemId, OemDefinition> = {
+export const oemRegistry: Record<string, OemDefinition> = {
   'kia-au': kiaAu,
   'nissan-au': nissanAu,
   'ford-au': fordAu,
@@ -589,6 +589,55 @@ export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];
 
 export function getOemDefinition(id: OemId): OemDefinition | undefined {
   return oemRegistry[id];
+}
+
+/**
+ * Resolve an OEM definition from the static registry first, then fall back
+ * to the Supabase `oems` table for dynamically onboarded OEMs.
+ */
+export async function resolveOemDefinition(
+  id: OemId,
+  supabase: { from: (table: string) => any },
+): Promise<OemDefinition | undefined> {
+  // 1. Check static registry
+  const staticDef = getOemDefinition(id);
+  if (staticDef) return staticDef;
+
+  // 2. Fall back to database for dynamically onboarded OEMs
+  const { data } = await supabase
+    .from('oems')
+    .select('id, name, base_url, config_json, is_active')
+    .eq('id', id)
+    .eq('is_active', true)
+    .single();
+
+  if (!data) return undefined;
+
+  const config = data.config_json || {};
+  return {
+    id: data.id as OemId,
+    name: data.name,
+    baseUrl: data.base_url,
+    config: {
+      homepage: config.homepage || data.base_url,
+      vehicles_index: config.vehicles_index,
+      offers: config.offers || data.base_url,
+      news: config.news,
+      schedule: config.schedule || {
+        homepage_minutes: 60,
+        offers_minutes: 120,
+        vehicles_minutes: 360,
+        news_minutes: 1440,
+      },
+      render_config: config.render_config,
+      render_required: config.render_required,
+      sub_brands: config.sub_brands,
+    },
+    selectors: config.selectors || {},
+    flags: config.flags || {
+      requiresBrowserRendering: false,
+    },
+  };
 }
 
 export function getAllOemDefinitions(): OemDefinition[] {
