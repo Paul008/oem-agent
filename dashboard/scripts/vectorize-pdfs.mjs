@@ -85,11 +85,58 @@ async function downloadPdf(url) {
 }
 
 /**
- * Extract text from a PDF buffer using pdf-parse.
+ * Extract text from a PDF buffer via Gemini 2.5 Flash vision.
+ * Handles both text-based and image-based PDFs natively.
+ * Falls back to pdf-parse for very large files (>40MB Gemini limit).
  */
 async function extractText(buffer) {
-  const result = await pdf(buffer)
-  return result.text || ''
+  // Validate it's actually a PDF
+  if (!Buffer.from(buffer).slice(0, 5).toString().startsWith('%PDF')) {
+    console.log('    → Not a valid PDF (HTML redirect or error page)')
+    return ''
+  }
+
+  // Gemini has a ~20MB inline limit — use it for most brochures
+  if (buffer.length > 20 * 1024 * 1024) {
+    console.log('    → PDF too large for Gemini inline (' + Math.round(buffer.length / 1024 / 1024) + 'MB), trying pdf-parse...')
+    try {
+      const result = await pdf(buffer)
+      return result.text || ''
+    } catch { return '' }
+  }
+
+  // Use Gemini 2.5 Flash for native PDF understanding
+  try {
+    const base64 = Buffer.from(buffer).toString('base64')
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: 'application/pdf', data: base64 } },
+              { text: 'Extract ALL text content from this automotive PDF document. Include every heading, paragraph, specification, feature, price, disclaimer, and footnote. Output plain text only, preserving the document structure with line breaks between sections. Do not summarize — extract everything verbatim.' },
+            ],
+          }],
+          generationConfig: { maxOutputTokens: 8192 },
+        }),
+      }
+    )
+    if (!res.ok) {
+      const err = await res.text()
+      console.log('    → Gemini error:', res.status, err.slice(0, 100))
+      return ''
+    }
+    const data = await res.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    if (text.length > 0) console.log('    → Gemini extracted', text.length, 'chars')
+    return text
+  } catch (e) {
+    console.log('    → Gemini extraction failed:', e.message)
+    return ''
+  }
 }
 
 /**
