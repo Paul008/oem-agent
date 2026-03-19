@@ -21,8 +21,8 @@ export const CLOUDFLARE_TRIGGERS = [
   {
     id: 'cf-homepage-crawl',
     name: 'Homepage Crawl',
-    description: 'Crawl OEM homepages for changes',
-    schedule: '0 */2 * * *',
+    description: 'Daily crawl of OEM homepages for changes',
+    schedule: '0 4 * * *',
     timezone: 'Australia/Sydney',
     skill: 'cloudflare-scheduled',
     enabled: true,

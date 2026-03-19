@@ -1297,6 +1297,17 @@ export class PageGenerator {
       };
     }
 
+    // 1b. Skip manually edited pages — page builder edits take priority
+    checksDone.push('manual_edit');
+    if (existingPage.manually_edited) {
+      return {
+        shouldRegenerate: false,
+        reason: `Page was manually edited in page builder (${existingPage.manually_edited_at || 'unknown date'}) — skipping to preserve composition edits`,
+        priority: 'low',
+        checksDone,
+      };
+    }
+
     // 2. Age-based staleness
     checksDone.push('age');
     const pageGeneratedAt = new Date(existingPage.generated_at);

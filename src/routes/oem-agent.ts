@@ -1728,6 +1728,9 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
   pageData.content.sections = body.sections;
   pageData.version = (pageData.version || 0) + 1;
   pageData.generated_at = new Date().toISOString();
+  // Mark as manually edited — Brand Ambassador will skip this page
+  pageData.manually_edited = true;
+  pageData.manually_edited_at = new Date().toISOString();
 
   const jsonStr = JSON.stringify(pageData);
   const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
