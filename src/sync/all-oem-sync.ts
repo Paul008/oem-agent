@@ -414,7 +414,7 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
   const genericOems = [
     'ford-au', 'nissan-au', 'toyota-au', 'isuzu-au', 'subaru-au',
     'suzuki-au', 'volkswagen-au', 'gwm-au', 'gmsv-au', 'ldv-au',
-    'gac-au', 'foton-au', 'kgm-au',
+    'gac-au', 'foton-au', 'kgm-au', 'chery-au',
   ];
 
   for (const oemId of genericOems) {
