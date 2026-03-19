@@ -445,7 +445,9 @@ async function syncEmbeddings(
 
 /**
  * Execute OEM data sync job
- * Runs Kia AU color sync (and future OEM-specific sync tasks).
+ * Runs Kia AU color sync + all-OEM color/pricing sync.
+ * Daily: Kia BYO + Hyundai CGI + Mazda /cars/ + Mitsubishi GraphQL + generic pricing
+ * Monthly: Same + re-seed discovered APIs
  */
 async function executeOemDataSync(
   job: CronJob,
@@ -454,18 +456,24 @@ async function executeOemDataSync(
   const config = job.config as { schedule: string; timeout_per_script?: number };
   const { createSupabaseClient } = await import('../utils/supabase');
   const { executeKiaColorSync } = await import('../sync/kia-colors');
+  const { executeAllOemSync } = await import('../sync/all-oem-sync');
 
   const supabase = createSupabaseClient({
     url: env.SUPABASE_URL,
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   });
 
+  // Kia: BYO colors + 8-state driveaway pricing
   const kiaResult = await executeKiaColorSync(supabase);
+
+  // All other OEMs: colors + pricing from their respective APIs
+  const allOemResult = await executeAllOemSync(supabase);
 
   return {
     skill: 'oem-data-sync',
     schedule: config.schedule,
     kia_color_sync: kiaResult,
+    all_oem_sync: allOemResult,
   };
 }
 

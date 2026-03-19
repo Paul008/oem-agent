@@ -112,8 +112,8 @@
     },
     {
       "id": "oem-data-sync-daily",
-      "name": "Daily Kia Color Sync",
-      "description": "Sync Kia AU variant colors, swatches, hero images, and price deltas from BYO pages",
+      "name": "Daily All-OEM Color + Pricing Sync",
+      "description": "Sync variant colors, pricing, and driveaway estimates for all 17 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, plus generic pricing refresh for all other OEMs.",
       "schedule": "0 3 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-data-sync",
