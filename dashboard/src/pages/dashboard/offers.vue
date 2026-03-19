@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed } from 'vue'
-import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff, Clock, RefreshCw, Filter } from 'lucide-vue-next'
+import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff, Clock, RefreshCw, Filter, ExternalLink, FileText, Info } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -17,6 +17,7 @@ const filterStatus = ref<'all' | 'active' | 'expired'>('active')
 const searchQuery = ref('')
 const page = ref(1)
 const perPage = ref(24)
+const selectedOffer = ref<Offer | null>(null)
 
 onMounted(async () => {
   try {
@@ -235,8 +236,9 @@ function timeAgo(dateStr: string | null) {
         <UiCard
           v-for="offer in paginated"
           :key="offer.id"
-          class="overflow-hidden flex flex-col !py-0"
+          class="overflow-hidden flex flex-col !py-0 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
           :class="{ 'opacity-50': isExpired(offer) }"
+          @click="selectedOffer = offer"
         >
           <!-- Hero Image Area -->
           <div class="aspect-[16/10] relative bg-muted overflow-hidden">
@@ -358,5 +360,97 @@ function timeAgo(dateStr: string | null) {
         </div>
       </div>
     </template>
+
+    <!-- Offer Detail Dialog -->
+    <UiDialog :open="!!selectedOffer" @update:open="selectedOffer = null">
+      <UiDialogContent v-if="selectedOffer" class="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <!-- Hero -->
+        <div v-if="selectedOffer.hero_image_r2_key" class="aspect-[16/9] -mx-6 -mt-6 mb-4 bg-muted overflow-hidden rounded-t-lg">
+          <img :src="selectedOffer.hero_image_r2_key" :alt="selectedOffer.title" class="w-full h-full object-contain" />
+        </div>
+
+        <UiDialogHeader>
+          <div class="flex items-start justify-between gap-2">
+            <UiDialogTitle class="text-lg">{{ selectedOffer.title }}</UiDialogTitle>
+            <UiBadge v-if="selectedOffer.offer_type" variant="secondary" class="shrink-0">{{ selectedOffer.offer_type }}</UiBadge>
+          </div>
+          <UiDialogDescription v-if="selectedOffer.description" class="mt-1">
+            {{ selectedOffer.description }}
+          </UiDialogDescription>
+        </UiDialogHeader>
+
+        <div class="space-y-4 mt-4">
+          <!-- Pricing -->
+          <div v-if="selectedOffer.price_amount || selectedOffer.price_raw_string" class="bg-muted/50 rounded-lg p-4">
+            <h4 class="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Pricing</h4>
+            <div class="space-y-1.5">
+              <div v-if="selectedOffer.price_amount" class="flex justify-between">
+                <span class="text-sm text-muted-foreground">Driveaway</span>
+                <span class="text-lg font-bold">{{ formatPrice(selectedOffer.price_amount) }}</span>
+              </div>
+              <div v-if="selectedOffer.abn_price_amount && selectedOffer.abn_price_amount !== selectedOffer.price_amount" class="flex justify-between">
+                <span class="text-sm text-muted-foreground">ABN Price</span>
+                <span class="text-lg font-bold text-blue-600">{{ formatPrice(selectedOffer.abn_price_amount) }}</span>
+              </div>
+              <div v-if="selectedOffer.saving_amount" class="flex justify-between">
+                <span class="text-sm text-muted-foreground">Saving</span>
+                <span class="text-sm font-semibold text-green-600">{{ formatPrice(selectedOffer.saving_amount) }}</span>
+              </div>
+              <p v-if="selectedOffer.price_raw_string" class="text-xs text-muted-foreground mt-1.5 pt-1.5 border-t">
+                {{ selectedOffer.price_raw_string }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Validity + Eligibility -->
+          <div v-if="selectedOffer.validity_start || selectedOffer.validity_end || selectedOffer.eligibility" class="bg-muted/50 rounded-lg p-4">
+            <h4 class="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Validity</h4>
+            <div class="space-y-1.5 text-sm">
+              <div v-if="selectedOffer.validity_start || selectedOffer.validity_end" class="flex items-center gap-2">
+                <Calendar class="size-3.5 text-muted-foreground shrink-0" />
+                <span>{{ formatDate(selectedOffer.validity_start) }} — {{ formatDate(selectedOffer.validity_end) }}</span>
+                <UiBadge v-if="isExpired(selectedOffer)" variant="destructive" class="text-[10px]">Expired</UiBadge>
+              </div>
+              <div v-if="selectedOffer.eligibility" class="flex items-center gap-2 text-muted-foreground">
+                <Info class="size-3.5 shrink-0" />
+                <span>{{ selectedOffer.eligibility }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div v-if="selectedOffer.cta_url" class="flex gap-2">
+            <a :href="selectedOffer.cta_url" target="_blank" class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+              <ExternalLink class="size-3.5" />
+              {{ selectedOffer.cta_text || 'View Offer' }}
+            </a>
+            <a v-if="selectedOffer.source_url && selectedOffer.source_url !== selectedOffer.cta_url" :href="selectedOffer.source_url" target="_blank" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:underline">
+              <ExternalLink class="size-3.5" />
+              Source Page
+            </a>
+          </div>
+
+          <!-- Disclaimer -->
+          <details v-if="selectedOffer.disclaimer_text || selectedOffer.disclaimer_html" class="group">
+            <summary class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+              <FileText class="size-3.5" />
+              <span>Disclaimer</span>
+              <span class="group-open:rotate-90 transition-transform text-[10px]">&#9654;</span>
+            </summary>
+            <div v-if="selectedOffer.disclaimer_html" class="mt-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 prose prose-xs max-w-none" v-html="selectedOffer.disclaimer_html" />
+            <p v-else class="mt-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
+              {{ selectedOffer.disclaimer_text }}
+            </p>
+          </details>
+
+          <!-- Metadata -->
+          <div class="text-[10px] text-muted-foreground/50 flex items-center gap-3 pt-2 border-t">
+            <span>OEM: {{ selectedOffer.oem_id }}</span>
+            <span>ID: {{ selectedOffer.id?.slice(0, 8) }}</span>
+            <span v-if="selectedOffer.last_seen_at">Seen: {{ timeAgo(selectedOffer.last_seen_at) }}</span>
+          </div>
+        </div>
+      </UiDialogContent>
+    </UiDialog>
   </BasicPage>
 </template>
