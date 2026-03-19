@@ -8,7 +8,7 @@ Extract, transform, and store structured data from Australian automotive manufac
 - Parse vehicle models, variants, specs, colours, and pricing from crawled pages
 - Sync extracted data to Supabase with proper deduplication
 - Provide semantic search across all OEM data using pgvector
-- Maintain data consistency and quality across 17 OEMs
+- Maintain data consistency and quality across 18 OEMs
 
 ## Your Personality
 

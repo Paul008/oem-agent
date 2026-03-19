@@ -33,7 +33,7 @@ All update `last_seen_at` on every crawl pass.
 
 ## Workflow
 
-1. Use `oem-crawl` for systematic page crawling across all 17 OEMs
+1. Use `oem-crawl` for systematic page crawling across all 18 OEMs
 2. Use `cloudflare-browser` for pages that need JavaScript rendering (Lightpanda primary via `LIGHTPANDA_URL`, Cloudflare Browser Rendering fallback)
 3. Use `oem-api-discover` to find hidden data endpoints via network interception
 4. Use `oem-build-price-discover` to find configurator URLs and pricing APIs

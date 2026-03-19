@@ -11,7 +11,7 @@
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 17 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 18 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
@@ -65,7 +65,7 @@ All skills store data in Supabase. Key tables:
 
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
-| `oems` | 17 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
+| `oems` | 18 OEM records with config_json.api_docs, design_profile_json | PK: id (e.g. 'ford-au') |
 | `vehicle_models` | Models per OEM | Unique: oem_id, slug |
 | `products` | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `buildSpecsJson()`) | external_key pattern: `{oem}-{code}-{variant}` |
 | `variant_colors` | Colour options per product (auto-synced for all OEMs via `syncVariantColors()`) | Unique: product_id, color_code |
@@ -75,14 +75,14 @@ All skills store data in Supabase. Key tables:
 | `discovered_apis` | API endpoints per OEM | Unique: oem_id, url |
 | `source_pages` | URLs monitored for changes | |
 | `change_events` | Audit log of detected changes | |
-| `offers` (283) | Promotional offers across ALL 17 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
-| `banners` (144) | Homepage/offers hero banners (all 17 OEMs), 100% with desktop images | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
-| `oem_portals` (31) | Marketing portal credentials (17 OEMs) | portal_url, username, password, guidelines_pdf_url |
+| `offers` (283) | Promotional offers across ALL 18 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
+| `banners` (144) | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
+| `oem_portals` (31) | Marketing portal credentials (18 OEMs) | portal_url, username, password, guidelines_pdf_url |
 | `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl job tracking | |
 
-**OEM IDs**: ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+**OEM IDs**: chery-au, ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ## Dealer API (WP-Compatible Middleware)
 
@@ -151,7 +151,7 @@ Accessories are seeded via `dashboard/scripts/seed-{oem}-accessories.mjs`. Each 
 
 The dashboard includes a visual page builder for editing AI-generated model pages:
 
-- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 17 OEM generated pages + 10 curated OEM-branded templates
+- **Template Gallery** (`/dashboard/page-builder/`): Browse sections from all 18 OEM generated pages + 10 curated OEM-branded templates
 - **Page Editor** (`/dashboard/page-builder/[slug]`): Split-pane visual editor with live preview, responsive toolbar, undo/redo, copy/paste, media upload
 - **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
 - **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list with disclaimers)

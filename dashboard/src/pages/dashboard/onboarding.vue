@@ -681,7 +681,7 @@ async function copyToClipboard(text: string) {
           <UiCardContent class="text-sm space-y-2">
             <ol class="list-decimal list-inside space-y-1">
               <li>Apply the code snippets above to the respective files</li>
-              <li>Update OEM count references (run <code>grep -rn "17 OEM" --include="*.md" --include="*.ts"</code>)</li>
+              <li>Update OEM count references (run <code>grep -rn "18 OEM" --include="*.md" --include="*.ts"</code>)</li>
               <li>Deploy: <code>npm run deploy</code></li>
               <li>Trigger first crawl from the Import Runs page</li>
             </ol>

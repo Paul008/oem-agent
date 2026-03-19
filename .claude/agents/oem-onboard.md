@@ -46,7 +46,7 @@ Add `| '<oem-id>'` to the `OemId` type union. Place it alphabetically or after t
 
 1. Add an `OemDefinition` export (e.g. `export const fotonAu: OemDefinition = { ... }`) before the "Registry Collection" section
 2. Add the entry to the `oemRegistry` object
-3. Update the file header comment count (e.g. "17 Australian OEMs")
+3. Update the file header comment count (e.g. "18 Australian OEMs")
 4. Update the `generateOemSeedData()` comment count
 
 Use existing OEM definitions as the template. Key fields:

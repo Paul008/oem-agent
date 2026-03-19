@@ -4,7 +4,7 @@
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
-| **oem-report** | Reporting | Slack alerts, daily digests across 17 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 18 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-agent-hooks** | Lifecycle hooks | Health monitoring, embedding sync, repair |
 
@@ -13,8 +13,8 @@
 | Table | Purpose |
 |-------|---------|
 | `products` | Vehicle variants, specs (auto-built `specs_json`), pricing |
-| `offers` | Promotional offers (283 across all 17 OEMs) |
-| `banners` | Homepage/offers hero banners (144 across all 17 OEMs, 100% with desktop images) |
+| `offers` | Promotional offers (283 across all 18 OEMs) |
+| `banners` | Homepage/offers hero banners (144 across all 18 OEMs, 100% with desktop images) |
 | `change_events` | Audit log of detected changes |
 | `variant_pricing` | Per-state driveaway pricing |
 

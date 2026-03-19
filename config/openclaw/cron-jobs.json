@@ -30,7 +30,7 @@
       "skill": "oem-extract",
       "enabled": true,
       "config": {
-        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au", "nissan-au", "gwm-au"],
+        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au", "nissan-au", "gwm-au", "chery-au"],
         "extraction_layers": ["L2_FAST_PATH", "L3_ADAPTIVE"],
         "max_concurrent": 3,
         "notify_on_change": true,
@@ -113,7 +113,7 @@
     {
       "id": "oem-data-sync-daily",
       "name": "Daily All-OEM Color + Pricing Sync",
-      "description": "Sync variant colors, pricing, and driveaway estimates for all 17 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, plus generic pricing refresh for all other OEMs.",
+      "description": "Sync variant colors, pricing, and driveaway estimates for all 18 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, plus generic pricing refresh for all other OEMs.",
       "schedule": "0 3 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-data-sync",

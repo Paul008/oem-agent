@@ -1,7 +1,7 @@
 /**
  * OEM Registry
  * 
- * Configuration for all 17 Australian automotive OEMs.
+ * Configuration for all 18 Australian automotive OEMs.
  * Based on crawl-config-v1.2 specification.
  */
 
@@ -643,7 +643,7 @@ export function generateOemSeedData(): string {
   });
 
   return `
--- Seed data for 17 Australian OEMs
+-- Seed data for 18 Australian OEMs
 INSERT INTO oems (id, name, base_url, config_json, is_active)
 VALUES
 ${values.join(',\n')}

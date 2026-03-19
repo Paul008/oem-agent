@@ -175,9 +175,9 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 
 **Notes:**
 - Fetches portal credentials from Monday.com board via GraphQL API (account 229224, user 574175).
-- Fuzzy-matches board item names to 17 OEM IDs.
+- Fuzzy-matches board item names to 18 OEM IDs.
 - Extracts: portal_url, username, password, marketing_contact, guidelines_pdf_url (from Monday files column).
-- 31 portals across all 17 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
+- 31 portals across all 18 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
 
 ### Brochures (1 script)
 

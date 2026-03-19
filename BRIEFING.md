@@ -11,7 +11,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 - R2-backed conversation persistence
 - Headless browser automation via Lightpanda (primary, raw CDP WebSocket) with Cloudflare Browser Rendering fallback
 - Supabase for structured data storage
-- Scheduled crawls for 17 Australian automotive manufacturers
+- Scheduled crawls for 18 Australian automotive manufacturers
 - Dashboard UI for monitoring (Cloudflare Pages, shadcn-vue-admin)
 
 ## Architecture
@@ -93,10 +93,10 @@ r2://oem-agent-assets/
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
 | `source_pages` | 147 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | 283 | Promotional offers across all 17 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
+| `offers` | 283 | Promotional offers across all 18 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 144 | Homepage/offers hero banners (all 17 OEMs), 100% with desktop images |
+| `banners` | 144 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (sourced from Monday.com) |
 
 **Entity Hierarchy:**
@@ -161,7 +161,7 @@ oems → vehicle_models → products → variant_colors
 - **History**: Undo/redo system with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z), history panel
 - **Copy/paste**: Section clipboard (copy JSON, paste from clipboard), cross-page section reuse
 - **Template gallery**: In-editor Sheet drawer + landing page at `/dashboard/page-builder/`
-  - Fetches sections from all 17 OEM generated pages via Worker API
+  - Fetches sections from all 18 OEM generated pages via Worker API
   - 10 curated OEM-branded templates (Kia dark hero, Toyota split CTA, Hyundai tech tabs, etc.)
   - Filter by OEM, section type, search query
 - **Subpages**: Convention-based `{modelSlug}--{subpageSlug}` stored flat in R2
@@ -186,7 +186,7 @@ oems → vehicle_models → products → variant_colors
 | **oem-data-sync** | Data synchronization | 37 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 17 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 18 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
@@ -453,12 +453,12 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 **Status**: ✅ Production Ready
 **Last Deployment**: 2026-03-18
 **Final State (2026-03-18)**:
-- 17 OEMs ALL complete, 757 products with 100% specs_json coverage
+- 18 OEMs ALL complete, 757 products with 100% specs_json coverage
 - 703/736 priced (95.5%) with driveaway estimates — 1098 variant_pricing rows across all 8 AU states
 - Kia AU has true per-state driveaway pricing (standard + premium paint) from selectPriceByTrim API
-- 162 vehicle_models, 283 offers across ALL 17 OEMs, 279/283 offer images (98.6%)
+- 162 vehicle_models, 283 offers across ALL 18 OEMs, 279/283 offer images (98.6%)
 - ~5900 variant_colors with hero images and swatches; 144 banners, 100% with desktop images
-- 58+ discovered APIs; 147 active source pages; CMS frameworks mapped for all 17 OEMs
+- 58+ discovered APIs; 147 active source pages; CMS frameworks mapped for all 18 OEMs
 - variant_colors auto-synced, specs_json auto-built on every product upsert
 - Lightpanda primary browser, Cloudflare fallback; Kia BYO renders replace Cloudinary images
 

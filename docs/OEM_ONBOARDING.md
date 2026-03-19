@@ -102,7 +102,7 @@ export const fotonAu: OemDefinition = {
 
 Also update:
 - The `oemRegistry` object: add `'foton-au': fotonAu`
-- The file header comment count (e.g. "17 Australian OEMs")
+- The file header comment count (e.g. "18 Australian OEMs")
 - The `generateOemSeedData()` comment count
 
 ---
@@ -344,7 +344,7 @@ If the OEM's website exposes color data (color names, swatches, vehicle renders 
 
 | Date | OEM | Count | Notes |
 |------|-----|-------|-------|
-| 2026-03-18 | GAC Australia (`gac-au`) | 17 | All 17 OEMs complete. 757 products, 283 offers, 144 banners |
+| 2026-03-18 | GAC Australia (`gac-au`) | 17 | All 18 OEMs complete. 757 products, 283 offers, 144 banners |
 | 2026-03-17 | LDV Australia (`ldv-au`) full data | 16 | Gatsby page-data.json, 13 models, 11 products, 47 colors, 9 pricing |
 | 2026-02-24 | Foton Australia (`foton-au`) | 16 | Server-rendered, pricing API, ute+truck, 16 colors |
 | 2026-02-24 | GMSV Australia (`gmsv-au`) | 15 | Multi-sub-brand (Chevrolet, Corvette, GMC), 55 colors dual-source |

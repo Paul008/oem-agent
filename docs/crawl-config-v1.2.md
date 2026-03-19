@@ -1859,7 +1859,7 @@ This section defines which AI model/provider handles each task in the pipeline. 
 }
 ```
 
-### 10.5 Estimated Monthly AI Costs (17 OEMs)
+### 10.5 Estimated Monthly AI Costs (18 OEMs)
 
 | Task Category | Model | Est. Monthly Calls | Avg Tokens/Call | Monthly Cost |
 |--------------|-------|-------------------|----------------|-------------|
@@ -2388,7 +2388,7 @@ Design captures are **infrequent and event-driven** — not on the same high-fre
 - 3 passes × ~5 pages × ~2 screenshots each = ~30 API calls
 - Average ~5K input tokens + ~3K output tokens per call
 - Cost: ~$0.09 per full OEM capture (input) + ~$0.075 (output) ≈ **$0.17 per OEM**
-- Quarterly full audit of 17 OEMs: ~**$2.89**
+- Quarterly full audit of 18 OEMs: ~**$2.89**
 - Event-triggered re-captures (est. ~5/month): ~**$0.85/month**
 
 ### 12.6 Per-OEM Brand Identity Notes

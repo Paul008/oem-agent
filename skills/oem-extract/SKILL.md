@@ -58,7 +58,7 @@ Vehicle listings with specifications, pricing, and features.
 - `safety` - ancap_stars, airbags
 - `wheels` - size, type
 
-All 8 categories at 100% coverage across all 17 OEMs. GMSV AU fully populated (6 vehicle_models, 7 products, 55 colors, full specs).
+All 8 categories at 100% coverage across all 18 OEMs. GMSV AU fully populated (6 vehicle_models, 7 products, 55 colors, full specs).
 
 **Vehicle Specifications (scalar columns — auto-populated from `meta_json` on every upsert):**
 - `engine_size`, `cylinders`, `transmission`, `gears`, `drive`, `doors`, `seats`
@@ -121,7 +121,7 @@ Promotional offers including factory bonuses, run-out sales, value-add deals, an
 
 ### Banners
 
-Homepage and offers page hero banners across all 17 OEMs (144 banners, 100% with desktop images).
+Homepage and offers page hero banners across all 18 OEMs (144 banners, 100% with desktop images).
 
 **Core Fields:**
 - `page_url` - Which page the banner appears on (homepage, offers page)

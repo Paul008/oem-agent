@@ -64,16 +64,16 @@ r2://oem-agent-assets/
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
 | `source_pages` | 147 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | 283 | Promotional offers across ALL 17 OEMs (279/283 with hero images, 98.6%) |
+| `offers` | 283 | Promotional offers across ALL 18 OEMs (279/283 with hero images, 98.6%) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 144 | Homepage/offers hero banners (all 17 OEMs), 100% with desktop images |
+| `banners` | 144 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (from Monday.com) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 
 #### Entity Hierarchy
 ```
-oems (17) → vehicle_models (~162) → products (757) → variant_colors (~5900)
+oems (18) → vehicle_models (~162) → products (757) → variant_colors (~5900)
                                                     → variant_pricing (~1098)
                                  → accessories (2702) via accessory_models (2826)
            → oem_portals (31) — portal credentials, brand guidelines
@@ -82,7 +82,7 @@ oems (17) → vehicle_models (~162) → products (757) → variant_colors (~5900
 ```
 
 #### OEM IDs
-ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+chery-au, ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ### Cloudflare Browser Rendering
 - **CDP WebSocket**: /cdp?secret=$CDP_SECRET
@@ -103,7 +103,7 @@ ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au
 
 ### Page Builder
 - **Editor** (`page-builder/[slug].vue`): Visual section editor with live preview, responsive toolbar, undo/redo, copy/paste
-- **Template Gallery** (`page-builder/index.vue`): Browse sections from all 17 OEM generated pages + 10 curated templates
+- **Template Gallery** (`page-builder/index.vue`): Browse sections from all 18 OEM generated pages + 10 curated templates
 - **In-editor drawer**: Sheet drawer from Add Section picker, defaults to current page's OEM
 - **Section types** (15): hero, intro, tabs, color-picker, specs-grid, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider
 - **Tab variants**: `default` (horizontal tab bar), `kia-feature-bullets` (two-column bullet list)
