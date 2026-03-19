@@ -420,8 +420,19 @@ dealerApi.get('/catalog', async (c) => {
       };
     });
 
+    // Fetch universal disclaimer from OEM config
+    const { data: oemRecord } = await supabase
+      .from('oems')
+      .select('config_json')
+      .eq('id', oemId)
+      .single();
+    const universalDisclaimer = (oemRecord?.config_json as any)?.universal_disclaimer || null;
+
     c.header('Cache-Control', 'public, max-age=300');
-    return c.json(catalog);
+    return c.json({
+      models: catalog,
+      universal_disclaimer: universalDisclaimer,
+    });
   } catch (err) {
     console.error('[dealer-api] catalog error:', err);
     return c.json({ code: 'internal_error', message: 'Failed to fetch catalog' }, 500);
