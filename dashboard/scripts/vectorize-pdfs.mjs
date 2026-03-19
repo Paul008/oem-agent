@@ -11,7 +11,17 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
-const pdf = require('pdf-parse')
+const { PDFParse } = require('pdf-parse')
+async function pdf(buffer) {
+  const parser = new PDFParse(new Uint8Array(buffer))
+  await parser.load()
+  const info = await parser.getInfo()
+  const pages = []
+  for (let i = 1; i <= (info.numPages || 50); i++) {
+    try { pages.push(await parser.getPageText(i)) } catch { break }
+  }
+  return { numpages: info.numPages || pages.length, text: pages.join('\n') }
+}
 import { writeFile, unlink, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
