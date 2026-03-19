@@ -867,4 +867,8 @@ export const OEM_BRAND_NOTES: Record<OemId, { colors: string[]; notes: string }>
     colors: ['#0052CC'], // GAC blue
     notes: 'Nuxt 3 SSR, HmacSHA256 signed API (eu-www-api.gacgroup.com), SUV/MPV/EV range, AION EV sub-brand',
   },
+  'chery-au': {
+    colors: ['#EB5757', '#333333'], // Chery red + charcoal
+    notes: 'Drupal CMS, SSR (no browser needed). Tiggo SUV range + Omoda sub-brand + C5/E5 models. 7-year warranty. Super Hybrid technology. 71 dealers AU-wide.',
+  },
 };

@@ -561,6 +561,34 @@ export const gacAu: OemDefinition = {
   },
 };
 
+const cheryAu: OemDefinition = {
+  id: 'chery-au',
+  name: 'Chery Australia',
+  baseUrl: 'https://cherymotor.com.au',
+  config: {
+    homepage: '/',
+    vehicles_index: '/models',
+    offers: '/buying/offers',
+    news: '/news',
+    sub_brands: ['omoda'],
+    schedule: {
+      homepage_minutes: 1440,
+      offers_minutes: 1440,
+      vehicles_minutes: 720,
+      news_minutes: 1440,
+    },
+  },
+  selectors: {
+    vehicleLinks: 'a[href*="/models/"]',
+    heroSlides: '.hero, [class*="hero"], [class*="banner"]',
+    offerTiles: '[class*="offer"], [class*="promo"], [class*="card"]',
+  },
+  flags: {
+    requiresBrowserRendering: false,
+    framework: 'drupal',
+  },
+};
+
 // ============================================================================
 // Registry Collection
 // ============================================================================
@@ -583,6 +611,7 @@ export const oemRegistry: Record<OemId, OemDefinition> = {
   'gmsv-au': gmsvAu,
   'foton-au': fotonAu,
   'gac-au': gacAu,
+  'chery-au': cheryAu,
 };
 
 export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];

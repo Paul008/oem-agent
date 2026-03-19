@@ -26,7 +26,8 @@ export type OemId =
   | 'subaru-au'
   | 'gmsv-au'
   | 'foton-au'
-  | 'gac-au';
+  | 'gac-au'
+  | 'chery-au';
 
 export type BodyType = 'suv' | 'sedan' | 'hatch' | 'ute' | 'van' | 'bus' | 'people_mover' | 'sports' | 'cab_chassis' | 'campervan' | null;
 export type FuelType = 'petrol' | 'diesel' | 'hybrid' | 'phev' | 'electric' | null;
