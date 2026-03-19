@@ -2,7 +2,7 @@
  * PDF Vectorization Pipeline
  *
  * Downloads brochure and guidelines PDFs, extracts text, chunks it,
- * generates embeddings via Google text-embedding-004, and upserts
+ * generates embeddings via Google gemini-embedding-001, and upserts
  * into the pdf_embeddings table.
  *
  * Requires: GOOGLE_API_KEY env var
@@ -41,7 +41,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const CHUNK_SIZE = 1000
 const CHUNK_OVERLAP = 200
-const EMBEDDING_MODEL = 'text-embedding-004'
+const EMBEDDING_MODEL = 'gemini-embedding-001'
 const EMBEDDING_DIMENSIONS = 768
 const BATCH_DELAY_MS = 250 // delay between embedding API calls to avoid rate limits
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
@@ -164,7 +164,7 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
 }
 
 /**
- * Generate an embedding for a text chunk via Google text-embedding-004.
+ * Generate an embedding for a text chunk via Google gemini-embedding-001.
  */
 async function generateEmbedding(text) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${GOOGLE_API_KEY}`
