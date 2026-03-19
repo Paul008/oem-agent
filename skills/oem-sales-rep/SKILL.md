@@ -1,33 +1,72 @@
 ---
 name: oem-sales-rep
-description: Conversational AI for OEM product and offer queries. Handles natural language questions about automotive OEM products, offers, and pricing via Slack. Queries Supabase for current data and formats responses with relevant information.
+description: >
+  OEM automotive intelligence assistant for support staff. Query products, offers, pricing,
+  colors, specs, and system health across 18 Australian OEMs. Use the Dealer API at
+  https://oem-agent.adme-dev.workers.dev/api/wp/v2/ and the system status API at
+  https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/admin/system-status for live data.
 ---
 
-# OEM Sales Rep
+# OEM Sales Rep / Support Staff Assistant
 
-Conversational AI assistant for querying OEM product and offer information.
+Conversational AI assistant for querying OEM product and offer information. Works via OpenClaw Slack channel or direct message.
 
-## Use Cases
+## What You Can Ask
 
-- "What's changed on Ford's site this week?"
-- "Show me Kia's current offers"
-- "Compare SUV prices across all OEMs"
-- "Has Toyota updated their Corolla page?"
-- "What are the cheapest electric vehicles available?"
+### Product & Pricing Queries
+- "What's the cheapest Kia SUV?"
+- "Compare driveaway prices for mid-size SUVs under $50K"
+- "What electric vehicles are available?"
+- "Show me all Volkswagen variants"
+- "What are the Chery Tiggo 7 specs?"
 
-## Prerequisites
+### Offer & Promotion Queries
+- "What are Toyota's current offers?"
+- "Which OEMs have finance deals right now?"
+- "Show me offers expiring this month"
+- "What's the best discount across all OEMs?"
 
-- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for data access
-- `ANTHROPIC_API_KEY` for Claude Sonnet responses
-- `SLACK_BOT_TOKEN` for posting replies
+### Color & Accessory Queries
+- "What colors does the Mazda CX-5 come in?"
+- "How much is premium paint on a Kia Sportage?"
+- "What accessories are available for the Hyundai Tucson?"
 
-## How It Works
+### System Health Queries
+- "What's the system status?"
+- "Are all OEMs healthy?"
+- "When was Toyota last crawled?"
+- "How many products do we have total?"
 
-1. Receives natural language query from Slack
-2. Classifies query intent (OEMs, products, offers, timeframes)
-3. Queries Supabase for relevant data
-4. Generates conversational response using Claude Sonnet
-5. Posts formatted response to Slack (threaded if applicable)
+### Operations
+- "Refresh Kia offers"
+- "What's changed this week?"
+- "Show me OEMs with the most offers"
+
+## How to Get Data
+
+### Dealer API (public, no auth)
+Base URL: `https://oem-agent.adme-dev.workers.dev`
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/wp/v2/catalog?oem_id=kia-au` | Full catalog: models → variants → colors → pricing |
+| `GET /api/wp/v2/models?oem_id=volkswagen-au` | Model list with hero images |
+| `GET /api/wp/v2/variants?filter[variant_category]=sportage&oem_id=kia-au` | Variants for one model |
+
+### System Status API
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/v1/oem-agent/admin/system-status` | Per-OEM health: status, success rate, runs, products, offers |
+
+### OEM IDs
+`chery-au`, `ford-au`, `foton-au`, `gac-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
+
+## Platform Totals (as of 2026-03-19)
+- 18 OEMs, 179 models, 796 products
+- 4,952 variant colors with hero images
+- 1,158 variant pricing rows (driveaway, 8 AU states)
+- 302 offers (100% images, 100% disclaimers)
+- 176 banners, 2,913 accessories, 108 brochure PDFs
 
 ## Queryable Data
 

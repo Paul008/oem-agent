@@ -9,7 +9,9 @@
  * Run: cd dashboard/scripts && node vectorize-pdfs.mjs
  */
 import { createClient } from '@supabase/supabase-js'
-import pdf from 'pdf-parse/lib/pdf-parse.js'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const pdf = require('pdf-parse')
 import { writeFile, unlink, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
