@@ -230,6 +230,16 @@ export function usePageBuilder() {
 
     try {
       page.value = await fetchGeneratedPage(newSlug)
+      // Seed hero section images from header.slides if section is missing them
+      const heroSec = page.value?.content?.sections?.find((s: any) => s.type === 'hero')
+      const slide = page.value?.header?.slides?.[0]
+      if (heroSec && slide) {
+        if (!heroSec.desktop_image_url && slide.desktop) heroSec.desktop_image_url = slide.desktop
+        if (!heroSec.mobile_image_url && slide.mobile) heroSec.mobile_image_url = slide.mobile
+        if (!heroSec.heading && slide.heading) heroSec.heading = slide.heading
+        if (!heroSec.sub_heading && slide.sub_heading) heroSec.sub_heading = slide.sub_heading
+        if (!heroSec.cta_text && slide.button) heroSec.cta_text = slide.button
+      }
       // Reset history with initial entry
       history.value = [{
         id: `h${Date.now().toString(36)}`,

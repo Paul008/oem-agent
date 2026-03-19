@@ -1732,6 +1732,17 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
   pageData.manually_edited = true;
   pageData.manually_edited_at = new Date().toISOString();
 
+  // Sync hero section images/text back to header.slides so dealer website picks them up
+  const heroSection = body.sections.find((s: any) => s.type === 'hero');
+  if (heroSection && pageData.header?.slides?.length) {
+    const slide = pageData.header.slides[0];
+    if (heroSection.desktop_image_url) slide.desktop = heroSection.desktop_image_url;
+    if (heroSection.mobile_image_url) slide.mobile = heroSection.mobile_image_url;
+    if (heroSection.heading) slide.heading = heroSection.heading;
+    if (heroSection.sub_heading) slide.sub_heading = heroSection.sub_heading;
+    if (heroSection.cta_text) slide.button = heroSection.cta_text;
+  }
+
   const jsonStr = JSON.stringify(pageData);
   const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
 

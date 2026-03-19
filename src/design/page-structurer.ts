@@ -330,18 +330,43 @@ export class PageStructurer {
         };
       }
 
-      // Build focused prompt for single section
-      const prompt = `You are a structured data extractor. Re-extract ONLY the "${sectionType}" section from this OEM automotive page HTML.
+      // Build focused prompt for single section with full schema
+      const existingSection = existingSections[targetIndex];
+      const sectionSchemas: Record<string, string> = {
+        'hero': '{ "type": "hero", "heading": "string", "sub_heading": "string", "cta_text": "string", "cta_url": "string", "desktop_image_url": "string", "mobile_image_url": "string", "background_image_url": "string|null", "video_url": "string|null" }',
+        'intro': '{ "type": "intro", "title": "string|null", "body_html": "<p>cleaned HTML</p>", "image_url": "string|null", "image_position": "left|right|background" }',
+        'tabs': '{ "type": "tabs", "title": "string|null", "tabs": [{ "label": "Tab Name", "content_html": "<p>...</p>", "image_url": "string|null" }], "default_tab": 0 }',
+        'color-picker': '{ "type": "color-picker", "title": "string|null", "colors": [{ "name": "string", "code": "string", "swatch_url": "string|null", "hero_image_url": "string|null", "hex": "#hex" }] }',
+        'specs-grid': '{ "type": "specs-grid", "title": "string|null", "categories": [{ "name": "string", "specs": [{ "label": "string", "value": "string" }] }] }',
+        'gallery': '{ "type": "gallery", "title": "string|null", "images": [{ "url": "string", "alt": "string|null", "caption": "string|null", "description": "string|null" }], "layout": "carousel|grid" }',
+        'feature-cards': '{ "type": "feature-cards", "title": "string|null", "cards": [{ "title": "string", "description": "string", "image_url": "string|null" }], "columns": 3 }',
+        'video': '{ "type": "video", "title": "string|null", "video_url": "string|null", "poster_url": "string|null", "autoplay": false }',
+        'cta-banner': '{ "type": "cta-banner", "heading": "string", "body": "string|null", "cta_text": "string", "cta_url": "string", "background_color": "#hex|null" }',
+        'content-block': '{ "type": "content-block", "title": "string|null", "content_html": "<div>...</div>", "layout": "contained|full-width" }',
+      };
 
-Return a JSON object: { "section": <single PageSection object> }
+      const schema = sectionSchemas[sectionType] || sectionSchemas['intro'];
+      const hasRenderedHtml = pageData.content.rendered && pageData.content.rendered.length > 100;
 
-The section type "${sectionType}" schema is defined in the full extraction prompt. Use id "${sectionId}" and order ${existingSections[targetIndex].order}.
+      const prompt = `You are a structured data extractor. Regenerate a "${sectionType}" section for an OEM automotive model page.
 
-Focus on extracting the most complete, accurate data for this specific section type from the HTML below.
+Return a JSON object: { "section": <PageSection> }
 
-## HTML:
+## Section Schema for "${sectionType}"
+${schema}
 
-${pageData.content.rendered}`;
+Use id "${sectionId}" and order ${existingSection.order}.
+
+## Current Section Data (improve upon this)
+${JSON.stringify(existingSection, null, 2)}
+
+${hasRenderedHtml ? `## Source HTML (extract better data from this if available):\n\n${pageData.content.rendered.substring(0, 60000)}` : '## No source HTML available — regenerate by improving the existing section data above. Keep all existing image URLs and enhance the text content.'}
+
+## Rules
+- All image URLs must be absolute (https://...) or /media/ proxy paths
+- Keep existing image URLs if the HTML doesn't provide better ones
+- For hero: heading OR desktop_image_url is REQUIRED (section will fail validation without at least one)
+- Output ONLY the JSON object, no markdown fences`;
 
       const response = await this.aiRouter.route({
         taskType: 'page_structuring',
