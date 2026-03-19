@@ -31,8 +31,8 @@ export const CLOUDFLARE_TRIGGERS = [
   {
     id: 'cf-offers-crawl',
     name: 'Offers Crawl',
-    description: 'Crawl OEM offers and promotions pages',
-    schedule: '0 */4 * * *',
+    description: 'Daily crawl of OEM offers and promotions pages',
+    schedule: '0 5 * * *',
     timezone: 'Australia/Sydney',
     skill: 'cloudflare-scheduled',
     enabled: true,
