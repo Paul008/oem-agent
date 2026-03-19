@@ -84,13 +84,15 @@
   // CDP_SECRET
 
   // Cron Triggers (crawl schedules)
+  // Cron Triggers — times in UTC (AEST = UTC + 11 during AEDT / UTC + 10 during AEST)
+  // 17:00 UTC = 4am AEDT, 18:00 UTC = 5am AEDT, etc.
   "triggers": {
     "crons": [
-      "0 4 * * *",
-      "0 5 * * *",
-      "0 */12 * * *",
-      "0 6 * * *",
-      "0 7 * * *"
+      "0 17 * * *",
+      "0 18 * * *",
+      "0 6,18 * * *",
+      "0 19 * * *",
+      "0 20 * * *"
     ]
   },
 
