@@ -57,8 +57,8 @@ r2://oem-agent-assets/
 | `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
 | `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` (96/162) |
 | `products` | 757 | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`), model_id FK |
-| `variant_colors` | ~4543 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
-| `variant_pricing` | ~556 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `variant_colors` | ~5900 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
+| `variant_pricing` | ~1098 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
 | `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
@@ -73,8 +73,8 @@ r2://oem-agent-assets/
 
 #### Entity Hierarchy
 ```
-oems (17) → vehicle_models (~162) → products (757) → variant_colors (~4543)
-                                                    → variant_pricing (~556)
+oems (17) → vehicle_models (~162) → products (757) → variant_colors (~5900)
+                                                    → variant_pricing (~1098)
                                  → accessories (2702) via accessory_models (2826)
            → oem_portals (31) — portal credentials, brand guidelines
            → pdf_embeddings — vectorized brochures + guidelines for semantic search

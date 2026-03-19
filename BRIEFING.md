@@ -85,8 +85,8 @@ r2://oem-agent-assets/
 | `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
 | `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` column (96/162 populated) |
 | `products` | 757 | Variants/grades with `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`) |
-| `variant_colors` | ~4543 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
-| `variant_pricing` | ~556 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `variant_colors` | ~5900 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
+| `variant_pricing` | ~1098 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
 | `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
@@ -453,10 +453,12 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 **Last Deployment**: 2026-03-18
 **Final State (2026-03-18)**:
 - 17 OEMs ALL complete, 757 products with 100% specs_json coverage
-- 737/757 priced (97%) — 20 legitimately unpriced (pre-production/quote-only)
+- 703/736 priced (95.5%) with driveaway estimates — 1098 variant_pricing rows across all 8 AU states
+- Kia AU has true per-state driveaway pricing (standard + premium paint) from selectPriceByTrim API
 - 162 vehicle_models, 283 offers across ALL 17 OEMs, 279/283 offer images (98.6%)
-- 144 banners, 100% with desktop images; 58+ discovered APIs; 147 active source pages
-- CMS frameworks mapped for all 17 OEMs; Lightpanda primary browser, Cloudflare fallback
+- ~5900 variant_colors with hero images and swatches; 144 banners, 100% with desktop images
+- 58+ discovered APIs; 147 active source pages; CMS frameworks mapped for all 17 OEMs
 - variant_colors auto-synced, specs_json auto-built on every product upsert
+- Lightpanda primary browser, Cloudflare fallback; Kia BYO renders replace Cloudinary images
 
-**Next Maintenance**: Monitor R2 backup size, verify all OEM offer selectors match actual DOM structures, populate Nissan pricing via Choices API, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings
+**Next Maintenance**: Monitor R2 backup size, verify all OEM offer selectors match actual DOM structures, seed VW colors (needs MOFA auth), run vectorize-pdfs.mjs to populate pdf_embeddings, add state-specific pricing APIs for Hyundai/Mitsubishi/Ford when discovered

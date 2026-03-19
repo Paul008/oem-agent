@@ -17,7 +17,7 @@ How we fetch variant data (pricing, colors, specs, images, features) for each Au
 | GWM | Storyblok CMS API | Public tokens in URL | Driveaway (retail + ABN) | Storyblok asset CDN | Parsed from feature text | Yes |
 | Isuzu | HTML scrape (offers only) | None | Driveaway (offers page only) | Page images only | From offers cards | No |
 
-**Current totals:** 17 OEMs complete, 162 vehicle_models, 757 products (100% specs_json), ~4543 variant_colors, 283 offers, 144 banners.
+**Current totals:** 17 OEMs complete, 162 vehicle_models, 757 products (100% specs_json), ~5900 variant_colors, 283 offers, 144 banners.
 
 > **Gatsby SSG OEMs**: LDV Australia uses Gatsby 5.14.6 with i-Motor CMS. All vehicle data (models, specs, variants, colors, pricing) is available via `page-data.json` endpoints — no browser rendering or API keys needed. See section 9 below.
 
