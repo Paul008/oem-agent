@@ -268,6 +268,7 @@ export interface KiaColorSyncResult {
   models_processed: number;
   colors_upserted: number;
   price_deltas_set: number;
+  pricing_rows_set: number;
   hero_images_set: number;
   dead_entries_removed: number;
   errors: string[];
@@ -295,6 +296,7 @@ export async function executeKiaColorSync(
     models_processed: 0,
     colors_upserted: 0,
     price_deltas_set: 0,
+    pricing_rows_set: 0,
     hero_images_set: 0,
     dead_entries_removed: 0,
     errors: [],
@@ -404,12 +406,27 @@ export async function executeKiaColorSync(
     }
   }
 
-  // 3. Fetch pricing API per car_key to get premium paint delta
+  // 3. Fetch pricing API per car_key → populate variant_pricing + color deltas
   const carKeys = new Set<string>();
   for (const p of products) {
     const ck = (p.meta_json as Record<string, unknown> | null)?.car_key;
     if (typeof ck === 'string') carKeys.add(ck);
   }
+
+  interface TrimPricing {
+    trimCode: string;
+    trimName?: string;
+    rrpprice?: string;
+    priceOfferNSW?: string; priceOfferVIC?: string; priceOfferQLD?: string;
+    priceOfferWA?: string; priceOfferSA?: string; priceOfferTAS?: string;
+    priceOfferACT?: string; priceOfferNT?: string;
+    premiumOfferPriceNSW?: string; premiumOfferPriceVIC?: string; premiumOfferPriceQLD?: string;
+    premiumOfferPriceWA?: string; premiumOfferPriceSA?: string; premiumOfferPriceTAS?: string;
+    premiumOfferPriceACT?: string; premiumOfferPriceNT?: string;
+    [key: string]: unknown;
+  }
+
+  const pf = (v?: string) => { const n = parseFloat(v ?? ''); return n > 0 && n < 999999 ? Math.round(n * 100) / 100 : null; };
 
   for (const carKey of carKeys) {
     try {
@@ -417,39 +434,92 @@ export async function executeKiaColorSync(
         `${KIA_PRICING_API}?regionCode=NSW&modelCode=${carKey}`,
       );
       const data = (await res.json()) as {
-        dataInfo?: Array<{
-          trimInfo: Array<{
-            trimCode: string;
-            priceOfferNSW?: string;
-            premiumOfferPriceNSW?: string;
-          }>;
-        }>;
+        dataInfo?: Array<{ trimInfo: TrimPricing[] }>;
       };
 
       if (!data.dataInfo?.length) continue;
 
       for (const t of data.dataInfo[0].trimInfo) {
-        const premNSW = parseFloat(t.premiumOfferPriceNSW ?? '');
-        const stdNSW = parseFloat(t.priceOfferNSW ?? '');
-        const delta = premNSW && stdNSW ? premNSW - stdNSW : 0;
-        if (delta <= 0) continue;
-
-        // Find the product for this trim
+        // Find matching product
         const product = products.find(
           p =>
             (p.meta_json as Record<string, unknown> | null)?.car_key === carKey &&
             (p.meta_json as Record<string, unknown> | null)?.grade_code === t.trimCode,
         );
-        if (!product || !productsWithStandardColor.has(product.id)) continue;
+        if (!product) continue;
 
-        const { error: deltaErr } = await supabase
-          .from('variant_colors')
-          .update({ price_delta: Math.round(delta * 100) / 100 })
-          .eq('product_id', product.id)
-          .eq('is_standard', false);
+        const rrp = pf(t.rrpprice);
 
-        if (!deltaErr) {
-          result.price_deltas_set++;
+        // Standard paint driveaway (all 8 states)
+        const stdRow = {
+          product_id: product.id,
+          price_type: 'standard',
+          rrp,
+          driveaway_nsw: pf(t.priceOfferNSW),
+          driveaway_vic: pf(t.priceOfferVIC),
+          driveaway_qld: pf(t.priceOfferQLD),
+          driveaway_wa: pf(t.priceOfferWA),
+          driveaway_sa: pf(t.priceOfferSA),
+          driveaway_tas: pf(t.priceOfferTAS),
+          driveaway_act: pf(t.priceOfferACT),
+          driveaway_nt: pf(t.priceOfferNT),
+          effective_date: new Date().toISOString().slice(0, 10),
+        };
+
+        // Premium paint driveaway (all 8 states)
+        const premRow = {
+          product_id: product.id,
+          price_type: 'premium',
+          rrp: rrp ? rrp + ((pf(t.premiumOfferPriceNSW) ?? 0) - (pf(t.priceOfferNSW) ?? 0)) : null,
+          driveaway_nsw: pf(t.premiumOfferPriceNSW),
+          driveaway_vic: pf(t.premiumOfferPriceVIC),
+          driveaway_qld: pf(t.premiumOfferPriceQLD),
+          driveaway_wa: pf(t.premiumOfferPriceWA),
+          driveaway_sa: pf(t.premiumOfferPriceSA),
+          driveaway_tas: pf(t.premiumOfferPriceTAS),
+          driveaway_act: pf(t.premiumOfferPriceACT),
+          driveaway_nt: pf(t.premiumOfferPriceNT),
+          effective_date: new Date().toISOString().slice(0, 10),
+        };
+
+        // Upsert both pricing rows
+        const { error: stdErr } = await supabase
+          .from('variant_pricing')
+          .upsert(stdRow, { onConflict: 'product_id,price_type' });
+        const { error: premErr } = await supabase
+          .from('variant_pricing')
+          .upsert(premRow, { onConflict: 'product_id,price_type' });
+
+        if (!stdErr) result.pricing_rows_set = (result.pricing_rows_set ?? 0) + 1;
+        if (!premErr) result.pricing_rows_set = (result.pricing_rows_set ?? 0) + 1;
+
+        // Update product.price_amount to VIC driveaway (or NSW fallback)
+        const displayPrice = stdRow.driveaway_vic ?? stdRow.driveaway_nsw ?? rrp;
+        if (displayPrice) {
+          await supabase
+            .from('products')
+            .update({
+              price_amount: displayPrice,
+              price_type: 'driveaway',
+              price_qualifier: 'Drive away estimate',
+            })
+            .eq('id', product.id);
+        }
+
+        // Set color price_delta (premium - standard, per NSW as reference)
+        if (productsWithStandardColor.has(product.id)) {
+          const stdNSW = pf(t.priceOfferNSW);
+          const premNSW = pf(t.premiumOfferPriceNSW);
+          const delta = stdNSW && premNSW ? premNSW - stdNSW : 0;
+          if (delta > 0) {
+            const { error: deltaErr } = await supabase
+              .from('variant_colors')
+              .update({ price_delta: delta })
+              .eq('product_id', product.id)
+              .eq('is_standard', false);
+
+            if (!deltaErr) result.price_deltas_set++;
+          }
         }
       }
     } catch (e) {
@@ -494,8 +564,8 @@ export async function executeKiaColorSync(
   console.log(
     `[KiaColorSync] Done — ${result.models_processed} models, ` +
     `${result.colors_upserted} colors, ${result.hero_images_set} heroes, ` +
-    `${result.price_deltas_set} deltas, ${result.dead_entries_removed} dead removed, ` +
-    `${result.errors.length} errors`,
+    `${result.pricing_rows_set} pricing rows, ${result.price_deltas_set} deltas, ` +
+    `${result.dead_entries_removed} dead removed, ${result.errors.length} errors`,
   );
 
   return result;
