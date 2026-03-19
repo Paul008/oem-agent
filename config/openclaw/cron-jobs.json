@@ -157,6 +157,23 @@
           "priority_threshold": "medium"
         }
       }
+    },
+    {
+      "id": "oem-orchestrator",
+      "name": "Traffic Controller",
+      "description": "Central orchestrator that monitors all 18 OEMs, retries failed extractions with exponential backoff, escalates to Slack when max retries exceeded, and reports system-wide health status.",
+      "schedule": "0 */2 * * *",
+      "timezone": "Australia/Sydney",
+      "skill": "oem-orchestrator",
+      "enabled": true,
+      "config": {
+        "max_consecutive_failures": 5,
+        "base_backoff_minutes": 30,
+        "max_backoff_minutes": 720,
+        "success_rate_threshold": 0.7,
+        "stale_hours_threshold": 36,
+        "notify_on_degradation": true
+      }
     }
   ],
   "hooks": {

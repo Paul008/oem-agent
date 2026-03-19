@@ -305,6 +305,14 @@ async function executeJob(
         result = await executeBrandAmbassador(job, env);
         break;
 
+      case 'oem-orchestrator': {
+        const { executeOrchestratorController } = await import('../sync/orchestrator-controller');
+        const { createSupabaseClient } = await import('../utils/supabase');
+        const sb = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+        result = await executeOrchestratorController(sb, env.MOLTBOT_BUCKET, env.SLACK_WEBHOOK_URL);
+        break;
+      }
+
       default:
         throw new Error(`Unknown skill: ${job.skill}`);
     }

@@ -233,6 +233,17 @@ app.get('/oems/:oemId/changes', async (c) => {
 // ============================================================================
 
 /**
+ * GET /api/v1/oem-agent/admin/system-status
+ * Run the traffic controller and return system-wide health status.
+ */
+app.get('/admin/system-status', async (c) => {
+  const { executeOrchestratorController } = await import('../sync/orchestrator-controller');
+  const supabase = createSupabaseClient({ url: c.env.SUPABASE_URL, serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY });
+  const result = await executeOrchestratorController(supabase, c.env.MOLTBOT_BUCKET);
+  return c.json(result);
+});
+
+/**
  * POST /api/v1/oem-agent/admin/crawl/:oemId
  * Trigger a manual crawl for an OEM
  */
