@@ -642,10 +642,10 @@ const apis = [
     reliability_score: 0.9,
     status: 'verified',
     schema_json: {
-      params: { dealerId: 'VW dealer ID e.g. 30024', version: 'Dynamic — starts ~489, auto-increments' },
-      returns: ['offers', 'model_codes', 'driveaway_pricing', 'disclaimers'],
-      note: 'OneHub Offers API — returns all current offers with model codes and driveaway pricing. Version parameter must be discovered dynamically.',
-      discovery_source: 'dealer-theme-repo',
+      params: { dealer: '30140', version: '547 (auto-increment until success)', size: '200', seperator: ':' },
+      returns: ['products', 'colors_with_4_angle_renders', 'swatch_tiles', 'driveaway_pricing_mrdp', 'mrrp', 'brochure_pdfs', 'key_features', 'hero_images', 'banners', 'finance_data', 'configurator_codes'],
+      note: 'OneHub Offers API — complete VW AU range. 49 variants, 410 colors with front/back/left/right renders + colour_tile swatches. MRDP driveaway + MRRP per variant. Brochure PDFs, key features, banner data. Version auto-increments when offers refresh. Used by seed-vw-onehub.mjs.',
+      discovery_source: 'dealer-theme-repo (kevin-dennis-volkswagen)',
     },
   },
   {

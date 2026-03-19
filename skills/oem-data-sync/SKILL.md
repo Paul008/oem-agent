@@ -69,6 +69,7 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 | kia-au | `seed-kia-accessories.mjs` | JSON-LD structured data (HTML scrape) | accessories, accessory_models | medium | weekly |
 | subaru-au | `seed-subaru-accessories.mjs` | Retailer API v1 (x-api-key) | accessories, accessory_models | high | weekly |
 | nissan-au | `seed-nissan-accessories.mjs` | HTML scraping (two page templates) | accessories, accessory_models | low | weekly |
+| volkswagen-au | `seed-vw-onehub.mjs` | OneHub Offers API (get-onehub-offers) | products, variant_colors, variant_pricing, offers, banners, brochures | high | weekly |
 | volkswagen-au | `seed-vw-accessories.mjs` | E-catalogue GraphQL (OSSE/CARIAD) | accessories | low | weekly |
 | gwm-au | `seed-gwm-accessories.mjs` | Storyblok CDN API | accessories, accessory_models | high | weekly |
 | kgm-au | `seed-kgm-accessories.mjs` | Payload CMS (no auth) | accessories, accessory_models | high | weekly |
@@ -99,6 +100,7 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 | chery-au | `seed-chery-accessories.mjs` | Drupal accessory pages | accessories + accessory_models | high | monthly |
 
 **Notes:**
+- VW OneHub: `get-onehub-offers` API returns ALL on-sale variants with full color renders (4 angles + swatch tile), MRDP driveaway, MRRP, brochure PDFs, key features, hero images, and banner data. Version parameter auto-increments (start at 547). Dealer code 30140 used as reference. 49 variants, 410 colors, 15 model families.
 - Chery colors: Extracted from `data-json` HTML attributes on model pages containing `car_image` (hero) and `colour_image` (swatch). Omoda sub-brand pages redirect to Chery C5/E5. `*` suffix in color name = premium paint.
 - Nissan colors: AEM endpoint at `/content/nissan_prod/en_AU/index/vehicles/browse-range/{slug}/version-explorer/jcr:content/core.versionexplorerdata.json`. Navara MY26 on separate Storyblok microsite (no images). Juke needs model code remapping (30113 → 30304).
 - Suzuki colors: Uses `paintColours` field (plural with 's'). Color types: Solid, Premium Metallic, Two-Tone Metallic.
