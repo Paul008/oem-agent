@@ -6,13 +6,15 @@
  * structured data (not just HTML crawl).
  *
  * OEM-specific syncs:
- *   - Kia:        BYO pages → colors + 8-state driveaway pricing
+ *   - Kia:        BYO pages → colors + 8-state driveaway pricing (separate kia-colors.ts)
  *   - Hyundai:    CGI configurator → colors + national pricing
  *   - Mazda:      /cars/ pages → colors + driveaway pricing
  *   - Mitsubishi: Magento GraphQL → colors + pricing + state driveaway
+ *   - VW:         OneHub API → products, colors (4-angle), pricing, offers, brochures
  *
  * Generic sync:
  *   - All OEMs:   Refresh variant_pricing from products.price_amount
+ *   - All OEMs:   Auto-fix offer images from variant_colors (fallback)
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -39,7 +41,9 @@ export interface AllOemSyncResult {
   hyundai: { colors: number; pricing: number; errors: string[] };
   mazda: { colors: number; pricing: number; errors: string[] };
   mitsubishi: { colors: number; pricing: number; errors: string[] };
+  volkswagen: { products: number; colors: number; pricing: number; offers: number; errors: string[] };
   generic_pricing: { oems: number; products: number };
+  offer_images_fixed: number;
 }
 
 // ============================================================================
@@ -404,6 +408,186 @@ async function syncMitsubishi(supabase: SupabaseClient): Promise<AllOemSyncResul
 }
 
 // ============================================================================
+// VOLKSWAGEN — OneHub Offers API (complete range)
+// ============================================================================
+
+async function syncVolkswagen(supabase: SupabaseClient): Promise<AllOemSyncResult['volkswagen']> {
+  const result = { products: 0, colors: 0, pricing: 0, offers: 0, errors: [] as string[] };
+  const OEM_ID = 'volkswagen-au';
+  const BASE_URL = 'https://www.volkswagen.com.au';
+
+  try {
+    // Find valid version (starts at 547, auto-increments)
+    let version = 547;
+    let data: any[] = [];
+    for (let i = 0; i < 50; i++) {
+      const res = await fetch(`${BASE_URL}/app/locals/get-onehub-offers?size=200&offset=0&dealer=30140&version=${version}&seperator=:`);
+      const json = await res.json() as { status: string; data?: any[] };
+      if (json.status === 'success' && json.data?.length) {
+        data = json.data;
+        break;
+      }
+      version++;
+    }
+
+    if (data.length === 0) {
+      result.errors.push('No valid OneHub version found');
+      return result;
+    }
+
+    // Ensure vehicle_models exist
+    const { data: existingModels } = await supabase
+      .from('vehicle_models').select('id, slug').eq('oem_id', OEM_ID);
+    const modelMap: Record<string, { id: string }> = {};
+    for (const m of existingModels ?? []) modelMap[m.slug] = m;
+
+    for (const offer of data) {
+      const p = offer.payload;
+      if (!p?.model_family) continue;
+
+      const modelSlug = slugify(p.model_family);
+      const variantName = p.varient_name || '';
+      const driveaway = pf(offer.mrdp);
+      const rrp = pf(offer.mrrp);
+
+      // Ensure model exists
+      if (!modelMap[modelSlug]) {
+        const { data: newModel } = await supabase
+          .from('vehicle_models')
+          .upsert({ oem_id: OEM_ID, slug: modelSlug, name: p.model_family, source_url: `${BASE_URL}/en/models/${modelSlug}.html` }, { onConflict: 'oem_id,slug' })
+          .select('id').single();
+        if (newModel) modelMap[modelSlug] = newModel;
+      }
+      if (!modelMap[modelSlug]) continue;
+
+      // Upsert product
+      const externalKey = `${OEM_ID}-${offer.model_code}`;
+      const { data: prod } = await supabase.from('products').upsert({
+        oem_id: OEM_ID,
+        external_key: externalKey,
+        title: `${p.model_name} ${variantName}`.trim(),
+        model_id: modelMap[modelSlug].id,
+        price_amount: driveaway || rrp,
+        price_type: 'driveaway',
+        price_qualifier: 'Manufacturer recommended driveaway price',
+        variant_name: variantName,
+        variant_code: offer.model_code,
+        body_type: (p.body_shape || '').toLowerCase().includes('suv') ? 'suv' : (p.body_shape || '').toLowerCase().includes('hatch') ? 'hatch' : 'suv',
+        fuel_type: (p.fuel_type || '').toLowerCase().includes('electric') ? 'electric' : 'petrol',
+        engine_size: p.engine_capacity || null,
+        transmission: p.transmission_desc || null,
+        drive: p.driven_wheels || null,
+        key_features: p.features || [],
+        specs_json: { engine: { description: p.engine_capacity, power_kw: p.engine_power ? parseInt(p.engine_power) : null } },
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: 'oem_id,external_key' }).select('id').single();
+
+      if (!prod) continue;
+      result.products++;
+
+      // Pricing
+      if (driveaway) {
+        await supabase.from('variant_pricing').upsert({
+          product_id: prod.id, price_type: 'standard', rrp, ...allStates(driveaway),
+        }, { onConflict: 'product_id,price_type' });
+        result.pricing++;
+      }
+
+      // Colors
+      const colours = p.colours || {};
+      let sortOrder = 0;
+      for (const [prcode, color] of Object.entries(colours) as [string, any][]) {
+        await supabase.from('variant_colors').upsert({
+          product_id: prod.id,
+          color_code: prcode.replace(/\s/g, '-'),
+          color_name: color.name || color.color,
+          color_type: deriveColorType(color.name || ''),
+          is_standard: color.is_default || parseInt(color.price) === 0,
+          price_delta: parseInt(color.price) || 0,
+          swatch_url: color.colour_tile || null,
+          hero_image_url: color.images?.front || color.images?.right || null,
+          gallery_urls: [color.images?.front, color.images?.right, color.images?.back, color.images?.left].filter(Boolean),
+          sort_order: sortOrder++,
+        }, { onConflict: 'product_id,color_code' });
+        result.colors++;
+      }
+    }
+
+    // Upsert offers (one per model family)
+    const families = new Set<string>();
+    for (const offer of data) {
+      const p = offer.payload;
+      if (!p?.model_family || families.has(p.model_family)) continue;
+      families.add(p.model_family);
+
+      await supabase.from('offers').upsert({
+        oem_id: OEM_ID,
+        external_key: `vw-onehub-${slugify(p.model_family)}`,
+        title: `${p.model_family} — ${p.banner?.banner_heading || 'Driveaway Offer'}`,
+        offer_type: 'driveaway_deal',
+        price_amount: pf(offer.mrdp),
+        applicable_models: [p.model_family],
+        hero_image_r2_key: p.hero_image?.detail || p.hero_image?.listing || null,
+        validity_start: p.banner?.banner_start_date || null,
+        validity_end: p.banner?.banner_end_date || null,
+        source_url: `${BASE_URL}/en/models/${slugify(p.model_family)}.html`,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: 'oem_id,external_key' });
+      result.offers++;
+    }
+  } catch (e) {
+    result.errors.push(e instanceof Error ? e.message : String(e));
+  }
+
+  return result;
+}
+
+// ============================================================================
+// FIX — Auto-fallback offer images from variant_colors
+// ============================================================================
+
+async function fixOfferImages(supabase: SupabaseClient): Promise<number> {
+  const { data: noImg } = await supabase
+    .from('offers')
+    .select('id, oem_id, applicable_models')
+    .is('hero_image_r2_key', null);
+
+  let fixed = 0;
+  for (const offer of noImg ?? []) {
+    const models = offer.applicable_models || [];
+    const modelName = models[0];
+    if (!modelName) continue;
+
+    // Try matching product by model name
+    const { data: products } = await supabase
+      .from('products')
+      .select('id')
+      .eq('oem_id', offer.oem_id)
+      .ilike('title', `%${modelName}%`)
+      .limit(1);
+
+    if (!products?.length) continue;
+
+    const { data: colors } = await supabase
+      .from('variant_colors')
+      .select('hero_image_url')
+      .eq('product_id', products[0].id)
+      .not('hero_image_url', 'is', null)
+      .limit(1);
+
+    if (colors?.[0]?.hero_image_url) {
+      await supabase
+        .from('offers')
+        .update({ hero_image_r2_key: colors[0].hero_image_url })
+        .eq('id', offer.id);
+      fixed++;
+    }
+  }
+
+  return fixed;
+}
+
+// ============================================================================
 // GENERIC — Refresh variant_pricing from products.price_amount for all OEMs
 // ============================================================================
 
@@ -452,21 +636,27 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
 export async function executeAllOemSync(
   supabase: SupabaseClient,
 ): Promise<AllOemSyncResult> {
-  console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi + generic pricing');
+  console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi, VW + generic pricing');
 
-  const [hyundai, mazda, mitsubishi, generic_pricing] = await Promise.all([
+  const [hyundai, mazda, mitsubishi, volkswagen, generic_pricing] = await Promise.all([
     syncHyundai(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncMitsubishi(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
+    syncVolkswagen(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, errors: [String(e)] })),
     syncGenericPricing(supabase).catch(() => ({ oems: 0, products: 0 })),
   ]);
+
+  // Fix any offers missing images (auto-fallback from variant_colors)
+  const offer_images_fixed = await fixOfferImages(supabase).catch(() => 0);
 
   console.log(
     `[AllOemSync] Done — Hyundai: ${hyundai.colors}c/${hyundai.pricing}p, ` +
     `Mazda: ${mazda.colors}c/${mazda.pricing}p, ` +
     `Mitsubishi: ${mitsubishi.colors}c/${mitsubishi.pricing}p, ` +
-    `Generic: ${generic_pricing.oems} OEMs/${generic_pricing.products} products`,
+    `VW: ${volkswagen.products}p/${volkswagen.colors}c/${volkswagen.offers}o, ` +
+    `Generic: ${generic_pricing.oems} OEMs/${generic_pricing.products} products, ` +
+    `Offer images fixed: ${offer_images_fixed}`,
   );
 
-  return { hyundai, mazda, mitsubishi, generic_pricing };
+  return { hyundai, mazda, mitsubishi, volkswagen, generic_pricing, offer_images_fixed };
 }
