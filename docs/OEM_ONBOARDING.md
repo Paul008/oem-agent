@@ -344,7 +344,8 @@ If the OEM's website exposes color data (color names, swatches, vehicle renders 
 
 | Date | OEM | Count | Notes |
 |------|-----|-------|-------|
-| 2026-03-18 | GAC Australia (`gac-au`) | 17 | All 18 OEMs complete. 757 products, 283 offers, 144 banners |
+| 2026-03-19 | Chery Australia (`chery-au`) | 18 | Drupal CMS, 9 models (Tiggo+C5/E5), 17 products, 85 colors, 211 accessories, 7 banners, Omoda sub-brand absorbed |
+| 2026-03-18 | GAC Australia (`gac-au`) | 17 | All 17 OEMs complete. 757 products, 283 offers, 144 banners |
 | 2026-03-17 | LDV Australia (`ldv-au`) full data | 16 | Gatsby page-data.json, 13 models, 11 products, 47 colors, 9 pricing |
 | 2026-02-24 | Foton Australia (`foton-au`) | 16 | Server-rendered, pricing API, ute+truck, 16 colors |
 | 2026-02-24 | GMSV Australia (`gmsv-au`) | 15 | Multi-sub-brand (Chevrolet, Corvette, GMC), 55 colors dual-source |

@@ -183,7 +183,7 @@ The route is public (no auth required), mounted before the Cloudflare Access mid
 
 ## Available OEM IDs
 
-`ford-au`, `foton-au`, `gac-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
+`chery-au`, `ford-au`, `foton-au`, `gac-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
 
 ---
 

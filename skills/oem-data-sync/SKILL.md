@@ -94,8 +94,12 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 | nissan-au | `seed-nissan-colors.mjs` | AEM version-explorer JSON | variant_colors | medium | weekly |
 | gmsv-au | `seed-gmsv-colors.mjs` | Dual: GMSV AU HTML + Chevy US colorizer API | variant_colors | medium | weekly |
 | foton-au | `seed-foton-colors.mjs` | HTML data attributes (color dots) | variant_colors | medium | weekly |
+| chery-au | `seed-chery-products.mjs` | Drupal HTML (model pages) | products + variant_pricing | high | weekly |
+| chery-au | `seed-chery-colors.mjs` | Drupal `data-json` attrs | variant_colors | high | weekly |
+| chery-au | `seed-chery-accessories.mjs` | Drupal accessory pages | accessories + accessory_models | high | monthly |
 
 **Notes:**
+- Chery colors: Extracted from `data-json` HTML attributes on model pages containing `car_image` (hero) and `colour_image` (swatch). Omoda sub-brand pages redirect to Chery C5/E5. `*` suffix in color name = premium paint.
 - Nissan colors: AEM endpoint at `/content/nissan_prod/en_AU/index/vehicles/browse-range/{slug}/version-explorer/jcr:content/core.versionexplorerdata.json`. Navara MY26 on separate Storyblok microsite (no images). Juke needs model code remapping (30113 → 30304).
 - Suzuki colors: Uses `paintColours` field (plural with 's'). Color types: Solid, Premium Metallic, Two-Tone Metallic.
 - GWM colors: Match DB records by hex code (DB stores `hex-{6chars}`, Storyblok has real names + UUIDs).
