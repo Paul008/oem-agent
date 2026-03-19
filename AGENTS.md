@@ -107,17 +107,17 @@ All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
 | `oems` (17) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
-| `vehicle_models` (~162) | Models per OEM | Unique: oem_id, slug. `brochure_url` (96/162) |
-| `products` (757) | Variants/grades | `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`). model_id FK |
-| `variant_colors` (~5900) | Colour options | Unique: product_id, color_code. Auto-synced for all OEMs via `orchestrator.syncVariantColors()` |
+| `vehicle_models` (~179) | Models per OEM | Unique: oem_id, slug. `brochure_url` (96/162) |
+| `products` (796) | Variants/grades | `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`). model_id FK |
+| `variant_colors` (~4952) | Colour options | Unique: product_id, color_code. Auto-synced for all OEMs via `orchestrator.syncVariantColors()` |
 | `pdf_embeddings` | Vectorized PDF chunks | vector(768), HNSW index, `search_pdfs_semantic()` RPC |
-| `variant_pricing` (~1098) | Per-state driveaway | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
+| `variant_pricing` (~1158) | Per-state driveaway | Columns: driveaway_nsw/vic/qld/wa/sa/tas/act/nt |
 | `accessories` (2702) | Accessory catalog per OEM | Unique: oem_id, external_key. Has parent_id self-ref, inc_fitting |
 | `accessory_models` (2826) | Accessories ↔ models join | Unique: accessory_id, model_id |
 | `discovered_apis` (58+) | API endpoints | Unique: oem_id, url. Has schema_json, reliability_score |
 | `source_pages` | Monitored URLs | |
 | `change_events` | Change audit log | |
-| `offers` (283) | Promotions (all 18 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `offers` (302) | Promotions (all 18 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl jobs | |
 

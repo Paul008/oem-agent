@@ -56,25 +56,25 @@ r2://oem-agent-assets/
 |-------|------|---------|
 | `oems` | 17 | OEM registry with config_json.api_docs, design_profile_json |
 | `vehicle_models` | ~162 | Models per OEM (unique: oem_id, slug), has `brochure_url` (96/162) |
-| `products` | 757 | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`), model_id FK |
-| `variant_colors` | ~5900 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
-| `variant_pricing` | ~1098 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
+| `products` | 796 | Variants/grades, `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`), model_id FK |
+| `variant_colors` | ~4952 | Colour options per product (auto-synced for all OEMs via `orchestrator.syncVariantColors()`) |
+| `variant_pricing` | ~1158 | Per-state driveaway pricing (NSW/VIC/QLD/WA/SA/TAS/ACT/NT) |
 | `accessories` | 2702 | Accessory catalog per OEM (unique: oem_id, external_key) |
 | `accessory_models` | 2826 | Many-to-many join: accessories ↔ vehicle_models |
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
-| `source_pages` | 147 | URLs monitored for changes |
+| `source_pages` | 231 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | 283 | Promotional offers across ALL 18 OEMs (279/283 with hero images, 98.6%) |
+| `offers` | 302 | Promotional offers across ALL 18 OEMs (279/283 with hero images, 98.6%) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 144 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
+| `banners` | 176 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (from Monday.com) |
 | `pdf_embeddings` | — | Vectorized PDF chunks (brochures + guidelines), vector(768), HNSW index, `search_pdfs_semantic()` RPC |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 
 #### Entity Hierarchy
 ```
-oems (18) → vehicle_models (~162) → products (757) → variant_colors (~5900)
-                                                    → variant_pricing (~1098)
+oems (18) → vehicle_models (~179) → products (796) → variant_colors (~4952)
+                                                    → variant_pricing (~1158)
                                  → accessories (2702) via accessory_models (2826)
            → oem_portals (31) — portal credentials, brand guidelines
            → pdf_embeddings — vectorized brochures + guidelines for semantic search

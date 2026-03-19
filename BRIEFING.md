@@ -405,7 +405,7 @@ Pre-built scripts for populating OEM data:
 
 | `seed-oem-portals.mjs` | All | 31 portal credentials from Monday.com board 15373501 |
 | `seed-brochures.mjs` | Multi | 96/~162 brochure URLs (11 OEMs: Kia, Toyota, Hyundai, Mazda, Ford, KGM, Nissan, Mitsubishi, Isuzu, Subaru, GWM) |
-| `seed-{oem}-specs.mjs` (13) | All | Technical specs for 757/757 products (100%), all 8 categories at 100% |
+| `seed-{oem}-specs.mjs` (13) | All | Technical specs for 757/796 products (100%), all 8 categories at 100% |
 | `vectorize-pdfs.mjs` | Multi | PDF vectorization pipeline: download → pdf-parse → chunk → embed → upsert |
 
 **Toyota** (21 models, 149 products, 802 colors, 132 pricing rows) was seeded via direct browser-to-Supabase REST API using Chrome MCP tools (Cloudflare-protected APIs, no seed script file).
@@ -453,12 +453,12 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 **Status**: ✅ Production Ready
 **Last Deployment**: 2026-03-18
 **Final State (2026-03-18)**:
-- 18 OEMs ALL complete, 757 products with 100% specs_json coverage
-- 703/736 priced (95.5%) with driveaway estimates — 1098 variant_pricing rows across all 8 AU states
+- 18 OEMs ALL complete, 796 products with 100% specs_json coverage
+- 796 products priced with driveaway estimates — 1098 variant_pricing rows across all 8 AU states
 - Kia AU has true per-state driveaway pricing (standard + premium paint) from selectPriceByTrim API
-- 162 vehicle_models, 283 offers across ALL 18 OEMs, 279/283 offer images (98.6%)
-- ~5900 variant_colors with hero images and swatches; 144 banners, 100% with desktop images
-- 58+ discovered APIs; 147 active source pages; CMS frameworks mapped for all 18 OEMs
+- 179 vehicle_models, 302 offers across ALL 18 OEMs, 279/283 offer images (98.6%)
+- ~4952 variant_colors with hero images and swatches; 176 banners, 100% with desktop images
+- 58+ discovered APIs; 231 active source pages; CMS frameworks mapped for all 18 OEMs
 - variant_colors auto-synced, specs_json auto-built on every product upsert
 - Lightpanda primary browser, Cloudflare fallback; Kia BYO renders replace Cloudinary images
 
