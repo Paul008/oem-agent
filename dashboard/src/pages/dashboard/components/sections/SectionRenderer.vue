@@ -12,6 +12,7 @@ defineProps<{ sections: PageSection[] }>()
 
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'hero': defineAsyncComponent(() => import('./SectionHero.vue')),
+  'heading': defineAsyncComponent(() => import('./SectionHeading.vue')),
   'intro': defineAsyncComponent(() => import('./SectionIntro.vue')),
   'tabs': defineAsyncComponent(() => import('./SectionTabs.vue')),
   'color-picker': defineAsyncComponent(() => import('./SectionColorPicker.vue')),

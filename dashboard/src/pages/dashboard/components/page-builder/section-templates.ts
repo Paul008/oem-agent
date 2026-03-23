@@ -1,5 +1,5 @@
 export type PageSectionType =
-  | 'hero' | 'intro' | 'tabs' | 'color-picker' | 'specs-grid'
+  | 'hero' | 'heading' | 'intro' | 'tabs' | 'color-picker' | 'specs-grid'
   | 'gallery' | 'feature-cards' | 'video' | 'cta-banner' | 'content-block'
   | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
@@ -16,6 +16,7 @@ export interface SectionTemplate {
 
 export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>> = {
   'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left' }),
+  'heading': () => ({ heading: '', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: '', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', text_color: '', line_gap: '8', background_color: '' }),
   'intro': () => ({ title: '', body_html: '', image_url: '', image_position: 'right' }),
   'tabs': () => ({ title: '', category: '', variant: 'default', theme: 'light', image_position: 'right', tabs: [{ label: 'Tab 1', content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' }], default_tab: 0 }),
   'color-picker': () => ({ title: 'Colours', colors: [] }),
@@ -46,6 +47,11 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   // Hero
   { id: 'hero-image', name: 'Hero with Image', description: 'Full-width hero with heading overlay', type: 'hero', data: { heading: 'Model Name', sub_heading: 'Starting from $XX,XXX', cta_text: 'Build & Price', cta_url: '#' } },
   { id: 'hero-video', name: 'Hero with Video', description: 'Video background hero banner', type: 'hero', data: { heading: 'Model Name', sub_heading: 'Experience the drive', cta_text: 'Watch Video', cta_url: '#', video_url: '' } },
+
+  // Heading
+  { id: 'heading-section', name: 'Section Heading', description: 'Heading with optional subheading', type: 'heading', data: { heading: 'Section Title', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: 'A brief description below the heading', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', line_gap: '8' } },
+  { id: 'heading-centered', name: 'Centred Heading', description: 'Centred heading with subtitle', type: 'heading', data: { heading: 'Section Title', heading_tag: 'h2', heading_size: '4xl', heading_weight: 'bold', sub_heading: 'Supporting text that explains the section', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'center', line_gap: '12' } },
+  { id: 'heading-page-title', name: 'Page Title (H1)', description: 'Large H1 page title', type: 'heading', data: { heading: 'Page Title', heading_tag: 'h1', heading_size: '5xl', heading_weight: 'extrabold', sub_heading: '', text_align: 'left', line_gap: '8' } },
 
   // Intro
   { id: 'intro-right', name: 'Intro (Image Right)', description: 'Introduction text with image on right', type: 'intro', data: { image_position: 'right', body_html: '' } },
@@ -145,6 +151,7 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
 
 export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; description: string }> = {
   'hero': { label: 'Hero', description: 'Full-width banner with heading and CTA' },
+  'heading': { label: 'Heading', description: 'Heading and subheading with typography controls' },
   'intro': { label: 'Intro', description: 'Introduction text with optional image' },
   'tabs': { label: 'Tabs', description: 'Tabbed content sections' },
   'color-picker': { label: 'Colour Picker', description: 'Vehicle colour selector' },

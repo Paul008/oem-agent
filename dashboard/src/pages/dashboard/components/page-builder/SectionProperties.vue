@@ -347,6 +347,141 @@ function onMediaLibrarySelect(url: string) {
       </div>
     </template>
 
+    <!-- ===== HEADING ===== -->
+    <template v-else-if="sectionType === 'heading'">
+      <div class="space-y-3">
+        <!-- Heading -->
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Heading</label>
+          <UiInput :model-value="section.heading || ''" class="h-8 text-xs" @update:model-value="update('heading', $event)" />
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Tag</label>
+            <UiSelect :model-value="section.heading_tag || 'h2'" @update:model-value="update('heading_tag', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="h1">H1</UiSelectItem>
+                <UiSelectItem value="h2">H2</UiSelectItem>
+                <UiSelectItem value="h3">H3</UiSelectItem>
+                <UiSelectItem value="h4">H4</UiSelectItem>
+                <UiSelectItem value="h5">H5</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Size</label>
+            <UiSelect :model-value="section.heading_size || '3xl'" @update:model-value="update('heading_size', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="lg">Large</UiSelectItem>
+                <UiSelectItem value="xl">XL</UiSelectItem>
+                <UiSelectItem value="2xl">2XL</UiSelectItem>
+                <UiSelectItem value="3xl">3XL</UiSelectItem>
+                <UiSelectItem value="4xl">4XL</UiSelectItem>
+                <UiSelectItem value="5xl">5XL</UiSelectItem>
+                <UiSelectItem value="6xl">6XL</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Weight</label>
+            <UiSelect :model-value="section.heading_weight || 'bold'" @update:model-value="update('heading_weight', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="light">Light</UiSelectItem>
+                <UiSelectItem value="normal">Normal</UiSelectItem>
+                <UiSelectItem value="medium">Medium</UiSelectItem>
+                <UiSelectItem value="semibold">Semibold</UiSelectItem>
+                <UiSelectItem value="bold">Bold</UiSelectItem>
+                <UiSelectItem value="extrabold">Extra Bold</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+        </div>
+
+        <UiSeparator />
+
+        <!-- Sub-heading -->
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Sub-heading</label>
+          <UiInput :model-value="section.sub_heading || ''" class="h-8 text-xs" @update:model-value="update('sub_heading', $event)" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Sub Size</label>
+            <UiSelect :model-value="section.sub_heading_size || 'lg'" @update:model-value="update('sub_heading_size', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="sm">Small</UiSelectItem>
+                <UiSelectItem value="base">Base</UiSelectItem>
+                <UiSelectItem value="lg">Large</UiSelectItem>
+                <UiSelectItem value="xl">XL</UiSelectItem>
+                <UiSelectItem value="2xl">2XL</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Sub Weight</label>
+            <UiSelect :model-value="section.sub_heading_weight || 'normal'" @update:model-value="update('sub_heading_weight', $event)">
+              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="light">Light</UiSelectItem>
+                <UiSelectItem value="normal">Normal</UiSelectItem>
+                <UiSelectItem value="medium">Medium</UiSelectItem>
+                <UiSelectItem value="semibold">Semibold</UiSelectItem>
+                <UiSelectItem value="bold">Bold</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+        </div>
+
+        <UiSeparator />
+
+        <!-- Layout -->
+        <div>
+          <label class="text-[10px] text-muted-foreground mb-0.5 block">Text Align</label>
+          <div class="flex gap-0.5">
+            <button v-for="a in ['left', 'center', 'right']" :key="a" class="flex-1 h-7 text-[10px] rounded border hover:bg-muted" :class="(section.text_align || 'left') === a ? 'bg-primary/10 border-primary text-primary' : 'border-border'" @click="update('text_align', a)">
+              {{ a.charAt(0).toUpperCase() + a.slice(1) }}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] text-muted-foreground mb-0.5 block">Line Gap (heading → subheading)</label>
+          <UiSelect :model-value="section.line_gap || '8'" @update:model-value="update('line_gap', $event)">
+            <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="0">None</UiSelectItem>
+              <UiSelectItem value="2">Tight (2px)</UiSelectItem>
+              <UiSelectItem value="4">Small (4px)</UiSelectItem>
+              <UiSelectItem value="8">Default (8px)</UiSelectItem>
+              <UiSelectItem value="12">Medium (12px)</UiSelectItem>
+              <UiSelectItem value="16">Large (16px)</UiSelectItem>
+              <UiSelectItem value="24">XL (24px)</UiSelectItem>
+              <UiSelectItem value="32">2XL (32px)</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Text Colour</label>
+            <div class="flex gap-1 items-center">
+              <input type="color" :value="section.text_color || '#000000'" class="h-7 w-7 rounded border cursor-pointer" @input="update('text_color', ($event.target as HTMLInputElement).value)" />
+              <UiInput :model-value="section.text_color || ''" class="h-7 text-xs flex-1" placeholder="inherit" @update:model-value="update('text_color', $event)" />
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-0.5 block">Background</label>
+            <div class="flex gap-1 items-center">
+              <input type="color" :value="section.background_color || '#ffffff'" class="h-7 w-7 rounded border cursor-pointer" @input="update('background_color', ($event.target as HTMLInputElement).value)" />
+              <UiInput :model-value="section.background_color || ''" class="h-7 text-xs flex-1" placeholder="none" @update:model-value="update('background_color', $event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <!-- ===== INTRO ===== -->
     <template v-else-if="sectionType === 'intro'">
       <div class="space-y-3">
