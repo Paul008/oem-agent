@@ -309,6 +309,15 @@
       "schedule": "monthly"
     },
     {
+      "id": "subaru-au:offers",
+      "oem_id": "subaru-au",
+      "operation": "offers",
+      "script": "seed-subaru-offers.mjs",
+      "tables_affected": ["offers", "source_pages"],
+      "stability": "medium",
+      "schedule": "weekly"
+    },
+    {
       "id": "subaru-au:apis",
       "oem_id": "subaru-au",
       "operation": "apis",

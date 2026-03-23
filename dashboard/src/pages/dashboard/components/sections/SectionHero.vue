@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-defineProps<{
+const props = defineProps<{
   section: {
     type: 'hero'
     heading: string
@@ -10,8 +10,70 @@ defineProps<{
     mobile_image_url: string
     background_image_url?: string
     video_url?: string
+    heading_size?: string
+    heading_weight?: string
+    sub_heading_size?: string
+    sub_heading_weight?: string
+    text_color?: string
+    text_align?: string
+    overlay_position?: string
   }
 }>()
+
+const sizeClasses: Record<string, string> = {
+  sm: 'text-sm',
+  base: 'text-base',
+  lg: 'text-lg',
+  xl: 'text-xl',
+  '2xl': 'text-2xl',
+  '3xl': 'text-3xl',
+  '4xl': 'text-4xl',
+  '5xl': 'text-5xl',
+  '6xl': 'text-6xl',
+}
+
+const weightClasses: Record<string, string> = {
+  light: 'font-light',
+  normal: 'font-normal',
+  medium: 'font-medium',
+  semibold: 'font-semibold',
+  bold: 'font-bold',
+  extrabold: 'font-extrabold',
+}
+
+const alignClasses: Record<string, string> = {
+  left: 'text-left items-start',
+  center: 'text-center items-center',
+  right: 'text-right items-end',
+}
+
+const positionClasses: Record<string, string> = {
+  'bottom-left': 'bottom-0 left-0 p-8',
+  'bottom-center': 'bottom-0 inset-x-0 p-8 flex flex-col items-center text-center',
+  'bottom-right': 'bottom-0 right-0 p-8 flex flex-col items-end text-right',
+  'center': 'inset-0 flex flex-col items-center justify-center text-center',
+  'top-left': 'top-0 left-0 p-8',
+  'top-center': 'top-0 inset-x-0 p-8 flex flex-col items-center text-center',
+}
+
+function headingSizeClass() {
+  return sizeClasses[props.section.heading_size || '3xl'] || 'text-3xl'
+}
+function headingWeightClass() {
+  return weightClasses[props.section.heading_weight || 'bold'] || 'font-bold'
+}
+function subSizeClass() {
+  return sizeClasses[props.section.sub_heading_size || 'lg'] || 'text-lg'
+}
+function subWeightClass() {
+  return weightClasses[props.section.sub_heading_weight || 'normal'] || 'font-normal'
+}
+function overlayPos() {
+  return positionClasses[props.section.overlay_position || 'bottom-left'] || positionClasses['bottom-left']
+}
+function textAlignClass() {
+  return alignClasses[props.section.text_align || 'left'] || ''
+}
 </script>
 
 <template>
@@ -39,11 +101,23 @@ defineProps<{
       class="w-full h-full object-cover"
     />
     <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-    <div class="absolute inset-x-0 bottom-0 p-8">
-      <h2 class="text-white text-3xl font-bold drop-shadow-lg">
+    <div
+      class="absolute"
+      :class="[overlayPos(), textAlignClass()]"
+    >
+      <h2
+        class="drop-shadow-lg"
+        :class="[headingSizeClass(), headingWeightClass()]"
+        :style="{ color: section.text_color || '#ffffff' }"
+      >
         {{ section.heading }}
       </h2>
-      <p v-if="section.sub_heading" class="text-white/85 text-lg mt-1 drop-shadow">
+      <p
+        v-if="section.sub_heading"
+        class="mt-1 drop-shadow"
+        :class="[subSizeClass(), subWeightClass()]"
+        :style="{ color: section.text_color || '#ffffff', opacity: 0.85 }"
+      >
         {{ section.sub_heading }}
       </p>
       <a

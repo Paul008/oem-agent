@@ -19,7 +19,7 @@ How we fetch variant data (pricing, colors, specs, images, features) for each Au
 | Volkswagen | OneHub Offers API (REST) | None (dealer code param) | MRDP driveaway + MRRP | 4-angle renders + swatch tiles (VGA S3) | OneHub payload.features array | Yes |
 | Chery | Drupal HTML + `data-json` attrs | None (SSR) | Driveaway per variant | `data-json` car_image + colour_image | Model page feature lists | No |
 
-**Current totals:** 18 OEMs complete, 179 vehicle_models, 796 products (100% specs_json), 4,952 variant_colors, 1,158 variant_pricing, 302 offers, 176 banners.
+**Current totals:** 18 OEMs complete, 179 vehicle_models, 796 products (100% specs_json), 4,952 variant_colors, 1,158 variant_pricing, 322 offers, 176 banners.
 
 > **Gatsby SSG OEMs**: LDV Australia uses Gatsby 5.14.6 with i-Motor CMS. All vehicle data (models, specs, variants, colors, pricing) is available via `page-data.json` endpoints — no browser rendering or API keys needed. See section 9 below.
 

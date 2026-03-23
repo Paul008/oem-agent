@@ -65,7 +65,7 @@ Base URL: `https://oem-agent.adme-dev.workers.dev`
 - 18 OEMs, 179 models, 796 products
 - 4,952 variant colors with hero images
 - 1,158 variant pricing rows (driveaway, 8 AU states)
-- 302 offers (100% images, 100% disclaimers)
+- 322 offers (100% images, 100% disclaimers)
 - 176 banners, 2,913 accessories, 108 brochure PDFs
 
 ## Queryable Data

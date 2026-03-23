@@ -30,7 +30,7 @@ export interface OemDefinition {
     hasSubBrands?: boolean;
     /** Frontend framework for extraction strategy and migration detection.
      *  Checked during crawl — if detected framework differs, a change event is logged. */
-    framework?: 'gatsby' | 'nextjs' | 'nuxt' | 'aem' | 'react-spa' | 'vue' | 'static' | 'wordpress' | 'sitecore' | 'custom';
+    framework?: 'gatsby' | 'nextjs' | 'nuxt' | 'aem' | 'react-spa' | 'vue' | 'static' | 'wordpress' | 'sitecore' | 'drupal' | 'inchcape' | 'custom';
   };
 }
 
@@ -447,7 +447,7 @@ export const subaruAu: OemDefinition = {
   config: {
     homepage: '/',
     vehicles_index: '/vehicles',
-    offers: '/offers',
+    offers: '/special-offers',
     news: '/newsroom',
     schedule: {
       homepage_minutes: 120,
@@ -464,9 +464,9 @@ export const subaruAu: OemDefinition = {
   },
   flags: {
     requiresBrowserRendering: true,
-    isNextJs: true,
+    isNextJs: false,
     hasSubBrands: false,
-    framework: 'nextjs',
+    framework: 'inchcape',
   },
 };
 

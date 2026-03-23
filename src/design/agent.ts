@@ -853,7 +853,7 @@ export const OEM_BRAND_NOTES: Record<OemId, { colors: string[]; notes: string }>
   },
   'subaru-au': {
     colors: ['#003DA5'], // Subaru blue
-    notes: 'System fonts, symmetrical AWD focus, Subaru Retailer API (x-api-key), star cluster motif',
+    notes: 'Inchcape AU Web Platform (React + jQuery, CSS Modules), symmetrical AWD focus, Subaru Retailer API (x-api-key), star cluster motif, /special-offers page (national, not state-filtered)',
   },
   'gmsv-au': {
     colors: ['#000000', '#CF9F2B'], // GMSV black + gold

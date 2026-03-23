@@ -260,6 +260,83 @@ export function extractWithSelectors(
 }
 
 // ============================================================================
+// Subaru-Specific Offer Extraction
+// ============================================================================
+// Subaru's /special-offers page uses obfuscated CSS Module classes (Inchcape
+// AU Web Platform). Generic selectors won't work. Instead we anchor on the
+// S3 image CDN pattern and walk up to the parent card element.
+
+const SUBARU_S3_CDN = 'production-cdn-subaru-image-handler.s3.ap-southeast-2.amazonaws.com';
+
+export function extractSubaruOffers(html: string): ExtractedOffer[] {
+  const $ = cheerio.load(html);
+  const offers: ExtractedOffer[] = [];
+  const seen = new Set<string>();
+
+  // Find all images from the Subaru S3 offers CDN
+  $(`img[src*="${SUBARU_S3_CDN}/offers/"]`).each((_, el) => {
+    const $img = $(el);
+    const src = $img.attr('src') || '';
+    const alt = $img.attr('alt') || '';
+
+    // Extract the offer slug from the S3 path: /offers/{slug}/{uuid}.jpg
+    const slugMatch = src.match(/\/offers\/([^/]+)\//);
+    if (!slugMatch) return;
+    const slug = slugMatch[1];
+    if (seen.has(slug)) return;
+    seen.add(slug);
+
+    // Walk up to find the nearest card-like container (typically 2-4 levels up)
+    let $card = $img.parent();
+    for (let i = 0; i < 4; i++) {
+      const parent = $card.parent();
+      if (!parent.length) break;
+      // Stop if we hit a grid container or a very large element
+      const children = parent.children().length;
+      if (children > 3) break;
+      $card = parent;
+    }
+
+    // Extract text content from the card
+    const cardText = $card.text().trim();
+    const title = alt.replace(/<[^>]+>/g, '').trim() || cardText.substring(0, 120).trim() || `Subaru Offer: ${slug}`;
+
+    // Try to extract price from card text
+    let priceAmount: number | null = null;
+    const priceMatch = cardText.match(/\$[\d,]+/);
+    if (priceMatch) {
+      priceAmount = parseFloat(priceMatch[0].replace(/[$,]/g, ''));
+    }
+
+    // Determine offer type from slug/title
+    let offerType: string = 'promotion';
+    if (slug.includes('driveaway')) offerType = 'driveaway';
+    else if (slug.includes('special-edition') || slug.includes('onyx') || slug.includes('kiiro') || slug.includes('club-spec')) offerType = 'special_edition';
+    else if (slug.includes('accessory') || slug.includes('tow-bar') || slug.includes('spoiler') || slug.includes('alloy') || slug.includes('mudflap') || slug.includes('styling') || slug.includes('cargo') || slug.includes('first-aid') || slug.includes('pack')) offerType = 'accessory';
+    else if (slug.includes('servicing') || slug.includes('run-out')) offerType = 'servicing';
+
+    const offer: ExtractedOffer = {
+      title,
+      description: cardText.length > title.length ? cardText.substring(0, 300).trim() : null,
+      offer_type: offerType as OfferType,
+      hero_image_url: src,
+      cta_text: 'View Offer',
+      cta_url: `/special-offers/${slug}`,
+      price: priceAmount ? {
+        amount: priceAmount,
+        type: 'driveaway' as PriceType,
+        raw_string: priceMatch?.[0] || null,
+        saving_amount: null,
+      } : undefined,
+    };
+
+    offers.push(offer);
+  });
+
+  return offers;
+}
+
+// ============================================================================
 // LLM Fallback Extraction (Priority 4)
 // ============================================================================
 
@@ -353,6 +430,16 @@ export class ExtractionEngine {
 
     // Merge offers
     const offers: ExtractedOffer[] = [...jsonLdOffers, ...selectorData.offers];
+
+    // Subaru-specific: extract offers from S3 image CDN anchors
+    // (CSS classes are obfuscated on Subaru's Inchcape platform)
+    if (oemId === 'subaru-au' && pageType === 'offers' && offers.length === 0) {
+      const subaruOffers = extractSubaruOffers(html);
+      if (subaruOffers.length > 0) {
+        console.log(`[ExtractionEngine] Subaru S3-anchored extraction found ${subaruOffers.length} offers`);
+        offers.push(...subaruOffers);
+      }
+    }
 
     // Calculate coverage for each extraction type
     const productCoverage = this.calculateProductCoverage(products);

@@ -16,7 +16,7 @@
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
-| **oem-data-sync** | Data synchronization | 37 seed/enrich scripts for products, accessories, colors, offers |
+| **oem-data-sync** | Data synchronization | 38 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
 | **autonomous-agents** | Workflow automation | 7 sub-skills: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker |
 
@@ -76,7 +76,7 @@ All skills store data in Supabase. Key tables:
 | `discovered_apis` | API endpoints per OEM | Unique: oem_id, url |
 | `source_pages` | URLs monitored for changes | |
 | `change_events` | Audit log of detected changes | |
-| `offers` (302) | Promotional offers across ALL 18 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
+| `offers` (322) | Promotional offers across ALL 18 OEMs (auto-updated by crawl every 4h) | hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at |
 | `banners` (176) | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images | page_url, position, image_url_desktop/mobile, video_url_desktop/mobile |
 | `oem_portals` (31) | Marketing portal credentials (18 OEMs) | portal_url, username, password, guidelines_pdf_url |
 | `pdf_embeddings` | Vectorized PDF chunks (brochures + guidelines) | vector(768), HNSW index, `search_pdfs_semantic()` RPC |

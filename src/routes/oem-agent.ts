@@ -1856,7 +1856,7 @@ app.post('/admin/upload-media/:oemId/:modelSlug', async (c) => {
 
   return c.json({
     success: true,
-    url: `/media/pages/${oemId}/${modelSlug}/${filename}`,
+    url: `/media/pages/assets/${oemId}/${modelSlug}/${filename}`,
     filename,
     size: file.size,
     type: file.type,

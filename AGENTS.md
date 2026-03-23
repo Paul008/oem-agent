@@ -117,7 +117,7 @@ All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
 | `discovered_apis` (58+) | API endpoints | Unique: oem_id, url. Has schema_json, reliability_score |
 | `source_pages` | Monitored URLs | |
 | `change_events` | Change audit log | |
-| `offers` (302) | Promotions (all 18 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `offers` (322) | Promotions (all 18 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl jobs | |
 

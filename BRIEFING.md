@@ -184,7 +184,7 @@ oems → vehicle_models → products → variant_colors
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
 | **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
 | **oem-crawl** | Page crawling | Two-stage pipeline (cheap-check → full render), change detection |
-| **oem-data-sync** | Data synchronization | 37 seed/enrich scripts for products, accessories, colors, offers |
+| **oem-data-sync** | Data synchronization | 38 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
 | **oem-report** | Reporting | Slack alerts, daily digests across 18 OEMs |
@@ -470,7 +470,7 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 **Final State (2026-03-19)**:
 - 18 OEMs ALL complete (incl. Chery AU + VW AU rebuilt from OneHub API)
 - 796 products, 179 models, 4,952 colors, 1,158 pricing rows, 2,913 accessories
-- 302 offers (100% images, 100% disclaimers, 68 with HTML formatting)
+- 322 offers (100% images, 100% disclaimers, 68 with HTML formatting)
 - 176 banners (desktop + mobile), 106 brochure PDFs, 231 source pages
 - Universal disclaimer on all 18 OEMs, served via dealer API /catalog endpoint
 - Offer detail dialog with collapsible disclaimers, finance breakdown, eligibility

@@ -1,6 +1,6 @@
 ---
 name: oem-data-sync
-description: Run, monitor, and diagnose the 37 seed/enrich scripts that populate Supabase with OEM vehicle data (models, products, accessories, colors, pricing, portals, brochures)
+description: Run, monitor, and diagnose the 38 seed/enrich scripts that populate Supabase with OEM vehicle data (models, products, accessories, colors, pricing, portals, brochures)
 ---
 
 # OEM Data Sync
@@ -116,18 +116,20 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 | kia-au | `enrich-kia-heroes.mjs` | Add hero images from 360VR CDN | variant_colors | medium | weekly |
 | gwm-au | `enrich-gwm-storyblok.mjs` | Enrich names + hero + gallery from Storyblok | variant_colors | high | weekly |
 
-### Offers (3 scripts)
+### Offers (4 scripts)
 
 | OEM | Script | API Source | Tables | Stability | Schedule |
 |-----|--------|-----------|--------|-----------|----------|
 | gwm-au | `seed-gwm-offer-images.mjs` | Storyblok CDN API (AUModel variants) | offers | high | weekly |
 | kgm-au | `seed-kgm-offers.mjs` | Payload CMS + website scrape | offers | medium | weekly |
 | kia-au | `seed-kia-offers.mjs` | AEM KWCMS HTML scraping (two-tier) | offers | medium | weekly |
+| subaru-au | `seed-subaru-offers.mjs` | Inchcape /special-offers (React fiber / S3 CDN) | offers | medium | weekly |
 
 **Notes:**
 - GWM offers: Matches existing DB offers to Storyblok AUModel variants by normalized name + price. Updates `hero_image_r2_key`, `price_amount` (retail), and `abn_price_amount` (ABN). ABN pricing differs for utes/Tanks/Ora ($1,000 cheaper), same for Haval SUVs.
 - KGM offers: Combines Payload CMS model data (ABN discounts, starting prices) with hardcoded website offer data (factory bonus, run-out sales). Images from CMS media (`payload.therefinerydesign.com/api/media/file/`). Deletes + re-inserts all KGM offers on each run.
 - Kia offers: Two-tier HTML scraping. Tier 1 scrapes main offers page for 15 model-level offers (driveaway, finance, value-add) with hero images. Tier 2 follows detail page links to extract grade/variant pricing (Model Range section). Deduplicates shared detail pages. Deletes + re-inserts all Kia offers on each run. 52 offers (15 main + 37 variant), $22,140–$78,490.
+- Subaru offers: 20 offers from `/special-offers` page (Inchcape AU Web Platform). Offers are **national** (not state-filtered — dealer picker only routes enquiries). 3 categories: driveaway (3), special editions (6), accessories (10), servicing (1). Images on S3 CDN (`production-cdn-subaru-image-handler.s3.ap-southeast-2.amazonaws.com/offers/{slug}/`). No API for offers — Retailer API covers models/variants/specs only. Obfuscated CSS Module classes require S3 CDN anchor extraction (in `src/extract/engine.ts`).
 
 ### Banners (3 scripts)
 
@@ -143,7 +145,7 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 - `seed-suzuki-banners.mjs`: Suzuki `/home/` hero carousel (3 slides) and `/latest-offers/` hero banner. Uses background-image CSS with desktop/mobile variants.
 - **Video scripts**: `seed-ford-video.mjs` (Brightcove Playback API), `seed-banner-videos.mjs` (Suzuki direct mp4).
 - Ford video: Brightcove account `4082198814001`, player `H1RIrS7kf`, policy key required. Mp4 URLs use Fastly signed tokens that expire — must call Playback API for fresh URLs.
-- Missing OEMs: Subaru (React client-side), Mitsubishi (no hero), LDV (data via Gatsby page-data.json, no banner extraction yet).
+- Missing OEMs: Subaru (Inchcape platform, obfuscated CSS Modules — offers extracted via S3 CDN anchor), Mitsubishi (no hero), LDV (data via Gatsby page-data.json, no banner extraction yet).
 
 ### Ford Colors (1 script — replaces old enrichment)
 
