@@ -54,6 +54,7 @@ export interface MoltbotEnv {
   GROQ_API_KEY: string;
   TOGETHER_API_KEY: string;
   SLACK_WEBHOOK_URL?: string;
+  DEALER_NETWORK_URL?: string; // Dealer network base URL for cache purge webhooks (e.g., https://dealer-network.pages.dev)
   // Research APIs for OEM discovery
   BRAVE_API_KEY?: string;       // Brave Search API for web research
   PERPLEXITY_API_KEY?: string;  // Perplexity API for AI-powered research

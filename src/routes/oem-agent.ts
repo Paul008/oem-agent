@@ -1801,6 +1801,19 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
     }),
   ]);
 
+  // Purge dealer network cache so model page serves fresh data immediately
+  if (c.env.DEALER_NETWORK_URL) {
+    c.executionCtx.waitUntil(
+      fetch(`${c.env.DEALER_NETWORK_URL}/api/webhooks/purge-model-cache`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oem_code: oemId, model_slug: modelSlug }),
+      }).catch((err) => {
+        console.error(`[page-builder] Cache purge failed for ${oemId}/${modelSlug}:`, err);
+      })
+    );
+  }
+
   return c.json({
     success: true,
     version: pageData.version,
