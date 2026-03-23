@@ -15,7 +15,7 @@ export interface SectionTemplate {
 }
 
 export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>> = {
-  'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left' }),
+  'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left', show_overlay: true, full_width_image: false }),
   'heading': () => ({ heading: '', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: '', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', text_color: '', line_gap: '8', background_color: '' }),
   'intro': () => ({ title: '', body_html: '', image_url: '', image_position: 'right' }),
   'tabs': () => ({ title: '', category: '', variant: 'default', theme: 'light', image_position: 'right', tabs: [{ label: 'Tab 1', content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' }], default_tab: 0 }),

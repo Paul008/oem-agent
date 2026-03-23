@@ -17,6 +17,8 @@ const props = defineProps<{
     text_color?: string
     text_align?: string
     overlay_position?: string
+    show_overlay?: boolean
+    full_width_image?: boolean
   }
 }>()
 
@@ -78,7 +80,8 @@ function textAlignClass() {
 
 <template>
   <div
-    class="relative w-full aspect-[16/7] overflow-hidden bg-muted"
+    class="relative w-full overflow-hidden bg-muted"
+    :class="section.full_width_image ? '' : 'aspect-[16/7]'"
     :style="section.background_image_url && !section.desktop_image_url
       ? { backgroundImage: `url(${section.background_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
       : undefined"
@@ -98,9 +101,9 @@ function textAlignClass() {
       v-else-if="section.desktop_image_url"
       :src="section.desktop_image_url"
       :alt="section.heading"
-      class="w-full h-full object-cover"
+      :class="section.full_width_image ? 'w-full h-auto' : 'w-full h-full object-cover'"
     />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+    <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
     <div
       class="absolute"
       :class="[overlayPos(), textAlignClass()]"

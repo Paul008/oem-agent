@@ -344,6 +344,20 @@ function onMediaLibrarySelect(url: string) {
             <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
+
+        <UiSeparator />
+
+        <!-- Image Display Options -->
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="rounded" :checked="section.show_overlay !== false" @change="update('show_overlay', ($event.target as HTMLInputElement).checked)" />
+            <span class="text-xs">Gradient overlay</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="rounded" :checked="section.full_width_image === true" @change="update('full_width_image', ($event.target as HTMLInputElement).checked)" />
+            <span class="text-xs">Full-width image (no crop)</span>
+          </label>
+        </div>
       </div>
     </template>
 
