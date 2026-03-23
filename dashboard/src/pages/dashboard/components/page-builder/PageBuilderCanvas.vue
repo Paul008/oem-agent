@@ -19,6 +19,7 @@ const emit = defineEmits<{
 
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
+  'heading': defineAsyncComponent(() => import('../sections/SectionHeading.vue')),
   'intro': defineAsyncComponent(() => import('../sections/SectionIntro.vue')),
   'tabs': defineAsyncComponent(() => import('../sections/SectionTabs.vue')),
   'color-picker': defineAsyncComponent(() => import('../sections/SectionColorPicker.vue')),
