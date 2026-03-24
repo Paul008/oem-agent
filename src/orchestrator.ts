@@ -40,6 +40,21 @@ import { DesignAgent } from './design/agent';
 import { getOemDefinition } from './oem/registry';
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Race a promise against a timeout. Rejects with a descriptive error on expiry. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timeout: ${label} exceeded ${ms}ms`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+// ============================================================================
 // Configuration
 // ============================================================================
 
@@ -159,6 +174,43 @@ export class OemAgentOrchestrator {
     let pagesChanged = 0;
     let errors = 0;
 
+    // ── Housekeeping: mark stale "running" import_runs as timed out ──
+    // Any run stuck in "running" for >10 min is dead (Worker was killed).
+    const staleThreshold = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: staleRuns, error: staleErr } = await this.config.supabaseClient
+      .from('import_runs')
+      .update({
+        status: 'timeout',
+        finished_at: new Date().toISOString(),
+        error_log: 'Automatically marked as timeout — run exceeded 10 min without completion',
+      })
+      .eq('status', 'running')
+      .lt('started_at', staleThreshold)
+      .select('id');
+
+    if (staleRuns?.length) {
+      console.log(`[Orchestrator] Cleaned up ${staleRuns.length} stale "running" import_runs`);
+    }
+    if (staleErr) {
+      console.warn('[Orchestrator] Failed to clean stale runs:', staleErr);
+    }
+
+    // Also clean up orphaned "pending" retry runs (never picked up)
+    const { data: stalePending } = await this.config.supabaseClient
+      .from('import_runs')
+      .update({
+        status: 'timeout',
+        finished_at: new Date().toISOString(),
+        error_log: 'Orphaned pending run — never picked up by crawler',
+      })
+      .eq('status', 'pending')
+      .lt('started_at', staleThreshold)
+      .select('id');
+
+    if (stalePending?.length) {
+      console.log(`[Orchestrator] Cleaned up ${stalePending.length} orphaned "pending" import_runs`);
+    }
+
     // Get all active OEMs
     const { data: oems, error: oemsError } = await this.config.supabaseClient
       .from('oems')
@@ -170,10 +222,15 @@ export class OemAgentOrchestrator {
       return { jobsProcessed: 0, pagesChanged: 0, errors: 1 };
     }
 
-    // Process each OEM
+    // Process each OEM with a per-OEM timeout (90s max per OEM)
+    const PER_OEM_TIMEOUT_MS = 90_000;
     for (const oem of oems) {
       try {
-        const result = await this.crawlOem(oem.id as OemId, pageTypes);
+        const result = await withTimeout(
+          this.crawlOem(oem.id as OemId, pageTypes, 'scheduled'),
+          PER_OEM_TIMEOUT_MS,
+          `crawlOem(${oem.id})`,
+        );
         jobsProcessed += result.jobsProcessed;
         pagesChanged += result.pagesChanged;
         errors += result.errors;
@@ -192,7 +249,11 @@ export class OemAgentOrchestrator {
   /**
    * Run a crawl for a specific OEM, optionally filtered to specific page types.
    */
-  async crawlOem(oemId: OemId, pageTypes?: PageType[]): Promise<{
+  async crawlOem(
+    oemId: OemId,
+    pageTypes?: PageType[],
+    runType: 'manual' | 'scheduled' | 'retry' = 'manual',
+  ): Promise<{
     jobsProcessed: number;
     pagesChanged: number;
     errors: number;
@@ -201,15 +262,16 @@ export class OemAgentOrchestrator {
     console.log(`[Orchestrator] Crawling OEM: ${oemId}${pageTypes ? ` (page types: ${pageTypes.join(', ')})` : ''}`);
 
     // Create import run record
+    const importRunId = crypto.randomUUID();
     const importRun = {
-      id: crypto.randomUUID(),
+      id: importRunId,
       oem_id: oemId,
-      run_type: 'manual',
+      run_type: runType,
       status: 'running',
       started_at: new Date().toISOString(),
     };
 
-    console.log(`[Orchestrator] Creating import run: ${importRun.id}`);
+    console.log(`[Orchestrator] Creating import run: ${importRunId}`);
     const { error: insertError } = await this.config.supabaseClient
       .from('import_runs')
       .insert(importRun);
@@ -217,14 +279,9 @@ export class OemAgentOrchestrator {
     if (insertError) {
       console.error('[Orchestrator] Failed to create import run:', insertError);
     } else {
-      console.log(`[Orchestrator] Import run created: ${importRun.id}`);
+      console.log(`[Orchestrator] Import run created: ${importRunId}`);
     }
 
-    // Get due pages for this OEM (filtered by page type if specified)
-    console.log(`[Orchestrator] Fetching due pages for ${oemId}...`);
-    const pages = await this.getDuePages(oemId, pageTypes);
-    console.log(`[Orchestrator] Found ${pages.length} due pages for ${oemId}`);
-    
     let jobsProcessed = 0;
     let pagesChanged = 0;
     let errors = 0;
@@ -233,58 +290,98 @@ export class OemAgentOrchestrator {
     let bannersUpserted = 0;
     let brochuresUpserted = 0;
     let changesFound = 0;
+    let finalStatus = 'completed';
+    let errorLog: string | null = null;
 
-    // Process each page
-    for (const page of pages) {
-      try {
-        const result = await this.crawlPage(oemId, page);
-        jobsProcessed++;
+    try {
+      // Get due pages for this OEM (filtered by page type if specified)
+      console.log(`[Orchestrator] Fetching due pages for ${oemId}...`);
+      const pages = await this.getDuePages(oemId, pageTypes);
+      console.log(`[Orchestrator] Found ${pages.length} due pages for ${oemId}`);
 
-        if (result.success) {
-          if (result.extractionResult?.products?.data?.length ||
-              result.extractionResult?.offers?.data?.length) {
-            pagesChanged++;
+      // Process each page with a per-page timeout (60s max)
+      const PER_PAGE_TIMEOUT_MS = 60_000;
+      for (const page of pages) {
+        try {
+          const result = await withTimeout(
+            this.crawlPage(oemId, page),
+            PER_PAGE_TIMEOUT_MS,
+            `crawlPage(${page.url})`,
+          );
+          jobsProcessed++;
+
+          if (result.success) {
+            if (result.extractionResult?.products?.data?.length ||
+                result.extractionResult?.offers?.data?.length) {
+              pagesChanged++;
+            }
+            // Accumulate counters
+            productsUpserted += result.productsUpserted || 0;
+            offersUpserted += result.offersUpserted || 0;
+            bannersUpserted += result.bannersUpserted || 0;
+            brochuresUpserted += result.brochuresUpserted || 0;
+            changesFound += result.changesFound || 0;
+          } else {
+            errors++;
           }
-          // Accumulate counters
-          productsUpserted += result.productsUpserted || 0;
-          offersUpserted += result.offersUpserted || 0;
-          bannersUpserted += result.bannersUpserted || 0;
-          brochuresUpserted += result.brochuresUpserted || 0;
-          changesFound += result.changesFound || 0;
-        } else {
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error(`[Orchestrator] Error crawling page ${page.url}: ${msg}`);
           errors++;
+          jobsProcessed++;
         }
-      } catch (error) {
-        console.error(`[Orchestrator] Error crawling page ${page.url}:`, error);
-        errors++;
+      }
+
+      // Determine final status
+      if (errors > 0 && pagesChanged > 0) {
+        finalStatus = 'partial';
+      } else if (errors > 0 && pagesChanged === 0) {
+        finalStatus = 'failed';
+      } else {
+        finalStatus = 'completed';
+      }
+    } catch (outerError) {
+      // Catch-all: unexpected errors (e.g. getDuePages failure, timeout from parent)
+      const msg = outerError instanceof Error ? outerError.message : String(outerError);
+      console.error(`[Orchestrator] crawlOem(${oemId}) failed: ${msg}`);
+      finalStatus = 'failed';
+      errorLog = msg.slice(0, 500);
+    } finally {
+      // ── ALWAYS update the import_run — this is the critical fix ──
+      try {
+        await this.config.supabaseClient
+          .from('import_runs')
+          .update({
+            status: finalStatus,
+            finished_at: new Date().toISOString(),
+            pages_checked: jobsProcessed,
+            pages_changed: pagesChanged,
+            pages_errored: errors,
+            products_upserted: productsUpserted,
+            offers_upserted: offersUpserted,
+            banners_upserted: bannersUpserted,
+            changes_found: changesFound,
+            error_log: errorLog,
+          })
+          .eq('id', importRunId);
+        console.log(`[Orchestrator] Import run ${importRunId} → ${finalStatus} (${jobsProcessed} pages, ${errors} errors)`);
+      } catch (updateErr) {
+        console.error(`[Orchestrator] CRITICAL: Failed to update import_run ${importRunId}:`, updateErr);
       }
     }
 
-    // Update import run
-    await this.config.supabaseClient
-      .from('import_runs')
-      .update({
-        status: errors > 0 ? (pagesChanged > 0 ? 'partial' : 'failed') : 'completed',
-        finished_at: new Date().toISOString(),
-        pages_checked: jobsProcessed,
-        pages_changed: pagesChanged,
-        pages_errored: errors,
-        products_upserted: productsUpserted,
-        offers_upserted: offersUpserted,
-        banners_upserted: bannersUpserted,
-        brochures_upserted: brochuresUpserted,
-        changes_found: changesFound,
-      })
-      .eq('id', importRun.id);
-
-    // Send batched alerts
-    await this.sendBatchedAlerts(oemId);
+    // Send batched alerts (non-critical — don't let it break the return)
+    try {
+      await this.sendBatchedAlerts(oemId);
+    } catch (alertErr) {
+      console.warn(`[Orchestrator] Alert batching failed for ${oemId}:`, alertErr);
+    }
 
     return {
       jobsProcessed,
       pagesChanged,
       errors,
-      importRunId: importRun.id || null,
+      importRunId,
     };
   }
 
@@ -1402,10 +1499,13 @@ export class OemAgentOrchestrator {
       const html = await page.content();
       console.log(`[Orchestrator] Got page content: ${html.length} chars`);
 
-      // Wait for all response handlers to complete (important for async body reading)
-      console.log(`[Orchestrator] Waiting for ${pendingResponseHandlers} pending response handlers...`);
-      await Promise.all(responsePromises);
-      console.log(`[Orchestrator] All response handlers complete, ${networkResponses.length} responses captured`);
+      // Wait for response handlers with a timeout (5s max — don't let hanging responses block the crawl)
+      console.log(`[Orchestrator] Waiting for ${pendingResponseHandlers} pending response handlers (5s max)...`);
+      await Promise.race([
+        Promise.all(responsePromises),
+        new Promise<void>(resolve => setTimeout(resolve, 5000)),
+      ]);
+      console.log(`[Orchestrator] Response handlers done or timed out, ${networkResponses.length} responses captured`);
 
       // Analyze captured responses to identify API candidates
       const apiCandidates = this.analyzeApiCandidates(networkResponses, oemId);

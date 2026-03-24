@@ -78,7 +78,7 @@ export async function executeOrchestratorController(
   // 2. Load import_runs from last 24h
   const { data: runs } = await supabase
     .from('import_runs')
-    .select('oem_id, status, products_upserted, offers_upserted, error_message, started_at, completed_at')
+    .select('oem_id, status, products_upserted, offers_upserted, error_log, started_at, finished_at')
     .gte('started_at', since24h)
     .order('started_at', { ascending: false });
 
@@ -110,7 +110,14 @@ export async function executeOrchestratorController(
   for (const oemId of oemIds) {
     const oemRuns = (runs ?? []).filter(r => r.oem_id === oemId);
     const successRuns = oemRuns.filter(r => r.status === 'completed');
-    const failedRuns = oemRuns.filter(r => r.status === 'failed');
+    // Treat "running" runs older than 10 min as failed (Worker was killed)
+    const staleThresholdMs = 10 * 60 * 1000;
+    const failedRuns = oemRuns.filter(r =>
+      r.status === 'failed' ||
+      r.status === 'timeout' ||
+      (r.status === 'running' && (now.getTime() - new Date(r.started_at).getTime()) > staleThresholdMs) ||
+      (r.status === 'pending' && (now.getTime() - new Date(r.started_at).getTime()) > staleThresholdMs)
+    );
     const lastRun = oemRuns[0];
     const lastSuccess = successRuns[0];
 
@@ -144,8 +151,8 @@ export async function executeOrchestratorController(
       status,
       success_rate: Math.round(successRate * 100),
       runs_24h: oemRuns.length,
-      last_success_at: lastSuccess?.completed_at || null,
-      last_error: failedRuns[0]?.error_message?.slice(0, 150) || null,
+      last_success_at: lastSuccess?.finished_at || null,
+      last_error: failedRuns[0]?.error_log?.slice(0, 150) || null,
       products: prodByOem[oemId] || 0,
       colors: 0, // Skip color count for performance
       offers: offerByOem[oemId] || 0,
@@ -160,21 +167,12 @@ export async function executeOrchestratorController(
         : Infinity;
 
       if (minutesSinceRetry >= retryInfo.backoff_minutes) {
-        // Trigger a retry crawl by inserting a "retry" import_run
-        const { error: retryErr } = await supabase.from('import_runs').insert({
-          id: crypto.randomUUID(),
-          oem_id: oemId,
-          run_type: 'retry',
-          status: 'pending',
-          started_at: now.toISOString(),
-        });
-
-        if (!retryErr) {
-          retryInfo.last_retry_at = now.toISOString();
-          retryInfo.backoff_minutes = Math.min(retryInfo.backoff_minutes * 2, MAX_BACKOFF_MINUTES);
-          retriesTriggered++;
-          console.log(`[Controller] Retry triggered for ${oemId} (attempt ${retryInfo.consecutive_failures + 1}, next backoff: ${retryInfo.backoff_minutes}min)`);
-        }
+        // Log retry intent — the next scheduled cron will pick up this OEM.
+        // We no longer create orphaned "pending" import_runs that nothing processes.
+        retryInfo.last_retry_at = now.toISOString();
+        retryInfo.backoff_minutes = Math.min(retryInfo.backoff_minutes * 2, MAX_BACKOFF_MINUTES);
+        retriesTriggered++;
+        console.log(`[Controller] Retry noted for ${oemId} (attempt ${retryInfo.consecutive_failures + 1}, next backoff: ${retryInfo.backoff_minutes}min) — next cron will re-crawl`);
       }
     }
 
