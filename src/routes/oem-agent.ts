@@ -268,17 +268,18 @@ app.post('/admin/crawl/:oemId', async (c) => {
   // Return immediately with job ID
   const jobId = crypto.randomUUID();
 
-  // Trigger crawl in background using waitUntil
-  // This keeps the worker alive until the crawl completes
+  // Trigger crawl in background using waitUntil.
+  // skipRender=true because HTTP waitUntil budget is ~30s (not enough for browser rendering).
+  // Browser rendering happens via the scheduled cron which gets 15 minutes.
   c.executionCtx.waitUntil(
-    orchestrator.crawlOem(oemId).catch(err => {
+    orchestrator.crawlOem(oemId, undefined, 'manual', undefined, /* skipRender */ true).catch(err => {
       console.error(`[Crawl ${jobId}] Error crawling ${oemId}:`, err);
     })
   );
 
   return c.json({
     success: true,
-    message: `Crawl triggered for ${def.name}`,
+    message: `Crawl triggered for ${def.name} (quick mode — no browser rendering)`,
     jobId,
     oemId,
     status: 'running',
@@ -863,7 +864,7 @@ app.post('/admin/force-crawl/:oemId', async (c) => {
   const jobId = crypto.randomUUID();
 
   c.executionCtx.waitUntil(
-    orchestrator.crawlOem(oemId).catch(err => {
+    orchestrator.crawlOem(oemId, undefined, 'manual', undefined, /* skipRender */ true).catch(err => {
       console.error(`[Force Crawl ${jobId}] Error crawling ${oemId}:`, err);
     })
   );

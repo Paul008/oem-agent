@@ -279,6 +279,7 @@ export class OemAgentOrchestrator {
     pageTypes?: PageType[],
     runType: 'manual' | 'scheduled' | 'retry' = 'manual',
     signal?: AbortSignal,
+    skipRender = false,
   ): Promise<{
     jobsProcessed: number;
     pagesChanged: number;
@@ -336,7 +337,7 @@ export class OemAgentOrchestrator {
         }
         try {
           const result = await withTimeout(
-            this.crawlPage(oemId, page),
+            this.crawlPage(oemId, page, skipRender),
             PER_PAGE_TIMEOUT_MS,
             `crawlPage(${page.url})`,
           );
@@ -419,8 +420,10 @@ export class OemAgentOrchestrator {
 
   /**
    * Crawl a single page using smart mode (network interception).
+   * When skipRender is true, only cheap fetch is used (no browser) — suitable for
+   * HTTP-triggered crawls where waitUntil budget is limited to ~30s.
    */
-  async crawlPage(oemId: OemId, page: SourcePage): Promise<CrawlPipelineResult> {
+  async crawlPage(oemId: OemId, page: SourcePage, skipRender = false): Promise<CrawlPipelineResult> {
     const startTime = Date.now();
 
     try {
@@ -449,7 +452,7 @@ export class OemAgentOrchestrator {
       let smartModeResult: SmartModeResult | null = null;
       let discoveredApis: ApiCandidate[] = [];
 
-      if (renderCheck.shouldRender) {
+      if (renderCheck.shouldRender && !skipRender) {
         // Check budget before rendering
         const budgetCheck = await this.checkRenderBudget(oemId);
         if (budgetCheck.allowed) {
