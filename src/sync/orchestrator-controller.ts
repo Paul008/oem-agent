@@ -83,8 +83,8 @@ export async function executeOrchestratorController(
     .order('started_at', { ascending: false });
 
   // 3. Load current data counts per OEM
-  const { data: products } = await supabase.from('products').select('oem_id');
-  const { data: allOffers } = await supabase.from('offers').select('oem_id');
+  const { data: products } = await supabase.from('products').select('oem_id, updated_at');
+  const { data: allOffers } = await supabase.from('offers').select('oem_id, end_date');
 
   const prodByOem: Record<string, number> = {};
   for (const p of products ?? []) {
@@ -237,6 +237,79 @@ export async function executeOrchestratorController(
       if (!response.ok) console.warn('[Controller] Slack send failed:', response.status);
     } catch (e) {
       console.warn('[Controller] Slack error:', e);
+    }
+  }
+
+  // 10. Stock freshness alerts — stale products, expiring offers
+  if (slackWebhookUrl) {
+    const stockAlerts: string[] = [];
+
+    // Stale products: OEMs where newest product update is >7 days old
+    const STALE_PRODUCT_DAYS = 7;
+    for (const oemId of oemIds) {
+      const oemProducts = (products ?? []).filter(p => p.oem_id === oemId);
+      if (oemProducts.length === 0) continue;
+      const newest = oemProducts.reduce((max, p) =>
+        new Date(p.updated_at) > new Date(max.updated_at) ? p : max
+      );
+      const ageDays = Math.floor((now.getTime() - new Date(newest.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+      if (ageDays >= STALE_PRODUCT_DAYS) {
+        stockAlerts.push(`📦 *\`${oemId}\`* — Products stale (${ageDays}d since last update, ${oemProducts.length} products)`);
+      }
+    }
+
+    // Expiring offers: offers with end_date within 48 hours
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const expiringOffers: { oem_id: string; count: number }[] = [];
+    for (const oemId of oemIds) {
+      const expiring = (allOffers ?? []).filter(o =>
+        o.oem_id === oemId && o.end_date &&
+        new Date(o.end_date) > now && new Date(o.end_date) <= in48h
+      );
+      if (expiring.length > 0) {
+        expiringOffers.push({ oem_id: oemId, count: expiring.length });
+      }
+    }
+    if (expiringOffers.length > 0) {
+      for (const { oem_id, count } of expiringOffers) {
+        stockAlerts.push(`⏳ *\`${oem_id}\`* — ${count} offer${count > 1 ? 's' : ''} expiring within 48h`);
+      }
+    }
+
+    // Expired offers still in the system
+    const expiredOffers: { oem_id: string; count: number }[] = [];
+    for (const oemId of oemIds) {
+      const expired = (allOffers ?? []).filter(o =>
+        o.oem_id === oemId && o.end_date && new Date(o.end_date) < now
+      );
+      if (expired.length > 0) {
+        expiredOffers.push({ oem_id: oemId, count: expired.length });
+      }
+    }
+    if (expiredOffers.length > 0) {
+      const total = expiredOffers.reduce((s, e) => s + e.count, 0);
+      stockAlerts.push(`🗑️ ${total} expired offer${total > 1 ? 's' : ''} still in system (${expiredOffers.map(e => `${e.oem_id}: ${e.count}`).join(', ')})`);
+    }
+
+    // Send stock alerts if any
+    if (stockAlerts.length > 0) {
+      try {
+        const blocks: any[] = [
+          { type: 'header', text: { type: 'plain_text', text: `📊 Stock Health — ${stockAlerts.length} item${stockAlerts.length > 1 ? 's' : ''} need attention` } },
+          ...stockAlerts.map(text => ({
+            type: 'section',
+            text: { type: 'mrkdwn', text },
+          })),
+        ];
+
+        await fetch(slackWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ blocks, text: `Stock Health: ${stockAlerts.length} alerts` }),
+        });
+      } catch (e) {
+        console.warn('[Controller] Stock alert error:', e);
+      }
     }
   }
 

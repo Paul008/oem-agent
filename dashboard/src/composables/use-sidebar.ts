@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Bot, BrainCircuit, Car, Clapperboard, Clock, Cpu, Factory, FileText, Gauge, Globe, Image, Images, KeyRound, Layers, List, Palette, Play, Plug, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+import { Activity, BookOpen, Bot, BrainCircuit, Car, Clapperboard, Clock, Cpu, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, List, Palette, Play, Plug, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -8,6 +8,7 @@ export function useSidebar() {
       title: 'OEM Intelligence',
       items: [
         { title: 'Overview', url: '/dashboard', icon: Gauge },
+        { title: 'Stock Health', url: '/dashboard/stock-health', icon: HeartPulse },
         { title: 'Import Runs', url: '/dashboard/runs', icon: Clock },
         { title: 'Change Feed', url: '/dashboard/changes', icon: Activity },
         { title: 'Operations', url: '/dashboard/operations', icon: Play },
