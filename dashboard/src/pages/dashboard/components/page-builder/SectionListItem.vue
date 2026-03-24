@@ -5,6 +5,7 @@ import {
   Palette, TableProperties, Images, LayoutGrid, Video, Megaphone,
   ArrowRightLeft, Quote, BarChart3, Award, Code2, Table2,
   DollarSign, PanelBottom, Timer, Calculator, Maximize, Split,
+  Settings, GripVertical,
 } from 'lucide-vue-next'
 import { getConvertibleTypes } from './section-converter'
 import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
@@ -18,6 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: []
+  openEditor: []
   moveUp: []
   moveDown: []
   duplicate: []
@@ -25,6 +27,11 @@ const emit = defineEmits<{
   copyJson: []
   convert: [targetType: string]
   split: []
+  dragstart: [e: DragEvent]
+  dragover: [e: DragEvent]
+  dragleave: []
+  drop: [e: DragEvent]
+  dragend: []
 }>()
 
 const typeIcons: Record<string, any> = {
@@ -75,12 +82,28 @@ function sectionLabel(s: any): string {
 <template>
   <div
     class="group rounded-lg border bg-card shadow-sm cursor-pointer transition-all"
-    :class="selected
-      ? 'border-primary ring-1 ring-primary/20 shadow-md'
-      : 'border-border hover:border-muted-foreground/30 hover:shadow'"
+    :class="[
+      selected
+        ? 'border-primary ring-1 ring-primary/20 shadow-md'
+        : 'border-border hover:border-muted-foreground/30 hover:shadow',
+    ]"
+    :draggable="false"
     @click="emit('select')"
+    @dragover="emit('dragover', $event)"
+    @dragleave="emit('dragleave')"
+    @drop="emit('drop', $event)"
   >
-    <div class="flex items-center gap-2.5 px-3 py-2.5">
+    <div class="flex items-center gap-2 px-3 py-2.5">
+      <!-- Drag handle -->
+      <div
+        draggable="true"
+        class="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground"
+        title="Drag to reorder"
+        @dragstart="emit('dragstart', $event)"
+        @dragend="emit('dragend')"
+      >
+        <GripVertical class="size-4" />
+      </div>
       <div
         class="flex items-center justify-center size-7 rounded-md shrink-0"
         :class="selected ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
@@ -93,6 +116,14 @@ function sectionLabel(s: any): string {
           {{ section.type }}
         </UiBadge>
       </div>
+      <!-- Settings cog — always visible -->
+      <button
+        class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary shrink-0"
+        title="Edit section"
+        @click.stop="emit('openEditor')"
+      >
+        <Settings class="size-4" />
+      </button>
       <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           v-if="index > 0"

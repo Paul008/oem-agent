@@ -582,6 +582,7 @@ const workflowSteps = computed(() => {
             :oem-name="oemName(page.oem_id)"
             :oem-id="oemId"
             @select-section="selectSection"
+            @open-editor="openEditor"
             @move-section="moveSection"
             @delete-section="deleteSection"
             @duplicate-section="duplicateSection"

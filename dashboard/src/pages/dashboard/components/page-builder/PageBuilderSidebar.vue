@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectSection: [id: string]
+  openEditor: [id: string]
   moveSection: [from: number, to: number]
   deleteSection: [id: string]
   duplicateSection: [id: string]
@@ -29,6 +30,39 @@ const emit = defineEmits<{
 }>()
 
 const galleryOpen = ref(false)
+
+// Drag-and-drop state for section list
+const dragIndex = ref<number | null>(null)
+const dropIndex = ref<number | null>(null)
+
+function onDragStart(e: DragEvent, index: number) {
+  dragIndex.value = index
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+  }
+}
+function onDragOver(e: DragEvent, index: number) {
+  if (dragIndex.value === null) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  dropIndex.value = index
+}
+function onDragLeave() {
+  dropIndex.value = null
+}
+function onDrop(e: DragEvent, index: number) {
+  e.preventDefault()
+  if (dragIndex.value !== null && dragIndex.value !== index) {
+    emit('moveSection', dragIndex.value, index)
+  }
+  dragIndex.value = null
+  dropIndex.value = null
+}
+function onDragEnd() {
+  dragIndex.value = null
+  dropIndex.value = null
+}
 
 function formatDate(iso: string | undefined) {
   if (!iso) return '-'
@@ -87,7 +121,12 @@ function formatCost(cost: number | undefined) {
             :index="index"
             :total="sections.length"
             :selected="selectedSectionId === section.id"
+            :class="{
+              'opacity-40': dragIndex === index,
+              'ring-2 ring-blue-500 ring-offset-1 rounded-lg': dropIndex === index && dragIndex !== index,
+            }"
             @select="emit('selectSection', section.id)"
+            @open-editor="emit('openEditor', section.id)"
             @move-up="emit('moveSection', index, index - 1)"
             @move-down="emit('moveSection', index, index + 1)"
             @duplicate="emit('duplicateSection', section.id)"
@@ -95,6 +134,11 @@ function formatCost(cost: number | undefined) {
             @convert="(targetType: string) => emit('convertSection', section.id, targetType)"
             @split="emit('splitSection', section.id)"
             @delete="emit('deleteSection', section.id)"
+            @dragstart="onDragStart($event, index)"
+            @dragover="onDragOver($event, index)"
+            @dragleave="onDragLeave"
+            @drop="onDrop($event, index)"
+            @dragend="onDragEnd"
           />
         </div>
 
