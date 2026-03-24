@@ -132,9 +132,14 @@ export async function handleScheduled(
         run.status = 'failed';
         run.completedAt = new Date().toISOString();
         run.error = e instanceof Error ? e.message : String(e);
+      } finally {
+        // Always save the run record — even on Worker kill, partial results are better than "running" forever
+        try {
+          await saveRun(bucket, run);
+        } catch (saveErr) {
+          console.error(`[Scheduled] Failed to save run record:`, saveErr);
+        }
       }
-
-      await saveRun(bucket, run);
     })()
   );
 }
