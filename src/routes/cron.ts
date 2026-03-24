@@ -313,6 +313,14 @@ async function executeJob(
         break;
       }
 
+      case 'crawl-doctor': {
+        const { executeCrawlDoctor } = await import('../sync/crawl-doctor');
+        const { createSupabaseClient: createSb } = await import('../utils/supabase');
+        const sbClient = createSb({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+        result = await executeCrawlDoctor(sbClient, env.SLACK_WEBHOOK_URL) as unknown as Record<string, unknown>;
+        break;
+      }
+
       default:
         throw new Error(`Unknown skill: ${job.skill}`);
     }
