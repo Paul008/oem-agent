@@ -205,7 +205,9 @@ export function useStockHealth() {
         oems_stale: results.filter(r => r.health_status === 'stale').length,
         offers_expiring_soon: results.reduce((s, r) => s + r.offers_expiring_soon, 0),
         offers_expired: results.reduce((s, r) => s + r.offers_expired, 0),
-        avg_product_age_days: Math.round(results.reduce((s, r) => s + r.product_age_days, 0) / results.length),
+        avg_product_age_days: results.length > 0
+          ? Math.round(results.reduce((s, r) => s + r.product_age_days, 0) / results.length)
+          : 0,
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err)
