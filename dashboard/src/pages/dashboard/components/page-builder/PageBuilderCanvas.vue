@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { defineAsyncComponent } from 'vue'
-import { AlertCircle } from 'lucide-vue-next'
+import { defineAsyncComponent, ref } from 'vue'
+import { AlertCircle, Settings, GripVertical } from 'lucide-vue-next'
 
 const props = defineProps<{
   page: any
@@ -15,7 +15,46 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectSection: [id: string]
+  openEditor: [id: string]
+  moveSection: [fromIndex: number, toIndex: number]
 }>()
+
+// Drag-and-drop state
+const dragIndex = ref<number | null>(null)
+const dropIndex = ref<number | null>(null)
+
+function onDragStart(e: DragEvent, index: number) {
+  dragIndex.value = index
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+  }
+}
+
+function onDragOver(e: DragEvent, index: number) {
+  if (dragIndex.value === null) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  dropIndex.value = index
+}
+
+function onDragLeave() {
+  dropIndex.value = null
+}
+
+function onDrop(e: DragEvent, index: number) {
+  e.preventDefault()
+  if (dragIndex.value !== null && dragIndex.value !== index) {
+    emit('moveSection', dragIndex.value, index)
+  }
+  dragIndex.value = null
+  dropIndex.value = null
+}
+
+function onDragEnd() {
+  dragIndex.value = null
+  dropIndex.value = null
+}
 
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
@@ -61,7 +100,7 @@ function sectionStyle(section: any): Record<string, string> {
   // Text alignment — applies to all text-bearing sections
   if (section.text_align) style.textAlign = section.text_align
   // Full-bleed breakout for full-width layouts
-  if (section.layout === 'full-width') {
+  if (section.full_width || section.layout === 'full-width') {
     style.width = '100vw'
     style.marginLeft = 'calc(-50vw + 50%)'
   }
@@ -125,22 +164,46 @@ ${rendered}
     <template v-if="isStructured && sections.length > 0">
       <div class="space-y-0">
         <div
-          v-for="section in sections"
+          v-for="(section, index) in sections"
           :key="section.id"
           class="relative cursor-pointer transition-all group"
-          :class="selectedSectionId === section.id
-            ? 'ring-2 ring-primary ring-offset-2'
-            : 'hover:ring-1 hover:ring-muted-foreground/30 hover:ring-offset-1'"
+          :class="[
+            selectedSectionId === section.id
+              ? 'ring-2 ring-primary ring-offset-2'
+              : 'hover:ring-1 hover:ring-muted-foreground/30 hover:ring-offset-1',
+            dragIndex === index ? 'opacity-40' : '',
+            dropIndex === index && dragIndex !== index ? 'ring-2 ring-blue-500 ring-offset-2' : '',
+          ]"
           :style="sectionStyle(section)"
+          :draggable="false"
           @click="emit('selectSection', section.id)"
+          @dragover="onDragOver($event, index)"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, index)"
         >
-          <!-- Type label overlay on hover -->
+          <!-- Type label + drag handle + edit button overlay on hover -->
           <div
-            class="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+            class="absolute top-2 left-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
           >
+            <div
+              draggable="true"
+              class="bg-black/70 hover:bg-black/90 text-white rounded p-1 cursor-grab active:cursor-grabbing transition-colors"
+              title="Drag to reorder"
+              @dragstart="onDragStart($event, index)"
+              @dragend="onDragEnd"
+            >
+              <GripVertical class="size-3.5" />
+            </div>
             <span class="bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
               {{ section.type }}
             </span>
+            <button
+              class="bg-black/70 hover:bg-black/90 text-white rounded p-1 transition-colors"
+              title="Edit section"
+              @click.stop="emit('openEditor', section.id)"
+            >
+              <Settings class="size-3.5" />
+            </button>
           </div>
 
           <!-- Render the actual section component -->

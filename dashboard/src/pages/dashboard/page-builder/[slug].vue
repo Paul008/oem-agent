@@ -42,6 +42,21 @@ const themeStore = useThemeStore()
 const showJson = ref(false)
 const showHistory = ref(false)
 const showSectionBrowser = ref(false)
+const editorSectionId = ref<string | null>(null)
+const editorSection = computed(() =>
+  editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
+)
+
+function openEditor(id: string) {
+  selectSection(id)
+  editorSectionId.value = id
+}
+function closeEditor() {
+  editorSectionId.value = null
+}
+function updateEditorSection(updates: Record<string, any>) {
+  if (editorSectionId.value) updateSection(editorSectionId.value, updates)
+}
 const oems = ref<{ id: string; name: string }[]>([])
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
@@ -551,6 +566,8 @@ const workflowSteps = computed(() => {
             :oem-id="oemId"
             :model-slug="modelSlug"
             @select-section="selectSection"
+            @open-editor="openEditor"
+            @move-section="moveSection"
           />
         </UiResizablePanel>
 
@@ -581,16 +598,16 @@ const workflowSteps = computed(() => {
 
       <!-- Floating section editor dialog -->
       <SectionEditorDialog
-        v-if="selectedSection"
-        :section="selectedSection"
+        v-if="editorSection"
+        :section="editorSection"
         :regenerating="regenerating"
         :oem-id="oemId"
         :model-slug="modelSlug"
-        @close="selectSection(null)"
-        @regenerate="regenerateSectionById(selectedSection.id)"
-        @delete="deleteSection(selectedSection.id)"
-        @convert="(type: string) => convertSection(selectedSection.id, type as any)"
-        @update:section="updateSection(selectedSection.id, $event)"
+        @close="closeEditor"
+        @regenerate="regenerateSectionById(editorSection.id)"
+        @delete="deleteSection(editorSection.id); closeEditor()"
+        @convert="(type: string) => convertSection(editorSection.id, type as any)"
+        @update:section="updateEditorSection($event)"
       />
     </template>
 

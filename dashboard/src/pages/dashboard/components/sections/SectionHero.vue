@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { computed } from 'vue'
+
 const props = defineProps<{
   section: {
     type: 'hero'
@@ -19,8 +21,11 @@ const props = defineProps<{
     overlay_position?: string
     show_overlay?: boolean
     full_width_image?: boolean
+    full_width?: boolean
   }
 }>()
+
+const isFullImage = computed(() => props.section.full_width_image || props.section.full_width)
 
 const sizeClasses: Record<string, string> = {
   sm: 'text-sm',
@@ -81,7 +86,7 @@ function textAlignClass() {
 <template>
   <div
     class="relative w-full overflow-hidden bg-muted"
-    :class="section.full_width_image ? '' : 'aspect-[16/7]'"
+    :class="isFullImage ? 'aspect-video' : 'aspect-[16/7]'"
     :style="section.background_image_url && !section.desktop_image_url
       ? { backgroundImage: `url(${section.background_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
       : undefined"
@@ -101,7 +106,7 @@ function textAlignClass() {
       v-else-if="section.desktop_image_url"
       :src="section.desktop_image_url"
       :alt="section.heading"
-      :class="section.full_width_image ? 'w-full h-auto' : 'w-full h-full object-cover'"
+      :class="isFullImage ? 'w-full h-full object-cover object-top' : 'w-full h-full object-cover'"
     />
     <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
     <div
