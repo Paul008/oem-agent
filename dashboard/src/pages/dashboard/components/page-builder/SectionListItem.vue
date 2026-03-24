@@ -116,15 +116,14 @@ function sectionLabel(s: any): string {
           {{ section.type }}
         </UiBadge>
       </div>
-      <!-- Settings cog — always visible -->
-      <button
-        class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary shrink-0"
-        title="Edit section"
-        @click.stop="emit('openEditor')"
-      >
-        <Settings class="size-4" />
-      </button>
       <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
+          title="Edit section"
+          @click.stop="emit('openEditor')"
+        >
+          <Settings class="size-3.5" />
+        </button>
         <button
           v-if="index > 0"
           class="p-1 rounded-md hover:bg-muted"
