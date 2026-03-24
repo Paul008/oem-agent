@@ -221,12 +221,18 @@ export class CrawlScheduler {
     page: SourcePage,
     htmlChanged: boolean,
     wasRendered: boolean,
-    now: Date = new Date()
+    now: Date = new Date(),
+    htmlHash?: string,
   ): Partial<SourcePage> {
     const updates: Partial<SourcePage> = {
       last_checked_at: now.toISOString(),
       updated_at: now.toISOString(),
     };
+
+    // Store the hash so shouldRender can skip rendering when content unchanged
+    if (htmlHash) {
+      updates.last_hash = htmlHash;
+    }
 
     if (htmlChanged) {
       updates.last_changed_at = now.toISOString();

@@ -3810,7 +3810,9 @@ ${html.substring(0, 50000)}
     const updates = this.scheduler.updateAfterCrawl(
       page,
       htmlHash !== page.last_hash,
-      wasRendered
+      wasRendered,
+      undefined,
+      htmlHash,
     );
 
     await this.config.supabaseClient
