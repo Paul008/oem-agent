@@ -34,7 +34,7 @@ function aspectClass(ratio?: string) {
           <img
             :src="section.desktop_image_url"
             :alt="section.alt || ''"
-            class="w-full"
+            class="block w-full"
             :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
             loading="lazy"
           />
@@ -85,7 +85,7 @@ function aspectClass(ratio?: string) {
             <img
               :src="section.desktop_image_url"
               :alt="section.alt || ''"
-              class="max-w-full"
+              class="block max-w-full"
               :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
               loading="lazy"
             />
@@ -111,7 +111,7 @@ function aspectClass(ratio?: string) {
             <img
               :src="section.desktop_image_url"
               :alt="section.alt || ''"
-              class="max-w-full"
+              class="block max-w-full"
               :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
               loading="lazy"
             />

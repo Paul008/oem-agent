@@ -106,7 +106,7 @@ function textAlignClass() {
       v-else-if="section.desktop_image_url"
       :src="section.desktop_image_url"
       :alt="section.heading"
-      :class="isFullImage ? 'w-full h-full object-cover object-top' : 'w-full h-full object-cover'"
+      :class="isFullImage ? 'block w-full h-full object-cover object-top' : 'block w-full h-full object-cover'"
     />
     <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
     <div

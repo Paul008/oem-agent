@@ -100,10 +100,14 @@ function sectionStyle(section: any): Record<string, string> {
   }
   // Text alignment — applies to all text-bearing sections
   if (section.text_align) style.textAlign = section.text_align
-  // Full-bleed breakout for full-width layouts
+  // Full-bleed breakout for full-width layouts (use 100% within canvas panel)
   if (section.full_width || section.layout === 'full-width') {
-    style.width = '100vw'
-    style.marginLeft = 'calc(-50vw + 50%)'
+    style.width = '100%'
+    style.maxWidth = 'none'
+    style.marginLeft = '0'
+    style.marginRight = '0'
+    style.paddingLeft = '0'
+    style.paddingRight = '0'
   }
   // Border radius
   if (section.border_radius) style.borderRadius = section.border_radius
