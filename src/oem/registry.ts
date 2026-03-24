@@ -30,7 +30,7 @@ export interface OemDefinition {
     hasSubBrands?: boolean;
     /** Frontend framework for extraction strategy and migration detection.
      *  Checked during crawl — if detected framework differs, a change event is logged. */
-    framework?: 'gatsby' | 'nextjs' | 'nuxt' | 'aem' | 'react-spa' | 'vue' | 'static' | 'wordpress' | 'sitecore' | 'drupal' | 'inchcape' | 'custom';
+    framework?: 'gatsby' | 'nextjs' | 'nuxt' | 'aem' | 'react-spa' | 'react-ssr' | 'vue' | 'static' | 'wordpress' | 'sitecore' | 'drupal' | 'inchcape' | 'custom';
   };
 }
 
@@ -219,7 +219,7 @@ export const ldvAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // Gatsby SSR — data from page-data.json endpoints, cheap fetch is sufficient
     isGatsby: true,
     framework: 'gatsby',
   },
@@ -278,8 +278,8 @@ export const mazdaAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
-    framework: 'react-spa',
+    requiresBrowserRendering: false, // React SSR — vehicle data in ReactDOM.hydrate JSON in HTML, cheap fetch is sufficient
+    framework: 'react-ssr',
   },
 };
 
@@ -369,7 +369,7 @@ export const suzukiAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // WordPress SSR — plain fetch gets full HTML, browser rendering returns 404s
     framework: 'wordpress',
   },
 };
