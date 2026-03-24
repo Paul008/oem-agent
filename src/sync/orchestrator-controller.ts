@@ -84,7 +84,7 @@ export async function executeOrchestratorController(
 
   // 3. Load current data counts per OEM
   const { data: products } = await supabase.from('products').select('oem_id, updated_at');
-  const { data: allOffers } = await supabase.from('offers').select('oem_id, end_date');
+  const { data: allOffers } = await supabase.from('offers').select('oem_id, validity_end');
 
   const prodByOem: Record<string, number> = {};
   for (const p of products ?? []) {
@@ -258,13 +258,13 @@ export async function executeOrchestratorController(
       }
     }
 
-    // Expiring offers: offers with end_date within 48 hours
+    // Expiring offers: offers with validity_end within 48 hours
     const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const expiringOffers: { oem_id: string; count: number }[] = [];
     for (const oemId of oemIds) {
       const expiring = (allOffers ?? []).filter(o =>
-        o.oem_id === oemId && o.end_date &&
-        new Date(o.end_date) > now && new Date(o.end_date) <= in48h
+        o.oem_id === oemId && o.validity_end &&
+        new Date(o.validity_end) > now && new Date(o.validity_end) <= in48h
       );
       if (expiring.length > 0) {
         expiringOffers.push({ oem_id: oemId, count: expiring.length });
@@ -280,7 +280,7 @@ export async function executeOrchestratorController(
     const expiredOffers: { oem_id: string; count: number }[] = [];
     for (const oemId of oemIds) {
       const expired = (allOffers ?? []).filter(o =>
-        o.oem_id === oemId && o.end_date && new Date(o.end_date) < now
+        o.oem_id === oemId && o.validity_end && new Date(o.validity_end) < now
       );
       if (expired.length > 0) {
         expiredOffers.push({ oem_id: oemId, count: expired.length });

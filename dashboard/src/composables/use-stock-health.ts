@@ -13,7 +13,7 @@ export interface OemStockHealth {
   offer_newest_at: string | null
   offer_age_days: number
   offers_expiring_soon: number // expiring within 7 days
-  offers_expired: number // already past end_date
+  offers_expired: number // already past validity_end
   // Colors
   color_count: number
   // Pricing
@@ -104,7 +104,7 @@ export function useStockHealth() {
       const [oemsRes, productsRes, offersRes, colorsRes, pricingRes, bannersRes, pagesRes, runsRes] = await Promise.all([
         supabase.from('oems').select('id, name').eq('is_active', true),
         supabase.from('products').select('oem_id, updated_at').order('updated_at', { ascending: false }),
-        supabase.from('offers').select('oem_id, updated_at, end_date').order('updated_at', { ascending: false }),
+        supabase.from('offers').select('oem_id, updated_at, validity_end').order('updated_at', { ascending: false }),
         supabase.from('variant_colors').select('id, product_id').limit(10000),
         supabase.from('variant_pricing').select('id, product_id').limit(10000),
         supabase.from('banners').select('oem_id').limit(5000),
@@ -147,13 +147,13 @@ export function useStockHealth() {
 
         // Offers expiring
         const expiringOffers = oemOffers.filter(o => {
-          if (!o.end_date) return false
-          const end = new Date(o.end_date)
+          if (!o.validity_end) return false
+          const end = new Date(o.validity_end)
           return end > now && end <= sevenDaysFromNow
         })
         const expiredOffers = oemOffers.filter(o => {
-          if (!o.end_date) return false
-          return new Date(o.end_date) < now
+          if (!o.validity_end) return false
+          return new Date(o.validity_end) < now
         })
 
         // Last completed run
