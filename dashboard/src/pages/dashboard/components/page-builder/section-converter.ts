@@ -38,6 +38,53 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       poster_url: s.desktop_image_url || '',
       autoplay: false,
     }),
+    'image': (s) => ({
+      desktop_image_url: s.desktop_image_url || '',
+      mobile_image_url: s.mobile_image_url || '',
+      alt: s.heading || '',
+      caption: s.sub_heading || '',
+      layout: 'full-width',
+      aspect_ratio: 'auto',
+      rounded: false,
+      shadow: false,
+    }),
+  },
+
+  // ---- IMAGE ----
+  'image': {
+    'hero': (s) => ({
+      heading: s.alt || s.caption || '',
+      sub_heading: s.caption || '',
+      cta_text: '',
+      cta_url: '',
+      desktop_image_url: s.desktop_image_url || '',
+      mobile_image_url: s.mobile_image_url || '',
+    }),
+    'gallery': (s) => ({
+      title: s.caption || '',
+      images: [{ url: s.desktop_image_url || '', alt: s.alt || '', caption: s.caption || '' }],
+      layout: 'grid',
+    }),
+    'image-showcase': (s) => ({
+      title: s.caption || '',
+      images: [{ url: s.desktop_image_url || '', alt: s.alt || '', caption: s.caption || '', description: '', overlay_position: 'bottom-left' }],
+      layout: 'stacked',
+      height: 'large',
+      overlay_style: 'dark',
+    }),
+    'content-block': (s) => ({
+      title: s.caption || '',
+      content_html: '',
+      layout: s.layout === 'full-width' ? 'full-width' : 'contained',
+      image_url: s.desktop_image_url || '',
+      background: '',
+    }),
+    'intro': (s) => ({
+      title: s.caption || '',
+      body_html: '',
+      image_url: s.desktop_image_url || '',
+      image_position: 'right',
+    }),
   },
 
   // ---- INTRO ----
@@ -139,6 +186,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       image_url: (s.images || [])[0]?.url || '',
       background: '',
     }),
+    'image': (s) => ({
+      desktop_image_url: (s.images || [])[0]?.url || '',
+      mobile_image_url: '',
+      alt: (s.images || [])[0]?.alt || '',
+      caption: (s.images || [])[0]?.caption || '',
+      layout: 'full-width',
+      aspect_ratio: 'auto',
+    }),
   },
 
   // ---- IMAGE SHOWCASE ----
@@ -176,6 +231,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       layout: 'full-width',
       image_url: (s.images || [])[0]?.url || '',
       background: '',
+    }),
+    'image': (s) => ({
+      desktop_image_url: (s.images || [])[0]?.url || '',
+      mobile_image_url: '',
+      alt: (s.images || [])[0]?.alt || '',
+      caption: (s.images || [])[0]?.caption || '',
+      layout: 'full-width',
+      aspect_ratio: 'auto',
     }),
   },
 

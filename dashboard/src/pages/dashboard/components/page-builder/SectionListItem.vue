@@ -42,6 +42,7 @@ const typeIcons: Record<string, any> = {
   'specs-grid': TableProperties,
   'gallery': Images,
   'feature-cards': LayoutGrid,
+  'image': Image,
   'video': Video,
   'cta-banner': Megaphone,
   'testimonial': Quote,

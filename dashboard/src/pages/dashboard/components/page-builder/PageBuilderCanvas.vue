@@ -66,6 +66,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'gallery': defineAsyncComponent(() => import('../sections/SectionGallery.vue')),
   'feature-cards': defineAsyncComponent(() => import('../sections/SectionFeatureCards.vue')),
   'video': defineAsyncComponent(() => import('../sections/SectionVideo.vue')),
+  'image': defineAsyncComponent(() => import('../sections/SectionImageBlock.vue')),
   'cta-banner': defineAsyncComponent(() => import('../sections/SectionCta.vue')),
   'content-block': defineAsyncComponent(() => import('../sections/SectionContentBlock.vue')),
   'accordion': defineAsyncComponent(() => import('../sections/SectionAccordion.vue')),

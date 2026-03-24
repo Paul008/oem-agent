@@ -4,7 +4,7 @@ export type PageSectionType =
   | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
   | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
-  | 'image-showcase'
+  | 'image' | 'image-showcase'
 
 export interface SectionTemplate {
   id: string
@@ -22,6 +22,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'color-picker': () => ({ title: 'Colours', colors: [] }),
   'specs-grid': () => ({ title: 'Specifications', categories: [] }),
   'gallery': () => ({ title: 'Gallery', images: [], layout: 'carousel' }),
+  'image': () => ({ desktop_image_url: '', mobile_image_url: '', alt: '', caption: '', layout: 'full-width', aspect_ratio: 'auto', rounded: false, shadow: false }),
   'image-showcase': () => ({ title: '', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
   'feature-cards': () => ({ title: '', cards: [{ title: '', description: '', image_url: '' }], columns: 3 }),
   'video': () => ({ title: '', video_url: '', poster_url: '', autoplay: false, layout: 'contained' }),
@@ -175,5 +176,6 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; descrip
   'sticky-bar': { label: 'Sticky Bar', description: 'Persistent floating bar with CTAs' },
   'countdown': { label: 'Countdown', description: 'Timer counting down to a date' },
   'finance-calculator': { label: 'Finance Calculator', description: 'Interactive loan repayment estimator' },
+  'image': { label: 'Image', description: 'Single image with desktop/mobile and layout options' },
   'image-showcase': { label: 'Image Showcase', description: 'Full-bleed stacked or fullscreen images' },
 }

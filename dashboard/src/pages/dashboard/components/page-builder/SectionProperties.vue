@@ -777,6 +777,87 @@ function onMediaLibrarySelect(url: string) {
     </template>
 
     <!-- ===== VIDEO ===== -->
+    <!-- ===== IMAGE ===== -->
+    <template v-else-if="sectionType === 'image'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Desktop Image</label>
+          <div v-if="section.desktop_image_url && !brokenImages.has(section.desktop_image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
+            <a :href="section.desktop_image_url" target="_blank" class="block">
+              <img :src="section.desktop_image_url" alt="Desktop image" class="w-full h-20 object-cover" @error="onImgError(section.desktop_image_url)" />
+            </a>
+          </div>
+          <div class="flex gap-1">
+            <UiInput :model-value="section.desktop_image_url || ''" class="h-8 text-xs" @update:model-value="update('desktop_image_url', $event)" />
+            <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('desktop_image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('desktop_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Mobile Image</label>
+          <div v-if="section.mobile_image_url && !brokenImages.has(section.mobile_image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
+            <a :href="section.mobile_image_url" target="_blank" class="block">
+              <img :src="section.mobile_image_url" alt="Mobile image" class="w-full h-20 object-cover" @error="onImgError(section.mobile_image_url)" />
+            </a>
+          </div>
+          <div class="flex gap-1">
+            <UiInput :model-value="section.mobile_image_url || ''" class="h-8 text-xs" @update:model-value="update('mobile_image_url', $event)" />
+            <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('mobile_image_url', $event)" />
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('mobile_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Alt Text</label>
+          <UiInput :model-value="section.alt || ''" class="h-8 text-xs" @update:model-value="update('alt', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Caption</label>
+          <UiInput :model-value="section.caption || ''" class="h-8 text-xs" @update:model-value="update('caption', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
+          <UiSelect :model-value="section.layout || 'full-width'" @update:model-value="update('layout', $event)">
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="full-width">Full Width (edge-to-edge)</UiSelectItem>
+              <UiSelectItem value="contained">Contained</UiSelectItem>
+              <UiSelectItem value="center">Centred</UiSelectItem>
+              <UiSelectItem value="left">Left Aligned</UiSelectItem>
+              <UiSelectItem value="right">Right Aligned</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Aspect Ratio</label>
+          <UiSelect :model-value="section.aspect_ratio || 'auto'" @update:model-value="update('aspect_ratio', $event)">
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="auto">Auto (natural)</UiSelectItem>
+              <UiSelectItem value="16:9">16:9 (Video)</UiSelectItem>
+              <UiSelectItem value="21:9">21:9 (Ultra-wide)</UiSelectItem>
+              <UiSelectItem value="4:3">4:3 (Classic)</UiSelectItem>
+              <UiSelectItem value="1:1">1:1 (Square)</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="rounded" :checked="section.rounded === true" @change="update('rounded', ($event.target as HTMLInputElement).checked)" />
+            <span class="text-xs">Rounded corners</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="rounded" :checked="section.shadow === true" @change="update('shadow', ($event.target as HTMLInputElement).checked)" />
+            <span class="text-xs">Shadow</span>
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== VIDEO ===== -->
     <template v-else-if="sectionType === 'video'">
       <div class="space-y-3">
         <div>
