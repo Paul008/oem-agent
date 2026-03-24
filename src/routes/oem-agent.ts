@@ -1179,7 +1179,7 @@ app.post('/admin/debug-crawl/:oemId', async (c) => {
   }
 
   try {
-    const result = await orchestrator.crawlPage(oemId, page as any);
+    const result = await orchestrator.crawlPage(oemId, page as any, /* skipRender */ true);
 
     // Also check what's in discovered_apis and products now
     const { data: apis } = await supabase

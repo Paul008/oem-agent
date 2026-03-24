@@ -108,7 +108,7 @@ export function useStockHealth() {
         supabase.from('variant_colors').select('id, product_id').limit(10000),
         supabase.from('variant_pricing').select('id, product_id').limit(10000),
         supabase.from('banners').select('oem_id').limit(5000),
-        supabase.from('source_pages').select('oem_id, status').eq('status', 'active').or('status.eq.active,status.eq.error'),
+        supabase.from('source_pages').select('oem_id, status').or('status.eq.active,status.eq.error'),
         supabase.from('import_runs').select('oem_id, status, finished_at').order('finished_at', { ascending: false, nullsFirst: false }).limit(500),
       ])
 
@@ -140,8 +140,7 @@ export function useStockHealth() {
         const oemPages = pages.filter(p => p.oem_id === oem.id)
         const oemRuns = runs.filter(r => r.oem_id === oem.id)
 
-        // Colors: count by matching product_id → oem_id
-        const oemProductIds = new Set(oemProducts.map(() => '')) // We need product IDs
+        // Colors/pricing: count by matching product_id → oem_id via prodMap
         const oemColorCount = colors.filter(c => prodMap.get(c.product_id) === oem.id).length
         const oemPricingCount = pricing.filter(p => prodMap.get(p.product_id) === oem.id).length
 
