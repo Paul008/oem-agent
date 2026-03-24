@@ -136,15 +136,17 @@ export class CrawlScheduler {
    *
    * Priority order:
    * 1. Always respect render rate limits (prevent abuse)
-   * 2. OEMs that require browser rendering always render (cheap check unreliable)
-   * 3. For other OEMs, skip if hash unchanged (cost control)
+   * 2. Skip render if HTML hash unchanged (cost control) — applies to ALL OEMs
+   * 3. OEMs with requiresBrowserRendering render when hash changed (cheap fetch unreliable for extraction)
+   * 4. Other OEMs also render when hash changed
+   * 5. Pages never rendered always get rendered (first crawl)
    */
   shouldRender(
     page: SourcePage,
     currentHtmlHash: string,
     now: Date = new Date()
   ): { shouldRender: boolean; reason: string } {
-    // Check max render interval first (Rule 2 - always respect rate limits)
+    // Check max render interval first (always respect rate limits)
     if (page.last_rendered_at) {
       const lastRendered = new Date(page.last_rendered_at);
       const minutesSinceLastRender = (now.getTime() - lastRendered.getTime()) / (1000 * 60);
@@ -157,24 +159,34 @@ export class CrawlScheduler {
       }
     }
 
-    // Check if OEM requires browser rendering (e.g., Ford with Akamai protection)
-    // For these OEMs, the cheap check is unreliable (may get blocked/garbage HTML)
-    const oemDef = getOemDefinition(page.oem_id);
-    if (oemDef?.flags.requiresBrowserRendering) {
-      return {
-        shouldRender: true,
-        reason: 'Browser rendering required for this OEM',
-      };
-    }
-
-    // For other OEMs, check if hash has changed from last cheap check (cost control)
-    if (page.last_hash === currentHtmlHash) {
+    // Hash check applies to ALL OEMs — if content hasn't changed, skip the expensive render.
+    // This is the key cost/time optimisation: 16/18 OEMs have requiresBrowserRendering=true,
+    // so without this check every due page triggers a 15-30s browser render on every cron cycle.
+    if (page.last_hash && page.last_hash === currentHtmlHash) {
       if (this.config.skipRenderOnNoChange) {
         return {
           shouldRender: false,
           reason: 'HTML hash unchanged - skipping render (cost control)',
         };
       }
+    }
+
+    // Pages never rendered before should always render (first crawl / new page)
+    if (!page.last_rendered_at) {
+      return {
+        shouldRender: true,
+        reason: 'Page has never been rendered — first render required',
+      };
+    }
+
+    // For OEMs that require browser rendering, render when hash changed
+    // (cheap fetch HTML is unreliable for extraction on these sites)
+    const oemDef = getOemDefinition(page.oem_id);
+    if (oemDef?.flags.requiresBrowserRendering) {
+      return {
+        shouldRender: true,
+        reason: 'Browser rendering required for this OEM and hash changed',
+      };
     }
 
     return {
