@@ -62,6 +62,14 @@ Maps cron expressions to crawl types:
 - Tracks changes in import_runs table
 - Sends Slack notifications on changes
 
+### Reliability Features
+- **Per-OEM timeout** (45s): Ensures one slow OEM can't block the rest. 18 OEMs × 45s = 13.5 min max, within the 15-min cron limit
+- **Per-page timeout** (30s): Individual page crawls abort if they exceed budget
+- **Cooperative cancellation**: `AbortController` signals abandoned OEMs to stop processing pages immediately
+- **Guaranteed status updates**: `try/finally` in `crawlOem()` ensures every import_run gets a final status (`completed`, `failed`, `partial`, or `timeout`)
+- **Stale run cleanup**: At the start of every scheduled crawl, any import_runs stuck in `running` or `pending` for >10 minutes are automatically marked as `timeout`
+- **skipRender mode**: Admin-triggered crawls (HTTP endpoints) skip browser rendering since `waitUntil` only gets ~30s. Cheap HTML fetch still works. Full browser rendering happens via scheduled crons (15 min budget)
+
 ## System 2: OpenClaw Cron
 
 ### Configuration
@@ -130,8 +138,12 @@ Provides:
 **Schedule**: Every 2 hours (`0 */2 * * *`)
 **API**: `GET /admin/system-status` for on-demand health check
 **State**: Retry state persisted in R2 (`memory/controller/retry-state.json`)
-**Pilot OEMs**: gwm-au, kia-au, hyundai-au
-**See**: `docs/BRAND_AMBASSADOR.md`
+
+**Stock Health Alerts** (sent to Slack every 2h):
+- Stale products: OEMs where products haven't been updated in >7 days
+- Expiring offers: Offers with `validity_end` within 48 hours
+- Expired offers: Count of offers past `validity_end` still in system
+- Degraded/failing/stale OEM crawl health
 
 ### Execution Flow
 ```
@@ -232,15 +244,17 @@ curl -X POST https://oem-agent.workers.dev/cron/run/oem-brand-ambassador
 **Solution**: Counters are now properly updated in orchestrator.ts
 
 ### Stuck Import Runs
-**Symptom**: Status shows "running" for >1 hour
-**Fix**:
+**Symptom**: Status shows "running" for >10 minutes
+**Auto-fix**: The stale cleanup at the start of every scheduled crawl automatically marks runs stuck in `running` or `pending` for >10 minutes as `timeout`. No manual intervention needed.
+
+**Manual fix** (if needed):
 ```sql
 UPDATE import_runs
-SET status = 'failed',
+SET status = 'timeout',
     finished_at = NOW(),
-    error_message = 'Timeout - manually marked failed'
+    error_log = 'Manually marked as timeout'
 WHERE status = 'running'
-AND started_at < NOW() - INTERVAL '1 hour';
+AND started_at < NOW() - INTERVAL '10 minutes';
 ```
 
 ### Brand Ambassador Not Generating Pages
@@ -259,10 +273,29 @@ AND started_at < NOW() - INTERVAL '1 hour';
 5. **Use Slack notifications** - Configure webhooks for critical jobs
 6. **Test manually first** - Use `POST /cron/run/:jobId` before enabling scheduled runs
 
+## Dashboard Pages
+
+- **Stock Health**: `/dashboard/stock-health` — Per-OEM health scores, product/offer age, pricing coverage, crawl status
+- **Import Runs**: `/dashboard/runs` — Crawl execution history with status, page counts, upsert counters
+- **Cron Jobs**: `/dashboard/cron` — All 15 jobs/triggers with run history, manual triggers, enable/disable
+- **Source Pages**: `/dashboard/source-pages` — Page health, error counts, broken feed alerts
+- **Change Feed**: `/dashboard/changes` — Real-time change detection with severity and notification status
+
+## Column Reference
+
+| Table | Error column | Timestamp column |
+|-------|-------------|-----------------|
+| `import_runs` | `error_log` | `finished_at` |
+| `source_pages` | `error_message` | `last_checked_at` |
+| `agent_actions` | `error_message` | `completed_at` |
+| `offers` | — | `validity_start`, `validity_end` |
+
 ## Code References
 
 - **Cloudflare Cron**: `src/index.ts`, `src/scheduled.ts`
 - **OpenClaw Cron**: `src/routes/cron.ts`
 - **Configuration**: `wrangler.jsonc`, `config/openclaw/cron-jobs.json`
 - **Orchestrator**: `src/orchestrator.ts`
+- **Traffic Controller**: `src/sync/orchestrator-controller.ts`
+- **Stock Health Composable**: `dashboard/src/composables/use-stock-health.ts`
 - **Import Runs**: Supabase `import_runs` table
