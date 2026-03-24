@@ -245,9 +245,10 @@ export class OemAgentOrchestrator {
       return { jobsProcessed: 0, pagesChanged: 0, errors: 1 };
     }
 
-    // Process each OEM with a per-OEM timeout (90s max per OEM).
+    // Process each OEM with a per-OEM timeout (45s max per OEM).
+    // 18 OEMs × 45s = 13.5 min — fits within Cloudflare's 15-min cron limit.
     // Uses AbortController so crawlOem stops processing pages immediately on timeout.
-    const PER_OEM_TIMEOUT_MS = 90_000;
+    const PER_OEM_TIMEOUT_MS = 45_000;
     for (const oem of oems) {
       try {
         const result = await withAbortableTimeout(
@@ -324,8 +325,8 @@ export class OemAgentOrchestrator {
       const pages = await this.getDuePages(oemId, pageTypes);
       console.log(`[Orchestrator] Found ${pages.length} due pages for ${oemId}`);
 
-      // Process each page with a per-page timeout (60s max)
-      const PER_PAGE_TIMEOUT_MS = 60_000;
+      // Process each page with a per-page timeout (30s max)
+      const PER_PAGE_TIMEOUT_MS = 30_000;
       for (const page of pages) {
         // Cooperative cancellation: stop processing if parent timed out
         if (signal?.aborted) {
