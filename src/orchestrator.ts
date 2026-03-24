@@ -54,6 +54,29 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+/**
+ * Race a promise against a timeout, with an AbortSignal for cooperative cancellation.
+ * When the timeout fires, the signal is aborted AND the returned promise rejects.
+ */
+function withAbortableTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  const ac = new AbortController();
+  const promise = fn(ac.signal);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      ac.abort();
+      reject(new Error(`Timeout: ${label} exceeded ${ms}ms`));
+    }, ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -222,12 +245,13 @@ export class OemAgentOrchestrator {
       return { jobsProcessed: 0, pagesChanged: 0, errors: 1 };
     }
 
-    // Process each OEM with a per-OEM timeout (90s max per OEM)
+    // Process each OEM with a per-OEM timeout (90s max per OEM).
+    // Uses AbortController so crawlOem stops processing pages immediately on timeout.
     const PER_OEM_TIMEOUT_MS = 90_000;
     for (const oem of oems) {
       try {
-        const result = await withTimeout(
-          this.crawlOem(oem.id as OemId, pageTypes, 'scheduled'),
+        const result = await withAbortableTimeout(
+          (signal) => this.crawlOem(oem.id as OemId, pageTypes, 'scheduled', signal),
           PER_OEM_TIMEOUT_MS,
           `crawlOem(${oem.id})`,
         );
@@ -253,6 +277,7 @@ export class OemAgentOrchestrator {
     oemId: OemId,
     pageTypes?: PageType[],
     runType: 'manual' | 'scheduled' | 'retry' = 'manual',
+    signal?: AbortSignal,
   ): Promise<{
     jobsProcessed: number;
     pagesChanged: number;
@@ -302,6 +327,12 @@ export class OemAgentOrchestrator {
       // Process each page with a per-page timeout (60s max)
       const PER_PAGE_TIMEOUT_MS = 60_000;
       for (const page of pages) {
+        // Cooperative cancellation: stop processing if parent timed out
+        if (signal?.aborted) {
+          console.log(`[Orchestrator] crawlOem(${oemId}) aborted — skipping remaining ${pages.length - jobsProcessed} pages`);
+          errorLog = 'Aborted by parent timeout — not all pages were processed';
+          break;
+        }
         try {
           const result = await withTimeout(
             this.crawlPage(oemId, page),
@@ -1466,24 +1497,23 @@ export class OemAgentOrchestrator {
       try {
         await page.goto(url, {
           waitUntil: 'networkidle0',
-          timeout: 30000,
+          timeout: 15000,
         });
         console.log(`[Orchestrator] Initial navigation complete`);
 
-        // Wait a bit more for any delayed API calls (some OEM sites lazy-load data)
-        console.log(`[Orchestrator] Waiting for delayed API calls...`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Brief wait for delayed API calls (some OEM sites lazy-load data)
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Try to scroll down to trigger lazy-loaded content and API calls
+        // Quick scroll to trigger lazy-loaded content
         try {
           await page.evaluate(() => {
             window.scrollTo(0, document.body.scrollHeight / 2);
           });
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 500));
           await page.evaluate(() => {
             window.scrollTo(0, document.body.scrollHeight);
           });
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 500));
           console.log(`[Orchestrator] Scroll triggers complete`);
         } catch (scrollErr) {
           console.warn(`[Orchestrator] Scroll failed:`, scrollErr);
