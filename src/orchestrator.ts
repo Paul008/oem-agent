@@ -3342,6 +3342,24 @@ ${html.substring(0, 50000)}
       return { created: false, updated: false, changeDetected: false };
     }
 
+    // Validate extracted price before upsert — reject obvious anomalies
+    let priceAmount = productData.price?.amount;
+    if (priceAmount != null) {
+      // Reject prices that are clearly wrong
+      if (typeof priceAmount !== 'number') priceAmount = parseFloat(priceAmount);
+      if (isNaN(priceAmount) || priceAmount < 0) {
+        console.warn(`[UpsertProduct] Invalid price ${productData.price?.amount} for "${productData.title}" — setting to null`);
+        priceAmount = null;
+      } else if (priceAmount > 0 && priceAmount < 1000) {
+        // Likely stored in cents or extraction error — don't overwrite existing price
+        console.warn(`[UpsertProduct] Suspect low price $${priceAmount} for "${productData.title}" — skipping price update`);
+        priceAmount = existing ? undefined : null; // undefined = don't include in update
+      } else if (priceAmount > 500000) {
+        console.warn(`[UpsertProduct] Suspect high price $${priceAmount} for "${productData.title}" — skipping price update`);
+        priceAmount = existing ? undefined : null;
+      }
+    }
+
     // Use database column names (meta_json, not meta)
     const product: Record<string, any> = {
       oem_id: oemId,
@@ -3352,7 +3370,7 @@ ${html.substring(0, 50000)}
       body_type: productData.body_type,
       fuel_type: productData.fuel_type,
       availability: productData.availability || 'available',
-      price_amount: productData.price?.amount,
+      price_amount: priceAmount,
       price_currency: productData.price?.currency || 'AUD',
       price_type: productData.price?.type,
       price_raw_string: productData.price?.raw_string,

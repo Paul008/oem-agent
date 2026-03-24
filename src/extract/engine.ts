@@ -576,7 +576,7 @@ function mapAvailability(availability: string | undefined): Availability {
 }
 
 function inferPriceType(priceStr: string | undefined, validUntil?: unknown): PriceType | null {
-  if (!priceStr) return null;
+  if (!priceStr || typeof priceStr !== 'string') return null;
   const lower = priceStr.toLowerCase();
   
   if (lower.includes('driveaway') || lower.includes('drive away')) return 'driveaway';

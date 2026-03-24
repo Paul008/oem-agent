@@ -21,6 +21,9 @@ export interface DoctorResult {
   pages_deactivated: number;
   hashes_seeded: number;
   crawls_triggered: number;
+  offers_expired: number;
+  offers_archived: number;
+  price_anomalies: number;
   diagnoses: Diagnosis[];
 }
 
@@ -203,7 +206,103 @@ export async function executeCrawlDoctor(
     }
   }
 
-  // ── Step 4: Send diagnosis report to Slack ──
+  // ── Step 4: Offer lifecycle management ──
+  // Mark offers past validity_end as expired, archive offers expired >30 days
+  let offersExpired = 0;
+  let offersArchived = 0;
+
+  // 4a: Set is_active=false for offers past validity_end
+  const { data: expiredOffers } = await supabase
+    .from('offers')
+    .select('id, oem_id, title, validity_end')
+    .not('validity_end', 'is', null)
+    .lt('validity_end', now.toISOString());
+
+  if (expiredOffers && expiredOffers.length > 0) {
+    // Group by OEM for logging
+    const expiredByOem: Record<string, number> = {};
+    for (const o of expiredOffers) {
+      expiredByOem[o.oem_id] = (expiredByOem[o.oem_id] || 0) + 1;
+    }
+
+    // Archive offers expired > 30 days (delete them)
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const staleExpired = expiredOffers.filter(o => o.validity_end && o.validity_end < thirtyDaysAgo);
+
+    if (staleExpired.length > 0) {
+      const staleIds = staleExpired.map(o => o.id);
+      const { error: delErr } = await supabase
+        .from('offers')
+        .delete()
+        .in('id', staleIds);
+
+      if (!delErr) {
+        offersArchived = staleIds.length;
+        for (const [oemId, count] of Object.entries(expiredByOem)) {
+          const archivedForOem = staleExpired.filter(o => o.oem_id === oemId).length;
+          if (archivedForOem > 0) {
+            diagnoses.push({
+              oem_id: oemId,
+              issue: `${archivedForOem} offers expired >30 days`,
+              action: 'Archived (deleted from DB)',
+              result: 'fixed',
+            });
+          }
+        }
+      }
+    }
+
+    // Flag recently expired offers (< 30 days) — keep in DB but flag
+    const recentlyExpired = expiredOffers.filter(o => o.validity_end && o.validity_end >= thirtyDaysAgo);
+    if (recentlyExpired.length > 0) {
+      offersExpired = recentlyExpired.length;
+      for (const [oemId, count] of Object.entries(expiredByOem)) {
+        const recentForOem = recentlyExpired.filter(o => o.oem_id === oemId).length;
+        if (recentForOem > 0) {
+          diagnoses.push({
+            oem_id: oemId,
+            issue: `${recentForOem} expired offers still active (< 30 days old)`,
+            action: 'Flagged — will archive after 30 days',
+            result: 'flagged',
+          });
+        }
+      }
+    }
+  }
+
+  console.log(`[CrawlDoctor] Step 4: ${offersExpired} recently expired, ${offersArchived} archived (>30d)`);
+
+  // ── Step 5: Price anomaly detection ──
+  // Flag products where price_amount seems wrong (null, 0, or unreasonably high/low)
+  let priceAnomalies = 0;
+
+  const { data: suspectProducts } = await supabase
+    .from('products')
+    .select('id, oem_id, title, price_amount')
+    .or('price_amount.lt.1000,price_amount.gt.500000')
+    .not('price_amount', 'is', null);
+
+  for (const p of suspectProducts ?? []) {
+    const price = p.price_amount;
+    if (price < 1000 || price > 500000) {
+      priceAnomalies++;
+      diagnoses.push({
+        oem_id: p.oem_id,
+        issue: `Suspect price $${price.toLocaleString()} on "${p.title}"`,
+        action: price < 1000
+          ? 'Price likely in wrong unit (cents?) or extraction error'
+          : 'Price unusually high — verify on OEM site',
+        result: 'flagged',
+        detail: p.id,
+      });
+    }
+  }
+
+  if (priceAnomalies > 0) {
+    console.log(`[CrawlDoctor] Step 5: ${priceAnomalies} price anomalies detected`);
+  }
+
+  // ── Step 6: Send diagnosis report to Slack ──
   if (slackWebhookUrl && diagnoses.length > 0) {
     const fixed = diagnoses.filter(d => d.result === 'fixed');
     const flagged = diagnoses.filter(d => d.result === 'flagged');
@@ -252,12 +351,16 @@ export async function executeCrawlDoctor(
     pages_deactivated: pagesDeactivated,
     hashes_seeded: hashesSeeded,
     crawls_triggered: crawlsTriggered,
+    offers_expired: offersExpired,
+    offers_archived: offersArchived,
+    price_anomalies: priceAnomalies,
     diagnoses,
   };
 
   console.log(
     `[CrawlDoctor] Done — ${pagesReset} reset, ${pagesDeactivated} deactivated, ` +
-    `${hashesSeeded} need hash seeding, ${diagnoses.filter(d => d.result === 'flagged').length} flagged`
+    `${offersArchived} offers archived, ${offersExpired} expired, ${priceAnomalies} price anomalies, ` +
+    `${diagnoses.filter(d => d.result === 'flagged').length} flagged`
   );
 
   return result;
