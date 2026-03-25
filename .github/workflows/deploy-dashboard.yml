@@ -14,16 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: dashboard/package-lock.json
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: dashboard
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         working-directory: dashboard
@@ -31,7 +36,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_WORKER_URL: ${{ secrets.VITE_WORKER_URL }}
-        run: npx vite build
+        run: pnpm exec vite build
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
