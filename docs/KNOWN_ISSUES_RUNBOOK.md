@@ -102,3 +102,21 @@ Updated: 2026-03-25.
 |---------|---------|----------|-------------|-------------|
 | Scheduled cron | 45s | 30s | 15s | 15 min |
 | Admin HTTP trigger | N/A | 30s | N/A (skipRender) | ~30s |
+
+## Rendering Configuration (as of Mar 25, 2026)
+
+| Setting | OEMs | Count |
+|---------|------|-------|
+| `requiresBrowserRendering: false` | Chery, Ford, Foton, GAC, GMSV, GWM, Hyundai, Isuzu, KGM, Kia, LDV, Mazda, Mitsubishi, Nissan, Suzuki | 15 |
+| `requiresBrowserRendering: true` | VW (explicit render_required), Toyota (needs testing), Subaru (needs testing) | 3 |
+
+## Autonomous Systems
+
+| System | Schedule | Actions |
+|--------|----------|---------|
+| **Cloudflare Crons** | 5x daily | Crawl all 18 OEMs (homepage, offers, vehicles, news, sitemap) |
+| **Traffic Controller** | Every 2h | Health monitoring, stale data alerts, expiring offer alerts |
+| **Crawl Doctor** | Every 2h (+30m) | Reset error pages, deactivate 404s, archive expired offers, flag price anomalies, detect stale products |
+| **Weekly Report** | Monday 9am AEST | Comprehensive Slack report: freshness, changes, crawl health, action items |
+| **Stale Cleanup** | Every cron | Mark stuck runs as timeout |
+| **Hash Optimization** | Every crawl | Store hashes, skip rendering when unchanged |
