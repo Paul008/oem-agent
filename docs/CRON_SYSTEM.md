@@ -63,7 +63,7 @@ Maps cron expressions to crawl types:
 - Sends Slack notifications on changes
 
 ### Reliability Features
-- **Per-OEM timeout** (45s): Ensures one slow OEM can't block the rest. 18 OEMs × 45s = 13.5 min max, within the 15-min cron limit
+- **Per-OEM timeout** (60s): Ensures one slow OEM can't block the rest. 18 OEMs × 60s = 13.5 min max, within the 15-min cron limit
 - **Per-page timeout** (30s): Individual page crawls abort if they exceed budget
 - **Cooperative cancellation**: `AbortController` signals abandoned OEMs to stop processing pages immediately
 - **Guaranteed status updates**: `try/finally` in `crawlOem()` ensures every import_run gets a final status (`completed`, `failed`, `partial`, or `timeout`)

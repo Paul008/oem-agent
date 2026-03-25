@@ -44,7 +44,7 @@ Updated: 2026-03-25.
 
 ### 6. `Timeout: crawlOem exceeded 45000ms`
 **OEMs affected:** Any OEM with many pages + browser rendering
-**Cause:** Too many pages require browser rendering within the 45s per-OEM timeout.
+**Cause:** Too many pages require browser rendering within the 60s per-OEM timeout.
 **Fix:**
 - Check `requiresBrowserRendering` — should it be false? (SSR frameworks don't need it)
 - Check `source_pages.last_hash` — if NULL, hashes haven't been seeded yet. Trigger one admin crawl to seed them. After that, unchanged pages skip rendering.
@@ -100,15 +100,15 @@ Updated: 2026-03-25.
 
 | Context | Per-OEM | Per-Page | Browser goto | Total budget |
 |---------|---------|----------|-------------|-------------|
-| Scheduled cron | 45s | 30s | 15s | 15 min |
+| Scheduled cron | 60s | 30s | 15s | 15 min |
 | Admin HTTP trigger | N/A | 30s | N/A (skipRender) | ~30s |
 
 ## Rendering Configuration (as of Mar 25, 2026)
 
 | Setting | OEMs | Count |
 |---------|------|-------|
-| `requiresBrowserRendering: false` | Chery, Ford, Foton, GAC, GMSV, GWM, Hyundai, Isuzu, KGM, Kia, LDV, Mazda, Mitsubishi, Nissan, Suzuki | 15 |
-| `requiresBrowserRendering: true` | VW (explicit render_required), Toyota (needs testing), Subaru (needs testing) | 3 |
+| `requiresBrowserRendering: false` | Chery, Ford, Foton, GAC, GMSV, GWM, Hyundai, Isuzu, KGM, Kia, LDV, Mazda, Mitsubishi, Nissan, Subaru, Suzuki | 16 |
+| `requiresBrowserRendering: true` | VW (explicit render_required SPA), Toyota (confirmed SPA — 4.9K shell HTML) | 2 |
 
 ## Autonomous Systems
 

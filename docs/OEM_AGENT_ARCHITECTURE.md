@@ -19,15 +19,18 @@
 
 ## Overview
 
-The OEM Agent is an intelligent web scraping and monitoring system designed to extract vehicle data (prices, variants, colors, disclaimers) from 17 Australian OEM websites. It runs on OpenClaw within a Cloudflare Sandbox container, leveraging browser automation, AI-powered discovery, and self-healing extraction patterns.
+The OEM Agent is an intelligent web scraping and monitoring system designed to extract vehicle data (prices, variants, colors, disclaimers) from 18 Australian OEM websites. It runs on OpenClaw within a Cloudflare Sandbox container, leveraging browser automation, AI-powered discovery, and self-healing extraction patterns.
 
 ### Key Capabilities
 
 - **Automated Discovery**: AI-driven pattern detection for new OEM configurators
 - **Self-Healing Extraction**: Selectors that adapt when OEM sites change
-- **Cost-Controlled Crawling**: Budget-aware scheduling with render caps
-- **Multi-Source Intelligence**: Brave Search + Perplexity for research
-- **Real-Time Alerting**: Slack notifications for price/offer changes
+- **Autonomous Recovery**: Crawl Doctor auto-resets error pages, deactivates 404s, archives expired offers
+- **Cost-Controlled Crawling**: Budget-aware scheduling with render caps; 16/18 OEMs skip browser rendering via hash-based optimization
+- **Parallel Fan-Out**: OEMs crawled in batches of 3 concurrently (scales to 45+ OEMs)
+- **Competitive Intelligence**: Cross-OEM price positioning, segment analysis, market alerts
+- **Real-Time Alerting**: Slack notifications for price/offer changes, stale data, expiring offers
+- **Stock Health Dashboard**: Per-OEM health scores at `/dashboard/stock-health`
 
 ### Technology Stack
 
@@ -35,8 +38,8 @@ The OEM Agent is an intelligent web scraping and monitoring system designed to e
 |-----------|------------|---------|
 | Runtime | Cloudflare Sandbox | Container hosting |
 | Agent Framework | OpenClaw | Cron, memory, skills |
-| Browser (Primary) | Lightpanda (headless, raw CDP WebSocket) | Page rendering, 15s timeout, env `LIGHTPANDA_URL` |
-| Browser (Fallback) | Cloudflare Browser Rendering (CDP) | Fallback when Lightpanda unavailable |
+| Browser (Primary) | Lightpanda (headless, raw CDP WebSocket) | Page rendering, 15s timeout, env `LIGHTPANDA_URL`. Only 2/18 OEMs use browser rendering (VW, Toyota) |
+| Browser (Fallback) | Cloudflare Browser Rendering (CDP) | Fallback when Lightpanda unavailable. 16/18 OEMs use cheap fetch only (hash-based render skip) |
 | LLM Inference | Groq (llama-3.3-70b) | Classification, validation |
 | LLM Extraction | Gemini 2.5 Pro | Page structure extraction |
 | LLM Generation | Claude Sonnet 4.5 | Bespoke component generation |
@@ -208,38 +211,40 @@ The OEM Agent runs as skills within OpenClaw, leveraging its automation infrastr
 
 ### Cron Jobs
 
-Scheduled tasks run inside the Gateway and persist across restarts.
+Two cron systems run in parallel. Config: `config/openclaw/cron-jobs.json` and `wrangler.jsonc`.
 
-```json
-// ~/.openclaw/cron/jobs.json
-{
-  "jobs": [
-    {
-      "id": "oem-crawl-scheduled",
-      "name": "OEM Scheduled Crawls",
-      "cron": "0 4 * * *",
-      "session": "isolated",
-      "systemEvent": "Run oem-extract for all due pages",
-      "delivery": { "mode": "slack", "channel": "#oem-alerts" }
-    },
-    {
-      "id": "oem-discovery-weekly",
-      "name": "OEM Pattern Refresh",
-      "cron": "0 0 * * 0",
-      "session": "isolated",
-      "systemEvent": "Re-run oem-build-price-discover for all OEMs"
-    },
-    {
-      "id": "oem-daily-digest",
-      "name": "Daily Change Digest",
-      "cron": "0 7 * * *",
-      "session": "isolated",
-      "systemEvent": "Generate and send daily OEM change digest",
-      "delivery": { "mode": "slack", "channel": "#oem-daily" }
-    }
-  ]
-}
-```
+**Cloudflare Workers Cron** (page crawling — all 18 OEMs per trigger):
+
+| Schedule (UTC) | Type | Pages |
+|---------------|------|-------|
+| `0 17 * * *` | Homepage | Banners |
+| `0 18 * * *` | Offers | Offers + banners |
+| `0 6,18 * * *` | Vehicles | Vehicle/category/build_price |
+| `0 19 * * *` | News | News pages |
+| `0 20 * * *` | Sitemap | Sitemap discovery |
+
+**OpenClaw Cron** (intelligence + monitoring):
+
+| Schedule | Job | Purpose |
+|----------|-----|---------|
+| Every 2h | Traffic Controller | Health monitoring, Slack alerts for stale data/expiring offers |
+| Every 2h (+30m) | Crawl Doctor | Auto-reset error pages, deactivate 404s, archive expired offers, flag price anomalies |
+| Daily 3am | All-OEM Data Sync | Colors, pricing (Kia BYO, Hyundai CGI, Mazda, Mitsubishi GraphQL) |
+| Monday 9am | Weekly Stock Report | Comprehensive Slack summary: freshness, changes, action items |
+| Wednesday 9am | Competitive Intelligence | Cross-OEM segment analysis, price movements, market alerts |
+| Tuesday 4am | Brand Ambassador | AI-powered dealer model page generation |
+| Every 4h | Cache Health | Selector success rate monitoring |
+| Every 6h | Embedding Sync | Vector embeddings for products/offers/changes |
+
+**Crawl Reliability**:
+- Fan-out: 3 OEMs crawled concurrently (scales to 45+ OEMs within 15-min cron limit)
+- Per-OEM timeout: 60s with AbortController for cooperative cancellation
+- Per-page timeout: 30s; browser goto: 15s
+- Hash-based render skip: stores `last_hash` on source_pages, skips browser rendering when content unchanged
+- 16/18 OEMs use cheap fetch only (no browser rendering); only VW + Toyota require rendering
+- `skipRender=true` on admin HTTP endpoints (30s waitUntil budget)
+- Stale run cleanup: marks stuck "running" >10min as timeout every cron cycle
+- try/finally: import_run status always updated, even on crash
 
 ### Memory System
 
