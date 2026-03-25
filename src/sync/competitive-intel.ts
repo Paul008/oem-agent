@@ -98,9 +98,9 @@ export async function executeCompetitiveIntel(
     const mostExpensive = segProducts.reduce((max, p) => p.price_amount > max.price_amount ? p : max);
 
     const segOffers = (offers ?? []).filter(o => {
-      const models = o.applicable_models || [];
+      const models = Array.isArray(o.applicable_models) ? o.applicable_models : [];
       return segProducts.some(p =>
-        models.some((m: string) => p.title.toLowerCase().includes(m.toLowerCase()))
+        models.some((m: string) => p.title?.toLowerCase().includes(String(m).toLowerCase()))
       );
     });
 
