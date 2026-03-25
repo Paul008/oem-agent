@@ -126,7 +126,7 @@ export const fordAu: OemDefinition = {
     offerTiles: '.offer-card, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // AEM SSR — vehiclesmenu.data + GPAS APIs
     isAEM: true,
     framework: 'aem',
   },
@@ -188,7 +188,7 @@ export const mitsubishiAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // AEM SSR — server-rendered, colors from meta_json
     isAEM: true,
     framework: 'aem',
   },
@@ -249,7 +249,7 @@ export const isuzuAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // Sitecore SSR — traditional server-side CMS
     framework: 'sitecore',
   },
 };
@@ -307,7 +307,7 @@ export const kgmAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // NextJS SSR — server-rendered by default
     isNextJs: true,
     framework: 'nextjs',
   },
@@ -339,7 +339,7 @@ export const gwmAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // Nuxt SSR — Storyblok CMS, server-rendered
     hasSubBrands: true,
     framework: 'nuxt',
   },
@@ -556,7 +556,7 @@ export const gacAu: OemDefinition = {
     offerTiles: '[class*="offer"], [class*="promo"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // Nuxt SSR — server-rendered by default
     framework: 'nuxt',
   },
 };
