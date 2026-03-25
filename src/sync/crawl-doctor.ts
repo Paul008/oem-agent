@@ -302,6 +302,30 @@ export async function executeCrawlDoctor(
     console.log(`[CrawlDoctor] Step 5: ${priceAnomalies} price anomalies detected`);
   }
 
+  // ── Step 6: Stale product detection ──
+  // Flag products not seen in 90+ days as potentially discontinued
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: staleProducts } = await supabase
+    .from('products')
+    .select('oem_id')
+    .lt('last_seen_at', ninetyDaysAgo);
+
+  if (staleProducts && staleProducts.length > 0) {
+    const staleByOem: Record<string, number> = {};
+    for (const p of staleProducts) {
+      staleByOem[p.oem_id] = (staleByOem[p.oem_id] || 0) + 1;
+    }
+    for (const [oemId, count] of Object.entries(staleByOem)) {
+      diagnoses.push({
+        oem_id: oemId,
+        issue: `${count} products not seen on site in 90+ days — possibly discontinued`,
+        action: 'Review products with old last_seen_at and consider deactivating',
+        result: 'flagged',
+      });
+    }
+    console.log(`[CrawlDoctor] Step 6: ${staleProducts.length} stale products (>90d not seen)`);
+  }
+
   // ── Step 6: Send diagnosis report to Slack ──
   if (slackWebhookUrl && diagnoses.length > 0) {
     const fixed = diagnoses.filter(d => d.result === 'fixed');

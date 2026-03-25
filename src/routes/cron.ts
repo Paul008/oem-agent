@@ -321,6 +321,14 @@ async function executeJob(
         break;
       }
 
+      case 'weekly-report': {
+        const { executeWeeklyReport } = await import('../sync/weekly-report');
+        const { createSupabaseClient: createSbWeekly } = await import('../utils/supabase');
+        const sbWeekly = createSbWeekly({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+        result = await executeWeeklyReport(sbWeekly, env.SLACK_WEBHOOK_URL) as unknown as Record<string, unknown>;
+        break;
+      }
+
       default:
         throw new Error(`Unknown skill: ${job.skill}`);
     }

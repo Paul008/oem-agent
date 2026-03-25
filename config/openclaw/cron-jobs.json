@@ -176,6 +176,20 @@
       }
     },
     {
+      "id": "weekly-stock-report",
+      "name": "Weekly Stock Summary",
+      "description": "Comprehensive weekly report for stock manager: data freshness, price movements, new/removed products, crawl health, action items. Sent to Slack.",
+      "schedule": "0 9 * * 1",
+      "timezone": "Australia/Sydney",
+      "skill": "weekly-report",
+      "enabled": true,
+      "config": {
+        "report_period_days": 7,
+        "include_price_movements": true,
+        "include_action_items": true
+      }
+    },
+    {
       "id": "crawl-doctor",
       "name": "Crawl Doctor",
       "description": "Autonomous diagnosis and repair agent. Resets browser-rendering error pages, deactivates 404s, detects OEMs with high failure rates, and reports to Slack. Runs after Traffic Controller.",

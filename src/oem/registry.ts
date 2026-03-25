@@ -59,7 +59,7 @@ export const kiaAu: OemDefinition = {
     offerTiles: '.resultList > li, .offer-tile, [class*="offer-card"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // AEM SSR — selectPriceByTrim API for pricing
     isAEM: true,
     framework: 'aem',
   },
@@ -94,7 +94,7 @@ export const nissanAu: OemDefinition = {
     priceDisplay: '.price, [class*="price"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // AEM SSR — server-rendered, postcode gating via JS only
     requiresPostcode: true,
     defaultPostcode: '2000',
     isAEM: true,
@@ -400,7 +400,7 @@ export const hyundaiAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // AEM SSR — CGI Configurator API for colors
     isAEM: true,
     hasSubBrands: true,
     framework: 'aem',
@@ -495,7 +495,7 @@ export const gmsvAu: OemDefinition = {
     offerTiles: '[class*="offer"], [class*="promo"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // AEM SSR — JS for UI interactions only, data in HTML
     isAEM: true,
     hasSubBrands: true,
     framework: 'aem',
