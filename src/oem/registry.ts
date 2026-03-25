@@ -463,7 +463,7 @@ export const subaruAu: OemDefinition = {
     offerTiles: '[class*="offer"], [class*="special"]',
   },
   flags: {
-    requiresBrowserRendering: true,
+    requiresBrowserRendering: false, // Inchcape SSR — 188K HTML with model names and vehicle links via cheap fetch
     isNextJs: false,
     hasSubBrands: false,
     framework: 'inchcape',

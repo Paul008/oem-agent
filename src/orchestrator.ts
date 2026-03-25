@@ -245,23 +245,35 @@ export class OemAgentOrchestrator {
       return { jobsProcessed: 0, pagesChanged: 0, errors: 1 };
     }
 
-    // Process each OEM with a per-OEM timeout (45s max per OEM).
-    // 18 OEMs × 45s = 13.5 min — fits within Cloudflare's 15-min cron limit.
-    // Uses AbortController so crawlOem stops processing pages immediately on timeout.
-    const PER_OEM_TIMEOUT_MS = 45_000;
-    for (const oem of oems) {
-      try {
-        const result = await withAbortableTimeout(
-          (signal) => this.crawlOem(oem.id as OemId, pageTypes, 'scheduled', signal),
-          PER_OEM_TIMEOUT_MS,
-          `crawlOem(${oem.id})`,
-        );
-        jobsProcessed += result.jobsProcessed;
-        pagesChanged += result.pagesChanged;
-        errors += result.errors;
-      } catch (error) {
-        console.error(`[Orchestrator] Error crawling OEM ${oem.id}:`, error);
-        errors++;
+    // Fan-out: process OEMs in parallel batches of 3.
+    // Each OEM gets its own 60s timeout with AbortController.
+    // 18 OEMs / 3 concurrent = 6 batches × ~60s = ~6 min (vs 13.5 min sequential).
+    // Leaves plenty of headroom within the 15-min cron limit.
+    const PER_OEM_TIMEOUT_MS = 60_000;
+    const CONCURRENCY = 3;
+
+    for (let i = 0; i < oems.length; i += CONCURRENCY) {
+      const batch = oems.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.allSettled(
+        batch.map((oem: any) =>
+          withAbortableTimeout(
+            (signal) => this.crawlOem(oem.id as OemId, pageTypes, 'scheduled', signal),
+            PER_OEM_TIMEOUT_MS,
+            `crawlOem(${oem.id})`,
+          )
+        )
+      );
+
+      for (let j = 0; j < batchResults.length; j++) {
+        const result = batchResults[j];
+        if (result.status === 'fulfilled') {
+          jobsProcessed += result.value.jobsProcessed;
+          pagesChanged += result.value.pagesChanged;
+          errors += result.value.errors;
+        } else {
+          console.error(`[Orchestrator] Error crawling OEM ${batch[j].id}:`, result.reason);
+          errors++;
+        }
       }
     }
 

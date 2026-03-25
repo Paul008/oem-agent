@@ -321,6 +321,14 @@ async function executeJob(
         break;
       }
 
+      case 'competitive-intel': {
+        const { executeCompetitiveIntel } = await import('../sync/competitive-intel');
+        const { createSupabaseClient: createSbIntel } = await import('../utils/supabase');
+        const sbIntel = createSbIntel({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+        result = await executeCompetitiveIntel(sbIntel, env.SLACK_WEBHOOK_URL) as unknown as Record<string, unknown>;
+        break;
+      }
+
       case 'weekly-report': {
         const { executeWeeklyReport } = await import('../sync/weekly-report');
         const { createSupabaseClient: createSbWeekly } = await import('../utils/supabase');

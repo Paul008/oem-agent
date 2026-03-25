@@ -176,6 +176,20 @@
       }
     },
     {
+      "id": "competitive-intel",
+      "name": "Competitive Intelligence",
+      "description": "Cross-OEM market analysis: price positioning by segment, significant price movements, segment gap detection, offer density. Sent to Slack.",
+      "schedule": "0 9 * * 3",
+      "timezone": "Australia/Sydney",
+      "skill": "competitive-intel",
+      "enabled": true,
+      "config": {
+        "lookback_days": 7,
+        "min_price_change_pct": 5,
+        "top_segments": 6
+      }
+    },
+    {
       "id": "weekly-stock-report",
       "name": "Weekly Stock Summary",
       "description": "Comprehensive weekly report for stock manager: data freshness, price movements, new/removed products, crawl health, action items. Sent to Slack.",
