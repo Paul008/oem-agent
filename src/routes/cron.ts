@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import cronJobsConfig from '../../config/openclaw/cron-jobs.json';
 import cronDashboardHtml from '../assets/cron-dashboard.html';
-import { getRunHistory, saveRun, type JobRun } from '../utils/cron-runs';
+import { getRunHistory, saveRun, cleanStaleRuns, type JobRun } from '../utils/cron-runs';
 import { CLOUDFLARE_TRIGGERS } from '../scheduled';
 
 interface CronJob {
@@ -77,6 +77,9 @@ cron.get('/', async (c) => {
   } catch (_) {
     // Overrides table may not exist yet
   }
+
+  // Clean stale "running" R2 records on dashboard load
+  await Promise.all(jobs.map(job => cleanStaleRuns(bucket, job.id)));
 
   const jobStatuses: JobStatus[] = await Promise.all(
     jobs.map(async (job) => {
@@ -188,20 +191,54 @@ cron.post('/run/:jobId', async (c) => {
   }
 
   const bucket = c.env.MOLTBOT_BUCKET;
+
+  // Clean any stale "running" R2 records for this job before starting a new one
+  const cleaned = await cleanStaleRuns(bucket, jobId);
+  if (cleaned > 0) {
+    console.log(`[Cron] Cleaned ${cleaned} stale R2 run records for ${jobId}`);
+  }
+
   const runId = `${jobId}-${Date.now()}`;
-  
+
   const run: JobRun = {
     id: runId,
     jobId,
     startedAt: new Date().toISOString(),
     status: 'running',
   };
-  
+
   await saveRun(bucket, run);
 
-  // Run inline (awaited) so long-running jobs like oem-data-sync aren't
-  // killed by the waitUntil grace period. The HTTP response stays open
-  // until the job completes (Workers Standard allows up to 30s CPU).
+  // Heavy jobs (oem-extract, brand-ambassador, data-sync) run via waitUntil
+  // so the HTTP handler returns immediately. Lightweight jobs run inline.
+  const heavySkills = ['oem-extract', 'oem-brand-ambassador', 'oem-data-sync'];
+  const isHeavy = heavySkills.includes(job.skill);
+
+  if (isHeavy) {
+    // Return immediately, execute in background
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          await executeJob(job, run, bucket, c.env);
+        } catch (e) {
+          console.error(`[Cron] Job ${jobId} failed:`, e);
+          run.status = 'failed';
+          run.completedAt = new Date().toISOString();
+          run.error = e instanceof Error ? e.message : String(e);
+        }
+        try { await saveRun(bucket, run); } catch {}
+      })()
+    );
+
+    return c.json({
+      message: 'Job started (running in background)',
+      jobId,
+      runId,
+      status: 'running',
+    });
+  }
+
+  // Lightweight jobs run inline (awaited)
   try {
     await executeJob(job, run, bucket, c.env);
   } catch (e) {

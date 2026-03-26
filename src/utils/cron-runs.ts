@@ -65,3 +65,39 @@ export async function saveRun(bucket: R2Bucket, run: JobRun): Promise<void> {
     console.error(`[Cron] Failed to save run:`, e);
   }
 }
+
+/**
+ * Clean stale R2 run records: any run stuck in "running" for >10 min
+ * gets marked as "failed" with a timeout message.
+ */
+export async function cleanStaleRuns(bucket: R2Bucket, jobId: string): Promise<number> {
+  try {
+    const key = `openclaw/cron-runs/${jobId}.json`;
+    const obj = await bucket.get(key);
+    if (!obj) return 0;
+
+    const runs: JobRun[] = await obj.json();
+    const now = Date.now();
+    const STALE_MS = 10 * 60 * 1000; // 10 minutes
+    let cleaned = 0;
+
+    for (const run of runs) {
+      if (run.status === 'running' && run.startedAt) {
+        const age = now - new Date(run.startedAt).getTime();
+        if (age > STALE_MS) {
+          run.status = 'failed';
+          run.completedAt = new Date().toISOString();
+          run.error = 'Automatically marked as failed — run exceeded 10 min without completion';
+          cleaned++;
+        }
+      }
+    }
+
+    if (cleaned > 0) {
+      await bucket.put(key, JSON.stringify(runs, null, 2));
+    }
+    return cleaned;
+  } catch {
+    return 0;
+  }
+}
