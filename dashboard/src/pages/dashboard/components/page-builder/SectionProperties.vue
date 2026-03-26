@@ -885,6 +885,19 @@ function onMediaLibrarySelect(url: string) {
             <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('poster_url', url))"><ImageIcon class="size-3.5" /></UiButton>
           </div>
         </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
+          <UiSelect :model-value="section.layout || 'contained'" @update:model-value="update('layout', $event)">
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="contained">Contained</UiSelectItem>
+              <UiSelectItem value="wide">Wide</UiSelectItem>
+              <UiSelectItem value="full-width">Full Width</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
         <div class="flex items-center gap-2">
           <UiSwitch :checked="!!section.autoplay" @update:checked="update('autoplay', $event)" />
           <label class="text-xs">Autoplay</label>

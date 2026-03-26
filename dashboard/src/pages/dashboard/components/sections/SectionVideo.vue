@@ -30,38 +30,35 @@ const isDirectVideo = computed(() => {
 })
 
 const layout = computed(() => props.section.layout || 'contained')
+const isFull = computed(() => layout.value === 'full-width')
 </script>
 
 <template>
   <div
-    class="py-6"
-    :class="{
-      'px-0 full-bleed': layout === 'full-width',
-      'px-8': layout !== 'full-width',
-    }"
+    :class="isFull ? '' : 'py-6 px-8'"
     :style="section.text_align ? { textAlign: section.text_align } : undefined"
   >
     <h3
       v-if="section.title"
       class="text-xl font-bold mb-4"
-      :class="{ 'px-8': layout === 'full-width' }"
+      :class="{ 'px-8 pt-6': isFull }"
     >
       {{ section.title }}
     </h3>
 
     <div
       :class="{
-        'w-full': layout === 'full-width',
+        'w-full': isFull,
         'max-w-5xl mx-auto': layout === 'wide',
         'max-w-4xl mx-auto': layout === 'contained',
       }"
     >
       <div
         class="overflow-hidden"
-        :class="{ 'rounded-lg': layout !== 'full-width' }"
+        :class="{ 'rounded-lg': !isFull }"
       >
         <!-- YouTube / Vimeo embed -->
-        <div v-if="embedUrl" class="relative w-full" style="padding-bottom: 56.25%">
+        <div v-if="embedUrl" class="relative w-full aspect-video">
           <iframe
             :src="embedUrl"
             class="absolute inset-0 w-full h-full"
@@ -72,7 +69,7 @@ const layout = computed(() => props.section.layout || 'contained')
         </div>
 
         <!-- Direct video file -->
-        <div v-else-if="isDirectVideo || section.video_url" class="relative w-full" style="padding-bottom: 56.25%">
+        <div v-else-if="isDirectVideo || section.video_url" class="relative w-full aspect-video">
           <video
             v-if="section.video_url"
             :src="section.video_url"
@@ -81,12 +78,13 @@ const layout = computed(() => props.section.layout || 'contained')
             controls
             muted
             playsinline
-            class="absolute inset-0 w-full h-full object-contain"
+            class="absolute inset-0 w-full h-full"
+            :class="isFull ? 'object-cover' : 'object-contain'"
           />
         </div>
 
         <!-- Poster-only fallback -->
-        <div v-else-if="section.poster_url" class="relative w-full" style="padding-bottom: 56.25%">
+        <div v-else-if="section.poster_url" class="relative w-full aspect-video">
           <img
             :src="section.poster_url"
             :alt="section.title || 'Video poster'"
