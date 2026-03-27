@@ -2075,6 +2075,43 @@ app.get('/admin/debug-moonshot', async (c) => {
 });
 
 // ============================================================================
+// Recipes API
+// ============================================================================
+
+app.get('/recipes/:oemId', async (c) => {
+  const oemId = c.req.param('oemId');
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // Fetch OEM-specific recipes
+  const { data: brandRecipes } = await supabase
+    .from('brand_recipes')
+    .select('id, oem_id, pattern, variant, label, resolves_to, defaults_json')
+    .eq('oem_id', oemId)
+    .eq('is_active', true)
+    .order('pattern');
+
+  // Fetch default recipes
+  const { data: defaultRecipes } = await supabase
+    .from('default_recipes')
+    .select('id, pattern, variant, label, resolves_to, defaults_json')
+    .order('pattern');
+
+  // Merge: OEM recipes override defaults for matching pattern+variant
+  const oemKeys = new Set((brandRecipes ?? []).map(r => `${r.pattern}:${r.variant}`));
+  const merged = [
+    ...(brandRecipes ?? []).map(r => ({ ...r, source: 'brand' as const })),
+    ...(defaultRecipes ?? [])
+      .filter(r => !oemKeys.has(`${r.pattern}:${r.variant}`))
+      .map(r => ({ ...r, oem_id: null, source: 'default' as const })),
+  ];
+
+  return c.json({ recipes: merged, oem_id: oemId });
+});
+
+// ============================================================================
 // AI Model Configuration Routes
 // ============================================================================
 

@@ -73,6 +73,22 @@ export async function fetchGeneratedPage(slug: string) {
   return workerFetch(`/api/v1/oem-agent/pages/${slug}`)
 }
 
+export interface Recipe {
+  id: string
+  oem_id: string | null
+  pattern: string
+  variant: string
+  label: string
+  resolves_to: string
+  defaults_json: Record<string, any>
+  source: 'brand' | 'default'
+}
+
+export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
+  const result = await workerFetch(`/api/v1/oem-agent/recipes/${oemId}`)
+  return result.recipes ?? []
+}
+
 export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
