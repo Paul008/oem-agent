@@ -7,6 +7,7 @@ import {
   regenerateSection as apiRegenerateSection,
   adaptivePipeline as apiAdaptivePipeline,
   fetchRecipes,
+  saveRecipe,
   type Recipe,
 } from '@/lib/worker-api'
 import {
@@ -645,6 +646,92 @@ export function usePageBuilder() {
     }
   }
 
+  async function saveCurrentAsRecipe(sectionId: string) {
+    const section = sections.value.find((s: any) => s.id === sectionId)
+    if (!section || !oemId.value) return
+
+    // Map section type to pattern
+    const SECTION_TO_PATTERN: Record<string, { pattern: string; variant: string }> = {
+      'hero': { pattern: 'hero', variant: 'image-overlay' },
+      'feature-cards': { pattern: 'card-grid', variant: 'image-title-body' },
+      'stats': { pattern: 'card-grid', variant: 'stat' },
+      'logo-strip': { pattern: 'card-grid', variant: 'logo' },
+      'testimonial': { pattern: 'card-grid', variant: 'testimonial' },
+      'pricing-table': { pattern: 'card-grid', variant: 'pricing-tier' },
+      'intro': { pattern: 'split-content', variant: 'text-left-image-right' },
+      'content-block': { pattern: 'split-content', variant: 'full-width-text' },
+      'gallery': { pattern: 'media', variant: 'carousel' },
+      'video': { pattern: 'media', variant: 'video' },
+      'embed': { pattern: 'media', variant: 'embed' },
+      'image': { pattern: 'media', variant: 'single-image' },
+      'image-showcase': { pattern: 'media', variant: 'showcase' },
+      'tabs': { pattern: 'tabs', variant: 'horizontal' },
+      'specs-grid': { pattern: 'data-display', variant: 'specs-accordion' },
+      'comparison-table': { pattern: 'data-display', variant: 'comparison' },
+      'color-picker': { pattern: 'data-display', variant: 'color-picker' },
+      'cta-banner': { pattern: 'action-bar', variant: 'banner' },
+      'sticky-bar': { pattern: 'action-bar', variant: 'sticky' },
+      'enquiry-form': { pattern: 'action-bar', variant: 'form' },
+      'heading': { pattern: 'utility', variant: 'heading' },
+      'alert': { pattern: 'utility', variant: 'alert' },
+      'divider': { pattern: 'utility', variant: 'divider' },
+      'countdown': { pattern: 'hero', variant: 'countdown' },
+      'finance-calculator': { pattern: 'utility', variant: 'calculator' },
+      'accordion': { pattern: 'utility', variant: 'accordion' },
+      'map': { pattern: 'utility', variant: 'map' },
+    }
+
+    const mapping = SECTION_TO_PATTERN[section.type] || { pattern: 'utility', variant: section.type }
+
+    // Extract non-content properties (strip content-specific fields)
+    const CONTENT_FIELDS = new Set([
+      'id', 'order', 'type', '_recipe',
+      'heading', 'sub_heading', 'title', 'body', 'body_html', 'content_html',
+      'cta_text', 'cta_url', 'message',
+      'cards', 'tabs', 'images', 'colors', 'categories', 'testimonials',
+      'logos', 'stats', 'tiers', 'columns_data', 'rows', 'items',
+      'video_url', 'poster_url', 'embed_url', 'desktop_image_url', 'mobile_image_url',
+      'image_url', 'background_image_url',
+    ])
+
+    const defaults_json: Record<string, any> = {}
+    for (const [key, value] of Object.entries(section)) {
+      if (!CONTENT_FIELDS.has(key) && value !== undefined && value !== null && value !== '') {
+        defaults_json[key] = value
+      }
+    }
+
+    // Add card_composition if it's a cards-based section
+    if (section.cards?.length) {
+      const card = section.cards[0]
+      const composition: string[] = []
+      if (card.image_url) composition.push('image')
+      if (card.icon_url || card.icon) composition.push('icon')
+      if (card.title) composition.push('title')
+      if (card.description) composition.push('body')
+      if (card.cta_text || card.cta_url) composition.push('cta')
+      if (composition.length) defaults_json.card_composition = composition
+    }
+
+    const oemName = oemId.value.replace('-au', '').replace(/^\w/, c => c.toUpperCase())
+    const label = `${oemName} ${section.heading || section.title || mapping.variant} (custom)`
+
+    try {
+      await saveRecipe({
+        oem_id: oemId.value,
+        pattern: mapping.pattern,
+        variant: `${mapping.variant}-custom-${Date.now().toString(36)}`,
+        label,
+        resolves_to: section.type,
+        defaults_json,
+      })
+      // Reload recipes to include the new one
+      await loadRecipes(oemId.value)
+    } catch (err: any) {
+      error.value = err.message || 'Failed to save recipe'
+    }
+  }
+
   function replaceSections(newSections: any[]) {
     ensureContentExists()
     pushHistory('Bulk edit sections')
@@ -715,6 +802,8 @@ export function usePageBuilder() {
     undo,
     redo,
     jumpTo,
+    // Recipe methods
+    saveCurrentAsRecipe,
     // Copy/Paste methods
     pasteSections,
     copySectionToClipboard,

@@ -75,6 +75,7 @@ export class AdaptivePipeline {
       aiRouter: deps.aiRouter,
       r2Bucket: deps.r2Bucket,
       promptBuilder: this.promptBuilder,
+      supabase: deps.supabase,
     };
     this.structurer = new PageStructurer(structurerDeps);
   }

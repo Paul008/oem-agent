@@ -36,6 +36,7 @@ const {
   pasteSections, copySectionToClipboard, pasteSectionFromClipboard, replaceSections,
   convertSection, getConvertibleTypes,
   splitSection, canSplitSection,
+  saveCurrentAsRecipe,
 } = usePageBuilder()
 
 const themeStore = useThemeStore()
@@ -592,6 +593,7 @@ const workflowSteps = computed(() => {
             @copy-section-json="copySectionToClipboard"
             @convert-section="(id: string, type: string) => convertSection(id, type as any)"
             @split-section="splitSection"
+            @save-as-recipe="saveCurrentAsRecipe"
             @add-section="addSection"
             @add-section-from-template="addSectionFromTemplate"
             @insert-from-gallery="addSectionFromLiveData"

@@ -5,7 +5,7 @@ import {
   Palette, TableProperties, Images, LayoutGrid, Video, Megaphone,
   ArrowRightLeft, Quote, BarChart3, Award, Code2, Table2,
   DollarSign, PanelBottom, Timer, Calculator, Maximize, Split,
-  Settings, GripVertical,
+  Settings, GripVertical, BookmarkPlus,
 } from 'lucide-vue-next'
 import { getConvertibleTypes } from './section-converter'
 import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
@@ -25,6 +25,7 @@ const emit = defineEmits<{
   duplicate: []
   delete: []
   copyJson: []
+  saveAsRecipe: []
   convert: [targetType: string]
   split: []
   dragstart: [e: DragEvent]
@@ -147,6 +148,13 @@ function sectionLabel(s: any): string {
           @click.stop="emit('copyJson')"
         >
           <Clipboard class="size-3.5" />
+        </button>
+        <button
+          class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-green-600"
+          title="Save as Recipe"
+          @click.stop="emit('saveAsRecipe')"
+        >
+          <BookmarkPlus class="size-3.5" />
         </button>
         <button
           class="p-1 rounded-md hover:bg-muted"

@@ -129,17 +129,38 @@ export interface PageStructurerDeps {
   aiRouter: AiRouter;
   r2Bucket: R2Bucket;
   promptBuilder?: SmartPromptBuilder;
+  supabase?: any;
 }
 
 export class PageStructurer {
   private aiRouter: AiRouter;
   private r2Bucket: R2Bucket;
   private promptBuilder?: SmartPromptBuilder;
+  private supabase?: any;
 
   constructor(deps: PageStructurerDeps) {
     this.aiRouter = deps.aiRouter;
     this.r2Bucket = deps.r2Bucket;
     this.promptBuilder = deps.promptBuilder;
+    this.supabase = deps.supabase;
+  }
+
+  private async getRecipeContext(oemId: OemId): Promise<string> {
+    if (!this.supabase) return '';
+    try {
+      const { data } = await this.supabase
+        .from('brand_recipes')
+        .select('pattern, variant, label, resolves_to')
+        .eq('oem_id', oemId)
+        .eq('is_active', true)
+        .order('pattern');
+
+      if (!data?.length) return '';
+
+      return `\n\n## OEM Section Recipes\nThis OEM has pre-defined section recipes. When the content matches a recipe, use the corresponding section type:\n${data.map((r: any) => `- "${r.label}" → type: "${r.resolves_to}" (pattern: ${r.pattern}/${r.variant})`).join('\n')}\n`;
+    } catch {
+      return '';
+    }
   }
 
   async structurePage(oemId: OemId, modelSlug: string): Promise<PageStructuringResult> {
@@ -173,14 +194,20 @@ export class PageStructurer {
       }
 
       // 2. Build prompt (smart or basic) and call Gemini 3.1 Pro
-      const prompt = this.promptBuilder
+      let prompt = this.promptBuilder
         ? await this.promptBuilder.buildExtractionPrompt(oemId, pageData.content.rendered, {
             modelSlug,
             sourceUrl: pageData.source_url || '',
           })
         : buildExtractionPrompt(pageData.content.rendered);
 
-      console.log(`[PageStructurer] Extracting sections for ${oemId}/${modelSlug} (${Math.round(pageData.content.rendered.length / 1024)}KB HTML, smart=${!!this.promptBuilder})`);
+      // Inject OEM recipe context if available
+      const recipeContext = await this.getRecipeContext(oemId);
+      if (recipeContext) {
+        prompt += recipeContext;
+      }
+
+      console.log(`[PageStructurer] Extracting sections for ${oemId}/${modelSlug} (${Math.round(pageData.content.rendered.length / 1024)}KB HTML, smart=${!!this.promptBuilder}, recipes=${recipeContext ? 'yes' : 'no'})`);
 
       const response = await this.aiRouter.route({
         taskType: 'page_structuring',

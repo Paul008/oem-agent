@@ -1741,6 +1741,7 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
     aiRouter,
     r2Bucket: c.env.MOLTBOT_BUCKET,
     promptBuilder,
+    supabase,
   });
 
   const result = await structurer.structurePage(oemId, modelSlug);
@@ -1956,6 +1957,7 @@ app.post('/admin/regenerate-section/:oemId/:modelSlug', async (c) => {
     aiRouter,
     r2Bucket: c.env.MOLTBOT_BUCKET,
     promptBuilder,
+    supabase,
   });
 
   const result = await structurer.regenerateSection(oemId, modelSlug, body.sectionId, body.sectionType);
@@ -2109,6 +2111,39 @@ app.get('/recipes/:oemId', async (c) => {
   ];
 
   return c.json({ recipes: merged, oem_id: oemId });
+});
+
+app.post('/admin/recipes', async (c) => {
+  const body = await c.req.json<{
+    oem_id: string
+    pattern: string
+    variant: string
+    label: string
+    resolves_to: string
+    defaults_json: Record<string, any>
+  }>();
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const { data, error } = await supabase
+    .from('brand_recipes')
+    .upsert({
+      oem_id: body.oem_id,
+      pattern: body.pattern,
+      variant: body.variant,
+      label: body.label,
+      resolves_to: body.resolves_to,
+      defaults_json: body.defaults_json,
+      is_active: true,
+    }, { onConflict: 'oem_id,pattern,variant' })
+    .select()
+    .single();
+
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json(data);
 });
 
 // ============================================================================

@@ -29,6 +29,7 @@ const emit = defineEmits<{
   insertFromGallery: [section: any]
   pasteFromClipboard: []
   addFromRecipe: [recipe: any]
+  saveAsRecipe: [id: string]
 }>()
 
 const galleryOpen = ref(false)
@@ -135,6 +136,7 @@ function formatCost(cost: number | undefined) {
             @copy-json="emit('copySectionJson', section.id)"
             @convert="(targetType: string) => emit('convertSection', section.id, targetType)"
             @split="emit('splitSection', section.id)"
+            @save-as-recipe="emit('saveAsRecipe', section.id)"
             @delete="emit('deleteSection', section.id)"
             @dragstart="onDragStart($event, index)"
             @dragover="onDragOver($event, index)"

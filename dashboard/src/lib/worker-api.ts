@@ -89,6 +89,14 @@ export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
   return result.recipes ?? []
 }
 
+export async function saveRecipe(recipe: Omit<Recipe, 'id' | 'source'>): Promise<Recipe> {
+  return workerFetch('/api/v1/oem-agent/admin/recipes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(recipe),
+  })
+}
+
 export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
