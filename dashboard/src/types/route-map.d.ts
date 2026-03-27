@@ -312,6 +312,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/recipes': RouteRecordInfo<
+      '/dashboard/recipes',
+      '/dashboard/recipes',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/runs': RouteRecordInfo<
       '/dashboard/runs',
       '/dashboard/runs',
@@ -343,6 +350,13 @@ declare module 'vue-router/auto-routes' {
     '/dashboard/specs': RouteRecordInfo<
       '/dashboard/specs',
       '/dashboard/specs',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/stock-health': RouteRecordInfo<
+      '/dashboard/stock-health',
+      '/dashboard/stock-health',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -745,6 +759,12 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/pages/dashboard/recipes.vue': {
+      routes:
+        | '/dashboard/recipes'
+      views:
+        | never
+    }
     'src/pages/dashboard/runs.vue': {
       routes:
         | '/dashboard/runs'
@@ -772,6 +792,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/specs.vue': {
       routes:
         | '/dashboard/specs'
+      views:
+        | never
+    }
+    'src/pages/dashboard/stock-health.vue': {
+      routes:
+        | '/dashboard/stock-health'
       views:
         | never
     }

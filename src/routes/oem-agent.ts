@@ -2113,6 +2113,32 @@ app.get('/recipes/:oemId', async (c) => {
   return c.json({ recipes: merged, oem_id: oemId });
 });
 
+app.get('/admin/recipes', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  })
+
+  const [{ data: brand }, { data: defaults }] = await Promise.all([
+    supabase.from('brand_recipes').select('*').order('pattern').order('label'),
+    supabase.from('default_recipes').select('*').order('pattern').order('label'),
+  ])
+
+  return c.json({ brand_recipes: brand ?? [], default_recipes: defaults ?? [] })
+});
+
+app.delete('/admin/recipes/:id', async (c) => {
+  const id = c.req.param('id')
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  })
+
+  const { error } = await supabase.from('brand_recipes').delete().eq('id', id)
+  if (error) return c.json({ error: error.message }, 500)
+  return c.json({ success: true })
+});
+
 app.post('/admin/recipes', async (c) => {
   const body = await c.req.json<{
     oem_id: string

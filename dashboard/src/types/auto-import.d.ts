@@ -90,6 +90,7 @@ declare global {
   const useRouter: typeof import('vue-router').useRouter
   const useSidebar: typeof import('../composables/use-sidebar').useSidebar
   const useSlots: typeof import('vue').useSlots
+  const useStockHealth: typeof import('../composables/use-stock-health').useStockHealth
   const useSystemTheme: typeof import('../composables/use-system-theme').useSystemTheme
   const useTemplateGallery: typeof import('../composables/use-template-gallery').useTemplateGallery
   const useTemplateRef: typeof import('vue').useTemplateRef
@@ -129,6 +130,9 @@ declare global {
   // @ts-ignore
   export type { PortalAsset, PortalAssetCoverage } from '../composables/use-portal-assets'
   import('../composables/use-portal-assets')
+  // @ts-ignore
+  export type { OemStockHealth, StockSummary } from '../composables/use-stock-health'
+  import('../composables/use-stock-health')
   // @ts-ignore
   export type { SlugEntry, CachedSection } from '../composables/use-template-gallery'
   import('../composables/use-template-gallery')

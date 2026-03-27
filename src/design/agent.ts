@@ -848,8 +848,16 @@ export const OEM_BRAND_NOTES: Record<OemId, { colors: string[]; notes: string }>
     notes: 'HyundaiSans font, three design sub-systems (mainstream, N performance, IONIQ EV)',
   },
   'toyota-au': {
-    colors: ['#EB0A1E'], // Toyota red
-    notes: 'ToyotaType font, pragmatic information-dense, GR performance sub-brand, hybrid badges',
+    colors: ['#EB0A1E', '#1A1A1A', '#F5F5F5', '#757575', '#2468FF', '#1C7D49'],
+    notes: `ToyotaType font family (weights 350-800, tight letter-spacing -0.02em to -0.04em on headings).
+Design system: "tk-" CSS custom properties. Pragmatic information-dense layouts.
+Typography scale: h1=80px, h2=56px, h3=44px, h4=32px, p1=36px (feature), b1=18px (body), b2=16px, s1=14px, s2=14px, f1=14px (fine print), c1=12px (caption). Line-heights: headings 1.1-1.2, body 1.45-1.5.
+Colors: brand-red #EB0A1E, charcoal #1A1A1A, smoke #F5F5F5, grey #757575, steel #CCC, light-grey #EEE, slate #3A3A3A, dark-charcoal #131314. Electrified blue #2468FF, finance green #1C7D49.
+Spacing: sm=32px, md=52px, lg=80px, xl=100px, xl-duo-lg=120px. Section gaps 80-120px. Container max-width ~1440px.
+Buttons: red CTA with white text, rounded corners. Ghost/text links with red arrow SVGs.
+Layout patterns: full-width hero sections, 3-column feature grids with image+title+description, white/smoke alternating section backgrounds.
+GR performance sub-brand (separate palette). Hybrid/electrified badges with blue accent.
+Card style: subtle rounded corners, white bg on smoke sections. No heavy shadows — flat/minimal.`,
   },
   'subaru-au': {
     colors: ['#003DA5'], // Subaru blue

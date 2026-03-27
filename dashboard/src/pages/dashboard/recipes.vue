@@ -9,8 +9,8 @@ import {
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
-import { supabase } from '@/lib/supabase'
 import { useOemData } from '@/composables/use-oem-data'
+import { fetchAllRecipes, saveRecipe, deleteRecipe as apiDeleteRecipe } from '@/lib/worker-api'
 
 interface BrandRecipe {
   id: string
@@ -82,14 +82,13 @@ async function loadData() {
   loading.value = true
   loadError.value = null
   try {
-    const [o, { data: brand }, { data: defaults }] = await Promise.all([
+    const [o, allRecipes] = await Promise.all([
       fetchOems(),
-      supabase.from('brand_recipes').select('*').order('pattern').order('label'),
-      supabase.from('default_recipes').select('*').order('pattern').order('label'),
+      fetchAllRecipes(),
     ])
     oems.value = o
-    brandRecipes.value = (brand ?? []) as BrandRecipe[]
-    defaultRecipes.value = (defaults ?? []) as DefaultRecipe[]
+    brandRecipes.value = (allRecipes.brand_recipes ?? []) as BrandRecipe[]
+    defaultRecipes.value = (allRecipes.default_recipes ?? []) as DefaultRecipe[]
   } catch (err: any) {
     loadError.value = err.message || 'Failed to load recipes'
     toast.error(loadError.value!)
@@ -219,15 +218,8 @@ async function saveRecipe() {
       is_active: true,
     }
 
-    if (r.id && r.source === 'brand') {
-      const { error } = await supabase.from('brand_recipes').update(payload).eq('id', r.id)
-      if (error) throw error
-      toast.success('Recipe updated')
-    } else {
-      const { error } = await supabase.from('brand_recipes').insert(payload)
-      if (error) throw error
-      toast.success('Recipe created')
-    }
+    await saveRecipe(payload as any)
+    toast.success(r.id && r.source === 'brand' ? 'Recipe updated' : 'Recipe created')
 
     editingRecipe.value = null
     await loadData()
@@ -240,8 +232,7 @@ async function saveRecipe() {
 
 async function deleteRecipe(id: string) {
   try {
-    const { error } = await supabase.from('brand_recipes').delete().eq('id', id)
-    if (error) throw error
+    await apiDeleteRecipe(id)
     toast.success('Recipe deleted')
     await loadData()
   } catch (err: any) {
