@@ -12,6 +12,7 @@ const props = defineProps<{
   selectedSectionId: string | null
   oemName: string
   oemId?: string
+  recipes?: any[]
 }>()
 
 const emit = defineEmits<{
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   addSectionFromTemplate: [templateId: string]
   insertFromGallery: [section: any]
   pasteFromClipboard: []
+  addFromRecipe: [recipe: any]
 }>()
 
 const galleryOpen = ref(false)
@@ -149,8 +151,11 @@ function formatCost(cost: number | undefined) {
 
         <!-- Add Section picker -->
         <AddSectionPicker
+          :recipes="recipes"
+          :oem-id="oemId"
           @add-blank="emit('addSection', $event)"
           @add-from-template="emit('addSectionFromTemplate', $event)"
+          @add-from-recipe="emit('addFromRecipe', $event)"
           @open-gallery="galleryOpen = true"
           @paste-from-clipboard="emit('pasteFromClipboard')"
         />

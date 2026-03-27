@@ -1,152 +1,172 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
-import { Plus, Image, Type, Heading, Columns3, Palette, TableProperties, Images, LayoutGrid, Video, Megaphone, FileText, ChevronRight, Library, ClipboardPaste, Quote, Table2, BarChart3, Award, Code2, DollarSign, PanelBottom, Timer, Calculator, Maximize } from 'lucide-vue-next'
 import {
-  SECTION_TEMPLATES,
+  Plus, Image, Columns3, ChevronRight, ChevronDown, Library,
+  ClipboardPaste, Layers, Grid3x3, SplitSquareHorizontal,
+  Play, Database, Megaphone,
+} from 'lucide-vue-next'
+import {
   SECTION_TYPE_INFO,
   type PageSectionType,
 } from './section-templates'
+import type { Recipe } from '@/lib/worker-api'
+
+const props = defineProps<{
+  recipes?: Recipe[]
+  oemId?: string
+}>()
 
 const emit = defineEmits<{
   addBlank: [type: PageSectionType]
   addFromTemplate: [templateId: string]
+  addFromRecipe: [recipe: Recipe]
   openGallery: []
   pasteFromClipboard: []
 }>()
 
 const open = ref(false)
-const expandedType = ref<PageSectionType | null>(null)
+const expandedPattern = ref<string | null>(null)
 
-const typeIcons: Record<string, any> = {
-  'hero': Image,
-  'heading': Heading,
-  'intro': Type,
-  'tabs': Columns3,
-  'color-picker': Palette,
-  'specs-grid': TableProperties,
-  'gallery': Images,
-  'feature-cards': LayoutGrid,
-  'video': Video,
-  'cta-banner': Megaphone,
-  'content-block': FileText,
-  'testimonial': Quote,
-  'comparison-table': Table2,
-  'stats': BarChart3,
-  'logo-strip': Award,
-  'embed': Code2,
-  'pricing-table': DollarSign,
-  'sticky-bar': PanelBottom,
-  'countdown': Timer,
-  'finance-calculator': Calculator,
-  'image-showcase': Maximize,
-}
+const PATTERNS = [
+  { key: 'hero', label: 'Hero', icon: Image },
+  { key: 'card-grid', label: 'Card Grid', icon: Grid3x3 },
+  { key: 'split-content', label: 'Split Content', icon: SplitSquareHorizontal },
+  { key: 'media', label: 'Media', icon: Play },
+  { key: 'tabs', label: 'Tabs', icon: Columns3 },
+  { key: 'data-display', label: 'Data Display', icon: Database },
+  { key: 'action-bar', label: 'Action Bar', icon: Megaphone },
+  { key: 'utility', label: 'Utility', icon: Layers },
+]
 
-const sectionTypes = computed(() =>
-  Object.entries(SECTION_TYPE_INFO).map(([type, info]) => ({
-    type: type as PageSectionType,
-    ...info,
-    templates: SECTION_TEMPLATES.filter(t => t.type === type),
-  })),
-)
-
-function toggleType(type: PageSectionType) {
-  const entry = sectionTypes.value.find(s => s.type === type)
-  if (!entry || entry.templates.length === 0) {
-    emit('addBlank', type)
-    open.value = false
-    expandedType.value = null
-    return
+const recipesByPattern = computed(() => {
+  const grouped: Record<string, { brand: Recipe[]; defaults: Recipe[] }> = {}
+  for (const p of PATTERNS) {
+    grouped[p.key] = { brand: [], defaults: [] }
   }
-  expandedType.value = expandedType.value === type ? null : type
+  for (const r of (props.recipes ?? [])) {
+    const group = grouped[r.pattern]
+    if (!group) continue
+    if (r.source === 'brand') group.brand.push(r)
+    else group.defaults.push(r)
+  }
+  return grouped
+})
+
+const hasRecipes = computed(() => (props.recipes ?? []).length > 0)
+
+function togglePattern(key: string) {
+  expandedPattern.value = expandedPattern.value === key ? null : key
 }
 
-function pickTemplate(templateId: string) {
-  emit('addFromTemplate', templateId)
+function selectRecipe(recipe: Recipe) {
+  emit('addFromRecipe', recipe)
   open.value = false
-  expandedType.value = null
+  expandedPattern.value = null
 }
 
-function pickBlank(type: PageSectionType) {
+function addBlankType(type: PageSectionType) {
   emit('addBlank', type)
   open.value = false
-  expandedType.value = null
+  expandedPattern.value = null
 }
 </script>
 
 <template>
-  <UiPopover v-model:open="open">
-    <UiPopoverTrigger as-child>
-      <UiButton size="sm" variant="outline" class="w-full mt-2">
-        <Plus class="size-3.5 mr-1.5" />
-        Add Section
-      </UiButton>
-    </UiPopoverTrigger>
-    <UiPopoverContent class="w-72 p-0" align="start">
-      <div class="max-h-80 overflow-y-auto">
-        <div class="px-3 py-2 border-b">
-          <p class="text-xs font-semibold text-muted-foreground">Choose section type</p>
-        </div>
-        <div class="py-1">
-          <template v-for="entry in sectionTypes" :key="entry.type">
-            <button
-              class="flex items-center gap-2.5 w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
-              @click="toggleType(entry.type)"
-            >
-              <component :is="typeIcons[entry.type] || Type" class="size-4 text-muted-foreground shrink-0" />
-              <div class="flex-1 min-w-0">
-                <p class="font-medium text-sm">{{ entry.label }}</p>
-                <p class="text-[10px] text-muted-foreground">{{ entry.description }}</p>
-              </div>
-              <ChevronRight
-                v-if="entry.templates.length > 0"
-                class="size-3.5 text-muted-foreground shrink-0 transition-transform"
-                :class="expandedType === entry.type && 'rotate-90'"
-              />
-            </button>
+  <div class="relative">
+    <button
+      class="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+      @click="open = !open"
+    >
+      <Plus class="h-3.5 w-3.5" />
+      Add Section
+    </button>
 
-            <!-- Templates sub-list -->
-            <div v-if="expandedType === entry.type" class="bg-muted/30 border-y">
-              <button
-                class="flex items-center gap-2 w-full px-3 pl-10 py-1.5 text-left text-xs hover:bg-muted/50"
-                @click="pickBlank(entry.type)"
-              >
-                <span class="text-muted-foreground">Blank</span>
-              </button>
-              <button
-                v-for="tmpl in entry.templates"
-                :key="tmpl.id"
-                class="flex items-center gap-2 w-full px-3 pl-10 py-1.5 text-left text-xs hover:bg-muted/50"
-                @click="pickTemplate(tmpl.id)"
-              >
-                <div class="min-w-0">
-                  <p class="font-medium">{{ tmpl.name }}</p>
-                  <p class="text-[10px] text-muted-foreground">{{ tmpl.description }}</p>
-                </div>
-              </button>
-            </div>
-          </template>
-        </div>
-        <div class="border-t px-3 py-2 space-y-1">
-          <UiButton
-            size="sm"
-            variant="ghost"
-            class="w-full justify-start text-xs"
-            @click="emit('openGallery'); open = false"
+    <div
+      v-if="open"
+      class="absolute left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden max-h-[480px] overflow-y-auto"
+    >
+      <template v-if="hasRecipes">
+        <div
+          v-for="pattern in PATTERNS"
+          :key="pattern.key"
+          class="border-b border-border last:border-0"
+        >
+          <button
+            class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
+            @click="togglePattern(pattern.key)"
           >
-            <Library class="size-3.5 mr-1.5" />
-            Browse Template Gallery
-          </UiButton>
-          <UiButton
-            size="sm"
-            variant="ghost"
-            class="w-full justify-start text-xs"
-            @click="emit('pasteFromClipboard'); open = false"
-          >
-            <ClipboardPaste class="size-3.5 mr-1.5" />
-            Paste from Clipboard
-          </UiButton>
+            <component :is="pattern.icon" class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="flex-1 text-left">{{ pattern.label }}</span>
+            <span
+              v-if="recipesByPattern[pattern.key]?.brand.length"
+              class="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full"
+            >
+              {{ recipesByPattern[pattern.key].brand.length }} custom
+            </span>
+            <component
+              :is="expandedPattern === pattern.key ? ChevronDown : ChevronRight"
+              class="h-3 w-3 text-muted-foreground"
+            />
+          </button>
+
+          <div v-if="expandedPattern === pattern.key" class="bg-muted/30">
+            <template v-if="recipesByPattern[pattern.key].brand.length">
+              <div class="px-3 pt-1.5 pb-0.5">
+                <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Brand</span>
+              </div>
+              <button
+                v-for="recipe in recipesByPattern[pattern.key].brand"
+                :key="recipe.id"
+                class="w-full flex items-center gap-2 px-3 py-1.5 pl-8 text-xs hover:bg-muted transition-colors"
+                @click="selectRecipe(recipe)"
+              >
+                <span class="flex-1 text-left">{{ recipe.label }}</span>
+              </button>
+            </template>
+
+            <template v-if="recipesByPattern[pattern.key].defaults.length">
+              <div class="px-3 pt-1.5 pb-0.5">
+                <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Generic</span>
+              </div>
+              <button
+                v-for="recipe in recipesByPattern[pattern.key].defaults"
+                :key="recipe.id"
+                class="w-full flex items-center gap-2 px-3 py-1.5 pl-8 text-xs hover:bg-muted transition-colors"
+                @click="selectRecipe(recipe)"
+              >
+                <span class="flex-1 text-left">{{ recipe.label }}</span>
+              </button>
+            </template>
+          </div>
         </div>
+      </template>
+
+      <template v-else>
+        <button
+          v-for="(info, type) in SECTION_TYPE_INFO"
+          :key="type"
+          class="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors"
+          @click="addBlankType(type as PageSectionType)"
+        >
+          <span class="flex-1 text-left">{{ info.label }}</span>
+          <span class="text-[10px] text-muted-foreground">{{ info.description }}</span>
+        </button>
+      </template>
+
+      <div class="border-t border-border p-1.5 flex gap-1">
+        <button
+          class="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+          @click="$emit('openGallery'); open = false"
+        >
+          <Library class="h-3 w-3" /> Browse Gallery
+        </button>
+        <button
+          class="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+          @click="$emit('pasteFromClipboard'); open = false"
+        >
+          <ClipboardPaste class="h-3 w-3" /> Paste
+        </button>
       </div>
-    </UiPopoverContent>
-  </UiPopover>
+    </div>
+  </div>
 </template>

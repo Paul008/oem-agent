@@ -6,6 +6,8 @@ import {
   updatePageSections,
   regenerateSection as apiRegenerateSection,
   adaptivePipeline as apiAdaptivePipeline,
+  fetchRecipes,
+  type Recipe,
 } from '@/lib/worker-api'
 import {
   SECTION_DEFAULTS,
@@ -136,6 +138,15 @@ export function usePageBuilder() {
   const error = ref<string | null>(null)
   const slug = ref('')
   const isDirty = ref(false)
+  const recipes = ref<Recipe[]>([])
+
+  async function loadRecipes(oemIdStr: string) {
+    try {
+      recipes.value = await fetchRecipes(oemIdStr)
+    } catch {
+      recipes.value = []
+    }
+  }
 
   const selectedSectionId = ref<string | null>(null)
   const sourceUrlOverride = ref('')
@@ -230,6 +241,9 @@ export function usePageBuilder() {
 
     try {
       page.value = await fetchGeneratedPage(newSlug)
+      if (oemId.value) {
+        await loadRecipes(oemId.value)
+      }
       // Seed hero section images from header.slides if section is missing them
       const heroSec = page.value?.content?.sections?.find((s: any) => s.type === 'hero')
       const slide = page.value?.header?.slides?.[0]
@@ -359,6 +373,29 @@ export function usePageBuilder() {
     sections.value = updated
     isDirty.value = true
     selectedSectionId.value = clone.id
+  }
+
+  function addSectionFromRecipe(recipe: Recipe, afterIndex?: number) {
+    const sectionType = recipe.resolves_to as PageSectionType
+    ensureContentExists()
+    pushHistory(`Added ${recipe.label}`)
+    const baseDefaults = SECTION_DEFAULTS[sectionType]?.() ?? {}
+    const { card_composition, card_style, section_style, typography, ...sectionDefaults } = recipe.defaults_json
+    const newSection = {
+      ...baseDefaults,
+      ...sectionDefaults,
+      type: sectionType,
+      id: genId(),
+      order: 0,
+      _recipe: { pattern: recipe.pattern, variant: recipe.variant, oem_id: recipe.oem_id },
+    }
+    const updated = [...sections.value]
+    const insertAt = afterIndex != null ? afterIndex + 1 : updated.length
+    updated.splice(insertAt, 0, newSection)
+    updated.forEach((s: any, i: number) => { s.order = i })
+    sections.value = updated
+    isDirty.value = true
+    selectedSectionId.value = newSection.id
   }
 
   function duplicateSection(id: string) {
@@ -650,6 +687,8 @@ export function usePageBuilder() {
     pipelining,
     pipelineResult,
     workflowStage,
+    recipes,
+    loadRecipes,
     // History
     history,
     historyIndex,
@@ -664,6 +703,7 @@ export function usePageBuilder() {
     addSection,
     addSectionFromTemplate,
     addSectionFromLiveData,
+    addSectionFromRecipe,
     duplicateSection,
     updateSection,
     saveSections,

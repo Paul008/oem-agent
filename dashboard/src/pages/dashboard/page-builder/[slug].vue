@@ -29,9 +29,10 @@ const {
   regenerating, cloning, structuring, pipelining, pipelineResult,
   history, historyIndex, canUndo, canRedo,
   loadPage, selectSection, deleteSection, moveSection,
-  addSection, addSectionFromTemplate, addSectionFromLiveData, duplicateSection, updateSection,
+  addSection, addSectionFromTemplate, addSectionFromLiveData, addSectionFromRecipe, duplicateSection, updateSection,
   saveSections, regenerateSectionById, handleClone, handleStructure, handleAdaptivePipeline,
   undo, redo, jumpTo,
+  recipes,
   pasteSections, copySectionToClipboard, pasteSectionFromClipboard, replaceSections,
   convertSection, getConvertibleTypes,
   splitSection, canSplitSection,
@@ -581,7 +582,9 @@ const workflowSteps = computed(() => {
             :selected-section-id="selectedSectionId"
             :oem-name="oemName(page.oem_id)"
             :oem-id="oemId"
+            :recipes="recipes"
             @select-section="selectSection"
+            @add-from-recipe="addSectionFromRecipe"
             @open-editor="openEditor"
             @move-section="moveSection"
             @delete-section="deleteSection"
