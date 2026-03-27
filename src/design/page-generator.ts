@@ -782,6 +782,28 @@ export class PageGenerator {
   }
 
   /**
+   * Fetch active brand_recipes for an OEM and format them as LLM prompt context.
+   * Returns an empty string when no recipes exist so callers can safely append.
+   */
+  private async getRecipesForPrompt(oemId: OemId): Promise<string> {
+    const { data: brandRecipes } = await this.supabase
+      .from('brand_recipes')
+      .select('pattern, variant, label, resolves_to')
+      .eq('oem_id', oemId)
+      .eq('is_active', true)
+      .order('pattern');
+
+    if (!brandRecipes?.length) return '';
+
+    const lines = brandRecipes.map(
+      (r: { label: string; pattern: string; variant: string; resolves_to: string }) =>
+        `- ${r.label} (pattern: ${r.pattern}, variant: ${r.variant}) → ${r.resolves_to}`,
+    );
+
+    return `\nAvailable section recipes for this OEM:\n${lines.join('\n')}\n\nSelect recipes by pattern+variant for each content block. Use the recipe defaults — do NOT invent custom styling.\n`;
+  }
+
+  /**
    * Download images from OEM CDN and upload to R2 for permanent storage.
    * Returns a mapping of original URL → R2 public URL.
    */
@@ -1072,11 +1094,14 @@ export class PageGenerator {
       let claudeTokens = 0;
       let claudeCost = 0;
 
+      // Fetch OEM recipe context once for whichever prompt path we take
+      const recipeContext = await this.getRecipesForPrompt(oemId);
+
       if (screenshotBase64) {
         // ── PRIMARY: Kimi K2.5 Screenshot-to-Code ──────────────────────
         console.log(`[PageGenerator] Using Kimi K2.5 screenshot-to-code for ${oemId}/${modelSlug}`);
 
-        const kimiPrompt = buildScreenshotToCodePrompt(oemId, modelData, urlMapping, designProfile);
+        const kimiPrompt = buildScreenshotToCodePrompt(oemId, modelData, urlMapping, designProfile) + recipeContext;
 
         const kimiResponse: InferenceResponse = await this.aiRouter.route({
           taskType: 'page_screenshot_to_code',
@@ -1126,7 +1151,7 @@ export class PageGenerator {
           finalExtraction = this.replaceUrlsInExtraction(extraction, urlMapping);
         }
 
-        const contentPrompt = buildContentPrompt(oemId, modelData, finalExtraction, designProfile);
+        const contentPrompt = buildContentPrompt(oemId, modelData, finalExtraction, designProfile) + recipeContext;
 
         const claudeResponse: InferenceResponse = await this.aiRouter.route({
           taskType: 'page_content_generation',
