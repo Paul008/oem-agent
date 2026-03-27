@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Plus, Image, Columns3, ChevronRight, ChevronDown, Library,
-  ClipboardPaste, Layers, Grid3x3, SplitSquareHorizontal,
+  ClipboardPaste, BookmarkPlus, Layers, Grid3x3, SplitSquareHorizontal,
   Play, Database, Megaphone,
 } from 'lucide-vue-next'
 import {
@@ -24,6 +25,7 @@ const emit = defineEmits<{
   pasteFromClipboard: []
 }>()
 
+const router = useRouter()
 const open = ref(false)
 const expandedPattern = ref<string | null>(null)
 
@@ -165,6 +167,12 @@ function addBlankType(type: PageSectionType) {
           @click="$emit('pasteFromClipboard'); open = false"
         >
           <ClipboardPaste class="h-3 w-3" /> Paste
+        </button>
+        <button
+          class="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+          @click="router.push('/dashboard/recipes'); open = false"
+        >
+          <BookmarkPlus class="h-3 w-3" /> Manage Recipes
         </button>
       </div>
     </div>
