@@ -256,6 +256,10 @@ export async function saveAiModelConfig(overrides: Record<string, { provider?: s
   })
 }
 
+export async function fetchBrandTokens(oemId: string): Promise<any> {
+  return workerFetch(`/api/v1/oem-agent/admin/brand-tokens/${oemId}`)
+}
+
 export async function fetchDesignMemory(oemId: string) {
   return workerFetch(`/api/v1/oem-agent/design-memory/${oemId}`)
 }

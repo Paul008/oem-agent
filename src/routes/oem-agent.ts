@@ -2113,6 +2113,23 @@ app.get('/recipes/:oemId', async (c) => {
   return c.json({ recipes: merged, oem_id: oemId });
 });
 
+app.get('/admin/brand-tokens/:oemId', async (c) => {
+  const oemId = c.req.param('oemId')
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  })
+  const { data } = await supabase
+    .from('brand_tokens')
+    .select('tokens_json')
+    .eq('oem_id', oemId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+  return c.json(data?.tokens_json ?? null)
+});
+
 app.get('/admin/recipes', async (c) => {
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,

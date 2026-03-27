@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import {
   Loader2, Plus, Pencil, Trash2, Copy, BookmarkPlus,
   ChevronDown, ChevronRight, AlertTriangle,
@@ -10,7 +10,7 @@ import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchAllRecipes, saveRecipe, deleteRecipe as apiDeleteRecipe } from '@/lib/worker-api'
+import { fetchAllRecipes, saveRecipe as apiSaveRecipe, deleteRecipe as apiDeleteRecipe, fetchBrandTokens } from '@/lib/worker-api'
 
 interface BrandRecipe {
   id: string
@@ -77,6 +77,8 @@ const expandedPattern = ref<string | null>(null)
 const editingRecipe = ref<Partial<MergedRecipe> | null>(null)
 const saving = ref(false)
 const defaultsJsonText = ref('{}')
+const brandTokens = ref<Record<string, any> | null>(null)
+const loadingTokens = ref(false)
 
 async function loadData() {
   loading.value = true
@@ -98,6 +100,21 @@ async function loadData() {
 }
 
 onMounted(loadData)
+
+watch(filterOem, async (oemId) => {
+  if (oemId === 'all') {
+    brandTokens.value = null
+    return
+  }
+  loadingTokens.value = true
+  try {
+    brandTokens.value = await fetchBrandTokens(oemId)
+  } catch {
+    brandTokens.value = null
+  } finally {
+    loadingTokens.value = false
+  }
+})
 
 const filteredRecipes = computed<MergedRecipe[]>(() => {
   const merged: MergedRecipe[] = []
@@ -190,7 +207,21 @@ function openDuplicate(recipe: MergedRecipe) {
   defaultsJsonText.value = JSON.stringify(recipe.defaults_json ?? {}, null, 2)
 }
 
-async function saveRecipe() {
+const parsedDefaults = computed(() => {
+  try {
+    return JSON.parse(defaultsJsonText.value)
+  } catch {
+    return null
+  }
+})
+
+const previewColumns = computed(() => {
+  const d = parsedDefaults.value
+  if (!d) return 3
+  return d.columns ?? d.card_grid?.columns ?? d.grid?.columns ?? 3
+})
+
+async function handleSaveRecipe() {
   if (!editingRecipe.value) return
   const r = editingRecipe.value
   if (!r.oem_id || !r.pattern || !r.variant || !r.label || !r.resolves_to) {
@@ -218,7 +249,7 @@ async function saveRecipe() {
       is_active: true,
     }
 
-    await saveRecipe(payload as any)
+    await apiSaveRecipe(payload as any)
     toast.success(r.id && r.source === 'brand' ? 'Recipe updated' : 'Recipe created')
 
     editingRecipe.value = null
@@ -261,6 +292,54 @@ async function deleteRecipe(id: string) {
       <UiButton size="sm" @click="openNew">
         <Plus class="size-4 mr-1" /> Add Recipe
       </UiButton>
+    </div>
+
+    <!-- Brand Tokens Bar -->
+    <div
+      v-if="brandTokens && filterOem !== 'all'"
+      class="mb-4 flex items-center gap-4 px-4 py-2.5 bg-muted/50 rounded-lg border text-sm"
+    >
+      <div class="flex items-center gap-2">
+        <span class="text-muted-foreground text-xs font-medium">Colors</span>
+        <div
+          class="size-5 rounded-full border"
+          :style="{ backgroundColor: brandTokens.colors?.primary || '#888' }"
+          :title="brandTokens.colors?.primary"
+        />
+        <div
+          v-if="brandTokens.colors?.secondary"
+          class="size-5 rounded-full border"
+          :style="{ backgroundColor: brandTokens.colors?.secondary }"
+          :title="brandTokens.colors?.secondary"
+        />
+        <div
+          v-if="brandTokens.colors?.accent"
+          class="size-5 rounded-full border"
+          :style="{ backgroundColor: brandTokens.colors?.accent }"
+          :title="brandTokens.colors?.accent"
+        />
+        <div
+          v-if="brandTokens.colors?.surface"
+          class="size-5 rounded-full border"
+          :style="{ backgroundColor: brandTokens.colors?.surface }"
+          :title="'Surface: ' + brandTokens.colors?.surface"
+        />
+      </div>
+      <span class="text-muted-foreground">|</span>
+      <span class="text-xs">
+        <span class="text-muted-foreground">Font:</span>
+        {{ brandTokens.typography?.font_primary?.split(',')[0] || 'System' }}
+      </span>
+      <span class="text-muted-foreground">|</span>
+      <span class="text-xs">
+        <span class="text-muted-foreground">Container:</span>
+        {{ brandTokens.spacing?.container_max_width || '—' }}px
+      </span>
+      <span class="text-muted-foreground">|</span>
+      <span class="text-xs">
+        <span class="text-muted-foreground">Section gap:</span>
+        {{ brandTokens.spacing?.section_gap || '—' }}px
+      </span>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center h-64">
@@ -453,9 +532,80 @@ async function deleteRecipe(id: string) {
           </div>
         </div>
 
+        <!-- Recipe Preview -->
+        <div v-if="parsedDefaults && editingRecipe?.pattern === 'card-grid'" class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Preview</label>
+          <div
+            class="border rounded-lg p-4"
+            :style="{
+              backgroundColor: parsedDefaults.section_style?.background || parsedDefaults.background_color || '#f9fafb',
+            }"
+          >
+            <div
+              class="grid gap-3"
+              :style="{ gridTemplateColumns: `repeat(${previewColumns}, 1fr)` }"
+            >
+              <div
+                v-for="i in Math.min(previewColumns, 4)"
+                :key="i"
+                class="flex flex-col gap-1.5 p-3 rounded"
+                :style="{
+                  backgroundColor: parsedDefaults.card_style?.background || parsedDefaults.background || '#fff',
+                  border: parsedDefaults.card_style?.border || 'none',
+                  boxShadow: parsedDefaults.card_style?.shadow || 'none',
+                  textAlign: parsedDefaults.card_style?.text_align || 'left',
+                  borderRadius: parsedDefaults.card_style?.border_radius || parsedDefaults.border_radius || '8px',
+                }"
+              >
+                <div
+                  v-if="parsedDefaults.card_composition?.includes('image')"
+                  class="w-full aspect-video bg-muted rounded"
+                />
+                <div
+                  v-if="parsedDefaults.card_composition?.includes('icon')"
+                  class="size-8 bg-muted rounded-full mx-auto"
+                />
+                <div class="text-xs font-semibold truncate">Card Title</div>
+                <div
+                  v-if="parsedDefaults.card_composition?.includes('body')"
+                  class="text-[10px] text-muted-foreground"
+                >
+                  Card body text preview...
+                </div>
+                <div
+                  v-if="parsedDefaults.card_composition?.includes('cta')"
+                  class="text-[10px] text-primary font-medium"
+                >
+                  Learn More →
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="parsedDefaults && editingRecipe?.pattern === 'hero'" class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Preview</label>
+          <div
+            class="border rounded-lg overflow-hidden bg-muted relative"
+            :style="{ minHeight: '120px' }"
+          >
+            <div
+              class="absolute inset-0 flex flex-col justify-end p-4"
+              :style="{ textAlign: parsedDefaults.text_align || 'left' }"
+            >
+              <div class="text-sm font-bold" :style="{ color: parsedDefaults.text_color || '#fff' }">
+                Hero Heading
+              </div>
+              <div class="text-[10px]" :style="{ color: parsedDefaults.text_color || '#fff', opacity: 0.8 }">
+                Sub heading text
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="flex justify-end gap-2 pt-2">
           <UiButton variant="outline" @click="editingRecipe = null">Cancel</UiButton>
-          <UiButton :disabled="saving" @click="saveRecipe">
+          <UiButton :disabled="saving" @click="handleSaveRecipe">
             <Loader2 v-if="saving" class="size-4 mr-1 animate-spin" />
             Save
           </UiButton>
