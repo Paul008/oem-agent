@@ -17,7 +17,7 @@ Recipe-based design system for brand-accurate dealer pages across 18 OEMs. v1.0â
 
 **v5.0 Production Hardening** (v5.0.0)
 Status: In progress
-Phases: 1 of 4 complete
+Phases: 2 of 4 complete
 
 **Focus:** Polish, dealer integration, testing, and security.
 
@@ -26,7 +26,7 @@ Phases: 1 of 4 complete
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 15 | Polish & Fixes | 1 | Complete | 2026-03-29 |
-| 16 | Dealer API | TBD | Not started | - |
+| 16 | Dealer API | 1 | Complete | 2026-03-29 |
 | 17 | Testing | TBD | Not started | - |
 | 18 | Security Hardening | TBD | Not started | - |
 
