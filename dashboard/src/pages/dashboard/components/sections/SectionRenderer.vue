@@ -29,6 +29,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'map': defineAsyncComponent(() => import('./SectionMap.vue')),
   'alert': defineAsyncComponent(() => import('./SectionAlert.vue')),
   'divider': defineAsyncComponent(() => import('./SectionDivider.vue')),
+  'card-grid': defineAsyncComponent(() => import('./SectionCardGrid.vue')),
 }
 </script>
 

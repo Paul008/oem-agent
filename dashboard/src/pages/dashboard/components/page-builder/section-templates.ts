@@ -4,7 +4,7 @@ export type PageSectionType =
   | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
   | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
-  | 'image' | 'image-showcase'
+  | 'image' | 'image-showcase' | 'card-grid'
 
 export interface SectionTemplate {
   id: string
@@ -42,6 +42,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'sticky-bar': () => ({ position: 'bottom', model_name: '', price_text: '', buttons: [{ text: 'Enquire Now', url: '#', variant: 'primary' }], show_after_scroll_px: 300, background_color: '' }),
   'countdown': () => ({ title: '', subtitle: '', target_date: '', expired_message: 'This offer has ended.', cta_text: '', cta_url: '', background_color: '', background_image_url: '' }),
   'finance-calculator': () => ({ title: 'Finance Calculator', subtitle: 'Estimate your repayments', default_price: 40000, default_deposit: 5000, default_term_months: 60, default_rate: 6.5, min_deposit: 0, max_term: 84, cta_text: 'Apply for Finance', cta_url: '#', disclaimer: 'Indicative repayments only. Contact your dealer for a personalised quote.' }),
+  'card-grid': () => ({ title: '', columns: 3, cards: [{ title: '', body: '', image_url: '' }], card_composition: ['image', 'title', 'body'], card_style: { background: '#ffffff', border: '1px solid #e5e7eb', border_radius: 8, shadow: false, text_align: 'left', padding: '0' }, section_style: { background: '', padding: '' } }),
 }
 
 export const SECTION_TEMPLATES: SectionTemplate[] = [
@@ -148,6 +149,11 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   // Image Showcase
   { id: 'showcase-stacked', name: 'Full-Bleed Stacked', description: 'Full-width stacked images with text overlays', type: 'image-showcase', data: { layout: 'stacked', height: 'large', overlay_style: 'dark', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' }] } },
   { id: 'showcase-fullscreen', name: 'Fullscreen Scroll', description: 'Each image fills the viewport on scroll', type: 'image-showcase', data: { layout: 'fullscreen-scroll', height: 'screen', overlay_style: 'dark', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'center' }] } },
+
+  // Card Grid (composition-driven)
+  { id: 'card-grid-features', name: 'Feature Card Grid', description: 'Composition-driven card grid with image, title, body', type: 'card-grid', data: { title: 'Features', columns: 3, cards: [{ title: 'Feature 1', body: 'Description', image_url: '' }, { title: 'Feature 2', body: 'Description', image_url: '' }, { title: 'Feature 3', body: 'Description', image_url: '' }], card_composition: ['image', 'title', 'body'], card_style: { background: '#ffffff', border: '1px solid #e5e7eb', border_radius: 8, shadow: false } } },
+  { id: 'card-grid-stats', name: 'Stats Card Grid', description: 'Large stat values with labels', type: 'card-grid', data: { title: '', columns: 4, cards: [{ stat: '100+', title: 'Dealers' }, { stat: '18', title: 'OEM Brands' }, { stat: '750+', title: 'Products' }, { stat: '24/7', title: 'Support' }], card_composition: ['stat', 'title'], card_style: { background: 'transparent', border: 'none', text_align: 'center' } } },
+  { id: 'card-grid-logos', name: 'Logo Grid', description: 'Grid of logos with optional links', type: 'card-grid', data: { title: '', columns: 4, cards: [{ logo_url: '', title: 'Brand' }], card_composition: ['logo', 'title'], card_style: { background: '#f9fafb', border: '1px solid #e5e7eb', border_radius: 8, text_align: 'center', padding: '16px' } } },
 ]
 
 export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; description: string }> = {
@@ -178,4 +184,5 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; descrip
   'finance-calculator': { label: 'Finance Calculator', description: 'Interactive loan repayment estimator' },
   'image': { label: 'Image', description: 'Single image with desktop/mobile and layout options' },
   'image-showcase': { label: 'Image Showcase', description: 'Full-bleed stacked or fullscreen images' },
+  'card-grid': { label: 'Card Grid', description: 'Composition-driven card layout from recipes' },
 }
