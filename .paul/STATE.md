@@ -70,9 +70,14 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-28
-Stopped at: Phase 5 complete
+Stopped at: Phase 5 complete, Phase 6 ready to plan
 Next action: /paul:plan for Phase 6 (Live Token Refinement)
-Resume file: .paul/phases/05-component-generation/05-01-SUMMARY.md
+Resume file: .paul/HANDOFF-2026-03-28-session5.md
+Resume context:
+- v1.0 complete (22 plans), v2.0 Phase 5 complete
+- Phase 6: Crawl OEM sites for real CSS tokens, replace inferred values
+- Needs Lightpanda MCP or Cloudflare Browser
+- Inferred tokens in OEM_BRAND_NOTES (src/design/agent.ts line 801)
 
 ---
 *STATE.md — Updated after every significant action*
