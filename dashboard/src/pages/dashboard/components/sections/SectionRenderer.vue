@@ -29,7 +29,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'image-showcase': defineAsyncComponent(() => import('./SectionImage.vue')),
   'feature-cards': defineAsyncComponent(() => import('./SectionFeatureCards.vue')),
   'video': defineAsyncComponent(() => import('./SectionVideo.vue')),
-  'cta-banner': defineAsyncComponent(() => import('./SectionCta.vue')),
+  'cta-banner': defineAsyncComponent(() => import('./SectionHero.vue')),
   'content-block': defineAsyncComponent(() => import('./SectionSplitContent.vue')),
   'accordion': defineAsyncComponent(() => import('./SectionAccordion.vue')),
   'enquiry-form': defineAsyncComponent(() => import('./SectionEnquiryForm.vue')),
@@ -40,6 +40,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'logo-strip': defineAsyncComponent(() => import('./SectionLogoStrip.vue')),
   'testimonial': defineAsyncComponent(() => import('./SectionTestimonial.vue')),
   'pricing-table': defineAsyncComponent(() => import('./SectionPricingTable.vue')),
+  'countdown': defineAsyncComponent(() => import('./SectionHero.vue')),
   'split-content': defineAsyncComponent(() => import('./SectionSplitContent.vue')),
   'card-grid': defineAsyncComponent(() => import('./SectionCardGrid.vue')),
 }

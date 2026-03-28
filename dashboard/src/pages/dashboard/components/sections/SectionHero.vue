@@ -3,13 +3,14 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   section: {
-    type: 'hero'
-    heading: string
-    sub_heading: string
-    cta_text: string
-    cta_url: string
-    desktop_image_url: string
-    mobile_image_url: string
+    type: 'hero' | 'cta-banner' | 'countdown'
+    // Hero fields
+    heading?: string
+    sub_heading?: string
+    cta_text?: string
+    cta_url?: string
+    desktop_image_url?: string
+    mobile_image_url?: string
     background_image_url?: string
     video_url?: string
     heading_size?: string
@@ -22,38 +23,33 @@ const props = defineProps<{
     show_overlay?: boolean
     full_width_image?: boolean
     full_width?: boolean
+    // CTA-banner fields
+    body?: string
+    background_color?: string
+    // Countdown fields
+    title?: string
+    subtitle?: string
+    target_date?: string
+    expired_message?: string
   }
 }>()
 
+const variant = computed(() => props.section.type as string)
+
+// ---- Hero helpers ----
 const isFullImage = computed(() => props.section.full_width_image || props.section.full_width)
 
 const sizeClasses: Record<string, string> = {
-  sm: 'text-sm',
-  base: 'text-base',
-  lg: 'text-lg',
-  xl: 'text-xl',
-  '2xl': 'text-2xl',
-  '3xl': 'text-3xl',
-  '4xl': 'text-4xl',
-  '5xl': 'text-5xl',
-  '6xl': 'text-6xl',
+  sm: 'text-sm', base: 'text-base', lg: 'text-lg', xl: 'text-xl',
+  '2xl': 'text-2xl', '3xl': 'text-3xl', '4xl': 'text-4xl', '5xl': 'text-5xl', '6xl': 'text-6xl',
 }
-
 const weightClasses: Record<string, string> = {
-  light: 'font-light',
-  normal: 'font-normal',
-  medium: 'font-medium',
-  semibold: 'font-semibold',
-  bold: 'font-bold',
-  extrabold: 'font-extrabold',
+  light: 'font-light', normal: 'font-normal', medium: 'font-medium',
+  semibold: 'font-semibold', bold: 'font-bold', extrabold: 'font-extrabold',
 }
-
 const alignClasses: Record<string, string> = {
-  left: 'text-left items-start',
-  center: 'text-center items-center',
-  right: 'text-right items-end',
+  left: 'text-left items-start', center: 'text-center items-center', right: 'text-right items-end',
 }
-
 const positionClasses: Record<string, string> = {
   'bottom-left': 'bottom-0 left-0 p-8',
   'bottom-center': 'bottom-0 inset-x-0 p-8 flex flex-col items-center text-center',
@@ -63,57 +59,117 @@ const positionClasses: Record<string, string> = {
   'top-center': 'top-0 inset-x-0 p-8 flex flex-col items-center text-center',
 }
 
-function headingSizeClass() {
-  return sizeClasses[props.section.heading_size || '3xl'] || 'text-3xl'
-}
-function headingWeightClass() {
-  return weightClasses[props.section.heading_weight || 'bold'] || 'font-bold'
-}
-function subSizeClass() {
-  return sizeClasses[props.section.sub_heading_size || 'lg'] || 'text-lg'
-}
-function subWeightClass() {
-  return weightClasses[props.section.sub_heading_weight || 'normal'] || 'font-normal'
-}
-function overlayPos() {
-  return positionClasses[props.section.overlay_position || 'bottom-left'] || positionClasses['bottom-left']
-}
-function textAlignClass() {
-  return alignClasses[props.section.text_align || 'left'] || ''
-}
+function headingSizeClass() { return sizeClasses[props.section.heading_size || '3xl'] || 'text-3xl' }
+function headingWeightClass() { return weightClasses[props.section.heading_weight || 'bold'] || 'font-bold' }
+function subSizeClass() { return sizeClasses[props.section.sub_heading_size || 'lg'] || 'text-lg' }
+function subWeightClass() { return weightClasses[props.section.sub_heading_weight || 'normal'] || 'font-normal' }
+function overlayPos() { return positionClasses[props.section.overlay_position || 'bottom-left'] || positionClasses['bottom-left'] }
+function textAlignClass() { return alignClasses[props.section.text_align || 'left'] || '' }
+
+// ---- Countdown helpers ----
+const timeLeft = computed(() => {
+  if (!props.section.target_date) return null
+  const diff = new Date(props.section.target_date).getTime() - Date.now()
+  if (diff <= 0) return null
+  return {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
+    seconds: Math.floor((diff / 1000) % 60),
+  }
+})
+const isExpired = computed(() => {
+  if (!props.section.target_date) return false
+  return new Date(props.section.target_date).getTime() <= Date.now()
+})
 </script>
 
 <template>
+  <!-- ═══ CTA-Banner variant ═══ -->
   <div
+    v-if="variant === 'cta-banner'"
+    class="px-8 py-12 text-center"
+    :style="section.background_color ? { backgroundColor: section.background_color } : {}"
+    :class="section.background_color ? 'text-white' : 'bg-primary text-primary-foreground'"
+  >
+    <h3 class="text-2xl font-bold mb-2">{{ section.heading }}</h3>
+    <p v-if="section.body" class="mb-4 opacity-90">{{ section.body }}</p>
+    <a
+      v-if="section.cta_text"
+      :href="section.cta_url || '#'"
+      target="_blank"
+      class="inline-block bg-white text-black text-sm font-semibold px-6 py-2.5 rounded hover:bg-white/90 transition-colors"
+    >
+      {{ section.cta_text }}
+    </a>
+  </div>
+
+  <!-- ═══ Countdown variant ═══ -->
+  <div
+    v-else-if="variant === 'countdown'"
+    class="px-8 py-12 text-center relative overflow-hidden"
+    :style="{
+      backgroundColor: section.background_color || '#0f172a',
+      color: '#fff',
+      backgroundImage: section.background_image_url ? `url(${section.background_image_url})` : undefined,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }"
+  >
+    <div v-if="section.background_image_url" class="absolute inset-0 bg-black/50" />
+    <div class="relative z-10">
+      <h2 v-if="section.title" class="text-2xl font-bold mb-2">{{ section.title }}</h2>
+      <p v-if="section.subtitle" class="text-sm opacity-80 mb-8">{{ section.subtitle }}</p>
+
+      <template v-if="!isExpired && (timeLeft || !section.target_date)">
+        <div class="flex items-center justify-center gap-4 mb-8">
+          <div v-for="(unit, key) in { Days: timeLeft?.days ?? 0, Hours: timeLeft?.hours ?? 0, Minutes: timeLeft?.minutes ?? 0, Seconds: timeLeft?.seconds ?? 0 }" :key="key" class="text-center">
+            <div class="text-4xl font-bold tabular-nums bg-white/10 rounded-lg px-4 py-3 min-w-[72px]">
+              {{ String(unit).padStart(2, '0') }}
+            </div>
+            <p class="text-[10px] uppercase tracking-wider opacity-60 mt-1.5">{{ key }}</p>
+          </div>
+        </div>
+        <p v-if="!section.target_date" class="text-xs opacity-50 mb-4">Set a target date to start the countdown</p>
+      </template>
+      <template v-else>
+        <p class="text-xl font-semibold mb-6">{{ section.expired_message }}</p>
+      </template>
+
+      <a
+        v-if="section.cta_text"
+        :href="section.cta_url || '#'"
+        class="inline-block px-6 py-2.5 bg-white text-slate-900 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors"
+      >
+        {{ section.cta_text }}
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══ Standard Hero ═══ -->
+  <div
+    v-else
     class="relative w-full overflow-hidden bg-muted"
     :class="isFullImage ? 'aspect-video' : 'aspect-[16/7]'"
     :style="section.background_image_url && !section.desktop_image_url
       ? { backgroundImage: `url(${section.background_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
       : undefined"
   >
-    <!-- Video background -->
     <video
       v-if="section.video_url"
       :src="section.video_url"
-      autoplay
-      muted
-      loop
-      playsinline
+      autoplay muted loop playsinline
       class="absolute inset-0 w-full h-full object-cover"
     />
-    <!-- Image -->
     <img
       v-else-if="section.desktop_image_url"
       :src="section.desktop_image_url"
-      :alt="section.heading"
+      :alt="section.heading || ''"
       class="absolute inset-0 w-full h-full object-cover"
       :class="isFullImage ? 'object-top' : ''"
     />
     <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-    <div
-      class="absolute"
-      :class="[overlayPos(), textAlignClass()]"
-    >
+    <div class="absolute" :class="[overlayPos(), textAlignClass()]">
       <h2
         class="drop-shadow-lg"
         :class="[headingSizeClass(), headingWeightClass()]"
