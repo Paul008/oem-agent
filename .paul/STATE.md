@@ -35,13 +35,9 @@ PLAN ──▶ APPLY ──▶ UNIFY
 ## Session Continuity
 
 Last session: 2026-03-29
-Stopped at: Plan 15-01 Task 2 remaining (split style-guide.vue)
-Next action: Complete Task 2, then /paul:unify
-Resume file: .paul/HANDOFF-2026-03-29-session9.md
-Resume context:
-- Tasks 1+3 done (PageBuilderCanvas synced, PROJECT.md updated)
-- Task 2: Split style-guide.vue into 7 sub-components
-- After unify: continue to Phases 16-18
+Stopped at: Phase 15 complete
+Next action: /paul:plan for Phase 16 (Dealer API)
+Resume file: .paul/phases/15-polish-fixes/15-01-SUMMARY.md
 
 ---
 *STATE.md — Updated after every significant action*
