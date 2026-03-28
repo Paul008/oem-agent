@@ -8,14 +8,14 @@ Build a recipe-based design system that enables brand-accurate dealer pages acro
 
 **v1.0 Recipe Design System** (v1.0.0)
 Status: In progress
-Phases: 1 of 4 complete
+Phases: 2 of 4 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 1 | Recipe Infrastructure | 10 | Complete | 2026-03-28 |
-| 2 | Style Guides & OEM Coverage | TBD | Not started | - |
+| 2 | Style Guides & OEM Coverage | 4 | Complete | 2026-03-28 |
 | 3 | Unified CardGrid Renderer | TBD | Not started | - |
 | 4 | Section Consolidation | TBD | Not started | - |
 
@@ -63,10 +63,10 @@ Phases: 1 of 4 complete
 - Export style guides as PDF/PNG
 
 **Plans:**
-- [ ] 02-01: Style guide page + route
-- [ ] 02-02: Seed remaining OEM recipes (batch)
-- [ ] 02-03: Recipe-from-screenshot pipeline
-- [ ] 02-04: PDF/PNG export
+- [x] 02-01: Style guide page + route
+- [x] 02-02: Seed remaining OEM recipes (batch)
+- [x] 02-03: Recipe-from-screenshot pipeline
+- [x] 02-04: PDF/PNG export
 
 ### Phase 3: Unified CardGrid Renderer
 
