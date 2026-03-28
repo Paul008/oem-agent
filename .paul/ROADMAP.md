@@ -7,8 +7,8 @@ Build a recipe-based design system that enables brand-accurate dealer pages acro
 ## Current Milestone
 
 **v1.0 Recipe Design System** (v1.0.0)
-Status: In progress
-Phases: 3 of 4 complete
+Status: Complete
+Phases: 4 of 4 complete
 
 ## Phases
 
@@ -17,7 +17,7 @@ Phases: 3 of 4 complete
 | 1 | Recipe Infrastructure | 10 | Complete | 2026-03-28 |
 | 2 | Style Guides & OEM Coverage | 4 | Complete | 2026-03-28 |
 | 3 | Unified CardGrid Renderer | 4 | Complete | 2026-03-28 |
-| 4 | Section Consolidation | TBD | Not started | - |
+| 4 | Section Consolidation | 4 | Complete | 2026-03-28 |
 
 ## Phase Details
 
@@ -100,10 +100,10 @@ Phases: 3 of 4 complete
 - Update both dashboard + Nuxt renderers
 
 **Plans:**
-- [ ] 04-01: Split-content consolidation
-- [ ] 04-02: Hero consolidation
-- [ ] 04-03: Media consolidation
-- [ ] 04-04: R2 page migration + renderer updates
+- [x] 04-01: Split-content consolidation
+- [x] 04-02: Hero consolidation
+- [x] 04-03: Media consolidation
+- [x] 04-04: Verification (no R2 migration needed — aliasing handles backward compat)
 
 ---
 *Roadmap created: 2026-03-28*
