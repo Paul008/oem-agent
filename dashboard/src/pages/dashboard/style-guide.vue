@@ -4,11 +4,13 @@ import {
   Loader2, Palette, AlertTriangle, Type, MousePointerClick,
   Image as ImageIcon, Grid3x3, SplitSquareHorizontal, Play,
   Columns3, Database, Megaphone, Layers, Ruler, SquareStack,
+  Sparkles, Check, X,
 } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, type StyleGuideData } from '@/lib/worker-api'
+import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
 
 const PATTERNS = [
   { key: 'hero', label: 'Hero', icon: ImageIcon },
@@ -34,6 +36,14 @@ const selectedOem = ref<string>('')
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 const data = ref<StyleGuideData | null>(null)
+
+const showExtractDialog = ref(false)
+const extractUrl = ref('')
+const extracting = ref(false)
+const extractResults = ref<ExtractedRecipe[]>([])
+const extractError = ref<string | null>(null)
+const savingRecipeIdx = ref<number | null>(null)
+const savedRecipeIdxs = ref<Set<number>>(new Set())
 
 onMounted(async () => {
   try {
@@ -115,6 +125,60 @@ function capFontSize(size: string | number | undefined, max = 48): string {
 function formatColorLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
+
+/* ---- Extract from URL ---- */
+
+async function handleExtract() {
+  if (!extractUrl.value || !selectedOem.value) return
+  extracting.value = true
+  extractError.value = null
+  extractResults.value = []
+  savedRecipeIdxs.value = new Set()
+  try {
+    const result = await extractRecipesFromUrl(extractUrl.value, selectedOem.value)
+    extractResults.value = result.suggestions ?? []
+    if (!extractResults.value.length) {
+      extractError.value = 'No recipes extracted — try a different URL'
+    }
+  } catch (err: any) {
+    extractError.value = err.message || 'Extraction failed'
+  } finally {
+    extracting.value = false
+  }
+}
+
+async function saveExtractedRecipe(recipe: ExtractedRecipe, index: number) {
+  if (!selectedOem.value) return
+  savingRecipeIdx.value = index
+  try {
+    await saveRecipe({
+      oem_id: selectedOem.value,
+      pattern: recipe.pattern,
+      variant: `${recipe.variant}-extracted-${Date.now().toString(36)}`,
+      label: recipe.label,
+      resolves_to: recipe.resolves_to,
+      defaults_json: recipe.defaults_json,
+    })
+    savedRecipeIdxs.value.add(index)
+    toast.success(`Saved: ${recipe.label}`)
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to save recipe')
+  } finally {
+    savingRecipeIdx.value = null
+  }
+}
+
+async function saveAllExtracted() {
+  for (let i = 0; i < extractResults.value.length; i++) {
+    if (!savedRecipeIdxs.value.has(i)) {
+      await saveExtractedRecipe(extractResults.value[i], i)
+    }
+  }
+  // Reload style guide data to show new recipes
+  if (selectedOem.value) {
+    data.value = await fetchStyleGuide(selectedOem.value)
+  }
+}
 </script>
 
 <template>
@@ -131,6 +195,9 @@ function formatColorLabel(key: string): string {
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
+      <UiButton variant="outline" size="sm" @click="showExtractDialog = true">
+        <Sparkles class="size-4 mr-1" /> Extract from URL
+      </UiButton>
     </div>
 
     <!-- Loading -->
@@ -709,6 +776,93 @@ function formatColorLabel(key: string): string {
         </div>
       </UiCard>
 
+    </div>
+
+    <!-- Extract from URL Dialog -->
+    <div
+      v-if="showExtractDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="showExtractDialog = false"
+    >
+      <div class="bg-background border rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+          <h2 class="text-lg font-semibold">Extract Recipes from URL</h2>
+          <button class="text-muted-foreground hover:text-foreground" @click="showExtractDialog = false">
+            <X class="size-5" />
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4 overflow-y-auto flex-1">
+          <!-- URL input -->
+          <div class="flex gap-2">
+            <UiInput
+              v-model="extractUrl"
+              placeholder="https://www.toyota.com.au/rav4"
+              class="flex-1"
+              @keydown.enter="handleExtract"
+            />
+            <UiButton :disabled="extracting || !extractUrl" @click="handleExtract">
+              <Loader2 v-if="extracting" class="size-4 mr-1 animate-spin" />
+              <Sparkles v-else class="size-4 mr-1" />
+              {{ extracting ? 'Extracting...' : 'Extract' }}
+            </UiButton>
+          </div>
+
+          <p v-if="extracting" class="text-sm text-muted-foreground">
+            Capturing screenshot and analyzing layout patterns... This may take 30-60 seconds.
+          </p>
+
+          <!-- Error -->
+          <div v-if="extractError" class="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+            {{ extractError }}
+          </div>
+
+          <!-- Results -->
+          <div v-if="extractResults.length" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-medium">{{ extractResults.length }} recipes extracted</p>
+              <UiButton size="sm" variant="outline" @click="saveAllExtracted">
+                <Check class="size-3.5 mr-1" /> Save All
+              </UiButton>
+            </div>
+
+            <div
+              v-for="(recipe, idx) in extractResults"
+              :key="idx"
+              class="border rounded-lg p-4 space-y-2"
+              :class="savedRecipeIdxs.has(idx) ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold">{{ recipe.label }}</span>
+                  <UiBadge variant="outline" class="text-[10px]">{{ recipe.pattern }}</UiBadge>
+                  <UiBadge variant="secondary" class="text-[10px]">{{ recipe.variant }}</UiBadge>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-muted-foreground">
+                    {{ Math.round(recipe.confidence * 100) }}% confidence
+                  </span>
+                  <UiButton
+                    v-if="!savedRecipeIdxs.has(idx)"
+                    size="sm"
+                    variant="outline"
+                    :disabled="savingRecipeIdx === idx"
+                    @click="saveExtractedRecipe(recipe, idx)"
+                  >
+                    <Loader2 v-if="savingRecipeIdx === idx" class="size-3.5 mr-1 animate-spin" />
+                    <Check v-else class="size-3.5 mr-1" />
+                    Save
+                  </UiButton>
+                  <span v-else class="text-xs text-green-600 font-medium">Saved</span>
+                </div>
+              </div>
+              <div class="flex gap-4 text-xs text-muted-foreground">
+                <span>Resolves to: <code class="bg-muted px-1 rounded">{{ recipe.resolves_to }}</code></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </BasicPage>
 </template>
