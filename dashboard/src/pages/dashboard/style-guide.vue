@@ -50,11 +50,13 @@ const crawlUrl = ref('')
 const applyingTokens = ref(false)
 
 const showExtractDialog = ref(false)
-const extractUrl = ref('')
+const extractUrlText = ref('')
 const extracting = ref(false)
+const extractProgress = ref('')
 const extractResults = ref<ExtractedRecipe[]>([])
 const extractScreenshot = ref<string | null>(null)
 const extractError = ref<string | null>(null)
+const batchResults = ref<Array<{ url: string; recipes: ExtractedRecipe[]; screenshot?: string }>>([])
 const savingRecipeIdx = ref<number | null>(null)
 const savedRecipeIdxs = ref<Set<number>>(new Set())
 const generatingIdx = ref<number | null>(null)
@@ -297,18 +299,33 @@ async function generateThumbnails() {
 /* ---- Extract from URL ---- */
 
 async function handleExtract() {
-  if (!extractUrl.value || !selectedOem.value) return
+  if (!extractUrlText.value.trim() || !selectedOem.value) return
+  const urls = extractUrlText.value.split('\n').map(u => u.trim()).filter(Boolean)
+  if (!urls.length) return
+
   extracting.value = true
   extractError.value = null
   extractResults.value = []
   extractScreenshot.value = null
+  batchResults.value = []
   savedRecipeIdxs.value = new Set()
+  generatedComponents.value = new Map()
+  thumbnails.value = new Map()
+
   try {
-    const result = await extractRecipesFromUrl(extractUrl.value, selectedOem.value)
-    extractResults.value = result.suggestions ?? []
-    extractScreenshot.value = result.screenshot_base64 ?? null
+    for (let i = 0; i < urls.length; i++) {
+      extractProgress.value = urls.length > 1 ? `Extracting ${i + 1} of ${urls.length}: ${urls[i]}` : ''
+      const result = await extractRecipesFromUrl(urls[i], selectedOem.value!)
+      const recipes = result.suggestions ?? []
+      batchResults.value.push({ url: urls[i], recipes, screenshot: result.screenshot_base64 })
+    }
+
+    // Flatten for backward compat (thumbnails, save, generate still use flat list)
+    extractResults.value = batchResults.value.flatMap(b => b.recipes)
+    extractScreenshot.value = batchResults.value[0]?.screenshot ?? null
+
     if (!extractResults.value.length) {
-      extractError.value = 'No recipes extracted — try a different URL'
+      extractError.value = 'No recipes extracted — try different URLs'
     } else {
       await generateThumbnails()
     }
@@ -316,6 +333,7 @@ async function handleExtract() {
     extractError.value = err.message || 'Extraction failed'
   } finally {
     extracting.value = false
+    extractProgress.value = ''
   }
 }
 
@@ -1109,23 +1127,25 @@ async function handleApplyTokens() {
         </div>
 
         <div class="p-6 space-y-4 overflow-y-auto flex-1">
-          <!-- URL input -->
-          <div class="flex gap-2">
-            <UiInput
-              v-model="extractUrl"
-              placeholder="https://www.toyota.com.au/rav4"
-              class="flex-1"
-              @keydown.enter="handleExtract"
+          <!-- URL input (supports multiple, one per line) -->
+          <div class="space-y-2">
+            <textarea
+              v-model="extractUrlText"
+              placeholder="Enter one or more URLs (one per line)&#10;https://www.toyota.com.au&#10;https://www.toyota.com.au/rav4"
+              class="w-full min-h-[72px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y"
+              :disabled="extracting"
             />
-            <UiButton :disabled="extracting || !extractUrl" @click="handleExtract">
-              <Loader2 v-if="extracting" class="size-4 mr-1 animate-spin" />
-              <Sparkles v-else class="size-4 mr-1" />
-              {{ extracting ? 'Extracting...' : 'Extract' }}
-            </UiButton>
+            <div class="flex justify-end">
+              <UiButton :disabled="extracting || !extractUrlText.trim()" @click="handleExtract">
+                <Loader2 v-if="extracting" class="size-4 mr-1 animate-spin" />
+                <Sparkles v-else class="size-4 mr-1" />
+                {{ extracting ? 'Extracting...' : 'Extract' }}
+              </UiButton>
+            </div>
           </div>
 
           <p v-if="extracting" class="text-sm text-muted-foreground">
-            Capturing screenshot and analyzing layout patterns... This may take 30-60 seconds.
+            {{ extractProgress || 'Capturing screenshot and analyzing layout patterns... This may take 30-60 seconds per URL.' }}
           </p>
 
           <!-- Error -->
@@ -1136,11 +1156,21 @@ async function handleApplyTokens() {
           <!-- Results -->
           <div v-if="extractResults.length" class="space-y-3">
             <div class="flex items-center justify-between">
-              <p class="text-sm font-medium">{{ extractResults.length }} recipes extracted</p>
+              <p class="text-sm font-medium">
+                {{ extractResults.length }} recipes extracted
+                <span v-if="batchResults.length > 1" class="text-muted-foreground"> from {{ batchResults.length }} URLs</span>
+              </p>
               <UiButton size="sm" variant="outline" @click="saveAllExtracted">
                 <Check class="size-3.5 mr-1" /> Save All
               </UiButton>
             </div>
+
+            <!-- Batch URL headers -->
+            <template v-if="batchResults.length > 1">
+              <div v-for="batch in batchResults" :key="batch.url" class="space-y-2">
+                <p class="text-xs font-medium text-muted-foreground border-b pb-1">{{ batch.url }} ({{ batch.recipes.length }})</p>
+              </div>
+            </template>
 
             <div
               v-for="(recipe, idx) in extractResults"
