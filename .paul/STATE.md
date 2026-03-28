@@ -35,9 +35,13 @@ PLAN ──▶ APPLY ──▶ UNIFY
 ## Session Continuity
 
 Last session: 2026-03-29
-Stopped at: Milestone created, ready to plan
-Next action: /paul:plan for Phase 15
-Resume file: .paul/ROADMAP.md
+Stopped at: v5.0 created, Phase 15 ready to plan
+Next action: /paul:plan for Phase 15 (Polish & Fixes)
+Resume file: .paul/HANDOFF-2026-03-29-session8.md
+Resume context:
+- v1-v4 complete (32 plans)
+- Phase 15: Split style-guide.vue, fix PageBuilderCanvas componentMap, update PROJECT.md
+- PageBuilderCanvas has separate componentMap from SectionRenderer (key finding)
 
 ---
 *STATE.md — Updated after every significant action*
