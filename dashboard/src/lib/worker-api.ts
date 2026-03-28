@@ -112,13 +112,22 @@ export interface ExtractedRecipe {
   resolves_to: string
   defaults_json: Record<string, any>
   confidence: number
+  bounds?: { top_pct: number; height_pct: number }
 }
 
-export async function extractRecipesFromUrl(url: string, oemId: string): Promise<{ suggestions: ExtractedRecipe[] }> {
+export async function extractRecipesFromUrl(url: string, oemId: string): Promise<{ suggestions: ExtractedRecipe[]; screenshot_base64: string }> {
   return workerFetch('/api/v1/oem-agent/admin/recipes/extract', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url, oem_id: oemId }),
+  })
+}
+
+export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, imageBase64: string): Promise<{ url: string }> {
+  return workerFetch('/api/v1/oem-agent/admin/recipes/upload-thumbnail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oem_id: oemId, recipe_key: recipeKey, image_base64: imageBase64 }),
   })
 }
 

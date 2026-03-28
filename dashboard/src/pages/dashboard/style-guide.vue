@@ -4,13 +4,13 @@ import {
   Loader2, Palette, AlertTriangle, Type, MousePointerClick,
   Image as ImageIcon, Grid3x3, SplitSquareHorizontal, Play,
   Columns3, Database, Megaphone, Layers, Ruler, SquareStack,
-  Sparkles, Check, X,
+  Sparkles, Check, X, Download,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
+import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, uploadRecipeThumbnail, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
 
 const PATTERNS = [
   { key: 'hero', label: 'Hero', icon: ImageIcon },
@@ -41,6 +41,7 @@ const showExtractDialog = ref(false)
 const extractUrl = ref('')
 const extracting = ref(false)
 const extractResults = ref<ExtractedRecipe[]>([])
+const extractScreenshot = ref<string | null>(null)
 const extractError = ref<string | null>(null)
 const savingRecipeIdx = ref<number | null>(null)
 const savedRecipeIdxs = ref<Set<number>>(new Set())
@@ -88,9 +89,11 @@ watch(tokens, (t) => {
   const faces = t?.typography?.font_faces
   if (!faces?.length) return
 
-  const css = faces.map((f: any) =>
-    `@font-face { font-family: '${f.family}'; font-weight: ${f.weight}; src: url('${f.url}') format('woff'); font-display: swap; }`
-  ).join('\n')
+  const css = faces.map((f: any) => {
+    const ext = f.url?.split('.').pop()?.toLowerCase()
+    const fmt = ext === 'woff2' ? 'woff2' : 'woff'
+    return `@font-face { font-family: '${f.family}'; font-weight: ${f.weight}; src: url('${f.url}') format('${fmt}'); font-display: swap; }`
+  }).join('\n')
 
   const style = document.createElement('style')
   style.id = fontStyleId
@@ -146,6 +149,46 @@ function formatColorLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+/* ---- Thumbnail Cropping ---- */
+
+const thumbnails = ref<Map<number, string>>(new Map())
+
+async function generateThumbnails() {
+  if (!extractScreenshot.value || !extractResults.value.length) return
+  thumbnails.value = new Map()
+
+  const img = new Image()
+  img.src = 'data:image/png;base64,' + extractScreenshot.value
+
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Failed to load screenshot'))
+  })
+
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+  const thumbWidth = 280
+  const thumbMaxHeight = 180
+
+  for (let i = 0; i < extractResults.value.length; i++) {
+    const bounds = extractResults.value[i].bounds
+    if (!bounds) continue
+
+    const srcY = Math.round((bounds.top_pct / 100) * img.naturalHeight)
+    const srcH = Math.round((bounds.height_pct / 100) * img.naturalHeight)
+    if (srcH <= 0) continue
+
+    const aspect = img.naturalWidth / srcH
+    const drawH = Math.min(thumbMaxHeight, Math.round(thumbWidth / aspect))
+
+    canvas.width = thumbWidth
+    canvas.height = drawH
+    ctx.drawImage(img, 0, srcY, img.naturalWidth, srcH, 0, 0, thumbWidth, drawH)
+
+    thumbnails.value.set(i, canvas.toDataURL('image/jpeg', 0.75))
+  }
+}
+
 /* ---- Extract from URL ---- */
 
 async function handleExtract() {
@@ -153,12 +196,16 @@ async function handleExtract() {
   extracting.value = true
   extractError.value = null
   extractResults.value = []
+  extractScreenshot.value = null
   savedRecipeIdxs.value = new Set()
   try {
     const result = await extractRecipesFromUrl(extractUrl.value, selectedOem.value)
     extractResults.value = result.suggestions ?? []
+    extractScreenshot.value = result.screenshot_base64 ?? null
     if (!extractResults.value.length) {
       extractError.value = 'No recipes extracted — try a different URL'
+    } else {
+      await generateThumbnails()
     }
   } catch (err: any) {
     extractError.value = err.message || 'Extraction failed'
@@ -171,13 +218,30 @@ async function saveExtractedRecipe(recipe: ExtractedRecipe, index: number) {
   if (!selectedOem.value) return
   savingRecipeIdx.value = index
   try {
+    const variantKey = `${recipe.variant}-extracted-${Date.now().toString(36)}`
+    const defaults = { ...recipe.defaults_json }
+
+    // Upload thumbnail if available
+    const thumbDataUrl = thumbnails.value.get(index)
+    if (thumbDataUrl) {
+      const base64 = thumbDataUrl.split(',')[1]
+      if (base64) {
+        try {
+          const { url } = await uploadRecipeThumbnail(selectedOem.value, `${recipe.pattern}-${variantKey}`, base64)
+          defaults.thumbnail_url = url
+        } catch {
+          // Non-fatal — save recipe without thumbnail
+        }
+      }
+    }
+
     await saveRecipe({
       oem_id: selectedOem.value,
       pattern: recipe.pattern,
-      variant: `${recipe.variant}-extracted-${Date.now().toString(36)}`,
+      variant: variantKey,
       label: recipe.label,
       resolves_to: recipe.resolves_to,
-      defaults_json: recipe.defaults_json,
+      defaults_json: defaults,
     })
     savedRecipeIdxs.value.add(index)
     toast.success(`Saved: ${recipe.label}`)
@@ -426,6 +490,23 @@ async function saveAllExtracted() {
           >
             <p class="text-sm text-muted-foreground">No type scale defined. Font family is available but no scale entries.</p>
           </div>
+
+          <!-- Font files -->
+          <div v-if="typography.font_faces?.length" class="mt-4 pt-4 border-t">
+            <p class="text-xs font-medium text-muted-foreground mb-3">Font Files</p>
+            <div class="flex flex-wrap gap-2">
+              <a
+                v-for="face in typography.font_faces"
+                :key="face.url"
+                :href="face.url"
+                download
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md hover:bg-muted transition-colors"
+              >
+                <Download class="size-3" />
+                {{ face.family }} {{ face.weight }}
+              </a>
+            </div>
+          </div>
         </div>
       </UiCard>
 
@@ -565,8 +646,17 @@ async function saveAllExtracted() {
                   >
                     <!-- Mini preview -->
                     <div class="h-28 bg-muted/30 relative overflow-hidden">
+                      <!-- Saved thumbnail from extraction -->
+                      <template v-if="recipe.defaults_json?.thumbnail_url">
+                        <img
+                          :src="recipe.defaults_json.thumbnail_url"
+                          class="w-full h-full object-cover object-top"
+                          loading="lazy"
+                        />
+                      </template>
+
                       <!-- Card-grid preview -->
-                      <template v-if="pattern.key === 'card-grid'">
+                      <template v-else-if="pattern.key === 'card-grid'">
                         <div
                           class="p-3 h-full flex items-center justify-center"
                           :style="{ backgroundColor: recipe.defaults_json?.section_style?.background || '#f9fafb' }"
@@ -849,35 +939,49 @@ async function saveAllExtracted() {
             <div
               v-for="(recipe, idx) in extractResults"
               :key="idx"
-              class="border rounded-lg p-4 space-y-2"
+              class="border rounded-lg p-3 flex gap-3"
               :class="savedRecipeIdxs.has(idx) ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''"
             >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-semibold">{{ recipe.label }}</span>
-                  <UiBadge variant="outline" class="text-[10px]">{{ recipe.pattern }}</UiBadge>
-                  <UiBadge variant="secondary" class="text-[10px]">{{ recipe.variant }}</UiBadge>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-[10px] text-muted-foreground">
-                    {{ Math.round(recipe.confidence * 100) }}% confidence
-                  </span>
-                  <UiButton
-                    v-if="!savedRecipeIdxs.has(idx)"
-                    size="sm"
-                    variant="outline"
-                    :disabled="savingRecipeIdx === idx"
-                    @click="saveExtractedRecipe(recipe, idx)"
-                  >
-                    <Loader2 v-if="savingRecipeIdx === idx" class="size-3.5 mr-1 animate-spin" />
-                    <Check v-else class="size-3.5 mr-1" />
-                    Save
-                  </UiButton>
-                  <span v-else class="text-xs text-green-600 font-medium">Saved</span>
-                </div>
+              <!-- Section thumbnail (canvas-cropped) -->
+              <div
+                v-if="thumbnails.has(idx)"
+                class="flex-shrink-0 w-[140px] h-[90px] rounded border overflow-hidden bg-muted"
+              >
+                <img
+                  :src="thumbnails.get(idx)"
+                  class="w-full h-full object-cover object-top"
+                />
               </div>
-              <div class="flex gap-4 text-xs text-muted-foreground">
-                <span>Resolves to: <code class="bg-muted px-1 rounded">{{ recipe.resolves_to }}</code></span>
+
+              <!-- Recipe info -->
+              <div class="flex-1 min-w-0 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-sm font-semibold">{{ recipe.label }}</span>
+                    <UiBadge variant="outline" class="text-[10px]">{{ recipe.pattern }}</UiBadge>
+                    <UiBadge variant="secondary" class="text-[10px]">{{ recipe.variant }}</UiBadge>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <span class="text-[10px] text-muted-foreground">
+                      {{ Math.round(recipe.confidence * 100) }}%
+                    </span>
+                    <UiButton
+                      v-if="!savedRecipeIdxs.has(idx)"
+                      size="sm"
+                      variant="outline"
+                      :disabled="savingRecipeIdx === idx"
+                      @click="saveExtractedRecipe(recipe, idx)"
+                    >
+                      <Loader2 v-if="savingRecipeIdx === idx" class="size-3.5 mr-1 animate-spin" />
+                      <Check v-else class="size-3.5 mr-1" />
+                      Save
+                    </UiButton>
+                    <span v-else class="text-xs text-green-600 font-medium">Saved</span>
+                  </div>
+                </div>
+                <div class="flex gap-4 text-xs text-muted-foreground">
+                  <span>Resolves to: <code class="bg-muted px-1 rounded">{{ recipe.resolves_to }}</code></span>
+                </div>
               </div>
             </div>
           </div>

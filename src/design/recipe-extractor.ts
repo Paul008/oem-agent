@@ -7,7 +7,7 @@
  */
 
 import type { OemId } from '../oem/types';
-import { AI_ROUTER_CONFIG } from '../ai/router';
+import { GEMINI_CONFIG, GEMINI_31_CONFIG } from '../ai/router';
 
 // ============================================================================
 // Types
@@ -20,11 +20,17 @@ export interface ExtractedRecipe {
   resolves_to: string;
   defaults_json: Record<string, any>;
   confidence: number;
+  bounds?: { top_pct: number; height_pct: number };
+}
+
+export interface ExtractionResult {
+  suggestions: ExtractedRecipe[];
+  screenshot_base64: string;
 }
 
 export interface RecipeExtractorDeps {
   browser: Fetcher;
-  togetherApiKey: string;
+  googleApiKey: string;
 }
 
 // ============================================================================
@@ -46,6 +52,7 @@ For each section you identify, output a recipe object with:
   - For action-bar: background_color, cta_text
   - section_style: background color, padding
 - confidence: 0.0 to 1.0 how confident you are this section exists
+- bounds: { top_pct: number (0-100), height_pct: number (0-100) } — the vertical position and height of this section as a percentage of the full page height. top_pct=0 is the very top of the page.
 
 Focus on STRUCTURAL patterns, not content. Output JSON: { "recipes": [...] }
 
@@ -58,18 +65,18 @@ OEM: ${oemId}`;
 
 export class RecipeExtractor {
   private browser: Fetcher;
-  private togetherApiKey: string;
+  private googleApiKey: string;
 
   constructor(deps: RecipeExtractorDeps) {
     this.browser = deps.browser;
-    this.togetherApiKey = deps.togetherApiKey;
+    this.googleApiKey = deps.googleApiKey;
   }
 
   /**
-   * Capture a screenshot of the given URL, send it to Kimi K2.5 Vision,
-   * and return the extracted section recipes sorted by confidence.
+   * Capture a screenshot of the given URL, send it to Gemini 3.1 Pro Vision,
+   * and return the extracted section recipes sorted by confidence plus the screenshot.
    */
-  async extractRecipes(url: string, oemId: OemId): Promise<ExtractedRecipe[]> {
+  async extractRecipes(url: string, oemId: OemId): Promise<ExtractionResult> {
     const controller = new AbortController();
     const overallTimeout = setTimeout(() => controller.abort(), 60_000);
 
@@ -86,14 +93,16 @@ export class RecipeExtractor {
       }
       const base64Image = btoa(binary);
 
-      // Step 3: Send to Kimi K2.5 Vision
+      // Step 3: Send to Gemini 3.1 Pro Vision
       const prompt = buildRecipeExtractionPrompt(oemId);
       const recipes = await this.callVisionApi(prompt, base64Image, controller.signal);
 
       // Step 4: Filter low-confidence and sort descending
-      return recipes
+      const suggestions = recipes
         .filter((r) => r.confidence > 0.5)
         .sort((a, b) => b.confidence - a.confidence);
+
+      return { suggestions, screenshot_base64: base64Image };
     } finally {
       clearTimeout(overallTimeout);
     }
@@ -154,58 +163,53 @@ export class RecipeExtractor {
   }
 
   /**
-   * Call Kimi K2.5 Vision API with the screenshot and extraction prompt.
+   * Call Gemini 3.1 Pro Vision API with the screenshot and extraction prompt.
    */
   private async callVisionApi(
     prompt: string,
     base64Image: string,
     signal: AbortSignal,
   ): Promise<ExtractedRecipe[]> {
-    const response = await fetch(`${AI_ROUTER_CONFIG.kimi_k2_5.api_base}/chat/completions`, {
+    const model = GEMINI_31_CONFIG.model;
+    const url = `${GEMINI_CONFIG.api_base}/models/${model}:generateContent?key=${this.googleApiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.togetherApiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: AI_ROUTER_CONFIG.kimi_k2_5.model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/png;base64,${base64Image}`,
-                },
-              },
-            ],
-          },
-        ],
-        ...AI_ROUTER_CONFIG.kimi_k2_5.thinking_mode_params,
-        response_format: { type: 'json_object' },
+        contents: [{
+          parts: [
+            { inlineData: { mimeType: 'image/png', data: base64Image } },
+            { text: prompt },
+          ],
+        }],
+        generationConfig: {
+          temperature: GEMINI_31_CONFIG.default_params.temperature,
+          maxOutputTokens: GEMINI_31_CONFIG.default_params.maxOutputTokens,
+          responseMimeType: 'application/json',
+        },
       }),
       signal,
     });
 
     if (!response.ok) {
-      throw new Error(`[RecipeExtractor] Kimi K2.5 API error: ${response.status} ${response.statusText}`);
+      const error = await response.text();
+      throw new Error(`[RecipeExtractor] Gemini 3.1 Pro API error: ${response.status} — ${error.slice(0, 200)}`);
     }
 
     const data = (await response.json()) as Record<string, unknown>;
-    const choices = data.choices as Array<{ message?: { content?: string } }> | undefined;
-    const content = choices?.[0]?.message?.content;
+    const candidates = data.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }> | undefined;
+    const content = candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
-      throw new Error('[RecipeExtractor] Empty response from Kimi K2.5');
+      throw new Error('[RecipeExtractor] Empty response from Gemini 3.1 Pro');
     }
 
     let parsed: { recipes?: ExtractedRecipe[] };
     try {
       parsed = JSON.parse(content);
     } catch {
-      throw new Error(`[RecipeExtractor] Invalid JSON from Kimi K2.5: ${content.slice(0, 200)}`);
+      throw new Error(`[RecipeExtractor] Invalid JSON from Gemini 3.1 Pro: ${content.slice(0, 200)}`);
     }
 
     if (!Array.isArray(parsed.recipes)) {

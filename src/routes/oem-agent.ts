@@ -2247,15 +2247,37 @@ app.post('/admin/recipes/extract', async (c) => {
     const { RecipeExtractor } = await import('../design/recipe-extractor');
     const extractor = new RecipeExtractor({
       browser: c.env.BROWSER!,
-      togetherApiKey: c.env.TOGETHER_API_KEY,
+      googleApiKey: c.env.GOOGLE_API_KEY!,
     });
 
-    const suggestions = await extractor.extractRecipes(body.url, body.oem_id as any);
-    return c.json({ suggestions, url: body.url, oem_id: body.oem_id });
+    const result = await extractor.extractRecipes(body.url, body.oem_id as any);
+    return c.json({ suggestions: result.suggestions, screenshot_base64: result.screenshot_base64, url: body.url, oem_id: body.oem_id });
   } catch (err: any) {
     console.error('[RecipeExtract] Error:', err.message);
     return c.json({ error: err.message || 'Extraction failed' }, 500);
   }
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/recipes/upload-thumbnail
+ * Upload a recipe thumbnail (base64 JPEG) to R2.
+ */
+app.post('/admin/recipes/upload-thumbnail', async (c) => {
+  const body = await c.req.json<{ oem_id: string; recipe_key: string; image_base64: string }>();
+  if (!body.oem_id || !body.recipe_key || !body.image_base64) {
+    return c.json({ error: 'oem_id, recipe_key, and image_base64 are required' }, 400);
+  }
+
+  const filename = `${body.recipe_key}.jpg`;
+  const r2Key = `recipes/thumbnails/${body.oem_id}/${filename}`;
+  const imageData = Uint8Array.from(atob(body.image_base64), c => c.charCodeAt(0));
+
+  await c.env.MOLTBOT_BUCKET.put(r2Key, imageData, {
+    httpMetadata: { contentType: 'image/jpeg' },
+  });
+
+  const url = `${new URL(c.req.url).origin}/media/recipes/thumbnails/${body.oem_id}/${filename}`;
+  return c.json({ url });
 });
 
 // ============================================================================
