@@ -2236,6 +2236,28 @@ app.post('/admin/recipes', async (c) => {
   return c.json(data);
 });
 
+app.post('/admin/recipes/extract', async (c) => {
+  const body = await c.req.json<{ url: string; oem_id: string }>();
+
+  if (!body.url || !body.oem_id) {
+    return c.json({ error: 'url and oem_id are required' }, 400);
+  }
+
+  try {
+    const { RecipeExtractor } = await import('../design/recipe-extractor');
+    const extractor = new RecipeExtractor({
+      browser: c.env.BROWSER!,
+      togetherApiKey: c.env.TOGETHER_API_KEY,
+    });
+
+    const suggestions = await extractor.extractRecipes(body.url, body.oem_id as any);
+    return c.json({ suggestions, url: body.url, oem_id: body.oem_id });
+  } catch (err: any) {
+    console.error('[RecipeExtract] Error:', err.message);
+    return c.json({ error: err.message || 'Extraction failed' }, 500);
+  }
+});
+
 // ============================================================================
 // AI Model Configuration Routes
 // ============================================================================

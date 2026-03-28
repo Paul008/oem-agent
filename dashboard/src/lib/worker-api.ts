@@ -105,6 +105,23 @@ export async function deleteRecipe(id: string): Promise<void> {
   await workerFetch(`/api/v1/oem-agent/admin/recipes/${id}`, { method: 'DELETE' })
 }
 
+export interface ExtractedRecipe {
+  pattern: string
+  variant: string
+  label: string
+  resolves_to: string
+  defaults_json: Record<string, any>
+  confidence: number
+}
+
+export async function extractRecipesFromUrl(url: string, oemId: string): Promise<{ suggestions: ExtractedRecipe[] }> {
+  return workerFetch('/api/v1/oem-agent/admin/recipes/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, oem_id: oemId }),
+  })
+}
+
 export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
