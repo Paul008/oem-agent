@@ -5,43 +5,50 @@
 See: .paul/PROJECT.md (updated 2026-03-28)
 
 **Core value:** Dealers get brand-accurate vehicle pages without manual design work
+**Current focus:** v3.0 Production Design System — Phase 9 (Deferred Items)
 
 ## Current Position
 
-Milestone: v2.0 Intelligent Design Pipeline — COMPLETE
-Status: Both milestones complete
-Last activity: 2026-03-28
+Milestone: v3.0 Production Design System (v3.0.0)
+Phase: 9 of 11 (Deferred Items) — Not started
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-03-28 — Milestone created
 
 Progress:
-- v1.0 Recipe Design System: [██████████] 100% (22 plans)
-- v2.0 Intelligent Design Pipeline: [██████████] 100% (4 plans)
-- Total: 26 plans shipped
+- Milestone: [░░░░░░░░░░] 0%
+
+## Loop Position
+
+Current loop state:
+```
+PLAN ──▶ APPLY ──▶ UNIFY
+  ○        ○        ○     [Ready for first PLAN]
+```
 
 ## Performance Metrics
 
-| Phase | Plans | Duration | Milestone |
-|-------|-------|----------|-----------|
-| 01-recipe-infra | 10 | ~6h | v1.0 |
-| 02-style-guides | 4 | ~2.5h | v1.0 |
-| 03-unified-cardgrid | 4 | ~45m | v1.0 |
-| 04-section-consolidation | 4 | ~30m | v1.0 |
-| 05-component-generation | 1 | ~20m | v2.0 |
-| 06-live-token-refinement | 1 | ~20m | v2.0 |
-| 07-recipe-analytics | 1 | ~15m | v2.0 |
-| 08-stitch-batch-extraction | 1 | ~10m | v2.0 |
+**Velocity:**
+- v1.0: 22 plans in ~10 hours
+- v2.0: 4 plans in ~1 hour
+- v3.0: starting
 
-## Deferred Items
+**By Phase:**
 
-| Item | Origin | Notes |
-|------|--------|-------|
-| Brand token preview switching | Phase 7 | Needs deeper editor integration |
-| Stitch MCP integration | Phase 8 | Needs external MCP server setup |
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 01–04 | 22 | Complete (v1.0) |
+| 05–08 | 4 | Complete (v2.0) |
+| 09-deferred-items | 0/? | Not started |
+| 10-page-templates | 0/? | Not started |
+| 11-quality-drift | 0/? | Not started |
 
 ## Session Continuity
 
 Last session: 2026-03-28
-Stopped at: v2.0 milestone complete
-Next action: /paul:discuss-milestone for v3.0 or individual feature work
+Stopped at: Milestone created, ready to plan
+Next action: /paul:plan for Phase 9
+Resume file: .paul/ROADMAP.md
 
 ---
 *STATE.md — Updated after every significant action*
