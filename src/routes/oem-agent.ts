@@ -1497,6 +1497,25 @@ app.get('/pages/:slug', async (c) => {
 });
 
 /**
+ * GET /api/v1/oem-agent/recipes/:oemId
+ * Public endpoint — returns brand + default recipes for an OEM
+ */
+app.get('/recipes/:oemId', async (c) => {
+  const oemId = c.req.param('oemId');
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const [{ data: brand }, { data: defaults }] = await Promise.all([
+    supabase.from('brand_recipes').select('*').eq('oem_id', oemId).eq('is_active', true).order('pattern'),
+    supabase.from('default_recipes').select('*').order('pattern'),
+  ]);
+
+  return c.json({ oem_id: oemId, brand_recipes: brand ?? [], default_recipes: defaults ?? [] });
+});
+
+/**
  * GET /api/v1/oem-agent/pages
  * List generated pages for an OEM
  */
