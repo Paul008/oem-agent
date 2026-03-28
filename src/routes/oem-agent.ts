@@ -20,6 +20,8 @@ import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/registry';
 import type { OemId } from '../oem/types';
 import onboardingRoutes from './onboarding';
+import { rateLimitMiddleware } from '../auth/rate-limit';
+import { auditMiddleware } from '../auth/audit-log';
 
 // Extend AppEnv for OEM agent routes
 type OemAgentEnv = {
@@ -42,6 +44,10 @@ app.use('*', async (c, next) => {
   c.set('orchestrator', orchestrator);
   await next();
 });
+
+// Rate limiting + audit logging for admin routes
+app.use('/admin/*', rateLimitMiddleware(100, 60_000));
+app.use('/admin/*', auditMiddleware());
 
 // Auth check for admin routes
 app.use('/admin/*', async (c, next) => {
