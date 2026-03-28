@@ -381,7 +381,7 @@ export function usePageBuilder() {
     ensureContentExists()
     pushHistory(`Added ${recipe.label}`)
     const baseDefaults = SECTION_DEFAULTS[sectionType]?.() ?? {}
-    const { card_composition, card_style, section_style, typography, ...sectionDefaults } = recipe.defaults_json
+    const { typography, ...sectionDefaults } = recipe.defaults_json
     const newSection = {
       ...baseDefaults,
       ...sectionDefaults,

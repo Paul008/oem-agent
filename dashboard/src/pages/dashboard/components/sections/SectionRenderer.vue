@@ -10,6 +10,13 @@ interface PageSection {
 
 defineProps<{ sections: PageSection[] }>()
 
+function resolveComponent(section: PageSection) {
+  if (Array.isArray(section.card_composition) && section.card_composition.length > 0) {
+    return componentMap['card-grid']
+  }
+  return componentMap[section.type]
+}
+
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'hero': defineAsyncComponent(() => import('./SectionHero.vue')),
   'heading': defineAsyncComponent(() => import('./SectionHeading.vue')),
@@ -29,6 +36,10 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'map': defineAsyncComponent(() => import('./SectionMap.vue')),
   'alert': defineAsyncComponent(() => import('./SectionAlert.vue')),
   'divider': defineAsyncComponent(() => import('./SectionDivider.vue')),
+  'stats': defineAsyncComponent(() => import('./SectionStats.vue')),
+  'logo-strip': defineAsyncComponent(() => import('./SectionLogoStrip.vue')),
+  'testimonial': defineAsyncComponent(() => import('./SectionTestimonial.vue')),
+  'pricing-table': defineAsyncComponent(() => import('./SectionPricingTable.vue')),
   'card-grid': defineAsyncComponent(() => import('./SectionCardGrid.vue')),
 }
 </script>
@@ -37,8 +48,8 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   <div class="space-y-0">
     <template v-for="section in sections" :key="section.id">
       <component
-        v-if="componentMap[section.type]"
-        :is="componentMap[section.type]"
+        v-if="resolveComponent(section)"
+        :is="resolveComponent(section)"
         :section="section"
       />
       <!-- Fallback for unknown section types -->
