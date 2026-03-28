@@ -131,6 +131,22 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function fetchWebhooks(): Promise<{ webhooks: Array<{ id: string; url: string; events: string[]; created_at: string }> }> {
+  return workerFetch('/api/v1/oem-agent/admin/webhooks')
+}
+
+export async function addWebhook(url: string, events: string[]): Promise<{ success: boolean; webhook: any }> {
+  return workerFetch('/api/v1/oem-agent/admin/webhooks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, events }),
+  })
+}
+
+export async function deleteWebhook(id: string): Promise<{ success: boolean }> {
+  return workerFetch(`/api/v1/oem-agent/admin/webhooks/${id}`, { method: 'DELETE' })
+}
+
 export async function scoreQuality(oemId: string, thumbnailBase64: string): Promise<{ score: number; feedback: string; scored_at: string }> {
   return workerFetch('/api/v1/oem-agent/admin/quality/score', {
     method: 'POST',

@@ -2281,6 +2281,55 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
 });
 
 // ============================================================================
+// Webhooks
+// ============================================================================
+
+interface WebhookEntry { id: string; url: string; events: string[]; created_at: string }
+
+async function loadWebhooks(bucket: R2Bucket): Promise<WebhookEntry[]> {
+  try {
+    const obj = await bucket.get('config/webhooks.json');
+    return obj ? await obj.json() as WebhookEntry[] : [];
+  } catch { return []; }
+}
+
+async function saveWebhooks(bucket: R2Bucket, hooks: WebhookEntry[]): Promise<void> {
+  await bucket.put('config/webhooks.json', JSON.stringify(hooks), { httpMetadata: { contentType: 'application/json' } });
+}
+
+async function fireWebhooks(bucket: R2Bucket, event: string, data: Record<string, any>): Promise<void> {
+  const hooks = await loadWebhooks(bucket);
+  const matching = hooks.filter(h => h.events.includes(event));
+  const payload = JSON.stringify({ event, timestamp: new Date().toISOString(), data });
+  await Promise.allSettled(matching.map(h =>
+    fetch(h.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }).catch(() => {})
+  ));
+}
+
+app.get('/admin/webhooks', async (c) => {
+  return c.json({ webhooks: await loadWebhooks(c.env.MOLTBOT_BUCKET) });
+});
+
+app.post('/admin/webhooks', async (c) => {
+  const body = await c.req.json<{ url: string; events: string[] }>();
+  if (!body.url || !body.events?.length) return c.json({ error: 'url and events required' }, 400);
+
+  const hooks = await loadWebhooks(c.env.MOLTBOT_BUCKET);
+  const entry: WebhookEntry = { id: `wh-${Date.now().toString(36)}`, url: body.url, events: body.events, created_at: new Date().toISOString() };
+  hooks.push(entry);
+  await saveWebhooks(c.env.MOLTBOT_BUCKET, hooks);
+  return c.json({ success: true, webhook: entry });
+});
+
+app.delete('/admin/webhooks/:id', async (c) => {
+  const id = c.req.param('id');
+  const hooks = await loadWebhooks(c.env.MOLTBOT_BUCKET);
+  const filtered = hooks.filter(h => h.id !== id);
+  await saveWebhooks(c.env.MOLTBOT_BUCKET, filtered);
+  return c.json({ success: true });
+});
+
+// ============================================================================
 // Quality Scoring
 // ============================================================================
 

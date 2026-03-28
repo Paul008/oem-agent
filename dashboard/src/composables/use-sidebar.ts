@@ -50,6 +50,7 @@ export function useSidebar() {
         { title: 'Design Health', url: '/dashboard/design-health', icon: HeartPulse },
         { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },
         { title: 'AI Models', url: '/dashboard/settings/ai-models', icon: BrainCircuit },
+        { title: 'Webhooks', url: '/dashboard/settings/webhooks', icon: Plug },
         { title: 'Onboard OEM', url: '/dashboard/onboarding', icon: Rocket },
         { title: 'Onboarding Docs', url: '/dashboard/onboarding-docs', icon: FileText },
       ],
