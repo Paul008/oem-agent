@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build a recipe-based design system that enables brand-accurate dealer pages across 18 OEMs. v1.0 (recipe infrastructure) and v2.0 (intelligent pipeline) are complete. v3.0 focuses on production-grade tooling — templates, quality assurance, and drift detection.
+Build a recipe-based design system that enables brand-accurate dealer pages across 18 OEMs. v1.0–v3.0 complete. v4.0 focuses on autonomous operations — automated monitoring, regeneration, and external integrations.
 
 ## Milestones
 
@@ -24,17 +24,7 @@ Build a recipe-based design system that enables brand-accurate dealer pages acro
 | 7 | Recipe Analytics & Preview | 1 | Complete | 2026-03-28 |
 | 8 | Stitch + Batch Extraction | 1 | Complete | 2026-03-28 |
 
----
-
-## Current Milestone
-
-**v3.0 Production Design System** (v3.0.0)
-Status: Complete
-Phases: 3 of 3 complete
-
-**Focus:** Production-grade tooling — templates, quality assurance, and automated drift detection.
-
-## Phases
+### v3.0 Production Design System (Complete)
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
@@ -42,40 +32,56 @@ Phases: 3 of 3 complete
 | 10 | Page Templates | 1 | Complete | 2026-03-28 |
 | 11 | Quality & Drift | 1 | Complete | 2026-03-28 |
 
+---
+
+## Current Milestone
+
+**v4.0 Autonomous Design Operations** (v4.0.0)
+Status: In progress
+Phases: 0 of 3 complete
+
+**Focus:** The system runs itself — automated monitoring, regeneration, and external integrations.
+
+## Phases
+
+| Phase | Name | Plans | Status | Completed |
+|-------|------|-------|--------|-----------|
+| 12 | Automation | TBD | Not started | - |
+| 13 | Dealer Customization | TBD | Not started | - |
+| 14 | Integration | TBD | Not started | - |
+
 ## Phase Details
 
-### Phase 9: Deferred Items
+### Phase 12: Automation
 
-**Goal:** Complete Stitch MCP integration, brand token preview switching, and batch token crawling
-**Depends on:** v2.0 (component generation, token crawler exist)
-
-**Scope:**
-- Set up Stitch MCP server + generate mockups from recipe specs
-- Brand token preview switching in recipe visual editor
-- Batch crawl all 18 OEMs for live CSS tokens in one operation
-
-### Phase 10: Page Templates
-
-**Goal:** Pre-built page templates composed from recipes with one-click apply and auto-regeneration
-**Depends on:** Phase 9 (accurate tokens + Stitch mockups improve templates)
+**Goal:** Scheduled drift detection, auto-regeneration pipeline, AI quality scoring
+**Depends on:** v3.0 (design health, token crawler, component generator exist)
 
 **Scope:**
-- Page template gallery (SUV page, EV page, sedan page, etc.)
-- Templates composed from recipe combinations
-- One-click apply to create a new page from template
-- Auto-regeneration: when a recipe updates, re-generate pages using it
+- Cron-triggered weekly drift check for all 18 OEMs
+- Auto-regeneration: recipe/token change → re-generate affected pages
+- AI quality scoring: screenshot generated component vs OEM, score 0-100
 
-### Phase 11: Quality & Drift
+### Phase 13: Dealer Customization
 
-**Goal:** AI-powered quality scoring and automated design drift detection
-**Depends on:** Phase 10 (templates create more pages to monitor)
+**Goal:** Custom template builder and per-dealer page overrides
+**Depends on:** Phase 12 (auto-regeneration supports dealer pages)
 
 **Scope:**
-- Recipe quality scoring: AI compares generated component vs OEM screenshot
-- Design drift detection: periodic crawl compares live tokens to stored values
-- Drift alerts via Slack webhook (existing infrastructure)
-- Quality dashboard with scores per OEM
+- Save existing pages as custom templates
+- Per-dealer overrides: logo, contact info, special offers on top of OEM templates
+- Dealer identity concept (may need migration)
+
+### Phase 14: Integration
+
+**Goal:** Stitch MCP integration and webhook notifications
+**Depends on:** Phase 12 (webhooks fire on automated events)
+
+**Scope:**
+- Stitch MCP server setup + visual mockup generation
+- Webhook notifications: page generated, tokens changed, drift detected
+- External system integration points
 
 ---
 *Roadmap created: 2026-03-28*
-*Last updated: 2026-03-28*
+*Last updated: 2026-03-29*
