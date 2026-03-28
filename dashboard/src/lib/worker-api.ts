@@ -131,6 +131,22 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function crawlLiveTokens(oemId: string, url: string): Promise<{ crawled: any; existing: any; diff: Array<{ field: string; current: string; crawled: string; changed: boolean }> }> {
+  return workerFetch('/api/v1/oem-agent/admin/tokens/crawl', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oem_id: oemId, url }),
+  })
+}
+
+export async function applyCrawledTokens(oemId: string, crawled: any): Promise<{ success: boolean }> {
+  return workerFetch('/api/v1/oem-agent/admin/tokens/apply-crawled', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oem_id: oemId, crawled }),
+  })
+}
+
 export async function generateRecipeComponent(oemId: string, recipe: ExtractedRecipe, thumbnailBase64?: string): Promise<{ success: boolean; template_html?: string; r2_key?: string; error?: string }> {
   return workerFetch('/api/v1/oem-agent/admin/recipes/generate-component', {
     method: 'POST',

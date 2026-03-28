@@ -4,7 +4,7 @@ import {
   Loader2, Palette, AlertTriangle, Type, MousePointerClick,
   Image as ImageIcon, Grid3x3, SplitSquareHorizontal, Play,
   Columns3, Database, Megaphone, Layers, Ruler, SquareStack,
-  Sparkles, Check, X, Download, FileText, Wand2, Copy, ChevronDown,
+  Sparkles, Check, X, Download, FileText, Wand2, Copy, ChevronDown, ScanSearch,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { toPng } from 'html-to-image'
@@ -12,7 +12,7 @@ import { jsPDF } from 'jspdf'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, uploadRecipeThumbnail, generateRecipeComponent, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
+import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, uploadRecipeThumbnail, generateRecipeComponent, crawlLiveTokens, applyCrawledTokens, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
 
 const PATTERNS = [
   { key: 'hero', label: 'Hero', icon: ImageIcon },
@@ -41,6 +41,13 @@ const data = ref<StyleGuideData | null>(null)
 
 const styleGuideContent = ref<HTMLElement | null>(null)
 const exporting = ref<'png' | 'pdf' | null>(null)
+
+const crawling = ref(false)
+const crawlDiff = ref<Array<{ field: string; current: string; crawled: string; changed: boolean }> | null>(null)
+const crawledTokens = ref<any>(null)
+const showCrawlDialog = ref(false)
+const crawlUrl = ref('')
+const applyingTokens = ref(false)
 
 const showExtractDialog = ref(false)
 const extractUrl = ref('')
@@ -410,6 +417,42 @@ function copyHtml(index: number) {
     toast.success('HTML copied to clipboard')
   }
 }
+
+/* ---- Token Crawling ---- */
+
+async function handleCrawlTokens() {
+  if (!selectedOem.value || !crawlUrl.value || crawling.value) return
+  crawling.value = true
+  crawlDiff.value = null
+  crawledTokens.value = null
+  try {
+    const result = await crawlLiveTokens(selectedOem.value, crawlUrl.value)
+    crawlDiff.value = result.diff
+    crawledTokens.value = result.crawled
+  } catch (err: any) {
+    toast.error(err.message || 'Crawl failed')
+  } finally {
+    crawling.value = false
+  }
+}
+
+async function handleApplyTokens() {
+  if (!selectedOem.value || !crawledTokens.value || applyingTokens.value) return
+  applyingTokens.value = true
+  try {
+    await applyCrawledTokens(selectedOem.value, crawledTokens.value)
+    toast.success('Tokens updated')
+    showCrawlDialog.value = false
+    crawlDiff.value = null
+    crawledTokens.value = null
+    // Reload style guide
+    data.value = await fetchStyleGuide(selectedOem.value)
+  } catch (err: any) {
+    toast.error(err.message || 'Apply failed')
+  } finally {
+    applyingTokens.value = false
+  }
+}
 </script>
 
 <template>
@@ -430,6 +473,10 @@ function copyHtml(index: number) {
         <Sparkles class="size-4 mr-1" /> Extract from URL
       </UiButton>
       <div class="ml-auto flex gap-2" data-export-ignore>
+        <UiButton variant="outline" size="sm" :disabled="!data" @click="showCrawlDialog = true; crawlUrl = ''">
+          <ScanSearch class="size-4 mr-1" />
+          Crawl Tokens
+        </UiButton>
         <UiButton variant="outline" size="sm" :disabled="!data || !!exporting" @click="exportPng">
           <Loader2 v-if="exporting === 'png'" class="size-4 mr-1 animate-spin" />
           <Download v-else class="size-4 mr-1" />
@@ -1177,6 +1224,102 @@ function copyHtml(index: number) {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crawl Tokens Dialog -->
+    <div
+      v-if="showCrawlDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="showCrawlDialog = false"
+    >
+      <div class="bg-background border rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+          <h2 class="text-lg font-semibold">Crawl Live Tokens</h2>
+          <button class="text-muted-foreground hover:text-foreground" @click="showCrawlDialog = false">
+            <X class="size-5" />
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4 overflow-y-auto flex-1">
+          <div class="flex gap-2">
+            <UiInput
+              v-model="crawlUrl"
+              :placeholder="`https://www.${selectedOem?.replace('-au','')}.com.au`"
+              class="flex-1"
+              @keydown.enter="handleCrawlTokens"
+            />
+            <UiButton :disabled="crawling || !crawlUrl" @click="handleCrawlTokens">
+              <Loader2 v-if="crawling" class="size-4 mr-1 animate-spin" />
+              <ScanSearch v-else class="size-4 mr-1" />
+              {{ crawling ? 'Crawling...' : 'Crawl' }}
+            </UiButton>
+          </div>
+
+          <p v-if="crawling" class="text-sm text-muted-foreground">
+            Visiting site and extracting CSS tokens... This may take 15-30 seconds.
+          </p>
+
+          <!-- Diff table -->
+          <div v-if="crawlDiff" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-medium">{{ crawlDiff.filter(d => d.changed).length }} values changed</p>
+              <UiButton
+                v-if="crawlDiff.some(d => d.changed)"
+                size="sm"
+                :disabled="applyingTokens"
+                @click="handleApplyTokens"
+              >
+                <Loader2 v-if="applyingTokens" class="size-3.5 mr-1 animate-spin" />
+                <Check v-else class="size-3.5 mr-1" />
+                Apply Changes
+              </UiButton>
+            </div>
+
+            <div class="border rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-muted/50 text-left">
+                    <th class="px-3 py-2 font-medium">Token</th>
+                    <th class="px-3 py-2 font-medium">Current</th>
+                    <th class="px-3 py-2 font-medium">Crawled</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr
+                    v-for="row in crawlDiff"
+                    :key="row.field"
+                    :class="row.changed ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''"
+                  >
+                    <td class="px-3 py-2 font-mono text-xs">{{ row.field }}</td>
+                    <td class="px-3 py-2">
+                      <div class="flex items-center gap-1.5">
+                        <div
+                          v-if="row.current.startsWith('#')"
+                          class="size-4 rounded border"
+                          :style="{ backgroundColor: row.current }"
+                        />
+                        <span class="text-xs">{{ row.current }}</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2">
+                      <div class="flex items-center gap-1.5">
+                        <div
+                          v-if="row.crawled.startsWith('#')"
+                          class="size-4 rounded border"
+                          :style="{ backgroundColor: row.crawled }"
+                        />
+                        <span class="text-xs" :class="row.changed ? 'font-semibold text-amber-700 dark:text-amber-400' : ''">
+                          {{ row.crawled }}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

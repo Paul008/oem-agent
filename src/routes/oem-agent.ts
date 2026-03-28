@@ -2281,6 +2281,120 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/tokens/crawl
+ * Crawl an OEM site to extract live CSS tokens.
+ */
+app.post('/admin/tokens/crawl', async (c) => {
+  const body = await c.req.json<{ oem_id: string; url: string }>();
+  if (!body.oem_id || !body.url) {
+    return c.json({ error: 'oem_id and url are required' }, 400);
+  }
+
+  try {
+    const { TokenCrawler } = await import('../design/token-crawler');
+    const crawler = new TokenCrawler({ browser: c.env.BROWSER! });
+    const crawled = await crawler.crawlTokens(body.url, body.oem_id);
+
+    // Fetch existing tokens for diff
+    const supabase = createSupabaseClient({
+      url: c.env.SUPABASE_URL,
+      serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+    const { data: tokenRow } = await supabase
+      .from('brand_tokens')
+      .select('tokens_json')
+      .eq('oem_id', body.oem_id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const existing = tokenRow?.tokens_json ?? {};
+
+    // Build diff
+    const diff: Array<{ field: string; current: string; crawled: string; changed: boolean }> = [];
+    const addDiff = (field: string, current: any, crawledVal: any) => {
+      const c = String(current || '—');
+      const v = String(crawledVal || '—');
+      diff.push({ field, current: c, crawled: v, changed: c !== v && v !== '—' });
+    };
+
+    addDiff('colors.primary', existing.colors?.primary, crawled.colors.primary);
+    addDiff('colors.background', existing.colors?.background, crawled.colors.background);
+    addDiff('colors.text_primary', existing.colors?.text_primary, crawled.colors.text_primary);
+    addDiff('colors.cta_fill', existing.colors?.cta_fill, crawled.colors.cta_fill);
+    addDiff('typography.font_primary', existing.typography?.font_primary, crawled.typography.font_primary);
+    addDiff('typography.font_secondary', existing.typography?.font_secondary, crawled.typography.font_secondary);
+    addDiff('buttons.background', existing.buttons?.primary?.background, crawled.buttons.primary.background);
+    addDiff('buttons.border_radius', existing.buttons?.primary?.border_radius || existing.borders?.radius_md, crawled.buttons.primary.border_radius);
+    addDiff('spacing.container_max_width', existing.spacing?.container_max_width, crawled.spacing.container_max_width);
+
+    return c.json({ crawled, existing, diff });
+  } catch (err: any) {
+    console.error('[TokenCrawl] Error:', err.message);
+    return c.json({ error: err.message || 'Crawl failed' }, 500);
+  }
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/tokens/apply-crawled
+ * Apply crawled tokens to brand_tokens (preserving font_faces).
+ */
+app.post('/admin/tokens/apply-crawled', async (c) => {
+  const body = await c.req.json<{ oem_id: string; crawled: any }>();
+  if (!body.oem_id || !body.crawled) {
+    return c.json({ error: 'oem_id and crawled are required' }, 400);
+  }
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const { data: tokenRow } = await supabase
+    .from('brand_tokens')
+    .select('tokens_json')
+    .eq('oem_id', body.oem_id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  const existing = tokenRow?.tokens_json ?? {};
+  const crawled = body.crawled;
+
+  // Merge: crawled values override, but preserve font_faces and font_cdn_urls from R2
+  const merged = {
+    ...existing,
+    colors: { ...existing.colors, ...crawled.colors },
+    typography: {
+      ...existing.typography,
+      font_primary: crawled.typography.font_primary || existing.typography?.font_primary,
+      font_secondary: crawled.typography.font_secondary || existing.typography?.font_secondary,
+      scale: { ...existing.typography?.scale, ...crawled.typography.scale },
+      // PRESERVE font_faces from R2 hosting
+      font_faces: existing.typography?.font_faces || [],
+      font_cdn_urls: existing.typography?.font_cdn_urls || [],
+    },
+    spacing: { ...existing.spacing, ...crawled.spacing },
+    borders: { ...existing.borders, ...crawled.borders },
+    buttons: { ...existing.buttons, primary: { ...existing.buttons?.primary, ...crawled.buttons.primary } },
+  };
+
+  const { error } = await supabase
+    .from('brand_tokens')
+    .update({ tokens_json: merged })
+    .eq('oem_id', body.oem_id)
+    .eq('is_active', true);
+
+  if (error) {
+    return c.json({ error: error.message }, 500);
+  }
+
+  return c.json({ success: true });
+});
+
+/**
  * POST /api/v1/oem-agent/admin/recipes/generate-component
  * Generate an Alpine.js + Tailwind component from a recipe using AI.
  */
