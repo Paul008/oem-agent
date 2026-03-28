@@ -20,7 +20,7 @@ function resolveComponent(section: PageSection) {
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'hero': defineAsyncComponent(() => import('./SectionHero.vue')),
   'heading': defineAsyncComponent(() => import('./SectionHeading.vue')),
-  'intro': defineAsyncComponent(() => import('./SectionIntro.vue')),
+  'intro': defineAsyncComponent(() => import('./SectionSplitContent.vue')),
   'tabs': defineAsyncComponent(() => import('./SectionTabs.vue')),
   'color-picker': defineAsyncComponent(() => import('./SectionColorPicker.vue')),
   'specs-grid': defineAsyncComponent(() => import('./SectionSpecs.vue')),
@@ -30,7 +30,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'feature-cards': defineAsyncComponent(() => import('./SectionFeatureCards.vue')),
   'video': defineAsyncComponent(() => import('./SectionVideo.vue')),
   'cta-banner': defineAsyncComponent(() => import('./SectionCta.vue')),
-  'content-block': defineAsyncComponent(() => import('./SectionContentBlock.vue')),
+  'content-block': defineAsyncComponent(() => import('./SectionSplitContent.vue')),
   'accordion': defineAsyncComponent(() => import('./SectionAccordion.vue')),
   'enquiry-form': defineAsyncComponent(() => import('./SectionEnquiryForm.vue')),
   'map': defineAsyncComponent(() => import('./SectionMap.vue')),
@@ -40,6 +40,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'logo-strip': defineAsyncComponent(() => import('./SectionLogoStrip.vue')),
   'testimonial': defineAsyncComponent(() => import('./SectionTestimonial.vue')),
   'pricing-table': defineAsyncComponent(() => import('./SectionPricingTable.vue')),
+  'split-content': defineAsyncComponent(() => import('./SectionSplitContent.vue')),
   'card-grid': defineAsyncComponent(() => import('./SectionCardGrid.vue')),
 }
 </script>
