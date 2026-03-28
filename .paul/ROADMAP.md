@@ -2,15 +2,11 @@
 
 ## Overview
 
-Build a recipe-based design system that enables brand-accurate dealer pages across 18 OEMs. Phase 1 (recipe infrastructure) is complete. Remaining work: visual style guides, recipe coverage for all OEMs, and renderer consolidation.
+Build a recipe-based design system that enables brand-accurate dealer pages across 18 OEMs. v1.0 (recipe infrastructure, style guides, CardGrid, section consolidation) is complete. v2.0 focuses on closing the design-to-component pipeline end to end.
 
-## Current Milestone
+## Milestones
 
-**v1.0 Recipe Design System** (v1.0.0)
-Status: Complete
-Phases: 4 of 4 complete
-
-## Phases
+### v1.0 Recipe Design System (Complete)
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
@@ -19,91 +15,76 @@ Phases: 4 of 4 complete
 | 3 | Unified CardGrid Renderer | 4 | Complete | 2026-03-28 |
 | 4 | Section Consolidation | 4 | Complete | 2026-03-28 |
 
+---
+
+## Current Milestone
+
+**v2.0 Intelligent Design Pipeline** (v2.0.0)
+Status: In progress
+Phases: 0 of 4 complete
+
+**Focus:** Close the gap between "seeing an OEM design" and "rendering a pixel-accurate component" — automated end to end.
+
+## Phases
+
+| Phase | Name | Plans | Status | Completed |
+|-------|------|-------|--------|-----------|
+| 5 | Component Generation | TBD | Not started | - |
+| 6 | Live Token Refinement | TBD | Not started | - |
+| 7 | Recipe Analytics & Preview | TBD | Not started | - |
+| 8 | Stitch + Batch Extraction | TBD | Not started | - |
+
 ## Phase Details
 
-### Phase 1: Recipe Infrastructure
+### Phase 5: Component Generation
 
-**Goal:** Add recipe layer to page builder — database, API, dashboard CRUD, visual editor, AI integration
-**Depends on:** Nothing (first phase)
+**Goal:** Recipe → working Alpine.js + Tailwind component via AI, with preview in page builder
+**Depends on:** v1.0 (recipes, extraction pipeline, ComponentGenerator exist)
+**Research:** Likely (optimal prompt engineering for component generation)
+
+**Scope:**
+- Take recipe metadata + section thumbnail screenshot
+- Feed to AI (Gemini/Claude) with brand tokens
+- Generate Alpine.js + Tailwind HTML component
+- Preview generated component in page builder
+- "Generate Component" button on extracted recipes
+
+### Phase 6: Live Token Refinement
+
+**Goal:** Crawl OEM sites for actual CSS custom properties, colors, spacing, typography — replace inferred tokens
+**Depends on:** Phase 5 (accurate tokens improve generated components)
+**Research:** Likely (CSS extraction patterns vary per OEM)
+
+**Scope:**
+- Crawl each OEM homepage + vehicle page via Lightpanda/Browser
+- Extract CSS custom properties, computed styles, font stacks
+- Compare with existing inferred tokens
+- Update brand_tokens with real values
+- Dashboard diff view: inferred vs crawled
+
+### Phase 7: Recipe Analytics & Preview
+
+**Goal:** Track recipe usage, coverage gaps, and enable brand token switching preview
+**Depends on:** Phase 6 (accurate tokens for preview)
 **Research:** Unlikely
 
 **Scope:**
-- brand_recipes + default_recipes tables
-- Recipe API endpoints (GET/POST/DELETE)
-- Recipe-aware section picker in page builder
-- Save as Recipe from existing sections
-- Visual recipe editor (composition builder, style panel, live preview)
-- Recipes management page with CRUD
-- Brand tokens sidebar
-- AI agent recipe injection
-- Seed Toyota (8), Kia (8), GWM (8), Hyundai (8) + 23 defaults
+- Recipe usage tracking (which pages use which recipes)
+- Coverage dashboard: patterns per OEM, gaps, most/least used
+- Brand token preview switching in recipe editor
+- Recipe health metrics
 
-**Plans:**
-- [x] 01-01: Database migration + seed scripts
-- [x] 01-02: Worker API endpoints
-- [x] 01-03: Dashboard composable + section picker
-- [x] 01-04: Sidebar wiring + AI prompt injection
-- [x] 01-05: Recipes management page
-- [x] 01-06: Visual recipe editor
-- [x] 01-07: Brand tokens sidebar + preview
-- [x] 01-08: Seed Kia, GWM, Hyundai recipes
-- [x] 01-09: RLS fix for authenticated access
-- [x] 01-10: Polish — filter fix, save button, migration cleanup
+### Phase 8: Stitch + Batch Extraction
 
-### Phase 2: Style Guides & OEM Coverage
-
-**Goal:** Visual brand catalog per OEM + recipe coverage for all 18 OEMs
-**Depends on:** Phase 1 (recipe tables and editor exist)
-**Research:** Likely (need to analyze each OEM's website for brand patterns)
+**Goal:** Google Stitch MCP integration for AI mockups + multi-URL batch extraction
+**Depends on:** Phase 5 (component generation pattern established)
+**Research:** Likely (Stitch MCP API exploration)
 
 **Scope:**
-- Auto-generated OEM style guide page (/dashboard/style-guide/:oemId)
-- Seed brand recipes for remaining 14 OEMs
-- Recipe-from-screenshot (AI analyzes OEM pages → auto-generates recipes)
-- Export style guides as PDF/PNG
-
-**Plans:**
-- [x] 02-01: Style guide page + route
-- [x] 02-02: Seed remaining OEM recipes (batch)
-- [x] 02-03: Recipe-from-screenshot pipeline
-- [x] 02-04: PDF/PNG export
-
-### Phase 3: Unified CardGrid Renderer
-
-**Goal:** One renderer replaces 5 (feature-cards, stats, logo-strip, testimonial, pricing-table)
-**Depends on:** Phase 2 (recipes exist for all OEMs to validate)
-**Research:** Unlikely (internal refactoring)
-
-**Scope:**
-- SectionCardGrid.vue reads card_composition + card_style
-- Add card-grid to section type union
-- Migrate existing feature-cards sections
-- Backward compat aliases for old types
-
-**Plans:**
-- [x] 03-01: CardGrid renderer component
-- [x] 03-02: Type union + component map updates
-- [x] 03-03: Migration script for existing pages
-- [x] 03-04: Verify backward compatibility
-
-### Phase 4: Section Consolidation
-
-**Goal:** 26 section types consolidated to ~12
-**Depends on:** Phase 3 (CardGrid pattern proven)
-**Research:** Unlikely
-
-**Scope:**
-- intro + content-block → split-content
-- hero + countdown + cta-banner → hero with variants
-- image + gallery + image-showcase + video + embed → media with variants
-- R2 migration script for existing page JSON
-- Update both dashboard + Nuxt renderers
-
-**Plans:**
-- [x] 04-01: Split-content consolidation
-- [x] 04-02: Hero consolidation
-- [x] 04-03: Media consolidation
-- [x] 04-04: Verification (no R2 migration needed — aliasing handles backward compat)
+- Set up Stitch MCP server
+- Generate visual mockups from recipe specs
+- Multi-URL batch extraction (extract recipes from multiple pages at once)
+- Stitch → recipe → component pipeline
 
 ---
 *Roadmap created: 2026-03-28*
