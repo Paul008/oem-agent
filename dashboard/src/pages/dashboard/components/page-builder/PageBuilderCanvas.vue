@@ -57,18 +57,26 @@ function onDragEnd() {
 }
 
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
+  // Consolidated renderers (matching SectionRenderer.vue)
   'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
+  'cta-banner': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
+  'countdown': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
+  'intro': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
+  'content-block': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
+  'split-content': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
+  'gallery': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'video': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'image': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'image-showcase': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'embed': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'media': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'card-grid': defineAsyncComponent(() => import('../sections/SectionCardGrid.vue')),
+  // Individual renderers (not consolidated)
   'heading': defineAsyncComponent(() => import('../sections/SectionHeading.vue')),
-  'intro': defineAsyncComponent(() => import('../sections/SectionIntro.vue')),
   'tabs': defineAsyncComponent(() => import('../sections/SectionTabs.vue')),
   'color-picker': defineAsyncComponent(() => import('../sections/SectionColorPicker.vue')),
   'specs-grid': defineAsyncComponent(() => import('../sections/SectionSpecs.vue')),
-  'gallery': defineAsyncComponent(() => import('../sections/SectionGallery.vue')),
   'feature-cards': defineAsyncComponent(() => import('../sections/SectionFeatureCards.vue')),
-  'video': defineAsyncComponent(() => import('../sections/SectionVideo.vue')),
-  'image': defineAsyncComponent(() => import('../sections/SectionImageBlock.vue')),
-  'cta-banner': defineAsyncComponent(() => import('../sections/SectionCta.vue')),
-  'content-block': defineAsyncComponent(() => import('../sections/SectionContentBlock.vue')),
   'accordion': defineAsyncComponent(() => import('../sections/SectionAccordion.vue')),
   'enquiry-form': defineAsyncComponent(() => import('../sections/SectionEnquiryForm.vue')),
   'map': defineAsyncComponent(() => import('../sections/SectionMap.vue')),
@@ -78,12 +86,16 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'comparison-table': defineAsyncComponent(() => import('../sections/SectionComparisonTable.vue')),
   'stats': defineAsyncComponent(() => import('../sections/SectionStats.vue')),
   'logo-strip': defineAsyncComponent(() => import('../sections/SectionLogoStrip.vue')),
-  'embed': defineAsyncComponent(() => import('../sections/SectionEmbed.vue')),
   'pricing-table': defineAsyncComponent(() => import('../sections/SectionPricingTable.vue')),
   'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
-  'countdown': defineAsyncComponent(() => import('../sections/SectionCountdown.vue')),
   'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
-  'image-showcase': defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue')),
+}
+
+function resolveComponent(section: any) {
+  if (Array.isArray(section.card_composition) && section.card_composition.length > 0) {
+    return componentMap['card-grid']
+  }
+  return componentMap[section.type]
 }
 
 function sectionStyle(section: any): Record<string, string> {
@@ -213,8 +225,8 @@ ${rendered}
 
           <!-- Render the actual section component -->
           <component
-            v-if="componentMap[section.type]"
-            :is="componentMap[section.type]"
+            v-if="resolveComponent(section)"
+            :is="resolveComponent(section)"
             :section="section"
             v-bind="section.type === 'color-picker' ? { oemId: props.oemId, modelSlug: props.modelSlug } : {}"
           />

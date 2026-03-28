@@ -29,7 +29,7 @@ Dealers get brand-accurate vehicle pages without manual design work.
 - [x] Product/spec/color/pricing extraction pipeline
 - [x] Visual page builder with 26+ section types
 - [x] Recipe-based component architecture (brand_recipes + default_recipes)
-- [x] Brand token extraction and storage (Toyota fully seeded)
+- [x] Brand token extraction and storage (all 18 OEMs seeded)
 - [x] Visual recipe editor with composition builder, style panel, live preview
 - [x] Recipes management page with CRUD
 - [x] Save as Recipe from existing sections
@@ -37,24 +37,29 @@ Dealers get brand-accurate vehicle pages without manual design work.
 - [x] Dealer Nuxt app rendering with client-side link interception
 - [x] Supabase realtime dashboard
 - [x] Lightpanda + Cloudflare Browser rendering tier
-
-### Active (In Progress)
-
-- [ ] OEM style guide pages — visual brand catalog per OEM
-- [ ] Seed brand recipes for remaining 14 OEMs
-- [ ] Recipe-from-screenshot — AI analyzes OEM pages, auto-generates recipes
-
-### Planned (Next)
-
-- [ ] Unified CardGrid renderer (Phase 2 of recipe architecture)
-- [ ] Section type consolidation (Phase 3 — 26 types to ~12)
-- [ ] Recipe usage analytics
-- [ ] Brand token switching preview in recipe editor
+- [x] OEM style guide pages — visual brand catalog per OEM with PDF/PNG export
+- [x] Brand recipes for all 18 OEMs (181+ recipes)
+- [x] Recipe-from-screenshot — Gemini 3.1 Pro vision extraction with thumbnails
+- [x] Unified CardGrid renderer — composition-driven with smart routing
+- [x] Section type consolidation — 26 types → ~12 unified components
+- [x] Recipe usage analytics with coverage matrix
+- [x] Brand token preview switching in recipe editor
+- [x] Component generation — recipe → Alpine.js + Tailwind with live preview
+- [x] Live CSS token crawling with diff view + apply
+- [x] OEM font hosting — 8 brands on R2 with dynamic @font-face
+- [x] Batch recipe extraction (multi-URL)
+- [x] Page template gallery — 5 templates + custom save-as-template
+- [x] Design health dashboard with drift detection + Slack alerts
+- [x] Scheduled drift detection cron (monthly)
+- [x] AI quality scoring via Gemini vision
+- [x] Dealer overrides API (logo, name, phone, address, offers)
+- [x] Webhook system for external integrations
 
 ### Out of Scope
 
 - Rebuilding Pencil.dev — use as external design tool, not rebuild
 - Full design application — page builder is for using the design system, not creating one
+- Stitch MCP integration — deferred, needs external server setup
 
 ## Target Users
 
