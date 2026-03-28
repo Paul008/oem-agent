@@ -44,6 +44,7 @@ export function useSidebar() {
         { title: 'API Docs', url: '/dashboard/docs', icon: BookOpen },
         { title: 'Page Builder', url: '/dashboard/page-builder-docs', icon: Cpu },
         { title: 'Recipes', url: '/dashboard/recipes', icon: BookmarkPlus },
+        { title: 'Style Guide', url: '/dashboard/style-guide', icon: Palette },
         { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },
         { title: 'AI Models', url: '/dashboard/settings/ai-models', icon: BrainCircuit },
         { title: 'Onboard OEM', url: '/dashboard/onboarding', icon: Rocket },
