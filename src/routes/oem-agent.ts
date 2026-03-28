@@ -2281,6 +2281,57 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
 });
 
 /**
+ * GET /api/v1/oem-agent/admin/recipe-analytics
+ * Recipe coverage stats across all OEMs.
+ */
+app.get('/admin/recipe-analytics', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const [{ data: brandRecipes }, { data: defaultRecipes }] = await Promise.all([
+    supabase.from('brand_recipes').select('oem_id, pattern').eq('is_active', true),
+    supabase.from('default_recipes').select('pattern'),
+  ]);
+
+  const patterns = ['hero', 'card-grid', 'split-content', 'media', 'tabs', 'data-display', 'action-bar', 'utility'];
+
+  // Group by OEM
+  const byOem: Record<string, Record<string, number>> = {};
+  const byPattern: Record<string, number> = {};
+
+  for (const r of brandRecipes ?? []) {
+    if (!byOem[r.oem_id]) byOem[r.oem_id] = {};
+    byOem[r.oem_id][r.pattern] = (byOem[r.oem_id][r.pattern] || 0) + 1;
+    byPattern[r.pattern] = (byPattern[r.pattern] || 0) + 1;
+  }
+
+  // Find gaps
+  const gaps = Object.entries(byOem).map(([oemId, counts]) => {
+    const missing = patterns.filter(p => !counts[p]);
+    return missing.length ? { oem_id: oemId, missing_patterns: missing } : null;
+  }).filter(Boolean);
+
+  // OEMs with no recipes at all
+  const allOems = ['kia-au', 'nissan-au', 'ford-au', 'volkswagen-au', 'mitsubishi-au', 'ldv-au', 'isuzu-au', 'mazda-au', 'kgm-au', 'gwm-au', 'suzuki-au', 'hyundai-au', 'toyota-au', 'subaru-au', 'gmsv-au', 'foton-au', 'gac-au', 'chery-au'];
+  for (const oem of allOems) {
+    if (!byOem[oem]) {
+      gaps.push({ oem_id: oem, missing_patterns: patterns });
+    }
+  }
+
+  return c.json({
+    total_brand: brandRecipes?.length ?? 0,
+    total_default: defaultRecipes?.length ?? 0,
+    by_oem: byOem,
+    by_pattern: byPattern,
+    gaps,
+    patterns,
+  });
+});
+
+/**
  * POST /api/v1/oem-agent/admin/tokens/crawl
  * Crawl an OEM site to extract live CSS tokens.
  */

@@ -131,6 +131,10 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function fetchRecipeAnalytics(): Promise<{ total_brand: number; total_default: number; by_oem: Record<string, Record<string, number>>; by_pattern: Record<string, number>; gaps: Array<{ oem_id: string; missing_patterns: string[] }>; patterns: string[] }> {
+  return workerFetch('/api/v1/oem-agent/admin/recipe-analytics')
+}
+
 export async function crawlLiveTokens(oemId: string, url: string): Promise<{ crawled: any; existing: any; diff: Array<{ field: string; current: string; crawled: string; changed: boolean }> }> {
   return workerFetch('/api/v1/oem-agent/admin/tokens/crawl', {
     method: 'POST',
