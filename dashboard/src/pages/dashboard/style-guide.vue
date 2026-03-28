@@ -4,9 +4,11 @@ import {
   Loader2, Palette, AlertTriangle, Type, MousePointerClick,
   Image as ImageIcon, Grid3x3, SplitSquareHorizontal, Play,
   Columns3, Database, Megaphone, Layers, Ruler, SquareStack,
-  Sparkles, Check, X, Download,
+  Sparkles, Check, X, Download, FileText,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { toPng } from 'html-to-image'
+import { jsPDF } from 'jspdf'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -36,6 +38,9 @@ const selectedOem = ref<string>('')
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 const data = ref<StyleGuideData | null>(null)
+
+const styleGuideContent = ref<HTMLElement | null>(null)
+const exporting = ref<'png' | 'pdf' | null>(null)
 
 const showExtractDialog = ref(false)
 const extractUrl = ref('')
@@ -147,6 +152,96 @@ function capFontSize(size: string | number | undefined, max = 48): string {
 
 function formatColorLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+/* ---- Export ---- */
+
+const EXPORT_OPTS = {
+  backgroundColor: '#ffffff',
+  pixelRatio: 1,
+  cacheBust: true,
+  filter: (node: Element) => !(node as HTMLElement)?.dataset?.exportIgnore,
+}
+
+async function exportPng() {
+  if (!styleGuideContent.value || exporting.value) return
+  exporting.value = 'png'
+  try {
+    // Run twice — first pass warms font/image cache, second gets clean render
+    await toPng(styleGuideContent.value, EXPORT_OPTS)
+    const dataUrl = await toPng(styleGuideContent.value, EXPORT_OPTS)
+    const link = document.createElement('a')
+    link.download = `${oemDisplayName.value}-style-guide.png`
+    link.href = dataUrl
+    link.click()
+    toast.success('PNG exported')
+  } catch (err: any) {
+    toast.error('PNG export failed: ' + (err.message || 'Unknown error'))
+  } finally {
+    exporting.value = null
+  }
+}
+
+async function exportPdf() {
+  if (!styleGuideContent.value || exporting.value) return
+  exporting.value = 'pdf'
+  try {
+    // Warm cache then capture
+    await toPng(styleGuideContent.value, EXPORT_OPTS)
+    const dataUrl = await toPng(styleGuideContent.value, EXPORT_OPTS)
+
+    const img = new Image()
+    img.src = dataUrl
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to load image'))
+    })
+
+    // Scale image to fit A4 width
+    const pageW = 210
+    const pageH = 297
+    const margin = 10
+    const contentW = pageW - margin * 2
+    const contentH = pageH - margin * 2
+    const imgAspect = img.naturalHeight / img.naturalWidth
+    const scaledW = contentW
+    const scaledH = contentW * imgAspect
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+    // Slice the image into page-sized chunks using canvas
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')!
+
+    // How many pixels of the source image fit per PDF page
+    const pxPerPage = Math.floor(img.naturalHeight * (contentH / scaledH))
+    const totalPages = Math.ceil(img.naturalHeight / pxPerPage)
+
+    for (let p = 0; p < totalPages; p++) {
+      if (p > 0) pdf.addPage()
+
+      const srcY = p * pxPerPage
+      const srcH = Math.min(pxPerPage, img.naturalHeight - srcY)
+      const sliceAspect = srcH / img.naturalWidth
+      const drawH = contentW * sliceAspect
+
+      canvas.width = img.naturalWidth
+      canvas.height = srcH
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, srcY, img.naturalWidth, srcH, 0, 0, img.naturalWidth, srcH)
+
+      const sliceUrl = canvas.toDataURL('image/jpeg', 0.85)
+      pdf.addImage(sliceUrl, 'JPEG', margin, margin, scaledW, drawH)
+    }
+
+    pdf.save(`${oemDisplayName.value}-style-guide.pdf`)
+    toast.success('PDF exported')
+  } catch (err: any) {
+    toast.error('PDF export failed: ' + (err.message || 'Unknown error'))
+  } finally {
+    exporting.value = null
+  }
 }
 
 /* ---- Thumbnail Cropping ---- */
@@ -279,9 +374,21 @@ async function saveAllExtracted() {
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
-      <UiButton variant="outline" size="sm" @click="showExtractDialog = true">
+      <UiButton variant="outline" size="sm" @click="showExtractDialog = true" data-export-ignore>
         <Sparkles class="size-4 mr-1" /> Extract from URL
       </UiButton>
+      <div class="ml-auto flex gap-2" data-export-ignore>
+        <UiButton variant="outline" size="sm" :disabled="!data || !!exporting" @click="exportPng">
+          <Loader2 v-if="exporting === 'png'" class="size-4 mr-1 animate-spin" />
+          <Download v-else class="size-4 mr-1" />
+          PNG
+        </UiButton>
+        <UiButton variant="outline" size="sm" :disabled="!data || !!exporting" @click="exportPdf">
+          <Loader2 v-if="exporting === 'pdf'" class="size-4 mr-1 animate-spin" />
+          <FileText v-else class="size-4 mr-1" />
+          PDF
+        </UiButton>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -303,7 +410,7 @@ async function saveAllExtracted() {
     </div>
 
     <!-- Style Guide Content -->
-    <div v-else class="space-y-10">
+    <div v-else ref="styleGuideContent" class="space-y-10">
 
       <!-- ═══════ Brand Header ═══════ -->
       <div
