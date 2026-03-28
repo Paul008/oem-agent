@@ -2281,6 +2281,62 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
 });
 
 // ============================================================================
+// Quality Scoring
+// ============================================================================
+
+app.post('/admin/quality/score', async (c) => {
+  const body = await c.req.json<{ oem_id: string; component_r2_key?: string; component_html?: string; thumbnail_base64: string }>();
+  if (!body.oem_id || !body.thumbnail_base64) {
+    return c.json({ error: 'oem_id and thumbnail_base64 are required' }, 400);
+  }
+
+  try {
+    const { GEMINI_CONFIG, GEMINI_31_CONFIG } = await import('../ai/router');
+
+    const prompt = `Compare these two images. The first is a screenshot from a real OEM automotive website. The second is an AI-generated component meant to replicate that section.
+
+Rate the similarity on a scale of 0-100 where:
+- 90-100: Nearly identical layout, colors, and structure
+- 70-89: Same general layout with minor differences
+- 50-69: Similar concept but noticeable differences
+- 30-49: Loosely related but significantly different
+- 0-29: Very different
+
+Respond with JSON: { "score": number, "feedback": "brief explanation of differences" }`;
+
+    const model = GEMINI_31_CONFIG.model;
+    const url = `${GEMINI_CONFIG.api_base}/models/${model}:generateContent?key=${c.env.GOOGLE_API_KEY}`;
+
+    const parts: any[] = [
+      { inlineData: { mimeType: 'image/jpeg', data: body.thumbnail_base64 } },
+      { text: prompt },
+    ];
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512, responseMimeType: 'application/json' },
+      }),
+    });
+
+    if (!response.ok) {
+      return c.json({ error: `Gemini error: ${response.status}` }, 500);
+    }
+
+    const data = await response.json() as any;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) return c.json({ error: 'Empty response' }, 500);
+
+    const parsed = JSON.parse(content);
+    return c.json({ score: parsed.score, feedback: parsed.feedback, scored_at: new Date().toISOString() });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Scoring failed' }, 500);
+  }
+});
+
+// ============================================================================
 // Design Health
 // ============================================================================
 
@@ -2645,7 +2701,17 @@ app.post('/admin/tokens/apply-crawled', async (c) => {
     return c.json({ error: error.message }, 500);
   }
 
-  return c.json({ success: true });
+  // Count affected pages for auto-regeneration flag
+  let affectedPages = 0;
+  try {
+    const listing = await c.env.MOLTBOT_BUCKET.list({ prefix: `pages/definitions/${body.oem_id}/` });
+    affectedPages = listing.objects.filter(o => o.key.endsWith('/latest.json')).length;
+    if (affectedPages > 0) {
+      console.log(`[AutoRegen] ${body.oem_id}: ${affectedPages} pages may need regeneration`);
+    }
+  } catch {}
+
+  return c.json({ success: true, affected_pages: affectedPages });
 });
 
 /**

@@ -131,6 +131,14 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function scoreQuality(oemId: string, thumbnailBase64: string): Promise<{ score: number; feedback: string; scored_at: string }> {
+  return workerFetch('/api/v1/oem-agent/admin/quality/score', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oem_id: oemId, thumbnail_base64: thumbnailBase64 }),
+  })
+}
+
 export async function fetchDesignHealth(): Promise<{ oems: Array<{ oem_id: string; last_crawled: string | null; token_count: number; has_fonts: boolean }> }> {
   return workerFetch('/api/v1/oem-agent/admin/design-health')
 }

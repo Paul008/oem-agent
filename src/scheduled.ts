@@ -68,6 +68,16 @@ export const CLOUDFLARE_TRIGGERS = [
     enabled: true,
     config: { crawl_type: 'sitemap' },
   },
+  {
+    id: 'cf-design-drift',
+    name: 'Design Drift Check',
+    description: 'Weekly design drift detection across all OEMs (Sunday 3am AEDT)',
+    schedule: '0 16 1 * *',
+    timezone: 'Australia/Melbourne',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'design-drift' },
+  },
 ] as const satisfies ReadonlyArray<{
   id: string;
   name: string;
@@ -116,6 +126,51 @@ export async function handleScheduled(
       try {
         const crawlType = trigger?.config.crawl_type as string | undefined;
         console.log(`[Scheduled] Running ${label} (crawl_type: ${crawlType ?? 'full'})`);
+
+        // Design drift check — special handler
+        if (crawlType === 'design-drift') {
+          const { TokenCrawler } = await import('./design/token-crawler');
+          const crawler = new TokenCrawler({ browser: env.BROWSER! });
+          const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+          const notifier = new MultiChannelNotifier(env.SLACK_WEBHOOK_URL);
+
+          const allOems = ['kia-au','nissan-au','ford-au','volkswagen-au','mitsubishi-au','ldv-au','isuzu-au','mazda-au','kgm-au','gwm-au','suzuki-au','hyundai-au','toyota-au','subaru-au','gmsv-au','foton-au','gac-au','chery-au'];
+          let driftCount = 0;
+          const errors: string[] = [];
+
+          for (const oemId of allOems) {
+            try {
+              const { data: oem } = await supabase.from('oems').select('base_url').eq('id', oemId).single();
+              const url = oem?.base_url || `https://www.${oemId.replace('-au', '')}.com.au`;
+              const crawled = await crawler.crawlTokens(url, oemId);
+
+              const { data: tokenRow } = await supabase.from('brand_tokens').select('tokens_json').eq('oem_id', oemId).eq('is_active', true).order('created_at', { ascending: false }).limit(1).single();
+              const existing = tokenRow?.tokens_json ?? {};
+
+              // Quick diff on key fields
+              let changes = 0;
+              if (String(existing.colors?.primary) !== String(crawled.colors.primary)) changes++;
+              if (String(existing.typography?.font_primary) !== String(crawled.typography.font_primary)) changes++;
+              if (String(existing.colors?.cta_fill) !== String(crawled.colors.cta_fill)) changes++;
+              if (changes > 0) driftCount++;
+
+              console.log(`[DesignDrift] ${oemId}: ${changes} changes`);
+            } catch (e) {
+              errors.push(`${oemId}: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
+
+          if (driftCount > 0) {
+            await notifier.send(`🎨 Weekly drift check: ${driftCount} of ${allOems.length} OEMs have design changes`).catch(() => {});
+          }
+
+          run.status = 'success';
+          run.completedAt = new Date().toISOString();
+          run.result = { crawl_type: 'design-drift', oems_checked: allOems.length, oems_with_drift: driftCount, errors };
+          await saveRun(bucket, run);
+          return;
+        }
+
         const result = await orchestrator.runScheduledCrawl(crawlType);
         console.log(`[${label}] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
 
