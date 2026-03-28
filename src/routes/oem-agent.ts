@@ -2281,6 +2281,103 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
 });
 
 // ============================================================================
+// Design Health
+// ============================================================================
+
+app.get('/admin/design-health', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const { data: tokens } = await supabase
+    .from('brand_tokens')
+    .select('oem_id, tokens_json, created_at')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  const seen = new Set<string>();
+  const oems = (tokens ?? []).filter(t => {
+    if (seen.has(t.oem_id)) return false;
+    seen.add(t.oem_id);
+    return true;
+  }).map(t => ({
+    oem_id: t.oem_id,
+    last_crawled: t.tokens_json?.crawled_at || null,
+    token_count: Object.keys(t.tokens_json?.colors || {}).length + Object.keys(t.tokens_json?.typography?.scale || {}).length,
+    has_fonts: (t.tokens_json?.typography?.font_faces?.length || 0) > 0,
+  }));
+
+  return c.json({ oems });
+});
+
+app.post('/admin/design-health/check-drift', async (c) => {
+  const body = await c.req.json<{ oem_id: string }>();
+  if (!body.oem_id) return c.json({ error: 'oem_id required' }, 400);
+
+  try {
+    const supabase = createSupabaseClient({
+      url: c.env.SUPABASE_URL,
+      serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    // Get OEM base URL
+    const { data: oem } = await supabase.from('oems').select('base_url').eq('id', body.oem_id).single();
+    const url = oem?.base_url || `https://www.${body.oem_id.replace('-au', '')}.com.au`;
+
+    // Crawl
+    const { TokenCrawler } = await import('../design/token-crawler');
+    const crawler = new TokenCrawler({ browser: c.env.BROWSER! });
+    const crawled = await crawler.crawlTokens(url, body.oem_id);
+
+    // Get existing
+    const { data: tokenRow } = await supabase
+      .from('brand_tokens')
+      .select('tokens_json')
+      .eq('oem_id', body.oem_id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const existing = tokenRow?.tokens_json ?? {};
+
+    // Build diff
+    const diff: Array<{ field: string; current: string; crawled: string; changed: boolean }> = [];
+    const addDiff = (field: string, current: any, crawledVal: any) => {
+      const c = String(current || '—');
+      const v = String(crawledVal || '—');
+      diff.push({ field, current: c, crawled: v, changed: c !== v && v !== '—' });
+    };
+
+    addDiff('colors.primary', existing.colors?.primary, crawled.colors.primary);
+    addDiff('colors.background', existing.colors?.background, crawled.colors.background);
+    addDiff('colors.text_primary', existing.colors?.text_primary, crawled.colors.text_primary);
+    addDiff('colors.cta_fill', existing.colors?.cta_fill, crawled.colors.cta_fill);
+    addDiff('typography.font_primary', existing.typography?.font_primary, crawled.typography.font_primary);
+    addDiff('buttons.background', existing.buttons?.primary?.background, crawled.buttons.primary.background);
+    addDiff('buttons.border_radius', existing.borders?.radius_md, crawled.buttons.primary.border_radius);
+
+    const changeCount = diff.filter(d => d.changed).length;
+    const severity = changeCount === 0 ? 'none' : changeCount <= 3 ? 'low' : changeCount <= 6 ? 'medium' : 'high';
+
+    // Slack alert for medium+ drift
+    if ((severity === 'medium' || severity === 'high') && c.env.SLACK_WEBHOOK_URL) {
+      const changed = diff.filter(d => d.changed).map(d => `${d.field}: ${d.current} → ${d.crawled}`).join('\n');
+      await fetch(c.env.SLACK_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: `🎨 Design drift detected: *${body.oem_id}* (${severity})\n${changed}` }),
+      }).catch(() => {});
+    }
+
+    return c.json({ oem_id: body.oem_id, severity, changes: diff, change_count: changeCount, crawled_at: crawled.crawled_at });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Drift check failed' }, 500);
+  }
+});
+
+// ============================================================================
 // Page Templates
 // ============================================================================
 

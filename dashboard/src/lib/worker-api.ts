@@ -131,6 +131,18 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function fetchDesignHealth(): Promise<{ oems: Array<{ oem_id: string; last_crawled: string | null; token_count: number; has_fonts: boolean }> }> {
+  return workerFetch('/api/v1/oem-agent/admin/design-health')
+}
+
+export async function checkDrift(oemId: string): Promise<{ oem_id: string; severity: string; changes: Array<{ field: string; current: string; crawled: string; changed: boolean }>; change_count: number; crawled_at: string }> {
+  return workerFetch('/api/v1/oem-agent/admin/design-health/check-drift', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oem_id: oemId }),
+  })
+}
+
 export async function fetchPageTemplates(): Promise<{ templates: Array<{ id: string; name: string; category: string; description: string; sections: Array<{ type: string; defaults: any }> }> }> {
   return workerFetch('/api/v1/oem-agent/admin/page-templates')
 }

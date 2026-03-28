@@ -47,6 +47,7 @@ export function useSidebar() {
         { title: 'Style Guide', url: '/dashboard/style-guide', icon: Palette },
         { title: 'Recipe Analytics', url: '/dashboard/recipe-analytics', icon: BarChart3 },
         { title: 'Page Templates', url: '/dashboard/page-templates', icon: LayoutTemplate },
+        { title: 'Design Health', url: '/dashboard/design-health', icon: HeartPulse },
         { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },
         { title: 'AI Models', url: '/dashboard/settings/ai-models', icon: BrainCircuit },
         { title: 'Onboard OEM', url: '/dashboard/onboarding', icon: Rocket },
