@@ -131,6 +131,18 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function fetchPageTemplates(): Promise<{ templates: Array<{ id: string; name: string; category: string; description: string; sections: Array<{ type: string; defaults: any }> }> }> {
+  return workerFetch('/api/v1/oem-agent/admin/page-templates')
+}
+
+export async function applyPageTemplate(templateId: string, oemId: string, modelSlug: string): Promise<{ success: boolean; slug: string; sections: number }> {
+  return workerFetch('/api/v1/oem-agent/admin/page-templates/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ template_id: templateId, oem_id: oemId, model_slug: modelSlug }),
+  })
+}
+
 export async function fetchRecipeAnalytics(): Promise<{ total_brand: number; total_default: number; by_oem: Record<string, Record<string, number>>; by_pattern: Record<string, number>; gaps: Array<{ oem_id: string; missing_patterns: string[] }>; patterns: string[] }> {
   return workerFetch('/api/v1/oem-agent/admin/recipe-analytics')
 }

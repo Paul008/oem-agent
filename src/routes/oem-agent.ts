@@ -2280,6 +2280,112 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
   return c.json({ url });
 });
 
+// ============================================================================
+// Page Templates
+// ============================================================================
+
+const PAGE_TEMPLATES = [
+  {
+    id: 'suv-standard', name: 'SUV Standard', category: 'suv',
+    description: 'Hero banner, feature highlights, specs, gallery, and CTA',
+    sections: [
+      { type: 'hero', defaults: { heading: 'Model Name', sub_heading: 'Starting from $XX,XXX', cta_text: 'Enquire Now', heading_size: '4xl', overlay_position: 'bottom-left', show_overlay: true } },
+      { type: 'feature-cards', defaults: { title: 'Key Features', columns: 3, cards: [{ title: 'Performance', description: '', image_url: '' }, { title: 'Safety', description: '', image_url: '' }, { title: 'Technology', description: '', image_url: '' }] } },
+      { type: 'tabs', defaults: { title: 'Explore', tabs: [{ label: 'Design', content_html: '', image_url: '' }, { label: 'Performance', content_html: '', image_url: '' }, { label: 'Safety', content_html: '', image_url: '' }] } },
+      { type: 'specs-grid', defaults: { title: 'Specifications', categories: [] } },
+      { type: 'gallery', defaults: { title: 'Gallery', images: [], layout: 'carousel' } },
+      { type: 'cta-banner', defaults: { heading: 'Ready to experience it?', body: 'Book a test drive today.', cta_text: 'Book Now', cta_url: '#' } },
+    ],
+  },
+  {
+    id: 'ev-showcase', name: 'EV Showcase', category: 'ev',
+    description: 'Range + charging focus, environmental messaging, tech specs',
+    sections: [
+      { type: 'hero', defaults: { heading: 'All-Electric', sub_heading: 'Zero emissions. Maximum performance.', cta_text: 'Explore Range', heading_size: '5xl', overlay_position: 'center', show_overlay: true } },
+      { type: 'feature-cards', defaults: { title: 'Electric Advantages', columns: 4, cards: [{ title: 'Range', description: '' }, { title: 'Charging', description: '' }, { title: 'Performance', description: '' }, { title: 'Sustainability', description: '' }] } },
+      { type: 'content-block', defaults: { title: 'Charging Made Simple', content_html: '', layout: 'two-column', image_url: '' } },
+      { type: 'specs-grid', defaults: { title: 'Technical Specifications', categories: [] } },
+      { type: 'gallery', defaults: { title: 'Gallery', images: [], layout: 'grid' } },
+      { type: 'enquiry-form', defaults: { heading: 'Register Your Interest', form_type: 'contact' } },
+    ],
+  },
+  {
+    id: 'sedan-classic', name: 'Sedan Classic', category: 'sedan',
+    description: 'Elegant layout with design focus and comfort highlights',
+    sections: [
+      { type: 'hero', defaults: { heading: 'Model Name', sub_heading: 'Refined elegance', cta_text: 'Discover More', heading_size: '4xl', overlay_position: 'bottom-center' } },
+      { type: 'intro', defaults: { title: 'Designed to Impress', body_html: '', image_url: '', image_position: 'right' } },
+      { type: 'feature-cards', defaults: { title: 'Comfort & Convenience', columns: 3, cards: [{ title: 'Interior', description: '' }, { title: 'Technology', description: '' }, { title: 'Safety', description: '' }] } },
+      { type: 'gallery', defaults: { title: 'Gallery', images: [], layout: 'carousel' } },
+      { type: 'cta-banner', defaults: { heading: 'Experience the drive', cta_text: 'Book a Test Drive', cta_url: '#' } },
+    ],
+  },
+  {
+    id: 'commercial-ute', name: 'Commercial / Ute', category: 'commercial',
+    description: 'Towing, payload, and work-ready features',
+    sections: [
+      { type: 'hero', defaults: { heading: 'Built for Work', sub_heading: 'Tough. Reliable. Ready.', cta_text: 'View Specs', heading_size: '4xl' } },
+      { type: 'feature-cards', defaults: { title: 'Work-Ready Features', columns: 3, cards: [{ title: 'Towing Capacity', description: '' }, { title: 'Payload', description: '' }, { title: 'Durability', description: '' }] } },
+      { type: 'specs-grid', defaults: { title: 'Specifications', categories: [] } },
+      { type: 'content-block', defaults: { title: 'Accessories', content_html: '', layout: 'contained' } },
+      { type: 'cta-banner', defaults: { heading: 'Get a quote', cta_text: 'Enquire Now', cta_url: '#' } },
+    ],
+  },
+  {
+    id: 'landing-promo', name: 'Landing / Promo', category: 'landing',
+    description: 'Promotional landing page with countdown and offers',
+    sections: [
+      { type: 'hero', defaults: { heading: 'Special Offer', sub_heading: 'Limited time only', cta_text: 'View Offer', heading_size: '5xl', overlay_position: 'center' } },
+      { type: 'countdown', defaults: { title: 'Offer Ends', subtitle: "Don't miss out", target_date: '', expired_message: 'This offer has ended.', cta_text: 'Enquire Now' } },
+      { type: 'feature-cards', defaults: { title: 'What You Get', columns: 3, cards: [{ title: 'Bonus 1', description: '' }, { title: 'Bonus 2', description: '' }, { title: 'Bonus 3', description: '' }] } },
+      { type: 'enquiry-form', defaults: { heading: 'Claim This Offer', form_type: 'contact' } },
+    ],
+  },
+];
+
+app.get('/admin/page-templates', async (c) => {
+  return c.json({ templates: PAGE_TEMPLATES });
+});
+
+app.post('/admin/page-templates/apply', async (c) => {
+  const body = await c.req.json<{ template_id: string; oem_id: string; model_slug: string }>();
+  if (!body.template_id || !body.oem_id || !body.model_slug) {
+    return c.json({ error: 'template_id, oem_id, and model_slug are required' }, 400);
+  }
+
+  const template = PAGE_TEMPLATES.find(t => t.id === body.template_id);
+  if (!template) return c.json({ error: 'Template not found' }, 404);
+
+  const sections = template.sections.map((s, i) => ({
+    ...s.defaults,
+    type: s.type,
+    id: `section-${s.type}-${i}`,
+    order: i,
+  }));
+
+  const page = {
+    id: `${body.oem_id}-${body.model_slug}`,
+    slug: body.model_slug,
+    name: body.model_slug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+    oem_id: body.oem_id,
+    header: { slides: [] },
+    content: { sections },
+    form: null,
+    variant_link: null,
+    generated_at: new Date().toISOString(),
+    source_url: null,
+    version: 1,
+  };
+
+  const R2_PREFIX = 'pages/definitions';
+  const r2Key = `${R2_PREFIX}/${body.oem_id}/${body.model_slug}/latest.json`;
+  await c.env.MOLTBOT_BUCKET.put(r2Key, JSON.stringify(page), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+
+  return c.json({ success: true, slug: body.model_slug, sections: sections.length });
+});
+
 /**
  * GET /api/v1/oem-agent/admin/recipe-analytics
  * Recipe coverage stats across all OEMs.

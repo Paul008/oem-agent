@@ -1,4 +1,4 @@
-import { Activity, BarChart3, BookmarkPlus, BookOpen, Bot, BrainCircuit, Car, Clapperboard, Clock, Cpu, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, List, Palette, Play, Plug, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+import { Activity, BarChart3, BookmarkPlus, BookOpen, Bot, BrainCircuit, Car, Clapperboard, Clock, Cpu, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, LayoutTemplate, List, Palette, Play, Plug, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -46,6 +46,7 @@ export function useSidebar() {
         { title: 'Recipes', url: '/dashboard/recipes', icon: BookmarkPlus },
         { title: 'Style Guide', url: '/dashboard/style-guide', icon: Palette },
         { title: 'Recipe Analytics', url: '/dashboard/recipe-analytics', icon: BarChart3 },
+        { title: 'Page Templates', url: '/dashboard/page-templates', icon: LayoutTemplate },
         { title: 'Regeneration Settings', url: '/dashboard/settings/regeneration', icon: Settings },
         { title: 'AI Models', url: '/dashboard/settings/ai-models', icon: BrainCircuit },
         { title: 'Onboard OEM', url: '/dashboard/onboarding', icon: Rocket },
