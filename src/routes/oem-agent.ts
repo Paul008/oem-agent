@@ -2497,7 +2497,83 @@ const PAGE_TEMPLATES = [
 ];
 
 app.get('/admin/page-templates', async (c) => {
-  return c.json({ templates: PAGE_TEMPLATES });
+  // Merge static + custom templates
+  let custom: any[] = [];
+  try {
+    const obj = await c.env.MOLTBOT_BUCKET.get('templates/custom.json');
+    if (obj) custom = await obj.json() as any[];
+  } catch {}
+  return c.json({ templates: [...PAGE_TEMPLATES, ...custom] });
+});
+
+app.post('/admin/page-templates/save', async (c) => {
+  const body = await c.req.json<{ name: string; category: string; description?: string; oem_id: string; model_slug: string }>();
+  if (!body.name || !body.oem_id || !body.model_slug) {
+    return c.json({ error: 'name, oem_id, and model_slug are required' }, 400);
+  }
+
+  // Read source page
+  const r2Key = `pages/definitions/${body.oem_id}/${body.model_slug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(r2Key);
+  if (!obj) return c.json({ error: 'Page not found' }, 404);
+  const page = await obj.json() as any;
+
+  // Extract section structure
+  const sections = (page.content?.sections || []).map((s: any) => ({
+    type: s.type,
+    defaults: { ...s, type: undefined, id: undefined, order: undefined },
+  }));
+
+  const template = {
+    id: `custom-${Date.now().toString(36)}`,
+    name: body.name,
+    category: body.category || 'custom',
+    description: body.description || `Custom template from ${body.oem_id}/${body.model_slug}`,
+    sections,
+    custom: true,
+    created_at: new Date().toISOString(),
+  };
+
+  // Load existing custom templates
+  let custom: any[] = [];
+  try {
+    const existing = await c.env.MOLTBOT_BUCKET.get('templates/custom.json');
+    if (existing) custom = await existing.json() as any[];
+  } catch {}
+
+  custom.push(template);
+  await c.env.MOLTBOT_BUCKET.put('templates/custom.json', JSON.stringify(custom), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+
+  return c.json({ success: true, template_id: template.id });
+});
+
+app.put('/admin/dealer-overrides/:oemId/:modelSlug', async (c) => {
+  const { oemId, modelSlug } = c.req.param();
+  const overrides = await c.req.json<{ dealer_name?: string; logo_url?: string; phone?: string; address?: string; special_offer?: string }>();
+
+  const r2Key = `pages/definitions/${oemId}/${modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(r2Key);
+  if (!obj) return c.json({ error: 'Page not found' }, 404);
+
+  const page = await obj.json() as any;
+  page.dealer_overrides = { ...page.dealer_overrides, ...overrides };
+
+  await c.env.MOLTBOT_BUCKET.put(r2Key, JSON.stringify(page), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+
+  return c.json({ success: true, dealer_overrides: page.dealer_overrides });
+});
+
+app.get('/admin/dealer-overrides/:oemId/:modelSlug', async (c) => {
+  const { oemId, modelSlug } = c.req.param();
+  const r2Key = `pages/definitions/${oemId}/${modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(r2Key);
+  if (!obj) return c.json({ error: 'Page not found' }, 404);
+  const page = await obj.json() as any;
+  return c.json({ dealer_overrides: page.dealer_overrides || {} });
 });
 
 app.post('/admin/page-templates/apply', async (c) => {

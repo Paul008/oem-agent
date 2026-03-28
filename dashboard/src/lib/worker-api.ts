@@ -155,6 +155,26 @@ export async function fetchPageTemplates(): Promise<{ templates: Array<{ id: str
   return workerFetch('/api/v1/oem-agent/admin/page-templates')
 }
 
+export async function saveAsTemplate(name: string, category: string, description: string, oemId: string, modelSlug: string): Promise<{ success: boolean; template_id: string }> {
+  return workerFetch('/api/v1/oem-agent/admin/page-templates/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, category, description, oem_id: oemId, model_slug: modelSlug }),
+  })
+}
+
+export async function saveDealerOverrides(oemId: string, modelSlug: string, overrides: Record<string, string>): Promise<{ success: boolean }> {
+  return workerFetch(`/api/v1/oem-agent/admin/dealer-overrides/${oemId}/${modelSlug}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(overrides),
+  })
+}
+
+export async function getDealerOverrides(oemId: string, modelSlug: string): Promise<{ dealer_overrides: Record<string, string> }> {
+  return workerFetch(`/api/v1/oem-agent/admin/dealer-overrides/${oemId}/${modelSlug}`)
+}
+
 export async function applyPageTemplate(templateId: string, oemId: string, modelSlug: string): Promise<{ success: boolean; slug: string; sections: number }> {
   return workerFetch('/api/v1/oem-agent/admin/page-templates/apply', {
     method: 'POST',
