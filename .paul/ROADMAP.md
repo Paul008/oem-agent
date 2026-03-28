@@ -21,7 +21,7 @@ Build a recipe-based design system that enables brand-accurate dealer pages acro
 
 **v2.0 Intelligent Design Pipeline** (v2.0.0)
 Status: In progress
-Phases: 1 of 4 complete
+Phases: 2 of 4 complete
 
 **Focus:** Close the gap between "seeing an OEM design" and "rendering a pixel-accurate component" — automated end to end.
 
@@ -30,7 +30,7 @@ Phases: 1 of 4 complete
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 5 | Component Generation | 1 | Complete | 2026-03-28 |
-| 6 | Live Token Refinement | TBD | Not started | - |
+| 6 | Live Token Refinement | 1 | Complete | 2026-03-28 |
 | 7 | Recipe Analytics & Preview | TBD | Not started | - |
 | 8 | Stitch + Batch Extraction | TBD | Not started | - |
 
