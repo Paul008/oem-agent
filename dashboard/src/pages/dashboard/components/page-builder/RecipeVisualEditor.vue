@@ -1,11 +1,13 @@
 <script lang="ts" setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import {
   GripVertical, X, Plus, ChevronDown, ChevronRight,
   AlignLeft, AlignCenter, AlignRight, Code2,
   Image as ImageIcon, Type, MessageSquare, Star, Award,
-  BarChart3, Tag, MousePointerClick, Smile,
+  BarChart3, Tag, MousePointerClick, Smile, Eye,
 } from 'lucide-vue-next'
+import { useOemData } from '@/composables/use-oem-data'
+import { fetchStyleGuide } from '@/lib/worker-api'
 
 const props = defineProps<{
   modelValue: Record<string, any>
@@ -185,9 +187,30 @@ function slotIcon(key: string) {
   return AVAILABLE_SLOTS.find((s) => s.key === key)?.icon ?? Type
 }
 
-/* ───── Brand token helpers ───── */
+/* ───── Brand token preview switching ───── */
 
-const brandPrimary = computed(() => props.brandTokens?.colors?.primary ?? null)
+const { fetchOems } = useOemData()
+const previewOems = ref<{ id: string; name: string }[]>([])
+const previewOemId = ref('')
+const previewTokens = ref<Record<string, any> | null>(null)
+const loadingPreview = ref(false)
+
+onMounted(async () => {
+  try { previewOems.value = await fetchOems() } catch {}
+})
+
+watch(previewOemId, async (oemId) => {
+  if (!oemId) { previewTokens.value = null; return }
+  loadingPreview.value = true
+  try {
+    const data = await fetchStyleGuide(oemId)
+    previewTokens.value = data.brand_tokens
+  } catch { previewTokens.value = null }
+  finally { loadingPreview.value = false }
+})
+
+const activeTokens = computed(() => previewTokens.value || props.brandTokens || null)
+const brandPrimary = computed(() => activeTokens.value?.colors?.primary ?? null)
 </script>
 
 <template>
@@ -601,8 +624,19 @@ const brandPrimary = computed(() => props.brandTokens?.colors?.primary ?? null)
 
     <!-- ════════ RIGHT: Live Preview ════════ -->
     <div class="col-span-2 border rounded-lg overflow-hidden bg-muted/30 flex flex-col">
-      <div class="px-3 py-2 border-b bg-muted/50 text-xs font-medium text-muted-foreground">
-        Preview
+      <div class="px-3 py-2 border-b bg-muted/50 flex items-center justify-between gap-2">
+        <span class="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          <Eye class="size-3" /> Preview
+        </span>
+        <select
+          v-model="previewOemId"
+          class="text-[11px] bg-transparent border rounded px-1.5 py-0.5 text-muted-foreground"
+        >
+          <option value="">Current OEM</option>
+          <option v-for="oem in previewOems" :key="oem.id" :value="oem.id">
+            {{ oem.name?.replace(' Australia', '') }}
+          </option>
+        </select>
       </div>
 
       <!-- Card Grid Preview -->

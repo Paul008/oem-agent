@@ -307,7 +307,7 @@ async function handleExtract() {
   extractError.value = null
   extractResults.value = []
   extractScreenshot.value = null
-  batchResults.value = []
+  batchCrawlResults.value = []
   savedRecipeIdxs.value = new Set()
   generatedComponents.value = new Map()
   thumbnails.value = new Map()
@@ -451,6 +451,37 @@ async function handleCrawlTokens() {
     toast.error(err.message || 'Crawl failed')
   } finally {
     crawling.value = false
+  }
+}
+
+const batchCrawling = ref(false)
+const batchProgress = ref('')
+const batchCrawlResults = ref<Array<{ oem_id: string; changes: number; error?: string }>>([])
+
+async function handleBatchCrawl() {
+  if (batchCrawling.value) return
+  batchCrawling.value = true
+  batchCrawlResults.value = []
+  try {
+    for (let i = 0; i < oems.value.length; i++) {
+      const oem = oems.value[i] as any
+      const url = oem.base_url || `https://www.${oem.id.replace('-au', '')}.com.au`
+      batchProgress.value = `Crawling ${i + 1} of ${oems.value.length}: ${oem.id}`
+      try {
+        const result = await crawlLiveTokens(oem.id, url)
+        const changes = result.diff?.filter((d: any) => d.changed).length || 0
+        if (changes > 0) {
+          await applyCrawledTokens(oem.id, result.crawled)
+        }
+        batchCrawlResults.value.push({ oem_id: oem.id, changes })
+      } catch (err: any) {
+        batchCrawlResults.value.push({ oem_id: oem.id, changes: 0, error: err.message })
+      }
+    }
+    toast.success(`Batch crawl complete: ${oems.value.length} OEMs`)
+  } finally {
+    batchCrawling.value = false
+    batchProgress.value = ''
   }
 }
 
@@ -1282,11 +1313,37 @@ async function handleApplyTokens() {
               class="flex-1"
               @keydown.enter="handleCrawlTokens"
             />
-            <UiButton :disabled="crawling || !crawlUrl" @click="handleCrawlTokens">
+            <UiButton :disabled="crawling || batchCrawling || !crawlUrl" @click="handleCrawlTokens">
               <Loader2 v-if="crawling" class="size-4 mr-1 animate-spin" />
               <ScanSearch v-else class="size-4 mr-1" />
               {{ crawling ? 'Crawling...' : 'Crawl' }}
             </UiButton>
+          </div>
+
+          <div class="flex items-center gap-2 pt-2 border-t">
+            <UiButton variant="outline" size="sm" :disabled="batchCrawling || crawling" @click="handleBatchCrawl">
+              <Loader2 v-if="batchCrawling" class="size-3.5 mr-1 animate-spin" />
+              <ScanSearch v-else class="size-3.5 mr-1" />
+              {{ batchCrawling ? 'Crawling All...' : 'Crawl All OEMs' }}
+            </UiButton>
+            <span v-if="batchProgress" class="text-xs text-muted-foreground">{{ batchProgress }}</span>
+          </div>
+
+          <!-- Batch crawl results -->
+          <div v-if="batchCrawlResults.length" class="border rounded-lg overflow-hidden">
+            <table class="w-full text-xs">
+              <thead><tr class="bg-muted/50"><th class="px-3 py-1.5 text-left">OEM</th><th class="px-3 py-1.5 text-center">Changes</th><th class="px-3 py-1.5 text-center">Status</th></tr></thead>
+              <tbody class="divide-y">
+                <tr v-for="r in batchCrawlResults" :key="r.oem_id">
+                  <td class="px-3 py-1.5">{{ r.oem_id.replace('-au','') }}</td>
+                  <td class="px-3 py-1.5 text-center" :class="r.changes > 0 ? 'font-semibold text-amber-600' : ''">{{ r.changes }}</td>
+                  <td class="px-3 py-1.5 text-center">
+                    <span v-if="r.error" class="text-destructive">{{ r.error.slice(0, 30) }}</span>
+                    <span v-else class="text-green-600">{{ r.changes > 0 ? 'Updated' : 'No changes' }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           <p v-if="crawling" class="text-sm text-muted-foreground">
