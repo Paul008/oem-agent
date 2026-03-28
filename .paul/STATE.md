@@ -38,9 +38,13 @@ PLAN ──▶ APPLY ──▶ UNIFY
 ## Session Continuity
 
 Last session: 2026-03-29
-Stopped at: Milestone created, ready to plan
-Next action: /paul:plan for Phase 12
-Resume file: .paul/ROADMAP.md
+Stopped at: v4.0 created, Phase 12 ready to plan
+Next action: /paul:plan for Phase 12 (Automation)
+Resume file: .paul/HANDOFF-2026-03-29-session7.md
+Resume context:
+- v1-v3 complete (29 plans)
+- Phase 12: Scheduled drift cron, auto-regeneration, AI quality scoring
+- Cron infra exists (wrangler.jsonc + scheduled.ts)
 
 ---
 *STATE.md — Updated after every significant action*
