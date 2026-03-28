@@ -77,6 +77,26 @@ const colors = computed(() => tokens.value?.colors ?? null)
 const typography = computed(() => tokens.value?.typography ?? null)
 const buttons = computed(() => tokens.value?.buttons ?? null)
 const spacing = computed(() => tokens.value?.spacing ?? null)
+
+// Dynamic @font-face injection from brand tokens
+const fontStyleId = 'oem-font-faces'
+watch(tokens, (t) => {
+  // Remove previous font faces
+  const existing = document.getElementById(fontStyleId)
+  if (existing) existing.remove()
+
+  const faces = t?.typography?.font_faces
+  if (!faces?.length) return
+
+  const css = faces.map((f: any) =>
+    `@font-face { font-family: '${f.family}'; font-weight: ${f.weight}; src: url('${f.url}') format('woff'); font-display: swap; }`
+  ).join('\n')
+
+  const style = document.createElement('style')
+  style.id = fontStyleId
+  style.textContent = css
+  document.head.appendChild(style)
+}, { immediate: true })
 const components = computed(() => tokens.value?.components ?? null)
 
 const recipesByPattern = computed(() => {
