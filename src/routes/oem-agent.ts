@@ -2280,6 +2280,87 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
   return c.json({ url });
 });
 
+/**
+ * POST /api/v1/oem-agent/admin/recipes/generate-component
+ * Generate an Alpine.js + Tailwind component from a recipe using AI.
+ */
+app.post('/admin/recipes/generate-component', async (c) => {
+  const body = await c.req.json<{ oem_id: string; recipe: any; thumbnail_base64?: string }>();
+  if (!body.oem_id || !body.recipe) {
+    return c.json({ error: 'oem_id and recipe are required' }, 400);
+  }
+
+  try {
+    const supabase = createSupabaseClient({
+      url: c.env.SUPABASE_URL,
+      serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    // Build brand profile from brand_tokens table
+    const { data: tokenRow } = await supabase
+      .from('brand_tokens')
+      .select('tokens_json')
+      .eq('oem_id', body.oem_id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const tokens = tokenRow?.tokens_json ?? {};
+    const brandProfile = {
+      brand_tokens: {
+        primary_color: tokens.colors?.primary || '',
+        secondary_colors: [tokens.colors?.secondary, tokens.colors?.accent].filter(Boolean) as string[],
+        font_family: tokens.typography?.font_primary || '',
+        border_radius: tokens.borders?.radius || '8px',
+        button_style: tokens.buttons?.primary?.background ? `bg:${tokens.buttons.primary.background} text:${tokens.buttons.primary.text_color}` : '',
+      },
+      extraction_hints: { hero_selectors: [], gallery_selectors: [], tab_selectors: [], known_failures: [], bot_detection: 'none' as const, wait_ms_after_load: 0 },
+      quality_history: { avg_quality_score: 0, total_runs: 0, last_run_at: '', common_errors: [] },
+      last_updated: new Date().toISOString(),
+    };
+
+    // Build section-like object from recipe
+    const recipe = body.recipe;
+    const section = {
+      type: recipe.resolves_to || recipe.pattern || 'feature-cards',
+      id: `gen-${Date.now().toString(36)}`,
+      order: 0,
+      title: recipe.label || '',
+      ...recipe.defaults_json,
+    };
+
+    // Instantiate AI router and component generator
+    const { AiRouter } = await import('../ai/router');
+    const { ComponentGenerator } = await import('../design/component-generator');
+
+    const aiRouter = new AiRouter({
+      groq: c.env.GROQ_API_KEY,
+      together: c.env.TOGETHER_API_KEY,
+      moonshot: c.env.MOONSHOT_API_KEY,
+      anthropic: c.env.ANTHROPIC_API_KEY,
+      google: c.env.GOOGLE_API_KEY,
+    }, supabase);
+
+    const generator = new ComponentGenerator({
+      aiRouter,
+      r2Bucket: c.env.MOLTBOT_BUCKET,
+    });
+
+    const result = await generator.generateComponent(
+      body.oem_id as any,
+      section as any,
+      brandProfile,
+      body.thumbnail_base64,
+    );
+
+    return c.json(result);
+  } catch (err: any) {
+    console.error('[GenerateComponent] Error:', err.message);
+    return c.json({ success: false, error: err.message || 'Generation failed' }, 500);
+  }
+});
+
 // ============================================================================
 // AI Model Configuration Routes
 // ============================================================================

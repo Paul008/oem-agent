@@ -4,7 +4,7 @@ import {
   Loader2, Palette, AlertTriangle, Type, MousePointerClick,
   Image as ImageIcon, Grid3x3, SplitSquareHorizontal, Play,
   Columns3, Database, Megaphone, Layers, Ruler, SquareStack,
-  Sparkles, Check, X, Download, FileText,
+  Sparkles, Check, X, Download, FileText, Wand2, Copy, ChevronDown,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { toPng } from 'html-to-image'
@@ -12,7 +12,7 @@ import { jsPDF } from 'jspdf'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, uploadRecipeThumbnail, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
+import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, uploadRecipeThumbnail, generateRecipeComponent, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
 
 const PATTERNS = [
   { key: 'hero', label: 'Hero', icon: ImageIcon },
@@ -50,6 +50,9 @@ const extractScreenshot = ref<string | null>(null)
 const extractError = ref<string | null>(null)
 const savingRecipeIdx = ref<number | null>(null)
 const savedRecipeIdxs = ref<Set<number>>(new Set())
+const generatingIdx = ref<number | null>(null)
+const generatedComponents = ref<Map<number, string>>(new Map())
+const expandedPreview = ref<Set<number>>(new Set())
 
 onMounted(async () => {
   try {
@@ -356,6 +359,55 @@ async function saveAllExtracted() {
   // Reload style guide data to show new recipes
   if (selectedOem.value) {
     data.value = await fetchStyleGuide(selectedOem.value)
+  }
+}
+
+async function handleGenerate(recipe: ExtractedRecipe, index: number) {
+  if (!selectedOem.value || generatingIdx.value !== null) return
+  generatingIdx.value = index
+  try {
+    const thumbDataUrl = thumbnails.value.get(index)
+    const thumbBase64 = thumbDataUrl ? thumbDataUrl.split(',')[1] : undefined
+    const result = await generateRecipeComponent(selectedOem.value, recipe, thumbBase64)
+    if (result.success && result.template_html) {
+      generatedComponents.value.set(index, result.template_html)
+      expandedPreview.value.add(index)
+      toast.success('Component generated')
+    } else {
+      toast.error(result.error || 'Generation failed')
+    }
+  } catch (err: any) {
+    toast.error(err.message || 'Generation failed')
+  } finally {
+    generatingIdx.value = null
+  }
+}
+
+function buildPreviewSrcdoc(html: string): string {
+  const fontFaces = tokens.value?.typography?.font_faces?.map((f: any) => {
+    const ext = f.url?.split('.').pop()?.toLowerCase()
+    const fmt = ext === 'woff2' ? 'woff2' : 'woff'
+    return `@font-face { font-family: '${f.family}'; font-weight: ${f.weight}; src: url('${f.url}') format('${fmt}'); font-display: swap; }`
+  }).join('\n') || ''
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer><\/script>
+<style>${fontFaces}\nbody { font-family: ${tokens.value?.typography?.font_primary || 'system-ui, sans-serif'}; margin: 0; }</style>
+</head>
+<body>${html}</body>
+</html>`
+}
+
+function copyHtml(index: number) {
+  const html = generatedComponents.value.get(index)
+  if (html) {
+    navigator.clipboard.writeText(html)
+    toast.success('HTML copied to clipboard')
   }
 }
 </script>
@@ -1073,6 +1125,16 @@ async function saveAllExtracted() {
                       {{ Math.round(recipe.confidence * 100) }}%
                     </span>
                     <UiButton
+                      size="sm"
+                      variant="outline"
+                      :disabled="generatingIdx !== null"
+                      @click="handleGenerate(recipe, idx)"
+                    >
+                      <Loader2 v-if="generatingIdx === idx" class="size-3.5 mr-1 animate-spin" />
+                      <Wand2 v-else class="size-3.5 mr-1" />
+                      {{ generatingIdx === idx ? 'Generating...' : 'Generate' }}
+                    </UiButton>
+                    <UiButton
                       v-if="!savedRecipeIdxs.has(idx)"
                       size="sm"
                       variant="outline"
@@ -1088,6 +1150,31 @@ async function saveAllExtracted() {
                 </div>
                 <div class="flex gap-4 text-xs text-muted-foreground">
                   <span>Resolves to: <code class="bg-muted px-1 rounded">{{ recipe.resolves_to }}</code></span>
+                </div>
+
+                <!-- Generated component preview -->
+                <div v-if="generatedComponents.has(idx)" class="mt-2">
+                  <button
+                    class="flex items-center gap-1 text-xs text-primary hover:underline"
+                    @click="expandedPreview.has(idx) ? expandedPreview.delete(idx) : expandedPreview.add(idx)"
+                  >
+                    <ChevronDown class="size-3" :class="{ 'rotate-180': !expandedPreview.has(idx) }" />
+                    {{ expandedPreview.has(idx) ? 'Hide' : 'Show' }} Component Preview
+                  </button>
+                  <div v-if="expandedPreview.has(idx)" class="mt-2 space-y-2">
+                    <iframe
+                      :srcdoc="buildPreviewSrcdoc(generatedComponents.get(idx)!)"
+                      class="w-full border rounded-lg bg-white"
+                      style="min-height: 200px; max-height: 400px;"
+                      sandbox="allow-scripts"
+                    />
+                    <button
+                      class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      @click="copyHtml(idx)"
+                    >
+                      <Copy class="size-3" /> Copy HTML
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -131,6 +131,14 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
+export async function generateRecipeComponent(oemId: string, recipe: ExtractedRecipe, thumbnailBase64?: string): Promise<{ success: boolean; template_html?: string; r2_key?: string; error?: string }> {
+  return workerFetch('/api/v1/oem-agent/admin/recipes/generate-component', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oem_id: oemId, recipe, thumbnail_base64: thumbnailBase64 }),
+  })
+}
+
 export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
