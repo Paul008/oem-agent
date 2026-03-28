@@ -4,7 +4,7 @@ export type PageSectionType =
   | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
   | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
-  | 'image' | 'image-showcase' | 'card-grid' | 'split-content'
+  | 'image' | 'image-showcase' | 'card-grid' | 'split-content' | 'media'
 
 export interface SectionTemplate {
   id: string
@@ -44,6 +44,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'finance-calculator': () => ({ title: 'Finance Calculator', subtitle: 'Estimate your repayments', default_price: 40000, default_deposit: 5000, default_term_months: 60, default_rate: 6.5, min_deposit: 0, max_term: 84, cta_text: 'Apply for Finance', cta_url: '#', disclaimer: 'Indicative repayments only. Contact your dealer for a personalised quote.' }),
   'card-grid': () => ({ title: '', columns: 3, cards: [{ title: '', body: '', image_url: '' }], card_composition: ['image', 'title', 'body'], card_style: { background: '#ffffff', border: '1px solid #e5e7eb', border_radius: 8, shadow: false, text_align: 'left', padding: '0' }, section_style: { background: '', padding: '' } }),
   'split-content': () => ({ title: '', body_html: '', image_url: '', image_position: 'right', layout: 'contained', background: '' }),
+  'media': () => ({ title: '', images: [{ url: '', alt: '', caption: '' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
 }
 
 export const SECTION_TEMPLATES: SectionTemplate[] = [
@@ -192,4 +193,5 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; descrip
   'image-showcase': { label: 'Image Showcase', description: 'Full-bleed stacked or fullscreen images' },
   'card-grid': { label: 'Card Grid', description: 'Composition-driven card layout from recipes' },
   'split-content': { label: 'Split Content', description: 'Text with optional image — left, right, or background' },
+  'media': { label: 'Media', description: 'Images, gallery, video, or embed' },
 }

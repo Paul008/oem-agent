@@ -1008,7 +1008,7 @@ export type PageSectionType = 'hero' | 'intro' | 'tabs' | 'color-picker' | 'spec
   | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
   | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
-  | 'image-showcase' | 'card-grid' | 'split-content';
+  | 'image-showcase' | 'card-grid' | 'split-content' | 'media';
 
 export interface HeroSection {
   type: 'hero'; id: string; order: number;
