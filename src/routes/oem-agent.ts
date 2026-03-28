@@ -2130,6 +2130,53 @@ app.get('/admin/brand-tokens/:oemId', async (c) => {
   return c.json(data?.tokens_json ?? null)
 });
 
+app.get('/admin/style-guide/:oemId', async (c) => {
+  const oemId = c.req.param('oemId')
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  })
+
+  const [
+    { data: tokenRow },
+    { data: brandRecipes },
+    { data: defaultRecipes },
+    { data: oem },
+  ] = await Promise.all([
+    supabase
+      .from('brand_tokens')
+      .select('tokens_json')
+      .eq('oem_id', oemId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from('brand_recipes')
+      .select('*')
+      .eq('oem_id', oemId)
+      .eq('is_active', true)
+      .order('pattern'),
+    supabase
+      .from('default_recipes')
+      .select('*')
+      .order('pattern'),
+    supabase
+      .from('oems')
+      .select('id, name')
+      .eq('id', oemId)
+      .single(),
+  ])
+
+  return c.json({
+    oem_id: oemId,
+    oem_name: oem?.name ?? oemId,
+    brand_tokens: tokenRow?.tokens_json ?? null,
+    brand_recipes: brandRecipes ?? [],
+    default_recipes: defaultRecipes ?? [],
+  })
+});
+
 app.get('/admin/recipes', async (c) => {
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,

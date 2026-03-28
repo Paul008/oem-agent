@@ -260,6 +260,18 @@ export async function fetchBrandTokens(oemId: string): Promise<any> {
   return workerFetch(`/api/v1/oem-agent/admin/brand-tokens/${oemId}`)
 }
 
+export interface StyleGuideData {
+  oem_id: string
+  oem_name: string
+  brand_tokens: Record<string, any> | null
+  brand_recipes: any[]
+  default_recipes: any[]
+}
+
+export async function fetchStyleGuide(oemId: string): Promise<StyleGuideData> {
+  return workerFetch(`/api/v1/oem-agent/admin/style-guide/${oemId}`)
+}
+
 export async function fetchDesignMemory(oemId: string) {
   return workerFetch(`/api/v1/oem-agent/design-memory/${oemId}`)
 }
