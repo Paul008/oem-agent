@@ -9,6 +9,7 @@ import {
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
+import RecipeVisualEditor from './components/page-builder/RecipeVisualEditor.vue'
 import { useOemData } from '@/composables/use-oem-data'
 import { fetchAllRecipes, saveRecipe as apiSaveRecipe, deleteRecipe as apiDeleteRecipe, fetchBrandTokens } from '@/lib/worker-api'
 
@@ -219,6 +220,11 @@ const previewColumns = computed(() => {
   const d = parsedDefaults.value
   if (!d) return 3
   return d.columns ?? d.card_grid?.columns ?? d.grid?.columns ?? 3
+})
+
+const editDefaults = computed({
+  get: () => parsedDefaults.value ?? {},
+  set: (val) => { defaultsJsonText.value = JSON.stringify(val, null, 2) },
 })
 
 async function handleSaveRecipe() {
@@ -463,7 +469,7 @@ async function deleteRecipe(id: string) {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       @click.self="editingRecipe = null"
     >
-      <div class="bg-background border rounded-lg shadow-lg w-full max-w-lg mx-4 p-6 space-y-4">
+      <div class="bg-background border rounded-lg shadow-lg w-full max-w-4xl mx-4 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <h2 class="text-lg font-semibold">
           {{ editingRecipe.id && editingRecipe.source === 'brand' ? 'Edit Recipe' : 'New Recipe' }}
         </h2>
@@ -521,87 +527,14 @@ async function deleteRecipe(id: string) {
             </UiSelect>
           </div>
 
-          <div>
-            <label class="text-sm font-medium mb-1 block">Defaults JSON</label>
-            <UiTextarea
-              v-model="defaultsJsonText"
-              rows="5"
-              class="font-mono text-xs"
-              placeholder='{"key": "value"}'
-            />
-          </div>
         </div>
 
-        <!-- Recipe Preview -->
-        <div v-if="parsedDefaults && editingRecipe?.pattern === 'card-grid'" class="space-y-1">
-          <label class="text-xs font-medium text-muted-foreground">Preview</label>
-          <div
-            class="border rounded-lg p-4"
-            :style="{
-              backgroundColor: parsedDefaults.section_style?.background || parsedDefaults.background_color || '#f9fafb',
-            }"
-          >
-            <div
-              class="grid gap-3"
-              :style="{ gridTemplateColumns: `repeat(${previewColumns}, 1fr)` }"
-            >
-              <div
-                v-for="i in Math.min(previewColumns, 4)"
-                :key="i"
-                class="flex flex-col gap-1.5 p-3 rounded"
-                :style="{
-                  backgroundColor: parsedDefaults.card_style?.background || parsedDefaults.background || '#fff',
-                  border: parsedDefaults.card_style?.border || 'none',
-                  boxShadow: parsedDefaults.card_style?.shadow || 'none',
-                  textAlign: parsedDefaults.card_style?.text_align || 'left',
-                  borderRadius: parsedDefaults.card_style?.border_radius || parsedDefaults.border_radius || '8px',
-                }"
-              >
-                <div
-                  v-if="parsedDefaults.card_composition?.includes('image')"
-                  class="w-full aspect-video bg-muted rounded"
-                />
-                <div
-                  v-if="parsedDefaults.card_composition?.includes('icon')"
-                  class="size-8 bg-muted rounded-full mx-auto"
-                />
-                <div class="text-xs font-semibold truncate">Card Title</div>
-                <div
-                  v-if="parsedDefaults.card_composition?.includes('body')"
-                  class="text-[10px] text-muted-foreground"
-                >
-                  Card body text preview...
-                </div>
-                <div
-                  v-if="parsedDefaults.card_composition?.includes('cta')"
-                  class="text-[10px] text-primary font-medium"
-                >
-                  Learn More →
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="parsedDefaults && editingRecipe?.pattern === 'hero'" class="space-y-1">
-          <label class="text-xs font-medium text-muted-foreground">Preview</label>
-          <div
-            class="border rounded-lg overflow-hidden bg-muted relative"
-            :style="{ minHeight: '120px' }"
-          >
-            <div
-              class="absolute inset-0 flex flex-col justify-end p-4"
-              :style="{ textAlign: parsedDefaults.text_align || 'left' }"
-            >
-              <div class="text-sm font-bold" :style="{ color: parsedDefaults.text_color || '#fff' }">
-                Hero Heading
-              </div>
-              <div class="text-[10px]" :style="{ color: parsedDefaults.text_color || '#fff', opacity: 0.8 }">
-                Sub heading text
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Visual Recipe Editor -->
+        <RecipeVisualEditor
+          v-model="editDefaults"
+          :pattern="editingRecipe.pattern || 'card-grid'"
+          :brand-tokens="brandTokens"
+        />
 
         <div class="flex justify-end gap-2 pt-2">
           <UiButton variant="outline" @click="editingRecipe = null">Cancel</UiButton>
