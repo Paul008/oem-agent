@@ -11,6 +11,7 @@ export function buildCaptureInjection(): string {
   ].join('\n')
 
   const js = `(function() {
+  console.log('[SectionCapture] Injection script loaded');
   var ignore = new Set(['HTML','BODY','HEAD','SCRIPT','STYLE','LINK','META','NOSCRIPT','BR','HR']);
   var minSize = 40;
   var hovered = null;
@@ -78,7 +79,7 @@ export function buildCaptureInjection(): string {
     el.querySelectorAll('*').forEach(function(node) {
       var s = node.getAttribute('style') || '';
       if (s.includes('url(/')) {
-        node.setAttribute('style', s.replace(/url\\\\(\\\\//g, 'url(' + base + '/'));
+        node.setAttribute('style', s.replace(/url\\(\\//, 'url(' + base + '/'));
       }
     });
   }
