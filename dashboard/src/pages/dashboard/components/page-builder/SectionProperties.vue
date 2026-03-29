@@ -128,6 +128,16 @@ function onMediaLibrarySelect(url: string) {
             </UiSelectContent>
           </UiSelect>
         </div>
+        <div v-if="section.animation && section.animation !== 'none'" class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-1 block">Duration (s)</label>
+            <UiInput type="number" :model-value="section.animation_duration ?? 0.7" class="h-8 text-xs" step="0.1" min="0.1" max="3" @update:model-value="update('animation_duration', parseFloat($event) || 0.7)" />
+          </div>
+          <div>
+            <label class="text-[10px] text-muted-foreground mb-1 block">Delay (s)</label>
+            <UiInput type="number" :model-value="section.animation_delay ?? 0" class="h-8 text-xs" step="0.1" min="0" max="3" @update:model-value="update('animation_delay', parseFloat($event) || 0)" />
+          </div>
+        </div>
 
         <!-- Text Alignment -->
         <div>

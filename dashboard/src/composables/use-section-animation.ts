@@ -40,10 +40,19 @@ const ANIMATION_PRESETS: Record<string, { from: Record<string, any>; to?: Record
   'scale-in': { from: { opacity: 0, scale: 0.9 } },
 }
 
+export interface AnimationConfig {
+  animation?: AnimationType
+  animation_duration?: number  // seconds, default 0.7
+  animation_delay?: number     // seconds, default 0
+}
+
 export function useSectionAnimation(
   animation: AnimationType | undefined,
   elementRef: Ref<HTMLElement | null>,
+  config?: { duration?: number; delay?: number },
 ) {
+  const duration = config?.duration ?? 0.7
+  const delay = config?.delay ?? 0
   const triggers: any[] = []
 
   onMounted(async () => {
@@ -72,7 +81,8 @@ export function useSectionAnimation(
           gsap.to(children, {
             opacity: 1,
             y: 0,
-            duration: 0.6,
+            duration: duration * 0.85,
+            delay,
             stagger: 0.1,
             ease: 'power2.out',
           })
@@ -96,7 +106,8 @@ export function useSectionAnimation(
             const obj = { val: 0 }
             gsap.to(obj, {
               val: target,
-              duration: 1.5,
+              duration: duration * 2,
+              delay,
               ease: 'power2.out',
               onUpdate: () => {
                 numEl.textContent = Math.round(obj.val).toLocaleString()
@@ -144,7 +155,8 @@ export function useSectionAnimation(
           x: 0,
           y: 0,
           scale: 1,
-          duration: 0.7,
+          duration,
+          delay,
           ease: 'power2.out',
           ...preset.to,
         })

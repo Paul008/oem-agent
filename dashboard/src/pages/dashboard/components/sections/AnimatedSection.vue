@@ -4,11 +4,16 @@ import { useSectionAnimation, type AnimationType } from '@/composables/use-secti
 
 const props = defineProps<{
   animation?: AnimationType
+  animationDuration?: number
+  animationDelay?: number
 }>()
 
 const sectionRef = ref<HTMLElement | null>(null)
 
-useSectionAnimation(props.animation, sectionRef)
+useSectionAnimation(props.animation, sectionRef, {
+  duration: props.animationDuration,
+  delay: props.animationDelay,
+})
 </script>
 
 <template>
