@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { useInlineEdit } from '@/composables/use-inline-edit'
+import ImageOverlay from '../page-builder/ImageOverlay.vue'
 
 const props = defineProps<{
   section: {
@@ -203,7 +204,12 @@ const isExpired = computed(() => {
       class="absolute inset-0 w-full h-full object-cover"
       :class="isFullImage ? 'object-top' : ''"
     />
-    <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+    <ImageOverlay
+      v-if="section.desktop_image_url"
+      :current-url="section.desktop_image_url"
+      @replace="emit('update-text', 'desktop_image_url', $event)"
+    />
+    <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
     <div class="absolute" :class="[overlayPos(), textAlignClass()]">
       <h2
         class="drop-shadow-lg cursor-text outline-none"

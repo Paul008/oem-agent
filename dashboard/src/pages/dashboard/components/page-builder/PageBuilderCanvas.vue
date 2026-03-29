@@ -248,7 +248,8 @@ ${rendered}
             v-if="resolveComponent(section)"
             :is="resolveComponent(section)"
             :section="section"
-            v-bind="section.type === 'color-picker' ? { oemId: props.oemId, modelSlug: props.modelSlug } : {}"
+            :oem-id="props.oemId"
+            :model-slug="props.modelSlug"
             @inline-edit="(field: string, value: string, el: HTMLElement) => {
               editingTarget = el
               editingSectionId = section.id
