@@ -45,6 +45,9 @@ const referenceScreenshot = ref<string | null>(null)
 const configSchema = ref<Record<string, { type: string; label: string; default: any; options?: any[] }> | null>(null)
 const configValues = ref<Record<string, any>>({})
 
+// Accordion state — preview open by default
+const openPanels = ref(['preview'])
+
 onMounted(async () => {
   const o = await fetchOems()
   oems.value = o
@@ -210,6 +213,10 @@ function addSlot(slot: string) {
 function removeSlot(index: number) {
   editDefaults.value.card_composition?.splice(index, 1)
 }
+
+function updateConfigSelect(key: string, value: string) {
+  configValues.value[key] = value
+}
 </script>
 
 <template>
@@ -269,8 +276,8 @@ function removeSlot(index: number) {
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-semibold">{{ selectedRecipe.label }}</h2>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{{ selectedRecipe.pattern }}</span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{{ selectedRecipe.variant }}</span>
+            <UiBadge variant="outline" class="text-[10px]">{{ selectedRecipe.pattern }}</UiBadge>
+            <UiBadge variant="secondary" class="text-[10px]">{{ selectedRecipe.variant }}</UiBadge>
           </div>
           <div class="flex gap-2">
             <UiButton size="sm" :disabled="regenerating" @click="handleRegenerate">
@@ -286,144 +293,167 @@ function removeSlot(index: number) {
           </div>
         </div>
 
-        <!-- Panel 1: OEM Reference (full width) with inline capture -->
-        <div class="border rounded-lg overflow-hidden">
-          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center justify-between">
-            <span class="flex items-center gap-1"><Eye class="size-3" /> OEM Original</span>
-            <div class="flex items-center gap-2">
-              <input
-                v-model="referenceUrl"
-                placeholder="Paste OEM page URL to capture reference..."
-                class="w-64 rounded border bg-background px-2 py-1 text-xs"
-                @keydown.enter="captureReference"
-              />
-              <UiButton size="sm" variant="ghost" :disabled="!referenceUrl || capturingReference" @click="captureReference">
-                <Loader2 v-if="capturingReference" class="size-3 animate-spin" />
-                <Eye v-else class="size-3" />
-              </UiButton>
-            </div>
-          </div>
-          <div v-if="capturingReference" class="py-12 text-center">
-            <Loader2 class="size-6 animate-spin text-muted-foreground mx-auto mb-2" />
-            <p class="text-xs text-muted-foreground">Capturing screenshot...</p>
-          </div>
-          <div v-else-if="referenceScreenshot" class="bg-muted/10">
-            <img :src="referenceScreenshot" class="w-full object-contain" style="max-height: 500px;" />
-          </div>
-          <div v-else class="py-6 text-center text-xs text-muted-foreground">
-            <Eye class="size-5 mx-auto opacity-20 mb-1" />
-            <p>Paste an OEM URL above to capture a reference screenshot</p>
-          </div>
-        </div>
+        <!-- Accordion panels -->
+        <UiAccordion type="multiple" v-model="openPanels" class="space-y-3">
 
-        <!-- Panel 2: AI-Dynamic Recipe Controls -->
-        <div class="border rounded-lg overflow-hidden">
-          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center justify-between">
-            <span>Recipe Controls</span>
-            <span v-if="configSchema" class="text-[10px] text-muted-foreground">{{ Object.keys(configSchema).length }} configurable properties</span>
-            <span v-else class="text-[10px] text-muted-foreground">Click Regenerate to discover controls</span>
-          </div>
-
-          <!-- Dynamic controls from AI config_schema -->
-          <div v-if="configSchema && Object.keys(configSchema).length" class="p-4">
-            <div class="grid grid-cols-3 gap-4">
-              <div v-for="(field, key) in configSchema" :key="key" class="space-y-1">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">{{ field.label }}</label>
-
-                <!-- String input -->
-                <input
-                  v-if="field.type === 'string'"
-                  v-model="configValues[key]"
-                  type="text"
-                  class="w-full rounded border bg-background px-2 py-1.5 text-xs"
+          <!-- Panel 1: OEM Reference -->
+          <UiAccordionItem value="reference" class="border rounded-lg overflow-hidden">
+            <UiAccordionTrigger class="px-4 py-2 bg-muted/50 text-xs font-medium hover:no-underline">
+              <span class="flex items-center gap-1"><Eye class="size-3" /> OEM Original</span>
+            </UiAccordionTrigger>
+            <UiAccordionContent class="pb-0">
+              <!-- Capture bar -->
+              <div class="px-4 py-2 border-b flex items-center gap-2">
+                <UiInput
+                  v-model="referenceUrl"
+                  placeholder="Paste OEM page URL to capture reference..."
+                  class="h-7 text-xs flex-1"
+                  @keydown.enter="captureReference"
                 />
+                <UiButton size="sm" variant="ghost" :disabled="!referenceUrl || capturingReference" @click="captureReference">
+                  <Loader2 v-if="capturingReference" class="size-3 animate-spin" />
+                  <Eye v-else class="size-3" />
+                </UiButton>
+              </div>
+              <div v-if="capturingReference" class="py-12 text-center">
+                <Loader2 class="size-6 animate-spin text-muted-foreground mx-auto mb-2" />
+                <p class="text-xs text-muted-foreground">Capturing screenshot...</p>
+              </div>
+              <div v-else-if="referenceScreenshot" class="bg-muted/10">
+                <img :src="referenceScreenshot" class="w-full object-contain" style="max-height: 500px;" />
+              </div>
+              <div v-else class="py-6 text-center text-xs text-muted-foreground">
+                <Eye class="size-5 mx-auto opacity-20 mb-1" />
+                <p>Paste an OEM URL above to capture a reference screenshot</p>
+              </div>
+            </UiAccordionContent>
+          </UiAccordionItem>
 
-                <!-- Number input -->
-                <input
-                  v-else-if="field.type === 'number'"
-                  v-model.number="configValues[key]"
-                  type="number"
-                  class="w-full rounded border bg-background px-2 py-1.5 text-xs"
-                />
+          <!-- Panel 2: AI-Dynamic Recipe Controls -->
+          <UiAccordionItem value="controls" class="border rounded-lg overflow-hidden">
+            <UiAccordionTrigger class="px-4 py-2 bg-muted/50 text-xs font-medium hover:no-underline">
+              <div class="flex items-center justify-between w-full pr-2">
+                <span>Recipe Controls</span>
+                <span v-if="configSchema" class="text-[10px] text-muted-foreground">{{ Object.keys(configSchema).length }} configurable properties</span>
+                <span v-else class="text-[10px] text-muted-foreground">Click Regenerate to discover controls</span>
+              </div>
+            </UiAccordionTrigger>
+            <UiAccordionContent class="pb-0">
+              <!-- Dynamic controls from AI config_schema -->
+              <div v-if="configSchema && Object.keys(configSchema).length" class="p-4">
+                <div class="grid grid-cols-3 gap-4">
+                  <div v-for="(field, key) in configSchema" :key="key" class="space-y-1.5">
+                    <UiLabel class="text-[10px] font-semibold text-muted-foreground uppercase">{{ field.label }}</UiLabel>
 
-                <!-- Boolean checkbox -->
-                <div v-else-if="field.type === 'boolean'" class="flex items-center gap-2 pt-1">
-                  <input v-model="configValues[key]" type="checkbox" />
-                  <span class="text-xs text-muted-foreground">{{ configValues[key] ? 'Yes' : 'No' }}</span>
+                    <!-- String input -->
+                    <UiInput
+                      v-if="field.type === 'string'"
+                      v-model="configValues[key]"
+                      type="text"
+                      class="h-8 text-xs"
+                    />
+
+                    <!-- Number input -->
+                    <UiInput
+                      v-else-if="field.type === 'number'"
+                      v-model.number="configValues[key]"
+                      type="number"
+                      class="h-8 text-xs"
+                    />
+
+                    <!-- Boolean switch -->
+                    <div v-else-if="field.type === 'boolean'" class="flex items-center gap-2 pt-1">
+                      <UiSwitch
+                        :checked="configValues[key]"
+                        @update:checked="configValues[key] = $event"
+                      />
+                      <span class="text-xs text-muted-foreground">{{ configValues[key] ? 'Yes' : 'No' }}</span>
+                    </div>
+
+                    <!-- Select dropdown -->
+                    <UiSelect
+                      v-else-if="field.type === 'select'"
+                      :model-value="configValues[key]"
+                      @update:model-value="updateConfigSelect(key as string, $event)"
+                    >
+                      <UiSelectTrigger class="h-8 text-xs">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+
+                    <!-- Color input -->
+                    <div v-else-if="field.type === 'color'" class="flex items-center gap-2">
+                      <input v-model="configValues[key]" type="color" class="size-7 rounded border cursor-pointer" />
+                      <UiInput v-model="configValues[key]" type="text" class="h-8 flex-1 text-xs font-mono" />
+                    </div>
+                  </div>
                 </div>
+              </div>
 
-                <!-- Select dropdown -->
-                <select
-                  v-else-if="field.type === 'select'"
-                  v-model="configValues[key]"
-                  class="w-full rounded border bg-background px-2 py-1.5 text-xs"
+              <!-- Placeholder before first generation -->
+              <div v-else class="py-6 text-center text-xs text-muted-foreground">
+                <Wand2 class="size-5 mx-auto opacity-20 mb-1" />
+                <p>Click Regenerate — AI will create controls specific to this component</p>
+              </div>
+            </UiAccordionContent>
+          </UiAccordionItem>
+
+          <!-- Panel 3: Live Preview -->
+          <UiAccordionItem value="preview" class="border rounded-lg overflow-hidden">
+            <UiAccordionTrigger class="px-4 py-2 bg-muted/50 text-xs font-medium hover:no-underline">
+              <div class="flex items-center justify-between w-full pr-2">
+                <span class="flex items-center gap-1"><Wand2 class="size-3" /> Live Preview</span>
+                <div class="flex items-center gap-1 bg-muted rounded-md p-0.5" @click.stop>
+                  <button
+                    class="p-1 rounded"
+                    :class="previewViewport === 'desktop' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+                    @click="previewViewport = 'desktop'"
+                    title="Desktop (100%)"
+                  ><Monitor class="size-3.5" /></button>
+                  <button
+                    class="p-1 rounded"
+                    :class="previewViewport === 'tablet' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+                    @click="previewViewport = 'tablet'"
+                    title="Tablet (768px)"
+                  ><Tablet class="size-3.5" /></button>
+                  <button
+                    class="p-1 rounded"
+                    :class="previewViewport === 'mobile' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+                    @click="previewViewport = 'mobile'"
+                    title="Mobile (375px)"
+                  ><Smartphone class="size-3.5" /></button>
+                </div>
+              </div>
+            </UiAccordionTrigger>
+            <UiAccordionContent class="pb-0">
+              <div class="bg-muted/20 flex justify-center py-4" :class="previewViewport !== 'desktop' ? 'px-4' : ''">
+                <div
+                  class="bg-white transition-all duration-300"
+                  :style="{ width: viewportWidths[previewViewport], maxWidth: '100%' }"
+                  :class="previewViewport !== 'desktop' ? 'border rounded-lg shadow-lg overflow-hidden' : 'w-full'"
                 >
-                  <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-                </select>
-
-                <!-- Color input -->
-                <div v-else-if="field.type === 'color'" class="flex items-center gap-2">
-                  <input v-model="configValues[key]" type="color" class="size-7 rounded border cursor-pointer" />
-                  <input v-model="configValues[key]" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs font-mono" />
+                  <div v-if="regenerating" class="py-20 flex items-center justify-center">
+                    <Loader2 class="size-6 animate-spin text-muted-foreground" />
+                  </div>
+                  <iframe
+                    v-else-if="previewHtml"
+                    :srcdoc="buildSrcdoc(previewHtml)"
+                    class="w-full"
+                    style="min-height: 500px;"
+                    sandbox="allow-scripts"
+                  />
+                  <div v-else class="py-20 flex items-center justify-center text-xs text-muted-foreground">
+                    Click Regenerate to preview
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </UiAccordionContent>
+          </UiAccordionItem>
 
-          <!-- Placeholder before first generation -->
-          <div v-else class="py-6 text-center text-xs text-muted-foreground">
-            <Wand2 class="size-5 mx-auto opacity-20 mb-1" />
-            <p>Click Regenerate — AI will create controls specific to this component</p>
-          </div>
-        </div>
-
-        <!-- Panel 3: Live Preview (full width — heroes/carousels need space) -->
-        <div class="border rounded-lg overflow-hidden">
-          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center justify-between">
-            <span class="flex items-center gap-1"><Wand2 class="size-3" /> Live Preview</span>
-            <div class="flex items-center gap-1 bg-muted rounded-md p-0.5">
-              <button
-                class="p-1 rounded"
-                :class="previewViewport === 'desktop' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-                @click="previewViewport = 'desktop'"
-                title="Desktop (100%)"
-              ><Monitor class="size-3.5" /></button>
-              <button
-                class="p-1 rounded"
-                :class="previewViewport === 'tablet' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-                @click="previewViewport = 'tablet'"
-                title="Tablet (768px)"
-              ><Tablet class="size-3.5" /></button>
-              <button
-                class="p-1 rounded"
-                :class="previewViewport === 'mobile' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-                @click="previewViewport = 'mobile'"
-                title="Mobile (375px)"
-              ><Smartphone class="size-3.5" /></button>
-            </div>
-          </div>
-          <div class="bg-muted/20 flex justify-center py-4" :class="previewViewport !== 'desktop' ? 'px-4' : ''">
-            <div
-              class="bg-white transition-all duration-300"
-              :style="{ width: viewportWidths[previewViewport], maxWidth: '100%' }"
-              :class="previewViewport !== 'desktop' ? 'border rounded-lg shadow-lg overflow-hidden' : 'w-full'"
-            >
-              <div v-if="regenerating" class="py-20 flex items-center justify-center">
-                <Loader2 class="size-6 animate-spin text-muted-foreground" />
-              </div>
-              <iframe
-                v-else-if="previewHtml"
-                :srcdoc="buildSrcdoc(previewHtml)"
-                class="w-full"
-                style="min-height: 500px;"
-                sandbox="allow-scripts"
-              />
-              <div v-else class="py-20 flex items-center justify-center text-xs text-muted-foreground">
-                Click Regenerate to preview
-              </div>
-            </div>
-          </div>
-        </div>
+        </UiAccordion>
       </div>
 
       <!-- No recipe selected -->
