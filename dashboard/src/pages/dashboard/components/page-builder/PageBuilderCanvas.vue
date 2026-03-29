@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { defineAsyncComponent, ref } from 'vue'
-import { AlertCircle, Settings, GripVertical, Monitor, Tablet, Smartphone } from 'lucide-vue-next'
+import { defineAsyncComponent, ref, nextTick } from 'vue'
+import { AlertCircle, Settings, GripVertical, Monitor, Tablet, Smartphone, Pipette, Copy, Trash2, Palette } from 'lucide-vue-next'
 import EditToolbar from './EditToolbar.vue'
 
 // Responsive preview
@@ -27,7 +27,44 @@ const emit = defineEmits<{
   openEditor: [id: string]
   moveSection: [fromIndex: number, toIndex: number]
   updateField: [sectionId: string, field: string, value: any]
+  duplicateSection: [id: string]
+  deleteSection: [id: string]
 }>()
+
+// Context menu state
+const contextMenu = ref<{ x: number; y: number; sectionId: string; sectionIndex: number } | null>(null)
+const bgColorInput = ref(false)
+
+function onContextMenu(e: MouseEvent, sectionId: string, index: number) {
+  e.preventDefault()
+  contextMenu.value = { x: e.clientX, y: e.clientY, sectionId, sectionIndex: index }
+  bgColorInput.value = false
+}
+
+function closeContextMenu() {
+  contextMenu.value = null
+  bgColorInput.value = false
+}
+
+function setBgColor(sectionId: string, color: string) {
+  emit('updateField', sectionId, 'background', color)
+  emit('updateField', sectionId, 'background_color', color)
+}
+
+function onBgColorInput(e: Event) {
+  const val = (e.target as HTMLInputElement).value
+  if (contextMenu.value?.sectionId) setBgColor(contextMenu.value.sectionId, val)
+}
+
+async function eyedropBg(sectionId: string) {
+  if (!('EyeDropper' in window)) return
+  closeContextMenu()
+  try {
+    const dropper = new (window as any).EyeDropper()
+    const result = await dropper.open()
+    if (result?.sRGBHex) setBgColor(sectionId, result.sRGBHex)
+  } catch { /* cancelled */ }
+}
 
 // Inline editing state
 const editingTarget = ref<HTMLElement | null>(null)
@@ -251,6 +288,7 @@ ${rendered}
           :style="sectionStyle(section)"
           :draggable="false"
           @click="emit('selectSection', section.id)"
+          @contextmenu="onContextMenu($event, section.id, index)"
           @dragover="onDragOver($event, index)"
           @dragleave="onDragLeave"
           @drop="onDrop($event, index)"
@@ -318,6 +356,37 @@ ${rendered}
       :text-color="editingSection?.text_color"
       @update-field="onToolbarUpdate"
     />
+
+    <!-- Right-click context menu -->
+    <Teleport v-if="contextMenu" to="body">
+      <div class="fixed inset-0 z-[55]" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu" />
+      <div
+        class="fixed z-[56] bg-card border rounded-lg shadow-xl py-1 min-w-[180px]"
+        :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      >
+        <button class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted text-left" @click="emit('openEditor', contextMenu.sectionId); closeContextMenu()">
+          <Settings class="size-3.5 text-muted-foreground" /> Edit Section
+        </button>
+        <div class="h-px bg-border my-1" />
+        <button class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted text-left" @click="bgColorInput = !bgColorInput">
+          <Palette class="size-3.5 text-muted-foreground" /> Background Color
+        </button>
+        <div v-if="bgColorInput" class="px-3 py-2 flex items-center gap-1.5">
+          <input type="color" value="#ffffff" class="size-7 rounded cursor-pointer border-0 p-0" @input="onBgColorInput" />
+          <input type="text" placeholder="#000000" class="h-7 w-20 text-xs font-mono px-1.5 border rounded" @change="onBgColorInput" />
+          <button v-if="'EyeDropper' in window" class="p-1 rounded hover:bg-muted" title="Pick from screen" @click="eyedropBg(contextMenu.sectionId)">
+            <Pipette class="size-3.5" />
+          </button>
+        </div>
+        <div class="h-px bg-border my-1" />
+        <button class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted text-left" @click="emit('duplicateSection', contextMenu.sectionId); closeContextMenu()">
+          <Copy class="size-3.5 text-muted-foreground" /> Duplicate
+        </button>
+        <button class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted text-left text-destructive" @click="emit('deleteSection', contextMenu.sectionId); closeContextMenu()">
+          <Trash2 class="size-3.5" /> Delete
+        </button>
+      </div>
+    </Teleport>
 
     <!-- Cloned page in iframe (not yet structured) -->
     <template v-else-if="isCloned && page?.content?.rendered">
