@@ -49,7 +49,14 @@ export function useSectionAnimation(
   onMounted(async () => {
     if (!animation || animation === 'none' || !elementRef.value) return
 
-    const { gsap, ScrollTrigger } = await ensureGsap()
+    let gsapMod: Awaited<ReturnType<typeof ensureGsap>>
+    try {
+      gsapMod = await ensureGsap()
+    } catch {
+      // GSAP failed to load — skip animations silently
+      return
+    }
+    const { gsap, ScrollTrigger } = gsapMod
     const el = elementRef.value
 
     if (animation === 'stagger-children') {

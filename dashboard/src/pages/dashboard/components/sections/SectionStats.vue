@@ -57,7 +57,7 @@ function updateStat(index: number, field: string, value: string) {
       >
         <img v-if="stat.icon_url" :src="stat.icon_url" :alt="stat.label" class="size-8 mx-auto mb-2 object-contain" />
         <p class="text-3xl font-bold leading-tight">
-          {{ stat.value || '—' }}
+          <span :data-count-target="parseFloat(stat.value) || undefined">{{ stat.value || '—' }}</span>
           <span v-if="stat.unit" class="text-base font-normal opacity-70">{{ stat.unit }}</span>
         </p>
         <p class="text-sm opacity-70 mt-1">{{ stat.label }}</p>

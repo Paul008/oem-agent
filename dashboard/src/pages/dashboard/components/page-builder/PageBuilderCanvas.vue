@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { defineAsyncComponent, ref, nextTick } from 'vue'
-import { AlertCircle, Settings, GripVertical, Monitor, Tablet, Smartphone, Pipette, Copy, Trash2, Palette } from 'lucide-vue-next'
+import { AlertCircle, Settings, GripVertical, Monitor, Tablet, Smartphone, Pipette, Copy, Trash2, Palette, Play } from 'lucide-vue-next'
 import EditToolbar from './EditToolbar.vue'
 
 // Responsive preview
@@ -30,6 +30,28 @@ const emit = defineEmits<{
   duplicateSection: [id: string]
   deleteSection: [id: string]
 }>()
+
+// Preview animation on a section
+async function previewAnimation(sectionId: string, animation: string) {
+  const el = document.querySelector(`[data-section-id="${sectionId}"]`) as HTMLElement
+  if (!el || !animation || animation === 'none') return
+  const { gsap } = await import('gsap')
+  // Reset then play
+  gsap.set(el, { opacity: 1, x: 0, y: 0, scale: 1 })
+  const presets: Record<string, any> = {
+    'fade-up': { from: { opacity: 0, y: 40 }, to: { opacity: 1, y: 0 } },
+    'fade-in': { from: { opacity: 0 }, to: { opacity: 1 } },
+    'slide-left': { from: { opacity: 0, x: -60 }, to: { opacity: 1, x: 0 } },
+    'slide-right': { from: { opacity: 0, x: 60 }, to: { opacity: 1, x: 0 } },
+    'scale-in': { from: { opacity: 0, scale: 0.9 }, to: { opacity: 1, scale: 1 } },
+  }
+  const preset = presets[animation]
+  if (preset) {
+    gsap.fromTo(el, preset.from, { ...preset.to, duration: 0.7, ease: 'power2.out' })
+  } else if (animation === 'stagger-children') {
+    gsap.fromTo(el.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' })
+  }
+}
 
 // Context menu state
 const contextMenu = ref<{ x: number; y: number; sectionId: string; sectionIndex: number } | null>(null)
@@ -284,6 +306,7 @@ ${rendered}
             dragIndex === index ? 'opacity-40' : '',
             dropIndex === index && dragIndex !== index ? 'ring-2 ring-blue-500 ring-offset-2' : '',
           ]"
+          :data-section-id="section.id"
           :style="sectionStyle(section)"
           :draggable="false"
           @click="emit('selectSection', section.id)"
@@ -308,9 +331,18 @@ ${rendered}
             <span class="bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
               {{ section.type }}
             </span>
-            <span v-if="section.animation && section.animation !== 'none'" class="bg-purple-600 text-white text-[9px] font-medium px-1.5 py-0.5 rounded">
-              {{ section.animation }}
-            </span>
+            <template v-if="section.animation && section.animation !== 'none'">
+              <span class="bg-purple-600 text-white text-[9px] font-medium px-1.5 py-0.5 rounded">
+                {{ section.animation }}
+              </span>
+              <button
+                class="bg-purple-600 hover:bg-purple-700 text-white rounded p-1 transition-colors"
+                title="Preview animation"
+                @click.stop="previewAnimation(section.id, section.animation)"
+              >
+                <Play class="size-3" />
+              </button>
+            </template>
             <button
               class="bg-black/70 hover:bg-black/90 text-white rounded p-1 transition-colors"
               title="Edit section"
