@@ -58,6 +58,9 @@ export function useSectionAnimation(
   onMounted(async () => {
     if (!animation || animation === 'none' || !elementRef.value) return
 
+    // Respect prefers-reduced-motion accessibility setting
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+
     let gsapMod: Awaited<ReturnType<typeof ensureGsap>>
     try {
       gsapMod = await ensureGsap()

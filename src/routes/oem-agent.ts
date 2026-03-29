@@ -283,6 +283,27 @@ ${body.html}`;
       Object.assign(section, rewritten);
     }
 
+    // Suggest a default animation based on section type
+    const animationDefaults: Record<string, string> = {
+      'hero': 'none',
+      'heading': 'fade-up',
+      'intro': 'fade-up',
+      'feature-cards': 'stagger-children',
+      'gallery': 'stagger-children',
+      'stats': 'count-up',
+      'video': 'fade-in',
+      'cta-banner': 'fade-up',
+      'content-block': 'fade-up',
+      'testimonial': 'fade-in',
+      'image': 'fade-in',
+      'image-showcase': 'fade-in',
+      'pricing-table': 'stagger-children',
+      'accordion': 'fade-up',
+    };
+    if (!section.animation) {
+      section.animation = animationDefaults[result.type] || 'fade-up';
+    }
+
     return c.json({
       type: result.type,
       data: section,
