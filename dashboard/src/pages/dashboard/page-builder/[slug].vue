@@ -8,6 +8,7 @@ import {
 } from 'lucide-vue-next'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { useOemData } from '@/composables/use-oem-data'
+import { generatePage } from '@/lib/worker-api'
 import { useThemeStore } from '@/stores/theme'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
@@ -50,6 +51,28 @@ const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
 )
+
+const is404 = computed(() => error.value?.includes('404'))
+const generatingPage = ref(false)
+const generateError = ref<string | null>(null)
+
+async function handleGeneratePage() {
+  if (!oemId.value || !modelSlug.value) return
+  generatingPage.value = true
+  generateError.value = null
+  try {
+    const result = await generatePage(oemId.value, modelSlug.value)
+    if (result.success) {
+      await loadPage(route.params.slug as string)
+    } else {
+      generateError.value = result.error || 'Generation failed'
+    }
+  } catch (err: any) {
+    generateError.value = err.message || 'Generation failed'
+  } finally {
+    generatingPage.value = false
+  }
+}
 
 function openEditor(id: string) {
   selectSection(id)
@@ -566,12 +589,42 @@ const workflowSteps = computed(() => {
       </div>
     </div>
 
-    <!-- Error banner -->
+    <!-- Error banner (non-404) -->
     <div
-      v-if="error"
+      v-if="error && !is404"
       class="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b shrink-0"
     >
       {{ error }}
+    </div>
+
+    <!-- 404 empty state — page not generated yet -->
+    <div v-if="is404 && !loading" class="flex-1 flex items-center justify-center">
+      <div class="text-center max-w-md space-y-4">
+        <div class="mx-auto size-16 rounded-full bg-muted flex items-center justify-center">
+          <Globe class="size-8 text-muted-foreground" />
+        </div>
+        <h2 class="text-xl font-semibold">Page not generated yet</h2>
+        <p class="text-sm text-muted-foreground">
+          No page exists for <span class="font-medium text-foreground">{{ oemId }} / {{ modelSlug }}</span>.
+          Generate one from the OEM source site.
+        </p>
+        <div v-if="generateError" class="text-sm text-destructive">{{ generateError }}</div>
+        <button
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          :disabled="generatingPage"
+          @click="handleGeneratePage"
+        >
+          <Loader2 v-if="generatingPage" class="size-4 animate-spin" />
+          <Sparkles v-else class="size-4" />
+          {{ generatingPage ? 'Generating...' : 'Generate Page' }}
+        </button>
+        <p v-if="generatingPage" class="text-xs text-muted-foreground">This may take 1–2 minutes</p>
+        <div class="pt-2">
+          <button class="text-sm text-muted-foreground hover:text-foreground" @click="router.push('/dashboard/model-pages')">
+            <ArrowLeft class="size-3 inline mr-1" /> Back to model pages
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Loading state -->
