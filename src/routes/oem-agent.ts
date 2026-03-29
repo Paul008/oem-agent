@@ -196,10 +196,23 @@ HTML to analyze:
 ${body.html}`;
 
   try {
-    const result = await aiRouter.generateJson(prompt, 'gemini-flash');
+    const response = await aiRouter.route({
+      taskType: 'page_structuring',
+      prompt,
+      requireJson: true,
+    });
+
+    let result: any;
+    try {
+      // Parse JSON from response content (may have markdown fences)
+      const text = response.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      result = JSON.parse(text);
+    } catch (parseErr: any) {
+      return c.json({ error: 'AI returned invalid JSON', raw: response.content?.slice(0, 500) }, 422);
+    }
 
     if (!result?.type) {
-      return c.json({ error: 'AI could not identify section type' }, 422);
+      return c.json({ error: 'AI could not identify section type', raw: result }, 422);
     }
 
     // Download images to R2 if oem_id provided
