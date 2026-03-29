@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Eye, Wand2, Save, X, Plus, Trash2, GripVertical } from 'lucide-vue-next'
+import { Loader2, Eye, Wand2, Save, X, Plus, Trash2, GripVertical, Monitor, Tablet, Smartphone } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
@@ -33,6 +33,8 @@ const editDefaults = ref<Record<string, any>>({})
 const previewHtml = ref<string | null>(null)
 const regenerating = ref(false)
 const saving = ref(false)
+const previewViewport = ref<'desktop' | 'tablet' | 'mobile'>('desktop')
+const viewportWidths = { desktop: '100%', tablet: '768px', mobile: '375px' }
 
 onMounted(async () => {
   const o = await fetchOems()
@@ -357,22 +359,48 @@ function removeSlot(index: number) {
 
         <!-- Panel 3: Live Preview (full width — heroes/carousels need space) -->
         <div class="border rounded-lg overflow-hidden">
-          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center gap-1">
-            <Wand2 class="size-3" /> Live Preview
-          </div>
-          <div class="bg-white">
-            <div v-if="regenerating" class="py-20 flex items-center justify-center">
-              <Loader2 class="size-6 animate-spin text-muted-foreground" />
+          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center justify-between">
+            <span class="flex items-center gap-1"><Wand2 class="size-3" /> Live Preview</span>
+            <div class="flex items-center gap-1 bg-muted rounded-md p-0.5">
+              <button
+                class="p-1 rounded"
+                :class="previewViewport === 'desktop' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+                @click="previewViewport = 'desktop'"
+                title="Desktop (100%)"
+              ><Monitor class="size-3.5" /></button>
+              <button
+                class="p-1 rounded"
+                :class="previewViewport === 'tablet' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+                @click="previewViewport = 'tablet'"
+                title="Tablet (768px)"
+              ><Tablet class="size-3.5" /></button>
+              <button
+                class="p-1 rounded"
+                :class="previewViewport === 'mobile' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+                @click="previewViewport = 'mobile'"
+                title="Mobile (375px)"
+              ><Smartphone class="size-3.5" /></button>
             </div>
-            <iframe
-              v-else-if="previewHtml"
-              :srcdoc="buildSrcdoc(previewHtml)"
-              class="w-full"
-              style="min-height: 500px;"
-              sandbox="allow-scripts"
-            />
-            <div v-else class="py-20 flex items-center justify-center text-xs text-muted-foreground">
-              Click Regenerate to preview
+          </div>
+          <div class="bg-muted/20 flex justify-center py-4" :class="previewViewport !== 'desktop' ? 'px-4' : ''">
+            <div
+              class="bg-white transition-all duration-300"
+              :style="{ width: viewportWidths[previewViewport], maxWidth: '100%' }"
+              :class="previewViewport !== 'desktop' ? 'border rounded-lg shadow-lg overflow-hidden' : 'w-full'"
+            >
+              <div v-if="regenerating" class="py-20 flex items-center justify-center">
+                <Loader2 class="size-6 animate-spin text-muted-foreground" />
+              </div>
+              <iframe
+                v-else-if="previewHtml"
+                :srcdoc="buildSrcdoc(previewHtml)"
+                class="w-full"
+                style="min-height: 500px;"
+                sandbox="allow-scripts"
+              />
+              <div v-else class="py-20 flex items-center justify-center text-xs text-muted-foreground">
+                Click Regenerate to preview
+              </div>
             </div>
           </div>
         </div>
