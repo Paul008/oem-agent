@@ -63,9 +63,8 @@ function updateEditorSection(updates: Record<string, any>) {
 }
 
 function onCaptureHtml(html: string) {
-  // Add captured HTML as a content-block section
+  // Fallback: add captured HTML as a content-block section
   addSection('content-block')
-  // Update the newly added section with captured HTML
   const newest = sections.value[sections.value.length - 1]
   if (newest) {
     updateSection(newest.id, {
@@ -73,6 +72,16 @@ function onCaptureHtml(html: string) {
       content_html: html,
       layout: 'full-width',
     })
+  }
+}
+
+function onSmartCapture(section: { type: string; data: Record<string, any> }) {
+  // AI identified the section type — create a properly typed section
+  const type = section.type as any
+  addSection(type)
+  const newest = sections.value[sections.value.length - 1]
+  if (newest) {
+    updateSection(newest.id, section.data)
   }
 }
 const oems = ref<{ id: string; name: string }[]>([])
@@ -651,8 +660,11 @@ const workflowSteps = computed(() => {
     <SectionCapture
       v-if="showCapture"
       :worker-base="WORKER_BASE"
+      :oem-id="oemId"
+      :model-slug="modelSlug"
       @close="showCapture = false"
       @capture="onCaptureHtml"
+      @smart-capture="onSmartCapture"
     />
 
     <!-- Section Browser Dialog (import from other pages) -->

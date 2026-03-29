@@ -134,6 +134,154 @@ app.get('/admin/proxy-html', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/smart-capture
+ * Takes captured HTML from the section capture tool, sends to Gemini
+ * to identify section type, extracts structured data, downloads images to R2.
+ */
+app.post('/admin/smart-capture', async (c) => {
+  const body = await c.req.json<{
+    html: string;
+    source_url?: string;
+    oem_id?: string;
+    model_slug?: string;
+  }>();
+
+  if (!body.html) return c.json({ error: 'html is required' }, 400);
+  if (body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, null);
+
+  const prompt = `You are a section analyzer for an automotive page builder. Analyze this HTML fragment captured from an OEM website and identify what type of section it is.
+
+Return a JSON object with:
+{
+  "type": "hero" | "intro" | "gallery" | "feature-cards" | "video" | "cta-banner" | "content-block" | "tabs" | "testimonial" | "stats" | "pricing-table" | "accordion" | "image" | "image-showcase" | "heading" | "embed",
+  "data": { ... section-specific fields ... }
+}
+
+Section type mapping:
+- Large banner/hero image with text overlay → "hero" with heading, sub_heading, cta_text, cta_url, desktop_image_url
+- Image carousel/slider/gallery → "gallery" with title, images[{url, alt, caption}], layout:"carousel"
+- Grid of cards with image+title+description → "feature-cards" with title, cards[{title, description, image_url}], columns
+- Video embed (YouTube/Vimeo/mp4) → "video" with title, video_url, poster_url
+- Call-to-action section → "cta-banner" with heading, body, cta_text, cta_url, background_color
+- Text content with optional image → "intro" with title, body_html, image_url, image_position
+- Single image → "image" with desktop_image_url, alt, caption, layout:"full-width"
+- Multiple stacked full-bleed images → "image-showcase" with title, images[{url, alt, caption}], layout:"stacked"
+- Tabbed content → "tabs" with title, tabs[{label, content_html, image_url}]
+- Customer reviews → "testimonial" with title, testimonials[{quote, author, role, rating}]
+- Key statistics/numbers → "stats" with title, stats[{value, label, unit}]
+- FAQ/accordion → "accordion" with title, items[{question, answer}]
+- Price comparison → "pricing-table" with title, tiers[{name, price, features, cta_text}]
+- Just a heading → "heading" with heading, sub_heading
+- iframe embed → "embed" with title, embed_url
+- Rich HTML content → "content-block" with title, content_html
+
+Rules:
+1. Extract ALL image URLs as absolute URLs (keep as-is if already absolute)
+2. Clean content_html — strip inline styles, keep semantic tags (p, h2, h3, ul, li, strong, em, a)
+3. For galleries/carousels, extract ALL image URLs from the slider/carousel container
+4. For feature cards, count the cards and set columns accordingly
+5. Extract text content accurately — headings, descriptions, CTAs
+6. If multiple images in a grid, consider "feature-cards" or "gallery" based on whether there's text per item
+
+HTML to analyze:
+
+${body.html}`;
+
+  try {
+    const result = await aiRouter.generateJson(prompt, 'gemini-flash');
+
+    if (!result?.type) {
+      return c.json({ error: 'AI could not identify section type' }, 422);
+    }
+
+    // Download images to R2 if oem_id provided
+    const imageUrls: string[] = [];
+    const section = result.data || {};
+
+    // Collect all image URLs from the section data
+    function collectImages(obj: any) {
+      if (!obj || typeof obj !== 'object') return;
+      for (const [key, val] of Object.entries(obj)) {
+        if (typeof val === 'string' && (key.includes('image') || key.includes('url') || key.includes('poster')) && val.startsWith('http')) {
+          imageUrls.push(val);
+        }
+        if (Array.isArray(val)) val.forEach(item => collectImages(item));
+        else if (typeof val === 'object') collectImages(val);
+      }
+    }
+    collectImages(section);
+
+    let imageMap = new Map<string, string>();
+
+    if (body.oem_id && imageUrls.length > 0) {
+      const r2Bucket = c.env.MOLTBOT_BUCKET;
+      const slug = body.model_slug || 'captured';
+
+      // Download images to R2 in parallel (max 5)
+      const downloads = imageUrls.slice(0, 20).map(async (url) => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          const resp = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!resp.ok || !resp.headers.get('content-type')?.startsWith('image/')) return;
+          const buffer = await resp.arrayBuffer();
+          if (buffer.byteLength < 500) return;
+          const filename = url.split('/').pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
+          const r2Key = `pages/assets/${body.oem_id}/${slug}/${filename}`;
+          await r2Bucket.put(r2Key, buffer, {
+            httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
+          });
+          imageMap.set(url, `/media/${r2Key}`);
+        } catch { /* skip failed downloads */ }
+      });
+
+      await Promise.all(downloads);
+
+      // Rewrite image URLs in section data to R2 paths
+      function rewriteUrls(obj: any): any {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(item => rewriteUrls(item));
+        const result: any = {};
+        for (const [key, val] of Object.entries(obj)) {
+          if (typeof val === 'string' && imageMap.has(val)) {
+            result[key] = imageMap.get(val)!;
+          } else if (typeof val === 'object') {
+            result[key] = rewriteUrls(val);
+          } else {
+            result[key] = val;
+          }
+        }
+        return result;
+      }
+
+      const rewritten = rewriteUrls(section);
+      Object.assign(section, rewritten);
+    }
+
+    return c.json({
+      type: result.type,
+      data: section,
+      images_downloaded: imageMap.size,
+      images_found: imageUrls.length,
+    });
+  } catch (e: any) {
+    return c.json({ error: e.message || 'AI extraction failed' }, 500);
+  }
+});
+
+/**
  * GET /api/v1/oem-agent/oems
  * List all configured OEMs
  */

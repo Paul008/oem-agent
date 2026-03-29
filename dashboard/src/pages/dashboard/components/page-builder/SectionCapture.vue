@@ -4,15 +4,19 @@ import { X, Loader2, MousePointer2, Check } from 'lucide-vue-next'
 
 const props = defineProps<{
   workerBase: string
+  oemId?: string
+  modelSlug?: string
 }>()
 
 const emit = defineEmits<{
   close: []
   capture: [html: string]
+  smartCapture: [section: { type: string; data: Record<string, any> }]
 }>()
 
 const url = ref('')
 const loading = ref(false)
+const analyzing = ref(false)
 const error = ref('')
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const pageLoaded = ref(false)
@@ -195,11 +199,38 @@ const INJECTED_SCRIPT = `
 <\\/script>
 `
 
-// postMessage listener with cleanup
-function onMessage(e: MessageEvent) {
-  if (e.data?.type === 'section-capture' && e.data.html) {
-    captured.value.push(e.data.html)
-    emit('capture', e.data.html)
+// postMessage listener — sends to AI for smart extraction
+async function onMessage(e: MessageEvent) {
+  if (e.data?.type !== 'section-capture' || !e.data.html) return
+
+  const html = e.data.html as string
+  captured.value.push(html)
+
+  // Try smart capture via AI
+  analyzing.value = true
+  try {
+    const resp = await fetch(`${props.workerBase}/api/v1/oem-agent/admin/smart-capture`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html,
+        source_url: url.value,
+        oem_id: props.oemId,
+        model_slug: props.modelSlug,
+      }),
+    })
+    if (resp.ok) {
+      const result = await resp.json() as { type: string; data: Record<string, any>; images_downloaded: number }
+      emit('smartCapture', { type: result.type, data: result.data })
+    } else {
+      // Fallback: emit raw HTML
+      emit('capture', html)
+    }
+  } catch {
+    // Fallback: emit raw HTML
+    emit('capture', html)
+  } finally {
+    analyzing.value = false
   }
 }
 
@@ -241,7 +272,11 @@ onUnmounted(() => {
             Load Page
           </button>
         </div>
-        <div v-if="captured.length" class="flex items-center gap-1.5 text-sm text-green-600">
+        <div v-if="analyzing" class="flex items-center gap-1.5 text-sm text-blue-600">
+          <Loader2 class="size-4 animate-spin" />
+          AI analyzing section...
+        </div>
+        <div v-else-if="captured.length" class="flex items-center gap-1.5 text-sm text-green-600">
           <Check class="size-4" />
           {{ captured.length }} captured
         </div>
