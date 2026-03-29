@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { useInlineEdit } from '@/composables/use-inline-edit'
+
 const props = defineProps<{
   section: {
     type: 'testimonial'
@@ -8,6 +10,19 @@ const props = defineProps<{
   }
 }>()
 
+const emit = defineEmits<{
+  'inline-edit': [field: string, value: string, el: HTMLElement]
+  'update-text': [field: string, value: string]
+}>()
+
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
+  const el = e.target as HTMLElement
+  edit.startEdit(el)
+  emit('inline-edit', field, el.textContent || '', el)
+}
+
 function stars(rating: number | undefined) {
   const r = Math.min(5, Math.max(0, rating ?? 5))
   return '\u2605'.repeat(r) + '\u2606'.repeat(5 - r)
@@ -16,7 +31,14 @@ function stars(rating: number | undefined) {
 
 <template>
   <div class="px-8 py-8 bg-slate-50 dark:bg-slate-900/30">
-    <h2 v-if="section.title" class="text-lg font-bold text-center mb-6">{{ section.title }}</h2>
+    <h2
+      class="text-lg font-bold text-center mb-6 cursor-text outline-none"
+      :style="{ opacity: section.title ? 1 : 0.4 }"
+      @dblclick="startEditing('title', titleEdit, $event)"
+      @blur="titleEdit.stopEdit()"
+      @keydown="titleEdit.onKeydown"
+      @paste="titleEdit.onPaste"
+    >{{ section.title || 'Double-click to add title' }}</h2>
     <div
       class="gap-4"
       :class="section.layout === 'grid' ? 'grid grid-cols-2' : 'flex flex-col max-w-xl mx-auto'"

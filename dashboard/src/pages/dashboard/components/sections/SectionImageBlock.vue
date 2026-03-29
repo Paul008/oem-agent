@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+import { useInlineEdit } from '@/composables/use-inline-edit'
+import ImageOverlay from '../page-builder/ImageOverlay.vue'
+
 defineProps<{
   section: {
     type: 'image'
@@ -11,7 +14,22 @@ defineProps<{
     rounded?: boolean
     shadow?: boolean
   }
+  oemId?: string
+  modelSlug?: string
 }>()
+
+const emit = defineEmits<{
+  'inline-edit': [field: string, value: string, el: HTMLElement]
+  'update-text': [field: string, value: string]
+}>()
+
+const captionEdit = useInlineEdit((v) => emit('update-text', 'caption', v))
+
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
+  const el = e.target as HTMLElement
+  edit.startEdit(el)
+  emit('inline-edit', field, el.textContent || '', el)
+}
 
 function aspectClass(ratio?: string) {
   const map: Record<string, string> = {
@@ -28,7 +46,7 @@ function aspectClass(ratio?: string) {
   <div v-if="section.desktop_image_url">
     <!-- Full-width: raw edge-to-edge, 100% of container -->
     <template v-if="section.layout === 'full-width'">
-      <div class="w-full overflow-hidden" :class="[aspectClass(section.aspect_ratio)]">
+      <div class="w-full overflow-hidden relative" :class="[aspectClass(section.aspect_ratio)]">
         <picture>
           <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)" />
           <img
@@ -39,8 +57,16 @@ function aspectClass(ratio?: string) {
             loading="lazy"
           />
         </picture>
+        <ImageOverlay :current-url="section.desktop_image_url" :oem-id="oemId" :model-slug="modelSlug" @replace="emit('update-text', 'desktop_image_url', $event)" />
       </div>
-      <p v-if="section.caption" class="text-xs text-muted-foreground mt-2 px-8">{{ section.caption }}</p>
+      <p
+        class="text-xs text-muted-foreground mt-2 px-8 cursor-text outline-none"
+        :style="{ opacity: section.caption ? 1 : 0.4 }"
+        @dblclick="startEditing('caption', captionEdit, $event)"
+        @blur="captionEdit.stopEdit()"
+        @keydown="captionEdit.onKeydown"
+        @paste="captionEdit.onPaste"
+      >{{ section.caption || 'Double-click to add caption' }}</p>
     </template>
 
     <!-- Contained: max-width with optional rounding/shadow -->
