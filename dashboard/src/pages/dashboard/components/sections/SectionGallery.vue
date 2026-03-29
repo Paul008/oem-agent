@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import { X, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { useInlineEdit } from '@/composables/use-inline-edit'
 
 defineProps<{
   section: {
@@ -11,6 +12,14 @@ defineProps<{
   }
 }>()
 
+const emit = defineEmits<{
+  'inline-edit': [field: string, value: string, el: HTMLElement]
+  'update-text': [field: string, value: string]
+}>()
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
+  const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el)
+}
 const lightboxIndex = ref<number | null>(null)
 
 function openLightbox(index: number) {
@@ -34,7 +43,7 @@ function nextImage(total: number) {
 
 <template>
   <div v-if="section.images?.length" class="px-8 py-10">
-    <h3 v-if="section.title" class="text-xl font-bold mb-4">{{ section.title }}</h3>
+    <h3 class="text-xl font-bold mb-4 cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">{{ section.title || 'Double-click to add title' }}</h3>
 
     <!-- Carousel layout -->
     <UiCarousel v-if="section.layout === 'carousel'" class="w-full">

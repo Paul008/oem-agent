@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useInlineEdit } from '@/composables/use-inline-edit'
 const props = defineProps<{
   section: {
     type: 'pricing-table'
@@ -17,13 +18,17 @@ const props = defineProps<{
     disclaimer?: string
   }
 }>()
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const subEdit = useInlineEdit((v) => emit('update-text', 'subtitle', v))
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 </script>
 
 <template>
   <div class="px-8 py-10">
     <div class="text-center mb-8">
-      <h2 v-if="section.title" class="text-xl font-bold">{{ section.title }}</h2>
-      <p v-if="section.subtitle" class="text-sm text-muted-foreground mt-1">{{ section.subtitle }}</p>
+      <h2 class="text-xl font-bold cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">{{ section.title || 'Double-click to add title' }}</h2>
+      <p class="text-sm text-muted-foreground mt-1 cursor-text outline-none" :style="{ opacity: section.subtitle ? 1 : 0.4 }" @dblclick="startEditing('subtitle', subEdit, $event)" @blur="subEdit.stopEdit()" @keydown="subEdit.onKeydown" @paste="subEdit.onPaste">{{ section.subtitle || 'Double-click to add subtitle' }}</p>
     </div>
     <div
       class="grid gap-4 max-w-5xl mx-auto"

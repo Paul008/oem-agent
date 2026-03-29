@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useInlineEdit } from '@/composables/use-inline-edit'
 const props = defineProps<{
   section: {
     type: 'logo-strip'
@@ -7,11 +8,14 @@ const props = defineProps<{
     grayscale: boolean
   }
 }>()
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 </script>
 
 <template>
   <div class="px-8 py-6">
-    <h2 v-if="section.title" class="text-sm font-semibold text-center text-muted-foreground mb-4">{{ section.title }}</h2>
+    <h2 class="text-sm font-semibold text-center text-muted-foreground mb-4 cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">{{ section.title || 'Double-click to add title' }}</h2>
     <div class="flex flex-wrap items-center justify-center gap-6">
       <component
         v-for="(logo, i) in section.logos"
