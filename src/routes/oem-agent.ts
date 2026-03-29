@@ -86,28 +86,49 @@ app.get('/health', (c) => {
 app.get('/admin/proxy-html', async (c) => {
   const url = c.req.query('url');
   if (!url) return c.json({ error: 'url parameter required' }, 400);
+  let parsed: URL;
   try {
-    new URL(url);
+    parsed = new URL(url);
   } catch {
     return c.json({ error: 'Invalid URL' }, 400);
   }
+  // SSRF protection: only allow http(s) and block private/internal IPs
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return c.json({ error: 'Only http/https URLs allowed' }, 400);
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.startsWith('10.') || host.startsWith('192.168.') || host.startsWith('172.') || host.endsWith('.local') || host === '169.254.169.254') {
+    return c.json({ error: 'Internal URLs not allowed' }, 400);
+  }
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const resp = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml',
       },
       redirect: 'follow',
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!resp.ok) return c.json({ error: `Fetch failed: ${resp.status}` }, 502);
     const html = await resp.text();
-    // Rewrite relative URLs to absolute
-    const base = new URL(url);
+    // Cap response size at 5MB
+    if (html.length > 5 * 1024 * 1024) return c.json({ error: 'Page too large (>5MB)' }, 413);
+    // Rewrite relative URLs to absolute (attributes + CSS url())
+    const origin = parsed.origin;
     const rewritten = html
-      .replace(/(href|src|srcset)="\/(?!\/)/g, `$1="${base.origin}/`)
-      .replace(/(href|src|srcset)='\/(?!\/)/g, `$1='${base.origin}/`);
-    return c.text(rewritten, 200, { 'Content-Type': 'text/html; charset=utf-8' });
+      .replace(/(href|src|srcset|poster|action)="\/(?!\/)/g, `$1="${origin}/`)
+      .replace(/(href|src|srcset|poster|action)='\/(?!\/)/g, `$1='${origin}/`)
+      .replace(/url\(\s*'?\//g, `url(${origin}/`)
+      .replace(/url\(\s*"\//g, `url("${origin}/`);
+    return c.text(rewritten, 200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+    });
   } catch (e: any) {
+    if (e.name === 'AbortError') return c.json({ error: 'Timeout: page took >10s to load' }, 504);
     return c.json({ error: e.message || 'Fetch failed' }, 502);
   }
 });
