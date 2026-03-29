@@ -80,8 +80,6 @@ function selectRecipe(recipe: any) {
   selectedRecipe.value = recipe
   editDefaults.value = JSON.parse(JSON.stringify(recipe.defaults_json || {}))
   previewHtml.value = null
-  // Auto-generate on select
-  handleRegenerate()
 }
 
 function buildSrcdoc(html: string): string {
@@ -254,89 +252,104 @@ function removeSlot(index: number) {
         <!-- Panel 2: Recipe Controls (full width, horizontal layout) -->
         <div class="border rounded-lg overflow-hidden">
           <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b">Recipe Controls</div>
-          <div class="p-4 grid grid-cols-3 gap-6">
+          <div class="p-4">
 
-            <!-- Column 1: Composition -->
-            <div class="space-y-3">
-              <div>
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Columns</label>
-                <select v-model.number="editDefaults.columns" class="w-full mt-1 rounded border bg-background px-2 py-1.5 text-xs">
-                  <option :value="2">2 columns</option>
-                  <option :value="3">3 columns</option>
-                  <option :value="4">4 columns</option>
+            <!-- Hero Controls -->
+            <div v-if="selectedRecipe.pattern === 'hero'" class="grid grid-cols-3 gap-6">
+              <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Heading Size</label>
+                <select v-model="editDefaults.heading_size" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
+                  <option value="3xl">3xl</option>
+                  <option value="4xl">4xl</option>
+                  <option value="5xl">5xl</option>
+                  <option value="6xl">6xl</option>
+                </select>
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Overlay Position</label>
+                <select v-model="editDefaults.overlay_position" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
+                  <option value="bottom-left">Bottom Left</option>
+                  <option value="bottom-center">Bottom Center</option>
+                  <option value="center">Center</option>
+                  <option value="top-left">Top Left</option>
+                  <option value="top-center">Top Center</option>
                 </select>
               </div>
-
-              <div v-if="editDefaults.card_composition">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Card Composition</label>
-                <div class="space-y-1 mt-1">
-                  <div
-                    v-for="(slot, idx) in editDefaults.card_composition"
-                    :key="idx"
-                    class="flex items-center gap-1 text-xs bg-muted/50 rounded px-2 py-1"
-                  >
-                    <GripVertical class="size-3 text-muted-foreground" />
-                    <span class="flex-1 font-mono">{{ slot }}</span>
-                    <button @click="removeSlot(idx)" class="text-muted-foreground hover:text-destructive">
-                      <X class="size-3" />
-                    </button>
-                  </div>
-                </div>
-                <select class="w-full mt-1 rounded border bg-background px-2 py-1 text-xs" @change="(e: any) => { if (e.target.value) { addSlot(e.target.value); e.target.value = '' } }">
-                  <option value="">+ Add slot...</option>
-                  <option v-for="s in SLOTS.filter(s => !editDefaults.card_composition?.includes(s))" :key="s" :value="s">{{ s }}</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Column 2: Card Style -->
-            <div v-if="editDefaults.card_style" class="space-y-2">
-              <label class="text-[10px] font-semibold text-muted-foreground uppercase">Card Style</label>
-              <div class="flex items-center gap-2">
-                <label class="text-[10px] w-20">Background</label>
-                <input v-model="editDefaults.card_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" />
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-[10px] w-20">Border</label>
-                <input v-model="editDefaults.card_style.border" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" />
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-[10px] w-20">Radius</label>
-                <input v-model.number="editDefaults.card_style.border_radius" type="number" class="w-16 rounded border bg-background px-2 py-1 text-xs" />
-                <span class="text-[10px] text-muted-foreground">px</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-[10px] w-20">Shadow</label>
-                <input v-model="editDefaults.card_style.shadow" type="checkbox" />
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-[10px] w-20">Text Align</label>
-                <select v-model="editDefaults.card_style.text_align" class="flex-1 rounded border bg-background px-2 py-1 text-xs">
+              <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Text Color</label>
+                <input v-model="editDefaults.text_color" type="text" class="w-full rounded border bg-background px-2 py-1 text-xs" placeholder="#ffffff" />
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Text Align</label>
+                <select v-model="editDefaults.text_align" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
                   <option value="left">Left</option>
                   <option value="center">Center</option>
                   <option value="right">Right</option>
                 </select>
               </div>
-              <div class="flex items-center gap-2">
-                <label class="text-[10px] w-20">Padding</label>
-                <input v-model="editDefaults.card_style.padding" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" />
+              <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Min Height</label>
+                <input v-model="editDefaults.min_height" type="text" class="w-full rounded border bg-background px-2 py-1 text-xs" placeholder="600px" />
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Show Overlay</label>
+                <input v-model="editDefaults.show_overlay" type="checkbox" />
               </div>
             </div>
 
-            <!-- Column 3: Section Style -->
-            <div class="space-y-2">
-              <div v-if="editDefaults.section_style">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Section Style</label>
-                <div class="space-y-2 mt-1">
-                  <div class="flex items-center gap-2">
-                    <label class="text-[10px] w-20">Background</label>
-                    <input v-model="editDefaults.section_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" />
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <label class="text-[10px] w-20">Padding</label>
-                    <input v-model="editDefaults.section_style.padding" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" />
-                  </div>
+            <!-- Card Grid Controls -->
+            <div v-else-if="selectedRecipe.pattern === 'card-grid'" class="grid grid-cols-3 gap-6">
+              <div class="space-y-3">
+                <div>
+                  <label class="text-[10px] font-semibold text-muted-foreground uppercase">Columns</label>
+                  <select v-model.number="editDefaults.columns" class="w-full mt-1 rounded border bg-background px-2 py-1.5 text-xs">
+                    <option :value="2">2 columns</option>
+                    <option :value="3">3 columns</option>
+                    <option :value="4">4 columns</option>
+                  </select>
                 </div>
+                <div v-if="editDefaults.card_composition">
+                  <label class="text-[10px] font-semibold text-muted-foreground uppercase">Card Composition</label>
+                  <div class="space-y-1 mt-1">
+                    <div v-for="(slot, idx) in editDefaults.card_composition" :key="idx" class="flex items-center gap-1 text-xs bg-muted/50 rounded px-2 py-1">
+                      <GripVertical class="size-3 text-muted-foreground" />
+                      <span class="flex-1 font-mono">{{ slot }}</span>
+                      <button @click="removeSlot(idx)" class="text-muted-foreground hover:text-destructive"><X class="size-3" /></button>
+                    </div>
+                  </div>
+                  <select class="w-full mt-1 rounded border bg-background px-2 py-1 text-xs" @change="(e: any) => { if (e.target.value) { addSlot(e.target.value); e.target.value = '' } }">
+                    <option value="">+ Add slot...</option>
+                    <option v-for="s in SLOTS.filter(s => !editDefaults.card_composition?.includes(s))" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </div>
+              </div>
+              <div v-if="editDefaults.card_style" class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Card Style</label>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Background</label><input v-model="editDefaults.card_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Border</label><input v-model="editDefaults.card_style.border" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Radius</label><input v-model.number="editDefaults.card_style.border_radius" type="number" class="w-16 rounded border bg-background px-2 py-1 text-xs" /><span class="text-[10px] text-muted-foreground">px</span></div>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Shadow</label><input v-model="editDefaults.card_style.shadow" type="checkbox" /></div>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Text Align</label><select v-model="editDefaults.card_style.text_align" class="flex-1 rounded border bg-background px-2 py-1 text-xs"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+              </div>
+              <div v-if="editDefaults.section_style" class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Section Style</label>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Background</label><input v-model="editDefaults.section_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Padding</label><input v-model="editDefaults.section_style.padding" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
+              </div>
+            </div>
+
+            <!-- Action Bar / Split Content / Generic Controls -->
+            <div v-else class="grid grid-cols-3 gap-6">
+              <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Background Color</label>
+                <input v-model="editDefaults.background_color" type="text" class="w-full rounded border bg-background px-2 py-1 text-xs" placeholder="#000000" />
+              </div>
+              <div v-if="editDefaults.section_style" class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Section Style</label>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Background</label><input v-model="editDefaults.section_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
+                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Padding</label><input v-model="editDefaults.section_style.padding" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Layout</label>
+                <select v-model="editDefaults.layout" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
+                  <option value="contained">Contained</option>
+                  <option value="full-width">Full Width</option>
+                  <option value="two-column">Two Column</option>
+                </select>
               </div>
             </div>
           </div>
@@ -355,7 +368,7 @@ function removeSlot(index: number) {
               v-else-if="previewHtml"
               :srcdoc="buildSrcdoc(previewHtml)"
               class="w-full"
-              style="min-height: 300px; max-height: 600px;"
+              style="min-height: 500px;"
               sandbox="allow-scripts"
             />
             <div v-else class="py-20 flex items-center justify-center text-xs text-muted-foreground">
