@@ -100,12 +100,34 @@ The template should use Alpine.js syntax:
       try {
         parsed = JSON.parse(response.content);
       } catch {
-        return {
-          success: false,
-          tokens_used: tokensUsed,
-          cost_usd: costUsd,
-          error: 'Failed to parse Claude response as JSON',
-        };
+        // Claude often wraps JSON in markdown code blocks — try to extract
+        const jsonMatch = response.content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[1]);
+          } catch {
+            // Try finding raw JSON object
+            const braceMatch = response.content.match(/\{[\s\S]*"template"[\s\S]*\}/);
+            if (braceMatch) {
+              try { parsed = JSON.parse(braceMatch[0]); } catch {
+                return { success: false, tokens_used: tokensUsed, cost_usd: costUsd, error: 'Failed to parse response as JSON' };
+              }
+            } else {
+              return { success: false, tokens_used: tokensUsed, cost_usd: costUsd, error: 'Failed to parse response as JSON' };
+            }
+          }
+        } else {
+          // Try finding raw JSON object without code blocks
+          const braceMatch = response.content.match(/\{[\s\S]*"template"[\s\S]*\}/);
+          if (braceMatch) {
+            try { parsed = JSON.parse(braceMatch[0]); } catch {
+              return { success: false, tokens_used: tokensUsed, cost_usd: costUsd, error: 'Failed to parse response as JSON' };
+            }
+          } else {
+            // Last resort: treat entire response as template HTML
+            parsed = { template: response.content, description: 'Auto-extracted from non-JSON response' };
+          }
+        }
       }
 
       if (!parsed.template) {
