@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { useInlineEdit } from '@/composables/use-inline-edit'
+
 const props = defineProps<{
   section: {
     type: 'sticky-bar'
@@ -10,6 +12,20 @@ const props = defineProps<{
     background_color?: string
   }
 }>()
+
+const emit = defineEmits<{
+  'inline-edit': [field: string, value: string, el: HTMLElement]
+  'update-text': [field: string, value: string]
+}>()
+
+const nameEdit = useInlineEdit((v) => emit('update-text', 'model_name', v))
+const priceEdit = useInlineEdit((v) => emit('update-text', 'price_text', v))
+
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
+  const el = e.target as HTMLElement
+  edit.startEdit(el)
+  emit('inline-edit', field, el.textContent || '', el)
+}
 
 const variantClasses: Record<string, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -25,8 +41,21 @@ const variantClasses: Record<string, string> = {
     :class="!section.background_color && 'bg-card'"
   >
     <div class="flex items-center gap-3 min-w-0">
-      <span class="font-semibold text-sm truncate">{{ section.model_name || 'Model Name' }}</span>
-      <span v-if="section.price_text" class="text-sm opacity-80 shrink-0">{{ section.price_text }}</span>
+      <span
+        class="font-semibold text-sm truncate cursor-text outline-none"
+        @dblclick="startEditing('model_name', nameEdit, $event)"
+        @blur="nameEdit.stopEdit()"
+        @keydown="nameEdit.onKeydown"
+        @paste="nameEdit.onPaste"
+      >{{ section.model_name || 'Model Name' }}</span>
+      <span
+        class="text-sm shrink-0 cursor-text outline-none"
+        :style="{ opacity: section.price_text ? 0.8 : 0.4 }"
+        @dblclick="startEditing('price_text', priceEdit, $event)"
+        @blur="priceEdit.stopEdit()"
+        @keydown="priceEdit.onKeydown"
+        @paste="priceEdit.onPaste"
+      >{{ section.price_text || 'Double-click for price' }}</span>
     </div>
     <div class="flex items-center gap-2 shrink-0">
       <a
