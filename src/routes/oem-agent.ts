@@ -2904,7 +2904,24 @@ app.post('/admin/recipes/generate-component', async (c) => {
       last_updated: new Date().toISOString(),
     };
 
-    // Build section-like object from recipe
+    // Fetch OEM-specific images (banners + product images) to avoid cross-brand contamination
+    const { data: banners } = await supabase
+      .from('banners')
+      .select('headline, image_url_desktop')
+      .eq('oem_id', body.oem_id)
+      .not('image_url_desktop', 'is', null)
+      .limit(5);
+
+    const { data: products } = await supabase
+      .from('products')
+      .select('title, source_url')
+      .eq('oem_id', body.oem_id)
+      .limit(10);
+
+    const oemImages = (banners ?? []).map((b: any) => b.image_url_desktop).filter(Boolean);
+    const oemProductNames = (products ?? []).map((p: any) => p.title).filter(Boolean).slice(0, 5);
+
+    // Build section-like object from recipe with OEM media context
     const recipe = body.recipe;
     const section = {
       type: recipe.resolves_to || recipe.pattern || 'feature-cards',
@@ -2912,6 +2929,13 @@ app.post('/admin/recipes/generate-component', async (c) => {
       order: 0,
       title: recipe.label || '',
       ...recipe.defaults_json,
+      // Inject OEM-specific context for the AI
+      _oem_context: {
+        oem_id: body.oem_id,
+        oem_name: body.oem_id.replace('-au', '').replace(/^\w/, (c: string) => c.toUpperCase()),
+        image_urls: oemImages,
+        product_names: oemProductNames,
+      },
     };
 
     // Instantiate AI router and component generator

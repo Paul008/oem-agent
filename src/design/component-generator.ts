@@ -44,7 +44,17 @@ export class ComponentGenerator {
     try {
       const brandContext = this.buildBrandContext(brandProfile);
 
-      const prompt = `You are an HTML component generator for an automotive OEM website.
+      // Extract OEM context if injected
+      const oemCtx = (section as any)._oem_context;
+      const oemName = oemCtx?.oem_name || oemId.replace('-au', '');
+      const oemImageList = oemCtx?.image_urls?.length
+        ? `\n## OEM Images (USE THESE — do NOT use images from other brands)\n${oemCtx.image_urls.map((url: string) => `- ${url}`).join('\n')}`
+        : '';
+      const oemProducts = oemCtx?.product_names?.length
+        ? `\n## OEM Products (use these names for placeholder text)\n${oemCtx.product_names.join(', ')}`
+        : '';
+
+      const prompt = `You are an HTML component generator for the ${oemName} automotive website.
 
 ## Task
 Generate an HTML snippet with Alpine.js directives and Tailwind CSS that renders the following section data.
@@ -52,22 +62,24 @@ The section data is embedded directly in the HTML via Alpine.js x-data attribute
 
 ## Brand Context
 ${brandContext}
+${oemImageList}
+${oemProducts}
 
 ## Section Data
 \`\`\`json
 ${JSON.stringify(section, null, 2)}
 \`\`\`
 
-## Requirements
+## CRITICAL Rules
 1. Use Tailwind CSS classes only (no custom CSS)
 2. Make it responsive (mobile-first)
 3. Use Alpine.js directives for interactivity (x-data, x-show, @click, :src, x-text, x-for)
-4. Use semantic HTML elements
-5. Support dark mode with dark: variants
-6. Match the OEM's brand colors where possible
-7. Keep the component self-contained — all data inline in x-data, no external API calls
-8. Add \`style="display:none;"\` on elements with x-show that start hidden (prevents FOUC)
-9. Use x-transition or x-collapse for smooth show/hide animations
+4. **ONLY use images from the OEM Images list above. NEVER use unsplash, pexels, or stock photos. NEVER show vehicles from other brands.**
+5. If no OEM images are available, use solid color backgrounds (brand primary/secondary) instead of placeholder images
+6. Use the OEM's brand name "${oemName}" in all heading text — never mention other car brands
+7. Match the OEM's brand colors exactly where possible
+8. Keep the component self-contained — all data inline in x-data, no external API calls
+9. Add \`style="display:none;"\` on elements with x-show that start hidden (prevents FOUC)
 
 ## Output Format
 Return a JSON object:
