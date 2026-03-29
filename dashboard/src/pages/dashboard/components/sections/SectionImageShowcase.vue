@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
   section: {
@@ -43,15 +44,23 @@ function overlayBg(style: string) {
   if (style === 'light') return 'bg-white/70 text-slate-900'
   return ''
 }
+
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 </script>
 
 <template>
   <div>
     <h2
-      v-if="section.title"
-      class="text-lg font-bold text-center py-4 bg-card"
+      class="text-lg font-bold text-center py-4 bg-card cursor-text outline-none"
+      :style="{ opacity: section.title ? 1 : 0.4 }"
+      @dblclick="startEditing('title', titleEdit, $event)"
+      @blur="titleEdit.stopEdit()"
+      @keydown="titleEdit.onKeydown"
+      @paste="titleEdit.onPaste"
     >
-      {{ section.title }}
+      {{ section.title || 'Double-click to add title' }}
     </h2>
 
     <div

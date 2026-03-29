@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { Loader2, Database } from 'lucide-vue-next'
+import { useInlineEdit } from '@/composables/use-inline-edit'
 import { useOemData, type VariantColor } from '@/composables/use-oem-data'
 import Vehicle360Viewer from '@/components/Vehicle360Viewer.vue'
 
@@ -22,6 +23,10 @@ const props = defineProps<{
 }>()
 
 const { fetchColorsForModel } = useOemData()
+
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 
 const dbColors = ref<VariantColor[]>([])
 const loadingColors = ref(false)
@@ -95,7 +100,7 @@ watch(() => [props.oemId, props.modelSlug], loadDbColors)
     <template v-else-if="colors.length">
       <!-- Header -->
       <div class="flex items-center gap-2 mb-6">
-        <h3 v-if="section.title" class="text-xl font-bold">{{ section.title }}</h3>
+        <h3 class="text-xl font-bold cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">{{ section.title || 'Double-click to add title' }}</h3>
         <span v-if="dbColors.length" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
           <Database class="size-2.5" />
           {{ colors.length }} colours from database
