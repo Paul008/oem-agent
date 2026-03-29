@@ -1,18 +1,20 @@
 # OEM Agent System Briefing
 
-**Last Updated**: 2026-03-18
+**Last Updated**: 2026-03-29
 **Deployment**: https://oem-agent.adme-dev.workers.dev/
 **Status**: ✅ Operational (conversation persistence enabled)
 
 ## Executive Summary
 
 Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Workers with:
-- 15 specialized skills for automotive data collection
+- 15 specialized skills for automotive data collection + design pipeline
 - R2-backed conversation persistence
 - Headless browser automation via Lightpanda (primary, raw CDP WebSocket) with Cloudflare Browser Rendering fallback
 - Supabase for structured data storage
 - Scheduled crawls for 18 Australian automotive manufacturers
 - Dashboard UI for monitoring (Cloudflare Pages, shadcn-vue-admin)
+- Recipe Design System: screenshot-to-component pipeline with brand token crawling, style guides, and design health monitoring
+- 36 plans, 18 phases, 5 milestones completed (v1.0-v5.0)
 
 ## Architecture
 
@@ -22,6 +24,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 │  - Manages OpenClaw container lifecycle                     │
 │  - Proxies HTTP/WebSocket to gateway                        │
 │  - Scheduled cron triggers for automated crawls             │
+│  - Recipe Design System API endpoints                       │
 └──────────────────┬──────────────────────────────────────────┘
                    │
                    ▼
@@ -31,16 +34,20 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 │  │  OpenClaw Gateway (Node.js 22, OpenClaw 2026.2.3)    │  │
 │  │  - Control UI on port 18789                           │  │
 │  │  - WebSocket RPC protocol                             │  │
-│  │  - Agent runtime with 14 custom skills               │  │
+│  │  - Agent runtime with 15 custom skills               │  │
 │  │  - R2 sync every 30s (rclone)                         │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
-           │                    │                    │
-           ▼                    ▼                    ▼
-      ┌─────────┐         ┌─────────┐        ┌──────────┐
-      │   R2    │         │Supabase │        │ Browser  │
-      │ Bucket  │         │Database │        │Rendering │
-      └─────────┘         └─────────┘        └──────────┘
+           │           │           │           │
+           ▼           ▼           ▼           ▼
+      ┌────────┐  ┌────────┐  ┌────────┐  ┌────────────┐
+      │  R2    │  │Supabase│  │Browser │  │  Design    │
+      │ Bucket │  │Database│  │Render  │  │  Pipeline  │
+      └────────┘  └────────┘  └────────┘  └────────────┘
+                                           TokenCrawler
+                                           RecipeExtractor
+                                           ComponentGenerator
+                                           StyleGuides
 ```
 
 ## Core Components
@@ -144,8 +151,58 @@ oems → vehicle_models → products → variant_colors
 | `page-builder/index.vue` | Template Gallery | Browse OEM section templates, curated templates, filter by OEM/type |
 | `page-builder/[slug].vue` | Page Builder | Visual section editor with live preview, undo/redo, template gallery drawer |
 | `portals.vue` | OEM Portals | Portal credentials with password toggle, copy-to-clipboard, brand guidelines PDFs |
+| `portal-assets.vue` | Portal Assets | Brand asset management from OEM marketing portals |
+| `style-guide.vue` | Style Guide | Per-OEM style guides with live font loading, token visualization, brand palettes |
+| `recipes.vue` | Recipes | Recipe browser with thumbnails, OEM/type filters, quality scores |
+| `recipe-analytics.vue` | Recipe Analytics | Per-OEM and per-type recipe usage breakdowns, quality trends |
+| `design-health.vue` | Design Health | Design drift monitoring, brand compliance scores, token freshness |
+| `page-templates.vue` | Page Templates | Save and apply full page template compositions across OEMs |
+| `stock-health.vue` | Stock Health | Data freshness, stale product detection, crawl coverage per OEM |
+| `cron.vue` | Cron Jobs | OpenClaw cron job status, history, manual triggers |
+| `dealer-api.vue` | Dealer API | WP-compatible dealer API endpoint testing and docs |
+| `banners.vue` | Banners | Homepage/offers hero banners for all 18 OEMs |
+| `specs.vue` | Specs | Technical specifications browser with category filters |
+| `variants.vue` | Variants | Variant-level product data explorer |
+| `media.vue` | Media | R2 media browser and upload interface |
+| `onboarding.vue` | Onboarding | New OEM onboarding wizard |
+| `onboarding-docs.vue` | Onboarding Docs | OEM onboarding documentation and checklist |
+| `agent-infra.vue` | Agent Infra | Agent infrastructure monitoring and diagnostics |
+| `settings/ai-models.vue` | AI Models | AI model routing configuration (extraction, generation, classification) |
+| `settings/regeneration.vue` | Regeneration | Page regeneration strategy settings |
+| `settings/webhooks.vue` | Webhooks | Webhook configuration for external integrations |
+| `agents/index.vue` | Agents | Autonomous agent dashboard |
+| `agents/[id].vue` | Agent Detail | Individual agent run details and logs |
 
-### 5. Design Memory & Adaptive Pipeline
+### 5. Recipe Design System (v1.0-v5.0)
+
+The Recipe Design System is the full screenshot-to-component pipeline built across 5 milestones (36 plans, 18 phases). It turns OEM website screenshots into reusable, brand-accurate UI components ("recipes") that can be composed into dealer model pages.
+
+**Pipeline Stages**:
+1. **Token Crawling** (`src/design/token-crawler.ts`): Headless browser crawls OEM sites to extract CSS design tokens (colors, typography, spacing, border-radius). Stores per-OEM token sets in `oems.design_profile_json`.
+2. **Recipe Extraction** (`src/design/recipe-extractor.ts`): Takes a screenshot URL, uses vision AI to identify UI patterns, classifies section type, and extracts structured recipe JSON.
+3. **Component Generation** (`src/design/component-generator.ts`): Transforms recipe JSON + brand tokens into production HTML/CSS components using Claude Sonnet. Supports OEM-specific theming.
+4. **Style Guides** (`dashboard/src/pages/dashboard/style-guide.vue`): Per-OEM style guide pages with live `@font-face` loading from R2-hosted OEM fonts, token visualization, and brand color palettes.
+5. **Design Health** (`dashboard/src/pages/dashboard/design-health.vue`): Dashboard for monitoring design drift, quality scores, and brand compliance across all 18 OEMs.
+
+**Key Features**:
+- Screenshot-to-recipe extraction via vision AI (Gemini 2.5 Pro)
+- Smart component generation with brand token injection (Claude Sonnet 4.5)
+- OEM font hosting on R2 with dynamic `@font-face` loading
+- Recipe quality scoring (accessibility, brand accuracy, rendering fidelity)
+- Design drift detection comparing live sites against stored token profiles
+- Recipe analytics dashboard with per-OEM and per-type breakdowns
+- Page templates: save, browse, and apply template compositions across OEMs
+- Dealer overrides for per-dealer page customization
+- AI model configuration UI for routing extraction/generation/classification tasks
+
+**Milestone History**:
+- **v1.0**: Core extraction pipeline, section classification, page generation
+- **v2.0**: Page builder UI, template gallery, subpages, undo/redo
+- **v3.0**: Autonomous agents, competitive intel, stock health, crawl doctor
+- **v4.0**: Recipe pipeline, token crawling, style guides, component generation
+- **v5.0**: Design health monitoring, drift detection, quality audits, recipe analytics
+
+### 6. Design Memory & Adaptive Pipeline
 - **Pipeline**: 7-step adaptive page generation: Clone → Screenshot → Classify → Extract → Validate → Generate → Learn
 - **Source files**: `src/design/memory.ts`, `src/design/prompt-builder.ts`, `src/design/extraction-runner.ts`, `src/design/pipeline.ts`, `src/design/ux-knowledge.ts`, `src/design/component-generator.ts`
 - **AI model routing**: Groq Llama 3.3 70B (classification/validation), Gemini 2.5 Pro (extraction), Claude Sonnet 4.5 (bespoke components), Google text-embedding-004 (vectors), Workers AI Llama Vision (free classification)
@@ -154,7 +211,7 @@ oems → vehicle_models → products → variant_colors
 - **Migration**: `supabase/migrations/20260222_design_memory.sql`
 - **Vectorize**: Cloudflare Vectorize index `ux-knowledge-base` (768-dim cosine)
 
-### 6. Page Builder UI
+### 7. Page Builder UI
 - **Editor**: `page-builder/[slug].vue` — split-pane layout (sidebar + canvas), responsive toolbar with hamburger overflow menu
 - **Section editor**: Per-type property editors with image thumbnails, media upload (R2), theme/variant toggles
 - **Tab variants**: `default` (horizontal tab bar) and `kia-feature-bullets` (two-column bullet list with disclaimers)
@@ -173,7 +230,7 @@ oems → vehicle_models → products → variant_colors
 - **Composables**: `use-page-builder.ts` (editor state, sections, dirty tracking), `use-template-gallery.ts` (fetch/cache/filter)
 - **Section renderers**: 16 async components in `components/sections/` for live preview (hero, intro, tabs, color-picker, specs, gallery, feature-cards, video, cta-banner, content-block, accordion, enquiry-form, map, alert, divider, renderer)
 
-## Available Skills (14 Total)
+## Available Skills (15 Total)
 
 | Skill | Purpose | Key Capability |
 |-------|---------|----------------|
@@ -192,6 +249,14 @@ oems → vehicle_models → products → variant_colors
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
 | **autonomous-agents** | Workflow automation | 7 sub-skills: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker |
+
+## Cron-Based Design Jobs (OpenClaw)
+
+| Schedule | Job ID | Skill | Purpose |
+|----------|--------|-------|---------|
+| Sunday 4pm UTC | `design-drift-weekly` | `design-drift-check` | Compare live OEM tokens against stored profiles, flag drift |
+| 1st of month 5am UTC | `recipe-quality-audit` | `recipe-quality-audit` | Score generated components (accessibility, brand, fidelity) |
+| 15th of month 4pm UTC | `token-refresh` | `token-refresh` | Crawl all 18 OEM sites for fresh CSS tokens |
 
 ## Scheduled Cron Jobs
 
@@ -216,7 +281,13 @@ oems → vehicle_models → products → variant_colors
 | Daily 6am | `oem-extract` | Full crawl extraction |
 | Every 6h | `oem-agent-hooks` | Embeddings check |
 | Monday 9am | `oem-agent-hooks` | Weekly Slack report |
+| Monday 9am | `weekly-report` | Weekly stock summary to Slack |
 | Tuesday 4am | `oem-brand-ambassador` | AI page generation |
+| Wednesday 9am | `competitive-intel` | Cross-OEM market analysis |
+| Sunday 4pm UTC | `design-drift-check` | Weekly design drift check |
+| 1st of month 5am UTC | `recipe-quality-audit` | Monthly recipe quality scoring |
+| 1st of month 3am | `oem-data-sync` | Monthly API/docs re-seed |
+| 15th of month 4pm UTC | `token-refresh` | Monthly CSS token refresh crawl |
 
 **Handlers**: `src/scheduled.ts` (Cloudflare) + `src/routes/cron.ts` (OpenClaw)
 
@@ -226,6 +297,111 @@ Each cron trigger now passes its `crawl_type` to the orchestrator, which filters
 - `vehicles` → `vehicle`, `category`, `build_price` pages (variants/models)
 - `news` → `news` pages only
 - `sitemap` → `sitemap` pages only
+
+## Admin API Endpoints (src/routes/oem-agent.ts)
+
+### Core Data
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/health` | System health check |
+| GET | `/oems` | List all OEMs |
+| GET | `/oems/:oemId` | OEM detail with config |
+| GET | `/oems/:oemId/products` | Products for OEM |
+| GET | `/oems/:oemId/offers` | Offers for OEM |
+| GET | `/oems/:oemId/changes` | Change events for OEM |
+| GET | `/admin/products/:oemId` | Admin product list |
+| GET | `/admin/offers/:oemId` | Admin offer list |
+| GET | `/admin/system-status` | System-wide status |
+| GET | `/admin/import-runs` | Crawl run history |
+| GET | `/admin/cost-estimates` | AI cost tracking |
+| GET | `/admin/source-pages/:oemId` | Monitored URLs |
+| GET | `/admin/discovered-apis/:oemId` | API endpoints |
+| GET | `/admin/ai-usage` | AI provider usage stats |
+
+### Crawl & Extraction
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/admin/crawl/:oemId` | Trigger crawl for OEM |
+| POST | `/admin/crawl` | Trigger crawl for all OEMs |
+| POST | `/admin/force-crawl/:oemId` | Force full re-crawl |
+| POST | `/admin/test-crawl` | Test crawl with custom URL |
+| POST | `/admin/debug-crawl/:oemId` | Debug crawl with verbose output |
+| POST | `/admin/direct-extract/:oemId` | Direct content extraction |
+| POST | `/admin/design-capture/:oemId` | Vision-based design capture |
+| POST | `/admin/network-capture` | CDP network interception |
+
+### Page Builder & Generation
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/pages` | List all generated pages |
+| GET | `/pages/stats` | Page generation statistics |
+| GET | `/pages/:slug` | Get generated page JSON |
+| GET | `/pages/:oemId/:modelSlug/should-regenerate` | Check if page needs refresh |
+| POST | `/admin/generate-page/:oemId/:modelSlug` | Generate AI page |
+| POST | `/admin/clone-page/:oemId/:modelSlug` | Clone OEM page |
+| POST | `/admin/structure-page/:oemId/:modelSlug` | Structure page from screenshot |
+| PUT | `/admin/update-sections/:oemId/:modelSlug` | Save section edits |
+| POST | `/admin/regenerate-section/:oemId/:modelSlug` | Regenerate single section |
+| PUT | `/admin/screenshot/:oemId/:modelSlug` | Update page screenshot |
+| POST | `/admin/adaptive-pipeline/:oemId/:modelSlug` | Run full adaptive pipeline |
+| POST | `/admin/create-custom-page/:oemId/:slug` | Create custom page |
+| POST | `/admin/create-subpage/:oemId/:modelSlug/:subpageSlug` | Create subpage |
+| DELETE | `/admin/delete-subpage/:oemId/:modelSlug/:subpageSlug` | Delete subpage |
+| DELETE | `/admin/delete-custom-page/:oemId/:slug` | Delete custom page |
+
+### Recipe Design System
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/recipes/:oemId` | List recipes for OEM |
+| GET | `/admin/recipes` | List all recipes |
+| POST | `/admin/recipes` | Create recipe |
+| POST | `/admin/recipes/extract` | Extract recipe from screenshot |
+| POST | `/admin/recipes/upload-thumbnail` | Upload recipe thumbnail |
+| POST | `/admin/recipes/generate-component` | Generate component from recipe |
+| DELETE | `/admin/recipes/:id` | Delete recipe |
+| GET | `/admin/recipe-analytics` | Recipe usage analytics |
+| GET | `/admin/brand-tokens/:oemId` | Get OEM brand tokens |
+| GET | `/admin/style-guide/:oemId` | Get OEM style guide data |
+| POST | `/admin/tokens/crawl` | Crawl OEM site for CSS tokens |
+| POST | `/admin/tokens/apply-crawled` | Apply crawled tokens to OEM profile |
+| POST | `/admin/quality/score` | Score component quality |
+| GET | `/admin/design-health` | Design health dashboard data |
+| POST | `/admin/design-health/check-drift` | Run design drift check |
+| GET | `/admin/page-templates` | List page templates |
+| POST | `/admin/page-templates/save` | Save page template |
+| POST | `/admin/page-templates/apply` | Apply template to page |
+| PUT | `/admin/dealer-overrides/:oemId/:modelSlug` | Set dealer overrides |
+| GET | `/admin/dealer-overrides/:oemId/:modelSlug` | Get dealer overrides |
+| GET | `/admin/ai-model-config` | AI model routing config |
+| PUT | `/admin/ai-model-config` | Update AI model routing |
+
+### Media & Assets
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/admin/upload-media/:oemId/:modelSlug` | Upload media to R2 |
+| GET | `/admin/list-media/:oemId` | List media files |
+
+### Webhooks & Settings
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/admin/webhooks` | List webhooks |
+| POST | `/admin/webhooks` | Create webhook |
+| DELETE | `/admin/webhooks/:id` | Delete webhook |
+
+### Design Memory
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/design-memory/:oemId` | OEM design profile |
+| GET | `/extraction-runs` | Extraction run history |
+
+### Dealer & Onboarding
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/sales-rep/chat` | Sales rep chatbot |
+| POST | `/sales-rep/generate` | Generate sales content |
+| POST | `/onboarding/discover` | Discover OEM APIs |
+| POST | `/onboarding/register` | Register new OEM |
+| POST | `/onboarding/generate-snippets` | Generate integration snippets |
 
 ## Environment Variables (Container)
 
@@ -362,7 +538,7 @@ wrangler secret list  # List configured secrets
 
 ---
 
-## Monitored OEMs (17)
+## Monitored OEMs (18)
 
 | ID | Name |
 |----|------|
@@ -383,6 +559,7 @@ wrangler secret list  # List configured secrets
 | gmsv-au | GMSV Australia |
 | foton-au | Foton Australia |
 | gac-au | GAC Australia |
+| chery-au | Chery Australia |
 
 ## Seed Scripts (dashboard/scripts/)
 
@@ -466,8 +643,8 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 ---
 
 **Status**: ✅ Production Ready
-**Last Deployment**: 2026-03-19
-**Final State (2026-03-19)**:
+**Last Deployment**: 2026-03-29
+**Final State (2026-03-29)**:
 - 18 OEMs ALL complete (incl. Chery AU + VW AU rebuilt from OneHub API)
 - 796 products, 179 models, 4,952 colors, 1,158 pricing rows, 2,913 accessories
 - 322 offers (100% images, 100% disclaimers, 68 with HTML formatting)
@@ -477,5 +654,10 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 - Daily all-OEM color + pricing sync (Kia BYO, Hyundai CGI, Mazda, Mitsubishi GQL, VW OneHub)
 - Brand Ambassador protects page builder edits (manually_edited flag)
 - Dynamic Kia color name discovery from swatch filenames (no more Unknown codes)
+- Recipe Design System: screenshot-to-component pipeline with token crawling, style guides, quality scoring
+- Design Health monitoring: weekly drift checks, monthly quality audits, token refresh
+- 40+ dashboard pages covering all platform domains
+- 70+ admin API endpoints for full programmatic control
+- 16 scheduled cron jobs (Cloudflare Workers + OpenClaw)
 
 **Next Maintenance**: Run vectorize-pdfs.mjs for pdf_embeddings, add state-specific pricing APIs for Hyundai/Mitsubishi/Ford when discovered, extract finance disclaimers for Kia/Hyundai/GWM offers

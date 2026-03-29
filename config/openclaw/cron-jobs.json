@@ -217,6 +217,46 @@
         "flag_low_success_rate": true,
         "success_rate_threshold": 0.5
       }
+    },
+    {
+      "id": "design-drift-weekly",
+      "name": "Weekly Design Drift Check",
+      "description": "Weekly design drift check for all 18 OEMs — compares live OEM site tokens against stored design profiles, flags visual regressions and brand guideline deviations.",
+      "schedule": "0 16 * * 0",
+      "timezone": "UTC",
+      "skill": "design-drift-check",
+      "enabled": true,
+      "config": {
+        "auto_alert": true,
+        "severity_threshold": "medium",
+        "notify_channel": "slack:#oem-alerts"
+      }
+    },
+    {
+      "id": "recipe-quality-audit",
+      "name": "Monthly Recipe Quality Audit",
+      "description": "Monthly quality scoring of generated components — evaluates recipe output against brand tokens, accessibility standards, and rendering fidelity.",
+      "schedule": "0 5 1 * *",
+      "timezone": "UTC",
+      "skill": "recipe-quality-audit",
+      "enabled": true,
+      "config": {
+        "max_components_per_run": 50,
+        "score_threshold": 70
+      }
+    },
+    {
+      "id": "token-refresh",
+      "name": "Monthly Token Refresh Crawl",
+      "description": "Monthly crawl of all 18 OEM sites for fresh CSS tokens — colors, typography, spacing, border-radius. Stores diffs for manual review.",
+      "schedule": "0 16 15 * *",
+      "timezone": "UTC",
+      "skill": "token-refresh",
+      "enabled": true,
+      "config": {
+        "auto_apply": false,
+        "notify_on_changes": true
+      }
     }
   ],
   "hooks": {
