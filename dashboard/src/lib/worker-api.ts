@@ -219,7 +219,7 @@ export async function applyCrawledTokens(oemId: string, crawled: any): Promise<{
   })
 }
 
-export async function generateRecipeComponent(oemId: string, recipe: ExtractedRecipe, thumbnailBase64?: string): Promise<{ success: boolean; template_html?: string; r2_key?: string; error?: string }> {
+export async function generateRecipeComponent(oemId: string, recipe: ExtractedRecipe, thumbnailBase64?: string): Promise<{ success: boolean; template_html?: string; r2_key?: string; config_schema?: Record<string, any>; error?: string }> {
   return workerFetch('/api/v1/oem-agent/admin/recipes/generate-component', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

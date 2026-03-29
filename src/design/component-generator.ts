@@ -13,10 +13,18 @@ import type { AiRouter } from '../ai/router';
 
 const R2_COMPONENTS_PREFIX = 'components';
 
+export interface ConfigSchemaField {
+  type: 'string' | 'number' | 'boolean' | 'select' | 'color';
+  label: string;
+  default: any;
+  options?: string[] | number[];
+}
+
 export interface BespokeComponentResult {
   success: boolean;
   r2_key?: string;
   template_html?: string;
+  config_schema?: Record<string, ConfigSchemaField>;
   tokens_used: number;
   cost_usd: number;
   error?: string;
@@ -85,8 +93,18 @@ ${JSON.stringify(section, null, 2)}
 Return a JSON object:
 {
   "template": "<div x-data=\\"{...}\\" class=\\"...\\">[HTML with Alpine.js directives]</div>",
-  "description": "Brief description of what this component renders"
+  "description": "Brief description of what this component renders",
+  "config_schema": {
+    "property_name": { "type": "string|number|boolean|select|color", "label": "Human Label", "default": "value", "options": ["only for select type"] }
+  }
 }
+
+The config_schema should describe every editable property in the component — text content, colors, sizes, toggles, layout options. Include 5-10 properties that a designer would want to adjust. Use these types:
+- "string": text input (headings, body text, CTA text, URLs)
+- "number": numeric input (columns, gap sizes)
+- "boolean": checkbox (show/hide elements)
+- "select": dropdown (layout options, alignment, size presets)
+- "color": color input (background, text, accent colors)
 
 The template should use Alpine.js syntax:
 - \`x-text="label"\` for dynamic text content
@@ -174,6 +192,7 @@ The template should use Alpine.js syntax:
         success: true,
         r2_key: r2Key,
         template_html: parsed.template,
+        config_schema: parsed.config_schema,
         tokens_used: tokensUsed,
         cost_usd: costUsd,
       };

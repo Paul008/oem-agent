@@ -5,7 +5,7 @@ import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, generateRecipeComponent, saveRecipe, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
+import { fetchStyleGuide, generateRecipeComponent, saveRecipe, extractRecipesFromUrl, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
 
 const { fetchOems } = useOemData()
 
@@ -35,6 +35,15 @@ const regenerating = ref(false)
 const saving = ref(false)
 const previewViewport = ref<'desktop' | 'tablet' | 'mobile'>('desktop')
 const viewportWidths = { desktop: '100%', tablet: '768px', mobile: '375px' }
+
+// OEM reference capture
+const referenceUrl = ref('')
+const capturingReference = ref(false)
+const referenceScreenshot = ref<string | null>(null)
+
+// AI-dynamic config
+const configSchema = ref<Record<string, { type: string; label: string; default: any; options?: any[] }> | null>(null)
+const configValues = ref<Record<string, any>>({})
 
 onMounted(async () => {
   const o = await fetchOems()
@@ -82,6 +91,9 @@ function selectRecipe(recipe: any) {
   selectedRecipe.value = recipe
   editDefaults.value = JSON.parse(JSON.stringify(recipe.defaults_json || {}))
   previewHtml.value = null
+  configSchema.value = null
+  configValues.value = {}
+  referenceScreenshot.value = recipe.defaults_json?.thumbnail_url || null
 }
 
 function buildSrcdoc(html: string): string {
@@ -112,10 +124,25 @@ async function handleRegenerate() {
   regenerating.value = true
   previewHtml.value = null
   try {
-    const recipe = { ...selectedRecipe.value, defaults_json: editDefaults.value }
+    // Merge config overrides into defaults
+    const mergedDefaults = { ...editDefaults.value }
+    if (Object.keys(configValues.value).length) {
+      mergedDefaults._config_overrides = configValues.value
+    }
+    const recipe = { ...selectedRecipe.value, defaults_json: mergedDefaults }
     const result = await generateRecipeComponent(selectedOem.value, recipe as ExtractedRecipe)
     if (result.success && result.template_html) {
       previewHtml.value = result.template_html
+      // Capture config_schema from AI response
+      if ((result as any).config_schema) {
+        configSchema.value = (result as any).config_schema
+        // Initialize config values from schema defaults (only on first generation)
+        if (!Object.keys(configValues.value).length) {
+          for (const [key, field] of Object.entries(configSchema.value!)) {
+            configValues.value[key] = field.default
+          }
+        }
+      }
     } else {
       toast.error(result.error || 'Generation failed')
     }
@@ -123,6 +150,22 @@ async function handleRegenerate() {
     toast.error(err.message || 'Generation failed')
   } finally {
     regenerating.value = false
+  }
+}
+
+async function captureReference() {
+  if (!referenceUrl.value || !selectedOem.value || capturingReference.value) return
+  capturingReference.value = true
+  try {
+    const result = await extractRecipesFromUrl(referenceUrl.value, selectedOem.value)
+    if (result.screenshot_base64) {
+      referenceScreenshot.value = 'data:image/png;base64,' + result.screenshot_base64
+      toast.success('Reference captured')
+    }
+  } catch (err: any) {
+    toast.error(err.message || 'Capture failed')
+  } finally {
+    capturingReference.value = false
   }
 }
 
@@ -233,127 +276,94 @@ function removeSlot(index: number) {
           </div>
         </div>
 
-        <!-- Panel 1: OEM Reference (full width) -->
+        <!-- Panel 1: OEM Reference (full width) with inline capture -->
         <div class="border rounded-lg overflow-hidden">
-          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center gap-1">
-            <Eye class="size-3" /> OEM Original
+          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center justify-between">
+            <span class="flex items-center gap-1"><Eye class="size-3" /> OEM Original</span>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="referenceUrl"
+                placeholder="Paste OEM page URL to capture reference..."
+                class="w-64 rounded border bg-background px-2 py-1 text-xs"
+                @keydown.enter="captureReference"
+              />
+              <UiButton size="sm" variant="ghost" :disabled="!referenceUrl || capturingReference" @click="captureReference">
+                <Loader2 v-if="capturingReference" class="size-3 animate-spin" />
+                <Eye v-else class="size-3" />
+              </UiButton>
+            </div>
           </div>
-          <div v-if="selectedRecipe.defaults_json?.thumbnail_url" class="bg-muted/10">
-            <img
-              :src="selectedRecipe.defaults_json.thumbnail_url"
-              class="w-full object-contain"
-              style="max-height: 400px;"
-            />
+          <div v-if="capturingReference" class="py-12 text-center">
+            <Loader2 class="size-6 animate-spin text-muted-foreground mx-auto mb-2" />
+            <p class="text-xs text-muted-foreground">Capturing screenshot...</p>
           </div>
-          <div v-else class="py-8 text-center text-xs text-muted-foreground">
-            <Eye class="size-6 mx-auto opacity-20 mb-2" />
-            <p>No OEM reference — extract from URL on the Style Guide page to capture one</p>
+          <div v-else-if="referenceScreenshot" class="bg-muted/10">
+            <img :src="referenceScreenshot" class="w-full object-contain" style="max-height: 500px;" />
+          </div>
+          <div v-else class="py-6 text-center text-xs text-muted-foreground">
+            <Eye class="size-5 mx-auto opacity-20 mb-1" />
+            <p>Paste an OEM URL above to capture a reference screenshot</p>
           </div>
         </div>
 
-        <!-- Panel 2: Recipe Controls (full width, horizontal layout) -->
+        <!-- Panel 2: AI-Dynamic Recipe Controls -->
         <div class="border rounded-lg overflow-hidden">
-          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b">Recipe Controls</div>
-          <div class="p-4">
+          <div class="px-4 py-2 bg-muted/50 text-xs font-medium border-b flex items-center justify-between">
+            <span>Recipe Controls</span>
+            <span v-if="configSchema" class="text-[10px] text-muted-foreground">{{ Object.keys(configSchema).length }} configurable properties</span>
+            <span v-else class="text-[10px] text-muted-foreground">Click Regenerate to discover controls</span>
+          </div>
 
-            <!-- Hero Controls -->
-            <div v-if="selectedRecipe.pattern === 'hero'" class="grid grid-cols-3 gap-6">
-              <div class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Heading Size</label>
-                <select v-model="editDefaults.heading_size" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
-                  <option value="3xl">3xl</option>
-                  <option value="4xl">4xl</option>
-                  <option value="5xl">5xl</option>
-                  <option value="6xl">6xl</option>
-                </select>
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Overlay Position</label>
-                <select v-model="editDefaults.overlay_position" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
-                  <option value="bottom-left">Bottom Left</option>
-                  <option value="bottom-center">Bottom Center</option>
-                  <option value="center">Center</option>
-                  <option value="top-left">Top Left</option>
-                  <option value="top-center">Top Center</option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Text Color</label>
-                <input v-model="editDefaults.text_color" type="text" class="w-full rounded border bg-background px-2 py-1 text-xs" placeholder="#ffffff" />
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Text Align</label>
-                <select v-model="editDefaults.text_align" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Min Height</label>
-                <input v-model="editDefaults.min_height" type="text" class="w-full rounded border bg-background px-2 py-1 text-xs" placeholder="600px" />
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Show Overlay</label>
-                <input v-model="editDefaults.show_overlay" type="checkbox" />
-              </div>
-            </div>
+          <!-- Dynamic controls from AI config_schema -->
+          <div v-if="configSchema && Object.keys(configSchema).length" class="p-4">
+            <div class="grid grid-cols-3 gap-4">
+              <div v-for="(field, key) in configSchema" :key="key" class="space-y-1">
+                <label class="text-[10px] font-semibold text-muted-foreground uppercase">{{ field.label }}</label>
 
-            <!-- Card Grid Controls -->
-            <div v-else-if="selectedRecipe.pattern === 'card-grid'" class="grid grid-cols-3 gap-6">
-              <div class="space-y-3">
-                <div>
-                  <label class="text-[10px] font-semibold text-muted-foreground uppercase">Columns</label>
-                  <select v-model.number="editDefaults.columns" class="w-full mt-1 rounded border bg-background px-2 py-1.5 text-xs">
-                    <option :value="2">2 columns</option>
-                    <option :value="3">3 columns</option>
-                    <option :value="4">4 columns</option>
-                  </select>
+                <!-- String input -->
+                <input
+                  v-if="field.type === 'string'"
+                  v-model="configValues[key]"
+                  type="text"
+                  class="w-full rounded border bg-background px-2 py-1.5 text-xs"
+                />
+
+                <!-- Number input -->
+                <input
+                  v-else-if="field.type === 'number'"
+                  v-model.number="configValues[key]"
+                  type="number"
+                  class="w-full rounded border bg-background px-2 py-1.5 text-xs"
+                />
+
+                <!-- Boolean checkbox -->
+                <div v-else-if="field.type === 'boolean'" class="flex items-center gap-2 pt-1">
+                  <input v-model="configValues[key]" type="checkbox" />
+                  <span class="text-xs text-muted-foreground">{{ configValues[key] ? 'Yes' : 'No' }}</span>
                 </div>
-                <div v-if="editDefaults.card_composition">
-                  <label class="text-[10px] font-semibold text-muted-foreground uppercase">Card Composition</label>
-                  <div class="space-y-1 mt-1">
-                    <div v-for="(slot, idx) in editDefaults.card_composition" :key="idx" class="flex items-center gap-1 text-xs bg-muted/50 rounded px-2 py-1">
-                      <GripVertical class="size-3 text-muted-foreground" />
-                      <span class="flex-1 font-mono">{{ slot }}</span>
-                      <button @click="removeSlot(idx)" class="text-muted-foreground hover:text-destructive"><X class="size-3" /></button>
-                    </div>
-                  </div>
-                  <select class="w-full mt-1 rounded border bg-background px-2 py-1 text-xs" @change="(e: any) => { if (e.target.value) { addSlot(e.target.value); e.target.value = '' } }">
-                    <option value="">+ Add slot...</option>
-                    <option v-for="s in SLOTS.filter(s => !editDefaults.card_composition?.includes(s))" :key="s" :value="s">{{ s }}</option>
-                  </select>
+
+                <!-- Select dropdown -->
+                <select
+                  v-else-if="field.type === 'select'"
+                  v-model="configValues[key]"
+                  class="w-full rounded border bg-background px-2 py-1.5 text-xs"
+                >
+                  <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+
+                <!-- Color input -->
+                <div v-else-if="field.type === 'color'" class="flex items-center gap-2">
+                  <input v-model="configValues[key]" type="color" class="size-7 rounded border cursor-pointer" />
+                  <input v-model="configValues[key]" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs font-mono" />
                 </div>
               </div>
-              <div v-if="editDefaults.card_style" class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Card Style</label>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Background</label><input v-model="editDefaults.card_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Border</label><input v-model="editDefaults.card_style.border" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Radius</label><input v-model.number="editDefaults.card_style.border_radius" type="number" class="w-16 rounded border bg-background px-2 py-1 text-xs" /><span class="text-[10px] text-muted-foreground">px</span></div>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Shadow</label><input v-model="editDefaults.card_style.shadow" type="checkbox" /></div>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Text Align</label><select v-model="editDefaults.card_style.text_align" class="flex-1 rounded border bg-background px-2 py-1 text-xs"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
-              </div>
-              <div v-if="editDefaults.section_style" class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Section Style</label>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Background</label><input v-model="editDefaults.section_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Padding</label><input v-model="editDefaults.section_style.padding" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
-              </div>
             </div>
+          </div>
 
-            <!-- Action Bar / Split Content / Generic Controls -->
-            <div v-else class="grid grid-cols-3 gap-6">
-              <div class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Background Color</label>
-                <input v-model="editDefaults.background_color" type="text" class="w-full rounded border bg-background px-2 py-1 text-xs" placeholder="#000000" />
-              </div>
-              <div v-if="editDefaults.section_style" class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Section Style</label>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Background</label><input v-model="editDefaults.section_style.background" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
-                <div class="flex items-center gap-2"><label class="text-[10px] w-20">Padding</label><input v-model="editDefaults.section_style.padding" type="text" class="flex-1 rounded border bg-background px-2 py-1 text-xs" /></div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-semibold text-muted-foreground uppercase">Layout</label>
-                <select v-model="editDefaults.layout" class="w-full rounded border bg-background px-2 py-1.5 text-xs">
-                  <option value="contained">Contained</option>
-                  <option value="full-width">Full Width</option>
-                  <option value="two-column">Two Column</option>
-                </select>
-              </div>
-            </div>
+          <!-- Placeholder before first generation -->
+          <div v-else class="py-6 text-center text-xs text-muted-foreground">
+            <Wand2 class="size-5 mx-auto opacity-20 mb-1" />
+            <p>Click Regenerate — AI will create controls specific to this component</p>
           </div>
         </div>
 
