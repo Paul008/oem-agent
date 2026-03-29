@@ -108,6 +108,27 @@ function onMediaLibrarySelect(url: string) {
           <UiInput :model-value="section.font_family || ''" class="h-8 text-xs" placeholder="e.g. Inter, Roboto" @update:model-value="update('font_family', $event)" />
         </div>
 
+        <!-- Animation -->
+        <div>
+          <label class="text-[10px] text-muted-foreground mb-1 block">Scroll Animation</label>
+          <UiSelect :model-value="section.animation || 'none'" @update:model-value="update('animation', $event)">
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="none">None</UiSelectItem>
+              <UiSelectItem value="fade-up">Fade Up</UiSelectItem>
+              <UiSelectItem value="fade-in">Fade In</UiSelectItem>
+              <UiSelectItem value="slide-left">Slide from Left</UiSelectItem>
+              <UiSelectItem value="slide-right">Slide from Right</UiSelectItem>
+              <UiSelectItem value="scale-in">Scale In</UiSelectItem>
+              <UiSelectItem value="parallax">Parallax (images)</UiSelectItem>
+              <UiSelectItem value="stagger-children">Stagger Children</UiSelectItem>
+              <UiSelectItem value="count-up">Count Up (numbers)</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+
         <!-- Text Alignment -->
         <div>
           <label class="text-[10px] text-muted-foreground mb-1 block">Text Align</label>

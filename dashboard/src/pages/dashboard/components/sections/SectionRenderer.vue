@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { defineAsyncComponent } from 'vue'
+import AnimatedSection from './AnimatedSection.vue'
 
 interface PageSection {
   type: string
   id: string
   order: number
+  animation?: string
   [key: string]: any
 }
 
@@ -45,24 +47,28 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'countdown': defineAsyncComponent(() => import('./SectionHero.vue')),
   'split-content': defineAsyncComponent(() => import('./SectionSplitContent.vue')),
   'card-grid': defineAsyncComponent(() => import('./SectionCardGrid.vue')),
+  'sticky-bar': defineAsyncComponent(() => import('./SectionStickyBar.vue')),
+  'finance-calculator': defineAsyncComponent(() => import('./SectionFinanceCalculator.vue')),
+  'comparison-table': defineAsyncComponent(() => import('./SectionComparisonTable.vue')),
 }
 </script>
 
 <template>
   <div class="space-y-0">
     <template v-for="section in sections" :key="section.id">
-      <component
-        v-if="resolveComponent(section)"
-        :is="resolveComponent(section)"
-        :section="section"
-      />
-      <!-- Fallback for unknown section types -->
-      <div
-        v-else
-        class="px-6 py-4 bg-muted/30 text-sm text-muted-foreground"
-      >
-        Unknown section type: {{ section.type }}
-      </div>
+      <AnimatedSection :animation="section.animation as any">
+        <component
+          v-if="resolveComponent(section)"
+          :is="resolveComponent(section)"
+          :section="section"
+        />
+        <div
+          v-else
+          class="px-6 py-4 bg-muted/30 text-sm text-muted-foreground"
+        >
+          Unknown section type: {{ section.type }}
+        </div>
+      </AnimatedSection>
     </template>
   </div>
 </template>

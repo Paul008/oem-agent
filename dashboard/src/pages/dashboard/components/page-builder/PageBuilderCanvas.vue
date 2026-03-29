@@ -308,6 +308,9 @@ ${rendered}
             <span class="bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
               {{ section.type }}
             </span>
+            <span v-if="section.animation && section.animation !== 'none'" class="bg-purple-600 text-white text-[9px] font-medium px-1.5 py-0.5 rounded">
+              {{ section.animation }}
+            </span>
             <button
               class="bg-black/70 hover:bg-black/90 text-white rounded p-1 transition-colors"
               title="Edit section"

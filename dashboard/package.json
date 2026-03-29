@@ -48,6 +48,7 @@
     "dayjs": "^1.11.19",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-vue": "^8.6.0",
+    "gsap": "^3.14.2",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "lucide-vue-next": "0.553.0",
