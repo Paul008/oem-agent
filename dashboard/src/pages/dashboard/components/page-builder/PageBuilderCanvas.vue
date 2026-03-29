@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { defineAsyncComponent, ref } from 'vue'
 import { AlertCircle, Settings, GripVertical } from 'lucide-vue-next'
+import EditToolbar from './EditToolbar.vue'
 
 const props = defineProps<{
   page: any
@@ -17,7 +18,26 @@ const emit = defineEmits<{
   selectSection: [id: string]
   openEditor: [id: string]
   moveSection: [fromIndex: number, toIndex: number]
+  updateField: [sectionId: string, field: string, value: any]
 }>()
+
+// Inline editing state
+const editingTarget = ref<HTMLElement | null>(null)
+const editingSectionId = ref<string | null>(null)
+const editingField = ref<string | null>(null)
+const editingSection = ref<any>(null)
+
+function onInlineEdit(sectionId: string, field: string, value: string) {
+  editingTarget.value = null
+  editingSectionId.value = null
+  editingField.value = null
+  editingSection.value = null
+  emit('updateField', sectionId, field, value)
+}
+
+function onToolbarUpdate(sectionId: string, field: string, value: any) {
+  emit('updateField', sectionId, field, value)
+}
 
 // Drag-and-drop state
 const dragIndex = ref<number | null>(null)
@@ -229,6 +249,13 @@ ${rendered}
             :is="resolveComponent(section)"
             :section="section"
             v-bind="section.type === 'color-picker' ? { oemId: props.oemId, modelSlug: props.modelSlug } : {}"
+            @inline-edit="(field: string, value: string, el: HTMLElement) => {
+              editingTarget = el
+              editingSectionId = section.id
+              editingField = field
+              editingSection = section
+            }"
+            @update-text="(field: string, value: string) => onInlineEdit(section.id, field, value)"
           />
           <div
             v-else
@@ -239,6 +266,19 @@ ${rendered}
         </div>
       </div>
     </template>
+
+    <!-- Inline edit toolbar -->
+    <EditToolbar
+      v-if="editingTarget && editingSectionId && editingField"
+      :target="editingTarget"
+      :section-id="editingSectionId"
+      :field="editingField"
+      :font-size="editingSection?.heading_size || editingSection?.sub_heading_size"
+      :font-weight="editingSection?.heading_weight || editingSection?.sub_heading_weight"
+      :text-align="editingSection?.text_align"
+      :text-color="editingSection?.text_color"
+      @update-field="onToolbarUpdate"
+    />
 
     <!-- Cloned page in iframe (not yet structured) -->
     <template v-else-if="isCloned && page?.content?.rendered">

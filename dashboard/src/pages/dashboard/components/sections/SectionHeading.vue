@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { useInlineEdit } from '@/composables/use-inline-edit'
+
 const props = defineProps<{
   section: {
     type: 'heading'
@@ -15,6 +17,20 @@ const props = defineProps<{
     background_color?: string
   }
 }>()
+
+const emit = defineEmits<{
+  'inline-edit': [field: string, value: string, el: HTMLElement]
+  'update-text': [field: string, value: string]
+}>()
+
+const headingEdit = useInlineEdit((v) => emit('update-text', 'heading', v))
+const subEdit = useInlineEdit((v) => emit('update-text', 'sub_heading', v))
+
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
+  const el = e.target as HTMLElement
+  edit.startEdit(el)
+  emit('inline-edit', field, el.textContent || '', el)
+}
 
 const sizeClasses: Record<string, string> = {
   sm: 'text-sm', base: 'text-base', lg: 'text-lg', xl: 'text-xl',
@@ -50,17 +66,24 @@ function gap() { return gapClasses[props.section.line_gap || '8'] || 'mt-2' }
     <component
       :is="section.heading_tag || 'h2'"
       :class="[hSize(), hWeight()]"
-      class="leading-tight"
+      class="leading-tight cursor-text outline-none"
+      @dblclick="startEditing('heading', headingEdit, $event)"
+      @blur="headingEdit.stopEdit()"
+      @keydown="headingEdit.onKeydown"
+      @paste="headingEdit.onPaste"
     >
-      {{ section.heading || 'Heading' }}
+      {{ section.heading || 'Double-click to edit heading' }}
     </component>
     <p
-      v-if="section.sub_heading"
       :class="[sSize(), sWeight(), gap()]"
-      class="text-muted-foreground"
-      :style="section.text_color ? { color: section.text_color, opacity: 0.7 } : undefined"
+      class="text-muted-foreground cursor-text outline-none"
+      :style="section.text_color ? { color: section.text_color, opacity: 0.7 } : { opacity: section.sub_heading ? 1 : 0.4 }"
+      @dblclick="startEditing('sub_heading', subEdit, $event)"
+      @blur="subEdit.stopEdit()"
+      @keydown="subEdit.onKeydown"
+      @paste="subEdit.onPaste"
     >
-      {{ section.sub_heading }}
+      {{ section.sub_heading || 'Double-click to add subtitle' }}
     </p>
   </div>
 </template>

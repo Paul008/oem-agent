@@ -599,6 +599,7 @@ const workflowSteps = computed(() => {
             @select-section="selectSection"
             @open-editor="openEditor"
             @move-section="moveSection"
+            @update-field="(id: string, field: string, value: any) => updateSection(id, { [field]: value })"
           />
         </UiResizablePanel>
 
