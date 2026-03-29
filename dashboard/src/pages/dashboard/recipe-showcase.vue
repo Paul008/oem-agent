@@ -89,11 +89,14 @@ const tokens = computed(() => data.value?.brand_tokens ?? null)
 
 function selectRecipe(recipe: any) {
   selectedRecipe.value = recipe
-  editDefaults.value = JSON.parse(JSON.stringify(recipe.defaults_json || {}))
-  previewHtml.value = null
-  configSchema.value = null
-  configValues.value = {}
-  referenceScreenshot.value = recipe.defaults_json?.thumbnail_url || null
+  const dj = recipe.defaults_json || {}
+  editDefaults.value = JSON.parse(JSON.stringify(dj))
+
+  // Restore saved generated state
+  previewHtml.value = dj._generated_html || null
+  configSchema.value = dj._config_schema || null
+  configValues.value = dj._config_values ? JSON.parse(JSON.stringify(dj._config_values)) : {}
+  referenceScreenshot.value = dj._reference_screenshot || dj.thumbnail_url || null
 }
 
 function buildSrcdoc(html: string): string {
@@ -173,16 +176,23 @@ async function handleSave() {
   if (!selectedRecipe.value || !selectedOem.value || saving.value) return
   saving.value = true
   try {
+    // Persist generated state into defaults_json
+    const defaults = { ...editDefaults.value }
+    if (previewHtml.value) defaults._generated_html = previewHtml.value
+    if (configSchema.value) defaults._config_schema = configSchema.value
+    if (Object.keys(configValues.value).length) defaults._config_values = configValues.value
+    if (referenceScreenshot.value) defaults._reference_screenshot = referenceScreenshot.value
+
     await saveRecipe({
       oem_id: selectedOem.value,
       pattern: selectedRecipe.value.pattern,
       variant: selectedRecipe.value.variant,
       label: selectedRecipe.value.label,
       resolves_to: selectedRecipe.value.resolves_to,
-      defaults_json: editDefaults.value,
+      defaults_json: defaults,
     })
     // Update local data
-    selectedRecipe.value.defaults_json = JSON.parse(JSON.stringify(editDefaults.value))
+    selectedRecipe.value.defaults_json = JSON.parse(JSON.stringify(defaults))
     toast.success('Recipe saved')
   } catch (err: any) {
     toast.error(err.message || 'Save failed')
