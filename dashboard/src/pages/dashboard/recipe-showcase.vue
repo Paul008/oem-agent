@@ -78,7 +78,7 @@ const tokens = computed(() => data.value?.brand_tokens ?? null)
 
 function selectRecipe(recipe: any) {
   selectedRecipe.value = recipe
-  editDefaults.value = structuredClone(recipe.defaults_json || {})
+  editDefaults.value = JSON.parse(JSON.stringify(recipe.defaults_json || {}))
   previewHtml.value = null
   // Auto-generate on select
   handleRegenerate()
@@ -139,7 +139,7 @@ async function handleSave() {
       defaults_json: editDefaults.value,
     })
     // Update local data
-    selectedRecipe.value.defaults_json = structuredClone(editDefaults.value)
+    selectedRecipe.value.defaults_json = JSON.parse(JSON.stringify(editDefaults.value))
     toast.success('Recipe saved')
   } catch (err: any) {
     toast.error(err.message || 'Save failed')
