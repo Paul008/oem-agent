@@ -102,6 +102,12 @@ function onMediaLibrarySelect(url: string) {
           <label class="text-xs">Full width (edge-to-edge)</label>
         </div>
 
+        <!-- Font Family -->
+        <div>
+          <label class="text-[10px] text-muted-foreground mb-1 block">Font Family</label>
+          <UiInput :model-value="section.font_family || ''" class="h-8 text-xs" placeholder="e.g. Inter, Roboto" @update:model-value="update('font_family', $event)" />
+        </div>
+
         <!-- Text Alignment -->
         <div>
           <label class="text-[10px] text-muted-foreground mb-1 block">Text Align</label>

@@ -2,8 +2,9 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   AlignLeft, AlignCenter, AlignRight,
-  Bold, Type, Palette, Pipette,
+  Pipette,
 } from 'lucide-vue-next'
+import FontPicker from './FontPicker.vue'
 
 const props = defineProps<{
   target: HTMLElement | null
@@ -12,6 +13,7 @@ const props = defineProps<{
   // Current values from section data
   fontSize?: string
   fontWeight?: string
+  fontFamily?: string
   textAlign?: string
   textColor?: string
 }>()
@@ -88,6 +90,10 @@ function setColor(c: string) {
   emit('updateField', props.sectionId, 'text_color', c)
 }
 
+function setFontFamily(family: string) {
+  emit('updateField', props.sectionId, 'font_family', family)
+}
+
 async function eyedrop() {
   if (!('EyeDropper' in window)) return
   try {
@@ -107,6 +113,14 @@ async function eyedrop() {
       :style="{ top: pos.top + 'px', left: pos.left + 'px' }"
       @mousedown.prevent
     >
+      <!-- Font family -->
+      <FontPicker
+        :model-value="fontFamily"
+        @update:model-value="setFontFamily"
+      />
+
+      <div class="w-px h-4 bg-border mx-0.5" />
+
       <!-- Font size -->
       <button
         class="p-1 rounded hover:bg-muted text-xs font-mono min-w-[28px] text-center"

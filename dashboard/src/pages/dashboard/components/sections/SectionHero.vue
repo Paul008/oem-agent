@@ -25,6 +25,7 @@ const props = defineProps<{
     show_overlay?: boolean
     full_width_image?: boolean
     full_width?: boolean
+    font_family?: string
     // CTA-banner fields
     body?: string
     background_color?: string
@@ -210,7 +211,7 @@ const isExpired = computed(() => {
       @replace="emit('update-text', 'desktop_image_url', $event)"
     />
     <div v-if="section.show_overlay !== false" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
-    <div class="absolute" :class="[overlayPos(), textAlignClass()]">
+    <div class="absolute" :class="[overlayPos(), textAlignClass()]" :style="section.font_family ? { fontFamily: `'${section.font_family}', sans-serif` } : {}">
       <h2
         class="drop-shadow-lg cursor-text outline-none"
         :class="[headingSizeClass(), headingWeightClass()]"

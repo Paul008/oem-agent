@@ -276,6 +276,7 @@ ${rendered}
       :field="editingField"
       :font-size="editingSection?.heading_size || editingSection?.sub_heading_size"
       :font-weight="editingSection?.heading_weight || editingSection?.sub_heading_weight"
+      :font-family="editingSection?.font_family"
       :text-align="editingSection?.text_align"
       :text-color="editingSection?.text_color"
       @update-field="onToolbarUpdate"

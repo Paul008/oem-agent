@@ -13,6 +13,7 @@ const props = defineProps<{
     sub_heading_weight?: string
     text_align?: string
     text_color?: string
+    font_family?: string
     line_gap?: string
     background_color?: string
   }
@@ -61,7 +62,7 @@ function gap() { return gapClasses[props.section.line_gap || '8'] || 'mt-2' }
   <div
     class="px-8 py-6"
     :class="align()"
-    :style="{ backgroundColor: section.background_color || undefined, color: section.text_color || undefined }"
+    :style="{ backgroundColor: section.background_color || undefined, color: section.text_color || undefined, fontFamily: section.font_family ? `'${section.font_family}', sans-serif` : undefined }"
   >
     <component
       :is="section.heading_tag || 'h2'"
