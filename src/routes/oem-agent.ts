@@ -80,6 +80,39 @@ app.get('/health', (c) => {
 });
 
 /**
+ * GET /api/v1/oem-agent/admin/proxy-html?url=...
+ * Fetch a webpage and return its HTML for the section capture tool
+ */
+app.get('/admin/proxy-html', async (c) => {
+  const url = c.req.query('url');
+  if (!url) return c.json({ error: 'url parameter required' }, 400);
+  try {
+    new URL(url);
+  } catch {
+    return c.json({ error: 'Invalid URL' }, 400);
+  }
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+      redirect: 'follow',
+    });
+    if (!resp.ok) return c.json({ error: `Fetch failed: ${resp.status}` }, 502);
+    const html = await resp.text();
+    // Rewrite relative URLs to absolute
+    const base = new URL(url);
+    const rewritten = html
+      .replace(/(href|src|srcset)="\/(?!\/)/g, `$1="${base.origin}/`)
+      .replace(/(href|src|srcset)='\/(?!\/)/g, `$1='${base.origin}/`);
+    return c.text(rewritten, 200, { 'Content-Type': 'text/html; charset=utf-8' });
+  } catch (e: any) {
+    return c.json({ error: e.message || 'Fetch failed' }, 502);
+  }
+});
+
+/**
  * GET /api/v1/oem-agent/oems
  * List all configured OEMs
  */

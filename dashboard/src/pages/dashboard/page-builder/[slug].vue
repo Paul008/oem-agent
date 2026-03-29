@@ -4,12 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft, Copy, Sparkles, Save, ExternalLink, Code,
   Loader2, Zap, Check, Circle, ChevronRight, Globe,
-  Undo2, Redo2, Import, ClipboardPaste, History, Menu, Cpu,
+  Undo2, Redo2, Import, ClipboardPaste, History, Menu, Cpu, MousePointer2,
 } from 'lucide-vue-next'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { useOemData } from '@/composables/use-oem-data'
 import { useThemeStore } from '@/stores/theme'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
+import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
@@ -44,6 +45,7 @@ const themeStore = useThemeStore()
 const showJson = ref(false)
 const showHistory = ref(false)
 const showSectionBrowser = ref(false)
+const showCapture = ref(false)
 const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
@@ -58,6 +60,20 @@ function closeEditor() {
 }
 function updateEditorSection(updates: Record<string, any>) {
   if (editorSectionId.value) updateSection(editorSectionId.value, updates)
+}
+
+function onCaptureHtml(html: string) {
+  // Add captured HTML as a content-block section
+  addSection('content-block')
+  // Update the newly added section with captured HTML
+  const newest = sections.value[sections.value.length - 1]
+  if (newest) {
+    updateSection(newest.id, {
+      title: 'Captured Section',
+      content_html: html,
+      layout: 'full-width',
+    })
+  }
 }
 const oems = ref<{ id: string; name: string }[]>([])
 
@@ -259,6 +275,19 @@ const workflowSteps = computed(() => {
         >
           <Import class="size-3.5 mr-1" />
           Import
+        </UiButton>
+
+        <!-- Capture from URL -->
+        <UiButton
+          v-if="isStructured || sections.length > 0"
+          size="sm"
+          variant="outline"
+          title="Capture sections from a live webpage"
+          class="hidden xl:inline-flex"
+          @click="showCapture = true"
+        >
+          <MousePointer2 class="size-3.5 mr-1" />
+          Capture
         </UiButton>
 
         <!-- Paste -->
@@ -616,6 +645,14 @@ const workflowSteps = computed(() => {
         @update:section="updateEditorSection($event)"
       />
     </template>
+
+    <!-- Section Capture (load page in iframe, click to capture) -->
+    <SectionCapture
+      v-if="showCapture"
+      :worker-base="WORKER_BASE"
+      @close="showCapture = false"
+      @capture="onCaptureHtml"
+    />
 
     <!-- Section Browser Dialog (import from other pages) -->
     <SectionBrowserDialog
