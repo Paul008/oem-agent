@@ -122,21 +122,20 @@ function onDragEnd() {
 }
 
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
-  // Consolidated renderers (matching SectionRenderer.vue)
+  // Use standalone components with inline editing support (not consolidated renderers)
   'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'cta-banner': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
+  'cta-banner': defineAsyncComponent(() => import('../sections/SectionCta.vue')),
   'countdown': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'intro': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'content-block': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
+  'intro': defineAsyncComponent(() => import('../sections/SectionIntro.vue')),
+  'content-block': defineAsyncComponent(() => import('../sections/SectionContentBlock.vue')),
   'split-content': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'gallery': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'video': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'image': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'image-showcase': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'embed': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
+  'gallery': defineAsyncComponent(() => import('../sections/SectionGallery.vue')),
+  'video': defineAsyncComponent(() => import('../sections/SectionVideo.vue')),
+  'image': defineAsyncComponent(() => import('../sections/SectionImageBlock.vue')),
+  'image-showcase': defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue')),
+  'embed': defineAsyncComponent(() => import('../sections/SectionEmbed.vue')),
   'media': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
   'card-grid': defineAsyncComponent(() => import('../sections/SectionCardGrid.vue')),
-  // Individual renderers (not consolidated)
   'heading': defineAsyncComponent(() => import('../sections/SectionHeading.vue')),
   'tabs': defineAsyncComponent(() => import('../sections/SectionTabs.vue')),
   'color-picker': defineAsyncComponent(() => import('../sections/SectionColorPicker.vue')),
