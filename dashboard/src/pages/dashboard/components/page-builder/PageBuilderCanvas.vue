@@ -1,7 +1,15 @@
 <script lang="ts" setup>
 import { defineAsyncComponent, ref } from 'vue'
-import { AlertCircle, Settings, GripVertical } from 'lucide-vue-next'
+import { AlertCircle, Settings, GripVertical, Monitor, Tablet, Smartphone } from 'lucide-vue-next'
 import EditToolbar from './EditToolbar.vue'
+
+// Responsive preview
+const previewWidth = ref<'full' | 'tablet' | 'mobile'>('full')
+const previewWidthClass: Record<string, string> = {
+  full: 'w-full',
+  tablet: 'max-w-[768px] mx-auto',
+  mobile: 'max-w-[375px] mx-auto',
+}
 
 const props = defineProps<{
   page: any
@@ -196,10 +204,39 @@ ${rendered}
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto bg-muted/30">
+  <div class="h-full flex flex-col bg-muted/30">
+    <!-- Responsive preview toggle -->
+    <div v-if="isStructured && sections.length > 0" class="flex items-center justify-center gap-1 py-1.5 border-b bg-card shrink-0">
+      <button
+        class="p-1.5 rounded-md transition-colors"
+        :class="previewWidth === 'full' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+        title="Desktop"
+        @click="previewWidth = 'full'"
+      >
+        <Monitor class="size-3.5" />
+      </button>
+      <button
+        class="p-1.5 rounded-md transition-colors"
+        :class="previewWidth === 'tablet' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+        title="Tablet (768px)"
+        @click="previewWidth = 'tablet'"
+      >
+        <Tablet class="size-3.5" />
+      </button>
+      <button
+        class="p-1.5 rounded-md transition-colors"
+        :class="previewWidth === 'mobile' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+        title="Mobile (375px)"
+        @click="previewWidth = 'mobile'"
+      >
+        <Smartphone class="size-3.5" />
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto">
     <!-- Structured sections -->
     <template v-if="isStructured && sections.length > 0">
-      <div class="space-y-0">
+      <div class="space-y-0 transition-all duration-300" :class="previewWidthClass[previewWidth]">
         <div
           v-for="(section, index) in sections"
           :key="section.id"
@@ -339,5 +376,6 @@ ${rendered}
         </div>
       </div>
     </template>
+    </div>
   </div>
 </template>

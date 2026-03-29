@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
   section: {
@@ -11,6 +12,19 @@ const props = defineProps<{
     layout?: 'full-width' | 'contained' | 'wide'
   }
 }>()
+
+const emit = defineEmits<{
+  'inline-edit': [field: string, value: string, el: HTMLElement]
+  'update-text': [field: string, value: string]
+}>()
+
+const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+
+function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
+  const el = e.target as HTMLElement
+  edit.startEdit(el)
+  emit('inline-edit', field, el.textContent || '', el)
+}
 
 /** Detect YouTube/Vimeo and return embed URL */
 const embedUrl = computed(() => {
@@ -39,11 +53,15 @@ const isFull = computed(() => layout.value === 'full-width')
     :style="section.text_align ? { textAlign: section.text_align } : undefined"
   >
     <h3
-      v-if="section.title"
-      class="text-xl font-bold mb-4"
+      class="text-xl font-bold mb-4 cursor-text outline-none"
       :class="{ 'px-8 pt-6': isFull }"
+      :style="{ opacity: section.title ? 1 : 0.4 }"
+      @dblclick="startEditing('title', titleEdit, $event)"
+      @blur="titleEdit.stopEdit()"
+      @keydown="titleEdit.onKeydown"
+      @paste="titleEdit.onPaste"
     >
-      {{ section.title }}
+      {{ section.title || 'Double-click to add title' }}
     </h3>
 
     <div
