@@ -4,11 +4,56 @@
  * literal </style> and </script> tags inside template literals.
  */
 export function buildCaptureInjection(): { earlyStub: string; lateInjection: string } {
-  const css = [
-    '[data-capture-hover] { outline: 3px solid #3b82f6 !important; outline-offset: -3px; cursor: pointer !important; }',
-    '[data-capture-hover]::after { content: "Click to capture · Hold Shift for smaller elements"; position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; font-size: 12px; padding: 4px 12px; border-radius: 6px; z-index: 999999; pointer-events: none; font-family: system-ui, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }',
-    '[data-capture-selected] { outline: 3px solid #22c55e !important; outline-offset: -3px; }',
-  ].join('\n')
+  const css = `
+    [data-capture-hover] {
+      outline: 3px solid #3b82f6 !important;
+      outline-offset: -3px;
+      cursor: pointer !important;
+    }
+    [data-capture-selected] {
+      outline: 3px solid #22c55e !important;
+      outline-offset: -3px;
+    }
+    #capture-tooltip {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: white;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      z-index: 999999;
+      pointer-events: none;
+      font-family: system-ui, -apple-system, sans-serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    #capture-tooltip .tag {
+      background: #3b82f6;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #capture-tooltip .meta {
+      opacity: 0.7;
+      font-size: 11px;
+    }
+    #capture-tooltip .hint {
+      opacity: 0.5;
+      font-size: 10px;
+      border-left: 1px solid rgba(255,255,255,0.2);
+      padding-left: 10px;
+    }
+  `
 
   // Stub history API to prevent SecurityError in srcdoc iframes
   const historyStub = `try {
@@ -21,42 +66,64 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   console.log('[SectionCapture] Injection script loaded');
   var ignore = new Set(['HTML','BODY','HEAD','SCRIPT','STYLE','LINK','META','NOSCRIPT','BR','HR']);
   var hovered = null;
-  var shiftHeld = false;
+  var selectionLevel = 0; // 0 = section, positive = drill-down levels
 
-  // Track Shift key for drill-down mode
-  document.addEventListener('keydown', function(e) { if (e.key === 'Shift') shiftHeld = true; }, true);
-  document.addEventListener('keyup', function(e) { if (e.key === 'Shift') shiftHeld = false; }, true);
+  // Build the info tooltip
+  var tooltip = document.createElement('div');
+  tooltip.id = 'capture-tooltip';
+  tooltip.style.opacity = '0';
+  document.body.appendChild(tooltip);
 
-  // Default mode: walk up to nearest <section> or large container
-  // Shift mode: select the exact element under cursor (fine-grained)
-  function findSection(el, drillDown) {
-    if (drillDown) {
-      // Fine-grained: first non-tiny, non-ignored element
-      while (el && el !== document.body && el !== document.documentElement) {
-        if (!ignore.has(el.tagName) && el.offsetHeight >= 30 && el.offsetWidth >= 30) return el;
-        el = el.parentElement;
-      }
-      return null;
-    }
-    // Default: prefer <section> ancestors — these are the full page sections
-    var candidate = null;
+  function updateTooltip(el) {
+    if (!el) { tooltip.style.opacity = '0'; return; }
+    var tag = el.tagName.toLowerCase();
+    var cls = (el.className || '').split(/\\s+/).filter(function(c) { return c && !c.startsWith('data-') }).slice(0, 2).join(' ');
+    var imgs = el.querySelectorAll('img').length;
+    var children = el.children.length;
+    var w = el.offsetWidth;
+    var h = el.offsetHeight;
+
+    var label = cls || tag;
+    var meta = w + ' x ' + h + 'px';
+    if (imgs) meta += ' · ' + imgs + ' image' + (imgs > 1 ? 's' : '');
+    if (children > 1) meta += ' · ' + children + ' items';
+
+    tooltip.innerHTML =
+      '<span class="tag">' + tag + '</span>' +
+      '<span>' + label + '</span>' +
+      '<span class="meta">' + meta + '</span>' +
+      '<span class="hint">Scroll \\u2191\\u2193 resize</span>';
+    tooltip.style.opacity = '1';
+  }
+
+  // Build ancestor chain for an element (for scroll navigation)
+  function getAncestors(el) {
+    var chain = [];
     while (el && el !== document.body && el !== document.documentElement) {
-      if (el.tagName === 'SECTION') return el;
-      // Track the first reasonable container as fallback
-      if (!candidate && !ignore.has(el.tagName) && el.offsetHeight >= 100 && el.offsetWidth >= 200) {
-        candidate = el;
+      if (!ignore.has(el.tagName) && el.offsetHeight >= 20 && el.offsetWidth >= 20) {
+        chain.push(el);
       }
       el = el.parentElement;
     }
-    return candidate;
+    return chain; // [deepest, ..., shallowest]
   }
 
+  var currentTarget = null; // raw mouseover target
+  var ancestors = [];
+
   document.addEventListener('mouseover', function(e) {
-    var el = findSection(e.target, shiftHeld);
+    currentTarget = e.target;
+    ancestors = getAncestors(e.target);
+    // Clamp selectionLevel to available ancestors
+    if (selectionLevel >= ancestors.length) selectionLevel = ancestors.length - 1;
+    if (selectionLevel < 0) selectionLevel = 0;
+
+    var el = ancestors[selectionLevel] || ancestors[0];
     if (!el) return;
     if (hovered && hovered !== el) hovered.removeAttribute('data-capture-hover');
     el.setAttribute('data-capture-hover', '');
     hovered = el;
+    updateTooltip(el);
   }, true);
 
   document.addEventListener('mouseout', function(e) {
@@ -64,7 +131,28 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
       hovered.removeAttribute('data-capture-hover');
       hovered = null;
     }
+    updateTooltip(null);
   }, true);
+
+  // Scroll wheel: resize selection (up = bigger/parent, down = smaller/child)
+  document.addEventListener('wheel', function(e) {
+    if (!ancestors.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.deltaY < 0) {
+      // Scroll up = expand to parent
+      selectionLevel = Math.min(selectionLevel + 1, ancestors.length - 1);
+    } else {
+      // Scroll down = drill into child
+      selectionLevel = Math.max(selectionLevel - 1, 0);
+    }
+    var el = ancestors[selectionLevel];
+    if (!el) return;
+    if (hovered && hovered !== el) hovered.removeAttribute('data-capture-hover');
+    el.setAttribute('data-capture-hover', '');
+    hovered = el;
+    updateTooltip(el);
+  }, { capture: true, passive: false });
 
   // Extract all image URLs from an element
   function extractImageUrls(el) {
@@ -85,7 +173,6 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
         });
       }
     });
-    // Check for background images in inline styles
     el.querySelectorAll('*').forEach(function(node) {
       var bg = window.getComputedStyle(node).backgroundImage;
       if (bg && bg !== 'none') {
@@ -93,11 +180,9 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
         if (match) urls.push(match[1]);
       }
     });
-    // Dedupe
     return urls.filter(function(v, i, a) { return a.indexOf(v) === i; });
   }
 
-  // Extract key computed values for the root element only (not children)
   function extractRootStyles(el) {
     var computed = window.getComputedStyle(el);
     return {
@@ -115,19 +200,15 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     };
   }
 
-  // Clean the HTML: strip inline styles, keep classes and structure
   function cleanHtml(el) {
     var clone = el.cloneNode(true);
     clone.removeAttribute('data-capture-hover');
     clone.removeAttribute('data-capture-selected');
-    // Strip all inline styles — the AI works from class names + structure
     clone.querySelectorAll('*').forEach(function(node) {
       node.removeAttribute('style');
     });
     clone.removeAttribute('style');
-    // Strip scripts
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
-    // Fix relative URLs to absolute
     var base = document.location.origin;
     clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
       ['src','srcset','poster','href'].forEach(function(attr) {
