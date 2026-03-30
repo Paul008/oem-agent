@@ -237,16 +237,15 @@ app.post('/admin/smart-capture', async (c) => {
 
   const oemName = body.oem_id?.replace('-au', '').toUpperCase() || 'OEM';
 
-  const prompt = `You are a pixel-perfect section converter for an automotive page builder. Your job is to analyze a captured HTML section from the ${oemName} website and convert it into a clean, portable section using ONLY Tailwind CSS classes.
+  const prompt = `You are a section analyzer for an automotive page builder. Analyze this HTML captured from the ${oemName} website and extract structured section data.
 
 ## Task
 1. Identify the section type
-2. Extract all content (text, images, links)
-3. Generate a Tailwind CSS + Alpine.js template that VISUALLY MATCHES the original section pixel-perfectly
+2. Extract ALL content: text, images, links
+3. CRITICAL: Each card/item has its OWN image — match them correctly from the HTML
 
 ## Brand Design Tokens
-${brandTokensContext || 'No brand tokens available — use neutral automotive styling.'}
-${imageContext}
+${brandTokensContext || 'No brand tokens available.'}
 ${layoutContext}
 
 ## Section Types
@@ -255,44 +254,37 @@ ${layoutContext}
 ## Output Format (JSON)
 {
   "type": "section-type",
-  "data": {
-    ... section-specific fields (heading, sub_heading, image_url, cards[], etc.) ...
-    "_generated_html": "<div class='...'>Tailwind + Alpine.js HTML that reproduces the design</div>"
-  }
+  "data": { ... section-specific fields ... }
 }
 
 ## Section Data Fields by Type
-- hero: heading, sub_heading, cta_text, cta_url, desktop_image_url, mobile_image_url, text_color, overlay_opacity, min_height, _generated_html
-- intro: title, body_html, image_url, image_position, _generated_html
-- feature-cards: title, cards[{title, description, image_url, cta_text, cta_url}], columns, _generated_html
-- gallery: title, images[{url, alt, caption}], layout, _generated_html
-- video: title, video_url, poster_url, _generated_html
-- cta-banner: heading, body, cta_text, cta_url, background_color, _generated_html
-- content-block: title, content_html, _generated_html
-- tabs: title, tabs[{label, content_html, image_url}], _generated_html
-- stats: title, stats[{value, label, unit}], _generated_html
-- testimonial: title, testimonials[{quote, author, role}], _generated_html
-- image: desktop_image_url, alt, caption, layout, _generated_html
-- image-showcase: title, images[{url, alt, caption}], layout, _generated_html
-- accordion: title, items[{question, answer}], _generated_html
-- pricing-table: title, tiers[{name, price, features[], cta_text}], _generated_html
-- heading: heading, sub_heading, _generated_html
-- embed: title, embed_url, _generated_html
+- hero: heading, sub_heading, cta_text, cta_url, desktop_image_url, mobile_image_url, text_color, overlay_opacity
+- intro: title, body_html, image_url, image_position
+- feature-cards: title, cards[{title, description, image_url, cta_text, cta_url}], columns
+- gallery: title, images[{url, alt, caption}], layout
+- video: title, video_url, poster_url
+- cta-banner: heading, body, cta_text, cta_url, background_color
+- content-block: title, content_html
+- tabs: title, tabs[{label, content_html, image_url}]
+- stats: title, stats[{value, label, unit}]
+- testimonial: title, testimonials[{quote, author, role}]
+- image: desktop_image_url, alt, caption, layout
+- image-showcase: title, images[{url, alt, caption}], layout
+- accordion: title, items[{question, answer}]
+- pricing-table: title, tiers[{name, price, features[], cta_text}]
+- heading: heading, sub_heading
+- embed: title, embed_url
 
-## CRITICAL Rules for _generated_html
-1. Use ONLY Tailwind CSS utility classes — NO inline styles, NO custom CSS, NO <style> tags
-2. Use Alpine.js x-data for interactivity (carousels, tabs, accordions)
-3. The input HTML has NO inline styles — use the class names and HTML structure to understand the design intent
-4. Class names are semantic (e.g. "grid-blocks__block-heading", "hero__content", "cta-button--solid") — use them to understand layout
-5. Use Tailwind arbitrary values for exact brand colors: bg-[#C8102E], text-[#1A1A1A], etc.
-6. Use the EXACT image URLs from the "Image URLs" list above — do NOT invent or modify image URLs
-7. For image cards: use the image as a full background with overlay text on top (dark gradient overlay for readability)
-8. Make it responsive: mobile-first with sm:/md:/lg: breakpoints
-9. For card grids: use CSS grid (grid grid-cols-1 md:grid-cols-3 gap-5) to match the original column layout
-10. Each card should be: relative, overflow-hidden, with the image as absolute/inset-0/object-cover, and text content positioned over it
-11. Match the visual hierarchy — heading sizes, spacing, overlay effects, CTA button positioning
-12. Self-contained — no external dependencies beyond Tailwind + Alpine.js
-13. CTA buttons should match the brand style (often: transparent bg, white text, with a colored arrow icon)
+## CRITICAL Rules
+1. Extract ALL image URLs as absolute URLs — keep the original src attribute values
+2. For cards/grids: EACH card has its own <img> tag — extract EACH card's image_url individually from its own <img src="...">
+3. Do NOT reuse the same image for multiple cards — look at each card's own <img> element
+4. The HTML has class names like "grid-blocks__block" for each card — each one contains its own image
+5. For feature-cards: set columns based on the grid layout (3 columns = "grid-blocks--span-1" pattern)
+6. Extract CTA text and URLs from <a> tags within each card
+7. Use the subheading text (e.g. "Full Electric", "Exterior") as the card description
+8. Use the heading text (e.g. "Up to 400km of driving range") as the card title
+9. Use the 1x image URL (not the 2x srcset URL) for image_url
 
 ## HTML to Analyze
 
@@ -303,7 +295,7 @@ ${body.html}`;
       taskType: 'bespoke_component',
       prompt,
       requireJson: true,
-      maxTokens: 8192,
+      maxTokens: 4096,
     });
 
     let result: any;
