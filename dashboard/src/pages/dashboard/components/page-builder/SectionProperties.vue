@@ -784,6 +784,18 @@ function onMediaLibrarySelect(url: string) {
           </UiSelect>
         </div>
         <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Card Style</label>
+          <UiSelect :model-value="section.card_style || 'default'" @update:model-value="update('card_style', $event)">
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="default">Default</UiSelectItem>
+              <UiSelectItem value="overlay">Image Overlay</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
           <div class="flex items-center justify-between mb-1">
             <label class="text-xs text-muted-foreground">Cards ({{ section.cards?.length ?? 0 }})</label>
             <button class="text-xs text-primary hover:underline" @click="addArrayItem('cards', { title: '', description: '', image_url: '' })">

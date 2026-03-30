@@ -260,7 +260,7 @@ ${layoutContext}
 ## Section Data Fields by Type
 - hero: heading, sub_heading, cta_text, cta_url, desktop_image_url, mobile_image_url, text_color, overlay_opacity
 - intro: title, body_html, image_url, image_position
-- feature-cards: title, cards[{title, description, image_url, cta_text, cta_url}], columns
+- feature-cards: title, cards[{title, description, image_url, cta_text, cta_url}], columns, card_style ("overlay" if images are backgrounds with text on top, "default" if images are above text)
 - gallery: title, images[{url, alt, caption}], layout
 - video: title, video_url, poster_url
 - cta-banner: heading, body, cta_text, cta_url, background_color
@@ -285,6 +285,7 @@ ${layoutContext}
 7. Use the subheading text (e.g. "Full Electric", "Exterior") as the card description
 8. Use the heading text (e.g. "Up to 400km of driving range") as the card title
 9. Use the 1x image URL (not the 2x srcset URL) for image_url
+10. For feature-cards: set card_style to "overlay" when cards have images as backgrounds with text overlaid (class names like "gradient", "block-media" behind "block-content" indicate overlay style)
 
 ## HTML to Analyze
 
