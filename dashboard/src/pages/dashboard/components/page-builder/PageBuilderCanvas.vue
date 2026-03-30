@@ -352,9 +352,15 @@ ${rendered}
             </button>
           </div>
 
-          <!-- Render the actual section component -->
+          <!-- Render AI-generated Tailwind HTML if available -->
+          <div
+            v-if="section._generated_html"
+            class="captured-section"
+            v-html="section._generated_html"
+          />
+          <!-- Otherwise render the standard section component -->
           <component
-            v-if="resolveComponent(section)"
+            v-else-if="resolveComponent(section)"
             :is="resolveComponent(section)"
             :section="section"
             :oem-id="props.oemId"
