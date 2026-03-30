@@ -300,10 +300,10 @@ ${body.html}`;
 
   try {
     const response = await aiRouter.route({
-      taskType: 'page_structuring',
+      taskType: 'bespoke_component',
       prompt,
       requireJson: true,
-      maxTokens: 4096,
+      maxTokens: 8192,
     });
 
     let result: any;
