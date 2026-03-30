@@ -111,10 +111,32 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   var currentTarget = null; // raw mouseover target
   var ancestors = [];
 
+  // Find the best default selection level — a page-section-level element
+  // Prefers <section>, <article>, or any element that spans near-full page width
+  function findDefaultLevel(chain) {
+    var pageWidth = document.documentElement.clientWidth;
+    var best = 0;
+    for (var i = 0; i < chain.length; i++) {
+      var el = chain[i];
+      // Prefer <section> and <article> tags
+      if (el.tagName === 'SECTION' || el.tagName === 'ARTICLE') return i;
+      // Also pick large containers that span most of the page width
+      if (el.offsetWidth >= pageWidth * 0.75 && el.offsetHeight >= 100 && el.children.length > 0) {
+        best = i;
+      }
+    }
+    return best;
+  }
+
   document.addEventListener('mouseover', function(e) {
     currentTarget = e.target;
-    ancestors = getAncestors(e.target);
-    // Clamp selectionLevel to available ancestors
+    var newAncestors = getAncestors(e.target);
+    // Only reset selection level when hovering a genuinely new element tree
+    if (newAncestors.length !== ancestors.length || (newAncestors[0] !== ancestors[0])) {
+      ancestors = newAncestors;
+      selectionLevel = findDefaultLevel(ancestors);
+    }
+    // Clamp
     if (selectionLevel >= ancestors.length) selectionLevel = ancestors.length - 1;
     if (selectionLevel < 0) selectionLevel = 0;
 
