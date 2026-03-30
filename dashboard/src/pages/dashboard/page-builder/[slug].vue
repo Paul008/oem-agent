@@ -717,6 +717,7 @@ const workflowSteps = computed(() => {
       :worker-base="WORKER_BASE"
       :oem-id="oemId"
       :model-slug="modelSlug"
+      :default-url="page?.source_url"
       @close="showCapture = false"
       @capture="onCaptureHtml"
       @smart-capture="onSmartCapture"

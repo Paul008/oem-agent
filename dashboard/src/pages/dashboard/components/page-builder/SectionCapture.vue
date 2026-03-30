@@ -7,6 +7,7 @@ const props = defineProps<{
   workerBase: string
   oemId?: string
   modelSlug?: string
+  defaultUrl?: string
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +16,7 @@ const emit = defineEmits<{
   smartCapture: [section: { type: string; data: Record<string, any> }]
 }>()
 
-const url = ref('')
+const url = ref(props.defaultUrl || '')
 const loading = ref(false)
 const analyzing = ref(false)
 const error = ref('')
