@@ -101,7 +101,7 @@ Note: video_url can be null if the video has no src (e.g. lazy-loaded or JS-inje
 
 ## Extraction Rules
 
-1. **Output absolute URLs** — convert relative paths (e.g. /images/hero.jpg) to full URLs using the page's origin. Keep /media/ paths and already-absolute URLs verbatim.
+1. **Output absolute URLs** — convert relative paths (e.g. /images/hero.jpg) to full URLs using the page's origin. EXCEPTION: any URL starting with /media/ is a local proxy path — output it EXACTLY as-is (e.g. /media/pages/gwm-au/ora/image.jpg). Do NOT prepend a domain to /media/ paths.
 2. **Clean content_html** — strip inline styles, keep semantic tags (p, h2, h3, ul, li, strong, em, a).
 3. **Detect tabs** via [role="tabpanel"], .tab-content, .tab_contents, .tabs, data-tab, aria-controls patterns.
 4. **Detect colors** via .color-swatch, data-color, color picker widgets, paint/colour selectors.
@@ -501,8 +501,12 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
   private resolveUrl(url: string | null | undefined, baseOrigin: string | null): string | null {
     if (!url || typeof url !== 'string') return null;
     if (url.startsWith('data:')) return url;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // Fix: Gemini sometimes absolutifies our /media/ proxy paths with the OEM domain.
+    // Strip the domain to recover the local proxy path.
+    const mediaMatch = url.match(/^https?:\/\/[^/]+?(\/media\/pages\/[^\s"']+)/);
+    if (mediaMatch) return mediaMatch[1];
     if (url.startsWith('/media/')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
     if (!baseOrigin) return url;
     // Relative URL — resolve against origin
     try {
