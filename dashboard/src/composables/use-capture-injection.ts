@@ -92,7 +92,7 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
       '<span class="tag">' + tag + '</span>' +
       '<span>' + label + '</span>' +
       '<span class="meta">' + meta + '</span>' +
-      '<span class="hint">Scroll \\u2191\\u2193 resize</span>';
+      '<span class="hint">\\u2325+Scroll resize</span>';
     tooltip.style.opacity = '1';
   }
 
@@ -134,9 +134,10 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     updateTooltip(null);
   }, true);
 
-  // Scroll wheel: resize selection (up = bigger/parent, down = smaller/child)
+  // Alt + Scroll wheel: resize selection (up = bigger/parent, down = smaller/child)
+  // Normal scroll without Alt scrolls the page as expected
   document.addEventListener('wheel', function(e) {
-    if (!ancestors.length) return;
+    if (!ancestors.length || !e.altKey) return;
     e.preventDefault();
     e.stopPropagation();
     if (e.deltaY < 0) {
