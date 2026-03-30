@@ -94,10 +94,10 @@ const isOverlay = computed(() => props.section.card_style === 'overlay')
                 @dblclick="(e: MouseEvent) => { const edit = makeCardEdit(i, 'title'); edit.startEdit(e.target as HTMLElement); emit('inline-edit', `cards[${i}].title`, card.title, e.target as HTMLElement) }"
               >{{ card.title }}</h4>
             </div>
-            <div v-if="card.cta_text" class="flex items-center gap-2 text-sm font-medium">
+            <a v-if="card.cta_text" :href="card.cta_url || '#'" class="flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity" @click.prevent>
               <span>{{ card.cta_text }}</span>
               <svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.6 12.5a.9.9 0 0 1 .9-.9h12.765l-4.989-4.751a.9.9 0 1 1 1.248-1.298l6.6 6.3a.9.9 0 0 1 0 1.298l-6.6 6.3a.9.9 0 1 1-1.248-1.298l4.989-4.751H4.5a.9.9 0 0 1-.9-.9Z" fill="currentColor"/></svg>
-            </div>
+            </a>
           </div>
         </div>
       </template>

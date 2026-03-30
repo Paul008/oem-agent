@@ -820,6 +820,10 @@ function onMediaLibrarySelect(url: string) {
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('cards', i, 'image_url', $event)" />
               <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('cards', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
             </div>
+            <div class="flex gap-1">
+              <UiInput :model-value="card.cta_text || ''" class="h-7 text-xs flex-[2]" placeholder="CTA text" @update:model-value="updateNested('cards', i, 'cta_text', $event)" />
+              <UiInput :model-value="card.cta_url || ''" class="h-7 text-xs flex-[3]" placeholder="CTA link URL" @update:model-value="updateNested('cards', i, 'cta_url', $event)" />
+            </div>
           </div>
         </div>
       </div>
