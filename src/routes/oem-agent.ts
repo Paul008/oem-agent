@@ -363,8 +363,11 @@ ${body.html}`;
           const buffer = await resp.arrayBuffer();
           if (buffer.byteLength < 500) return;
           // Extract clean filename from URL path
+          // Storyblok CDN URLs have the filename mid-path: .../hash/filename.jpg/m/476x0
           const urlPath = new URL(url).pathname;
-          const filename = urlPath.split('/').filter(Boolean).pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
+          const segments = urlPath.split('/').filter(Boolean);
+          const imgSegment = segments.find(s => /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(s));
+          const filename = imgSegment || segments.pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
           const r2Key = `pages/assets/${body.oem_id}/${slug}/${filename}`;
           await r2Bucket.put(r2Key, buffer, {
             httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
