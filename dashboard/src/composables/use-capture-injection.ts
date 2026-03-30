@@ -5,6 +5,26 @@
  */
 export function buildCaptureInjection(): { earlyStub: string; lateInjection: string } {
   const css = `
+    /* Force collapsed JS-dependent containers to be visible */
+    .swiper, .swiper-wrapper, .swiper-slide,
+    .splide, .splide__track, .splide__list, .splide__slide,
+    .slick-slider, .slick-list, .slick-track, .slick-slide,
+    .carousel, .carousel-inner, .carousel-item,
+    [class*="carousel"], [class*="slider"], [class*="swiper"] {
+      display: block !important;
+      overflow: visible !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      height: auto !important;
+      max-height: none !important;
+      transform: none !important;
+      position: relative !important;
+    }
+    .swiper-slide, .splide__slide, .slick-slide, .carousel-item {
+      width: 100% !important;
+      flex-shrink: 0 !important;
+    }
+
     [data-capture-hover] {
       outline: 3px solid #3b82f6 !important;
       outline-offset: -3px;
