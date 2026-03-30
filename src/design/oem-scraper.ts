@@ -586,7 +586,7 @@ export const GWM_OEM_MODEL_URLS: Record<string, string> = {
   'tank-500': 'https://www.gwmanz.com/au/models/suv/tank-500/',
   'cannon': 'https://www.gwmanz.com/au/models/ute/cannon/',
   'cannon-alpha': 'https://www.gwmanz.com/au/models/ute/cannon-alpha/',
-  'ora': 'https://www.gwmanz.com/au/models/ev/ora/',
+  'ora': 'https://www.gwmanz.com/au/models/hatchback/ora/',
   'h6gt': 'https://www.gwmanz.com/au/models/suv/haval-h6gt/',
   'haval-h6gt-phev': 'https://www.gwmanz.com/au/models/suv/haval-h6gt-phev/',
 };

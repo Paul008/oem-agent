@@ -122,7 +122,14 @@ app.get('/admin/proxy-html', async (c) => {
       .replace(/(href|src|srcset|poster|action)="\/(?!\/)/g, `$1="${origin}/`)
       .replace(/(href|src|srcset|poster|action)='\/(?!\/)/g, `$1='${origin}/`)
       .replace(/url\(\s*'?\//g, `url(${origin}/`)
-      .replace(/url\(\s*"\//g, `url("${origin}/`);
+      .replace(/url\(\s*"\//g, `url("${origin}/`)
+      // Strip ALL scripts — we only need rendered HTML + CSS for capture.
+      // Scripts crash in srcdoc iframes (Nuxt hydration, tracking, analytics).
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      // Strip preload links with empty as="" attribute
+      .replace(/<link[^>]*rel="preload"[^>]*as=""[^>]*>/gi, '')
+      // Strip noscript tags (not needed in capture)
+      .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '');
     return c.text(rewritten, 200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
@@ -2263,6 +2270,9 @@ app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
     page_type: 'model' as const,
     imported_from: 'oem-scraper',
     imported_at: new Date().toISOString(),
+    // Protect from Brand Ambassador overwriting
+    manually_edited: true,
+    manually_edited_at: new Date().toISOString(),
   };
 
   const jsonStr = JSON.stringify(pageData);
