@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
-import { X, Loader2, MousePointer2, Check, Trash2, Zap } from 'lucide-vue-next'
+import { X, Loader2, MousePointer2, Check, Trash2, Zap, Camera, Crop } from 'lucide-vue-next'
 import { buildCaptureInjection } from '@/composables/use-capture-injection'
 
 const props = defineProps<{
@@ -22,34 +22,79 @@ const analyzing = ref(false)
 const analyzeStatus = ref('')
 const analyzeProgress = ref(0)
 const error = ref('')
-const iframeRef = ref<HTMLIFrameElement | null>(null)
-const pageLoaded = ref(false)
 const completed = ref(0)
 
-// Queue mode: collect sections, then process
+// Screenshot mode
+const screenshotUrl = ref('')
+const screenshotWidth = ref(0)
+const screenshotHeight = ref(0)
+const imgRef = ref<HTMLImageElement | null>(null)
+const containerRef = ref<HTMLDivElement | null>(null)
+
+// Region selection on screenshot
+const selecting = ref(false)
+const selectionStart = ref({ x: 0, y: 0 })
+const selectionEnd = ref({ x: 0, y: 0 })
+const hasSelection = ref(false)
+
+// Queue
 interface QueueItem {
   id: string
-  html: string
+  screenshot_base64?: string
+  html?: string
   imageUrls: string[]
   rootStyles: Record<string, string>
-  tag: string
-  classes: string
-  width: number
-  height: number
-  childCount: number
   label: string
+  thumbUrl?: string
 }
-
 const queue = ref<QueueItem[]>([])
 const hasQueue = computed(() => queue.value.length > 0)
+
+// Iframe fallback
+const iframeRef = ref<HTMLIFrameElement | null>(null)
+const pageLoaded = ref(false)
+const useScreenshot = ref(true) // default to screenshot mode
 
 async function loadPage() {
   if (!url.value) return
   loading.value = true
   error.value = ''
+  screenshotUrl.value = ''
   pageLoaded.value = false
   queue.value = []
   completed.value = 0
+  hasSelection.value = false
+
+  if (useScreenshot.value) {
+    await loadScreenshot()
+  } else {
+    await loadIframe()
+  }
+}
+
+async function loadScreenshot() {
+  try {
+    const resp = await fetch(`${props.workerBase}/api/v1/oem-agent/admin/capture-screenshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url.value }),
+    })
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({ error: 'Screenshot failed' }))
+      throw new Error(body.error || `HTTP ${resp.status}`)
+    }
+    const data = await resp.json() as any
+    screenshotUrl.value = `${props.workerBase}${data.screenshot_url}`
+    screenshotWidth.value = data.width
+    screenshotHeight.value = data.height
+  } catch (e: any) {
+    error.value = e.message || 'Failed to capture screenshot'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadIframe() {
   try {
     const proxyUrl = `${props.workerBase}/api/v1/oem-agent/admin/proxy-html?url=${encodeURIComponent(url.value)}`
     const resp = await fetch(proxyUrl)
@@ -61,7 +106,6 @@ async function loadPage() {
     await nextTick()
     const iframe = iframeRef.value
     if (!iframe) return
-
     const { earlyStub, lateInjection } = buildCaptureInjection()
     const patchedHtml = html.replace(/<head([^>]*)>/i, `<head$1>${earlyStub}`)
     iframe.srcdoc = patchedHtml + lateInjection
@@ -73,32 +117,107 @@ async function loadPage() {
   }
 }
 
-// Build a short label from class names
-function makeLabel(classes: string, tag: string, childCount: number): string {
-  const cls = (classes || '').split(/\s+/).find(c => c && !c.startsWith('d-') && !c.startsWith('test-'))
-  const base = cls || tag
-  if (childCount > 1) return `${base} (${childCount} items)`
-  return base
+// Screenshot region selection
+function getScaledCoords(e: MouseEvent) {
+  const img = imgRef.value
+  if (!img) return { x: 0, y: 0 }
+  const rect = img.getBoundingClientRect()
+  const scaleX = img.naturalWidth / rect.width
+  const scaleY = img.naturalHeight / rect.height
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY,
+  }
 }
 
-// postMessage listener — adds to queue instead of processing immediately
+function onMouseDown(e: MouseEvent) {
+  if (!screenshotUrl.value) return
+  selecting.value = true
+  hasSelection.value = false
+  const coords = getScaledCoords(e)
+  selectionStart.value = coords
+  selectionEnd.value = coords
+}
+
+function onMouseMove(e: MouseEvent) {
+  if (!selecting.value) return
+  selectionEnd.value = getScaledCoords(e)
+  hasSelection.value = true
+}
+
+function onMouseUp() {
+  if (!selecting.value) return
+  selecting.value = false
+  // Minimum size check
+  const w = Math.abs(selectionEnd.value.x - selectionStart.value.x)
+  const h = Math.abs(selectionEnd.value.y - selectionStart.value.y)
+  if (w < 20 || h < 20) {
+    hasSelection.value = false
+  }
+}
+
+const selectionStyle = computed(() => {
+  if (!hasSelection.value || !imgRef.value) return {}
+  const img = imgRef.value
+  const rect = img.getBoundingClientRect()
+  const scaleX = rect.width / img.naturalWidth
+  const scaleY = rect.height / img.naturalHeight
+
+  const x1 = Math.min(selectionStart.value.x, selectionEnd.value.x) * scaleX
+  const y1 = Math.min(selectionStart.value.y, selectionEnd.value.y) * scaleY
+  const w = Math.abs(selectionEnd.value.x - selectionStart.value.x) * scaleX
+  const h = Math.abs(selectionEnd.value.y - selectionStart.value.y) * scaleY
+
+  return {
+    left: `${x1}px`,
+    top: `${y1}px`,
+    width: `${w}px`,
+    height: `${h}px`,
+  }
+})
+
+// Crop the selection from the screenshot and add to queue
+async function addSelectionToQueue() {
+  if (!hasSelection.value || !imgRef.value) return
+
+  const img = imgRef.value
+  const x = Math.min(selectionStart.value.x, selectionEnd.value.x)
+  const y = Math.min(selectionStart.value.y, selectionEnd.value.y)
+  const w = Math.abs(selectionEnd.value.x - selectionStart.value.x)
+  const h = Math.abs(selectionEnd.value.y - selectionStart.value.y)
+
+  // Crop using canvas
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(img, x, y, w, h, 0, 0, w, h)
+
+  const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
+  const thumbUrl = canvas.toDataURL('image/jpeg', 0.5)
+
+  queue.value.push({
+    id: `q${Date.now().toString(36)}`,
+    screenshot_base64: base64,
+    imageUrls: [],
+    rootStyles: {},
+    label: `Region ${Math.round(w)}×${Math.round(h)}`,
+    thumbUrl,
+  })
+
+  hasSelection.value = false
+}
+
+// Iframe message handler
 function onMessage(e: MessageEvent) {
   if (e.data?.type !== 'section-capture' || !e.data.html) return
-
-  const item: QueueItem = {
+  queue.value.push({
     id: `q${Date.now().toString(36)}`,
     html: e.data.html,
     imageUrls: e.data.imageUrls || [],
     rootStyles: e.data.rootStyles || {},
-    tag: e.data.tag || 'div',
-    classes: e.data.classes || '',
-    width: e.data.width || 0,
-    height: e.data.height || 0,
-    childCount: e.data.childCount || 0,
-    label: makeLabel(e.data.classes || '', e.data.tag || 'div', e.data.childCount || 0),
-  }
-
-  queue.value.push(item)
+    label: ((e.data.classes || '').split(/\s+/).find((c: string) => c && !c.startsWith('d-') && !c.startsWith('test-')) || e.data.tag || 'section'),
+  })
 }
 
 function removeFromQueue(id: string) {
@@ -109,14 +228,11 @@ function clearQueue() {
   queue.value = []
 }
 
-// Process all queued sections
 async function captureAll() {
   if (!queue.value.length) return
-
   analyzing.value = true
   analyzeProgress.value = 0
   const total = queue.value.length
-  const pageUrl = url.value
 
   for (let i = 0; i < queue.value.length; i++) {
     const item = queue.value[i]
@@ -128,8 +244,9 @@ async function captureAll() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          html: item.html,
-          source_url: pageUrl,
+          html: item.html || undefined,
+          screenshot_base64: item.screenshot_base64 || undefined,
+          source_url: url.value,
           oem_id: props.oemId,
           model_slug: props.modelSlug,
           image_urls: item.imageUrls,
@@ -141,11 +258,11 @@ async function captureAll() {
         emit('smartCapture', { type: result.type, data: result.data })
         completed.value++
       } else {
-        emit('capture', item.html)
+        if (item.html) emit('capture', item.html)
         completed.value++
       }
     } catch {
-      emit('capture', item.html)
+      if (item.html) emit('capture', item.html)
       completed.value++
     }
   }
@@ -153,21 +270,11 @@ async function captureAll() {
   analyzeProgress.value = 100
   analyzeStatus.value = `Done — ${completed.value} sections captured`
   queue.value = []
-
-  setTimeout(() => {
-    analyzing.value = false
-    analyzeStatus.value = ''
-    analyzeProgress.value = 0
-  }, 2000)
+  setTimeout(() => { analyzing.value = false; analyzeStatus.value = ''; analyzeProgress.value = 0 }, 2000)
 }
 
-onMounted(() => {
-  window.addEventListener('message', onMessage)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('message', onMessage)
-})
+onMounted(() => { window.addEventListener('message', onMessage) })
+onUnmounted(() => { window.removeEventListener('message', onMessage) })
 </script>
 
 <template>
@@ -175,43 +282,51 @@ onUnmounted(() => {
     <div class="fixed inset-0 z-50 flex flex-col bg-background">
       <!-- Header -->
       <div class="flex items-center gap-3 px-4 py-3 border-b bg-card shrink-0">
-        <button
-          class="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
-          title="Close"
-          @click="emit('close')"
-        >
+        <button class="p-1.5 rounded-md hover:bg-muted text-muted-foreground" title="Close" @click="emit('close')">
           <X class="size-4" />
         </button>
         <div class="flex-1 flex items-center gap-2">
           <input
             v-model="url"
             type="url"
-            placeholder="Paste OEM page URL to capture sections from..."
+            placeholder="Paste OEM page URL..."
             class="flex-1 h-9 px-3 text-sm bg-muted rounded-md border-0 outline-none focus:ring-2 ring-primary"
             @keydown.enter="loadPage"
           />
+          <!-- Mode toggle -->
+          <button
+            class="h-9 px-3 text-xs font-medium rounded-md flex items-center gap-1.5 border transition-colors"
+            :class="useScreenshot ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' : 'bg-muted border-transparent text-muted-foreground'"
+            title="Toggle between screenshot capture (real browser) and iframe capture"
+            @click="useScreenshot = !useScreenshot"
+          >
+            <Camera class="size-3.5" />
+            {{ useScreenshot ? 'Screenshot' : 'Iframe' }}
+          </button>
           <button
             class="h-9 px-4 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
             :disabled="!url || loading"
             @click="loadPage"
           >
             <Loader2 v-if="loading" class="size-4 animate-spin" />
-            Load Page
+            {{ loading ? (useScreenshot ? 'Capturing...' : 'Loading...') : 'Load Page' }}
           </button>
         </div>
       </div>
 
       <!-- Queue bar -->
-      <div v-if="pageLoaded" class="flex items-center gap-3 px-4 py-2 border-b bg-muted/30 shrink-0">
-        <!-- Queue items -->
+      <div v-if="screenshotUrl || pageLoaded" class="flex items-center gap-3 px-4 py-2 border-b bg-muted/30 shrink-0">
         <div class="flex-1 flex items-center gap-2 min-w-0">
           <template v-if="analyzing">
             <Loader2 class="size-4 animate-spin text-blue-600 shrink-0" />
             <span class="text-sm text-blue-600 truncate">{{ analyzeStatus }}</span>
           </template>
           <template v-else-if="!hasQueue && completed === 0">
-            <MousePointer2 class="size-4 text-muted-foreground shrink-0" />
-            <span class="text-sm text-muted-foreground">Click sections to add to capture queue. Scroll to resize selection.</span>
+            <Crop v-if="useScreenshot" class="size-4 text-muted-foreground shrink-0" />
+            <MousePointer2 v-else class="size-4 text-muted-foreground shrink-0" />
+            <span class="text-sm text-muted-foreground">
+              {{ useScreenshot ? 'Click and drag to select regions. Add multiple, then capture all at once.' : 'Click sections to add to queue. Alt+Scroll to resize selection.' }}
+            </span>
           </template>
           <template v-else-if="!hasQueue && completed > 0">
             <Check class="size-4 text-green-600 shrink-0" />
@@ -222,32 +337,39 @@ onUnmounted(() => {
               <div
                 v-for="item in queue"
                 :key="item.id"
-                class="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full"
+                class="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full"
               >
-                <span class="truncate max-w-[140px]">{{ item.label }}</span>
-                <button class="hover:text-destructive" @click="removeFromQueue(item.id)">
-                  <X class="size-3" />
-                </button>
+                <img v-if="item.thumbUrl" :src="item.thumbUrl" class="w-6 h-4 object-cover rounded" />
+                <span class="truncate max-w-[120px]">{{ item.label }}</span>
+                <button class="hover:text-destructive" @click="removeFromQueue(item.id)"><X class="size-3" /></button>
               </div>
             </div>
           </template>
         </div>
-
-        <!-- Action buttons -->
-        <div v-if="hasQueue && !analyzing" class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Add selection button (screenshot mode) -->
           <button
+            v-if="useScreenshot && hasSelection && !analyzing"
+            class="h-8 px-3 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1.5"
+            @click="addSelectionToQueue"
+          >
+            <Check class="size-3.5" />
+            Add Selection
+          </button>
+          <button
+            v-if="hasQueue && !analyzing"
             class="h-8 px-3 text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
             @click="clearQueue"
           >
             <Trash2 class="size-3.5" />
-            Clear
           </button>
           <button
+            v-if="hasQueue && !analyzing"
             class="h-8 px-4 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
             @click="captureAll"
           >
             <Zap class="size-4" />
-            Capture {{ queue.length }} section{{ queue.length > 1 ? 's' : '' }}
+            Capture {{ queue.length }}
           </button>
         </div>
       </div>
@@ -258,26 +380,60 @@ onUnmounted(() => {
       </div>
 
       <!-- Error -->
-      <div v-if="error" class="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b">
-        {{ error }}
-      </div>
+      <div v-if="error" class="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b">{{ error }}</div>
 
-      <!-- Instructions (before page loaded) -->
-      <div v-if="!loading && !pageLoaded" class="flex-1 flex items-center justify-center text-muted-foreground">
-        <div class="text-center space-y-2 max-w-sm">
-          <MousePointer2 class="size-10 mx-auto opacity-40" />
+      <!-- Empty state -->
+      <div v-if="!loading && !screenshotUrl && !pageLoaded" class="flex-1 flex items-center justify-center text-muted-foreground">
+        <div class="text-center space-y-3 max-w-md">
+          <Camera class="size-12 mx-auto opacity-30" />
           <p class="text-sm font-medium">Enter a URL and click Load Page</p>
-          <p class="text-xs">Click sections to add them to a capture queue. Scroll to resize the selection. Press <strong>Capture</strong> when ready — AI converts each section to your page builder format.</p>
+          <p class="text-xs leading-relaxed">
+            <strong>Screenshot mode</strong> uses a real browser to render the page perfectly, then you draw rectangles to select sections.
+            The AI sees exactly what you see and reproduces it.
+          </p>
         </div>
       </div>
 
-      <!-- Iframe -->
+      <!-- Screenshot view -->
+      <div
+        v-if="screenshotUrl"
+        ref="containerRef"
+        class="flex-1 overflow-auto relative cursor-crosshair"
+        @mousedown="onMouseDown"
+        @mousemove="onMouseMove"
+        @mouseup="onMouseUp"
+      >
+        <img
+          ref="imgRef"
+          :src="screenshotUrl"
+          class="w-full"
+          draggable="false"
+          @load="() => {}"
+        />
+        <!-- Selection rectangle -->
+        <div
+          v-if="hasSelection"
+          class="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
+          :style="selectionStyle"
+        />
+      </div>
+
+      <!-- Iframe view (fallback) -->
       <iframe
+        v-if="!useScreenshot"
         ref="iframeRef"
         class="flex-1 w-full border-0"
         :class="{ 'hidden': !pageLoaded && !loading }"
         sandbox="allow-same-origin allow-scripts"
       />
+
+      <!-- Loading overlay -->
+      <div v-if="loading" class="flex-1 flex items-center justify-center">
+        <div class="text-center space-y-3">
+          <Loader2 class="size-8 mx-auto animate-spin text-muted-foreground" />
+          <p class="text-sm text-muted-foreground">{{ useScreenshot ? 'Rendering page in browser...' : 'Loading page...' }}</p>
+        </div>
+      </div>
     </div>
   </Teleport>
 </template>

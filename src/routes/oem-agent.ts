@@ -141,6 +141,71 @@ app.get('/admin/proxy-html', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/capture-screenshot
+ * Takes a URL, renders it in a real browser, takes a full-page screenshot,
+ * stores it to R2, and returns the media URL.
+ */
+app.post('/admin/capture-screenshot', async (c) => {
+  const body = await c.req.json<{ url: string }>();
+  if (!body.url) return c.json({ error: 'url is required' }, 400);
+
+  if (!c.env.BROWSER) {
+    return c.json({ error: 'Browser rendering not available' }, 503);
+  }
+
+  try {
+    const puppeteerModule = await import('@cloudflare/puppeteer');
+    const puppeteer = puppeteerModule.default;
+    const browser = await puppeteer.launch(c.env.BROWSER as any);
+
+    try {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1440, height: 900 });
+      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
+
+      await page.goto(body.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
+      // Scroll through the page to trigger lazy-loading
+      await page.evaluate(async () => {
+        const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+        const step = window.innerHeight;
+        const maxScroll = document.body.scrollHeight;
+        for (let y = 0; y < maxScroll; y += step) {
+          window.scrollTo(0, y);
+          await delay(300);
+        }
+        window.scrollTo(0, 0);
+        await delay(500);
+      });
+
+      const imageBuffer = await page.screenshot({
+        type: 'jpeg',
+        quality: 80,
+        fullPage: true,
+      });
+
+      // Store to R2
+      const timestamp = Date.now();
+      const r2Key = `screenshots/capture-${timestamp}.jpg`;
+      await c.env.MOLTBOT_BUCKET.put(r2Key, imageBuffer, {
+        httpMetadata: { contentType: 'image/jpeg' },
+      });
+
+      return c.json({
+        success: true,
+        screenshot_url: `/media/${r2Key}`,
+        width: 1440,
+        height: await page.evaluate(() => document.body.scrollHeight),
+      });
+    } finally {
+      await browser.close();
+    }
+  } catch (e: any) {
+    return c.json({ error: e.message || 'Screenshot failed' }, 500);
+  }
+});
+
+/**
  * POST /api/v1/oem-agent/admin/smart-capture
  * Takes captured HTML from the section capture tool, identifies section type,
  * generates a pixel-perfect Tailwind CSS reproduction using brand tokens,
@@ -148,7 +213,8 @@ app.get('/admin/proxy-html', async (c) => {
  */
 app.post('/admin/smart-capture', async (c) => {
   const body = await c.req.json<{
-    html: string;
+    html?: string;
+    screenshot_base64?: string;
     source_url?: string;
     oem_id?: string;
     model_slug?: string;
@@ -156,8 +222,8 @@ app.post('/admin/smart-capture', async (c) => {
     root_styles?: Record<string, string>;
   }>();
 
-  if (!body.html) return c.json({ error: 'html is required' }, 400);
-  if (body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
+  if (!body.html && !body.screenshot_base64) return c.json({ error: 'html or screenshot_base64 is required' }, 400);
+  if (body.html && body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
 
   const aiRouter = new AiRouter({
     groq: c.env.GROQ_API_KEY,
@@ -276,20 +342,16 @@ ${layoutContext}
 - embed: title, embed_url
 
 ## CRITICAL Rules
-1. Extract ALL image URLs as absolute URLs — keep the original src attribute values
-2. For cards/grids: EACH card has its own <img> tag — extract EACH card's image_url individually from its own <img src="...">
-3. Do NOT reuse the same image for multiple cards — look at each card's own <img> element
-4. The HTML has class names like "grid-blocks__block" for each card — each one contains its own image
-5. For feature-cards: set columns based on the grid layout (3 columns = "grid-blocks--span-1" pattern)
-6. Extract CTA text and URLs from <a> tags within each card
-7. Use the subheading text (e.g. "Full Electric", "Exterior") as the card description
-8. Use the heading text (e.g. "Up to 400km of driving range") as the card title
-9. Use the 1x image URL (not the 2x srcset URL) for image_url
-10. For feature-cards: set card_style to "overlay" when cards have images as backgrounds with text overlaid (class names like "gradient", "block-media" behind "block-content" indicate overlay style)
+1. Extract ALL image URLs as absolute URLs
+2. For cards/grids: EACH card has its own image — extract EACH card's image_url individually
+3. Do NOT reuse the same image for multiple cards
+4. For feature-cards: set columns based on the grid layout
+5. Extract CTA text and URLs from links within each card
+6. For feature-cards: set card_style to "overlay" when cards have images as backgrounds with text overlaid
+7. If analyzing from a screenshot (no HTML), describe what you see and extract text/layout accurately
+8. For screenshots: you won't have image URLs — set image_url to "" and note the image description in the card description
 
-## HTML to Analyze
-
-${body.html}`;
+${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided — analyze the image above to extract section content.'}`;
 
   try {
     const response = await aiRouter.route({
@@ -297,6 +359,8 @@ ${body.html}`;
       prompt,
       requireJson: true,
       maxTokens: 4096,
+      imageBase64: body.screenshot_base64 || undefined,
+      imageMimeType: body.screenshot_base64 ? 'image/jpeg' : undefined,
     });
 
     let result: any;
