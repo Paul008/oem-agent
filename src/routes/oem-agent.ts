@@ -142,8 +142,9 @@ app.get('/admin/proxy-html', async (c) => {
 
 /**
  * POST /api/v1/oem-agent/admin/smart-capture
- * Takes captured HTML from the section capture tool, sends to Gemini
- * to identify section type, extracts structured data, downloads images to R2.
+ * Takes captured HTML from the section capture tool, identifies section type,
+ * generates a pixel-perfect Tailwind CSS reproduction using brand tokens,
+ * and downloads images to R2.
  */
 app.post('/admin/smart-capture', async (c) => {
   const body = await c.req.json<{
@@ -151,6 +152,8 @@ app.post('/admin/smart-capture', async (c) => {
     source_url?: string;
     oem_id?: string;
     model_slug?: string;
+    font_faces?: string[];
+    css_vars?: Record<string, string>;
   }>();
 
   if (!body.html) return c.json({ error: 'html is required' }, 400);
@@ -164,41 +167,126 @@ app.post('/admin/smart-capture', async (c) => {
     google: c.env.GOOGLE_API_KEY,
   }, null);
 
-  const prompt = `You are a section analyzer for an automotive page builder. Analyze this HTML fragment captured from an OEM website and identify what type of section it is.
+  // Fetch brand tokens for the OEM if available
+  let brandTokensContext = '';
+  if (body.oem_id) {
+    try {
+      const supabase = createSupabaseClient({
+        url: c.env.SUPABASE_URL,
+        serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+      });
+      const { data: tokenRow } = await supabase
+        .from('brand_tokens')
+        .select('tokens_json')
+        .eq('oem_id', body.oem_id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-Return a JSON object with:
+      if (tokenRow?.tokens_json) {
+        const t = tokenRow.tokens_json;
+        const lines: string[] = [];
+        if (t.colors) {
+          lines.push(`Colors: primary=${t.colors.primary}, secondary=${t.colors.secondary}, accent=${t.colors.accent || 'none'}, background=${t.colors.background}, surface=${t.colors.surface || '#ffffff'}, text_primary=${t.colors.text_primary}, text_secondary=${t.colors.text_secondary}`);
+          if (t.colors.semantic) lines.push(`Semantic: error=${t.colors.semantic.error}, success=${t.colors.semantic.success}, warning=${t.colors.semantic.warning}`);
+        }
+        if (t.typography) {
+          lines.push(`Font: primary="${t.typography.font_primary}", secondary="${t.typography.font_secondary || 'none'}"`);
+          if (t.typography.cdn_urls?.length) lines.push(`Font CDN: ${t.typography.cdn_urls.join(', ')}`);
+          if (t.typography.scale) {
+            const s = t.typography.scale;
+            lines.push(`Type scale: h1=${s.h1}, h2=${s.h2}, h3=${s.h3}, h4=${s.h4}, body=${s.body}, body_sm=${s.body_sm || s.caption}`);
+          }
+        }
+        if (t.spacing) {
+          lines.push(`Spacing: unit=${t.spacing.unit}, section_gap=${t.spacing.section_gap}, container_max=${t.spacing.container_max_width}, container_pad=${t.spacing.container_padding}`);
+        }
+        if (t.borders) {
+          lines.push(`Borders: radius_sm=${t.borders.radius?.sm}, radius_md=${t.borders.radius?.md}, radius_lg=${t.borders.radius?.lg}`);
+        }
+        if (t.buttons?.primary) {
+          const b = t.buttons.primary;
+          lines.push(`Button primary: bg=${b.background}, color=${b.color}, radius=${b.border_radius}, padding=${b.padding}`);
+        }
+        brandTokensContext = lines.join('\n');
+      }
+    } catch { /* brand tokens optional */ }
+  }
+
+  // Build font context from captured @font-face rules
+  let fontContext = '';
+  if (body.font_faces?.length) {
+    fontContext = `\n## Page Fonts (@font-face declarations)\n${body.font_faces.slice(0, 10).join('\n')}`;
+  }
+
+  // Build CSS variable context
+  let cssVarContext = '';
+  if (body.css_vars && Object.keys(body.css_vars).length > 0) {
+    const entries = Object.entries(body.css_vars).slice(0, 30);
+    cssVarContext = `\n## CSS Custom Properties\n${entries.map(([k, v]) => `${k}: ${v}`).join('\n')}`;
+  }
+
+  const oemName = body.oem_id?.replace('-au', '').toUpperCase() || 'OEM';
+
+  const prompt = `You are a pixel-perfect section converter for an automotive page builder. Your job is to analyze a captured HTML section from the ${oemName} website and convert it into a clean, portable section using ONLY Tailwind CSS classes.
+
+## Task
+1. Identify the section type
+2. Extract all content (text, images, links)
+3. Generate a Tailwind CSS + Alpine.js template that VISUALLY MATCHES the original section pixel-perfectly
+
+## Brand Design Tokens
+${brandTokensContext || 'No brand tokens available — extract colors/fonts from the inline styles in the HTML.'}
+${fontContext}
+${cssVarContext}
+
+## Section Types
+"hero" | "intro" | "gallery" | "feature-cards" | "video" | "cta-banner" | "content-block" | "tabs" | "testimonial" | "stats" | "pricing-table" | "accordion" | "image" | "image-showcase" | "heading" | "embed"
+
+## Output Format (JSON)
 {
-  "type": "hero" | "intro" | "gallery" | "feature-cards" | "video" | "cta-banner" | "content-block" | "tabs" | "testimonial" | "stats" | "pricing-table" | "accordion" | "image" | "image-showcase" | "heading" | "embed",
-  "data": { ... section-specific fields ... }
+  "type": "section-type",
+  "data": {
+    ... section-specific fields (heading, sub_heading, image_url, cards[], etc.) ...
+    "_generated_html": "<div class='...'>Tailwind + Alpine.js HTML that reproduces the design</div>"
+  }
 }
 
-Section type mapping:
-- Large banner/hero image with text overlay → "hero" with heading, sub_heading, cta_text, cta_url, desktop_image_url
-- Image carousel/slider/gallery → "gallery" with title, images[{url, alt, caption}], layout:"carousel"
-- Grid of cards with image+title+description → "feature-cards" with title, cards[{title, description, image_url}], columns
-- Video embed (YouTube/Vimeo/mp4) → "video" with title, video_url, poster_url
-- Call-to-action section → "cta-banner" with heading, body, cta_text, cta_url, background_color
-- Text content with optional image → "intro" with title, body_html, image_url, image_position
-- Single image → "image" with desktop_image_url, alt, caption, layout:"full-width"
-- Multiple stacked full-bleed images → "image-showcase" with title, images[{url, alt, caption}], layout:"stacked"
-- Tabbed content → "tabs" with title, tabs[{label, content_html, image_url}]
-- Customer reviews → "testimonial" with title, testimonials[{quote, author, role, rating}]
-- Key statistics/numbers → "stats" with title, stats[{value, label, unit}]
-- FAQ/accordion → "accordion" with title, items[{question, answer}]
-- Price comparison → "pricing-table" with title, tiers[{name, price, features, cta_text}]
-- Just a heading → "heading" with heading, sub_heading
-- iframe embed → "embed" with title, embed_url
-- Rich HTML content → "content-block" with title, content_html
+## Section Data Fields by Type
+- hero: heading, sub_heading, cta_text, cta_url, desktop_image_url, mobile_image_url, text_color, overlay_opacity, min_height, _generated_html
+- intro: title, body_html, image_url, image_position, _generated_html
+- feature-cards: title, cards[{title, description, image_url, cta_text, cta_url}], columns, _generated_html
+- gallery: title, images[{url, alt, caption}], layout, _generated_html
+- video: title, video_url, poster_url, _generated_html
+- cta-banner: heading, body, cta_text, cta_url, background_color, _generated_html
+- content-block: title, content_html, _generated_html
+- tabs: title, tabs[{label, content_html, image_url}], _generated_html
+- stats: title, stats[{value, label, unit}], _generated_html
+- testimonial: title, testimonials[{quote, author, role}], _generated_html
+- image: desktop_image_url, alt, caption, layout, _generated_html
+- image-showcase: title, images[{url, alt, caption}], layout, _generated_html
+- accordion: title, items[{question, answer}], _generated_html
+- pricing-table: title, tiers[{name, price, features[], cta_text}], _generated_html
+- heading: heading, sub_heading, _generated_html
+- embed: title, embed_url, _generated_html
 
-Rules:
-1. Extract ALL image URLs as absolute URLs (keep as-is if already absolute)
-2. Clean content_html — strip inline styles, keep semantic tags (p, h2, h3, ul, li, strong, em, a)
-3. For galleries/carousels, extract ALL image URLs from the slider/carousel container
-4. For feature cards, count the cards and set columns accordingly
-5. Extract text content accurately — headings, descriptions, CTAs
-6. If multiple images in a grid, consider "feature-cards" or "gallery" based on whether there's text per item
+## CRITICAL Rules for _generated_html
+1. Use ONLY Tailwind CSS utility classes — NO inline styles, NO custom CSS, NO <style> tags
+2. Use Alpine.js x-data for interactivity (carousels, tabs, accordions)
+3. Match the EXACT layout: spacing, alignment, grid structure, font sizes, colors
+4. Use Tailwind arbitrary values for exact colors: bg-[#C8102E], text-[#1A1A1A], etc.
+5. Use Tailwind arbitrary values for exact sizes: text-[40px], gap-[24px], max-w-[1440px], etc.
+6. Keep ALL image URLs as absolute URLs from the original HTML
+7. Make it responsive: mobile-first with sm:/md:/lg: breakpoints
+8. Match font weights, letter spacing, text transforms exactly
+9. For background images use Tailwind: bg-[url('...')] bg-cover bg-center
+10. Preserve the visual hierarchy — heading sizes, spacing between elements, overlay effects
+11. For cards/grids: match the exact column count and gap spacing
+12. For heroes: match the overlay darkness, text positioning, and CTA button styling
+13. Self-contained — no external dependencies beyond Tailwind + Alpine.js
 
-HTML to analyze:
+## HTML to Analyze
 
 ${body.html}`;
 
@@ -207,15 +295,23 @@ ${body.html}`;
       taskType: 'page_structuring',
       prompt,
       requireJson: true,
+      maxTokens: 4096,
     });
 
     let result: any;
     try {
-      // Parse JSON from response content (may have markdown fences)
       const text = response.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       result = JSON.parse(text);
-    } catch (parseErr: any) {
-      return c.json({ error: 'AI returned invalid JSON', raw: response.content?.slice(0, 500) }, 422);
+    } catch {
+      // Try extracting JSON from markdown fences
+      const jsonMatch = response.content.match(/\{[\s\S]*"type"[\s\S]*\}/);
+      if (jsonMatch) {
+        try { result = JSON.parse(jsonMatch[0]); } catch {
+          return c.json({ error: 'AI returned invalid JSON', raw: response.content?.slice(0, 500) }, 422);
+        }
+      } else {
+        return c.json({ error: 'AI returned invalid JSON', raw: response.content?.slice(0, 500) }, 422);
+      }
     }
 
     if (!result?.type) {
@@ -226,18 +322,27 @@ ${body.html}`;
     const imageUrls: string[] = [];
     const section = result.data || {};
 
-    // Collect all image URLs from the section data
-    function collectImages(obj: any) {
+    // Collect all image URLs from the section data (excluding _generated_html)
+    function collectImages(obj: any, skipKeys = new Set(['_generated_html'])) {
       if (!obj || typeof obj !== 'object') return;
       for (const [key, val] of Object.entries(obj)) {
+        if (skipKeys.has(key)) continue;
         if (typeof val === 'string' && (key.includes('image') || key.includes('url') || key.includes('poster')) && val.startsWith('http')) {
           imageUrls.push(val);
         }
-        if (Array.isArray(val)) val.forEach(item => collectImages(item));
-        else if (typeof val === 'object') collectImages(val);
+        if (Array.isArray(val)) val.forEach(item => collectImages(item, skipKeys));
+        else if (typeof val === 'object') collectImages(val, skipKeys);
       }
     }
     collectImages(section);
+
+    // Also extract image URLs from _generated_html for R2 download
+    if (section._generated_html) {
+      const htmlImgMatches = section._generated_html.matchAll(/(?:src|poster|url\()["']?(https?:\/\/[^"'\s)]+)/g);
+      for (const m of htmlImgMatches) {
+        if (!imageUrls.includes(m[1])) imageUrls.push(m[1]);
+      }
+    }
 
     let imageMap = new Map<string, string>();
 
@@ -245,7 +350,6 @@ ${body.html}`;
       const r2Bucket = c.env.MOLTBOT_BUCKET;
       const slug = body.model_slug || 'captured';
 
-      // Download images to R2 in parallel (max 5)
       const downloads = imageUrls.slice(0, 20).map(async (url) => {
         try {
           const controller = new AbortController();
@@ -258,7 +362,9 @@ ${body.html}`;
           if (!resp.ok || !resp.headers.get('content-type')?.startsWith('image/')) return;
           const buffer = await resp.arrayBuffer();
           if (buffer.byteLength < 500) return;
-          const filename = url.split('/').pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
+          // Extract clean filename from URL path
+          const urlPath = new URL(url).pathname;
+          const filename = urlPath.split('/').filter(Boolean).pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
           const r2Key = `pages/assets/${body.oem_id}/${slug}/${filename}`;
           await r2Bucket.put(r2Key, buffer, {
             httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
@@ -269,14 +375,25 @@ ${body.html}`;
 
       await Promise.all(downloads);
 
-      // Rewrite image URLs in section data to R2 paths
+      // Rewrite image URLs in section data AND _generated_html
       function rewriteUrls(obj: any): any {
         if (!obj || typeof obj !== 'object') return obj;
         if (Array.isArray(obj)) return obj.map(item => rewriteUrls(item));
         const result: any = {};
         for (const [key, val] of Object.entries(obj)) {
-          if (typeof val === 'string' && imageMap.has(val)) {
-            result[key] = imageMap.get(val)!;
+          if (typeof val === 'string') {
+            if (imageMap.has(val)) {
+              result[key] = imageMap.get(val)!;
+            } else if (key === '_generated_html') {
+              // Rewrite URLs inside the generated HTML template
+              let html = val;
+              for (const [origUrl, r2Path] of imageMap) {
+                html = html.replaceAll(origUrl, r2Path);
+              }
+              result[key] = html;
+            } else {
+              result[key] = val;
+            }
           } else if (typeof val === 'object') {
             result[key] = rewriteUrls(val);
           } else {

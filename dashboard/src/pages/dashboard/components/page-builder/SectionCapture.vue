@@ -19,6 +19,7 @@ const emit = defineEmits<{
 const url = ref(props.defaultUrl || '')
 const loading = ref(false)
 const analyzing = ref(false)
+const analyzeStatus = ref('')
 const error = ref('')
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const pageLoaded = ref(false)
@@ -54,24 +55,30 @@ async function loadPage() {
   }
 }
 
-// postMessage listener — sends to AI for smart extraction
+// postMessage listener — sends to AI for Tailwind conversion
 async function onMessage(e: MessageEvent) {
   if (e.data?.type !== 'section-capture' || !e.data.html) return
 
   const html = e.data.html as string
+  const fontFaces = e.data.fontFaces as string[] || []
+  const cssVars = e.data.cssVars as Record<string, string> || {}
+  const pageUrl = e.data.pageUrl as string || url.value
   captured.value.push(html)
 
-  // Try smart capture via AI
+  // Send to smart capture with full context for Tailwind conversion
   analyzing.value = true
+  analyzeStatus.value = 'Converting to Tailwind CSS...'
   try {
     const resp = await fetch(`${props.workerBase}/api/v1/oem-agent/admin/smart-capture`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         html,
-        source_url: url.value,
+        source_url: pageUrl,
         oem_id: props.oemId,
         model_slug: props.modelSlug,
+        font_faces: fontFaces,
+        css_vars: cssVars,
       }),
     })
     if (resp.ok) {
@@ -86,6 +93,7 @@ async function onMessage(e: MessageEvent) {
     emit('capture', html)
   } finally {
     analyzing.value = false
+    analyzeStatus.value = ''
   }
 }
 
@@ -129,7 +137,7 @@ onUnmounted(() => {
         </div>
         <div v-if="analyzing" class="flex items-center gap-1.5 text-sm text-blue-600">
           <Loader2 class="size-4 animate-spin" />
-          AI analyzing section...
+          {{ analyzeStatus || 'AI analyzing section...' }}
         </div>
         <div v-else-if="captured.length" class="flex items-center gap-1.5 text-sm text-green-600">
           <Check class="size-4" />
@@ -147,7 +155,7 @@ onUnmounted(() => {
         <div class="text-center space-y-2 max-w-sm">
           <MousePointer2 class="size-10 mx-auto opacity-40" />
           <p class="text-sm font-medium">Enter a URL and click Load Page</p>
-          <p class="text-xs">Hover over sections to highlight them, click to capture. Styles are inlined automatically so sections look correct when inserted.</p>
+          <p class="text-xs">Hover over sections to highlight them, click to capture. The AI will convert captured sections to Tailwind CSS using your brand's design tokens.</p>
         </div>
       </div>
 

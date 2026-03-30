@@ -47,26 +47,103 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     }
   }, true);
 
-  function inlineStyles(source, clone) {
-    var computed = window.getComputedStyle(source);
-    var props = [
-      'display','position','width','max-width','min-width','height','max-height','min-height',
-      'margin','padding','border','border-radius','box-sizing','overflow',
-      'background','background-color','background-image','background-size','background-position',
-      'color','font-family','font-size','font-weight','font-style','line-height','letter-spacing','text-align','text-decoration','text-transform',
-      'flex','flex-direction','flex-wrap','align-items','justify-content','gap',
-      'grid-template-columns','grid-template-rows','grid-gap',
-      'opacity','box-shadow','transform',
-      'object-fit','object-position','aspect-ratio',
-    ];
+  // Extract @font-face declarations from all stylesheets
+  function extractFontFaces() {
+    var fonts = [];
+    try {
+      var sheets = document.styleSheets;
+      for (var i = 0; i < sheets.length; i++) {
+        try {
+          var rules = sheets[i].cssRules || sheets[i].rules;
+          if (!rules) continue;
+          for (var j = 0; j < rules.length; j++) {
+            if (rules[j].type === CSSRule.FONT_FACE_RULE) {
+              fonts.push(rules[j].cssText);
+            }
+          }
+        } catch(e) { /* CORS blocked stylesheet */ }
+      }
+    } catch(e) {}
+    return fonts;
+  }
+
+  // Extract CSS custom properties from :root
+  function extractCssVars() {
+    var vars = {};
+    try {
+      var rootStyle = getComputedStyle(document.documentElement);
+      var sheets = document.styleSheets;
+      for (var i = 0; i < sheets.length; i++) {
+        try {
+          var rules = sheets[i].cssRules || sheets[i].rules;
+          if (!rules) continue;
+          for (var j = 0; j < rules.length; j++) {
+            if (rules[j].selectorText === ':root' || rules[j].selectorText === 'html') {
+              var style = rules[j].style;
+              for (var k = 0; k < style.length; k++) {
+                var prop = style[k];
+                if (prop.startsWith('--')) {
+                  vars[prop] = style.getPropertyValue(prop).trim();
+                }
+              }
+            }
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+    return vars;
+  }
+
+  // Collect ALL computed styles for an element (comprehensive)
+  function getFullComputedStyles(el) {
+    var computed = window.getComputedStyle(el);
     var style = '';
+    for (var i = 0; i < computed.length; i++) {
+      var prop = computed[i];
+      var val = computed.getPropertyValue(prop);
+      // Skip defaults that add noise
+      if (val === '' || val === 'none' || val === 'normal' || val === 'auto' ||
+          val === '0px' || val === '0px 0px' || val === '0px 0px 0px 0px' ||
+          val === 'rgba(0, 0, 0, 0)' || val === 'rgb(0, 0, 0)' ||
+          val === 'start' || val === 'baseline' || val === 'stretch') continue;
+      // Skip properties that are just inherited defaults
+      if (prop === 'perspective-origin' || prop === 'transform-origin') continue;
+      style += prop + ':' + val + ';';
+    }
+    return style;
+  }
+
+  // Get pseudo-element styles
+  function getPseudoStyles(el, pseudo) {
+    var computed = window.getComputedStyle(el, pseudo);
+    var content = computed.getPropertyValue('content');
+    if (!content || content === 'none' || content === 'normal') return null;
+    var style = '';
+    var props = [
+      'content','display','position','top','right','bottom','left',
+      'width','height','background','background-color','background-image',
+      'color','font-size','font-weight','border','border-radius',
+      'opacity','transform','z-index','pointer-events'
+    ];
     for (var i = 0; i < props.length; i++) {
       var val = computed.getPropertyValue(props[i]);
-      if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== '0px' && val !== 'rgba(0, 0, 0, 0)') {
+      if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== '0px') {
         style += props[i] + ':' + val + ';';
       }
     }
-    clone.setAttribute('style', (clone.getAttribute('style') || '') + style);
+    return style;
+  }
+
+  // Recursively inline ALL computed styles
+  function inlineStyles(source, clone) {
+    clone.setAttribute('style', (clone.getAttribute('style') || '') + getFullComputedStyles(source));
+
+    // Capture pseudo-elements as data attributes for AI context
+    var before = getPseudoStyles(source, '::before');
+    var after = getPseudoStyles(source, '::after');
+    if (before) clone.setAttribute('data-pseudo-before', before);
+    if (after) clone.setAttribute('data-pseudo-after', after);
+
     var srcChildren = source.children;
     var clnChildren = clone.children;
     for (var j = 0; j < srcChildren.length && j < clnChildren.length; j++) {
@@ -106,12 +183,22 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     inlineStyles(el, clone);
     fixUrls(clone);
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+
+    // Gather page-level context for the AI
+    var fontFaces = extractFontFaces();
+    var cssVars = extractCssVars();
+
     window.parent.postMessage({
       type: 'section-capture',
       html: clone.outerHTML,
       tag: el.tagName.toLowerCase(),
+      classes: el.className,
       width: el.offsetWidth,
       height: el.offsetHeight,
+      fontFaces: fontFaces,
+      cssVars: cssVars,
+      pageTitle: document.title,
+      pageUrl: document.location.href,
     }, '*');
   }, true);
 
