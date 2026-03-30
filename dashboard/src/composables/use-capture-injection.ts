@@ -6,7 +6,7 @@
 export function buildCaptureInjection(): { earlyStub: string; lateInjection: string } {
   const css = [
     '[data-capture-hover] { outline: 3px solid #3b82f6 !important; outline-offset: -3px; cursor: pointer !important; }',
-    '[data-capture-hover]::after { content: "Click to capture this section"; position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; font-size: 12px; padding: 4px 12px; border-radius: 6px; z-index: 999999; pointer-events: none; font-family: system-ui, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }',
+    '[data-capture-hover]::after { content: "Click to capture · Hold Shift for smaller elements"; position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; font-size: 12px; padding: 4px 12px; border-radius: 6px; z-index: 999999; pointer-events: none; font-family: system-ui, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }',
     '[data-capture-selected] { outline: 3px solid #22c55e !important; outline-offset: -3px; }',
   ].join('\n')
 
@@ -20,19 +20,39 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   const js = `(function() {
   console.log('[SectionCapture] Injection script loaded');
   var ignore = new Set(['HTML','BODY','HEAD','SCRIPT','STYLE','LINK','META','NOSCRIPT','BR','HR']);
-  var minSize = 40;
   var hovered = null;
+  var shiftHeld = false;
 
-  function findSection(el) {
+  // Track Shift key for drill-down mode
+  document.addEventListener('keydown', function(e) { if (e.key === 'Shift') shiftHeld = true; }, true);
+  document.addEventListener('keyup', function(e) { if (e.key === 'Shift') shiftHeld = false; }, true);
+
+  // Default mode: walk up to nearest <section> or large container
+  // Shift mode: select the exact element under cursor (fine-grained)
+  function findSection(el, drillDown) {
+    if (drillDown) {
+      // Fine-grained: first non-tiny, non-ignored element
+      while (el && el !== document.body && el !== document.documentElement) {
+        if (!ignore.has(el.tagName) && el.offsetHeight >= 30 && el.offsetWidth >= 30) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    // Default: prefer <section> ancestors — these are the full page sections
+    var candidate = null;
     while (el && el !== document.body && el !== document.documentElement) {
-      if (!ignore.has(el.tagName) && el.offsetHeight >= minSize && el.offsetWidth >= minSize) return el;
+      if (el.tagName === 'SECTION') return el;
+      // Track the first reasonable container as fallback
+      if (!candidate && !ignore.has(el.tagName) && el.offsetHeight >= 100 && el.offsetWidth >= 200) {
+        candidate = el;
+      }
       el = el.parentElement;
     }
-    return null;
+    return candidate;
   }
 
   document.addEventListener('mouseover', function(e) {
-    var el = findSection(e.target);
+    var el = findSection(e.target, shiftHeld);
     if (!el) return;
     if (hovered && hovered !== el) hovered.removeAttribute('data-capture-hover');
     el.setAttribute('data-capture-hover', '');

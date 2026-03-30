@@ -155,7 +155,7 @@ onUnmounted(() => {
         <div class="text-center space-y-2 max-w-sm">
           <MousePointer2 class="size-10 mx-auto opacity-40" />
           <p class="text-sm font-medium">Enter a URL and click Load Page</p>
-          <p class="text-xs">Hover over sections to highlight them, click to capture. The AI will convert captured sections to Tailwind CSS using your brand's design tokens.</p>
+          <p class="text-xs">Hover to highlight full sections, click to capture. Hold <kbd class="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Shift</kbd> to select smaller elements. AI converts to Tailwind CSS with your brand tokens.</p>
         </div>
       </div>
 
