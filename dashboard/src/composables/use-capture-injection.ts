@@ -94,20 +94,55 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     return vars;
   }
 
-  // Collect ALL computed styles for an element (comprehensive)
-  function getFullComputedStyles(el) {
+  // Visual properties that matter for reproducing a design
+  var VISUAL_PROPS = [
+    // Layout
+    'display','position','top','right','bottom','left','z-index',
+    'width','min-width','max-width','height','min-height','max-height',
+    'margin','margin-top','margin-right','margin-bottom','margin-left',
+    'padding','padding-top','padding-right','padding-bottom','padding-left',
+    'box-sizing','overflow','overflow-x','overflow-y','float','clear',
+    // Flexbox
+    'flex','flex-direction','flex-wrap','flex-grow','flex-shrink','flex-basis',
+    'align-items','align-self','align-content','justify-content','justify-items',
+    'gap','row-gap','column-gap','order',
+    // Grid
+    'grid-template-columns','grid-template-rows','grid-column','grid-row',
+    'grid-auto-flow','grid-auto-columns','grid-auto-rows','grid-gap',
+    // Background
+    'background','background-color','background-image','background-size',
+    'background-position','background-repeat','background-attachment',
+    // Borders
+    'border','border-top','border-right','border-bottom','border-left',
+    'border-width','border-style','border-color','border-radius',
+    'border-top-left-radius','border-top-right-radius',
+    'border-bottom-left-radius','border-bottom-right-radius',
+    // Typography
+    'color','font-family','font-size','font-weight','font-style',
+    'line-height','letter-spacing','text-align','text-decoration',
+    'text-transform','text-overflow','white-space','word-break','word-spacing',
+    // Visual
+    'opacity','visibility','box-shadow','text-shadow',
+    'object-fit','object-position','aspect-ratio',
+    'transform','filter','backdrop-filter','mix-blend-mode',
+    'clip-path','mask-image',
+    // SVG
+    'fill','stroke','stroke-width',
+  ];
+
+  function getVisualStyles(el) {
     var computed = window.getComputedStyle(el);
     var style = '';
-    for (var i = 0; i < computed.length; i++) {
-      var prop = computed[i];
+    for (var i = 0; i < VISUAL_PROPS.length; i++) {
+      var prop = VISUAL_PROPS[i];
       var val = computed.getPropertyValue(prop);
-      // Skip defaults that add noise
-      if (val === '' || val === 'none' || val === 'normal' || val === 'auto' ||
-          val === '0px' || val === '0px 0px' || val === '0px 0px 0px 0px' ||
-          val === 'rgba(0, 0, 0, 0)' || val === 'rgb(0, 0, 0)' ||
-          val === 'start' || val === 'baseline' || val === 'stretch') continue;
-      // Skip properties that are just inherited defaults
-      if (prop === 'perspective-origin' || prop === 'transform-origin') continue;
+      if (!val || val === 'none' || val === 'normal' || val === 'auto' ||
+          val === '0px' || val === '0px 0px' || val === 'rgba(0, 0, 0, 0)' ||
+          val === 'start' || val === 'baseline' || val === 'stretch' ||
+          val === 'visible' || val === 'static' || val === 'content-box' ||
+          val === 'border-box' || val === 'row' || val === 'nowrap' ||
+          val === 'repeat' || val === 'scroll' || val === '1' ||
+          val === 'ltr' || val === 'inline') continue;
       style += prop + ':' + val + ';';
     }
     return style;
@@ -134,9 +169,9 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     return style;
   }
 
-  // Recursively inline ALL computed styles
+  // Recursively inline visual styles (not all computed — keeps HTML clean for AI)
   function inlineStyles(source, clone) {
-    clone.setAttribute('style', (clone.getAttribute('style') || '') + getFullComputedStyles(source));
+    clone.setAttribute('style', getVisualStyles(source));
 
     // Capture pseudo-elements as data attributes for AI context
     var before = getPseudoStyles(source, '::before');
