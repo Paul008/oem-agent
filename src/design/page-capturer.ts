@@ -651,7 +651,15 @@ export class PageCapturer {
           try {
             const urlObj = new URL(originalUrl);
             const pathParts = urlObj.pathname.split('/').filter(Boolean);
+            // Storyblok CDN URLs end with /m/WIDTHxHEIGHT (resize params).
+            // Walk backwards to find the first segment with a file extension.
             let filename = pathParts[pathParts.length - 1] || 'image';
+            for (let pi = pathParts.length - 1; pi >= 0; pi--) {
+              if (/\.\w{2,5}$/.test(pathParts[pi])) {
+                filename = pathParts[pi];
+                break;
+              }
+            }
             filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
 
             if (seenFilenames.has(filename)) {
