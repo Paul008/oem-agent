@@ -3,12 +3,20 @@
  * Separated from the Vue SFC to avoid parser issues with
  * literal </style> and </script> tags inside template literals.
  */
-export function buildCaptureInjection(): string {
+export function buildCaptureInjection(): { earlyStub: string; lateInjection: string } {
   const css = [
     '[data-capture-hover] { outline: 3px solid #3b82f6 !important; outline-offset: -3px; cursor: pointer !important; }',
     '[data-capture-hover]::after { content: "Click to capture this section"; position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; font-size: 12px; padding: 4px 12px; border-radius: 6px; z-index: 999999; pointer-events: none; font-family: system-ui, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }',
     '[data-capture-selected] { outline: 3px solid #22c55e !important; outline-offset: -3px; }',
   ].join('\n')
+
+  // Stub history API to prevent SecurityError in srcdoc iframes
+  // (Nuxt/Vue Router calls history.replaceState which browsers block in about:srcdoc)
+  const historyStub = `try {
+  var _origPush = history.pushState, _origReplace = history.replaceState;
+  history.pushState = function() { try { return _origPush.apply(this, arguments); } catch(e) {} };
+  history.replaceState = function() { try { return _origReplace.apply(this, arguments); } catch(e) {} };
+} catch(e) {}`
 
   const js = `(function() {
   console.log('[SectionCapture] Injection script loaded');
@@ -114,7 +122,11 @@ export function buildCaptureInjection(): string {
 })();`
 
   // Build tags via concatenation to avoid SFC parser issues
+  const historyStubTag = '<' + 'script>' + historyStub + '</' + 'script>'
   const styleTag = '<' + 'style>' + css + '</' + 'style>'
   const scriptTag = '<' + 'script>' + js + '</' + 'script>'
-  return styleTag + scriptTag
+  return {
+    earlyStub: historyStubTag,
+    lateInjection: styleTag + scriptTag,
+  }
 }

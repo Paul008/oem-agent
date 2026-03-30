@@ -41,7 +41,10 @@ async function loadPage() {
     if (!iframe) return
 
     // Use srcdoc for reliable script execution in sandboxed iframe
-    iframe.srcdoc = html + buildCaptureInjection()
+    // Inject history stub early (before Nuxt/Vue Router scripts) to prevent SecurityError
+    const { earlyStub, lateInjection } = buildCaptureInjection()
+    const patchedHtml = html.replace(/<head([^>]*)>/i, `<head$1>${earlyStub}`)
+    iframe.srcdoc = patchedHtml + lateInjection
     pageLoaded.value = true
   } catch (e: any) {
     error.value = e.message || 'Failed to load page'

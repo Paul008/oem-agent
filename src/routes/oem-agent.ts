@@ -2085,6 +2085,250 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/import-legacy/:oemId/:modelSlug
+ * Import a legacy UIkit vehicle JSON into the page builder.
+ * Body: { url: string } — URL to fetch the legacy JSON from
+ *   OR { json: object } — the legacy JSON object directly
+ */
+app.post('/admin/import-legacy/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+  const body = await c.req.json<{ url?: string; json?: any }>();
+
+  let legacyData: any;
+
+  if (body.url) {
+    // Fetch from external URL
+    const resp = await fetch(body.url);
+    if (!resp.ok) {
+      return c.json({ error: `Failed to fetch legacy JSON: ${resp.status} ${resp.statusText}` }, 400);
+    }
+    legacyData = await resp.json();
+  } else if (body.json) {
+    legacyData = body.json;
+  } else {
+    return c.json({ error: 'Provide either "url" or "json" in request body' }, 400);
+  }
+
+  const { parseLegacyVehicleJson } = await import('../design/legacy-importer');
+  const result = parseLegacyVehicleJson(legacyData);
+
+  if (!result.sections.length) {
+    return c.json({ error: 'No sections could be extracted', warnings: result.warnings }, 400);
+  }
+
+  // Build the page object and save to R2
+  const R2_PREFIX = 'pages/definitions';
+  const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+
+  // Check if a page already exists — merge header if so
+  const existing = await c.env.MOLTBOT_BUCKET.get(latestKey);
+  const existingData = existing ? await existing.json() as any : null;
+
+  const pageData = {
+    id: `${oemId}-${modelSlug}`,
+    slug: modelSlug,
+    name: result.name,
+    oem_id: oemId,
+    header: result.header,
+    content: {
+      rendered: '',
+      sections: result.sections,
+    },
+    form: true,
+    variant_link: result.variant_link,
+    generated_at: new Date().toISOString(),
+    source_url: body.url || 'legacy-import',
+    version: existingData ? (existingData.version || 0) + 1 : 1,
+    page_type: 'model' as const,
+    imported_from: 'legacy-uikit',
+    imported_at: new Date().toISOString(),
+  };
+
+  const jsonStr = JSON.stringify(pageData);
+  const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
+
+  await Promise.all([
+    c.env.MOLTBOT_BUCKET.put(latestKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'legacy-import', oem_id: oemId, model_slug: modelSlug },
+    }),
+    c.env.MOLTBOT_BUCKET.put(versionKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'legacy-import' },
+    }),
+  ]);
+
+  return c.json({
+    success: true,
+    oemId,
+    modelSlug,
+    sections_count: result.sections.length,
+    section_types: result.sections.map(s => s.type),
+    warnings: result.warnings,
+    version: pageData.version,
+  });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/preview-legacy-import
+ * Preview what sections would be generated from a legacy JSON without saving.
+ * Body: { url: string } or { json: object }
+ */
+app.post('/admin/preview-legacy-import', async (c) => {
+  const body = await c.req.json<{ url?: string; json?: any }>();
+
+  let legacyData: any;
+
+  if (body.url) {
+    const resp = await fetch(body.url);
+    if (!resp.ok) {
+      return c.json({ error: `Failed to fetch legacy JSON: ${resp.status} ${resp.statusText}` }, 400);
+    }
+    legacyData = await resp.json();
+  } else if (body.json) {
+    legacyData = body.json;
+  } else {
+    return c.json({ error: 'Provide either "url" or "json" in request body' }, 400);
+  }
+
+  const { parseLegacyVehicleJson } = await import('../design/legacy-importer');
+  const result = parseLegacyVehicleJson(legacyData);
+
+  return c.json({
+    success: true,
+    slug: result.slug,
+    name: result.name,
+    sections_count: result.sections.length,
+    sections: result.sections,
+    header: result.header,
+    warnings: result.warnings,
+  });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/scrape-oem/:oemId/:modelSlug
+ * Scrape a GWM OEM website model page and import into the page builder.
+ * Body: { url?: string } — optional override URL (otherwise uses known URL map)
+ */
+app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+  const body = await c.req.json<{ url?: string }>().catch(() => ({}));
+
+  const { scrapeOemModelPage, GWM_OEM_MODEL_URLS } = await import('../design/oem-scraper');
+  const url = body.url || GWM_OEM_MODEL_URLS[modelSlug];
+
+  if (!url) {
+    return c.json({ error: `No known OEM URL for model "${modelSlug}". Provide a "url" in the request body.`, known_slugs: Object.keys(GWM_OEM_MODEL_URLS) }, 400);
+  }
+
+  // Fetch the OEM page HTML
+  const resp = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OemAgent/1.0)' },
+  });
+  if (!resp.ok) {
+    return c.json({ error: `Failed to fetch OEM page: ${resp.status} ${resp.statusText}`, url }, 400);
+  }
+  const html = await resp.text();
+
+  const result = scrapeOemModelPage(html, url);
+
+  if (!result.sections.length) {
+    return c.json({ error: 'No sections could be extracted from OEM page', url, warnings: result.warnings }, 400);
+  }
+
+  // Save to R2
+  const R2_PREFIX = 'pages/definitions';
+  const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+  const existing = await c.env.MOLTBOT_BUCKET.get(latestKey);
+  const existingData = existing ? await existing.json() as any : null;
+
+  const pageData = {
+    ...(existingData || {}),
+    id: `${oemId}-${modelSlug}`,
+    slug: modelSlug,
+    name: result.name,
+    oem_id: oemId,
+    header: result.header,
+    content: {
+      rendered: existingData?.content?.rendered || '',
+      sections: result.sections,
+    },
+    form: true,
+    variant_link: existingData?.variant_link || '',
+    generated_at: new Date().toISOString(),
+    source_url: url,
+    version: existingData ? (existingData.version || 0) + 1 : 1,
+    page_type: 'model' as const,
+    imported_from: 'oem-scraper',
+    imported_at: new Date().toISOString(),
+  };
+
+  const jsonStr = JSON.stringify(pageData);
+  const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
+
+  await Promise.all([
+    c.env.MOLTBOT_BUCKET.put(latestKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'oem-scraper', oem_id: oemId, model_slug: modelSlug },
+    }),
+    c.env.MOLTBOT_BUCKET.put(versionKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'oem-scraper' },
+    }),
+  ]);
+
+  return c.json({
+    success: true,
+    oemId,
+    modelSlug,
+    source_url: url,
+    sections_count: result.sections.length,
+    section_types: result.sections.map(s => s.type),
+    warnings: result.warnings,
+    version: pageData.version,
+  });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/preview-oem-scrape
+ * Preview what sections would be scraped from a GWM OEM page without saving.
+ * Body: { url?: string, model_slug?: string }
+ */
+app.post('/admin/preview-oem-scrape', async (c) => {
+  const body = await c.req.json<{ url?: string; model_slug?: string }>().catch(() => ({}));
+
+  const { scrapeOemModelPage, GWM_OEM_MODEL_URLS } = await import('../design/oem-scraper');
+  const url = body.url || (body.model_slug ? GWM_OEM_MODEL_URLS[body.model_slug] : null);
+
+  if (!url) {
+    return c.json({ error: 'Provide "url" or "model_slug" in request body', known_slugs: Object.keys(GWM_OEM_MODEL_URLS) }, 400);
+  }
+
+  const resp = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OemAgent/1.0)' },
+  });
+  if (!resp.ok) {
+    return c.json({ error: `Failed to fetch OEM page: ${resp.status} ${resp.statusText}`, url }, 400);
+  }
+  const html = await resp.text();
+
+  const result = scrapeOemModelPage(html, url);
+
+  return c.json({
+    success: true,
+    source_url: url,
+    slug: result.slug,
+    name: result.name,
+    sections_count: result.sections.length,
+    sections: result.sections,
+    header: result.header,
+    warnings: result.warnings,
+  });
+});
+
+/**
  * POST /api/v1/oem-agent/admin/upload-media/:oemId/:modelSlug
  * Upload a media file (image/video) to R2 for use in page sections.
  */

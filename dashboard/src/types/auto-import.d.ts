@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const ANIMATION_OPTIONS: typeof import('../composables/use-section-animation').ANIMATION_OPTIONS
   const CONTENT_LAYOUTS: typeof import('../constants/themes').CONTENT_LAYOUTS
   const DEFAULT_PAGE_SIZE: typeof import('../constants/pagination').DEFAULT_PAGE_SIZE
   const EffectScope: typeof import('vue').EffectScope
@@ -17,6 +18,7 @@ declare global {
   const THEME_PRIMARY_COLORS: typeof import('../constants/themes').THEME_PRIMARY_COLORS
   const TOOL_DESCRIPTIONS: typeof import('../composables/use-agent-profile').TOOL_DESCRIPTIONS
   const WORKFLOW_METADATA: typeof import('../composables/use-agent-profile').WORKFLOW_METADATA
+  const buildCaptureInjection: typeof import('../composables/use-capture-injection').buildCaptureInjection
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
   const customRef: typeof import('vue').customRef
@@ -77,7 +79,9 @@ declare global {
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
   const useGeneratedPages: typeof import('../composables/use-generated-pages').useGeneratedPages
+  const useGoogleFonts: typeof import('../composables/use-google-fonts').useGoogleFonts
   const useId: typeof import('vue').useId
+  const useInlineEdit: typeof import('../composables/use-inline-edit').useInlineEdit
   const useLink: typeof import('vue-router')['useLink']
   const useModal: typeof import('../composables/use-modal').useModal
   const useModel: typeof import('vue').useModel
@@ -88,6 +92,7 @@ declare global {
   const useRealtimeSubscription: typeof import('../composables/use-realtime').useRealtimeSubscription
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
+  const useSectionAnimation: typeof import('../composables/use-section-animation').useSectionAnimation
   const useSidebar: typeof import('../composables/use-sidebar').useSidebar
   const useSlots: typeof import('vue').useSlots
   const useStockHealth: typeof import('../composables/use-stock-health').useStockHealth
@@ -119,6 +124,9 @@ declare global {
   export type { RegenerationDecision, PageStats } from '../composables/use-generated-pages'
   import('../composables/use-generated-pages')
   // @ts-ignore
+  export type { GoogleFont } from '../composables/use-google-fonts'
+  import('../composables/use-google-fonts')
+  // @ts-ignore
   export type { Oem, ImportRun, ChangeEvent, VehicleModel, OemPortal, ProductSpecs, Product, Offer, VariantColor, VariantPricing, Banner, SourcePage, Accessory, AccessoryModel } from '../composables/use-oem-data'
   import('../composables/use-oem-data')
   // @ts-ignore
@@ -130,6 +138,9 @@ declare global {
   // @ts-ignore
   export type { PortalAsset, PortalAssetCoverage } from '../composables/use-portal-assets'
   import('../composables/use-portal-assets')
+  // @ts-ignore
+  export type { AnimationType, AnimationConfig } from '../composables/use-section-animation'
+  import('../composables/use-section-animation')
   // @ts-ignore
   export type { OemStockHealth, StockSummary } from '../composables/use-stock-health'
   import('../composables/use-stock-health')

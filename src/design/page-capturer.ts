@@ -126,7 +126,7 @@ export class PageCapturer {
             bottom_strip: [],
           }] : [],
         },
-        content: { rendered: assembledHtml },
+        content: { rendered: assembledHtml, sections: [] as any[] },
         form: false,
         variant_link: `/models/${modelSlug}/variants`,
         generated_at: new Date().toISOString(),

@@ -200,6 +200,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/design-health': RouteRecordInfo<
+      '/dashboard/design-health',
+      '/dashboard/design-health',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/design-memory': RouteRecordInfo<
       '/dashboard/design-memory',
       '/dashboard/design-memory',
@@ -284,6 +291,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/page-templates': RouteRecordInfo<
+      '/dashboard/page-templates',
+      '/dashboard/page-templates',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/portal-assets': RouteRecordInfo<
       '/dashboard/portal-assets',
       '/dashboard/portal-assets',
@@ -312,6 +326,20 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/recipe-analytics': RouteRecordInfo<
+      '/dashboard/recipe-analytics',
+      '/dashboard/recipe-analytics',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/recipe-showcase': RouteRecordInfo<
+      '/dashboard/recipe-showcase',
+      '/dashboard/recipe-showcase',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/recipes': RouteRecordInfo<
       '/dashboard/recipes',
       '/dashboard/recipes',
@@ -336,6 +364,13 @@ declare module 'vue-router/auto-routes' {
     '/dashboard/settings/regeneration': RouteRecordInfo<
       '/dashboard/settings/regeneration',
       '/dashboard/settings/regeneration',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/dashboard/settings/webhooks': RouteRecordInfo<
+      '/dashboard/settings/webhooks',
+      '/dashboard/settings/webhooks',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -670,6 +705,12 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/pages/dashboard/design-health.vue': {
+      routes:
+        | '/dashboard/design-health'
+      views:
+        | never
+    }
     'src/pages/dashboard/design-memory.vue': {
       routes:
         | '/dashboard/design-memory'
@@ -742,6 +783,12 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/pages/dashboard/page-templates.vue': {
+      routes:
+        | '/dashboard/page-templates'
+      views:
+        | never
+    }
     'src/pages/dashboard/portal-assets.vue': {
       routes:
         | '/dashboard/portal-assets'
@@ -766,6 +813,18 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/pages/dashboard/recipe-analytics.vue': {
+      routes:
+        | '/dashboard/recipe-analytics'
+      views:
+        | never
+    }
+    'src/pages/dashboard/recipe-showcase.vue': {
+      routes:
+        | '/dashboard/recipe-showcase'
+      views:
+        | never
+    }
     'src/pages/dashboard/recipes.vue': {
       routes:
         | '/dashboard/recipes'
@@ -787,6 +846,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/settings/regeneration.vue': {
       routes:
         | '/dashboard/settings/regeneration'
+      views:
+        | never
+    }
+    'src/pages/dashboard/settings/webhooks.vue': {
+      routes:
+        | '/dashboard/settings/webhooks'
       views:
         | never
     }
