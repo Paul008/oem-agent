@@ -60,12 +60,12 @@ async function onMessage(e: MessageEvent) {
   if (e.data?.type !== 'section-capture' || !e.data.html) return
 
   const html = e.data.html as string
-  const fontFaces = e.data.fontFaces as string[] || []
-  const cssVars = e.data.cssVars as Record<string, string> || {}
+  const imageUrls = e.data.imageUrls as string[] || []
+  const rootStyles = e.data.rootStyles as Record<string, string> || {}
   const pageUrl = e.data.pageUrl as string || url.value
   captured.value.push(html)
 
-  // Send to smart capture with full context for Tailwind conversion
+  // Send to smart capture with clean HTML + image URLs for Tailwind conversion
   analyzing.value = true
   analyzeStatus.value = 'Converting to Tailwind CSS...'
   try {
@@ -77,8 +77,8 @@ async function onMessage(e: MessageEvent) {
         source_url: pageUrl,
         oem_id: props.oemId,
         model_slug: props.modelSlug,
-        font_faces: fontFaces,
-        css_vars: cssVars,
+        image_urls: imageUrls,
+        root_styles: rootStyles,
       }),
     })
     if (resp.ok) {

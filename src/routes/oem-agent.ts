@@ -152,8 +152,8 @@ app.post('/admin/smart-capture', async (c) => {
     source_url?: string;
     oem_id?: string;
     model_slug?: string;
-    font_faces?: string[];
-    css_vars?: Record<string, string>;
+    image_urls?: string[];
+    root_styles?: Record<string, string>;
   }>();
 
   if (!body.html) return c.json({ error: 'html is required' }, 400);
@@ -214,17 +214,25 @@ app.post('/admin/smart-capture', async (c) => {
     } catch { /* brand tokens optional */ }
   }
 
-  // Build font context from captured @font-face rules
-  let fontContext = '';
-  if (body.font_faces?.length) {
-    fontContext = `\n## Page Fonts (@font-face declarations)\n${body.font_faces.slice(0, 10).join('\n')}`;
+  // Build image URL context
+  let imageContext = '';
+  if (body.image_urls?.length) {
+    imageContext = `\n## Image URLs (use these EXACT URLs in the output)\n${body.image_urls.map(u => `- ${u}`).join('\n')}`;
   }
 
-  // Build CSS variable context
-  let cssVarContext = '';
-  if (body.css_vars && Object.keys(body.css_vars).length > 0) {
-    const entries = Object.entries(body.css_vars).slice(0, 30);
-    cssVarContext = `\n## CSS Custom Properties\n${entries.map(([k, v]) => `${k}: ${v}`).join('\n')}`;
+  // Build root layout context
+  let layoutContext = '';
+  if (body.root_styles) {
+    const s = body.root_styles;
+    const lines: string[] = [];
+    if (s.display) lines.push(`Layout: ${s.display}`);
+    if (s.gridTemplateColumns && s.gridTemplateColumns !== 'none') lines.push(`Grid columns: ${s.gridTemplateColumns}`);
+    if (s.gridGap) lines.push(`Gap: ${s.gridGap}`);
+    if (s.flexDirection && s.flexDirection !== 'row') lines.push(`Flex direction: ${s.flexDirection}`);
+    if (s.backgroundColor && s.backgroundColor !== 'rgba(0, 0, 0, 0)') lines.push(`Background: ${s.backgroundColor}`);
+    if (s.fontFamily) lines.push(`Font: ${s.fontFamily}`);
+    if (s.width) lines.push(`Width: ${s.width}`);
+    if (lines.length) layoutContext = `\n## Computed Layout\n${lines.join('\n')}`;
   }
 
   const oemName = body.oem_id?.replace('-au', '').toUpperCase() || 'OEM';
@@ -237,9 +245,9 @@ app.post('/admin/smart-capture', async (c) => {
 3. Generate a Tailwind CSS + Alpine.js template that VISUALLY MATCHES the original section pixel-perfectly
 
 ## Brand Design Tokens
-${brandTokensContext || 'No brand tokens available — extract colors/fonts from the inline styles in the HTML.'}
-${fontContext}
-${cssVarContext}
+${brandTokensContext || 'No brand tokens available — use neutral automotive styling.'}
+${imageContext}
+${layoutContext}
 
 ## Section Types
 "hero" | "intro" | "gallery" | "feature-cards" | "video" | "cta-banner" | "content-block" | "tabs" | "testimonial" | "stats" | "pricing-table" | "accordion" | "image" | "image-showcase" | "heading" | "embed"
@@ -274,17 +282,17 @@ ${cssVarContext}
 ## CRITICAL Rules for _generated_html
 1. Use ONLY Tailwind CSS utility classes — NO inline styles, NO custom CSS, NO <style> tags
 2. Use Alpine.js x-data for interactivity (carousels, tabs, accordions)
-3. Match the EXACT layout: spacing, alignment, grid structure, font sizes, colors
-4. Use Tailwind arbitrary values for exact colors: bg-[#C8102E], text-[#1A1A1A], etc.
-5. Use Tailwind arbitrary values for exact sizes: text-[40px], gap-[24px], max-w-[1440px], etc.
-6. Keep ALL image URLs as absolute URLs from the original HTML
-7. Make it responsive: mobile-first with sm:/md:/lg: breakpoints
-8. Match font weights, letter spacing, text transforms exactly
-9. For background images use Tailwind: bg-[url('...')] bg-cover bg-center
-10. Preserve the visual hierarchy — heading sizes, spacing between elements, overlay effects
-11. For cards/grids: match the exact column count and gap spacing
-12. For heroes: match the overlay darkness, text positioning, and CTA button styling
-13. Self-contained — no external dependencies beyond Tailwind + Alpine.js
+3. The input HTML has NO inline styles — use the class names and HTML structure to understand the design intent
+4. Class names are semantic (e.g. "grid-blocks__block-heading", "hero__content", "cta-button--solid") — use them to understand layout
+5. Use Tailwind arbitrary values for exact brand colors: bg-[#C8102E], text-[#1A1A1A], etc.
+6. Use the EXACT image URLs from the "Image URLs" list above — do NOT invent or modify image URLs
+7. For image cards: use the image as a full background with overlay text on top (dark gradient overlay for readability)
+8. Make it responsive: mobile-first with sm:/md:/lg: breakpoints
+9. For card grids: use CSS grid (grid grid-cols-1 md:grid-cols-3 gap-5) to match the original column layout
+10. Each card should be: relative, overflow-hidden, with the image as absolute/inset-0/object-cover, and text content positioned over it
+11. Match the visual hierarchy — heading sizes, spacing, overlay effects, CTA button positioning
+12. Self-contained — no external dependencies beyond Tailwind + Alpine.js
+13. CTA buttons should match the brand style (often: transparent bg, white text, with a colored arrow icon)
 
 ## HTML to Analyze
 
@@ -318,17 +326,17 @@ ${body.html}`;
       return c.json({ error: 'AI could not identify section type', raw: result }, 422);
     }
 
-    // Download images to R2 if oem_id provided
-    const imageUrls: string[] = [];
+    // Collect image URLs — prefer explicit list from client, fall back to parsing section data
+    const imageUrls: string[] = [...(body.image_urls || [])];
     const section = result.data || {};
 
-    // Collect all image URLs from the section data (excluding _generated_html)
+    // Also collect from AI output
     function collectImages(obj: any, skipKeys = new Set(['_generated_html'])) {
       if (!obj || typeof obj !== 'object') return;
       for (const [key, val] of Object.entries(obj)) {
         if (skipKeys.has(key)) continue;
         if (typeof val === 'string' && (key.includes('image') || key.includes('url') || key.includes('poster')) && val.startsWith('http')) {
-          imageUrls.push(val);
+          if (!imageUrls.includes(val)) imageUrls.push(val);
         }
         if (Array.isArray(val)) val.forEach(item => collectImages(item, skipKeys));
         else if (typeof val === 'object') collectImages(val, skipKeys);
@@ -336,7 +344,7 @@ ${body.html}`;
     }
     collectImages(section);
 
-    // Also extract image URLs from _generated_html for R2 download
+    // Extract from _generated_html too
     if (section._generated_html) {
       const htmlImgMatches = section._generated_html.matchAll(/(?:src|poster|url\()["']?(https?:\/\/[^"'\s)]+)/g);
       for (const m of htmlImgMatches) {

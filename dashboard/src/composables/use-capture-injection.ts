@@ -11,7 +11,6 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   ].join('\n')
 
   // Stub history API to prevent SecurityError in srcdoc iframes
-  // (Nuxt/Vue Router calls history.replaceState which browsers block in about:srcdoc)
   const historyStub = `try {
   var _origPush = history.pushState, _origReplace = history.replaceState;
   history.pushState = function() { try { return _origPush.apply(this, arguments); } catch(e) {} };
@@ -47,161 +46,78 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     }
   }, true);
 
-  // Extract @font-face declarations from all stylesheets
-  function extractFontFaces() {
-    var fonts = [];
-    try {
-      var sheets = document.styleSheets;
-      for (var i = 0; i < sheets.length; i++) {
-        try {
-          var rules = sheets[i].cssRules || sheets[i].rules;
-          if (!rules) continue;
-          for (var j = 0; j < rules.length; j++) {
-            if (rules[j].type === CSSRule.FONT_FACE_RULE) {
-              fonts.push(rules[j].cssText);
-            }
-          }
-        } catch(e) { /* CORS blocked stylesheet */ }
-      }
-    } catch(e) {}
-    return fonts;
-  }
-
-  // Extract CSS custom properties from :root
-  function extractCssVars() {
-    var vars = {};
-    try {
-      var rootStyle = getComputedStyle(document.documentElement);
-      var sheets = document.styleSheets;
-      for (var i = 0; i < sheets.length; i++) {
-        try {
-          var rules = sheets[i].cssRules || sheets[i].rules;
-          if (!rules) continue;
-          for (var j = 0; j < rules.length; j++) {
-            if (rules[j].selectorText === ':root' || rules[j].selectorText === 'html') {
-              var style = rules[j].style;
-              for (var k = 0; k < style.length; k++) {
-                var prop = style[k];
-                if (prop.startsWith('--')) {
-                  vars[prop] = style.getPropertyValue(prop).trim();
-                }
-              }
-            }
-          }
-        } catch(e) {}
-      }
-    } catch(e) {}
-    return vars;
-  }
-
-  // Visual properties that matter for reproducing a design
-  var VISUAL_PROPS = [
-    // Layout
-    'display','position','top','right','bottom','left','z-index',
-    'width','min-width','max-width','height','min-height','max-height',
-    'margin','margin-top','margin-right','margin-bottom','margin-left',
-    'padding','padding-top','padding-right','padding-bottom','padding-left',
-    'box-sizing','overflow','overflow-x','overflow-y','float','clear',
-    // Flexbox
-    'flex','flex-direction','flex-wrap','flex-grow','flex-shrink','flex-basis',
-    'align-items','align-self','align-content','justify-content','justify-items',
-    'gap','row-gap','column-gap','order',
-    // Grid
-    'grid-template-columns','grid-template-rows','grid-column','grid-row',
-    'grid-auto-flow','grid-auto-columns','grid-auto-rows','grid-gap',
-    // Background
-    'background','background-color','background-image','background-size',
-    'background-position','background-repeat','background-attachment',
-    // Borders
-    'border','border-top','border-right','border-bottom','border-left',
-    'border-width','border-style','border-color','border-radius',
-    'border-top-left-radius','border-top-right-radius',
-    'border-bottom-left-radius','border-bottom-right-radius',
-    // Typography
-    'color','font-family','font-size','font-weight','font-style',
-    'line-height','letter-spacing','text-align','text-decoration',
-    'text-transform','text-overflow','white-space','word-break','word-spacing',
-    // Visual
-    'opacity','visibility','box-shadow','text-shadow',
-    'object-fit','object-position','aspect-ratio',
-    'transform','filter','backdrop-filter','mix-blend-mode',
-    'clip-path','mask-image',
-    // SVG
-    'fill','stroke','stroke-width',
-  ];
-
-  function getVisualStyles(el) {
-    var computed = window.getComputedStyle(el);
-    var style = '';
-    for (var i = 0; i < VISUAL_PROPS.length; i++) {
-      var prop = VISUAL_PROPS[i];
-      var val = computed.getPropertyValue(prop);
-      if (!val || val === 'none' || val === 'normal' || val === 'auto' ||
-          val === '0px' || val === '0px 0px' || val === 'rgba(0, 0, 0, 0)' ||
-          val === 'start' || val === 'baseline' || val === 'stretch' ||
-          val === 'visible' || val === 'static' || val === 'content-box' ||
-          val === 'border-box' || val === 'row' || val === 'nowrap' ||
-          val === 'repeat' || val === 'scroll' || val === '1' ||
-          val === 'ltr' || val === 'inline') continue;
-      style += prop + ':' + val + ';';
-    }
-    return style;
-  }
-
-  // Get pseudo-element styles
-  function getPseudoStyles(el, pseudo) {
-    var computed = window.getComputedStyle(el, pseudo);
-    var content = computed.getPropertyValue('content');
-    if (!content || content === 'none' || content === 'normal') return null;
-    var style = '';
-    var props = [
-      'content','display','position','top','right','bottom','left',
-      'width','height','background','background-color','background-image',
-      'color','font-size','font-weight','border','border-radius',
-      'opacity','transform','z-index','pointer-events'
-    ];
-    for (var i = 0; i < props.length; i++) {
-      var val = computed.getPropertyValue(props[i]);
-      if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== '0px') {
-        style += props[i] + ':' + val + ';';
-      }
-    }
-    return style;
-  }
-
-  // Recursively inline visual styles (not all computed — keeps HTML clean for AI)
-  function inlineStyles(source, clone) {
-    clone.setAttribute('style', getVisualStyles(source));
-
-    // Capture pseudo-elements as data attributes for AI context
-    var before = getPseudoStyles(source, '::before');
-    var after = getPseudoStyles(source, '::after');
-    if (before) clone.setAttribute('data-pseudo-before', before);
-    if (after) clone.setAttribute('data-pseudo-after', after);
-
-    var srcChildren = source.children;
-    var clnChildren = clone.children;
-    for (var j = 0; j < srcChildren.length && j < clnChildren.length; j++) {
-      if (srcChildren[j].nodeType === 1) inlineStyles(srcChildren[j], clnChildren[j]);
-    }
-  }
-
-  function fixUrls(el) {
+  // Extract all image URLs from an element
+  function extractImageUrls(el) {
+    var urls = [];
     var base = document.location.origin;
-    el.querySelectorAll('img[src],source[srcset],video[src],video[poster]').forEach(function(node) {
-      ['src','srcset','poster'].forEach(function(attr) {
+    el.querySelectorAll('img[src],source[srcset],video[poster]').forEach(function(node) {
+      var src = node.getAttribute('src') || '';
+      if (src) {
+        if (src.startsWith('/') && !src.startsWith('//')) src = base + src;
+        if (src.startsWith('http')) urls.push(src);
+      }
+      var srcset = node.getAttribute('srcset') || '';
+      if (srcset) {
+        srcset.split(',').forEach(function(entry) {
+          var u = entry.trim().split(/\\s+/)[0];
+          if (u.startsWith('/') && !u.startsWith('//')) u = base + u;
+          if (u.startsWith('http')) urls.push(u);
+        });
+      }
+    });
+    // Check for background images in inline styles
+    el.querySelectorAll('*').forEach(function(node) {
+      var bg = window.getComputedStyle(node).backgroundImage;
+      if (bg && bg !== 'none') {
+        var match = bg.match(/url\\(['"]?(https?:\\/\\/[^'"\\)]+)/);
+        if (match) urls.push(match[1]);
+      }
+    });
+    // Dedupe
+    return urls.filter(function(v, i, a) { return a.indexOf(v) === i; });
+  }
+
+  // Extract key computed values for the root element only (not children)
+  function extractRootStyles(el) {
+    var computed = window.getComputedStyle(el);
+    return {
+      display: computed.display,
+      gridTemplateColumns: computed.gridTemplateColumns,
+      gridGap: computed.gap || computed.gridGap,
+      flexDirection: computed.flexDirection,
+      backgroundColor: computed.backgroundColor,
+      color: computed.color,
+      fontFamily: computed.fontFamily,
+      fontSize: computed.fontSize,
+      padding: computed.padding,
+      width: el.offsetWidth + 'px',
+      height: el.offsetHeight + 'px',
+    };
+  }
+
+  // Clean the HTML: strip inline styles, keep classes and structure
+  function cleanHtml(el) {
+    var clone = el.cloneNode(true);
+    clone.removeAttribute('data-capture-hover');
+    clone.removeAttribute('data-capture-selected');
+    // Strip all inline styles — the AI works from class names + structure
+    clone.querySelectorAll('*').forEach(function(node) {
+      node.removeAttribute('style');
+    });
+    clone.removeAttribute('style');
+    // Strip scripts
+    clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+    // Fix relative URLs to absolute
+    var base = document.location.origin;
+    clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
+      ['src','srcset','poster','href'].forEach(function(attr) {
         var v = node.getAttribute(attr);
         if (v && v.startsWith('/') && !v.startsWith('//')) {
           node.setAttribute(attr, base + v);
         }
       });
     });
-    el.querySelectorAll('*').forEach(function(node) {
-      var s = node.getAttribute('style') || '';
-      if (s.includes('url(/')) {
-        node.setAttribute('style', s.replace(/url\\(\\//, 'url(' + base + '/'));
-      }
-    });
+    return clone.outerHTML;
   }
 
   document.addEventListener('click', function(e) {
@@ -212,27 +128,21 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     if (!el) return;
     el.removeAttribute('data-capture-hover');
     el.setAttribute('data-capture-selected', '');
-    var clone = el.cloneNode(true);
-    clone.removeAttribute('data-capture-hover');
-    clone.removeAttribute('data-capture-selected');
-    inlineStyles(el, clone);
-    fixUrls(clone);
-    clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
 
-    // Gather page-level context for the AI
-    var fontFaces = extractFontFaces();
-    var cssVars = extractCssVars();
+    var imageUrls = extractImageUrls(el);
+    var rootStyles = extractRootStyles(el);
+    var html = cleanHtml(el);
 
     window.parent.postMessage({
       type: 'section-capture',
-      html: clone.outerHTML,
+      html: html,
+      imageUrls: imageUrls,
+      rootStyles: rootStyles,
       tag: el.tagName.toLowerCase(),
       classes: el.className,
       width: el.offsetWidth,
       height: el.offsetHeight,
-      fontFaces: fontFaces,
-      cssVars: cssVars,
-      pageTitle: document.title,
+      childCount: el.children.length,
       pageUrl: document.location.href,
     }, '*');
   }, true);
@@ -243,7 +153,6 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   }, true);
 })();`
 
-  // Build tags via concatenation to avoid SFC parser issues
   const historyStubTag = '<' + 'script>' + historyStub + '</' + 'script>'
   const styleTag = '<' + 'style>' + css + '</' + 'style>'
   const scriptTag = '<' + 'script>' + js + '</' + 'script>'
