@@ -273,7 +273,23 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
       case 'gap':case 'grid-gap': if(!isNaN(px)&&px>0)cls.push('gap-'+pxToSp(px));break;
       case 'column-gap': if(!isNaN(px)&&px>0)cls.push('gap-x-'+pxToSp(px));break;
       case 'row-gap': if(!isNaN(px)&&px>0)cls.push('gap-y-'+pxToSp(px));break;
-      case 'width': if(val==='100%')cls.push('w-full');break;
+      case 'width':
+        if(val==='100%')cls.push('w-full');
+        else if(val.endsWith('%')){var pct=parseFloat(val);
+          if(Math.abs(pct-8.33)<1)cls.push('w-1/12');
+          else if(Math.abs(pct-16.67)<1)cls.push('w-2/12');
+          else if(Math.abs(pct-25)<1)cls.push('w-1/4');
+          else if(Math.abs(pct-33.33)<1)cls.push('w-1/3');
+          else if(Math.abs(pct-41.67)<1)cls.push('w-5/12');
+          else if(Math.abs(pct-50)<1)cls.push('w-1/2');
+          else if(Math.abs(pct-58.33)<1)cls.push('w-7/12');
+          else if(Math.abs(pct-66.67)<1)cls.push('w-2/3');
+          else if(Math.abs(pct-75)<1)cls.push('w-3/4');
+          else if(Math.abs(pct-83.33)<1)cls.push('w-10/12');
+          else if(Math.abs(pct-91.67)<1)cls.push('w-11/12');
+          else cls.push('w-['+val+']');
+        }
+        break;
       case 'max-width': if(val==='100%')cls.push('max-w-full');else if(!isNaN(px)&&px>0)cls.push('max-w-['+px+'px]');break;
       case 'min-height': if(!isNaN(px)&&px>0)cls.push('min-h-['+px+'px]');break;
       case 'padding-top': if(!isNaN(px)&&px>0)cls.push('pt-'+pxToSp(px));break;
@@ -284,6 +300,23 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
       case 'margin-bottom': if(!isNaN(px)&&px>0)cls.push('mb-'+pxToSp(px));break;
       case 'margin-left': if(val==='auto')cls.push('ml-auto');break;
       case 'margin-right': if(val==='auto')cls.push('mr-auto');break;
+      case 'flex-grow': if(val==='1')cls.push('grow');else if(val==='0')cls.push('grow-0');break;
+      case 'flex-shrink': if(val==='0')cls.push('shrink-0');break;
+      case 'flex-basis':
+        if(val==='0px'||val==='0%')cls.push('basis-0');
+        else if(val==='100%')cls.push('basis-full');
+        else if(val==='auto')break;
+        else if(val.endsWith('%')){var bpct=parseFloat(val);
+          if(Math.abs(bpct-41.67)<1)cls.push('basis-5/12');
+          else if(Math.abs(bpct-50)<1)cls.push('basis-1/2');
+          else if(Math.abs(bpct-58.33)<1)cls.push('basis-7/12');
+          else if(Math.abs(bpct-33.33)<1)cls.push('basis-1/3');
+          else if(Math.abs(bpct-66.67)<1)cls.push('basis-2/3');
+          else if(Math.abs(bpct-25)<1)cls.push('basis-1/4');
+          else if(Math.abs(bpct-75)<1)cls.push('basis-3/4');
+          else cls.push('basis-['+val+']');
+        }
+        break;
       case 'position': if(['relative','absolute','fixed','sticky'].indexOf(val)>=0)cls.push(val);break;
       case 'color': cls.push('text-'+colTw(val));break;
       case 'background-color': cls.push('bg-'+colTw(val));break;
@@ -300,6 +333,7 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   }
   var TW_PROPS=['display','flex-direction','flex-wrap','align-items','justify-content',
     'grid-template-columns','gap','column-gap','row-gap','width','max-width','min-height','position',
+    'flex-grow','flex-shrink','flex-basis',
     'padding-top','padding-right','padding-bottom','padding-left',
     'margin-top','margin-bottom','margin-left','margin-right',
     'color','background-color','font-size','font-weight','text-align','text-transform',
