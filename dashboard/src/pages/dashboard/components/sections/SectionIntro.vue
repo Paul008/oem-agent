@@ -71,15 +71,15 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
     <div
       :class="[
         'gap-8',
-        section.image_url ? 'flex flex-col md:flex-row items-center' : '',
-        section.image_position === 'left' ? 'md:flex-row-reverse' : '',
+        section.image_url ? 'flex flex-col sm:flex-row items-start' : '',
+        section.image_position === 'left' ? 'sm:flex-row-reverse' : '',
       ]"
     >
       <div
         class="prose prose-sm dark:prose-invert max-w-none flex-1"
         v-html="section.body_html"
       />
-      <div v-if="section.image_url" class="relative max-w-sm w-full">
+      <div v-if="section.image_url" class="relative w-full sm:w-2/5 shrink-0">
         <img
           :src="section.image_url"
           :alt="section.title || ''"
