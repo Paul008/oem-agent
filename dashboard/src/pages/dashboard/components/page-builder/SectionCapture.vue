@@ -249,7 +249,7 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; data: any }>({
 })
 
 const SECTION_TYPE_OPTIONS = [
-  { value: '_raw_html', label: 'HTML → Tailwind (AI)', divider: true },
+  { value: '_raw_html', label: 'HTML → Tailwind', divider: true },
   { value: 'content-block', label: 'Content Block' },
   { value: 'feature-cards', label: 'Feature Cards' },
   { value: 'hero', label: 'Hero' },
