@@ -991,6 +991,13 @@ function onMediaLibrarySelect(url: string) {
           <label class="text-xs text-muted-foreground mb-1 block">Title</label>
           <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
         </div>
+        <div v-if="section._generated_html">
+          <label class="text-xs text-muted-foreground mb-1 block">Generated HTML (Tailwind)</label>
+          <UiTextarea :model-value="section._generated_html || ''" class="text-xs min-h-32 font-mono" @update:model-value="update('_generated_html', $event)" />
+          <button class="text-xs text-primary hover:underline mt-1" @click="update('content_html', section._generated_html); update('_generated_html', '')">
+            Move to Content HTML (makes editable)
+          </button>
+        </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Content HTML</label>
           <UiTextarea :model-value="section.content_html || ''" class="text-xs min-h-24 font-mono" @update:model-value="update('content_html', $event)" />
