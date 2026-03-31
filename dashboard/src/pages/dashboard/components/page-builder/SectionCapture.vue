@@ -117,16 +117,17 @@ async function loadIframe() {
   }
 }
 
-// Screenshot region selection
+// Screenshot region selection — use offset relative to image top-left including scroll
 function getScaledCoords(e: MouseEvent) {
   const img = imgRef.value
-  if (!img) return { x: 0, y: 0 }
-  const rect = img.getBoundingClientRect()
-  const scaleX = img.naturalWidth / rect.width
-  const scaleY = img.naturalHeight / rect.height
+  const container = containerRef.value
+  if (!img || !container) return { x: 0, y: 0 }
+  const imgRect = img.getBoundingClientRect()
+  const scaleX = img.naturalWidth / imgRect.width
+  const scaleY = img.naturalHeight / imgRect.height
   return {
-    x: (e.clientX - rect.left) * scaleX,
-    y: (e.clientY - rect.top) * scaleY,
+    x: Math.max(0, (e.clientX - imgRect.left) * scaleX),
+    y: Math.max(0, (e.clientY - imgRect.top) * scaleY),
   }
 }
 
@@ -156,12 +157,12 @@ function onMouseUp() {
   }
 }
 
+// Selection rect is positioned relative to the image (which is the first child of the container)
 const selectionStyle = computed(() => {
-  if (!hasSelection.value || !imgRef.value) return {}
+  if (!hasSelection.value || !imgRef.value) return { display: 'none' }
   const img = imgRef.value
-  const rect = img.getBoundingClientRect()
-  const scaleX = rect.width / img.naturalWidth
-  const scaleY = rect.height / img.naturalHeight
+  const scaleX = img.clientWidth / img.naturalWidth
+  const scaleY = img.clientHeight / img.naturalHeight
 
   const x1 = Math.min(selectionStart.value.x, selectionEnd.value.x) * scaleX
   const y1 = Math.min(selectionStart.value.y, selectionEnd.value.y) * scaleY
@@ -398,24 +399,26 @@ onUnmounted(() => { window.removeEventListener('message', onMessage) })
       <div
         v-if="screenshotUrl"
         ref="containerRef"
-        class="flex-1 overflow-auto relative cursor-crosshair"
+        class="flex-1 overflow-auto cursor-crosshair"
         @mousedown="onMouseDown"
         @mousemove="onMouseMove"
         @mouseup="onMouseUp"
       >
-        <img
-          ref="imgRef"
-          :src="screenshotUrl"
-          class="w-full"
-          draggable="false"
-          @load="() => {}"
-        />
-        <!-- Selection rectangle -->
-        <div
-          v-if="hasSelection"
-          class="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
-          :style="selectionStyle"
-        />
+        <div class="relative inline-block w-full">
+          <img
+            ref="imgRef"
+            :src="screenshotUrl"
+            crossorigin="anonymous"
+            class="w-full block"
+            draggable="false"
+          />
+          <!-- Selection rectangle (positioned relative to image wrapper) -->
+          <div
+            v-if="hasSelection"
+            class="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none z-10"
+            :style="selectionStyle"
+          />
+        </div>
       </div>
 
       <!-- Iframe view (fallback) -->
