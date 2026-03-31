@@ -3232,21 +3232,21 @@ ${html.substring(0, 50000)}
     return {
       ...extractionResult,
       products: {
-        data: llmResult.products || extractionResult.products.data,
+        data: llmResult.products?.length ? llmResult.products : extractionResult.products.data,
         confidence: extractionResult.products.confidence,
-        method: 'llm' as const,
+        method: llmResult.products?.length ? 'llm' as const : extractionResult.products.method,
         coverage: extractionResult.products.coverage,
       },
       offers: {
-        data: llmResult.offers || extractionResult.offers.data,
+        data: llmResult.offers?.length ? llmResult.offers : extractionResult.offers.data,
         confidence: extractionResult.offers.confidence,
-        method: 'llm' as const,
+        method: llmResult.offers?.length ? 'llm' as const : extractionResult.offers.method,
         coverage: extractionResult.offers.coverage,
       },
       bannerSlides: {
-        data: llmResult.banner_slides || extractionResult.bannerSlides.data,
+        data: llmResult.banner_slides?.length ? llmResult.banner_slides : extractionResult.bannerSlides.data,
         confidence: extractionResult.bannerSlides.confidence,
-        method: 'llm' as const,
+        method: llmResult.banner_slides?.length ? 'llm' as const : extractionResult.bannerSlides.method,
         coverage: extractionResult.bannerSlides.coverage,
       },
     };
