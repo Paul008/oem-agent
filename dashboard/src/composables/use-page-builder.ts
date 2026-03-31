@@ -95,6 +95,18 @@ function resolveSectionMediaUrls(section: any): any {
       s.video_url = resolveMediaUrl(s.video_url) ?? s.video_url
       s.poster_url = resolveMediaUrl(s.poster_url) ?? s.poster_url
       break
+    case 'image':
+      s.desktop_image_url = resolveMediaUrl(s.desktop_image_url) ?? s.desktop_image_url
+      s.mobile_image_url = resolveMediaUrl(s.mobile_image_url) ?? s.mobile_image_url
+      break
+    case 'image-showcase':
+      if (Array.isArray(s.images)) {
+        s.images = s.images.map((img: any) => ({ ...img, url: resolveMediaUrl(img.url) ?? img.url }))
+      }
+      break
+    case 'cta-banner':
+      s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
+      break
     case 'content-block':
       s.image_url = resolveMediaUrl(s.image_url) ?? s.image_url
       break
