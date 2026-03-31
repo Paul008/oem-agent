@@ -112,7 +112,7 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
       '<span class="tag">' + tag + '</span>' +
       '<span>' + label + '</span>' +
       '<span class="meta">' + meta + '</span>' +
-      '<span class="hint">\\u2325+Scroll resize</span>';
+      '<span class="hint">Right-click: choose type · \\u2325+Scroll: resize</span>';
     tooltip.style.opacity = '1';
   }
 
@@ -288,6 +288,34 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
       height: el.offsetHeight,
       childCount: el.children.length,
       pageUrl: document.location.href,
+    }, '*');
+  }, true);
+
+  // Right-click: send data for context menu (user picks section type)
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    var el = hovered;
+    if (!el) return;
+
+    var imageUrls = extractImageUrls(el);
+    var rootStyles = extractRootStyles(el);
+    var html = cleanHtml(el);
+
+    window.parent.postMessage({
+      type: 'section-capture-menu',
+      html: html,
+      imageUrls: imageUrls,
+      rootStyles: rootStyles,
+      tag: el.tagName.toLowerCase(),
+      classes: el.className,
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+      childCount: el.children.length,
+      pageUrl: document.location.href,
+      clientX: e.clientX,
+      clientY: e.clientY,
     }, '*');
   }, true);
 

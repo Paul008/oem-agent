@@ -46,6 +46,7 @@ interface QueueItem {
   rootStyles: Record<string, string>
   label: string
   thumbUrl?: string
+  forcedType?: string
 }
 const queue = ref<QueueItem[]>([])
 const hasQueue = computed(() => queue.value.length > 0)
@@ -217,16 +218,64 @@ async function addSelectionToQueue() {
   }
 }
 
-// Iframe message handler
-function onMessage(e: MessageEvent) {
-  if (e.data?.type !== 'section-capture' || !e.data.html) return
+// Context menu state
+const contextMenu = ref<{ show: boolean; x: number; y: number; data: any }>({
+  show: false, x: 0, y: 0, data: null,
+})
+
+const SECTION_TYPE_OPTIONS = [
+  { value: 'content-block', label: 'Content Block' },
+  { value: 'feature-cards', label: 'Feature Cards' },
+  { value: 'hero', label: 'Hero' },
+  { value: 'intro', label: 'Intro' },
+  { value: 'image', label: 'Image' },
+  { value: 'gallery', label: 'Gallery' },
+  { value: 'heading', label: 'Heading' },
+  { value: 'testimonial', label: 'Testimonial' },
+  { value: 'stats', label: 'Stats' },
+  { value: 'cta-banner', label: 'CTA Banner' },
+]
+
+function addToQueue(data: any, forcedType?: string) {
+  completed.value = 0 // reset for next batch
+  const cls = (data.classes || '').split(/\s+/).find((c: string) => c && !c.startsWith('d-') && !c.startsWith('test-')) || data.tag || 'section'
   queue.value.push({
     id: `q${Date.now().toString(36)}`,
-    html: e.data.html,
-    imageUrls: e.data.imageUrls || [],
-    rootStyles: e.data.rootStyles || {},
-    label: ((e.data.classes || '').split(/\s+/).find((c: string) => c && !c.startsWith('d-') && !c.startsWith('test-')) || e.data.tag || 'section'),
+    html: data.html,
+    imageUrls: data.imageUrls || [],
+    rootStyles: data.rootStyles || {},
+    label: forcedType || cls,
+    forcedType,
   })
+}
+
+function onContextMenuSelect(type: string) {
+  if (contextMenu.value.data) {
+    addToQueue(contextMenu.value.data, type)
+  }
+  contextMenu.value.show = false
+}
+
+function closeContextMenu() {
+  contextMenu.value.show = false
+}
+
+// Iframe message handler
+function onMessage(e: MessageEvent) {
+  if (!e.data?.html) return
+
+  if (e.data.type === 'section-capture') {
+    // Left-click: auto-detect type
+    addToQueue(e.data)
+  } else if (e.data.type === 'section-capture-menu') {
+    // Right-click: show context menu for type selection
+    contextMenu.value = {
+      show: true,
+      x: e.data.clientX || 200,
+      y: e.data.clientY || 200,
+      data: e.data,
+    }
+  }
 }
 
 function removeFromQueue(id: string) {
@@ -260,6 +309,7 @@ async function captureAll() {
           model_slug: props.modelSlug,
           image_urls: item.imageUrls,
           root_styles: item.rootStyles,
+          forced_type: item.forcedType || undefined,
         }),
       })
       if (resp.ok) {
@@ -283,11 +333,22 @@ async function captureAll() {
   analyzeProgress.value = 100
   analyzeStatus.value = `Done — ${completed.value} sections captured`
   queue.value = []
-  setTimeout(() => { analyzing.value = false; analyzeStatus.value = ''; analyzeProgress.value = 0 }, 2000)
+  // Keep iframe loaded — user can continue selecting more sections
+  setTimeout(() => { analyzing.value = false; analyzeStatus.value = ''; analyzeProgress.value = 0 }, 1500)
 }
 
-onMounted(() => { window.addEventListener('message', onMessage) })
-onUnmounted(() => { window.removeEventListener('message', onMessage) })
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeContextMenu()
+}
+
+onMounted(() => {
+  window.addEventListener('message', onMessage)
+  window.addEventListener('keydown', onKeydown)
+})
+onUnmounted(() => {
+  window.removeEventListener('message', onMessage)
+  window.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <template>
@@ -338,12 +399,12 @@ onUnmounted(() => { window.removeEventListener('message', onMessage) })
             <Crop v-if="useScreenshot" class="size-4 text-muted-foreground shrink-0" />
             <MousePointer2 v-else class="size-4 text-muted-foreground shrink-0" />
             <span class="text-sm text-muted-foreground">
-              {{ useScreenshot ? 'Click and drag to select regions. Add multiple, then capture all at once.' : 'Click sections to add to queue. Alt+Scroll to resize selection.' }}
+              {{ useScreenshot ? 'Click and drag to select regions.' : 'Click to auto-detect, right-click to choose section type. Alt+Scroll to resize.' }}
             </span>
           </template>
           <template v-else-if="!hasQueue && completed > 0">
             <Check class="size-4 text-green-600 shrink-0" />
-            <span class="text-sm text-green-600">{{ completed }} sections captured</span>
+            <span class="text-sm text-green-600">{{ completed }} captured — select more or close</span>
           </template>
           <template v-else>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -447,6 +508,28 @@ onUnmounted(() => { window.removeEventListener('message', onMessage) })
         <div class="text-center space-y-3">
           <Loader2 class="size-8 mx-auto animate-spin text-muted-foreground" />
           <p class="text-sm text-muted-foreground">{{ useScreenshot ? 'Rendering page in browser...' : 'Loading page...' }}</p>
+        </div>
+      </div>
+      <!-- Right-click context menu -->
+      <div
+        v-if="contextMenu.show"
+        class="fixed inset-0 z-[60]"
+        @click="closeContextMenu"
+      >
+        <div
+          class="absolute bg-popover border rounded-lg shadow-xl py-1 min-w-[180px] animate-in fade-in zoom-in-95 duration-100"
+          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+          @click.stop
+        >
+          <div class="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Import as...</div>
+          <button
+            v-for="opt in SECTION_TYPE_OPTIONS"
+            :key="opt.value"
+            class="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+            @click="onContextMenuSelect(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
         </div>
       </div>
     </div>

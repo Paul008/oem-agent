@@ -220,6 +220,7 @@ app.post('/admin/smart-capture', async (c) => {
     model_slug?: string;
     image_urls?: string[];
     root_styles?: Record<string, string>;
+    forced_type?: string;
   }>();
 
   if (!body.html) {
@@ -231,6 +232,11 @@ app.post('/admin/smart-capture', async (c) => {
     // Deterministic parsing — no AI, instant results
     const { parseSection } = await import('../design/section-parser');
     const result = parseSection(body.html);
+
+    // Allow user to override the detected type via right-click menu
+    if (body.forced_type) {
+      result.type = body.forced_type as any;
+    }
 
     if (!result?.type) {
       return c.json({ error: 'Parser could not identify section type' }, 422);
