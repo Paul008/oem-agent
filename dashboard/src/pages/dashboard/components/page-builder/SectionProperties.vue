@@ -1009,6 +1009,17 @@ function onMediaLibrarySelect(url: string) {
           </UiSelect>
         </div>
         <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Columns</label>
+          <UiSelect :model-value="String(section.columns || 1)" @update:model-value="update('columns', Number($event))">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="1">1 (default)</UiSelectItem>
+              <UiSelectItem value="2">2</UiSelectItem>
+              <UiSelectItem value="3">3</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div>
           <label class="text-xs text-muted-foreground mb-1 block">Image</label>
           <div v-if="section.image_url && !brokenImages.has(section.image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.image_url" target="_blank" class="block">
@@ -1178,6 +1189,17 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Title</label>
           <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Style</label>
+          <UiSelect :model-value="section.style || 'default'" @update:model-value="update('style', $event)">
+            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="default">Default (Cards)</UiSelectItem>
+              <UiSelectItem value="dark">Dark (Large Quote)</UiSelectItem>
+              <UiSelectItem value="minimal">Minimal</UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Layout</label>

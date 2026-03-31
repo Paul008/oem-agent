@@ -204,23 +204,23 @@ function detectCardGrid(html: string, classes: string): ParsedSection | null {
   const children = findRepeatingChildren(html)
   if (children.length < 2) return null
 
+  // Check that most children have images — text-only grids are NOT card grids
+  const childrenWithImages = children.filter(c => /<img\b/i.test(c))
+  if (childrenWithImages.length < children.length / 2) return null
+
   const cards: ParsedCard[] = []
 
   for (const child of children) {
-    const childClasses = extractClass(child)
     const heading = extractHeading(child)
     const img = extractFirstImgSrc(child)
     const link = extractFirstLink(child)
     const paragraphs = extractParagraphs(child)
 
-    // Subheading is usually the first <p> before or with a small class
-    // In GWM pattern: subheading p comes before the h3
     const subheading = paragraphs[0] || ''
-    const description = subheading
 
     cards.push({
       title: heading || stripHtml(child).slice(0, 60),
-      description,
+      description: subheading,
       image_url: img,
       cta_text: link.text,
       cta_url: link.url,
@@ -296,15 +296,24 @@ function detectTestimonial(html: string, classes: string): ParsedSection | null 
 
   const title = headings.find(h => h.toLowerCase().includes('review') || h.toLowerCase().includes('article') || h.toLowerCase().includes('news')) || ''
 
+  // Detect dark style from classes or background
+  const isDark = classContains(classes, 'dark', 'black') ||
+    html.includes('background-color: rgb(0') || html.includes('bg-black') || html.includes('bg-gray-9')
+
+  const link = extractFirstLink(html)
+
   return {
     type: 'testimonial',
     data: {
       title,
+      style: isDark ? 'dark' : 'default',
       testimonials: [{
         quote: quoteMatch ? quoteMatch[1] : paragraphs[0] || allText.slice(0, 200),
         author: '',
         role: '',
       }],
+      cta_text: link.text,
+      cta_url: link.url,
     },
   }
 }

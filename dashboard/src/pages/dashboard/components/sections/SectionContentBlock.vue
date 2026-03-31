@@ -8,6 +8,7 @@ defineProps<{
     title?: string
     content_html: string
     layout: 'full-width' | 'contained' | 'two-column'
+    columns?: 1 | 2 | 3
     background?: string
     image_url?: string
   }
@@ -56,9 +57,13 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
         </div>
       </div>
 
-      <!-- Single column layout -->
+      <!-- Single/multi column layout -->
       <div v-else>
-        <div class="prose prose-sm dark:prose-invert max-w-none" v-html="section.content_html" />
+        <div
+          class="prose prose-sm dark:prose-invert max-w-none"
+          :style="section.columns && section.columns > 1 ? { columns: section.columns, columnGap: '2rem' } : {}"
+          v-html="section.content_html"
+        />
         <div v-if="section.image_url" class="relative mt-4 max-w-2xl w-full">
           <img :src="section.image_url" :alt="section.title || ''" class="rounded-lg w-full object-cover" />
           <ImageOverlay :current-url="section.image_url" :oem-id="oemId" :model-slug="modelSlug" @replace="emit('update-text', 'image_url', $event)" />
