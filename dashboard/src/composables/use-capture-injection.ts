@@ -243,6 +243,49 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     };
   }
 
+  // Capture HTML with key layout styles inlined (for AI Tailwind conversion)
+  function styledHtml(el) {
+    var clone = el.cloneNode(true);
+    clone.removeAttribute('data-capture-hover');
+    clone.removeAttribute('data-capture-selected');
+    clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+
+    // Inline key layout styles on each element
+    var layoutProps = ['display','grid-template-columns','grid-gap','gap','flex-direction',
+      'flex-wrap','align-items','justify-content','position','width','max-width',
+      'min-height','padding','margin','background-color','color','font-size',
+      'font-weight','text-align','border-radius','overflow','object-fit','aspect-ratio'];
+
+    function inlineLayout(src, cln) {
+      var computed = window.getComputedStyle(src);
+      var s = '';
+      for (var i = 0; i < layoutProps.length; i++) {
+        var val = computed.getPropertyValue(layoutProps[i]);
+        if (val && val !== 'none' && val !== 'normal' && val !== 'auto' &&
+            val !== '0px' && val !== 'rgba(0, 0, 0, 0)' && val !== 'static' &&
+            val !== 'visible' && val !== 'row' && val !== 'stretch') {
+          s += layoutProps[i] + ':' + val + ';';
+        }
+      }
+      if (s) cln.setAttribute('style', s);
+      var srcCh = src.children, clnCh = cln.children;
+      for (var j = 0; j < srcCh.length && j < clnCh.length; j++) {
+        if (srcCh[j].nodeType === 1) inlineLayout(srcCh[j], clnCh[j]);
+      }
+    }
+    inlineLayout(el, clone);
+
+    var base = document.location.origin;
+    clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
+      ['src','srcset','poster','href'].forEach(function(attr) {
+        var v = node.getAttribute(attr);
+        if (v && v.startsWith('/') && !v.startsWith('//')) node.setAttribute(attr, base + v);
+      });
+    });
+    return clone.outerHTML;
+  }
+
+  // Clean HTML without styles (for deterministic parser)
   function cleanHtml(el) {
     var clone = el.cloneNode(true);
     clone.removeAttribute('data-capture-hover');
@@ -276,10 +319,12 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     var imageUrls = extractImageUrls(el);
     var rootStyles = extractRootStyles(el);
     var html = cleanHtml(el);
+    var styled = styledHtml(el);
 
     window.parent.postMessage({
       type: 'section-capture',
       html: html,
+      styledHtml: styled,
       imageUrls: imageUrls,
       rootStyles: rootStyles,
       tag: el.tagName.toLowerCase(),
@@ -302,10 +347,12 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     var imageUrls = extractImageUrls(el);
     var rootStyles = extractRootStyles(el);
     var html = cleanHtml(el);
+    var styled = styledHtml(el);
 
     window.parent.postMessage({
       type: 'section-capture-menu',
       html: html,
+      styledHtml: styled,
       imageUrls: imageUrls,
       rootStyles: rootStyles,
       tag: el.tagName.toLowerCase(),

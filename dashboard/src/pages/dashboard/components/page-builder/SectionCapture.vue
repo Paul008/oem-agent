@@ -43,6 +43,7 @@ interface QueueItem {
   id: string
   screenshot_base64?: string
   html?: string
+  styledHtml?: string
   imageUrls: string[]
   rootStyles: Record<string, string>
   label: string
@@ -267,9 +268,10 @@ function addToQueue(data: any, forcedType?: string) {
   queue.value.push({
     id: `q${Date.now().toString(36)}`,
     html: data.html,
+    styledHtml: data.styledHtml || undefined,
     imageUrls: data.imageUrls || [],
     rootStyles: data.rootStyles || {},
-    label: forcedType || cls,
+    label: forcedType === '_raw_html' ? 'HTML → Tailwind' : (forcedType || cls),
     forcedType,
   })
 }
@@ -334,7 +336,7 @@ async function captureAll() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          html: item.html || undefined,
+          html: item.forcedType === '_raw_html' ? (item.styledHtml || item.html) : (item.html || undefined),
           screenshot_base64: item.screenshot_base64 || undefined,
           source_url: url.value,
           oem_id: props.oemId,
