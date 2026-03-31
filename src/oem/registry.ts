@@ -55,7 +55,7 @@ export const kiaAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'nav a[href^="/au/cars/"]',
-    heroSlides: '.hero-carousel .slide, [class*="hero"] [class*="carousel"]',
+    heroSlides: '.main-type-cpnt .main_wrap',
     offerTiles: '.resultList > li, .offer-tile, [class*="offer-card"]',
   },
   flags: {

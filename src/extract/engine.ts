@@ -205,12 +205,12 @@ export function extractWithSelectors(
       const $slide = $(el);
       const slide: ExtractedBannerSlide = {
         position: index,
-        headline: $slide.find('h1, h2, .headline').first().text().trim() || null,
-        sub_headline: $slide.find('.sub-headline, .subtitle').first().text().trim() || null,
-        cta_text: $slide.find('a, button').first().text().trim() || null,
-        cta_url: $slide.find('a').first().attr('href') || null,
+        headline: $slide.find('h1, h2, .headline, .big_title .title').first().text().trim() || null,
+        sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span').first().text().trim() || null,
+        cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
+        cta_url: $slide.find('.kv_btn, a.cta, a').first().attr('href') || null,
         image_url_desktop: extractImageUrl($slide, $) || '',
-        image_url_mobile: null,
+        image_url_mobile: $slide.find('picture source[media*="320"]').attr('srcset') || null,
         disclaimer_text: $slide.find('.disclaimer, small').first().text().trim() || null,
       };
       bannerSlides.push(slide);
