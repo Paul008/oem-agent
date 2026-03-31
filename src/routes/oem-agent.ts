@@ -337,9 +337,11 @@ ${body.html}`;
 
         await Promise.all(downloads);
 
-        // Rewrite image URLs in the Tailwind HTML
+        // Rewrite image URLs in the Tailwind HTML to full worker URLs
+        // (v-html doesn't go through Vue's resolveMediaUrl, so /media/ paths don't work)
+        const workerOrigin = new URL(c.req.url).origin;
         for (const [origUrl, r2Path] of imageMap) {
-          tailwindHtml = tailwindHtml.replaceAll(origUrl, r2Path);
+          tailwindHtml = tailwindHtml.replaceAll(origUrl, `${workerOrigin}${r2Path}`);
         }
       }
 
