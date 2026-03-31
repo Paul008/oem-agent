@@ -248,6 +248,7 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; data: any }>({
 })
 
 const SECTION_TYPE_OPTIONS = [
+  { value: '_raw_html', label: 'Raw HTML Block', divider: true },
   { value: 'content-block', label: 'Content Block' },
   { value: 'feature-cards', label: 'Feature Cards' },
   { value: 'hero', label: 'Hero' },
@@ -274,9 +275,25 @@ function addToQueue(data: any, forcedType?: string) {
 }
 
 function onContextMenuSelect(type: string) {
-  if (contextMenu.value.data) {
-    addToQueue(contextMenu.value.data, type)
+  if (!contextMenu.value.data) { contextMenu.value.show = false; return }
+
+  if (type === '_raw_html') {
+    // Bypass parser — inject raw HTML directly as content-block with _generated_html
+    const html = contextMenu.value.data.html || ''
+    emit('smartCapture', {
+      type: 'content-block',
+      data: {
+        title: '',
+        content_html: '',
+        _generated_html: html,
+      },
+    })
+    completed.value++
+    contextMenu.value.show = false
+    return
   }
+
+  addToQueue(contextMenu.value.data, type)
   contextMenu.value.show = false
 }
 
@@ -546,14 +563,17 @@ onUnmounted(() => {
           @click.stop
         >
           <div class="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Import as...</div>
-          <button
-            v-for="opt in SECTION_TYPE_OPTIONS"
-            :key="opt.value"
-            class="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-            @click="onContextMenuSelect(opt.value)"
-          >
-            {{ opt.label }}
-          </button>
+          <template v-for="opt in SECTION_TYPE_OPTIONS" :key="opt.value">
+            <div v-if="opt.divider" class="border-b my-1" />
+            <button
+              class="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+              :class="opt.value === '_raw_html' ? 'font-medium' : ''"
+              @click="onContextMenuSelect(opt.value)"
+            >
+              {{ opt.label }}
+            </button>
+            <div v-if="opt.divider" class="border-b my-1" />
+          </template>
         </div>
       </div>
     </div>
