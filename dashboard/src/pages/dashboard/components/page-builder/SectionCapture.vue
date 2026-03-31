@@ -187,26 +187,34 @@ async function addSelectionToQueue() {
   const w = Math.abs(selectionEnd.value.x - selectionStart.value.x)
   const h = Math.abs(selectionEnd.value.y - selectionStart.value.y)
 
-  // Crop using canvas
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d')!
-  ctx.drawImage(img, x, y, w, h, 0, 0, w, h)
+  try {
+    // Crop using canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, x, y, w, h, 0, 0, w, h)
 
-  const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
-  const thumbUrl = canvas.toDataURL('image/jpeg', 0.5)
+    const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
+    const thumbUrl = canvas.toDataURL('image/jpeg', 0.3)
 
-  queue.value.push({
-    id: `q${Date.now().toString(36)}`,
-    screenshot_base64: base64,
-    imageUrls: [],
-    rootStyles: {},
-    label: `Region ${Math.round(w)}×${Math.round(h)}`,
-    thumbUrl,
-  })
+    if (!base64 || base64.length < 100) {
+      error.value = 'Failed to crop screenshot — image may not have loaded correctly. Try reloading.'
+      return
+    }
 
-  hasSelection.value = false
+    queue.value.push({
+      id: `q${Date.now().toString(36)}`,
+      screenshot_base64: base64,
+      imageUrls: [],
+      rootStyles: {},
+      label: `Region ${Math.round(w)}×${Math.round(h)}`,
+      thumbUrl,
+    })
+    hasSelection.value = false
+  } catch (e: any) {
+    error.value = `Canvas crop failed: ${e.message}. The screenshot may need to be reloaded.`
+  }
 }
 
 // Iframe message handler
@@ -259,10 +267,13 @@ async function captureAll() {
         emit('smartCapture', { type: result.type, data: result.data })
         completed.value++
       } else {
+        const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
+        error.value = `Capture failed: ${errBody.error || resp.statusText}`
         if (item.html) emit('capture', item.html)
         completed.value++
       }
-    } catch {
+    } catch (e: any) {
+      error.value = `Capture error: ${e.message}`
       if (item.html) emit('capture', item.html)
       completed.value++
     }
