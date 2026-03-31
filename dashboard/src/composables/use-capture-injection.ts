@@ -243,38 +243,93 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     };
   }
 
-  // Capture HTML with key layout styles inlined (for AI Tailwind conversion)
-  function styledHtml(el) {
+  // CSS-to-Tailwind converter (deterministic, no AI)
+  function pxToSp(px) {
+    var m={0:'0',1:'px',2:'0.5',4:'1',6:'1.5',8:'2',10:'2.5',12:'3',14:'3.5',16:'4',20:'5',24:'6',28:'7',32:'8',36:'9',40:'10',44:'11',48:'12',56:'14',64:'16',72:'18',80:'20',96:'24'};
+    if(m[px]!==undefined)return m[px]; return px>96?'['+px+'px]':'['+px+'px]';
+  }
+  function fsTw(px) {
+    var m={12:'xs',14:'sm',16:'base',18:'lg',20:'xl',24:'2xl',30:'3xl',36:'4xl',48:'5xl',60:'6xl'};
+    if(m[px])return m[px]; var ks=Object.keys(m).map(Number); var c=ks.reduce(function(p,k){return Math.abs(k-px)<Math.abs(p-px)?k:p}); return Math.abs(c-px)<=1?m[c]:'['+px+'px]';
+  }
+  function rgbHex(rgb) {
+    var m=rgb.match(/rgb\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)/); if(!m)return rgb;
+    return '#'+[m[1],m[2],m[3]].map(function(n){return parseInt(n).toString(16).padStart(2,'0')}).join('');
+  }
+  function colTw(rgb) {
+    if(rgb==='rgb(0, 0, 0)')return 'black'; if(rgb==='rgb(255, 255, 255)')return 'white'; if(rgb==='rgba(0, 0, 0, 0)')return 'transparent';
+    var h=rgbHex(rgb); return h.startsWith('#')?'['+h+']':'['+rgb+']';
+  }
+  function cssTw(prop,val) {
+    if(!val||val==='none'||val==='normal'||val==='auto'||val==='0px'||val==='rgba(0, 0, 0, 0)')return [];
+    var px=parseFloat(val),cls=[];
+    switch(prop){
+      case 'display': var dm={block:'block','inline-block':'inline-block',flex:'flex',grid:'grid',none:'hidden','inline-flex':'inline-flex'}; if(dm[val])cls.push(dm[val]);break;
+      case 'flex-direction': if(val==='column')cls.push('flex-col');else if(val==='row-reverse')cls.push('flex-row-reverse');break;
+      case 'flex-wrap': if(val==='wrap')cls.push('flex-wrap');break;
+      case 'align-items': var ai={'flex-start':'items-start','flex-end':'items-end',center:'items-center',stretch:'items-stretch',baseline:'items-baseline'}; if(ai[val])cls.push(ai[val]);break;
+      case 'justify-content': var jc={'flex-start':'justify-start','flex-end':'justify-end',center:'justify-center','space-between':'justify-between','space-around':'justify-around'}; if(jc[val])cls.push(jc[val]);break;
+      case 'grid-template-columns': var cm=val.match(/repeat\\((\\d+),/i); if(cm)cls.push('grid-cols-'+cm[1]); else{var fr=(val.match(/\\d+fr/g)||[]).length;if(fr>0)cls.push('grid-cols-'+fr);} break;
+      case 'gap':case 'grid-gap': if(!isNaN(px)&&px>0)cls.push('gap-'+pxToSp(px));break;
+      case 'column-gap': if(!isNaN(px)&&px>0)cls.push('gap-x-'+pxToSp(px));break;
+      case 'row-gap': if(!isNaN(px)&&px>0)cls.push('gap-y-'+pxToSp(px));break;
+      case 'width': if(val==='100%')cls.push('w-full');break;
+      case 'max-width': if(val==='100%')cls.push('max-w-full');else if(!isNaN(px)&&px>0)cls.push('max-w-['+px+'px]');break;
+      case 'min-height': if(!isNaN(px)&&px>0)cls.push('min-h-['+px+'px]');break;
+      case 'padding-top': if(!isNaN(px)&&px>0)cls.push('pt-'+pxToSp(px));break;
+      case 'padding-right': if(!isNaN(px)&&px>0)cls.push('pr-'+pxToSp(px));break;
+      case 'padding-bottom': if(!isNaN(px)&&px>0)cls.push('pb-'+pxToSp(px));break;
+      case 'padding-left': if(!isNaN(px)&&px>0)cls.push('pl-'+pxToSp(px));break;
+      case 'margin-top': if(!isNaN(px)&&px>0)cls.push('mt-'+pxToSp(px));break;
+      case 'margin-bottom': if(!isNaN(px)&&px>0)cls.push('mb-'+pxToSp(px));break;
+      case 'margin-left': if(val==='auto')cls.push('ml-auto');break;
+      case 'margin-right': if(val==='auto')cls.push('mr-auto');break;
+      case 'position': if(['relative','absolute','fixed','sticky'].indexOf(val)>=0)cls.push(val);break;
+      case 'color': cls.push('text-'+colTw(val));break;
+      case 'background-color': cls.push('bg-'+colTw(val));break;
+      case 'font-size': if(!isNaN(px))cls.push('text-'+fsTw(px));break;
+      case 'font-weight': var fw={'400':'font-normal','500':'font-medium','600':'font-semibold','700':'font-bold','800':'font-extrabold'}; if(fw[val])cls.push(fw[val]);break;
+      case 'text-align': var ta={left:'text-left',center:'text-center',right:'text-right'}; if(ta[val])cls.push(ta[val]);break;
+      case 'text-transform': if(val==='uppercase')cls.push('uppercase');else if(val==='capitalize')cls.push('capitalize');break;
+      case 'border-radius': if(!isNaN(px)&&px>0){if(px>=9999)cls.push('rounded-full');else if(px<=4)cls.push('rounded');else if(px<=8)cls.push('rounded-lg');else cls.push('rounded-['+px+'px]');}break;
+      case 'object-fit': if(val==='cover')cls.push('object-cover');else if(val==='contain')cls.push('object-contain');break;
+      case 'overflow': if(val==='hidden')cls.push('overflow-hidden');break;
+      case 'opacity': var op=parseFloat(val);if(op<1)cls.push('opacity-'+Math.round(op*100));break;
+    }
+    return cls;
+  }
+  var TW_PROPS=['display','flex-direction','flex-wrap','align-items','justify-content',
+    'grid-template-columns','gap','column-gap','row-gap','width','max-width','min-height','position',
+    'padding-top','padding-right','padding-bottom','padding-left',
+    'margin-top','margin-bottom','margin-left','margin-right',
+    'color','background-color','font-size','font-weight','text-align','text-transform',
+    'border-radius','object-fit','overflow','opacity'];
+
+  // Convert element + children to Tailwind classes (replaces inline styles AND class names)
+  function tailwindHtml(el) {
     var clone = el.cloneNode(true);
     clone.removeAttribute('data-capture-hover');
     clone.removeAttribute('data-capture-selected');
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
 
-    // Inline key layout styles on each element
-    var layoutProps = ['display','grid-template-columns','grid-gap','gap','flex-direction',
-      'flex-wrap','align-items','justify-content','position','width','max-width',
-      'min-height','padding','margin','background-color','color','font-size',
-      'font-weight','text-align','border-radius','overflow','object-fit','aspect-ratio'];
-
-    function inlineLayout(src, cln) {
+    function convert(src, cln) {
       var computed = window.getComputedStyle(src);
-      var s = '';
-      for (var i = 0; i < layoutProps.length; i++) {
-        var val = computed.getPropertyValue(layoutProps[i]);
-        if (val && val !== 'none' && val !== 'normal' && val !== 'auto' &&
-            val !== '0px' && val !== 'rgba(0, 0, 0, 0)' && val !== 'static' &&
-            val !== 'visible' && val !== 'row' && val !== 'stretch') {
-          s += layoutProps[i] + ':' + val + ';';
-        }
+      var twClasses = [];
+      for (var i = 0; i < TW_PROPS.length; i++) {
+        var val = computed.getPropertyValue(TW_PROPS[i]);
+        var tw = cssTw(TW_PROPS[i], val);
+        for (var j = 0; j < tw.length; j++) twClasses.push(tw[j]);
       }
-      if (s) cln.setAttribute('style', s);
+      cln.setAttribute('class', twClasses.join(' '));
+      cln.removeAttribute('style');
       var srcCh = src.children, clnCh = cln.children;
-      for (var j = 0; j < srcCh.length && j < clnCh.length; j++) {
-        if (srcCh[j].nodeType === 1) inlineLayout(srcCh[j], clnCh[j]);
+      for (var k = 0; k < srcCh.length && k < clnCh.length; k++) {
+        if (srcCh[k].nodeType === 1) convert(srcCh[k], clnCh[k]);
       }
     }
-    inlineLayout(el, clone);
+    convert(el, clone);
 
+    // Fix relative URLs
     var base = document.location.origin;
     clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
       ['src','srcset','poster','href'].forEach(function(attr) {
@@ -319,7 +374,7 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     var imageUrls = extractImageUrls(el);
     var rootStyles = extractRootStyles(el);
     var html = cleanHtml(el);
-    var styled = styledHtml(el);
+    var styled = tailwindHtml(el);
 
     window.parent.postMessage({
       type: 'section-capture',
@@ -347,7 +402,7 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     var imageUrls = extractImageUrls(el);
     var rootStyles = extractRootStyles(el);
     var html = cleanHtml(el);
-    var styled = styledHtml(el);
+    var styled = tailwindHtml(el);
 
     window.parent.postMessage({
       type: 'section-capture-menu',

@@ -280,8 +280,18 @@ function onContextMenuSelect(type: string) {
   if (!contextMenu.value.data) { contextMenu.value.show = false; return }
 
   if (type === '_raw_html') {
-    // Send to API for Tailwind conversion + image download
-    addToQueue(contextMenu.value.data, '_raw_html')
+    // Deterministic CSS-to-Tailwind conversion (done client-side in iframe)
+    // The styledHtml field already has Tailwind classes from the converter
+    const twHtml = contextMenu.value.data.styledHtml || contextMenu.value.data.html || ''
+    emit('smartCapture', {
+      type: 'content-block',
+      data: {
+        title: '',
+        content_html: '',
+        _generated_html: twHtml,
+      },
+    })
+    completed.value++
     contextMenu.value.show = false
     return
   }
