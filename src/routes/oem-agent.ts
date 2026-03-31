@@ -260,12 +260,108 @@ app.post('/admin/smart-capture', async (c) => {
   if (body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
 
   try {
+    // Raw HTML → Tailwind mode: send to Claude for conversion
+    if (body.forced_type === '_raw_html') {
+      const aiRouter = new AiRouter({
+        groq: c.env.GROQ_API_KEY,
+        together: c.env.TOGETHER_API_KEY,
+        moonshot: c.env.MOONSHOT_API_KEY,
+        anthropic: c.env.ANTHROPIC_API_KEY,
+        google: c.env.GOOGLE_API_KEY,
+      }, null);
+
+      const tailwindPrompt = `Convert this HTML to clean Tailwind CSS. Keep ALL content, images, links, and text exactly as-is. Only replace the CSS styling with Tailwind utility classes.
+
+Rules:
+1. Output ONLY the converted HTML — no explanation, no markdown fences
+2. Use Tailwind utility classes for ALL styling
+3. Keep all image src URLs exactly as they are
+4. Keep all link href URLs exactly as they are
+5. Keep all text content exactly as-is
+6. Make it responsive (mobile-first with sm:/md:/lg: breakpoints)
+7. Remove all inline styles, replace with Tailwind classes
+8. Remove all class names from the original (replace with Tailwind)
+9. Strip any <script> tags
+10. Use arbitrary values for exact colors: bg-[#C8102E], text-[#1A1A1A]
+
+HTML to convert:
+
+${body.html}`;
+
+      const response = await aiRouter.route({
+        taskType: 'bespoke_component',
+        prompt: tailwindPrompt,
+        maxTokens: 8192,
+      });
+
+      let tailwindHtml = response.content || '';
+      // Strip markdown fences if present
+      tailwindHtml = tailwindHtml.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+
+      // Collect image URLs from the converted HTML for R2 download
+      const imageUrls: string[] = [...(body.image_urls || [])];
+      const imgMatches = tailwindHtml.matchAll(/(?:src|poster)="(https?:\/\/[^"]+)"/g);
+      for (const m of imgMatches) {
+        if (!imageUrls.includes(m[1])) imageUrls.push(m[1]);
+      }
+
+      let imageMap = new Map<string, string>();
+
+      if (body.oem_id && imageUrls.length > 0) {
+        const r2Bucket = c.env.MOLTBOT_BUCKET;
+        const slug = body.model_slug || 'captured';
+
+        const downloads = imageUrls.slice(0, 20).map(async (url) => {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+            const resp = await fetch(url, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+            if (!resp.ok || !resp.headers.get('content-type')?.startsWith('image/')) return;
+            const buffer = await resp.arrayBuffer();
+            if (buffer.byteLength < 500) return;
+            const urlPath = new URL(url).pathname;
+            const segments = urlPath.split('/').filter(Boolean);
+            const imgSegment = segments.find(s => /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(s));
+            const filename = imgSegment || segments.pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
+            const r2Key = `pages/assets/${body.oem_id}/${slug}/${filename}`;
+            await r2Bucket.put(r2Key, buffer, {
+              httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
+            });
+            imageMap.set(url, `/media/${r2Key}`);
+          } catch { /* skip */ }
+        });
+
+        await Promise.all(downloads);
+
+        // Rewrite image URLs in the Tailwind HTML
+        for (const [origUrl, r2Path] of imageMap) {
+          tailwindHtml = tailwindHtml.replaceAll(origUrl, r2Path);
+        }
+      }
+
+      return c.json({
+        type: 'content-block',
+        data: {
+          title: '',
+          content_html: '',
+          _generated_html: tailwindHtml,
+          animation: 'fade-in',
+        },
+        images_downloaded: imageMap.size,
+        images_found: imageUrls.length,
+      });
+    }
+
     // Deterministic parsing — no AI, instant results
     const { parseSection } = await import('../design/section-parser');
     const result = parseSection(body.html);
 
     // Allow user to override the detected type via right-click menu
-    if (body.forced_type) {
+    if (body.forced_type && body.forced_type !== '_raw_html') {
       result.type = body.forced_type as any;
     }
 

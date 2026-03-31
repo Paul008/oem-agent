@@ -248,7 +248,7 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; data: any }>({
 })
 
 const SECTION_TYPE_OPTIONS = [
-  { value: '_raw_html', label: 'Raw HTML Block', divider: true },
+  { value: '_raw_html', label: 'HTML → Tailwind (AI)', divider: true },
   { value: 'content-block', label: 'Content Block' },
   { value: 'feature-cards', label: 'Feature Cards' },
   { value: 'hero', label: 'Hero' },
@@ -278,17 +278,8 @@ function onContextMenuSelect(type: string) {
   if (!contextMenu.value.data) { contextMenu.value.show = false; return }
 
   if (type === '_raw_html') {
-    // Bypass parser — inject raw HTML directly as content-block with _generated_html
-    const html = contextMenu.value.data.html || ''
-    emit('smartCapture', {
-      type: 'content-block',
-      data: {
-        title: '',
-        content_html: '',
-        _generated_html: html,
-      },
-    })
-    completed.value++
+    // Send to API for Tailwind conversion + image download
+    addToQueue(contextMenu.value.data, '_raw_html')
     contextMenu.value.show = false
     return
   }
