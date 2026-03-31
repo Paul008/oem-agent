@@ -359,7 +359,8 @@ ${rendered}
             contenteditable="true"
             spellcheck="false"
             v-html="section._generated_html"
-            @blur="onInlineEdit(section.id, '_generated_html', ($event.target as HTMLElement).innerHTML)"
+            @focus="editingTarget = $event.target as HTMLElement; editingSectionId = section.id; editingField = '_generated_html'; editingSection = section"
+            @blur="editingTarget = null; editingSectionId = null; editingField = null; editingSection = null; onInlineEdit(section.id, '_generated_html', ($event.target as HTMLElement).innerHTML)"
           />
           <!-- Otherwise render the standard section component -->
           <component
