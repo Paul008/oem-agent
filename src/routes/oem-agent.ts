@@ -207,9 +207,9 @@ app.post('/admin/capture-screenshot', async (c) => {
 
 /**
  * POST /api/v1/oem-agent/admin/smart-capture
- * Takes captured HTML from the section capture tool, identifies section type,
- * generates a pixel-perfect Tailwind CSS reproduction using brand tokens,
- * and downloads images to R2.
+ * Takes captured HTML from the section capture tool, parses it deterministically
+ * into structured section data, and downloads images to R2.
+ * No AI/LLM calls — pure programmatic HTML parsing.
  */
 app.post('/admin/smart-capture', async (c) => {
   const body = await c.req.json<{
@@ -222,205 +222,35 @@ app.post('/admin/smart-capture', async (c) => {
     root_styles?: Record<string, string>;
   }>();
 
-  if (!body.html && !body.screenshot_base64) return c.json({ error: 'html or screenshot_base64 is required' }, 400);
-  if (body.html && body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
-
-  const aiRouter = new AiRouter({
-    groq: c.env.GROQ_API_KEY,
-    together: c.env.TOGETHER_API_KEY,
-    moonshot: c.env.MOONSHOT_API_KEY,
-    anthropic: c.env.ANTHROPIC_API_KEY,
-    google: c.env.GOOGLE_API_KEY,
-  }, null);
-
-  // Fetch brand tokens for the OEM if available
-  let brandTokensContext = '';
-  if (body.oem_id) {
-    try {
-      const supabase = createSupabaseClient({
-        url: c.env.SUPABASE_URL,
-        serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
-      });
-      const { data: tokenRow } = await supabase
-        .from('brand_tokens')
-        .select('tokens_json')
-        .eq('oem_id', body.oem_id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (tokenRow?.tokens_json) {
-        const t = tokenRow.tokens_json;
-        const lines: string[] = [];
-        if (t.colors) {
-          lines.push(`Colors: primary=${t.colors.primary}, secondary=${t.colors.secondary}, accent=${t.colors.accent || 'none'}, background=${t.colors.background}, surface=${t.colors.surface || '#ffffff'}, text_primary=${t.colors.text_primary}, text_secondary=${t.colors.text_secondary}`);
-          if (t.colors.semantic) lines.push(`Semantic: error=${t.colors.semantic.error}, success=${t.colors.semantic.success}, warning=${t.colors.semantic.warning}`);
-        }
-        if (t.typography) {
-          lines.push(`Font: primary="${t.typography.font_primary}", secondary="${t.typography.font_secondary || 'none'}"`);
-          if (t.typography.cdn_urls?.length) lines.push(`Font CDN: ${t.typography.cdn_urls.join(', ')}`);
-          if (t.typography.scale) {
-            const s = t.typography.scale;
-            lines.push(`Type scale: h1=${s.h1}, h2=${s.h2}, h3=${s.h3}, h4=${s.h4}, body=${s.body}, body_sm=${s.body_sm || s.caption}`);
-          }
-        }
-        if (t.spacing) {
-          lines.push(`Spacing: unit=${t.spacing.unit}, section_gap=${t.spacing.section_gap}, container_max=${t.spacing.container_max_width}, container_pad=${t.spacing.container_padding}`);
-        }
-        if (t.borders) {
-          lines.push(`Borders: radius_sm=${t.borders.radius?.sm}, radius_md=${t.borders.radius?.md}, radius_lg=${t.borders.radius?.lg}`);
-        }
-        if (t.buttons?.primary) {
-          const b = t.buttons.primary;
-          lines.push(`Button primary: bg=${b.background}, color=${b.color}, radius=${b.border_radius}, padding=${b.padding}`);
-        }
-        brandTokensContext = lines.join('\n');
-      }
-    } catch { /* brand tokens optional */ }
+  if (!body.html) {
+    return c.json({ error: 'html is required. Use iframe capture mode for best results.' }, 400);
   }
-
-  // Build image URL context
-  let imageContext = '';
-  if (body.image_urls?.length) {
-    imageContext = `\n## Image URLs (use these EXACT URLs in the output)\n${body.image_urls.map(u => `- ${u}`).join('\n')}`;
-  }
-
-  // Build root layout context
-  let layoutContext = '';
-  if (body.root_styles) {
-    const s = body.root_styles;
-    const lines: string[] = [];
-    if (s.display) lines.push(`Layout: ${s.display}`);
-    if (s.gridTemplateColumns && s.gridTemplateColumns !== 'none') lines.push(`Grid columns: ${s.gridTemplateColumns}`);
-    if (s.gridGap) lines.push(`Gap: ${s.gridGap}`);
-    if (s.flexDirection && s.flexDirection !== 'row') lines.push(`Flex direction: ${s.flexDirection}`);
-    if (s.backgroundColor && s.backgroundColor !== 'rgba(0, 0, 0, 0)') lines.push(`Background: ${s.backgroundColor}`);
-    if (s.fontFamily) lines.push(`Font: ${s.fontFamily}`);
-    if (s.width) lines.push(`Width: ${s.width}`);
-    if (lines.length) layoutContext = `\n## Computed Layout\n${lines.join('\n')}`;
-  }
-
-  const oemName = body.oem_id?.replace('-au', '').toUpperCase() || 'OEM';
-
-  const prompt = `You are a section analyzer for an automotive page builder. Analyze this HTML captured from the ${oemName} website and extract structured section data.
-
-## Task
-1. Identify the section type
-2. Extract ALL content: text, images, links
-3. CRITICAL: Each card/item has its OWN image — match them correctly from the HTML
-
-## Brand Design Tokens
-${brandTokensContext || 'No brand tokens available.'}
-${layoutContext}
-
-## Section Types
-"hero" | "intro" | "gallery" | "feature-cards" | "video" | "cta-banner" | "content-block" | "tabs" | "testimonial" | "stats" | "pricing-table" | "accordion" | "image" | "image-showcase" | "heading" | "embed"
-
-## Output Format (JSON)
-{
-  "type": "section-type",
-  "data": { ... section-specific fields ... }
-}
-
-## Section Data Fields by Type
-- hero: heading, sub_heading, cta_text, cta_url, desktop_image_url, mobile_image_url, text_color, overlay_opacity
-- intro: title, body_html, image_url, image_position
-- feature-cards: title, cards[{title, description, image_url, cta_text, cta_url}], columns, card_style ("overlay" if images are backgrounds with text on top, "default" if images are above text)
-- gallery: title, images[{url, alt, caption}], layout
-- video: title, video_url, poster_url
-- cta-banner: heading, body, cta_text, cta_url, background_color
-- content-block: title, content_html
-- tabs: title, tabs[{label, content_html, image_url}]
-- stats: title, stats[{value, label, unit}]
-- testimonial: title, testimonials[{quote, author, role}]
-- image: desktop_image_url, alt, caption, layout
-- image-showcase: title, images[{url, alt, caption}], layout
-- accordion: title, items[{question, answer}]
-- pricing-table: title, tiers[{name, price, features[], cta_text}]
-- heading: heading, sub_heading
-- embed: title, embed_url
-
-## CRITICAL Rules
-1. You MUST respond with ONLY a JSON object — no explanation, no markdown, no text before or after
-2. Extract ALL image URLs as absolute URLs (from HTML) or set to "" (from screenshots)
-3. For cards/grids: EACH card has its own image — extract individually
-4. For feature-cards: set card_style to "overlay" when cards have images as backgrounds with text overlaid
-5. Extract CTA text and URLs from links within each card
-6. For screenshots without HTML: extract all visible text accurately, set image_url to ""
-7. For testimonials/reviews: use type "testimonial" with quote, author fields
-8. For image-heavy sections with no text: use type "image" or "gallery"
-
-${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided — analyze the image above to extract section content.\nRespond with ONLY a JSON object. No other text.'}`;
+  if (body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
 
   try {
-    const response = await aiRouter.route({
-      taskType: 'bespoke_component',
-      prompt,
-      requireJson: true,
-      maxTokens: 4096,
-      imageBase64: body.screenshot_base64 || undefined,
-      imageMimeType: body.screenshot_base64 ? 'image/jpeg' : undefined,
-    });
-
-    let result: any;
-    const rawContent = response.content || '';
-    try {
-      // Try direct parse first
-      const text = rawContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      result = JSON.parse(text);
-    } catch {
-      // Try extracting JSON object from anywhere in the response
-      const jsonMatch = rawContent.match(/\{[\s\S]*?"type"\s*:\s*"[\s\S]*?\}/);
-      if (jsonMatch) {
-        // Find the balanced closing brace
-        let depth = 0;
-        let end = 0;
-        for (let i = jsonMatch.index!; i < rawContent.length; i++) {
-          if (rawContent[i] === '{') depth++;
-          if (rawContent[i] === '}') depth--;
-          if (depth === 0) { end = i + 1; break; }
-        }
-        const jsonStr = rawContent.slice(jsonMatch.index!, end);
-        try { result = JSON.parse(jsonStr); } catch {
-          console.error('[smart-capture] JSON parse failed. Raw:', rawContent.slice(0, 1000));
-          return c.json({ error: 'AI returned invalid JSON', raw: rawContent.slice(0, 800) }, 422);
-        }
-      } else {
-        console.error('[smart-capture] No JSON found in response. Raw:', rawContent.slice(0, 1000));
-        return c.json({ error: 'AI returned invalid JSON', raw: rawContent.slice(0, 800) }, 422);
-      }
-    }
+    // Deterministic parsing — no AI, instant results
+    const { parseSection } = await import('../design/section-parser');
+    const result = parseSection(body.html);
 
     if (!result?.type) {
-      return c.json({ error: 'AI could not identify section type', raw: result }, 422);
+      return c.json({ error: 'Parser could not identify section type' }, 422);
     }
 
-    // Collect image URLs — prefer explicit list from client, fall back to parsing section data
-    const imageUrls: string[] = [...(body.image_urls || [])];
     const section = result.data || {};
 
-    // Also collect from AI output
-    function collectImages(obj: any, skipKeys = new Set(['_generated_html'])) {
+    // Collect image URLs from parser output + explicit client list
+    const imageUrls: string[] = [...(body.image_urls || [])];
+    function collectImages(obj: any) {
       if (!obj || typeof obj !== 'object') return;
       for (const [key, val] of Object.entries(obj)) {
-        if (skipKeys.has(key)) continue;
         if (typeof val === 'string' && (key.includes('image') || key.includes('url') || key.includes('poster')) && val.startsWith('http')) {
           if (!imageUrls.includes(val)) imageUrls.push(val);
         }
-        if (Array.isArray(val)) val.forEach(item => collectImages(item, skipKeys));
-        else if (typeof val === 'object') collectImages(val, skipKeys);
+        if (Array.isArray(val)) val.forEach(item => collectImages(item));
+        else if (typeof val === 'object') collectImages(val);
       }
     }
     collectImages(section);
-
-    // Extract from _generated_html too
-    if (section._generated_html) {
-      const htmlImgMatches = section._generated_html.matchAll(/(?:src|poster|url\()["']?(https?:\/\/[^"'\s)]+)/g);
-      for (const m of htmlImgMatches) {
-        if (!imageUrls.includes(m[1])) imageUrls.push(m[1]);
-      }
-    }
 
     let imageMap = new Map<string, string>();
 
@@ -456,7 +286,7 @@ ${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided —
 
       await Promise.all(downloads);
 
-      // Rewrite image URLs in section data AND _generated_html
+      // Rewrite image URLs in section data to R2 paths
       function rewriteUrls(obj: any): any {
         if (!obj || typeof obj !== 'object') return obj;
         if (Array.isArray(obj)) return obj.map(item => rewriteUrls(item));
@@ -465,13 +295,6 @@ ${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided —
           if (typeof val === 'string') {
             if (imageMap.has(val)) {
               result[key] = imageMap.get(val)!;
-            } else if (key === '_generated_html') {
-              // Rewrite URLs inside the generated HTML template
-              let html = val;
-              for (const [origUrl, r2Path] of imageMap) {
-                html = html.replaceAll(origUrl, r2Path);
-              }
-              result[key] = html;
             } else {
               result[key] = val;
             }
@@ -516,7 +339,7 @@ ${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided —
       images_found: imageUrls.length,
     });
   } catch (e: any) {
-    return c.json({ error: e.message || 'AI extraction failed' }, 500);
+    return c.json({ error: e.message || 'Section parsing failed' }, 500);
   }
 });
 

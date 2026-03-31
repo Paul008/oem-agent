@@ -53,7 +53,7 @@ const hasQueue = computed(() => queue.value.length > 0)
 // Iframe fallback
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const pageLoaded = ref(false)
-const useScreenshot = ref(true) // default to screenshot mode
+const useScreenshot = ref(false) // default to iframe mode (deterministic parser needs HTML)
 
 async function loadPage() {
   if (!url.value) return
@@ -401,8 +401,8 @@ onUnmounted(() => { window.removeEventListener('message', onMessage) })
           <Camera class="size-12 mx-auto opacity-30" />
           <p class="text-sm font-medium">Enter a URL and click Load Page</p>
           <p class="text-xs leading-relaxed">
-            <strong>Screenshot mode</strong> uses a real browser to render the page perfectly, then you draw rectangles to select sections.
-            The AI sees exactly what you see and reproduces it.
+            Click sections to add them to a capture queue. The parser instantly extracts text, images, and layout — no AI, no waiting.
+            Toggle to <strong>Screenshot</strong> mode for visual reference on complex pages.
           </p>
         </div>
       </div>
