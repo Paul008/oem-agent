@@ -280,18 +280,17 @@ function onContextMenuSelect(type: string) {
   if (!contextMenu.value.data) { contextMenu.value.show = false; return }
 
   if (type === '_raw_html') {
-    // Deterministic CSS-to-Tailwind conversion (done client-side in iframe)
-    // The styledHtml field already has Tailwind classes from the converter
+    // Add styled HTML to queue — will create content-block with _generated_html when captured
     const twHtml = contextMenu.value.data.styledHtml || contextMenu.value.data.html || ''
-    emit('smartCapture', {
-      type: 'content-block',
-      data: {
-        title: '',
-        content_html: '',
-        _generated_html: twHtml,
-      },
+    completed.value = 0
+    queue.value.push({
+      id: `q${Date.now().toString(36)}`,
+      html: twHtml,
+      imageUrls: contextMenu.value.data.imageUrls || [],
+      rootStyles: {},
+      label: 'HTML clone',
+      forcedType: '_raw_html',
     })
-    completed.value++
     contextMenu.value.show = false
     return
   }
@@ -342,11 +341,21 @@ async function captureAll() {
     analyzeProgress.value = ((i) / total) * 100
 
     try {
+      // HTML clone: create content-block directly, no API call needed
+      if (item.forcedType === '_raw_html') {
+        emit('smartCapture', {
+          type: 'content-block',
+          data: { title: '', content_html: '', _generated_html: item.html, animation: 'fade-in' },
+        })
+        completed.value++
+        continue
+      }
+
       const resp = await fetch(`${props.workerBase}/api/v1/oem-agent/admin/smart-capture`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          html: item.forcedType === '_raw_html' ? (item.styledHtml || item.html) : (item.html || undefined),
+          html: item.html || undefined,
           screenshot_base64: item.screenshot_base64 || undefined,
           source_url: url.value,
           oem_id: props.oemId,

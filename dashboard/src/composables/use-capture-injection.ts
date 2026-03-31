@@ -433,8 +433,20 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     return result;
   }
 
-  // Convert element + children to Tailwind classes
-  // Strategy: map known class names first, then add computed style conversions for gaps
+  // Convert element to clean HTML with inline styles from computed values
+  // Strips OEM class names, keeps layout/visual styles as inline CSS
+  // This renders correctly in v-html without needing Tailwind compilation
+  var STYLE_PROPS = ['display','flex-direction','flex-wrap','align-items','justify-content',
+    'grid-template-columns','grid-template-rows','gap','column-gap','row-gap',
+    'width','max-width','min-width','height','min-height',
+    'padding-top','padding-right','padding-bottom','padding-left',
+    'margin-top','margin-right','margin-bottom','margin-left',
+    'position','top','right','bottom','left','z-index',
+    'color','background-color','font-family','font-size','font-weight','font-style',
+    'line-height','letter-spacing','text-align','text-transform','text-decoration',
+    'border','border-radius','box-shadow',
+    'object-fit','object-position','overflow','opacity'];
+
   function tailwindHtml(el) {
     var clone = el.cloneNode(true);
     clone.removeAttribute('data-capture-hover');
@@ -442,31 +454,33 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
 
     function convert(src, cln) {
-      // 1. Map known framework class names to Tailwind
-      var mappedClasses = mapClasses(src.className || '');
-
-      // 2. Add computed style conversions for properties not covered by class mapping
       var computed = window.getComputedStyle(src);
-      var twClasses = [];
-      for (var i = 0; i < TW_PROPS.length; i++) {
-        var val = computed.getPropertyValue(TW_PROPS[i]);
-        var tw = cssTw(TW_PROPS[i], val);
-        for (var j = 0; j < tw.length; j++) {
-          // Don't duplicate classes already from mapping
-          if (mappedClasses.indexOf(tw[j]) < 0) twClasses.push(tw[j]);
-        }
+      var styles = [];
+      for (var i = 0; i < STYLE_PROPS.length; i++) {
+        var prop = STYLE_PROPS[i];
+        var val = computed.getPropertyValue(prop);
+        // Skip defaults/noise
+        if (!val || val === 'none' || val === 'normal' || val === 'auto' ||
+            val === '0px' || val === 'rgba(0, 0, 0, 0)' || val === 'static' ||
+            val === 'visible' || val === 'row' || val === 'nowrap' ||
+            val === 'stretch' || val === 'baseline' || val === 'start' ||
+            val === 'border-box' || val === 'repeat' || val === 'scroll' ||
+            val === 'inline' || val === 'block') continue;
+        // Keep display:flex/grid, skip display:block (default)
+        if (prop === 'display' && val === 'block') continue;
+        // Skip font-family for body text (inherited)
+        if (prop === 'font-family' && src.tagName !== 'H1' && src.tagName !== 'H2' && src.tagName !== 'H3') continue;
+        // Skip color:black (default)
+        if (prop === 'color' && (val === 'rgb(0, 0, 0)' || val === 'rgb(33, 37, 41)')) continue;
+        // Skip bg:white/transparent
+        if (prop === 'background-color' && (val === 'rgb(255, 255, 255)' || val === 'rgba(0, 0, 0, 0)')) continue;
+        styles.push(prop + ':' + val);
       }
+      // Strip OEM class names, keep clean
+      cln.removeAttribute('class');
+      if (styles.length > 0) cln.setAttribute('style', styles.join(';'));
+      else cln.removeAttribute('style');
 
-      // Combine: mapped classes first, then computed fills
-      var allClasses = mappedClasses.concat(twClasses);
-      // Deduplicate
-      var seen = {};
-      var unique = [];
-      for (var u = 0; u < allClasses.length; u++) {
-        if (!seen[allClasses[u]]) { unique.push(allClasses[u]); seen[allClasses[u]] = true; }
-      }
-      cln.setAttribute('class', unique.join(' '));
-      cln.removeAttribute('style');
       var srcCh = src.children, clnCh = cln.children;
       for (var k = 0; k < srcCh.length && k < clnCh.length; k++) {
         if (srcCh[k].nodeType === 1) convert(srcCh[k], clnCh[k]);
