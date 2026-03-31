@@ -352,11 +352,14 @@ ${rendered}
             </button>
           </div>
 
-          <!-- Render AI-generated Tailwind HTML if available -->
+          <!-- Render captured/cloned HTML — contenteditable for inline text editing -->
           <div
             v-if="section._generated_html"
-            class="captured-section"
+            class="captured-section cursor-text outline-none focus:ring-2 focus:ring-primary/20 rounded"
+            contenteditable="true"
+            spellcheck="false"
             v-html="section._generated_html"
+            @blur="onInlineEdit(section.id, '_generated_html', ($event.target as HTMLElement).innerHTML)"
           />
           <!-- Otherwise render the standard section component -->
           <component
