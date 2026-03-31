@@ -184,18 +184,49 @@ app.post('/admin/capture-screenshot', async (c) => {
         fullPage: true,
       });
 
-      // Store to R2
+      // Build section map — tag, classes, position, and HTML for each top-level section
+      const sectionMap = await page.evaluate(() => {
+        const selectors = 'section, article, main > div, body > div > div';
+        const elements = document.querySelectorAll(selectors);
+        const results: Array<{ tag: string; classes: string; top: number; height: number; html: string }> = [];
+        const seen = new Set<Element>();
+
+        for (const el of elements) {
+          // Skip tiny elements and duplicates
+          if (el.offsetHeight < 50 || el.offsetWidth < 200) continue;
+          // Skip if a parent section is already captured
+          let skip = false;
+          for (const s of seen) { if (s.contains(el) && s !== el) { skip = true; break; } }
+          if (skip) continue;
+          seen.add(el);
+
+          const html = el.outerHTML;
+          results.push({
+            tag: el.tagName.toLowerCase(),
+            classes: el.className || '',
+            top: el.getBoundingClientRect().top + window.scrollY,
+            height: el.offsetHeight,
+            html: html.length > 200_000 ? html.slice(0, 200_000) : html,
+          });
+        }
+        return results;
+      });
+
+      // Store screenshot to R2
       const timestamp = Date.now();
       const r2Key = `screenshots/capture-${timestamp}.jpg`;
       await c.env.MOLTBOT_BUCKET.put(r2Key, imageBuffer, {
         httpMetadata: { contentType: 'image/jpeg' },
       });
 
+      const pageHeight = await page.evaluate(() => document.body.scrollHeight);
+
       return c.json({
         success: true,
         screenshot_url: `/media/${r2Key}`,
         width: 1440,
-        height: await page.evaluate(() => document.body.scrollHeight),
+        height: pageHeight,
+        section_map: sectionMap,
       });
     } finally {
       await browser.close();

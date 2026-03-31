@@ -30,6 +30,7 @@ const screenshotWidth = ref(0)
 const screenshotHeight = ref(0)
 const imgRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
+const sectionMap = ref<Array<{ tag: string; classes: string; top: number; height: number; html: string }>>([])
 
 // Region selection on screenshot
 const selecting = ref(false)
@@ -88,6 +89,7 @@ async function loadScreenshot() {
     screenshotUrl.value = `${props.workerBase}${data.screenshot_url}`
     screenshotWidth.value = data.width
     screenshotHeight.value = data.height
+    sectionMap.value = data.section_map || []
   } catch (e: any) {
     error.value = e.message || 'Failed to capture screenshot'
   } finally {
@@ -188,33 +190,55 @@ async function addSelectionToQueue() {
   const w = Math.abs(selectionEnd.value.x - selectionStart.value.x)
   const h = Math.abs(selectionEnd.value.y - selectionStart.value.y)
 
-  try {
-    // Crop using canvas
-    const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(img, x, y, w, h, 0, 0, w, h)
+  // Map the drawn region to a section from the section_map
+  // Y coordinates are in the original screenshot/page space
+  const selTop = y
+  const selBottom = y + h
 
-    const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
-    const thumbUrl = canvas.toDataURL('image/jpeg', 0.3)
+  // Find the section with the most overlap
+  let bestMatch: typeof sectionMap.value[0] | null = null
+  let bestOverlap = 0
 
-    if (!base64 || base64.length < 100) {
-      error.value = 'Failed to crop screenshot — image may not have loaded correctly. Try reloading.'
-      return
+  for (const sec of sectionMap.value) {
+    const secTop = sec.top
+    const secBottom = sec.top + sec.height
+    const overlapTop = Math.max(selTop, secTop)
+    const overlapBottom = Math.min(selBottom, secBottom)
+    const overlap = Math.max(0, overlapBottom - overlapTop)
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap
+      bestMatch = sec
     }
+  }
 
+  if (bestMatch && bestMatch.html) {
+    // Found matching HTML section — use the parser
+    const cls = (bestMatch.classes || '').split(/\s+/).find(c => c && c.length > 3) || bestMatch.tag
+    completed.value = 0
     queue.value.push({
       id: `q${Date.now().toString(36)}`,
-      screenshot_base64: base64,
+      html: bestMatch.html,
       imageUrls: [],
       rootStyles: {},
-      label: `Region ${Math.round(w)}×${Math.round(h)}`,
-      thumbUrl,
+      label: cls,
     })
     hasSelection.value = false
-  } catch (e: any) {
-    error.value = `Canvas crop failed: ${e.message}. The screenshot may need to be reloaded.`
+  } else {
+    // No matching section — try canvas crop as fallback
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, x, y, w, h, 0, 0, w, h)
+      const thumbUrl = canvas.toDataURL('image/jpeg', 0.3)
+
+      error.value = 'No matching section found at this position. Try drawing closer to the section center.'
+      hasSelection.value = false
+    } catch {
+      error.value = 'Could not map selection to a page section.'
+      hasSelection.value = false
+    }
   }
 }
 
