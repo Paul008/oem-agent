@@ -102,6 +102,45 @@ function onInlineEdit(sectionId: string, field: string, value: string) {
   emit('updateField', sectionId, field, value)
 }
 
+// Link editor popover for captured HTML blocks
+const linkEditor = ref<{ show: boolean; el: HTMLAnchorElement | null; href: string; sectionId: string; x: number; y: number }>({
+  show: false, el: null, href: '', sectionId: '', x: 0, y: 0,
+})
+
+function onCapturedClick(e: MouseEvent, sectionId: string) {
+  const link = (e.target as HTMLElement).closest?.('a')
+  if (link) {
+    e.preventDefault()
+    const rect = link.getBoundingClientRect()
+    linkEditor.value = {
+      show: true,
+      el: link as HTMLAnchorElement,
+      href: link.getAttribute('href') || '',
+      sectionId,
+      x: rect.left,
+      y: rect.bottom + 4,
+    }
+  } else {
+    linkEditor.value.show = false
+  }
+}
+
+function saveLinkHref() {
+  if (linkEditor.value.el) {
+    linkEditor.value.el.setAttribute('href', linkEditor.value.href)
+    // Save the updated HTML back to section
+    const container = linkEditor.value.el.closest('.captured-section') as HTMLElement
+    if (container) {
+      onInlineEdit(linkEditor.value.sectionId, '_generated_html', container.innerHTML)
+    }
+  }
+  linkEditor.value.show = false
+}
+
+function closeLinkEditor() {
+  linkEditor.value.show = false
+}
+
 function onToolbarUpdate(sectionId: string, field: string, value: any) {
   emit('updateField', sectionId, field, value)
 }
@@ -359,6 +398,7 @@ ${rendered}
             contenteditable="true"
             spellcheck="false"
             v-html="section._generated_html"
+            @click="onCapturedClick($event, section.id)"
             @focus="editingTarget = $event.target as HTMLElement; editingSectionId = section.id; editingField = '_generated_html'; editingSection = section"
             @blur="editingTarget = null; editingSectionId = null; editingField = null; editingSection = null; onInlineEdit(section.id, '_generated_html', ($event.target as HTMLElement).innerHTML)"
           />
@@ -400,6 +440,26 @@ ${rendered}
       :text-color="editingSection?.text_color"
       @update-field="onToolbarUpdate"
     />
+
+    <!-- Link editor popover for captured HTML blocks -->
+    <div
+      v-if="linkEditor.show"
+      class="fixed z-[60] bg-popover border rounded-lg shadow-xl p-2 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100"
+      :style="{ left: linkEditor.x + 'px', top: linkEditor.y + 'px' }"
+    >
+      <svg class="size-4 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <input
+        v-model="linkEditor.href"
+        type="url"
+        placeholder="https://..."
+        class="h-7 w-64 px-2 text-xs bg-muted rounded border-0 outline-none focus:ring-2 ring-primary"
+        @keydown.enter="saveLinkHref"
+        @keydown.escape="closeLinkEditor"
+      />
+      <button class="h-7 px-2 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90" @click="saveLinkHref">Save</button>
+      <button class="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" @click="closeLinkEditor">✕</button>
+    </div>
+    <div v-if="linkEditor.show" class="fixed inset-0 z-[59]" @click="closeLinkEditor" />
 
     <!-- Right-click context menu -->
     <Teleport v-if="contextMenu" to="body">
