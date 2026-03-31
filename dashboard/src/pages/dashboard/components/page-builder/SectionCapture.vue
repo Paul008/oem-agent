@@ -268,7 +268,8 @@ async function captureAll() {
         completed.value++
       } else {
         const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
-        error.value = `Capture failed: ${errBody.error || resp.statusText}`
+        const rawHint = errBody.raw ? ` — AI said: "${errBody.raw.slice(0, 150)}..."` : ''
+        error.value = `Capture failed: ${errBody.error || resp.statusText}${rawHint}`
         if (item.html) emit('capture', item.html)
         completed.value++
       }

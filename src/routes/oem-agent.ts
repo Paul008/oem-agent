@@ -342,16 +342,16 @@ ${layoutContext}
 - embed: title, embed_url
 
 ## CRITICAL Rules
-1. Extract ALL image URLs as absolute URLs
-2. For cards/grids: EACH card has its own image — extract EACH card's image_url individually
-3. Do NOT reuse the same image for multiple cards
-4. For feature-cards: set columns based on the grid layout
+1. You MUST respond with ONLY a JSON object — no explanation, no markdown, no text before or after
+2. Extract ALL image URLs as absolute URLs (from HTML) or set to "" (from screenshots)
+3. For cards/grids: EACH card has its own image — extract individually
+4. For feature-cards: set card_style to "overlay" when cards have images as backgrounds with text overlaid
 5. Extract CTA text and URLs from links within each card
-6. For feature-cards: set card_style to "overlay" when cards have images as backgrounds with text overlaid
-7. If analyzing from a screenshot (no HTML), describe what you see and extract text/layout accurately
-8. For screenshots: you won't have image URLs — set image_url to "" and note the image description in the card description
+6. For screenshots without HTML: extract all visible text accurately, set image_url to ""
+7. For testimonials/reviews: use type "testimonial" with quote, author fields
+8. For image-heavy sections with no text: use type "image" or "gallery"
 
-${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided — analyze the image above to extract section content.'}`;
+${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided — analyze the image above to extract section content.\nRespond with ONLY a JSON object. No other text.'}`;
 
   try {
     const response = await aiRouter.route({
@@ -364,18 +364,31 @@ ${body.html ? `## HTML to Analyze\n\n${body.html}` : '## Screenshot provided —
     });
 
     let result: any;
+    const rawContent = response.content || '';
     try {
-      const text = response.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      // Try direct parse first
+      const text = rawContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       result = JSON.parse(text);
     } catch {
-      // Try extracting JSON from markdown fences
-      const jsonMatch = response.content.match(/\{[\s\S]*"type"[\s\S]*\}/);
+      // Try extracting JSON object from anywhere in the response
+      const jsonMatch = rawContent.match(/\{[\s\S]*?"type"\s*:\s*"[\s\S]*?\}/);
       if (jsonMatch) {
-        try { result = JSON.parse(jsonMatch[0]); } catch {
-          return c.json({ error: 'AI returned invalid JSON', raw: response.content?.slice(0, 500) }, 422);
+        // Find the balanced closing brace
+        let depth = 0;
+        let end = 0;
+        for (let i = jsonMatch.index!; i < rawContent.length; i++) {
+          if (rawContent[i] === '{') depth++;
+          if (rawContent[i] === '}') depth--;
+          if (depth === 0) { end = i + 1; break; }
+        }
+        const jsonStr = rawContent.slice(jsonMatch.index!, end);
+        try { result = JSON.parse(jsonStr); } catch {
+          console.error('[smart-capture] JSON parse failed. Raw:', rawContent.slice(0, 1000));
+          return c.json({ error: 'AI returned invalid JSON', raw: rawContent.slice(0, 800) }, 422);
         }
       } else {
-        return c.json({ error: 'AI returned invalid JSON', raw: response.content?.slice(0, 500) }, 422);
+        console.error('[smart-capture] No JSON found in response. Raw:', rawContent.slice(0, 1000));
+        return c.json({ error: 'AI returned invalid JSON', raw: rawContent.slice(0, 800) }, 422);
       }
     }
 
