@@ -339,7 +339,102 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     'color','background-color','font-size','font-weight','text-align','text-transform',
     'border-radius','object-fit','overflow','opacity'];
 
-  // Convert element + children to Tailwind classes (replaces inline styles AND class names)
+  // Bootstrap/framework class → Tailwind class mapping (tailwindo-style)
+  var CLASS_MAP = {
+    // Display
+    'd-flex':'flex','d-inline-flex':'inline-flex','d-block':'block','d-inline-block':'inline-block',
+    'd-none':'hidden','d-grid':'grid','d-inline':'inline','d-table':'table',
+    // Flex
+    'flex-row':'flex-row','flex-column':'flex-col','flex-row-reverse':'flex-row-reverse',
+    'flex-column-reverse':'flex-col-reverse','flex-wrap':'flex-wrap','flex-nowrap':'flex-nowrap',
+    'flex-grow-0':'grow-0','flex-grow-1':'grow','flex-shrink-0':'shrink-0','flex-shrink-1':'shrink',
+    'flex-fill':'flex-1',
+    // Align
+    'justify-content-start':'justify-start','justify-content-end':'justify-end',
+    'justify-content-center':'justify-center','justify-content-between':'justify-between',
+    'justify-content-around':'justify-around','justify-content-evenly':'justify-evenly',
+    'align-items-start':'items-start','align-items-end':'items-end',
+    'align-items-center':'items-center','align-items-baseline':'items-baseline',
+    'align-items-stretch':'items-stretch','align-self-center':'self-center',
+    'align-self-start':'self-start','align-self-end':'self-end',
+    // Text
+    'text-center':'text-center','text-left':'text-left','text-right':'text-right',
+    'text-uppercase':'uppercase','text-lowercase':'lowercase','text-capitalize':'capitalize',
+    'text-nowrap':'whitespace-nowrap','text-truncate':'truncate',
+    'font-weight-bold':'font-bold','font-weight-normal':'font-normal',
+    'font-weight-light':'font-light','fw-bold':'font-bold','fw-normal':'font-normal',
+    'fw-semibold':'font-semibold','fw-medium':'font-medium',
+    'fst-italic':'italic','font-italic':'italic',
+    // Spacing (Bootstrap mt-auto etc. → same in Tailwind)
+    'mt-auto':'mt-auto','mb-auto':'mb-auto','ml-auto':'ml-auto','mr-auto':'mr-auto',
+    'mx-auto':'mx-auto','my-auto':'my-auto','ms-auto':'ms-auto','me-auto':'me-auto',
+    // Sizing
+    'w-100':'w-full','w-75':'w-3/4','w-50':'w-1/2','w-25':'w-1/4','w-auto':'w-auto',
+    'h-100':'h-full','h-auto':'h-auto','mw-100':'max-w-full',
+    // Position
+    'position-relative':'relative','position-absolute':'absolute',
+    'position-fixed':'fixed','position-sticky':'sticky',
+    // Overflow
+    'overflow-hidden':'overflow-hidden','overflow-auto':'overflow-auto',
+    'overflow-visible':'overflow-visible','overflow-scroll':'overflow-scroll',
+    // Visibility
+    'visible':'visible','invisible':'invisible',
+    // Border
+    'rounded':'rounded','rounded-circle':'rounded-full','rounded-pill':'rounded-full',
+    'rounded-0':'rounded-none','border':'border','border-0':'border-0',
+    // Image
+    'img-fluid':'w-full h-auto','img-responsive':'w-full h-auto',
+    // Other
+    'shadow':'shadow','shadow-sm':'shadow-sm','shadow-lg':'shadow-lg','shadow-none':'shadow-none',
+    'list-unstyled':'list-none',
+  };
+
+  // Bootstrap col-* → Tailwind width (handles responsive prefixes)
+  function mapColClass(cls) {
+    var m = cls.match(/^col-(xs|sm|md|lg|xl|xxl)-(\d+)$/);
+    if (m) {
+      var prefix = m[1] === 'xs' ? '' : m[1] + ':';
+      var n = parseInt(m[2]);
+      var fracs = {1:'1/12',2:'2/12',3:'1/4',4:'1/3',5:'5/12',6:'1/2',7:'7/12',8:'2/3',9:'3/4',10:'10/12',11:'11/12',12:'w-full'};
+      return n === 12 ? prefix + 'w-full' : prefix + 'w-' + (fracs[n] || n + '/12');
+    }
+    // col-{n} without breakpoint
+    var m2 = cls.match(/^col-(\d+)$/);
+    if (m2) {
+      var n2 = parseInt(m2[1]);
+      var fracs2 = {1:'1/12',2:'2/12',3:'1/4',4:'1/3',5:'5/12',6:'1/2',7:'7/12',8:'2/3',9:'3/4',10:'10/12',11:'11/12',12:'full'};
+      return 'w-' + (fracs2[n2] || n2 + '/12');
+    }
+    // bare "col" = flex grow
+    if (cls === 'col') return 'flex-1';
+    return null;
+  }
+
+  // Map all classes on an element from Bootstrap/framework → Tailwind
+  function mapClasses(originalClasses) {
+    if (!originalClasses) return [];
+    var result = [];
+    var classes = originalClasses.split(/\\s+/);
+    for (var i = 0; i < classes.length; i++) {
+      var c = classes[i].trim();
+      if (!c) continue;
+      // Direct mapping
+      if (CLASS_MAP[c]) { result.push(CLASS_MAP[c]); continue; }
+      // Column mapping
+      var col = mapColClass(c);
+      if (col) { result.push(col); continue; }
+      // Bootstrap spacing: p-3, mt-4, mx-2 etc. (same syntax in Tailwind)
+      if (/^[pm][trblxyse]?-[0-5]$/.test(c)) { result.push(c); continue; }
+      // Skip framework-specific classes that have no Tailwind equivalent
+      if (c.startsWith('BCX') || c.startsWith('SCX') || c.startsWith('Outline') || c.startsWith('Ltr')) continue;
+      // Keep unknown classes as-is (might be custom/BEM)
+      // result.push(c);  // uncomment to preserve unknown classes
+    }
+    return result;
+  }
+
+  // Convert element + children to Tailwind classes
+  // Strategy: map known class names first, then add computed style conversions for gaps
   function tailwindHtml(el) {
     var clone = el.cloneNode(true);
     clone.removeAttribute('data-capture-hover');
@@ -347,14 +442,30 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
 
     function convert(src, cln) {
+      // 1. Map known framework class names to Tailwind
+      var mappedClasses = mapClasses(src.className || '');
+
+      // 2. Add computed style conversions for properties not covered by class mapping
       var computed = window.getComputedStyle(src);
       var twClasses = [];
       for (var i = 0; i < TW_PROPS.length; i++) {
         var val = computed.getPropertyValue(TW_PROPS[i]);
         var tw = cssTw(TW_PROPS[i], val);
-        for (var j = 0; j < tw.length; j++) twClasses.push(tw[j]);
+        for (var j = 0; j < tw.length; j++) {
+          // Don't duplicate classes already from mapping
+          if (mappedClasses.indexOf(tw[j]) < 0) twClasses.push(tw[j]);
+        }
       }
-      cln.setAttribute('class', twClasses.join(' '));
+
+      // Combine: mapped classes first, then computed fills
+      var allClasses = mappedClasses.concat(twClasses);
+      // Deduplicate
+      var seen = {};
+      var unique = [];
+      for (var u = 0; u < allClasses.length; u++) {
+        if (!seen[allClasses[u]]) { unique.push(allClasses[u]); seen[allClasses[u]] = true; }
+      }
+      cln.setAttribute('class', unique.join(' '));
       cln.removeAttribute('style');
       var srcCh = src.children, clnCh = cln.children;
       for (var k = 0; k < srcCh.length && k < clnCh.length; k++) {
