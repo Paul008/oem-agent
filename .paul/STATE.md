@@ -2,27 +2,56 @@
 
 ## Project Reference
 
-See: .paul/PROJECT.md
+See: .paul/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Dealers get brand-accurate vehicle pages without manual design work
-**Current focus:** Recipe Refinement Studio improvements
+**Current focus:** v6.0 Smart Capture — Deterministic section capture
 
 ## Current Position
 
-v1.0–v5.0 complete (36 plans). Phase 19 (Recipe Showcase/Studio) in progress.
+Milestone: v6.0 Smart Capture (v6.0.0)
+Phase: 19 of 22 (Deterministic Parser)
+Plan: All plans complete
+Status: v6.0 MILESTONE COMPLETE
+Last activity: 2026-03-31 — v6.0 Smart Capture shipped (4 phases, 4 plans)
 
-## What's Next
+Progress:
+- v6.0 Smart Capture: [██████████] 100%
 
-Two refinement studio improvements:
-1. **Inline OEM reference capture** — URL input in the studio, no need to visit style guide
-2. **AI-dynamic recipe controls** — ComponentGenerator returns config_schema, controls render from it
+## Loop Position
+
+Current loop state:
+```
+PLAN ──▶ APPLY ──▶ UNIFY
+  ✓        ✓        ✓     [v6.0 COMPLETE]
+```
+
+## Accumulated Context
+
+### Decisions
+
+| Decision | Phase | Impact |
+|----------|-------|--------|
+| AI extraction replaced with deterministic parsing | v6.0 | Core architectural decision — AI (Gemini + Claude) consistently failed at section extraction |
+| DivMagic-style approach adopted | v6.0 | Computed CSS → Tailwind, no AI, proven reliable |
+| Screenshot mode is visual-only, not for AI vision | v6.0 | Screenshot for user selection, HTML parser for data extraction |
+
+### Deferred Issues
+
+| Issue | Origin | Effort | Revisit |
+|-------|--------|--------|---------|
+| _generated_html rendering in canvas | v6.0 R&D | M | Phase 21 if needed |
+| Refinement studio improvements | v5.0 | S | After v6.0 |
+
+### Blockers/Concerns
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-29
-Stopped at: Refinement studio working, needs inline URL capture + dynamic controls
-Next action: Implement the two improvements above
-Resume file: .paul/HANDOFF-2026-03-29-session10.md
+Last session: 2026-03-31
+Stopped at: v6.0 milestone created, ready to plan Phase 19
+Next action: Test capture tool, then /paul:plan for Phase 21 (Section Templates)
+Resume file: .paul/phases/20-capture-ux/20-01-SUMMARY.md
 
 ---
-*STATE.md — 2026-03-29*
+*STATE.md — 2026-03-31*

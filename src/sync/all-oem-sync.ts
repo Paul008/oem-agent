@@ -42,6 +42,7 @@ export interface AllOemSyncResult {
   mazda: { colors: number; pricing: number; errors: string[] };
   mitsubishi: { colors: number; pricing: number; errors: string[] };
   volkswagen: { products: number; colors: number; pricing: number; offers: number; errors: string[] };
+  foton: { products: number; pricing: number; errors: string[] };
   generic_pricing: { oems: number; products: number };
   offer_images_fixed: number;
 }
@@ -588,6 +589,126 @@ async function fixOfferImages(supabase: SupabaseClient): Promise<number> {
 }
 
 // ============================================================================
+// FOTON — Custom Pricing API (state-specific RDP) + Vehicles API (MLP)
+// ============================================================================
+
+const FOTON_API_KEY = 'Cdl7SZbG-swkp-VvdV-mFw2-b4P6-dJh6L8TJ';
+const FOTON_BASE = 'https://www.fotonaustralia.com.au';
+
+// Model UUIDs from Foton's CMS — maps to customPriceSelector_model_id on each PDP
+const FOTON_MODELS: { modelId: string; variantIds: string[] }[] = [
+  {
+    modelId: 'bf7daf18-0b3e-480f-a4d1-0a3dd0933038', // Tunland
+    variantIds: ['V7-4x2', 'V7-4x4', 'V9-L-4x4', 'V9-S-4x4'],
+  },
+  {
+    modelId: '04767f3d-5332-44d3-8b8b-785c5caba2cf', // Aumark S
+    variantIds: [
+      '5D15-MT-SWB-CAB-CHASSIS', '5D15-MT-SWB-Tipper', '5D15-AMT-SWB-CAB-CHASSIS', '5D15-AMT-SWB-Tipper',
+      '5D15-MT-MWB-CAB-CHASSIS', '5D15-MT-MWB-Tipper', '5D15-AMT-MWB-CAB-CHASSIS', '5D15-AMT-MWB-Tipper',
+      '6D15-MT-SWB-CAB-CHASSIS', '6D15-MT-SWB-Tipper', '6D15-AMT-SWB-CAB-CHASSIS', '6D15-AMT-SWB-Tipper',
+      '6D15-MT-MWB-CAB-CHASSIS', '6D15-MT-MWB-Tipper', '6D15-AMT-MWB-CAB-CHASSIS', '6D15-AMT-MWB-Tipper',
+      '8D15-MT-CAB-CHASSIS', '8D15-MT-Tipper', '8D15-AMT-CAB-CHASSIS', '8D15-AMT-Tipper',
+      '9D15-MT-CAB-CHASSIS', '9D15-MT-Tipper', '9D15-AMT-CAB-CHASSIS', '9D15-AMT-Tipper',
+    ],
+  },
+];
+
+// Capital city postcodes used to get representative state driveaway prices
+const STATE_POSTCODES: Record<string, string> = {
+  nsw: '2000', vic: '3000', qld: '4000', wa: '6000',
+  sa: '5000', tas: '7000', act: '2600', nt: '0800',
+};
+
+interface FotonVariantPrice {
+  vehicleVariantId: string;
+  variantName: string;
+  mlp: number;
+  vehicleDriveAwayPrice: number;
+}
+
+async function fetchFotonPricing(
+  modelId: string, variantIds: string[], postCode: string,
+): Promise<FotonVariantPrice[]> {
+  const res = await fetch(`${FOTON_BASE}/api/v1/custompricing/vehicles`, {
+    method: 'POST',
+    headers: { 'Api-Key': FOTON_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ postCode, modelId, variantIds, colorIndex: 0 }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json() as { vehicleVariants?: FotonVariantPrice[] };
+  return data.vehicleVariants ?? [];
+}
+
+async function syncFoton(supabase: SupabaseClient): Promise<AllOemSyncResult['foton']> {
+  const result = { products: 0, pricing: 0, errors: [] as string[] };
+  const OEM_ID = 'foton-au';
+
+  try {
+    const { data: dbProducts } = await supabase
+      .from('products').select('id, title, price_amount').eq('oem_id', OEM_ID);
+    if (!dbProducts?.length) { result.errors.push('No Foton products in DB'); return result; }
+
+    // Build a map from variant name → product id (normalise to match API response)
+    const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const productByName = new Map(dbProducts.map(p => [normalise(p.title), p]));
+
+    for (const model of FOTON_MODELS) {
+      // Fetch pricing for all 8 states
+      const stateData: Record<string, FotonVariantPrice[]> = {};
+      for (const [state, postCode] of Object.entries(STATE_POSTCODES)) {
+        stateData[state] = await fetchFotonPricing(model.modelId, model.variantIds, postCode);
+      }
+
+      // Use NSW as the canonical list of variants
+      const nswVariants = stateData.nsw;
+      if (!nswVariants?.length) {
+        result.errors.push(`No pricing returned for model ${model.modelId}`);
+        continue;
+      }
+
+      for (const variant of nswVariants) {
+        const product = productByName.get(normalise(variant.variantName));
+        if (!product) {
+          result.errors.push(`No DB product for "${variant.variantName}"`);
+          continue;
+        }
+
+        // Build state driveaway columns
+        const driveaways: Record<string, number | null> = {};
+        for (const state of STATES) {
+          const sv = stateData[state]?.find(v => v.vehicleVariantId === variant.vehicleVariantId);
+          driveaways[`driveaway_${state}`] = sv ? Math.round(sv.vehicleDriveAwayPrice) : null;
+        }
+
+        // Upsert variant_pricing with state-specific driveaway prices
+        const { error } = await supabase.from('variant_pricing').upsert({
+          product_id: product.id,
+          price_type: 'standard',
+          rrp: variant.mlp,
+          ...driveaways,
+        }, { onConflict: 'product_id,price_type' });
+
+        if (error) { result.errors.push(`Pricing upsert error: ${error.message}`); continue; }
+        result.pricing++;
+
+        // Update product MLP if it changed
+        if (product.price_amount !== variant.mlp) {
+          await supabase.from('products').update({
+            price_amount: variant.mlp, price_type: 'driveaway',
+          }).eq('id', product.id);
+          result.products++;
+        }
+      }
+    }
+  } catch (e) {
+    result.errors.push(e instanceof Error ? e.message : String(e));
+  }
+
+  return result;
+}
+
+// ============================================================================
 // GENERIC — Refresh variant_pricing from products.price_amount for all OEMs
 // ============================================================================
 
@@ -598,7 +719,7 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
   const genericOems = [
     'ford-au', 'nissan-au', 'toyota-au', 'isuzu-au', 'subaru-au',
     'suzuki-au', 'volkswagen-au', 'gwm-au', 'gmsv-au', 'ldv-au',
-    'gac-au', 'foton-au', 'kgm-au', 'chery-au',
+    'gac-au', 'kgm-au', 'chery-au',
   ];
 
   for (const oemId of genericOems) {
@@ -636,13 +757,14 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
 export async function executeAllOemSync(
   supabase: SupabaseClient,
 ): Promise<AllOemSyncResult> {
-  console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi, VW + generic pricing');
+  console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi, VW, Foton + generic pricing');
 
-  const [hyundai, mazda, mitsubishi, volkswagen, generic_pricing] = await Promise.all([
+  const [hyundai, mazda, mitsubishi, volkswagen, foton, generic_pricing] = await Promise.all([
     syncHyundai(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncMitsubishi(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncVolkswagen(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, errors: [String(e)] })),
+    syncFoton(supabase).catch(e => ({ products: 0, pricing: 0, errors: [String(e)] })),
     syncGenericPricing(supabase).catch(() => ({ oems: 0, products: 0 })),
   ]);
 
@@ -654,9 +776,10 @@ export async function executeAllOemSync(
     `Mazda: ${mazda.colors}c/${mazda.pricing}p, ` +
     `Mitsubishi: ${mitsubishi.colors}c/${mitsubishi.pricing}p, ` +
     `VW: ${volkswagen.products}p/${volkswagen.colors}c/${volkswagen.offers}o, ` +
+    `Foton: ${foton.products}p/${foton.pricing} pricing, ` +
     `Generic: ${generic_pricing.oems} OEMs/${generic_pricing.products} products, ` +
     `Offer images fixed: ${offer_images_fixed}`,
   );
 
-  return { hyundai, mazda, mitsubishi, volkswagen, generic_pricing, offer_images_fixed };
+  return { hyundai, mazda, mitsubishi, volkswagen, foton, generic_pricing, offer_images_fixed };
 }
