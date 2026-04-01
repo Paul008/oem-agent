@@ -24,6 +24,7 @@ export interface DoctorResult {
   offers_expired: number;
   offers_archived: number;
   price_anomalies: number;
+  banners_stale: number;
   diagnoses: Diagnosis[];
 }
 
@@ -326,7 +327,63 @@ export async function executeCrawlDoctor(
     console.log(`[CrawlDoctor] Step 6: ${staleProducts.length} stale products (>90d not seen)`);
   }
 
-  // ── Step 6: Send diagnosis report to Slack ──
+  // ── Step 7: Detect stale banners (>72h since last_seen_at) ──
+  let bannersStale = 0;
+  const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000).toISOString();
+
+  const { data: recentBanners } = await supabase
+    .from('banners')
+    .select('oem_id, last_seen_at')
+    .order('last_seen_at', { ascending: false });
+
+  if (recentBanners && recentBanners.length > 0) {
+    const oemLastSeen: Record<string, string> = {};
+    for (const b of recentBanners) {
+      if (!oemLastSeen[b.oem_id] || b.last_seen_at > oemLastSeen[b.oem_id]) {
+        oemLastSeen[b.oem_id] = b.last_seen_at;
+      }
+    }
+
+    for (const [oemId, lastSeen] of Object.entries(oemLastSeen)) {
+      if (lastSeen < seventyTwoHoursAgo) {
+        const hoursStale = Math.round((now.getTime() - new Date(lastSeen).getTime()) / (60 * 60 * 1000));
+        bannersStale++;
+
+        const { count: recentTriageCount } = await supabase
+          .from('change_events')
+          .select('id', { count: 'exact', head: true })
+          .eq('oem_id', oemId)
+          .eq('event_type', 'banner_extraction_failed')
+          .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
+
+        if (!recentTriageCount) {
+          await supabase.from('change_events').insert({
+            id: crypto.randomUUID(),
+            entity_type: 'banner',
+            entity_id: null,
+            oem_id: oemId,
+            event_type: 'banner_extraction_failed',
+            severity: 'medium',
+            summary: `Banners stale for ${oemId}: last seen ${hoursStale}h ago`,
+            diff_json: { trigger: 'crawl_doctor_staleness', hours_stale: hoursStale },
+            created_at: now.toISOString(),
+          });
+
+          diagnoses.push({
+            oem_id: oemId,
+            issue: `Banners stale for ${hoursStale}h — emitted banner_extraction_failed event`,
+            action: 'Banner triage agent will attempt self-healing',
+            result: 'flagged',
+          });
+        }
+      }
+    }
+    if (bannersStale > 0) {
+      console.log(`[CrawlDoctor] Step 7: ${bannersStale} OEMs with stale banners (>72h)`);
+    }
+  }
+
+  // ── Step 8: Send diagnosis report to Slack ──
   if (slackWebhookUrl && diagnoses.length > 0) {
     const fixed = diagnoses.filter(d => d.result === 'fixed');
     const flagged = diagnoses.filter(d => d.result === 'flagged');
@@ -378,6 +435,7 @@ export async function executeCrawlDoctor(
     offers_expired: offersExpired,
     offers_archived: offersArchived,
     price_anomalies: priceAnomalies,
+    banners_stale: bannersStale,
     diagnoses,
   };
 
