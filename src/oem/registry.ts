@@ -215,11 +215,11 @@ export const ldvAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/vehicles/ldv-"]',
-    heroSlides: '.hero-carousel, [class*="hero"]',
+    heroSlides: '[class*="HhCarouselWrapper"] [class*="EmbCarouselItemWrapper"]',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: false, // Gatsby SSR — data from page-data.json endpoints, cheap fetch is sufficient
+    requiresBrowserRendering: false, // Gatsby SSR (i-motor) — full HTML in fetch, hero uses classHhCarouselWrapper/EmbCarouselItemWrapper
     isGatsby: true,
     framework: 'gatsby',
   },
