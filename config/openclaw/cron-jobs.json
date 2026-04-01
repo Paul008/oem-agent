@@ -257,6 +257,27 @@
         "auto_apply": false,
         "notify_on_changes": true
       }
+    },
+    {
+      "id": "banner-triage",
+      "name": "Banner Triage Agent",
+      "description": "Event-driven autonomous banner extraction repair. Triggered by banner_extraction_failed change events. Runs 5-layer discovery cascade: discovered APIs → network interception → inline data → AI selector discovery → Slack escalation. Not cron-scheduled — spawned by Workflow Router.",
+      "schedule": null,
+      "timezone": "Australia/Sydney",
+      "skill": "banner-triage",
+      "enabled": true,
+      "config": {
+        "trigger": "event_driven",
+        "trigger_event": "banner_extraction_failed",
+        "confidence_threshold": 0.7,
+        "max_layers": 5,
+        "use_browser": true,
+        "llm_model": "llama-4-scout-17b",
+        "llm_fallback": "gemini-2.5-pro",
+        "dedup_hours": 24,
+        "selector_override_ttl_days": 30,
+        "notify_channel": "slack:#oem-alerts"
+      }
     }
   ],
   "hooks": {

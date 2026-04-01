@@ -92,10 +92,12 @@ dashboard/
 
 config/
 └── openclaw/
-    └── cron-jobs.json         # 16 scheduled jobs (OpenClaw cron)
+    └── cron-jobs.json         # 17 jobs (16 scheduled + 1 event-driven banner-triage)
 
-skills/                        # 15 OpenClaw skills
-├── autonomous-agents/
+skills/                        # 16 OpenClaw skills
+├── autonomous-agents/         # 8 agents: price-validator, product-enricher, link-validator,
+│                              #   offer-manager, compliance-checker, image-validator, variant-sync,
+│                              #   banner-triage (5-layer discovery cascade)
 ├── cloudflare-browser/
 ├── oem-agent-hooks/
 ├── oem-api-discover/

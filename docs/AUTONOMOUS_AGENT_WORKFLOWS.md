@@ -420,6 +420,67 @@ The `tools` array controls what **actions** the agent can take. The AI model (Gr
 
 ---
 
+### 9. Banner Extraction Triage
+
+**Trigger**: `event_type: 'banner_extraction_failed'` AND `entity_type: 'banner'`
+
+**Agent Task**:
+1. Run 5-layer discovery cascade to find banner data source
+2. Layer 1: Check `discovered_apis` for known banner endpoints
+3. Layer 2: Render page with CF Browser, intercept network for JSON APIs
+4. Layer 3: Extract inline data (JSON-LD, `__NUXT__`, `__NEXT_DATA__`, Gatsby `page-data.json`, AEM `.model.json`, window globals)
+5. Layer 4: Send cleaned HTML to LLM for CSS selector discovery, validate against HTML
+6. Layer 5: Escalate to Slack with full diagnosis if all layers fail
+7. **Action**: Upsert banners, store discovered APIs and selector overrides
+
+**Confidence Threshold**: 70% - Auto-fix if any layer returns >= 0.7 confidence
+**Rollback**: Yes - Previous banners preserved, selector overrides expire after 30 days
+
+**Agent Skill**: `banner-triage`
+
+```typescript
+{
+  workflow: "banner-triage",
+  trigger: {
+    entity_type: "banner",
+    event_type: "banner_extraction_failed",
+    severity: ["high", "medium"]
+  },
+  agent: {
+    type: "data-discoverer",
+    skill: "banner-triage",
+    tools: ["browser", "web_fetch", "read", "write", "edit"],
+    confidence_threshold: 0.70
+  },
+  actions: {
+    auto_approve: [
+      "upsert_banners",
+      "store_discovered_api",
+      "store_selector_override",
+      "log_result"
+    ],
+    require_approval: [
+      "delete_stale_banners",
+      "modify_registry"
+    ],
+    rollback_enabled: true
+  }
+}
+```
+
+**Discovery Layer Priority**:
+| Layer | Source | Confidence | Cost |
+|-------|--------|------------|------|
+| 1 | Discovered APIs (DB lookup + fetch) | 0.95 | ~$0.00 |
+| 2 | Network interception (CF Browser) | 0.90 | ~$0.002 |
+| 3 | Inline data (JSON-LD, framework hydration) | 0.85 | ~$0.00 |
+| 4 | AI selector discovery (Groq LLM) | 0.75 | ~$0.005 |
+| 5 | Slack escalation | N/A | ~$0.00 |
+
+**Design Spec**: `docs/superpowers/specs/2026-04-02-banner-triage-agent-design.md`
+
+---
+
 ## Agent Confidence Levels
 
 | Level | Threshold | Auto-Execute | Requires Approval | Use Case |
