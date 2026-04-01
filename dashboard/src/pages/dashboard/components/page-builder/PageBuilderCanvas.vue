@@ -253,19 +253,6 @@ function sectionStyle(section: any): Record<string, string> {
   return style
 }
 
-// Legacy compat — kept for reference but replaced by sectionStyle
-function sectionSpacingStyle(section: any): Record<string, string> {
-  const s = section.spacing
-  if (!s) return {}
-  const style: Record<string, string> = {}
-  if (s.padding_top) style.paddingTop = s.padding_top
-  if (s.padding_bottom) style.paddingBottom = s.padding_bottom
-  if (s.padding_left) style.paddingLeft = s.padding_left
-  if (s.padding_right) style.paddingRight = s.padding_right
-  if (s.margin_top) style.marginTop = s.margin_top
-  if (s.margin_bottom) style.marginBottom = s.margin_bottom
-  return style
-}
 
 function oemName(id: string) {
   return id.replace(/-au$/, '').replace(/^\w/, c => c.toUpperCase())

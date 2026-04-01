@@ -452,6 +452,14 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     clone.removeAttribute('data-capture-hover');
     clone.removeAttribute('data-capture-selected');
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+    // Strip event handler attributes and dangerous tags (XSS prevention)
+    clone.querySelectorAll('*').forEach(function(node) {
+      var attrs = Array.from(node.attributes || []);
+      for (var a = 0; a < attrs.length; a++) {
+        if (attrs[a].name.startsWith('on')) node.removeAttribute(attrs[a].name);
+      }
+    });
+    clone.querySelectorAll('iframe,object,embed,form').forEach(function(s) { s.remove(); });
 
     function convert(src, cln) {
       var computed = window.getComputedStyle(src);

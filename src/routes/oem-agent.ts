@@ -23,6 +23,61 @@ import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
 
+// SSRF protection: validate URL before fetching
+function validateUrl(url: string): { valid: boolean; error?: string; parsed?: URL } {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return { valid: false, error: 'Invalid URL' }; }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return { valid: false, error: 'Only http/https URLs allowed' };
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' ||
+      host.startsWith('10.') || host.startsWith('192.168.') || host.endsWith('.local') ||
+      host === '169.254.169.254') {
+    return { valid: false, error: 'Internal URLs not allowed' };
+  }
+  // Only block 172.16-31.x.x (private range), not all 172.x
+  if (host.startsWith('172.')) {
+    const parts = host.split('.');
+    const second = parseInt(parts[1]);
+    if (second >= 16 && second <= 31) return { valid: false, error: 'Internal URLs not allowed' };
+  }
+  return { valid: true, parsed };
+}
+
+// Shared image download-to-R2 pipeline
+async function downloadImagesToR2(
+  imageUrls: string[],
+  oemId: string,
+  slug: string,
+  r2Bucket: R2Bucket,
+): Promise<Map<string, string>> {
+  const imageMap = new Map<string, string>();
+  const downloads = imageUrls.slice(0, 20).map(async (url) => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const resp = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!resp.ok || !resp.headers.get('content-type')?.startsWith('image/')) return;
+      const buffer = await resp.arrayBuffer();
+      if (buffer.byteLength < 500) return;
+      const urlPath = new URL(url).pathname;
+      const segments = urlPath.split('/').filter(Boolean);
+      const imgSegment = segments.find(s => /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(s));
+      const filename = imgSegment || segments.pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
+      const r2Key = `pages/assets/${oemId}/${slug}/${filename}`;
+      await r2Bucket.put(r2Key, buffer, {
+        httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
+      });
+      imageMap.set(url, `/media/${r2Key}`);
+    } catch { /* skip failed downloads */ }
+  });
+  await Promise.all(downloads);
+  return imageMap;
+}
+
 // Extend AppEnv for OEM agent routes
 type OemAgentEnv = {
   Bindings: MoltbotEnv;
@@ -86,20 +141,9 @@ app.get('/health', (c) => {
 app.get('/admin/proxy-html', async (c) => {
   const url = c.req.query('url');
   if (!url) return c.json({ error: 'url parameter required' }, 400);
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return c.json({ error: 'Invalid URL' }, 400);
-  }
-  // SSRF protection: only allow http(s) and block private/internal IPs
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    return c.json({ error: 'Only http/https URLs allowed' }, 400);
-  }
-  const host = parsed.hostname.toLowerCase();
-  if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.startsWith('10.') || host.startsWith('192.168.') || host.startsWith('172.') || host.endsWith('.local') || host === '169.254.169.254') {
-    return c.json({ error: 'Internal URLs not allowed' }, 400);
-  }
+  const validation = validateUrl(url);
+  if (!validation.valid) return c.json({ error: validation.error }, 400);
+  const parsed = validation.parsed!;
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -148,6 +192,8 @@ app.get('/admin/proxy-html', async (c) => {
 app.post('/admin/capture-screenshot', async (c) => {
   const body = await c.req.json<{ url: string }>();
   if (!body.url) return c.json({ error: 'url is required' }, 400);
+  const urlCheck = validateUrl(body.url);
+  if (!urlCheck.valid) return c.json({ error: urlCheck.error }, 400);
 
   if (!c.env.BROWSER) {
     return c.json({ error: 'Browser rendering not available' }, 503);
@@ -214,7 +260,7 @@ app.post('/admin/capture-screenshot', async (c) => {
 
       // Store screenshot to R2
       const timestamp = Date.now();
-      const r2Key = `screenshots/capture-${timestamp}.jpg`;
+      const r2Key = `screenshots/capture-${timestamp}-${Math.random().toString(36).slice(2, 8)}.jpg`;
       await c.env.MOLTBOT_BUCKET.put(r2Key, imageBuffer, {
         httpMetadata: { contentType: 'image/jpeg' },
       });
@@ -308,34 +354,7 @@ ${body.html}`;
       let imageMap = new Map<string, string>();
 
       if (body.oem_id && imageUrls.length > 0) {
-        const r2Bucket = c.env.MOLTBOT_BUCKET;
-        const slug = body.model_slug || 'captured';
-
-        const downloads = imageUrls.slice(0, 20).map(async (url) => {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
-            const resp = await fetch(url, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
-              signal: controller.signal,
-            });
-            clearTimeout(timeout);
-            if (!resp.ok || !resp.headers.get('content-type')?.startsWith('image/')) return;
-            const buffer = await resp.arrayBuffer();
-            if (buffer.byteLength < 500) return;
-            const urlPath = new URL(url).pathname;
-            const segments = urlPath.split('/').filter(Boolean);
-            const imgSegment = segments.find(s => /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(s));
-            const filename = imgSegment || segments.pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
-            const r2Key = `pages/assets/${body.oem_id}/${slug}/${filename}`;
-            await r2Bucket.put(r2Key, buffer, {
-              httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
-            });
-            imageMap.set(url, `/media/${r2Key}`);
-          } catch { /* skip */ }
-        });
-
-        await Promise.all(downloads);
+        imageMap = await downloadImagesToR2(imageUrls, body.oem_id, body.model_slug || 'captured', c.env.MOLTBOT_BUCKET);
 
         // Rewrite image URLs in the Tailwind HTML to full worker URLs
         // (v-html doesn't go through Vue's resolveMediaUrl, so /media/ paths don't work)
@@ -390,36 +409,7 @@ ${body.html}`;
     let imageMap = new Map<string, string>();
 
     if (body.oem_id && imageUrls.length > 0) {
-      const r2Bucket = c.env.MOLTBOT_BUCKET;
-      const slug = body.model_slug || 'captured';
-
-      const downloads = imageUrls.slice(0, 20).map(async (url) => {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-          const resp = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
-          if (!resp.ok || !resp.headers.get('content-type')?.startsWith('image/')) return;
-          const buffer = await resp.arrayBuffer();
-          if (buffer.byteLength < 500) return;
-          // Extract clean filename from URL path
-          // Storyblok CDN URLs have the filename mid-path: .../hash/filename.jpg/m/476x0
-          const urlPath = new URL(url).pathname;
-          const segments = urlPath.split('/').filter(Boolean);
-          const imgSegment = segments.find(s => /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(s));
-          const filename = imgSegment || segments.pop()?.split('?')[0] || `img-${Date.now()}.jpg`;
-          const r2Key = `pages/assets/${body.oem_id}/${slug}/${filename}`;
-          await r2Bucket.put(r2Key, buffer, {
-            httpMetadata: { contentType: resp.headers.get('content-type') || 'image/jpeg' },
-          });
-          imageMap.set(url, `/media/${r2Key}`);
-        } catch { /* skip failed downloads */ }
-      });
-
-      await Promise.all(downloads);
+      imageMap = await downloadImagesToR2(imageUrls, body.oem_id, body.model_slug || 'captured', c.env.MOLTBOT_BUCKET);
 
       // Rewrite image URLs in section data to R2 paths
       function rewriteUrls(obj: any): any {
