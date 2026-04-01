@@ -245,12 +245,12 @@ export class OemAgentOrchestrator {
       return { jobsProcessed: 0, pagesChanged: 0, errors: 1 };
     }
 
-    // Fan-out: process OEMs in parallel batches of 3.
+    // Fan-out: process OEMs in parallel batches of 6.
     // Each OEM gets its own 60s timeout with AbortController.
-    // 18 OEMs / 3 concurrent = 6 batches × ~60s = ~6 min (vs 13.5 min sequential).
-    // Leaves plenty of headroom within the 15-min cron limit.
+    // 18 OEMs / 6 concurrent = 3 batches × ~90s = ~4.5 min.
+    // Previous CONCURRENCY=3 caused last batches to hit the 10-min CF Worker cron limit.
     const PER_OEM_TIMEOUT_MS = 60_000;
-    const CONCURRENCY = 3;
+    const CONCURRENCY = 6;
 
     for (let i = 0; i < oems.length; i += CONCURRENCY) {
       const batch = oems.slice(i, i + CONCURRENCY);
