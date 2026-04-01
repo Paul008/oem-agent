@@ -3320,6 +3320,46 @@ ${html.substring(0, 50000)}
       }
     }
 
+    // Detect banner extraction failure for homepage crawls
+    if (
+      page.page_type === 'homepage' &&
+      (!extractionResult.bannerSlides?.data || extractionResult.bannerSlides.data.length === 0)
+    ) {
+      const { count: previousBannerCount } = await this.supabase
+        .from('banners')
+        .select('id', { count: 'exact', head: true })
+        .eq('oem_id', oemId);
+
+      if (previousBannerCount && previousBannerCount > 0) {
+        // Dedup: check if event already exists in last 24h
+        const { count: recentEventCount } = await this.supabase
+          .from('change_events')
+          .select('id', { count: 'exact', head: true })
+          .eq('oem_id', oemId)
+          .eq('event_type', 'banner_extraction_failed')
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+        if (!recentEventCount) {
+          console.log(`[Orchestrator] Banner extraction returned 0 for ${oemId} homepage (previously had ${previousBannerCount}). Emitting banner_extraction_failed event.`);
+          await this.supabase.from('change_events').insert({
+            id: crypto.randomUUID(),
+            entity_type: 'banner',
+            entity_id: null,
+            oem_id: oemId,
+            event_type: 'banner_extraction_failed',
+            severity: 'high',
+            summary: `Banner extraction returned 0 results for ${oemId} homepage (previously had ${previousBannerCount} banners)`,
+            diff_json: {
+              selector_used: extractionResult.bannerSlides?.method || 'none',
+              page_url: page.url,
+              previous_banner_count: previousBannerCount,
+            },
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
     // Note: brochuresUpserted currently 0 - vehicle models not extracted during crawls
     // Infrastructure ready for when model extraction is implemented
 
