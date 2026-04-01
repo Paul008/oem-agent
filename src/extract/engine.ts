@@ -173,7 +173,8 @@ export function extractOpenGraph(html: string): Partial<OpenGraphData> {
 export function extractWithSelectors(
   html: string,
   oemId: string,
-  pageType: string
+  pageType: string,
+  selectorOverrides?: Record<string, string>
 ): {
   products: ExtractedProduct[];
   offers: ExtractedOffer[];
@@ -182,7 +183,8 @@ export function extractWithSelectors(
 } {
   const $ = cheerio.load(html);
   const oemDef = getOemDefinition(oemId as any);
-  const selectors = oemDef?.selectors || {};
+  const registrySelectors = oemDef?.selectors || {};
+  const selectors = selectorOverrides ? { ...registrySelectors, ...selectorOverrides } : registrySelectors;
 
   const products: ExtractedProduct[] = [];
   const offers: ExtractedOffer[] = [];
@@ -203,9 +205,10 @@ export function extractWithSelectors(
   if (selectors.heroSlides) {
     $(selectors.heroSlides).each((index, el) => {
       const $slide = $(el);
+      const headlineText = $slide.find('h1, h2, .headline, .big_title .title').first().text().trim();
       const slide: ExtractedBannerSlide = {
         position: index,
-        headline: $slide.find('h1, h2, .headline, .big_title .title').first().text().trim() || null,
+        headline: headlineText || $slide.find('img[alt]').first().attr('alt')?.trim() || null,
         sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span').first().text().trim() || null,
         cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
         cta_url: $slide.find('.kv_btn, a.cta, a').first().attr('href') || null,
