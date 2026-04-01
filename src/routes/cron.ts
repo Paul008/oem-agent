@@ -358,6 +358,32 @@ async function executeJob(
         break;
       }
 
+      case 'banner-triage': {
+        const { executeBannerTriage } = await import('../sync/banner-triage');
+        const { createSupabaseClient: createSbTriage } = await import('../utils/supabase');
+        const { getOemDefinition } = await import('../oem/registry');
+        const sbTriage = createSbTriage({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+
+        const oemId = (job.config as any)?.oem_id || 'ldv-au';
+        const oemDef = getOemDefinition(oemId);
+        const pageUrl = (job.config as any)?.page_url || oemDef?.baseUrl || '';
+
+        const { count: prevCount } = await sbTriage
+          .from('banners')
+          .select('id', { count: 'exact', head: true })
+          .eq('oem_id', oemId);
+
+        result = await executeBannerTriage({
+          oemId,
+          pageUrl,
+          previousBannerCount: prevCount || 0,
+          oldSelector: oemDef?.selectors?.heroSlides || null,
+          supabase: sbTriage,
+          slackWebhookUrl: env.SLACK_WEBHOOK_URL,
+        }) as unknown as Record<string, unknown>;
+        break;
+      }
+
       case 'competitive-intel': {
         const { executeCompetitiveIntel } = await import('../sync/competitive-intel');
         const { createSupabaseClient: createSbIntel } = await import('../utils/supabase');
