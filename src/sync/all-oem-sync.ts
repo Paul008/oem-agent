@@ -42,7 +42,7 @@ export interface AllOemSyncResult {
   mazda: { colors: number; pricing: number; errors: string[] };
   mitsubishi: { colors: number; pricing: number; errors: string[] };
   volkswagen: { products: number; colors: number; pricing: number; offers: number; errors: string[] };
-  foton: { products: number; pricing: number; errors: string[] };
+  foton: { products: number; colors: number; pricing: number; errors: string[] };
   generic_pricing: { oems: number; products: number };
   offer_images_fixed: number;
 }
@@ -640,14 +640,187 @@ async function fetchFotonPricing(
   return data.vehicleVariants ?? [];
 }
 
+// Foton color dot extraction — matches HTML like:
+// <div class="colours_wrapper__colourDots__dot" label="FLARE WHITE" image="/media/..." style="background-color:#fff">
+const FOTON_VARIANT_PATTERNS: Record<string, string> = {
+  'v7-c-4x2': 'v7 c 4x2', 'v7-4x2': 'v7 c 4x2',
+  'v7-c-4x4': 'v7 c 4x4', 'v7-4x4': 'v7 c 4x4',
+  'v9-l-4x4': 'v9 l 4x4', 'v9-s-4x4': 'v9 s 4x4',
+};
+
+async function scrapeFotonColors(
+  supabase: SupabaseClient,
+  tunlandProducts: Array<{ id: string; title: string }>,
+): Promise<number> {
+  let count = 0;
+  try {
+    const res = await fetch(`${FOTON_BASE}/ute/tunland/`);
+    if (!res.ok) return 0;
+    const html = await res.text();
+
+    // Extract color dot elements with label, image, bg-color
+    const dotRegex = /<div\s[^>]*colours_wrapper__colourDots__dot[^>]*>/gi;
+    const dots = [...html.matchAll(dotRegex)];
+    if (!dots.length) return 0;
+
+    for (const [tag] of dots) {
+      const label = tag.match(/\blabel="([^"]*)"/)?.[1];
+      const image = tag.match(/\bimage="([^"]*)"/)?.[1];
+      const bgHex = tag.match(/background-color:\s*([^;"]+)/)?.[1]?.trim();
+      if (!label || !image) continue;
+
+      // Detect variant from image URL
+      const imgLower = image.toLowerCase();
+      let variantKey: string | null = null;
+      for (const [pattern, key] of Object.entries(FOTON_VARIANT_PATTERNS)) {
+        if (imgLower.includes(pattern)) { variantKey = key; break; }
+      }
+      if (!variantKey) continue;
+
+      // Match to product by title
+      const product = tunlandProducts.find(p => p.title.toLowerCase().includes(variantKey!));
+      if (!product) continue;
+
+      const colorName = label.replace(/\*$/, '').trim();
+      const isPremium = label.includes('*');
+      const colorCode = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+      const { error } = await supabase.from('variant_colors').upsert({
+        product_id: product.id,
+        color_code: colorCode,
+        color_name: colorName,
+        color_type: isPremium ? 'premium' : 'solid',
+        is_standard: !isPremium,
+        price_delta: isPremium ? 690 : 0,
+        swatch_url: bgHex || null,
+        hero_image_url: `${FOTON_BASE}${image}`,
+      }, { onConflict: 'product_id,color_code' });
+
+      if (!error) count++;
+    }
+  } catch (e) {
+    console.warn('[syncFoton] Color scrape failed:', e);
+  }
+  return count;
+}
+
+async function scrapeFotonAumarkWhite(
+  supabase: SupabaseClient,
+  aumarkProducts: Array<{ id: string; title: string }>,
+): Promise<number> {
+  let count = 0;
+  try {
+    const res = await fetch(`${FOTON_BASE}/trucks/series/aumark-s/`);
+    if (!res.ok) return 0;
+    const html = await res.text();
+
+    // Extract variant names and hero images in page order
+    const variantNames = [...html.matchAll(/versionCar">([^<]+)</g)].map(m => m[1].trim().toLowerCase());
+    const heroImages = [...html.matchAll(/showcase_container__iframe"[^>]*src="([^"]+)"/g)].map(m => `${FOTON_BASE}${m[1]}`);
+
+    const variantToImage = new Map<string, string>();
+    for (let i = 0; i < variantNames.length && i < heroImages.length; i++) {
+      variantToImage.set(variantNames[i], heroImages[i]);
+    }
+
+    for (const product of aumarkProducts) {
+      const heroUrl = variantToImage.get(product.title.toLowerCase()) || null;
+      const { error } = await supabase.from('variant_colors').upsert({
+        product_id: product.id,
+        color_code: 'white',
+        color_name: 'White',
+        color_type: 'solid',
+        is_standard: true,
+        price_delta: 0,
+        hero_image_url: heroUrl,
+      }, { onConflict: 'product_id,color_code' });
+      if (!error) count++;
+    }
+  } catch (e) {
+    console.warn('[syncFoton] Aumark S color scrape failed:', e);
+  }
+  return count;
+}
+
+async function syncFotonBrochures(
+  supabase: SupabaseClient,
+  allProducts: Array<{ id: string; title: string }>,
+): Promise<void> {
+  try {
+    const [tunlandRes, aumarkRes] = await Promise.all([
+      fetch(`${FOTON_BASE}/ute/tunland/`),
+      fetch(`${FOTON_BASE}/trucks/series/aumark-s/`),
+    ]);
+    if (!tunlandRes.ok || !aumarkRes.ok) return;
+    const [tunlandHtml, aumarkHtml] = await Promise.all([tunlandRes.text(), aumarkRes.text()]);
+
+    // Extract variant→PDF from page HTML (variant name appears before its PDF link)
+    function extractBrochureMap(html: string): Map<string, string> {
+      const map = new Map<string, string>();
+      const parts = html.split('versionCar">');
+      for (let i = 1; i < parts.length; i++) {
+        const name = parts[i].match(/^([^<]+)/)?.[1]?.trim().toLowerCase();
+        const pdf = parts[i].match(/href="([^"]*\.pdf)"/)?.[1];
+        if (name && pdf) {
+          map.set(name, pdf.startsWith('http') ? pdf : `${FOTON_BASE}${pdf}`);
+        }
+      }
+      return map;
+    }
+
+    const tunlandMap = extractBrochureMap(tunlandHtml);
+    const aumarkMap = extractBrochureMap(aumarkHtml);
+
+    // Also extract warranty/roadside PDFs
+    const tunlandWarranty = tunlandHtml.match(/href="([^"]*roadside[^"]*\.pdf)"/i)?.[1];
+    const aumarkWarranty = aumarkHtml.match(/href="([^"]*warranty[^"]*\.pdf)"/i)?.[1];
+
+    for (const product of allProducts) {
+      const title = product.title.toLowerCase();
+      const isTunland = title.includes('tunland');
+      const brochureUrl = isTunland
+        ? tunlandMap.get(title.replace('tunland ', ''))
+        : aumarkMap.get(title);
+      if (!brochureUrl) continue;
+
+      const ctaLinks: Array<{ label: string; url: string; type: string }> = [
+        { label: isTunland ? 'Download Brochure' : 'Spec Sheet', url: brochureUrl, type: 'brochure' },
+      ];
+      const warrantyPdf = isTunland ? tunlandWarranty : aumarkWarranty;
+      if (warrantyPdf) {
+        const url = warrantyPdf.startsWith('http') ? warrantyPdf : `${FOTON_BASE}${warrantyPdf}`;
+        ctaLinks.push({
+          label: isTunland ? 'Roadside Assistance Program' : 'Warranty & Service Handbook',
+          url, type: 'warranty',
+        });
+      }
+
+      await supabase.from('products').update({ cta_links: ctaLinks }).eq('id', product.id);
+    }
+  } catch (e) {
+    console.warn('[syncFoton] Brochure scrape failed:', e);
+  }
+}
+
 async function syncFoton(supabase: SupabaseClient): Promise<AllOemSyncResult['foton']> {
-  const result = { products: 0, pricing: 0, errors: [] as string[] };
+  const result = { products: 0, colors: 0, pricing: 0, errors: [] as string[] };
   const OEM_ID = 'foton-au';
 
   try {
     const { data: dbProducts } = await supabase
       .from('products').select('id, title, price_amount').eq('oem_id', OEM_ID);
     if (!dbProducts?.length) { result.errors.push('No Foton products in DB'); return result; }
+
+    // Sync Tunland colors from Foton website (8 colors per variant)
+    const tunlandProducts = dbProducts.filter(p => p.title.toLowerCase().includes('tunland'));
+    result.colors = await scrapeFotonColors(supabase, tunlandProducts);
+
+    // Aumark S trucks come in white only — scrape hero images from the series page
+    const aumarkProducts = dbProducts.filter(p => !p.title.toLowerCase().includes('tunland'));
+    result.colors += await scrapeFotonAumarkWhite(supabase, aumarkProducts);
+
+    // Sync brochure/spec sheet links from both pages
+    await syncFotonBrochures(supabase, dbProducts);
 
     // Build a map from variant name → product id (normalise to match API response)
     const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -764,7 +937,7 @@ export async function executeAllOemSync(
     syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncMitsubishi(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncVolkswagen(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, errors: [String(e)] })),
-    syncFoton(supabase).catch(e => ({ products: 0, pricing: 0, errors: [String(e)] })),
+    syncFoton(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, errors: [String(e)] })),
     syncGenericPricing(supabase).catch(() => ({ oems: 0, products: 0 })),
   ]);
 
@@ -776,7 +949,7 @@ export async function executeAllOemSync(
     `Mazda: ${mazda.colors}c/${mazda.pricing}p, ` +
     `Mitsubishi: ${mitsubishi.colors}c/${mitsubishi.pricing}p, ` +
     `VW: ${volkswagen.products}p/${volkswagen.colors}c/${volkswagen.offers}o, ` +
-    `Foton: ${foton.products}p/${foton.pricing} pricing, ` +
+    `Foton: ${foton.products}p/${foton.colors}c/${foton.pricing} pricing, ` +
     `Generic: ${generic_pricing.oems} OEMs/${generic_pricing.products} products, ` +
     `Offer images fixed: ${offer_images_fixed}`,
   );

@@ -837,17 +837,25 @@ Color data is on the Tunland page (`/ute/tunland/`) as HTML data attributes:
 - `image`: Vehicle render URL (relative path, needs base URL prefix)
 - `style`: Swatch hex from `background-color` CSS property
 - Variant identified from image URL filename (e.g., `v7-c-4x2`, `v9-l-4x4`)
-- 4 drivetrain variants map to 2 products (V7, V9) — deduplicated by `product_id + color_name` with extra angles stored in `gallery_urls`
-- Aumark S trucks have no color data on their pages
+- 4 Tunland variants (V7 C 4x2, V7 C 4x4, V9 L 4x4, V9 S 4x4) each have 8 colors scraped from color dot elements on the Tunland page
+- Aumark S trucks (24 variants) come in white only — hero images scraped from the series page
+- Brochure/spec sheet PDFs extracted per-variant from both pages and stored in `cta_links`
+- All of the above syncs dynamically via `syncFoton()` in `all-oem-sync.ts` on each daily cron
 
 #### Discovered API
 - `POST /api/v1/custompricing/vehicles` with `Api-Key` header — postcode-gated RDP pricing
+- `colorIndex` param (0-7) changes price slightly: 0 = standard, 1-7 = premium (+$724), but doesn't return color names/images
+
+#### Color Extraction
+- **Tunland**: HTML color dot elements with `label`, `image`, `background-color` attributes in `colours_wrapper__colourDots__dot` divs
+- **Aumark S**: Color dots use `template="dot_template"` (JS-populated, empty in HTML) — trucks are white only, hero images from static `<img>` tags
 
 #### Special Notes
-- Single brand (no sub-brands), smallest vehicle lineup of all OEMs.
+- Single brand (no sub-brands), 2 model ranges: Tunland (ute) and Aumark S (truck).
 - Brand color: `#D4002A` (Foton red).
-- 16 colors total: 8 per product (Tunland V7, Tunland V9), with 5 standard + 3 premium (+$690 each).
+- 56 variant_colors total: 32 Tunland (8 colors × 4 variants, 1 standard + 7 premium at +$690 each) + 24 Aumark S (White).
 - Server-rendered pages — no browser rendering needed for any extraction.
+- Each variant links to a PDF spec sheet/brochure stored in `cta_links`.
 
 ---
 

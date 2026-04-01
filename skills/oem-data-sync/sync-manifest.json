@@ -234,7 +234,8 @@
       "script": "seed-foton-colors.mjs",
       "tables_affected": ["variant_colors"],
       "stability": "medium",
-      "schedule": "weekly"
+      "schedule": "weekly",
+      "notes": "Tunland 8×4 colors + Aumark S White. Also synced dynamically via syncFoton() in all-oem-sync.ts on daily cron."
     },
     {
       "id": "mitsubishi-au:enrich",

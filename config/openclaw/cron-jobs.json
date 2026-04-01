@@ -113,7 +113,7 @@
     {
       "id": "oem-data-sync-daily",
       "name": "Daily All-OEM Color + Pricing Sync",
-      "description": "Sync variant colors, pricing, and driveaway estimates for all 18 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, plus generic pricing refresh for all other OEMs.",
+      "description": "Sync variant colors, pricing, brochures, and driveaway estimates for all 18 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, Foton (Tunland 8-color scrape + Aumark S White + brochure PDFs + pricing API), VW configurator, plus generic pricing refresh for all other OEMs.",
       "schedule": "0 3 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-data-sync",

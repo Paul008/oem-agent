@@ -106,7 +106,7 @@ cd dashboard/scripts && node seed-kgm-accessories.mjs
 - Suzuki colors: Uses `paintColours` field (plural with 's'). Color types: Solid, Premium Metallic, Two-Tone Metallic.
 - GWM colors: Match DB records by hex code (DB stores `hex-{6chars}`, Storyblok has real names + UUIDs).
 - GMSV colors: **Dual-source architecture**. Trucks/SUV (Silverado, Yukon) scraped from GMSV AU HTML pages — color chips in `<img>` with `colorizer/` path, jelly renders matched by alt text or slug. Corvettes (Stingray, E-Ray, Z06) from Chevrolet US colorizer JSON API (`/content/gm/api/services/colorizerContent`) — returns GM RPO codes, chip images, and 30-frame flipbook renders (frame `001` = front 3/4 hero). **Critical**: GM AEM pages contain chip texture images (pattern `\d+ch-\w+-?\d+x\d+`) in same `colorizer/` directory as jelly renders — must filter these out or hero images show metallic paint close-ups instead of vehicles. ZR2 has no per-color jellies; uses generic fallback hero from nav.
-- Foton colors: Color dots on Tunland page at `/ute/tunland/` have `label`, `image`, and `style` (background-color) attributes. 4 variants (V7 4x2/4x4, V9 L/S) map to 2 products via image URL pattern matching. Premium colors marked with `*` suffix (+$690). Gallery URLs store multiple drivetrain angles per color.
+- Foton colors: **Tunland** — color dots on `/ute/tunland/` have `label`, `image`, and `style` (background-color) attributes. 4 variants (V7 C 4x2, V7 C 4x4, V9 L 4x4, V9 S 4x4) each get 8 colors (1 standard + 7 premium at +$690). **Aumark S** — 24 truck variants at `/trucks/series/aumark-s/` come in White only; hero images scraped from static `<img>` tags per variant. Brochure/spec sheet PDFs extracted per-variant and stored in `cta_links`. All synced dynamically via `syncFoton()` in `all-oem-sync.ts` on daily cron.
 
 ### Enrichment (3 scripts)
 
@@ -278,7 +278,7 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 | Chevrolet US colorizer API | gmsv-au | Corvettes use US API at `/content/gm/api/services/colorizerContent`. Endpoint or schema could change with GM platform updates. |
 | Flipbook frame format | gmsv-au | Corvette hero images use 3-digit frame numbers (`001`). If GM changes render pipeline, frame numbering may shift. |
 | ZR2 fallback hero | gmsv-au | Silverado ZR2 has no per-color jelly renders. Uses generic vehicle image from nav menu as fallback. |
-| Color dot HTML structure | foton-au | Color data in `colours_wrapper__colourDots__dot` divs with `label`/`image` attributes. Any page redesign breaks extraction. |
+| Color dot HTML structure | foton-au | Tunland: color data in `colours_wrapper__colourDots__dot` divs with `label`/`image` attributes. Aumark S: dots use `template="dot_template"` (JS-populated, empty in HTML) — trucks are White only. Brochure PDFs linked via `SPEC SHEET`/`DOWNLOAD BROCHURE` anchor text near each variant. Any page redesign breaks extraction. |
 
 ## Database Tables Affected
 

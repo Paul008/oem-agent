@@ -25,12 +25,12 @@ const OEM_ID = 'foton-au'
 const BASE_URL = 'https://www.fotonaustralia.com.au'
 const TUNLAND_URL = `${BASE_URL}/ute/tunland/`
 
-// Map image URL substring → variant identifier
+// Map image URL substring → variant identifier (order matters: more specific first)
 const VARIANT_MAP = {
-  'v7-c-4x2': 'V7 4x2',
-  'v7-4x2': 'V7 4x2',
-  'v7-c-4x4': 'V7 4x4',
-  'v7-4x4': 'V7 4x4',
+  'v7-c-4x2': 'V7 C 4x2',
+  'v7-4x2': 'V7 C 4x2',
+  'v7-c-4x4': 'V7 C 4x4',
+  'v7-4x4': 'V7 C 4x4',
   'v9-l-4x4': 'V9 L 4x4',
   'v9-s-4x4': 'V9 S 4x4',
 }
@@ -44,15 +44,12 @@ function detectVariant(imageUrl) {
 }
 
 function matchProduct(products, variant) {
+  // Products are "Tunland V7 C 4x2", "Tunland V9 L 4x4" etc.
+  // Variant strings are "V7 C 4x2", "V9 L 4x4" etc.
   const v = variant.toLowerCase()
   return products.find(p => {
     const title = (p.title || '').toLowerCase()
-    const key = (p.external_key || '').toLowerCase()
-    const s = `${key} ${title}`
-    // Products are "TUNLAND V7" / "TUNLAND V9" — match on model series, not drivetrain
-    if (v.startsWith('v7')) return s.includes('v7') && !s.includes('v9')
-    if (v.startsWith('v9')) return s.includes('v9')
-    return s.includes(v) || s.includes(v.replace(/ /g, '-'))
+    return title.includes(v)
   })
 }
 
