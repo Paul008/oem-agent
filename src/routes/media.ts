@@ -196,6 +196,26 @@ media.get('/pages/assets/:oemId/:modelSlug/:filename', async (c) => {
   return new Response(obj.body, { status: 200, headers });
 });
 
+// GET /media/pages/:oemId/:modelSlug/:filename — PageCapturer generates proxy paths
+// without the /assets/ segment. Serve from the same R2 location.
+media.get('/pages/:oemId/:modelSlug/:filename', async (c) => {
+  const { oemId, modelSlug, filename } = c.req.param();
+  const r2Key = `pages/assets/${oemId}/${modelSlug}/${filename}`;
+  const bucket = (c.env as any).MOLTBOT_BUCKET as R2Bucket;
+
+  const obj = await bucket.get(r2Key);
+  if (!obj) {
+    return c.notFound();
+  }
+
+  const headers = new Headers();
+  headers.set('Content-Type', obj.httpMetadata?.contentType || 'image/jpeg');
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Access-Control-Allow-Origin', '*');
+
+  return new Response(obj.body, { status: 200, headers });
+});
+
 // GET /media/:oemId/:encodedUrl
 media.get('/:oemId/:encodedUrl', async (c) => {
   const { oemId, encodedUrl } = c.req.param();

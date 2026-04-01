@@ -698,7 +698,7 @@ export class PageCapturer {
               httpMetadata: { contentType },
             });
 
-            const proxyPath = `/media/pages/${oemId}/${modelSlug}/${filename}`;
+            const proxyPath = `/media/${r2Key}`;
             urlMapping.set(originalUrl, proxyPath);
           } catch {
             failCount++;
