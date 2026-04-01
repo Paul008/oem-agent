@@ -651,13 +651,10 @@ const FOTON_VARIANT_PATTERNS: Record<string, string> = {
 async function scrapeFotonColors(
   supabase: SupabaseClient,
   tunlandProducts: Array<{ id: string; title: string }>,
+  html: string,
 ): Promise<number> {
   let count = 0;
   try {
-    const res = await fetch(`${FOTON_BASE}/ute/tunland/`);
-    if (!res.ok) return 0;
-    const html = await res.text();
-
     // Extract color dot elements with label, image, bg-color
     const dotRegex = /<div\s[^>]*colours_wrapper__colourDots__dot[^>]*>/gi;
     const dots = [...html.matchAll(dotRegex)];
@@ -676,9 +673,10 @@ async function scrapeFotonColors(
         if (imgLower.includes(pattern)) { variantKey = key; break; }
       }
       if (!variantKey) continue;
+      const matchKey = variantKey;
 
       // Match to product by title
-      const product = tunlandProducts.find(p => p.title.toLowerCase().includes(variantKey!));
+      const product = tunlandProducts.find(p => p.title.toLowerCase().includes(matchKey));
       if (!product) continue;
 
       const colorName = label.replace(/\*$/, '').trim();
@@ -707,13 +705,10 @@ async function scrapeFotonColors(
 async function scrapeFotonAumarkWhite(
   supabase: SupabaseClient,
   aumarkProducts: Array<{ id: string; title: string }>,
+  html: string,
 ): Promise<number> {
   let count = 0;
   try {
-    const res = await fetch(`${FOTON_BASE}/trucks/series/aumark-s/`);
-    if (!res.ok) return 0;
-    const html = await res.text();
-
     // Extract variant names and hero images in page order
     const variantNames = [...html.matchAll(/versionCar">([^<]+)</g)].map(m => m[1].trim().toLowerCase());
     const heroImages = [...html.matchAll(/showcase_container__iframe"[^>]*src="([^"]+)"/g)].map(m => `${FOTON_BASE}${m[1]}`);
@@ -745,14 +740,10 @@ async function scrapeFotonAumarkWhite(
 async function syncFotonBrochures(
   supabase: SupabaseClient,
   allProducts: Array<{ id: string; title: string }>,
+  tunlandHtml: string,
+  aumarkHtml: string,
 ): Promise<void> {
   try {
-    const [tunlandRes, aumarkRes] = await Promise.all([
-      fetch(`${FOTON_BASE}/ute/tunland/`),
-      fetch(`${FOTON_BASE}/trucks/series/aumark-s/`),
-    ]);
-    if (!tunlandRes.ok || !aumarkRes.ok) return;
-    const [tunlandHtml, aumarkHtml] = await Promise.all([tunlandRes.text(), aumarkRes.text()]);
 
     // Extract variant→PDF from page HTML (variant name appears before its PDF link)
     function extractBrochureMap(html: string): Map<string, string> {
@@ -795,7 +786,11 @@ async function syncFotonBrochures(
         });
       }
 
-      await supabase.from('products').update({ cta_links: ctaLinks }).eq('id', product.id);
+      // Merge with existing cta_links — preserve non-brochure/warranty entries from other sources
+      const { data: existing } = await supabase.from('products').select('cta_links').eq('id', product.id).single();
+      const existingLinks = (existing?.cta_links as Array<{ label: string; url: string; type: string }>) || [];
+      const otherLinks = existingLinks.filter(l => l.type !== 'brochure' && l.type !== 'warranty');
+      await supabase.from('products').update({ cta_links: [...otherLinks, ...ctaLinks] }).eq('id', product.id);
     }
   } catch (e) {
     console.warn('[syncFoton] Brochure scrape failed:', e);
@@ -811,16 +806,24 @@ async function syncFoton(supabase: SupabaseClient): Promise<AllOemSyncResult['fo
       .from('products').select('id, title, price_amount').eq('oem_id', OEM_ID);
     if (!dbProducts?.length) { result.errors.push('No Foton products in DB'); return result; }
 
+    // Fetch both pages once, pass HTML to helpers (avoids duplicate fetches)
+    const [tunlandRes, aumarkRes] = await Promise.all([
+      fetch(`${FOTON_BASE}/ute/tunland/`).catch(() => null),
+      fetch(`${FOTON_BASE}/trucks/series/aumark-s/`).catch(() => null),
+    ]);
+    const tunlandHtml = tunlandRes?.ok ? await tunlandRes.text() : '';
+    const aumarkHtml = aumarkRes?.ok ? await aumarkRes.text() : '';
+
     // Sync Tunland colors from Foton website (8 colors per variant)
     const tunlandProducts = dbProducts.filter(p => p.title.toLowerCase().includes('tunland'));
-    result.colors = await scrapeFotonColors(supabase, tunlandProducts);
+    if (tunlandHtml) result.colors = await scrapeFotonColors(supabase, tunlandProducts, tunlandHtml);
 
     // Aumark S trucks come in white only — scrape hero images from the series page
     const aumarkProducts = dbProducts.filter(p => !p.title.toLowerCase().includes('tunland'));
-    result.colors += await scrapeFotonAumarkWhite(supabase, aumarkProducts);
+    if (aumarkHtml) result.colors += await scrapeFotonAumarkWhite(supabase, aumarkProducts, aumarkHtml);
 
     // Sync brochure/spec sheet links from both pages
-    await syncFotonBrochures(supabase, dbProducts);
+    if (tunlandHtml || aumarkHtml) await syncFotonBrochures(supabase, dbProducts, tunlandHtml, aumarkHtml);
 
     // Build a map from variant name → product id (normalise to match API response)
     const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
