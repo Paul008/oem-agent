@@ -116,6 +116,18 @@ function displayImage(b: Banner) {
   return b.image_url_desktop || b.image_url_mobile || null
 }
 
+function formatDate(ts: string | null | undefined): string {
+  if (!ts) return '-'
+  const d = new Date(ts)
+  const now = Date.now()
+  const diffH = Math.round((now - d.getTime()) / 3600000)
+  if (diffH < 1) return 'just now'
+  if (diffH < 24) return diffH + 'h ago'
+  const diffD = Math.round(diffH / 24)
+  if (diffD < 7) return diffD + 'd ago'
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: diffD > 365 ? 'numeric' : undefined })
+}
+
 function openPreview(b: Banner) {
   previewBanner.value = b
   previewMode.value = 'desktop'
@@ -350,6 +362,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               <span v-if="banner.image_url_mobile" class="flex items-center gap-0.5">
                 <Smartphone class="size-2.5" /> Mobile
               </span>
+              <span class="text-muted-foreground/60">·</span>
+              <span :title="banner.updated_at || banner.created_at || ''">
+                {{ formatDate(banner.updated_at || banner.created_at) }}
+              </span>
             </div>
             <span class="truncate max-w-[140px]">
               {{ banner.page_url?.replace(/^https?:\/\/[^/]+/, '') || '-' }}
@@ -500,6 +516,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                       <ExternalLink class="size-3" />
                       {{ previewBanner.page_url.replace(/^https?:\/\/[^/]+/, '') || '/' }}
                     </a>
+                    <span class="text-xs text-muted-foreground" :title="previewBanner.created_at || ''">
+                      {{ formatDate(previewBanner.updated_at || previewBanner.created_at) }}
+                    </span>
                     <span class="text-xs text-muted-foreground">
                       {{ previewIndex + 1 }} / {{ filtered.length }}
                     </span>

@@ -138,7 +138,8 @@ Return JSON result in this format:
       {
         "position": 0,
         "headline": "New Model Launch",
-        "image_url_desktop": "https://...",
+        "image_url_desktop": "https://cdn.example.com/banner-1920x720.webp",
+        "image_url_mobile": "https://cdn.example.com/banner-600x450.webp",
         "cta_url": "/vehicles/new-model/",
         "cta_text": "Explore Now"
       }
@@ -166,6 +167,7 @@ Return JSON result in this format:
 
 ## Safety Guardrails
 
+- **Always extract both desktop AND mobile images** — the extraction engine's `extractMobileImageUrl()` handles 6 patterns: `<picture><source media="(max-width:...)">`, `<img srcset>`, `data-mobile` attrs, bg-image mobile classes, secondary picture sources, and filename hints (mobile/mob/600x). If mobile image is missing, flag as incomplete.
 - Never delete existing banners (only upsert/update)
 - Never modify `registry.ts` code (store overrides in Supabase instead)
 - `selector_overrides` expire after 30 days (force re-validation)
