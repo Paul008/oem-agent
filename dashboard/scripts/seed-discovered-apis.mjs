@@ -1010,9 +1010,19 @@ const apis = [
   },
   // ═══════════════ RENAULT ═══════════════
   { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/scenic-e-tech/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/koleos/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/duster/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/megane-e-tech/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/arkana/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/master-van/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/kangoo/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/kangoo-e-tech/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/trafic/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
   { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/special-offers/page-data.json', method: 'GET', data_type: 'offers', reliability_score: 0.9, status: 'verified' },
   { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/news/page-data.json', method: 'GET', data_type: 'news', reliability_score: 0.9, status: 'verified' },
   { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/build-and-price/page-data.json', method: 'GET', data_type: 'configurator', reliability_score: 0.8, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/fleet/page-data.json', method: 'GET', data_type: 'fleet', reliability_score: 0.7, status: 'verified' },
 ]
 
 async function seed() {

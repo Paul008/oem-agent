@@ -248,7 +248,7 @@
     {
       "id": "token-refresh",
       "name": "Monthly Token Refresh Crawl",
-      "description": "Monthly crawl of all 18 OEM sites for fresh CSS tokens — colors, typography, spacing, border-radius. Stores diffs for manual review.",
+      "description": "Monthly crawl of all 19 OEM sites for fresh CSS tokens — colors, typography, spacing, border-radius. Stores diffs for manual review.",
       "schedule": "0 16 15 * *",
       "timezone": "UTC",
       "skill": "token-refresh",

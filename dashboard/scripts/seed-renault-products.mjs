@@ -55,18 +55,19 @@ function mapOfferType(category) {
 async function seed() {
   console.log('=== Renault Australia Seed ===\n')
 
-  // ── 0. Ensure OEM record exists ──
-  const { error: oemErr } = await supabase
-    .from('oems')
-    .upsert({
-      id: OEM_ID,
-      name: 'Renault Australia',
-      base_url: BASE,
-      is_active: true,
-      config_json: { platform: 'gatsby', cms: 'i-motor' },
-    }, { onConflict: 'id' })
-  if (oemErr) { console.error('OEM upsert error:', oemErr.message); process.exit(1) }
-  console.log('OEM record ensured: renault-au')
+  // ── 0. Verify OEM record exists (created by migration, not overwritten here) ──
+  const { data: oemCheck } = await supabase.from('oems').select('id').eq('id', OEM_ID).single()
+  if (!oemCheck) {
+    // Fallback: create if migration hasn't run yet
+    const { error: oemErr } = await supabase.from('oems').insert({
+      id: OEM_ID, name: 'Renault Australia', base_url: BASE, is_active: true,
+      config_json: { homepage: '/', vehicles_index: '/vehicles/', offers: '/special-offers/', news: '/news/', brand_colors: ['#EFDF00', '#000000'], framework: 'gatsby', platform: 'imotor', notes: 'Gatsby 5.14.6 + i-motor CMS (same platform as LDV).' },
+    })
+    if (oemErr) { console.error('OEM insert error:', oemErr.message); process.exit(1) }
+    console.log('OEM record created: renault-au')
+  } else {
+    console.log('OEM record exists: renault-au')
+  }
 
   // ── 1. Fetch models listing ──
   console.log('Fetching models listing...')
@@ -302,6 +303,7 @@ async function seed() {
         description: (s.shortContent || '').replace(/<[^>]+>/g, '').trim() || null,
         disclaimer_text: (s.contentDisclaimer || '').replace(/<[^>]+>/g, '').trim() || null,
         disclaimer_html: s.contentDisclaimer || null,
+        hero_image_r2_key: s.smallImage?.srcFallback || null,
         applicable_models: linkSlug ? [linkSlug] : [],
         source_url: `${BASE}/special-offers/`,
         cta_url: s.linkUrl ? `${BASE}/${s.linkUrl.replace(/^\//, '')}` : null,
