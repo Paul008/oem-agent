@@ -247,7 +247,8 @@ export function extractWithSelectors(
         cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
         cta_url: $slide.find('.kv_btn, a.cta, a').first().attr('href') || null,
         image_url_desktop: extractImageUrl($slide, $) || '',
-        image_url_mobile: $slide.find('picture source[media*="320"]').attr('srcset') || null,
+        image_url_mobile: extractBgImageUrl($slide, '.bg-image-default, .bg-image:last-child') ||
+                          $slide.find('picture source[media*="320"]').attr('srcset') || null,
         disclaimer_text: $slide.find('.disclaimer, small').first().text().trim() || null,
       };
       bannerSlides.push(slide);
@@ -586,11 +587,18 @@ function extractImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.Cheerio
   // Try various image sources
   const src = $el.find('img').attr('src') ||
               $el.find('img').attr('data-src') ||
-              $el.find('[style*="background-image"]').css('background-image')?.
-                replace(/^url\(["']?/, '').replace(/["']?\)$/, '') ||
+              extractBgImageUrl($el, '[style*="background-image"]') ||
               $el.attr('src');
-  
+
   return src || null;
+}
+
+/** Extract background-image URL from inline style attribute within a container */
+function extractBgImageUrl($container: ReturnType<cheerio.CheerioAPI>, selector: string): string | null {
+  const el = $container.find(selector).first();
+  const style = el.attr('style') || '';
+  const match = style.match(/background-image:\s*url\(["']?([^"')]+)["']?\)/);
+  return match?.[1] || null;
 }
 
 function resolveUrl(href: string, baseUrl: string): string {

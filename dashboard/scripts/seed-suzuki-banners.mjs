@@ -1,14 +1,14 @@
 /**
- * Seed Suzuki banners for /home/ (hero carousel) and /latest-offers/ (hero banner).
+ * Seed Suzuki banners from suzuki.com.au using Puppeteer.
  *
- * /home/ has 3 slick carousel slides (e VITARA, JIMNY, Swift Hybrid) with desktop+mobile bg images.
- * /latest-offers/ has 1 hero banner (Vitara "SPACETACULAR") with responsive images.
- *
- * Also updates the existing root `/` banner page_url to `/` (video landing) and keeps video.
+ * Suzuki's hero carousel is client-rendered (JS injects bg-image styles).
+ * /home/ has a slick carousel (hb-2025-refresh) with desktop+mobile bg images.
+ * /latest-offers/ has a hero image and offer cards.
  *
  * Run: cd dashboard && node scripts/seed-suzuki-banners.mjs
  */
 import { createClient } from '@supabase/supabase-js'
+import puppeteer from 'puppeteer'
 
 const sb = createClient(
   'https://nnihmdmsglkxpmilmjjc.supabase.co',
@@ -18,119 +18,159 @@ const sb = createClient(
 const BASE = 'https://www.suzuki.com.au'
 const now = new Date().toISOString()
 
-// === /home/ hero carousel — 3 slides ===
-const homeSlides = [
-  {
+async function scrapeHomepage(page) {
+  console.log('Navigating to Suzuki /home/...')
+  await page.goto(`${BASE}/home/`, { waitUntil: 'networkidle2', timeout: 60000 })
+  await new Promise(r => setTimeout(r, 4000))
+
+  const slides = await page.evaluate((base) => {
+    const results = []
+    document.querySelectorAll('.hb-2025-refresh__item').forEach((item, i) => {
+      // Desktop + mobile bg-image divs
+      const bgDivs = item.querySelectorAll('.bg-image, [style*="background-image"]')
+      let desktop = null, mobile = null
+      bgDivs.forEach(div => {
+        const style = div.getAttribute('style') || ''
+        const match = style.match(/background-image:\s*url\(["']?([^"')]+)["']?\)/)
+        if (!match) return
+        const url = match[1].startsWith('http') ? match[1] : base + match[1]
+        // First bg-image is desktop (wider), second is mobile (taller)
+        if (!desktop) desktop = url
+        else if (!mobile) mobile = url
+      })
+
+      const h = item.querySelector('h1, h2, .hb-2025-refresh__title')
+      const sub = item.querySelector('.hb-2025-refresh__subtitle, .hb-2025-refresh__text p')
+      const cta = item.querySelector('a.btn, a[class*="cta"], a[class*="button"]')
+
+      if (desktop || mobile) {
+        results.push({
+          position: i,
+          headline: h?.textContent?.trim() || null,
+          sub_headline: sub?.textContent?.trim() || null,
+          cta_text: cta?.textContent?.trim() || null,
+          cta_url: cta?.href || null,
+          image_url_desktop: desktop,
+          image_url_mobile: mobile,
+        })
+      }
+    })
+    return results
+  }, BASE)
+
+  console.log(`  Found ${slides.length} hero slides`)
+  return slides.map(s => ({
     oem_id: 'suzuki-au',
     page_url: `${BASE}/home/`,
-    position: 0,
-    headline: 'e VITARA',
-    sub_headline: '100% ELECTRIC ADVENTURE',
-    cta_text: 'REGISTER YOUR INTEREST',
-    cta_url: `${BASE}/vehicles/electric/e-vitara/ryi`,
-    image_url_desktop: `${BASE}/wp-content/uploads/2026/02/Group-325-2280x1600.webp`,
-    image_url_mobile: `${BASE}/wp-content/uploads/2026/02/image-185-1280x1380.webp`,
+    ...s,
     last_seen_at: now,
-  },
-  {
+  }))
+}
+
+async function scrapeOffers(page) {
+  console.log('Navigating to Suzuki /latest-offers/...')
+  await page.goto(`${BASE}/latest-offers/`, { waitUntil: 'networkidle2', timeout: 60000 })
+  await new Promise(r => setTimeout(r, 3000))
+
+  const banners = await page.evaluate((base) => {
+    const results = []
+    // Hero banner — largest image on the page
+    const imgs = [...document.querySelectorAll('img')]
+      .filter(i => i.src?.includes('wp-content/uploads') && i.naturalHeight > 400)
+      .sort((a, b) => (b.naturalWidth * b.naturalHeight) - (a.naturalWidth * a.naturalHeight))
+
+    if (imgs.length > 0) {
+      const hero = imgs[0]
+      const parent = hero.closest('section, [class*="hero"], [class*="banner"]')
+      const h = parent?.querySelector('h1, h2')
+      results.push({
+        position: 0,
+        headline: h?.textContent?.trim() || hero.alt || 'Latest Offers',
+        image_url_desktop: hero.src,
+      })
+    }
+    return results
+  }, BASE)
+
+  console.log(`  Found ${banners.length} offers banners`)
+  return banners.map(b => ({
     oem_id: 'suzuki-au',
-    page_url: `${BASE}/home/`,
-    position: 1,
-    headline: 'JIMNY',
-    sub_headline: 'JIMNY GOES WHERE JIMNY WANTS',
-    cta_text: 'EXPLORE JIMNY',
-    cta_url: `${BASE}/vehicles/4x4/jimny/`,
-    image_url_desktop: `${BASE}/wp-content/uploads/2023/08/SUZ895-WebsiteBanner-Desktop-2280x1600-Jimny-v1.1-2280x1600.webp`,
-    image_url_mobile: `${BASE}/wp-content/uploads/2023/08/SUZ895-WebsiteBanner-Mobile-1280x1380-Jimny-v1.1-1280x1380.webp`,
+    page_url: `${BASE}/latest-offers/`,
+    ...b,
     last_seen_at: now,
-  },
-  {
-    oem_id: 'suzuki-au',
-    page_url: `${BASE}/home/`,
-    position: 2,
-    headline: 'Swift Hybrid',
-    sub_headline: 'WHAT DRIVES A CHAMPION?',
-    cta_text: 'FIND OUT HOW',
-    cta_url: `${BASE}/vehicles/hatch/swift-hybrid/`,
-    image_url_desktop: `${BASE}/wp-content/uploads/2025/06/2280x1600-3-2280x1600.webp`,
-    image_url_mobile: `${BASE}/wp-content/uploads/2025/06/1280x1380-5-1280x1380.webp`,
-    last_seen_at: now,
-  },
-]
-
-// === /latest-offers/ hero banner ===
-const offersBanner = {
-  oem_id: 'suzuki-au',
-  page_url: `${BASE}/latest-offers/`,
-  position: 0,
-  headline: 'SPACETACULAR',
-  sub_headline: 'EVEN MADE UP WORDS CANNOT DESCRIBE VITARA.',
-  cta_text: 'BOOK A TEST DRIVE',
-  cta_url: `${BASE}/book-test-drive/`,
-  image_url_desktop: `${BASE}/wp-content/uploads/2025/05/Latest-Offer-Desktop-1920x768.webp`,
-  image_url_mobile: `${BASE}/wp-content/uploads/2023/08/Latest-Offer-Mobile-1200x675.webp`,
-  last_seen_at: now,
+  }))
 }
 
-// Delete existing /home/ and /latest-offers/ banners
-console.log('Deleting existing Suzuki /home/ and /latest-offers/ banners...')
-const { error: delErr1 } = await sb
-  .from('banners')
-  .delete()
-  .eq('oem_id', 'suzuki-au')
-  .eq('page_url', `${BASE}/home/`)
+async function main() {
+  console.log('\n=== Suzuki Banner Seed (Puppeteer) ===\n')
 
-const { error: delErr2 } = await sb
-  .from('banners')
-  .delete()
-  .eq('oem_id', 'suzuki-au')
-  .eq('page_url', `${BASE}/latest-offers/`)
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  })
 
-if (delErr1) console.error('Delete /home/ error:', delErr1.message)
-if (delErr2) console.error('Delete /latest-offers/ error:', delErr2.message)
+  let allBanners = []
 
-// Insert /home/ slides
-const { data: homeData, error: homeErr } = await sb
-  .from('banners')
-  .insert(homeSlides)
-  .select('id, position, headline')
+  try {
+    const page = await browser.newPage()
+    await page.setViewport({ width: 1920, height: 1080 })
 
-if (homeErr) {
-  console.error('Insert /home/ error:', homeErr.message)
-} else {
-  console.log(`Inserted ${homeData.length} /home/ banners:`)
-  for (const b of homeData) console.log(`  [${b.position}] ${b.headline}`)
+    const homeBanners = await scrapeHomepage(page)
+    const offersBanners = await scrapeOffers(page)
+    allBanners = [...homeBanners, ...offersBanners]
+  } finally {
+    await browser.close()
+  }
+
+  if (allBanners.length === 0) {
+    console.log('No banners found — aborting.')
+    return
+  }
+
+  // Verify all images load before inserting
+  console.log('\nVerifying image URLs...')
+  let broken = 0
+  for (const b of allBanners) {
+    for (const field of ['image_url_desktop', 'image_url_mobile']) {
+      const url = b[field]
+      if (!url) continue
+      try {
+        const res = await fetch(url, { method: 'HEAD' })
+        const ok = res.status === 200
+        console.log(`  ${ok ? '✓' : '✗ ' + res.status} ${field === 'image_url_desktop' ? 'desk' : 'mob '} ${b.headline || '(none)'}`)
+        if (!ok) { b[field] = null; broken++ }
+      } catch { b[field] = null; broken++ }
+    }
+  }
+  if (broken) console.log(`  ${broken} broken URLs nulled out`)
+
+  // Filter out banners with no images at all
+  allBanners = allBanners.filter(b => b.image_url_desktop || b.image_url_mobile)
+
+  // Delete ALL existing Suzuki banners and re-insert
+  console.log('\nDeleting all existing Suzuki banners...')
+  const { data: deleted } = await sb.from('banners').delete().eq('oem_id', 'suzuki-au').select('id')
+  console.log(`  Deleted ${deleted?.length || 0} old banners`)
+
+  console.log(`Inserting ${allBanners.length} fresh banners...`)
+  const { error: insErr } = await sb.from('banners').insert(allBanners)
+  if (insErr) {
+    console.error('Insert error:', insErr.message)
+    return
+  }
+
+  // Verify
+  const { data: final } = await sb.from('banners')
+    .select('page_url, position, headline, image_url_desktop, image_url_mobile, updated_at')
+    .eq('oem_id', 'suzuki-au')
+    .order('page_url').order('position')
+
+  console.log(`\n=== ${final.length} Suzuki banners in DB ===`)
+  for (const b of final) {
+    const d = b.image_url_desktop ? '✓desk' : '✗desk'
+    const m = b.image_url_mobile ? '✓mob' : '✗mob'
+    console.log(`  ${b.page_url.replace(BASE, '')} #${b.position} ${(b.headline || '').padEnd(25)} ${d} ${m} ${b.updated_at?.substring(0, 19)}`)
+  }
 }
 
-// Insert /latest-offers/ banner
-const { data: offData, error: offErr } = await sb
-  .from('banners')
-  .insert([offersBanner])
-  .select('id, position, headline')
-
-if (offErr) {
-  console.error('Insert /latest-offers/ error:', offErr.message)
-} else {
-  console.log(`Inserted ${offData.length} /latest-offers/ banner:`)
-  for (const b of offData) console.log(`  [${b.position}] ${b.headline}`)
-}
-
-// Verify totals
-const { count } = await sb
-  .from('banners')
-  .select('*', { count: 'exact', head: true })
-  .eq('oem_id', 'suzuki-au')
-
-console.log(`\nTotal Suzuki banners: ${count}`)
-
-// Show all
-const { data: all } = await sb
-  .from('banners')
-  .select('page_url, position, headline, image_url_desktop, video_url_desktop')
-  .eq('oem_id', 'suzuki-au')
-  .order('page_url, position')
-
-for (const b of all || []) {
-  const vid = b.video_url_desktop ? ' [VIDEO]' : ''
-  console.log(`  ${b.page_url} [${b.position}] ${b.headline}${vid}`)
-}
+main().catch(e => { console.error('Fatal:', e); process.exit(1) })

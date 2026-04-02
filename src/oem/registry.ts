@@ -365,11 +365,11 @@ export const suzukiAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/vehicles/"]',
-    heroSlides: '.hero, [class*="hero"]',
+    heroSlides: '.hb-2025-refresh__item',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: false, // WordPress SSR — plain fetch gets full HTML, browser rendering returns 404s
+    requiresBrowserRendering: true, // Hero carousel images injected by JS from data-respim attrs
     framework: 'wordpress',
   },
 };
