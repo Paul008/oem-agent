@@ -1,11 +1,11 @@
 ---
 name: oem-orchestrator
-description: Traffic Controller — central orchestrator that monitors, retries, and escalates across all 18 OEMs autonomously
+description: Traffic Controller — central orchestrator that monitors, retries, and escalates across all 19 OEMs autonomously
 ---
 
 # OEM Orchestrator (Traffic Controller)
 
-Central intelligence skill that provides autonomous oversight of all 18 OEMs. Runs every 2 hours via OpenClaw cron, with on-demand access via admin API.
+Central intelligence skill that provides autonomous oversight of all 19 OEMs. Runs every 2 hours via OpenClaw cron, with on-demand access via admin API.
 
 ## Capabilities
 
@@ -64,7 +64,7 @@ Central intelligence skill that provides autonomous oversight of all 18 OEMs. Ru
 | `oem-agent-hooks` (memory_sync) | Every 30min | R2 backup of OEM configs + discovered APIs |
 | `oem-agent-hooks` (generate_report) | Monday 9am | Weekly metrics digest to Slack |
 | `oem-data-sync` | Daily 3am | Color + pricing sync (Kia, Hyundai, Mazda, Mitsubishi, VW + generic) |
-| `oem-extract` | Daily 6am | Page crawling across all 18 OEMs |
+| `oem-extract` | Daily 6am | Page crawling across all 19 OEMs |
 | `oem-brand-ambassador` | Tuesday 4am | AI page generation (respects manual edits) |
 
 ## Status Classification

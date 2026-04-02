@@ -11,7 +11,7 @@ Multi-OEM automotive intelligence platform running OpenClaw on Cloudflare Worker
 - R2-backed conversation persistence
 - Headless browser automation via Lightpanda (primary, raw CDP WebSocket) with Cloudflare Browser Rendering fallback
 - Supabase for structured data storage
-- Scheduled crawls for 18 Australian automotive manufacturers
+- Scheduled crawls for 19 Australian automotive manufacturers
 - Dashboard UI for monitoring (Cloudflare Pages, shadcn-vue-admin)
 - Recipe Design System: screenshot-to-component pipeline with brand token crawling, style guides, and design health monitoring
 - 36 plans, 18 phases, 5 milestones completed (v1.0-v5.0)
@@ -100,10 +100,10 @@ r2://oem-agent-assets/
 | `discovered_apis` | 58+ | API endpoints per OEM (unique: oem_id, url) |
 | `source_pages` | 231 | URLs monitored for changes |
 | `change_events` | 516 | Audit log of detected changes |
-| `offers` | 302 | Promotional offers across all 18 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
+| `offers` | 302 | Promotional offers across all 19 OEMs — auto-updated by crawl every 4h. Fields: hero_image_r2_key, abn_price_amount, saving_amount, last_seen_at. Upserted by `orchestrator.upsertOffer()` |
 | `extraction_runs` | — | Design pipeline run history (quality_score, cost, per oem_id + model_slug) |
 | `import_runs` | 1823 | Crawl job tracking |
-| `banners` | 176 | Homepage/offers hero banners (all 18 OEMs), 100% with desktop images |
+| `banners` | 176 | Homepage/offers hero banners (all 19 OEMs), 100% with desktop images |
 | `oem_portals` | 31 | Marketing portal credentials per OEM (sourced from Monday.com) |
 
 **Entity Hierarchy:**
@@ -160,7 +160,7 @@ oems → vehicle_models → products → variant_colors
 | `stock-health.vue` | Stock Health | Data freshness, stale product detection, crawl coverage per OEM |
 | `cron.vue` | Cron Jobs | OpenClaw cron job status, history, manual triggers |
 | `dealer-api.vue` | Dealer API | WP-compatible dealer API endpoint testing and docs |
-| `banners.vue` | Banners | Homepage/offers hero banners for all 18 OEMs |
+| `banners.vue` | Banners | Homepage/offers hero banners for all 19 OEMs |
 | `specs.vue` | Specs | Technical specifications browser with category filters |
 | `variants.vue` | Variants | Variant-level product data explorer |
 | `media.vue` | Media | R2 media browser and upload interface |
@@ -182,7 +182,7 @@ The Recipe Design System is the full screenshot-to-component pipeline built acro
 2. **Recipe Extraction** (`src/design/recipe-extractor.ts`): Takes a screenshot URL, uses vision AI to identify UI patterns, classifies section type, and extracts structured recipe JSON.
 3. **Component Generation** (`src/design/component-generator.ts`): Transforms recipe JSON + brand tokens into production HTML/CSS components using Claude Sonnet. Supports OEM-specific theming.
 4. **Style Guides** (`dashboard/src/pages/dashboard/style-guide.vue`): Per-OEM style guide pages with live `@font-face` loading from R2-hosted OEM fonts, token visualization, and brand color palettes.
-5. **Design Health** (`dashboard/src/pages/dashboard/design-health.vue`): Dashboard for monitoring design drift, quality scores, and brand compliance across all 18 OEMs.
+5. **Design Health** (`dashboard/src/pages/dashboard/design-health.vue`): Dashboard for monitoring design drift, quality scores, and brand compliance across all 19 OEMs.
 
 **Key Features**:
 - Screenshot-to-recipe extraction via vision AI (Gemini 2.5 Pro)
@@ -218,7 +218,7 @@ The Recipe Design System is the full screenshot-to-component pipeline built acro
 - **History**: Undo/redo system with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z), history panel
 - **Copy/paste**: Section clipboard (copy JSON, paste from clipboard), cross-page section reuse
 - **Template gallery**: In-editor Sheet drawer + landing page at `/dashboard/page-builder/`
-  - Fetches sections from all 18 OEM generated pages via Worker API
+  - Fetches sections from all 19 OEM generated pages via Worker API
   - 10 curated OEM-branded templates (Kia dark hero, Toyota split CTA, Hyundai tech tabs, etc.)
   - Filter by OEM, section type, search query
 - **Subpages**: Convention-based `{modelSlug}--{subpageSlug}` stored flat in R2
@@ -236,7 +236,7 @@ The Recipe Design System is the full screenshot-to-component pipeline built acro
 |-------|---------|----------------|
 | **cloudflare-browser** | Browser automation | CDP control, screenshots, videos, network monitoring |
 | **oem-agent-hooks** | Lifecycle hooks | Health monitoring (4h), memory sync to R2 (30min), weekly Slack report (Mon 9am) |
-| **oem-orchestrator** | Traffic Controller | Central orchestrator — monitors 18 OEMs (2h), auto-retries failures with backoff, Slack escalation |
+| **oem-orchestrator** | Traffic Controller | Central orchestrator — monitors 19 OEMs (2h), auto-retries failures with backoff, Slack escalation |
 | **oem-api-discover** | API discovery | CDP network interception, classify data APIs |
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
 | **oem-build-price-discover** | Configurator discovery | Build & Price URL patterns, API endpoints, DOM selectors |
@@ -244,7 +244,7 @@ The Recipe Design System is the full screenshot-to-component pipeline built acro
 | **oem-data-sync** | Data synchronization | 38 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-design-capture** | Design assets | Vision-based brand analysis using Kimi K2.5 |
 | **oem-extract** | Content parsing | JSON-LD → OG → CSS → LLM fallback extraction |
-| **oem-report** | Reporting | Slack alerts, daily digests across 18 OEMs |
+| **oem-report** | Reporting | Slack alerts, daily digests across 19 OEMs |
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
@@ -256,7 +256,7 @@ The Recipe Design System is the full screenshot-to-component pipeline built acro
 |----------|--------|-------|---------|
 | Sunday 4pm UTC | `design-drift-weekly` | `design-drift-check` | Compare live OEM tokens against stored profiles, flag drift |
 | 1st of month 5am UTC | `recipe-quality-audit` | `recipe-quality-audit` | Score generated components (accessibility, brand, fidelity) |
-| 15th of month 4pm UTC | `token-refresh` | `token-refresh` | Crawl all 18 OEM sites for fresh CSS tokens |
+| 15th of month 4pm UTC | `token-refresh` | `token-refresh` | Crawl all 19 OEM sites for fresh CSS tokens |
 
 ## Scheduled Cron Jobs
 
@@ -538,7 +538,7 @@ wrangler secret list  # List configured secrets
 
 ---
 
-## Monitored OEMs (18)
+## Monitored OEMs (19)
 
 | ID | Name |
 |----|------|
@@ -552,6 +552,7 @@ wrangler secret list  # List configured secrets
 | mazda-au | Mazda Australia |
 | mitsubishi-au | Mitsubishi Motors Australia |
 | nissan-au | Nissan Australia |
+| renault-au | Renault Australia |
 | subaru-au | Subaru Australia |
 | suzuki-au | Suzuki Australia |
 | toyota-au | Toyota Australia |
@@ -645,11 +646,11 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 **Status**: ✅ Production Ready
 **Last Deployment**: 2026-03-29
 **Final State (2026-03-29)**:
-- 18 OEMs ALL complete (incl. Chery AU + VW AU rebuilt from OneHub API)
+- 19 OEMs ALL complete (incl. Chery AU + VW AU rebuilt from OneHub API)
 - 796 products, 179 models, 4,952 colors, 1,158 pricing rows, 2,913 accessories
 - 322 offers (100% images, 100% disclaimers, 68 with HTML formatting)
 - 176 banners (desktop + mobile), 106 brochure PDFs, 231 source pages
-- Universal disclaimer on all 18 OEMs, served via dealer API /catalog endpoint
+- Universal disclaimer on all 19 OEMs, served via dealer API /catalog endpoint
 - Offer detail dialog with collapsible disclaimers, finance breakdown, eligibility
 - Daily all-OEM color + pricing sync (Kia BYO, Hyundai CGI, Mazda, Mitsubishi GQL, VW OneHub)
 - Brand Ambassador protects page builder edits (manually_edited flag)

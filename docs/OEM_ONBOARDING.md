@@ -102,7 +102,7 @@ export const fotonAu: OemDefinition = {
 
 Also update:
 - The `oemRegistry` object: add `'foton-au': fotonAu`
-- The file header comment count (e.g. "18 Australian OEMs")
+- The file header comment count (e.g. "19 Australian OEMs")
 - The `generateOemSeedData()` comment count
 
 ---
@@ -344,6 +344,7 @@ If the OEM's website exposes color data (color names, swatches, vehicle renders 
 
 | Date | OEM | Count | Notes |
 |------|-----|-------|-------|
+| 2026-04-02 | Renault Australia (`renault-au`) | 19 | Gatsby/i-motor (same as LDV), page-data.json APIs, 10 models, 13 offers |
 | 2026-03-19 | Chery Australia (`chery-au`) | 18 | Drupal CMS, 9 models (Tiggo+C5/E5), 17 products, 85 colors, 211 accessories, 7 banners, Omoda sub-brand absorbed |
 | 2026-03-18 | GAC Australia (`gac-au`) | 17 | All 17 OEMs complete. 796 products, 302 offers, 176 banners |
 | 2026-03-17 | LDV Australia (`ldv-au`) full data | 16 | Gatsby page-data.json, 13 models, 11 products, 47 colors, 9 pricing |

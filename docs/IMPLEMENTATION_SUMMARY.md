@@ -20,7 +20,7 @@
 ### 2. TypeScript Types (`src/oem/types.ts`)
 
 **2,100+ lines** of comprehensive TypeScript definitions covering:
-- All 18 OEM IDs with strict typing
+- All 19 OEM IDs with strict typing
 - Product, Offer, Banner entities with full schemas
 - Version tracking (products, offers, banners)
 - Change events and severity levels
@@ -31,7 +31,7 @@
 
 ### 3. OEM Registry (`src/oem/registry.ts`)
 
-Complete configuration for all 18 Australian OEMs:
+Complete configuration for all 19 Australian OEMs:
 | OEM | ID | Base URL | JS-Heavy | Browser Render |
 |-----|-----|----------|----------|----------------|
 | Kia Australia | kia-au | kia.com/au | Yes | Yes (AEM) |
@@ -138,7 +138,7 @@ Each OEM config includes:
 - Quarterly scheduled audit
 
 **Per-OEM Brand Notes (Section 12.6):**
-Complete brand identity notes for all 18 OEMs including:
+Complete brand identity notes for all 19 OEMs including:
 - Corporate colors (Kia red #BB162B, Ford blue #003478, etc.)
 - Typography (custom fonts like KiaSignature, FordAntenna)
 - Design patterns and distinctive elements
@@ -195,7 +195,7 @@ Complete brand identity notes for all 18 OEMs including:
 src/
 ├── oem/
 │   ├── types.ts          # 2,100+ lines of TypeScript definitions
-│   ├── registry.ts       # 18 OEM configurations
+│   ├── registry.ts       # 19 OEM configurations
 │   └── index.ts          # Public API exports
 ├── crawl/
 │   ├── scheduler.ts      # Cost-controlled scheduling

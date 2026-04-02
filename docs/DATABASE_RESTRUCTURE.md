@@ -1,7 +1,7 @@
 # Database Restructure ✅ COMPLETED
 
 **Proposed:** 2026-02-18 | **Completed:** 2026-02-19
-**Current state:** 18 OEMs, 179 vehicle_models, 796 products (100% specs_json), ~4952 variant_colors, ~1158 variant_pricing, 2913 accessories, 2981 accessory_models, 58+ discovered_apis, 322 offers, 176 banners
+**Current state:** 19 OEMs, 179 vehicle_models, 796 products (100% specs_json), ~4952 variant_colors, ~1158 variant_pricing, 2913 accessories, 2981 accessory_models, 58+ discovered_apis, 322 offers, 176 banners
 
 ---
 
@@ -42,7 +42,7 @@ There's no `vehicle_models` table. A "Sportage" is just implied by multiple prod
 ### Core Entity Hierarchy
 
 ```
-oems (18 OEMs)
+oems (19 OEMs)
   └─ vehicle_models (Sportage, EV9, Ranger, etc.)
        └─ vehicle_variants (S Petrol, GT-Line Diesel, etc.)
             ├─ variant_colors (Clear White, Aurora Black Pearl, etc.)
@@ -234,7 +234,7 @@ oems
 ## Migration Status
 
 ### Phase 1: Add new tables ✅ DONE
-1. ✅ Created `vehicle_models` (~179 rows across 18 OEMs)
+1. ✅ Created `vehicle_models` (~179 rows across 19 OEMs)
 2. ✅ Created `variant_colors` (1649 rows)
 3. ✅ Created `variant_pricing` (410 rows with per-state driveaway)
 4. ⏳ `variant_interiors` — not yet created

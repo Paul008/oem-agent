@@ -15,7 +15,7 @@ There are 5 migration files to execute in order:
 1. **`00001_initial_schema.sql`** (495 lines)
    - Creates all core tables
    - Sets up indexes and RLS policies
-   - Seeds 18 OEMs
+   - Seeds 19 OEMs
 
 2. **`00002_ai_inference_log.sql`** (143 lines)
    - Adds AI inference logging table
@@ -23,7 +23,7 @@ There are 5 migration files to execute in order:
    - Creates cost analysis view
 
 3. **`00003_seed_source_pages.sql`** (241 lines)
-   - Seeds ~100 source pages across all 18 OEMs
+   - Seeds ~100 source pages across all 19 OEMs
    - Creates indexes for query performance
 
 4. **`00008_vector_embeddings.sql`** (385 lines)
@@ -108,7 +108,7 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 
 | Table | Purpose |
 |-------|---------|
-| `oems` | OEM registry (18 Australian automotive brands) with config_json.api_docs, design_profile_json |
+| `oems` | OEM registry (19 Australian automotive brands) with config_json.api_docs, design_profile_json |
 | `vehicle_models` | Models per OEM (unique: oem_id, slug). Links OEM → model hierarchy |
 | `products` | Vehicle variants/grades with model_id FK, specs, pricing |
 | `variant_colors` | Colour options per product (unique: product_id, color_code) |
@@ -173,6 +173,7 @@ psql "postgresql://postgres:nnihmdmsglkxpmilmjjc@db.nnihmdmsglkxpmilmjjc.supabas
 | gmsv-au | GMSV Australia | https://www.gmspecialtyvehicles.com |
 | foton-au | Foton Australia | https://www.fotonaustralia.com.au |
 | gac-au | GAC Australia | https://www.gaboroneauto.com.au |
+| renault-au | Renault Australia | https://www.renault.com.au/ |
 
 ### Indexes Created
 

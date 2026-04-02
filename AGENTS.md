@@ -32,7 +32,7 @@ src/
 │   ├── sync.ts       # R2 backup sync logic
 │   └── utils.ts      # Shared utilities (waitForProcess)
 ├── oem/              # OEM definitions
-│   ├── types.ts      # OemId union type (18 OEMs)
+│   ├── types.ts      # OemId union type (19 OEMs)
 │   └── registry.ts   # OEM definitions + registry entries
 ├── design/           # Recipe Design System pipeline
 │   ├── index.ts      # Design module exports
@@ -201,7 +201,7 @@ All pages are in `dashboard/src/pages/dashboard/`:
 | Page | Description |
 |------|-------------|
 | `index.vue` | Overview — summary stats and counts |
-| `oems.vue` | OEM registry (18 manufacturers) |
+| `oems.vue` | OEM registry (19 manufacturers) |
 | `products.vue` | Models & variants — expandable model → variant table |
 | `variants.vue` | Variant-level data explorer |
 | `colors.vue` | Variant colors — grid with hero images, swatch picker, 360 viewer |
@@ -304,7 +304,7 @@ All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
 
 | Table | Purpose | Key Constraints |
 |-------|---------|----------------|
-| `oems` (18) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
+| `oems` (19) | OEM registry | PK: id (e.g. 'ford-au'). Has config_json.api_docs, design_profile_json |
 | `vehicle_models` (~179) | Models per OEM | Unique: oem_id, slug. `brochure_url` (106/179) |
 | `products` (796) | Variants/grades | `specs_json` JSONB (auto-built on every upsert via `orchestrator.buildSpecsJson()`). model_id FK |
 | `variant_colors` (~4952) | Colour options | Unique: product_id, color_code. Auto-synced for all OEMs via `orchestrator.syncVariantColors()` |
@@ -315,11 +315,11 @@ All data is stored in Supabase (https://nnihmdmsglkxpmilmjjc.supabase.co).
 | `discovered_apis` (58+) | API endpoints | Unique: oem_id, url. Has schema_json, reliability_score |
 | `source_pages` | Monitored URLs | |
 | `change_events` | Change audit log | |
-| `offers` (322) | Promotions (all 18 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
+| `offers` (322) | Promotions (all 19 OEMs) | hero_image_r2_key, abn_price_amount, saving_amount |
 | `extraction_runs` | Design pipeline run history | oem_id, model_slug, quality_score, cost tracking |
 | `import_runs` | Crawl jobs | |
 
-**OEM IDs**: chery-au, ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
+**OEM IDs**: chery-au, ford-au, foton-au, gac-au, gmsv-au, gwm-au, hyundai-au, isuzu-au, kgm-au, kia-au, ldv-au, mazda-au, mitsubishi-au, nissan-au, renault-au, subaru-au, suzuki-au, toyota-au, volkswagen-au
 
 ### Dashboard
 - **URL**: https://oem-agent.pages.dev (Cloudflare Pages)

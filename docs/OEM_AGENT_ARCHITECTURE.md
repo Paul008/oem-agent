@@ -19,7 +19,7 @@
 
 ## Overview
 
-The OEM Agent is an intelligent web scraping and monitoring system designed to extract vehicle data (prices, variants, colors, disclaimers) from 18 Australian OEM websites. It runs on OpenClaw within a Cloudflare Sandbox container, leveraging browser automation, AI-powered discovery, and self-healing extraction patterns.
+The OEM Agent is an intelligent web scraping and monitoring system designed to extract vehicle data (prices, variants, colors, disclaimers) from 19 Australian OEM websites. It runs on OpenClaw within a Cloudflare Sandbox container, leveraging browser automation, AI-powered discovery, and self-healing extraction patterns.
 
 ### Key Capabilities
 
@@ -27,7 +27,7 @@ The OEM Agent is an intelligent web scraping and monitoring system designed to e
 - **Self-Healing Extraction**: Selectors that adapt when OEM sites change
 - **Autonomous Recovery**: Crawl Doctor auto-resets error pages, deactivates 404s, archives expired offers, detects stale banners
 - **Banner Self-Healing**: Banner triage agent detects broken selectors, discovers data sources via 5-layer cascade (APIs → network → inline data → AI → escalation)
-- **Cost-Controlled Crawling**: Budget-aware scheduling with render caps; 16/18 OEMs skip browser rendering via hash-based optimization
+- **Cost-Controlled Crawling**: Budget-aware scheduling with render caps; 17/19 OEMs skip browser rendering via hash-based optimization
 - **Parallel Fan-Out**: OEMs crawled in batches of 3 concurrently (scales to 45+ OEMs)
 - **Competitive Intelligence**: Cross-OEM price positioning, segment analysis, market alerts
 - **Real-Time Alerting**: Slack notifications for price/offer changes, stale data, expiring offers
@@ -39,8 +39,8 @@ The OEM Agent is an intelligent web scraping and monitoring system designed to e
 |-----------|------------|---------|
 | Runtime | Cloudflare Sandbox | Container hosting |
 | Agent Framework | OpenClaw | Cron, memory, skills |
-| Browser (Primary) | Lightpanda (headless, raw CDP WebSocket) | Page rendering, 15s timeout, env `LIGHTPANDA_URL`. Only 2/18 OEMs use browser rendering (VW, Toyota) |
-| Browser (Fallback) | Cloudflare Browser Rendering (CDP) | Fallback when Lightpanda unavailable. 16/18 OEMs use cheap fetch only (hash-based render skip) |
+| Browser (Primary) | Lightpanda (headless, raw CDP WebSocket) | Page rendering, 15s timeout, env `LIGHTPANDA_URL`. Only 2/19 OEMs use browser rendering (VW, Toyota) |
+| Browser (Fallback) | Cloudflare Browser Rendering (CDP) | Fallback when Lightpanda unavailable. 17/19 OEMs use cheap fetch only (hash-based render skip) |
 | LLM Inference | Groq (llama-3.3-70b) | Classification, validation |
 | LLM Extraction | Gemini 2.5 Pro | Page structure extraction |
 | LLM Generation | Claude Sonnet 4.5 | Bespoke component generation |
@@ -214,7 +214,7 @@ The OEM Agent runs as skills within OpenClaw, leveraging its automation infrastr
 
 Two cron systems run in parallel. Config: `config/openclaw/cron-jobs.json` and `wrangler.jsonc`.
 
-**Cloudflare Workers Cron** (page crawling — all 18 OEMs per trigger):
+**Cloudflare Workers Cron** (page crawling — all 19 OEMs per trigger):
 
 | Schedule (UTC) | Type | Pages |
 |---------------|------|-------|
@@ -243,7 +243,7 @@ Two cron systems run in parallel. Config: `config/openclaw/cron-jobs.json` and `
 - Per-OEM timeout: 60s with AbortController for cooperative cancellation
 - Per-page timeout: 30s; browser goto: 15s
 - Hash-based render skip: stores `last_hash` on source_pages, skips browser rendering when content unchanged
-- 16/18 OEMs use cheap fetch only (no browser rendering); only VW + Toyota require rendering
+- 17/19 OEMs use cheap fetch only (no browser rendering); only VW + Toyota require rendering
 - `skipRender=true` on admin HTTP endpoints (30s waitUntil budget)
 - Stale run cleanup: marks stuck "running" >10min as timeout every cron cycle
 - try/finally: import_run status always updated, even on crash
@@ -866,7 +866,7 @@ interface CostControlConfig {
 
 ### Cost Estimation
 
-For 18 OEMs with ~20 pages each:
+For 19 OEMs with ~20 pages each:
 
 | Metric | Monthly Estimate |
 |--------|------------------|

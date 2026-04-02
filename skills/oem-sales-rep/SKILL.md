@@ -2,7 +2,7 @@
 name: oem-sales-rep
 description: >
   OEM automotive intelligence assistant for support staff. Query products, offers, pricing,
-  colors, specs, and system health across 18 Australian OEMs. Use the Dealer API at
+  colors, specs, and system health across 19 Australian OEMs. Use the Dealer API at
   https://oem-agent.adme-dev.workers.dev/api/wp/v2/ and the system status API at
   https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/admin/system-status for live data.
 ---
@@ -59,10 +59,10 @@ Base URL: `https://oem-agent.adme-dev.workers.dev`
 | `GET /api/v1/oem-agent/admin/system-status` | Per-OEM health: status, success rate, runs, products, offers |
 
 ### OEM IDs
-`chery-au`, `ford-au`, `foton-au`, `gac-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
+`chery-au`, `ford-au`, `foton-au`, `gac-au`, `gmsv-au`, `gwm-au`, `hyundai-au`, `isuzu-au`, `kgm-au`, `kia-au`, `ldv-au`, `mazda-au`, `mitsubishi-au`, `nissan-au`, `renault-au`, `subaru-au`, `suzuki-au`, `toyota-au`, `volkswagen-au`
 
 ## Platform Totals (as of 2026-03-19)
-- 18 OEMs, 179 models, 796 products
+- 19 OEMs, 179 models, 796 products
 - 4,952 variant colors with hero images
 - 1,158 variant pricing rows (driveaway, 8 AU states)
 - 322 offers (100% images, 100% disclaimers)
@@ -71,7 +71,7 @@ Base URL: `https://oem-agent.adme-dev.workers.dev`
 ## Queryable Data
 
 ### Supabase Tables
-- `oems` — 18 OEM records (id like 'ford-au', 'kia-au')
+- `oems` — 19 OEM records (id like 'ford-au', 'kia-au')
 - `vehicle_models` — Models per OEM (name, body_type, category, model_year)
 - `products` — Variants/grades linked to models via model_id FK
 - `variant_colors` — Colour options per product (color_name, color_code, price_delta)
