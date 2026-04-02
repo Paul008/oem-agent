@@ -157,7 +157,7 @@ export async function handleScheduled(
           const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
           const notifier = new MultiChannelNotifier(env.SLACK_WEBHOOK_URL);
 
-          const allOems = ['kia-au','nissan-au','ford-au','volkswagen-au','mitsubishi-au','ldv-au','isuzu-au','mazda-au','kgm-au','gwm-au','suzuki-au','hyundai-au','toyota-au','subaru-au','gmsv-au','foton-au','gac-au','chery-au'];
+          const allOems = ['kia-au','nissan-au','ford-au','volkswagen-au','mitsubishi-au','ldv-au','isuzu-au','mazda-au','kgm-au','gwm-au','suzuki-au','hyundai-au','toyota-au','subaru-au','gmsv-au','foton-au','gac-au','chery-au','renault-au'];
           let driftCount = 0;
           const errors: string[] = [];
 

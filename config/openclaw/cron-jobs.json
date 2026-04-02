@@ -30,7 +30,7 @@
       "skill": "oem-extract",
       "enabled": true,
       "config": {
-        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au", "nissan-au", "gwm-au", "chery-au"],
+        "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au", "nissan-au", "gwm-au", "chery-au", "renault-au"],
         "extraction_layers": ["L2_FAST_PATH", "L3_ADAPTIVE"],
         "max_concurrent": 3,
         "notify_on_change": true,
@@ -113,7 +113,7 @@
     {
       "id": "oem-data-sync-daily",
       "name": "Daily All-OEM Color + Pricing Sync",
-      "description": "Sync variant colors, pricing, brochures, and driveaway estimates for all 18 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, Foton (Tunland 8-color scrape + Aumark S White + brochure PDFs + pricing API), VW configurator, plus generic pricing refresh for all other OEMs.",
+      "description": "Sync variant colors, pricing, brochures, and driveaway estimates for all 19 OEMs. Kia BYO (8-state driveaway), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, Foton (Tunland 8-color scrape + Aumark S White + brochure PDFs + pricing API), VW configurator, plus generic pricing refresh for all other OEMs.",
       "schedule": "0 3 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-data-sync",
@@ -161,7 +161,7 @@
     {
       "id": "oem-orchestrator",
       "name": "Traffic Controller",
-      "description": "Central orchestrator that monitors all 18 OEMs, retries failed extractions with exponential backoff, escalates to Slack when max retries exceeded, and reports system-wide health status.",
+      "description": "Central orchestrator that monitors all 19 OEMs, retries failed extractions with exponential backoff, escalates to Slack when max retries exceeded, and reports system-wide health status.",
       "schedule": "0 */2 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-orchestrator",
@@ -221,7 +221,7 @@
     {
       "id": "design-drift-weekly",
       "name": "Weekly Design Drift Check",
-      "description": "Weekly design drift check for all 18 OEMs — compares live OEM site tokens against stored design profiles, flags visual regressions and brand guideline deviations.",
+      "description": "Weekly design drift check for all 19 OEMs — compares live OEM site tokens against stored design profiles, flags visual regressions and brand guideline deviations.",
       "schedule": "0 16 * * 0",
       "timezone": "UTC",
       "skill": "design-drift-check",

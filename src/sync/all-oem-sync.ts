@@ -691,7 +691,7 @@ async function scrapeFotonColors(
         is_standard: !isPremium,
         price_delta: isPremium ? 690 : 0,
         swatch_url: bgHex || null,
-        hero_image_url: `${FOTON_BASE}${image}`,
+        hero_image_url: `${FOTON_BASE}${image}?width=1920`,
       }, { onConflict: 'product_id,color_code' });
 
       if (!error) count++;
@@ -895,7 +895,7 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
   const genericOems = [
     'ford-au', 'nissan-au', 'toyota-au', 'isuzu-au', 'subaru-au',
     'suzuki-au', 'volkswagen-au', 'gwm-au', 'gmsv-au', 'ldv-au',
-    'gac-au', 'kgm-au', 'chery-au',
+    'gac-au', 'kgm-au', 'chery-au', 'renault-au',
   ];
 
   for (const oemId of genericOems) {
