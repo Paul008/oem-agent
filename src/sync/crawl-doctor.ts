@@ -384,99 +384,6 @@ export async function executeCrawlDoctor(
     }
   }
 
-  // ── Step 7b: Banner image URL health check (HEAD-request validation) ──
-  // Detects CDN 404s, expired image URLs, and broken links that wouldn't
-  // be caught by staleness alone (banner row exists but image is dead).
-  let bannersBrokenImages = 0;
-  {
-    const { data: allBanners } = await supabase
-      .from('banners')
-      .select('id, oem_id, page_url, position, headline, image_url_desktop, image_url_mobile');
-
-    if (allBanners && allBanners.length > 0) {
-      const brokenByOem: Record<string, Array<{ id: string; url: string; field: string; status: number }>> = {};
-
-      // Collect all image URLs to check
-      const checks: Array<{ banner: typeof allBanners[0]; field: string; url: string }> = [];
-      for (const b of allBanners) {
-        if (b.image_url_desktop) checks.push({ banner: b, field: 'image_url_desktop', url: b.image_url_desktop });
-        if (b.image_url_mobile) checks.push({ banner: b, field: 'image_url_mobile', url: b.image_url_mobile });
-      }
-
-      // Process in batches of 20 to limit concurrent fetches
-      for (let i = 0; i < checks.length; i += 20) {
-        const batch = checks.slice(i, i + 20);
-        const results = await Promise.allSettled(
-          batch.map(async ({ banner, field, url }) => {
-            try {
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 5000);
-              const res = await fetch(url, { method: 'HEAD', signal: controller.signal });
-              clearTimeout(timeout);
-              return res.status >= 400 ? { banner, field, url, status: res.status } : null;
-            } catch {
-              return { banner, field, url, status: 0 };
-            }
-          })
-        );
-
-        for (const r of results) {
-          if (r.status === 'fulfilled' && r.value) {
-            const { banner, field, url, status } = r.value;
-            if (!brokenByOem[banner.oem_id]) brokenByOem[banner.oem_id] = [];
-            brokenByOem[banner.oem_id].push({ id: banner.id, url, field, status });
-          }
-        }
-      }
-
-      // Null out broken URLs and emit triage events
-      for (const [oemId, brokenItems] of Object.entries(brokenByOem)) {
-        bannersBrokenImages += brokenItems.length;
-
-        for (const item of brokenItems) {
-          await supabase.from('banners').update({ [item.field]: null }).eq('id', item.id);
-        }
-
-        // Deduplicate — only emit if no recent banner_extraction_failed event
-        const { count: recentEventCount } = await supabase
-          .from('change_events')
-          .select('id', { count: 'exact', head: true })
-          .eq('oem_id', oemId)
-          .eq('event_type', 'banner_extraction_failed')
-          .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
-
-        if (!recentEventCount) {
-          await supabase.from('change_events').insert({
-            id: crypto.randomUUID(),
-            entity_type: 'banner',
-            entity_id: null,
-            oem_id: oemId,
-            event_type: 'banner_extraction_failed',
-            severity: 'high',
-            summary: `${brokenItems.length} broken banner image(s) for ${oemId} — URLs returning ${[...new Set(brokenItems.map(b => b.status))].join('/')}`,
-            diff_json: {
-              trigger: 'crawl_doctor_broken_images',
-              broken_urls: brokenItems.map(b => ({ url: b.url, field: b.field, status: b.status })),
-            },
-            created_at: now.toISOString(),
-          });
-        }
-
-        diagnoses.push({
-          oem_id: oemId,
-          issue: `${brokenItems.length} banner image(s) returning HTTP errors — nulled out broken URLs`,
-          action: 'Banner triage agent will attempt re-extraction',
-          result: 'fixed',
-          detail: brokenItems.map(b => `${b.field}: ${b.status} ${b.url.split('/').pop()}`).join(', '),
-        });
-      }
-
-      if (bannersBrokenImages > 0) {
-        console.log(`[CrawlDoctor] Step 7b: ${bannersBrokenImages} broken banner image URLs detected and nulled`);
-      }
-    }
-  }
-
   // ── Step 8: Send diagnosis report to Slack ──
   if (slackWebhookUrl && diagnoses.length > 0) {
     const fixed = diagnoses.filter(d => d.result === 'fixed');
@@ -530,7 +437,7 @@ export async function executeCrawlDoctor(
     offers_archived: offersArchived,
     price_anomalies: priceAnomalies,
     banners_stale: bannersStale,
-    banners_broken_images: bannersBrokenImages,
+    banners_broken_images: 0, // Now runs separately via executeBannerImageHealthCheck
     diagnoses,
   };
 
@@ -541,4 +448,142 @@ export async function executeCrawlDoctor(
   );
 
   return result;
+}
+
+// ============================================================================
+// Banner Image Health Check — runs daily at 3:30am AEDT (graveyard shift)
+// HEAD-requests every banner image URL, nulls broken ones, emits triage events.
+// ============================================================================
+
+export interface BannerHealthResult {
+  timestamp: string;
+  urls_checked: number;
+  urls_broken: number;
+  oems_affected: string[];
+  details: Array<{ oem_id: string; field: string; status: number; filename: string }>;
+}
+
+export async function executeBannerImageHealthCheck(
+  supabase: SupabaseClient,
+  slackWebhookUrl?: string,
+): Promise<BannerHealthResult> {
+  const now = new Date();
+  console.log('[BannerHealth] Starting banner image URL health check...');
+
+  const { data: allBanners } = await supabase
+    .from('banners')
+    .select('id, oem_id, image_url_desktop, image_url_mobile');
+
+  if (!allBanners || allBanners.length === 0) {
+    console.log('[BannerHealth] No banners in DB');
+    return { timestamp: now.toISOString(), urls_checked: 0, urls_broken: 0, oems_affected: [], details: [] };
+  }
+
+  // Collect all image URLs
+  const checks: Array<{ id: string; oem_id: string; field: string; url: string }> = [];
+  for (const b of allBanners) {
+    if (b.image_url_desktop) checks.push({ id: b.id, oem_id: b.oem_id, field: 'image_url_desktop', url: b.image_url_desktop });
+    if (b.image_url_mobile) checks.push({ id: b.id, oem_id: b.oem_id, field: 'image_url_mobile', url: b.image_url_mobile });
+  }
+
+  console.log(`[BannerHealth] Checking ${checks.length} image URLs across ${allBanners.length} banners...`);
+
+  const broken: Array<{ id: string; oem_id: string; field: string; url: string; status: number }> = [];
+
+  // Process in batches of 20
+  for (let i = 0; i < checks.length; i += 20) {
+    const batch = checks.slice(i, i + 20);
+    const results = await Promise.allSettled(
+      batch.map(async (check) => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(check.url, { method: 'HEAD', signal: controller.signal });
+          clearTimeout(timeout);
+          return res.status >= 400 ? { ...check, status: res.status } : null;
+        } catch {
+          return { ...check, status: 0 };
+        }
+      })
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) broken.push(r.value);
+    }
+  }
+
+  if (broken.length === 0) {
+    console.log(`[BannerHealth] All ${checks.length} image URLs are healthy`);
+    return { timestamp: now.toISOString(), urls_checked: checks.length, urls_broken: 0, oems_affected: [], details: [] };
+  }
+
+  // Group by OEM
+  const brokenByOem: Record<string, typeof broken> = {};
+  for (const b of broken) {
+    if (!brokenByOem[b.oem_id]) brokenByOem[b.oem_id] = [];
+    brokenByOem[b.oem_id].push(b);
+  }
+
+  // Null out broken URLs and emit triage events
+  for (const [oemId, items] of Object.entries(brokenByOem)) {
+    for (const item of items) {
+      await supabase.from('banners').update({ [item.field]: null }).eq('id', item.id);
+    }
+
+    // Deduplicate — only emit if no recent event
+    const { count: recentCount } = await supabase
+      .from('change_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('oem_id', oemId)
+      .eq('event_type', 'banner_extraction_failed')
+      .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
+
+    if (!recentCount) {
+      await supabase.from('change_events').insert({
+        id: crypto.randomUUID(),
+        entity_type: 'banner',
+        entity_id: null,
+        oem_id: oemId,
+        event_type: 'banner_extraction_failed',
+        severity: 'high',
+        summary: `${items.length} broken banner image(s) for ${oemId} — HTTP ${[...new Set(items.map(b => b.status))].join('/')}`,
+        diff_json: {
+          trigger: 'banner_image_health_check',
+          broken_urls: items.map(b => ({ url: b.url, field: b.field, status: b.status })),
+        },
+        created_at: now.toISOString(),
+      });
+    }
+  }
+
+  const oemsAffected = Object.keys(brokenByOem);
+  console.log(`[BannerHealth] ${broken.length} broken URLs across ${oemsAffected.length} OEMs — nulled and triage events emitted`);
+
+  // Slack notification
+  if (slackWebhookUrl) {
+    const summary = oemsAffected.map(oem =>
+      `• \`${oem}\`: ${brokenByOem[oem].length} broken (${[...new Set(brokenByOem[oem].map(b => b.status))].join('/')})`
+    ).join('\n');
+
+    try {
+      await fetch(slackWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `🖼️ Banner Health: ${broken.length} broken image URLs`,
+          blocks: [
+            { type: 'header', text: { type: 'plain_text', text: `🖼️ Banner Health — ${broken.length} broken images` } },
+            { type: 'section', text: { type: 'mrkdwn', text: summary } },
+          ],
+        }),
+      });
+    } catch { /* skip slack errors */ }
+  }
+
+  return {
+    timestamp: now.toISOString(),
+    urls_checked: checks.length,
+    urls_broken: broken.length,
+    oems_affected: oemsAffected,
+    details: broken.map(b => ({ oem_id: b.oem_id, field: b.field, status: b.status, filename: b.url.split('/').pop() || '' })),
+  };
 }

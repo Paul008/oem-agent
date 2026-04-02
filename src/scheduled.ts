@@ -69,6 +69,16 @@ export const CLOUDFLARE_TRIGGERS = [
     config: { crawl_type: 'sitemap' },
   },
   {
+    id: 'cf-banner-health',
+    name: 'Banner Image Health Check',
+    description: 'Daily graveyard-shift HEAD-check of all banner image URLs (4:30am AEDT)',
+    schedule: '30 17 * * *',
+    timezone: 'Australia/Melbourne',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'banner-health' },
+  },
+  {
     id: 'cf-design-drift',
     name: 'Design Drift Check',
     description: 'Weekly design drift detection across all OEMs (Sunday 3am AEDT)',
@@ -126,6 +136,19 @@ export async function handleScheduled(
       try {
         const crawlType = trigger?.config.crawl_type as string | undefined;
         console.log(`[Scheduled] Running ${label} (crawl_type: ${crawlType ?? 'full'})`);
+
+        // Banner image health check — daily graveyard shift
+        if (crawlType === 'banner-health') {
+          const { executeBannerImageHealthCheck } = await import('./sync/crawl-doctor');
+          const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+          const result = await executeBannerImageHealthCheck(supabase, env.SLACK_WEBHOOK_URL);
+
+          run.status = 'success';
+          run.completedAt = new Date().toISOString();
+          run.result = { crawl_type: 'banner-health', ...result };
+          await saveRun(bucket, run);
+          return;
+        }
 
         // Design drift check — special handler
         if (crawlType === 'design-drift') {
