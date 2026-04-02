@@ -278,6 +278,22 @@
         "selector_override_ttl_days": 30,
         "notify_channel": "slack:#oem-alerts"
       }
+    },
+    {
+      "id": "pdf-spec-extract",
+      "name": "PDF Spec Extraction",
+      "description": "Extract structured vehicle specifications from brochure PDFs via Gemini Flash. Processes models with brochure_url but no extracted_specs, up to 20 per run.",
+      "schedule": "0 18 * * *",
+      "timezone": "Australia/Sydney",
+      "skill": "pdf-spec-extract",
+      "enabled": true,
+      "config": {
+        "max_models_per_run": 20,
+        "reextract_after_days": 30,
+        "llm_model": "gemini-2.5-flash",
+        "llm_fallback": "llama-4-scout-17b",
+        "notify_channel": "slack:#oem-alerts"
+      }
     }
   ],
   "hooks": {

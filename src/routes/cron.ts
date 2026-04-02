@@ -400,6 +400,17 @@ async function executeJob(
         break;
       }
 
+      case 'pdf-spec-extract': {
+        const { executePdfSpecExtraction } = await import('../sync/pdf-spec-extractor');
+        const { createSupabaseClient: createSbSpec } = await import('../utils/supabase');
+        const { AiRouter } = await import('../ai/router');
+        const sbSpec = createSbSpec({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+        const aiRouter = new AiRouter(env, sbSpec);
+        const maxModels = (job.config as any)?.max_models_per_run ?? 20;
+        result = await executePdfSpecExtraction(sbSpec, aiRouter, { maxModels }) as unknown as Record<string, unknown>;
+        break;
+      }
+
       default:
         throw new Error(`Unknown skill: ${job.skill}`);
     }
