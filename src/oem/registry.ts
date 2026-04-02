@@ -1,7 +1,7 @@
 /**
  * OEM Registry
  * 
- * Configuration for all 18 Australian automotive OEMs.
+ * Configuration for all 19 Australian automotive OEMs.
  * Based on crawl-config-v1.2 specification.
  */
 
@@ -561,6 +561,37 @@ export const gacAu: OemDefinition = {
   },
 };
 
+// ============================================================================
+// 1.19 Renault Australia
+// ============================================================================
+export const renaultAu: OemDefinition = {
+  id: 'renault-au',
+  name: 'Renault Australia',
+  baseUrl: 'https://www.renault.com.au',
+  config: {
+    homepage: '/',
+    vehicles_index: '/vehicles/',
+    offers: '/special-offers/',
+    news: '/news/',
+    schedule: {
+      homepage_minutes: 120,
+      offers_minutes: 240,
+      vehicles_minutes: 720,
+      news_minutes: 1440,
+    },
+  },
+  selectors: {
+    vehicleLinks: 'a[href*="/vehicles/"]',
+    heroSlides: '[class*="HhCarouselWrapper"] [class*="EmbCarouselItemWrapper"]',
+    offerTiles: '[class*="special"], [class*="offer"]',
+  },
+  flags: {
+    requiresBrowserRendering: false,
+    isGatsby: true,
+    framework: 'gatsby',
+  },
+};
+
 const cheryAu: OemDefinition = {
   id: 'chery-au',
   name: 'Chery Australia',
@@ -612,6 +643,7 @@ export const oemRegistry: Record<string, OemDefinition> = {
   'foton-au': fotonAu,
   'gac-au': gacAu,
   'chery-au': cheryAu,
+  'renault-au': renaultAu,
 };
 
 export const allOemIds: OemId[] = Object.keys(oemRegistry) as OemId[];
@@ -692,7 +724,7 @@ export function generateOemSeedData(): string {
   });
 
   return `
--- Seed data for 18 Australian OEMs
+-- Seed data for 19 Australian OEMs
 INSERT INTO oems (id, name, base_url, config_json, is_active)
 VALUES
 ${values.join(',\n')}

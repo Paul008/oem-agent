@@ -879,4 +879,8 @@ Card style: subtle rounded corners, white bg on smoke sections. No heavy shadows
     colors: ['#EB5757', '#333333'], // Chery red + charcoal
     notes: 'Drupal CMS, SSR (no browser needed). Tiggo SUV range + Omoda sub-brand + C5/E5 models. 7-year warranty. Super Hybrid technology. 71 dealers AU-wide.',
   },
+  'renault-au': {
+    colors: ['#EFDF00', '#000000', '#E91630'],
+    notes: 'Renault Australia — Gatsby 5.14.6 + i-motor CMS (same platform as LDV). Structured data via page-data.json endpoints. Renault Yellow primary, black secondary, red accent. Custom Renault font family.',
+  },
 };

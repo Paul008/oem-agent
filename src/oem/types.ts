@@ -9,7 +9,7 @@
 // Base Types
 // ============================================================================
 
-/** Built-in OEM identifiers for the 17 pre-configured Australian OEMs. */
+/** Built-in OEM identifiers for the 19 pre-configured Australian OEMs. */
 export type BuiltInOemId =
   | 'kia-au'
   | 'nissan-au'
@@ -24,6 +24,7 @@ export type BuiltInOemId =
   | 'suzuki-au'
   | 'hyundai-au'
   | 'toyota-au'
+  | 'renault-au'
   | 'subaru-au'
   | 'gmsv-au'
   | 'foton-au'
