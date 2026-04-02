@@ -331,14 +331,14 @@ export async function executeCrawlDoctor(
   let bannersStale = 0;
   const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000).toISOString();
 
-  const { data: recentBanners } = await supabase
+  const { data: staleBannerRows } = await supabase
     .from('banners')
     .select('oem_id, last_seen_at')
-    .order('last_seen_at', { ascending: false });
+    .lt('last_seen_at', seventyTwoHoursAgo);
 
-  if (recentBanners && recentBanners.length > 0) {
+  if (staleBannerRows && staleBannerRows.length > 0) {
     const oemLastSeen: Record<string, string> = {};
-    for (const b of recentBanners) {
+    for (const b of staleBannerRows) {
       if (!oemLastSeen[b.oem_id] || b.last_seen_at > oemLastSeen[b.oem_id]) {
         oemLastSeen[b.oem_id] = b.last_seen_at;
       }

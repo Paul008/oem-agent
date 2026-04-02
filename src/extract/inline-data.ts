@@ -30,17 +30,16 @@ export interface InlineDataResult {
 // 1. JSON-LD Banner Extraction
 // ============================================================================
 
-const JSONLD_RE = /<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-
 /**
  * Extracts banner slides from JSON-LD scripts embedded in HTML.
  * Supports schema.org @type: 'ImageGallery' and @type: 'ItemList'.
  */
 export function extractJsonLdBanners(html: string): ExtractedBannerSlide[] {
+  // Regex with /gi flag must live inside the function to avoid shared lastIndex state
+  const JSONLD_RE = /<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   const slides: ExtractedBannerSlide[] = [];
   let match: RegExpExecArray | null;
 
-  JSONLD_RE.lastIndex = 0;
   while ((match = JSONLD_RE.exec(html)) !== null) {
     let parsed: any;
     try {

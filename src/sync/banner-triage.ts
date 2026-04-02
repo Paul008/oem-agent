@@ -51,6 +51,22 @@ interface TriageContext {
 // ============================================================================
 
 /**
+ * Returns true only for HTTPS URLs pointing to public internet hosts.
+ * Blocks localhost, private IP ranges, link-local, and .internal/.local TLDs.
+ */
+function isAllowedUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') ||
+        host.startsWith('10.') || host.startsWith('172.') || host.startsWith('169.254.') ||
+        host.endsWith('.internal') || host.endsWith('.local')) return false;
+    return true;
+  } catch { return false; }
+}
+
+/**
  * Recursively searches an object up to `depth` levels for arrays of 2+ objects
  * that have both image-like and text-like keys — i.e. banner arrays.
  */
@@ -200,6 +216,7 @@ export async function executeBannerTriage(ctx: TriageContext): Promise<TriageRes
 
       for (const api of apis) {
         try {
+          if (!isAllowedUrl(api.url)) continue;
           const method = (api.method ?? 'GET').toUpperCase();
           const res = await fetch(api.url, { method });
           if (!res.ok) continue;
@@ -271,62 +288,70 @@ export async function executeBannerTriage(ctx: TriageContext): Promise<TriageRes
   // --------------------------------------------------------------------------
   if (bestConfidence < 1) {
     try {
-      const pageRes = await fetch(pageUrl);
-      if (pageRes.ok) {
-        cachedHtml = await pageRes.text();
-
-        if (oemDef) {
-          const inlineResults = await extractInlineData(cachedHtml, oemDef, pageUrl);
-
-          let layer3BestConf = 0;
-          let layer3Detail = `${inlineResults.length} inline source(s) found`;
-
-          for (const result of inlineResults) {
-            let items: Record<string, unknown>[] | null = null;
-
-            // Direct array of banner slides
-            if (Array.isArray(result.data) && result.data.length >= 2) {
-              items = result.data as Record<string, unknown>[];
-            } else {
-              items = findBannerArrayInObject(result.data, 0);
-            }
-
-            if (!items || items.length === 0) continue;
-
-            const normalised = normaliseBannerData(items);
-            const confidence = scoreBannerConfidence(normalised, result.confidence, previousBannerCount);
-
-            if (confidence > layer3BestConf) {
-              layer3BestConf = confidence;
-              layer3Detail = `${normalised.length} banners from ${result.source} (base=${result.confidence.toFixed(2)})`;
-            }
-
-            if (confidence > bestConfidence) {
-              bestBanners = normalised;
-              bestConfidence = confidence;
-              bestLayer = 3;
-              actions.push(`layer_3: extracted ${normalised.length} banners from ${result.source} (confidence=${confidence.toFixed(2)})`);
-            }
-          }
-
-          layerResults['layer_3_inline_data'] = {
-            status: layer3BestConf > 0 ? 'success' : 'no_match',
-            confidence: layer3BestConf,
-            detail: layer3Detail,
-          };
-        } else {
-          layerResults['layer_3_inline_data'] = {
-            status: 'skipped',
-            confidence: 0,
-            detail: `No OEM definition found for ${oemId}`,
-          };
-        }
-      } else {
+      if (!isAllowedUrl(pageUrl)) {
         layerResults['layer_3_inline_data'] = {
           status: 'error',
           confidence: 0,
-          detail: `Page fetch failed: HTTP ${pageRes.status}`,
+          detail: `Blocked URL (SSRF protection): ${pageUrl}`,
         };
+      } else {
+        const pageRes = await fetch(pageUrl);
+        if (pageRes.ok) {
+          cachedHtml = await pageRes.text();
+
+          if (oemDef) {
+            const inlineResults = await extractInlineData(cachedHtml, oemDef, pageUrl);
+
+            let layer3BestConf = 0;
+            let layer3Detail = `${inlineResults.length} inline source(s) found`;
+
+            for (const result of inlineResults) {
+              let items: Record<string, unknown>[] | null = null;
+
+              // Direct array of banner slides
+              if (Array.isArray(result.data) && result.data.length >= 2) {
+                items = result.data as Record<string, unknown>[];
+              } else {
+                items = findBannerArrayInObject(result.data, 0);
+              }
+
+              if (!items || items.length === 0) continue;
+
+              const normalised = normaliseBannerData(items);
+              const confidence = scoreBannerConfidence(normalised, result.confidence, previousBannerCount);
+
+              if (confidence > layer3BestConf) {
+                layer3BestConf = confidence;
+                layer3Detail = `${normalised.length} banners from ${result.source} (base=${result.confidence.toFixed(2)})`;
+              }
+
+              if (confidence > bestConfidence) {
+                bestBanners = normalised;
+                bestConfidence = confidence;
+                bestLayer = 3;
+                actions.push(`layer_3: extracted ${normalised.length} banners from ${result.source} (confidence=${confidence.toFixed(2)})`);
+              }
+            }
+
+            layerResults['layer_3_inline_data'] = {
+              status: layer3BestConf > 0 ? 'success' : 'no_match',
+              confidence: layer3BestConf,
+              detail: layer3Detail,
+            };
+          } else {
+            layerResults['layer_3_inline_data'] = {
+              status: 'skipped',
+              confidence: 0,
+              detail: `No OEM definition found for ${oemId}`,
+            };
+          }
+        } else {
+          layerResults['layer_3_inline_data'] = {
+            status: 'error',
+            confidence: 0,
+            detail: `Page fetch failed: HTTP ${pageRes.status}`,
+          };
+        }
       }
     } catch (err: any) {
       layerResults['layer_3_inline_data'] = {
@@ -351,9 +376,17 @@ export async function executeBannerTriage(ctx: TriageContext): Promise<TriageRes
     try {
       // Fetch HTML if not already cached
       if (!cachedHtml) {
-        const pageRes = await fetch(pageUrl);
-        if (pageRes.ok) {
-          cachedHtml = await pageRes.text();
+        if (!isAllowedUrl(pageUrl)) {
+          layerResults['layer_4_ai_selector'] = {
+            status: 'error',
+            confidence: 0,
+            detail: `Blocked URL (SSRF protection): ${pageUrl}`,
+          };
+        } else {
+          const pageRes = await fetch(pageUrl);
+          if (pageRes.ok) {
+            cachedHtml = await pageRes.text();
+          }
         }
       }
 
@@ -449,7 +482,7 @@ Respond ONLY with the JSON object, no markdown fencing.`;
               {
                 oem_id: oemId,
                 page_type: 'homepage',
-                selector_type: 'hero_slides',
+                selector_type: 'heroSlides',
                 selector_value: discovered.container_selector,
                 metadata: {
                   headline_selector: discovered.headline_selector ?? null,
@@ -574,8 +607,8 @@ Respond ONLY with the JSON object, no markdown fencing.`;
       try {
         await upsertBanner(supabase, oemId, pageUrl, slide);
         upserted++;
-      } catch {
-        // log but don't fail the whole run
+      } catch (err) {
+        console.error(`[BannerTriage] Failed to upsert banner ${slide.position} for ${ctx.oemId}:`, err);
       }
     }
     actions.push(`upserted ${upserted}/${bestBanners.length} banners to DB`);

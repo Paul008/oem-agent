@@ -9,9 +9,10 @@
  */
 
 import * as cheerio from 'cheerio';
-import type { 
-  ExtractedProduct, 
-  ExtractedOffer, 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type {
+  ExtractedProduct,
+  ExtractedOffer,
   ExtractedBannerSlide,
   ProductMeta,
   ProductVariant,
@@ -23,6 +24,39 @@ import type {
   OfferType,
 } from '../oem/types';
 import { getOemDefinition } from '../oem/registry';
+
+// ============================================================================
+// Selector Override Lookup
+// ============================================================================
+
+/**
+ * Queries selector_overrides from Supabase for the given OEM and page type,
+ * returning only non-expired overrides ordered by descending confidence.
+ * Returns a plain Record merging only the DB overrides — callers pass this
+ * to extractWithSelectors which merges it over the registry selectors.
+ */
+export async function getEffectiveSelectors(
+  oemId: string,
+  pageType: string,
+  registrySelectors: Record<string, string | undefined>,
+  supabase: SupabaseClient,
+): Promise<Record<string, string>> {
+  const { data: overrides } = await supabase
+    .from('selector_overrides')
+    .select('selector_type, selector_value')
+    .eq('oem_id', oemId)
+    .eq('page_type', pageType)
+    .gte('expires_at', new Date().toISOString())
+    .order('confidence', { ascending: false });
+
+  if (!overrides?.length) return {};
+
+  const result: Record<string, string> = {};
+  for (const override of overrides) {
+    result[override.selector_type] = override.selector_value;
+  }
+  return result;
+}
 
 // ============================================================================
 // Extraction Result Types
