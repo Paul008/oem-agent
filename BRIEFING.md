@@ -248,7 +248,7 @@ The Recipe Design System is the full screenshot-to-component pipeline built acro
 | **oem-sales-rep** | Sales intelligence | Slack chatbot for product/offer queries |
 | **oem-semantic-search** | Search & discovery | pgvector semantic search, cross-OEM similarity |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
-| **autonomous-agents** | Workflow automation | 7 sub-skills: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker |
+| **autonomous-agents** | Workflow automation | 8 agents: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker, banner-triage |
 
 ## Cron-Based Design Jobs (OpenClaw)
 
@@ -658,6 +658,6 @@ When adding a new OEM to the platform, complete **all** steps below. See `docs/O
 - Design Health monitoring: weekly drift checks, monthly quality audits, token refresh
 - 40+ dashboard pages covering all platform domains
 - 70+ admin API endpoints for full programmatic control
-- 16 scheduled cron jobs (Cloudflare Workers + OpenClaw)
+- 17 cron jobs (16 scheduled + 1 event-driven banner-triage)
 
 **Next Maintenance**: Run vectorize-pdfs.mjs for pdf_embeddings, add state-specific pricing APIs for Hyundai/Mitsubishi/Ford when discovered, extract finance disclaimers for Kia/Hyundai/GWM offers

@@ -25,7 +25,8 @@ The OEM Agent is an intelligent web scraping and monitoring system designed to e
 
 - **Automated Discovery**: AI-driven pattern detection for new OEM configurators
 - **Self-Healing Extraction**: Selectors that adapt when OEM sites change
-- **Autonomous Recovery**: Crawl Doctor auto-resets error pages, deactivates 404s, archives expired offers
+- **Autonomous Recovery**: Crawl Doctor auto-resets error pages, deactivates 404s, archives expired offers, detects stale banners
+- **Banner Self-Healing**: Banner triage agent detects broken selectors, discovers data sources via 5-layer cascade (APIs → network → inline data → AI → escalation)
 - **Cost-Controlled Crawling**: Budget-aware scheduling with render caps; 16/18 OEMs skip browser rendering via hash-based optimization
 - **Parallel Fan-Out**: OEMs crawled in batches of 3 concurrently (scales to 45+ OEMs)
 - **Competitive Intelligence**: Cross-OEM price positioning, segment analysis, market alerts
@@ -228,7 +229,8 @@ Two cron systems run in parallel. Config: `config/openclaw/cron-jobs.json` and `
 | Schedule | Job | Purpose |
 |----------|-----|---------|
 | Every 2h | Traffic Controller | Health monitoring, Slack alerts for stale data/expiring offers |
-| Every 2h (+30m) | Crawl Doctor | Auto-reset error pages, deactivate 404s, archive expired offers, flag price anomalies |
+| Every 2h (+30m) | Crawl Doctor | Auto-reset error pages, deactivate 404s, archive expired offers, flag price anomalies, detect stale banners |
+| Event-driven | Banner Triage | 5-layer self-healing: discovered APIs → network interception → inline data → AI selector discovery → Slack escalation |
 | Daily 3am | All-OEM Data Sync | Colors, pricing (Kia BYO, Hyundai CGI, Mazda, Mitsubishi GraphQL) |
 | Monday 9am | Weekly Stock Report | Comprehensive Slack summary: freshness, changes, action items |
 | Wednesday 9am | Competitive Intelligence | Cross-OEM segment analysis, price movements, market alerts |

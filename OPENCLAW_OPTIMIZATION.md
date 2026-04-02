@@ -53,7 +53,7 @@ Your 14 custom OEM skills are configured and active:
 | `oem-brand-ambassador` | AI page generation | Cron + manual |
 | `oem-data-sync` | Data synchronization | Cron + manual |
 | `oem-ux-knowledge` | UX pattern knowledge base | Queries |
-| `autonomous-agents` | Workflow automation (7 sub-skills) | Events |
+| `autonomous-agents` | Workflow automation (8 agents) | Events |
 
 **Skills Auto-Reload:** Changes detected within 250ms
 

@@ -18,7 +18,7 @@
 | **oem-brand-ambassador** | Page generation | AI-driven marketing page creation per OEM brand |
 | **oem-data-sync** | Data synchronization | 38 seed/enrich scripts for products, accessories, colors, offers |
 | **oem-ux-knowledge** | UX patterns | Design knowledge base with vector retrieval |
-| **autonomous-agents** | Workflow automation | 7 sub-skills: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker |
+| **autonomous-agents** | Workflow automation | 8 agents: price-validator, link-validator, image-validator, offer-manager, product-enricher, variant-sync, compliance-checker, banner-triage |
 
 **Skills Location**: /root/clawd/skills/ (each has detailed SKILL.md documentation)
 
