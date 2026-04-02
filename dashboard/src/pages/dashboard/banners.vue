@@ -18,6 +18,7 @@ const searchQuery = ref('')
 const page = ref(1)
 const perPage = ref(24)
 const previewBanner = ref<Banner | null>(null)
+const previewMode = ref<'desktop' | 'mobile'>('desktop')
 
 onMounted(async () => {
   try {
@@ -117,10 +118,17 @@ function displayImage(b: Banner) {
 
 function openPreview(b: Banner) {
   previewBanner.value = b
+  previewMode.value = 'desktop'
 }
 
 function closePreview() {
   previewBanner.value = null
+  previewMode.value = 'desktop'
+}
+
+function previewImageUrl(b: Banner): string | null {
+  if (previewMode.value === 'mobile' && b.image_url_mobile) return b.image_url_mobile
+  return b.image_url_desktop || b.image_url_mobile || null
 }
 
 // Navigate between banners in preview
@@ -383,25 +391,54 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                 <ChevronRight class="size-8" />
               </button>
 
+              <!-- Desktop / Mobile toggle -->
+              <div class="flex items-center justify-center gap-1 mb-3">
+                <button
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-l-md text-xs font-medium transition-colors"
+                  :class="previewMode === 'desktop' ? 'bg-white text-black' : 'bg-white/10 text-white/60 hover:text-white'"
+                  @click="previewMode = 'desktop'"
+                >
+                  <Monitor class="size-3.5" /> Desktop
+                </button>
+                <button
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-r-md text-xs font-medium transition-colors"
+                  :class="previewMode === 'mobile'
+                    ? 'bg-white text-black'
+                    : previewBanner!.image_url_mobile
+                      ? 'bg-white/10 text-white/60 hover:text-white'
+                      : 'bg-white/5 text-white/20 cursor-not-allowed'"
+                  :disabled="!previewBanner!.image_url_mobile"
+                  @click="previewBanner!.image_url_mobile && (previewMode = 'mobile')"
+                >
+                  <Smartphone class="size-3.5" /> Mobile
+                  <span v-if="!previewBanner!.image_url_mobile" class="text-[10px] text-white/30">(n/a)</span>
+                </button>
+              </div>
+
               <!-- Banner Preview -->
               <div class="rounded-lg overflow-hidden shadow-2xl">
-                <div class="aspect-[16/9] relative bg-muted">
+                <div
+                  :class="previewMode === 'mobile' ? 'aspect-[9/16] max-w-sm mx-auto' : 'aspect-[16/9]'"
+                  class="relative bg-muted transition-all duration-300"
+                >
                   <!-- Video player -->
                   <video
                     v-if="hasVideo(previewBanner)"
-                    :key="previewBanner.id"
+                    :key="previewBanner.id + previewMode"
                     class="w-full h-full object-cover"
                     autoplay
                     muted
                     loop
                     playsinline
-                    :poster="displayImage(previewBanner) ?? undefined"
+                    :poster="previewImageUrl(previewBanner) ?? undefined"
                   >
-                    <source v-if="previewBanner.video_url_desktop" :src="previewBanner.video_url_desktop" type="video/mp4" />
+                    <source v-if="previewMode === 'mobile' && previewBanner.video_url_mobile" :src="previewBanner.video_url_mobile" type="video/mp4" />
+                    <source v-else-if="previewBanner.video_url_desktop" :src="previewBanner.video_url_desktop" type="video/mp4" />
                   </video>
                   <img
-                    v-else-if="displayImage(previewBanner)"
-                    :src="displayImage(previewBanner)!"
+                    v-else-if="previewImageUrl(previewBanner)"
+                    :key="previewMode"
+                    :src="previewImageUrl(previewBanner)!"
                     :alt="previewBanner.headline ?? 'Banner'"
                     class="w-full h-full object-cover"
                   />

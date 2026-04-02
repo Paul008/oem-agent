@@ -247,8 +247,7 @@ export function extractWithSelectors(
         cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
         cta_url: $slide.find('.kv_btn, a.cta, a').first().attr('href') || null,
         image_url_desktop: extractImageUrl($slide, $) || '',
-        image_url_mobile: extractBgImageUrl($slide, '.bg-image-default, .bg-image:last-child') ||
-                          $slide.find('picture source[media*="320"]').attr('srcset') || null,
+        image_url_mobile: extractMobileImageUrl($slide, $),
         disclaimer_text: $slide.find('.disclaimer, small').first().text().trim() || null,
       };
       bannerSlides.push(slide);
@@ -599,6 +598,67 @@ function extractBgImageUrl($container: ReturnType<cheerio.CheerioAPI>, selector:
   const style = el.attr('style') || '';
   const match = style.match(/background-image:\s*url\(["']?([^"')]+)["']?\)/);
   return match?.[1] || null;
+}
+
+/**
+ * Extract mobile image URL from a slide element. Tries multiple patterns:
+ * 1. <picture> <source> with max-width media query
+ * 2. <img> with srcset (smallest resolution)
+ * 3. data-mobile / data-src-mobile attributes
+ * 4. bg-image with mobile/default class (i-motor: .bg-image-default)
+ * 5. Second <picture> source (some OEMs put mobile second)
+ * 6. Responsive image with width hints in filename (600x, mobile, mob)
+ */
+function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string | null {
+  // 1. <picture> <source> with mobile media query
+  const mobileSources = $slide.find('picture source').toArray();
+  for (const src of mobileSources) {
+    const media = $(src).attr('media') || '';
+    const srcset = $(src).attr('srcset') || '';
+    if (srcset && (media.includes('max-width') || media.includes('mobile'))) {
+      return srcset.split(',')[0].trim().split(' ')[0];
+    }
+  }
+
+  // 2. <img> srcset — pick the smallest
+  const imgSrcset = $slide.find('img').attr('srcset');
+  if (imgSrcset) {
+    const candidates = imgSrcset.split(',').map(s => s.trim());
+    // Sort by width descriptor (e.g. "url 600w") — pick smallest
+    const withWidth = candidates
+      .map(c => { const m = c.match(/(\S+)\s+(\d+)w/); return m ? { url: m[1], w: parseInt(m[2]) } : null; })
+      .filter(Boolean) as Array<{ url: string; w: number }>;
+    if (withWidth.length > 1) {
+      withWidth.sort((a, b) => a.w - b.w);
+      return withWidth[0].url;
+    }
+  }
+
+  // 3. data-mobile / data-src-mobile attributes
+  const dataMobile = $slide.find('[data-mobile]').attr('data-mobile') ||
+                     $slide.find('[data-src-mobile]').attr('data-src-mobile') ||
+                     $slide.find('[data-mobile-src]').attr('data-mobile-src') ||
+                     $slide.find('[data-bg-mobile]').attr('data-bg-mobile');
+  if (dataMobile) return dataMobile;
+
+  // 4. bg-image with mobile/default class (i-motor pattern)
+  const bgMobile = extractBgImageUrl($slide, '.bg-image-default, .bg-image-mobile, [class*="mobile"], .bg-image:last-child');
+  if (bgMobile) return bgMobile;
+
+  // 5. Second <picture> source (mobile often comes after desktop)
+  if (mobileSources.length >= 2) {
+    const secondSrcset = $(mobileSources[1]).attr('srcset');
+    if (secondSrcset) return secondSrcset.split(',')[0].trim().split(' ')[0];
+  }
+
+  // 6. Look for image URLs with mobile hints in filename
+  const allImgs = $slide.find('img').toArray();
+  for (const img of allImgs) {
+    const src = $(img).attr('src') || $(img).attr('data-src') || '';
+    if (/mobile|mob|600x|375x|414x|small/i.test(src)) return src;
+  }
+
+  return null;
 }
 
 function resolveUrl(href: string, baseUrl: string): string {
