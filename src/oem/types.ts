@@ -676,7 +676,8 @@ export type AiTaskType =
   | 'quick_scan'
   | 'extraction_quality_check'
   | 'section_deep_analysis'
-  | 'bespoke_component';
+  | 'bespoke_component'
+  | 'spec_extraction';
 export type AiInferenceStatus = 'success' | 'error' | 'timeout' | 'rate_limited';
 
 export interface AiInferenceLog {

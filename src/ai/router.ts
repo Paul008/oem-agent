@@ -215,6 +215,7 @@ export const TASK_TYPE_GROUPS: TaskTypeGroup[] = [
       { type: 'extraction_quality_check', label: 'Extraction Quality Check' },
       { type: 'section_deep_analysis', label: 'Section Deep Analysis (Vision)' },
       { type: 'bespoke_component', label: 'Bespoke Component Generation' },
+      { type: 'spec_extraction', label: 'PDF Spec Extraction' },
     ],
   },
 ];
@@ -388,6 +389,15 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     modelConfig: null,
     fallbackProvider: 'google_gemini',
     fallbackModel: GEMINI_CONFIG.model,
+  },
+
+  // PDF Spec Extraction — Extract structured specs from OEM PDF spec sheets
+  spec_extraction: {
+    provider: 'google_gemini',
+    model: GEMINI_CONFIG.model,
+    modelConfig: null,
+    fallbackProvider: 'groq',
+    fallbackModel: AI_ROUTER_CONFIG.groq.models.balanced.model,
   },
 };
 
