@@ -8,3 +8,4 @@ export { media } from './media';
 export { default as oemAgent } from './oem-agent';
 export { default as agentRoutes } from './agents';
 export { dealerApi } from './dealer-api';
+export { specsApi } from './specs-api';

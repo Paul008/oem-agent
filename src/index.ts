@@ -28,7 +28,7 @@ import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
-import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi } from './routes';
+import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi } from './routes';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
@@ -228,6 +228,9 @@ app.route('/api', api);
 
 // Mount OEM Agent routes (protected by Cloudflare Access)
 app.route('/api/v1/oem-agent', oemAgent);
+
+// Mount Specs API routes (public + admin, protected by Cloudflare Access for admin paths)
+app.route('/api/v1', specsApi);
 
 // Mount Autonomous Agents routes (protected by Cloudflare Access)
 app.route('/api/v1/agents', agentRoutes);
