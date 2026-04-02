@@ -52,6 +52,11 @@ const OEM_HEADERS: Record<string, Record<string, string>> = {
     Referer: 'https://www.suzuki.com.au/',
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
   },
+  'renault-au': {
+    Origin: 'https://www.renault.com.au',
+    Referer: 'https://www.renault.com.au/',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+  },
 };
 
 // ── Base URLs for resolving relative paths ──────────────────────────────────
@@ -91,6 +96,8 @@ const ALLOWED_HOSTS = new Set([
   'www.volkswagen-genuine-accessories.com',
   'content.dam',
   'cdn.rotorint.com',
+  'cdn.cms-uploads.i-motor.me',
+  'www.renault.com.au',
 ]);
 
 /**

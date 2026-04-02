@@ -74,6 +74,10 @@ const OEM_PAGES = [
   // KGM — Payload CMS / Next.js
   { oem: 'kgm-au', type: 'homepage', url: 'https://www.kgm.com.au', extract: 'html' },
   { oem: 'kgm-au', type: 'offers', url: 'https://www.kgm.com.au/offers', extract: 'html' },
+
+  // Renault — Gatsby
+  { oem: 'renault-au', type: 'homepage', url: 'https://www.renault.com.au/', extract: 'html' },
+  { oem: 'renault-au', type: 'offers', url: 'https://www.renault.com.au/special-offers/', extract: 'html' },
 ]
 
 // ── Helpers ──

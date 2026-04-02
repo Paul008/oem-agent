@@ -1008,6 +1008,11 @@ const apis = [
       discovery_source: 'seed-gmsv-colors.mjs',
     },
   },
+  // ═══════════════ RENAULT ═══════════════
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/vehicles/page-data.json', method: 'GET', data_type: 'products', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/special-offers/page-data.json', method: 'GET', data_type: 'offers', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/news/page-data.json', method: 'GET', data_type: 'news', reliability_score: 0.9, status: 'verified' },
+  { oem_id: 'renault-au', url: 'https://www.renault.com.au/page-data/build-and-price/page-data.json', method: 'GET', data_type: 'configurator', reliability_score: 0.8, status: 'verified' },
 ]
 
 async function seed() {
