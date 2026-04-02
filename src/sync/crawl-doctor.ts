@@ -25,6 +25,7 @@ export interface DoctorResult {
   offers_archived: number;
   price_anomalies: number;
   banners_stale: number;
+  banners_broken_images: number;
   diagnoses: Diagnosis[];
 }
 
@@ -383,6 +384,99 @@ export async function executeCrawlDoctor(
     }
   }
 
+  // ── Step 7b: Banner image URL health check (HEAD-request validation) ──
+  // Detects CDN 404s, expired image URLs, and broken links that wouldn't
+  // be caught by staleness alone (banner row exists but image is dead).
+  let bannersBrokenImages = 0;
+  {
+    const { data: allBanners } = await supabase
+      .from('banners')
+      .select('id, oem_id, page_url, position, headline, image_url_desktop, image_url_mobile');
+
+    if (allBanners && allBanners.length > 0) {
+      const brokenByOem: Record<string, Array<{ id: string; url: string; field: string; status: number }>> = {};
+
+      // Collect all image URLs to check
+      const checks: Array<{ banner: typeof allBanners[0]; field: string; url: string }> = [];
+      for (const b of allBanners) {
+        if (b.image_url_desktop) checks.push({ banner: b, field: 'image_url_desktop', url: b.image_url_desktop });
+        if (b.image_url_mobile) checks.push({ banner: b, field: 'image_url_mobile', url: b.image_url_mobile });
+      }
+
+      // Process in batches of 20 to limit concurrent fetches
+      for (let i = 0; i < checks.length; i += 20) {
+        const batch = checks.slice(i, i + 20);
+        const results = await Promise.allSettled(
+          batch.map(async ({ banner, field, url }) => {
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 5000);
+              const res = await fetch(url, { method: 'HEAD', signal: controller.signal });
+              clearTimeout(timeout);
+              return res.status >= 400 ? { banner, field, url, status: res.status } : null;
+            } catch {
+              return { banner, field, url, status: 0 };
+            }
+          })
+        );
+
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            const { banner, field, url, status } = r.value;
+            if (!brokenByOem[banner.oem_id]) brokenByOem[banner.oem_id] = [];
+            brokenByOem[banner.oem_id].push({ id: banner.id, url, field, status });
+          }
+        }
+      }
+
+      // Null out broken URLs and emit triage events
+      for (const [oemId, brokenItems] of Object.entries(brokenByOem)) {
+        bannersBrokenImages += brokenItems.length;
+
+        for (const item of brokenItems) {
+          await supabase.from('banners').update({ [item.field]: null }).eq('id', item.id);
+        }
+
+        // Deduplicate — only emit if no recent banner_extraction_failed event
+        const { count: recentEventCount } = await supabase
+          .from('change_events')
+          .select('id', { count: 'exact', head: true })
+          .eq('oem_id', oemId)
+          .eq('event_type', 'banner_extraction_failed')
+          .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
+
+        if (!recentEventCount) {
+          await supabase.from('change_events').insert({
+            id: crypto.randomUUID(),
+            entity_type: 'banner',
+            entity_id: null,
+            oem_id: oemId,
+            event_type: 'banner_extraction_failed',
+            severity: 'high',
+            summary: `${brokenItems.length} broken banner image(s) for ${oemId} — URLs returning ${[...new Set(brokenItems.map(b => b.status))].join('/')}`,
+            diff_json: {
+              trigger: 'crawl_doctor_broken_images',
+              broken_urls: brokenItems.map(b => ({ url: b.url, field: b.field, status: b.status })),
+            },
+            created_at: now.toISOString(),
+          });
+        }
+
+        diagnoses.push({
+          oem_id: oemId,
+          issue: `${brokenItems.length} banner image(s) returning HTTP errors — nulled out broken URLs`,
+          action: 'Banner triage agent will attempt re-extraction',
+          result: 'fixed',
+          detail: brokenItems.map(b => `${b.field}: ${b.status} ${b.url.split('/').pop()}`).join(', '),
+        });
+      }
+
+      if (bannersBrokenImages > 0) {
+        console.log(`[CrawlDoctor] Step 7b: ${bannersBrokenImages} broken banner image URLs detected and nulled`);
+      }
+    }
+  }
+
   // ── Step 8: Send diagnosis report to Slack ──
   if (slackWebhookUrl && diagnoses.length > 0) {
     const fixed = diagnoses.filter(d => d.result === 'fixed');
@@ -436,6 +530,7 @@ export async function executeCrawlDoctor(
     offers_archived: offersArchived,
     price_anomalies: priceAnomalies,
     banners_stale: bannersStale,
+    banners_broken_images: bannersBrokenImages,
     diagnoses,
   };
 
