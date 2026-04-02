@@ -211,7 +211,7 @@ describe('ComponentGenerator', () => {
     // -----------------------------------------------------------------------
     // Error paths
     // -----------------------------------------------------------------------
-    it('returns error when AI response is not valid JSON', async () => {
+    it('treats non-JSON response as raw template HTML (last-resort fallback)', async () => {
       mockRoute.mockResolvedValue({
         content: 'not json at all',
         usage: { total_tokens: 300 },
@@ -219,8 +219,8 @@ describe('ComponentGenerator', () => {
 
       const result = await generator.generateComponent('kia-au', makeSection(), makeProfile());
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Failed to parse Claude response as JSON');
+      // Last-resort fallback wraps raw text as template
+      expect(result.success).toBe(true);
       expect(result.tokens_used).toBe(300);
     });
 
