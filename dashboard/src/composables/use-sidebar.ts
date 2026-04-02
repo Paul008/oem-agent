@@ -1,4 +1,4 @@
-import { Activity, BarChart3, BookmarkPlus, BookOpen, Bot, BrainCircuit, Car, Clapperboard, Clock, Cpu, Eye, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, LayoutTemplate, List, Palette, Play, Plug, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings } from 'lucide-vue-next'
+import { Activity, BarChart3, BookmarkPlus, BookOpen, Bot, BrainCircuit, Car, Clapperboard, Clock, Cpu, Eye, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, LayoutTemplate, List, Palette, Play, Plug, Rocket, Shield, Tag, TrendingUp, Users, Wrench, Calendar, Settings, ScrollText } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -28,6 +28,7 @@ export function useSidebar() {
         { title: 'Colors', url: '/dashboard/colors', icon: Palette },
         { title: 'Pricing', url: '/dashboard/pricing', icon: TrendingUp },
         { title: 'Specifications', url: '/dashboard/specs', icon: FileText },
+        { title: 'PDFs & Specs', url: '/dashboard/pdfs', icon: ScrollText },
         { title: 'Model Pages', url: '/dashboard/model-pages', icon: FileText },
       ],
     },
