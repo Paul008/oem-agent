@@ -2898,7 +2898,7 @@ app.post('/admin/recipes', async (c) => {
 });
 
 app.post('/admin/recipes/extract', async (c) => {
-  const body = await c.req.json<{ url: string; oem_id: string }>();
+  const body = await c.req.json<{ url: string; oem_id: string; provider?: 'gemini' | 'workers_ai' }>();
 
   if (!body.url || !body.oem_id) {
     return c.json({ error: 'url and oem_id are required' }, 400);
@@ -2908,11 +2908,18 @@ app.post('/admin/recipes/extract', async (c) => {
     const { RecipeExtractor } = await import('../design/recipe-extractor');
     const extractor = new RecipeExtractor({
       browser: c.env.BROWSER!,
-      googleApiKey: c.env.GOOGLE_API_KEY!,
+      googleApiKey: c.env.GOOGLE_API_KEY,
+      aiBinding: c.env.AI,
     });
 
-    const result = await extractor.extractRecipes(body.url, body.oem_id as any);
-    return c.json({ suggestions: result.suggestions, screenshot_base64: result.screenshot_base64, url: body.url, oem_id: body.oem_id });
+    const result = await extractor.extractRecipes(body.url, body.oem_id as any, body.provider);
+    return c.json({
+      suggestions: result.suggestions,
+      screenshot_base64: result.screenshot_base64,
+      model_used: result.model_used,
+      url: body.url,
+      oem_id: body.oem_id,
+    });
   } catch (err: any) {
     console.error('[RecipeExtract] Error:', err.message);
     return c.json({ error: err.message || 'Extraction failed' }, 500);

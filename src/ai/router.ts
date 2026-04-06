@@ -57,6 +57,21 @@ export const MOONSHOT_CONFIG = {
   supports_vision: true,
 };
 
+// Gemma 4 26B A4B config (Workers AI — on-network vision, zero egress)
+export const GEMMA4_CONFIG = {
+  model: '@cf/google/gemma-4-26b-a4b-it',
+  max_context: 256000,
+  supports_vision: true,
+  supports_thinking: true,
+  supports_tools: true,
+  cost_per_m_input: 0, // Workers AI included tier
+  cost_per_m_output: 0,
+  default_params: {
+    temperature: 0.3,
+    max_tokens: 16384,
+  },
+};
+
 export const AI_ROUTER_CONFIG: AiRouterConfig = {
   groq: {
     api_base: 'https://api.groq.com/openai/v1',
@@ -160,6 +175,8 @@ export const AVAILABLE_MODELS: AvailableModel[] = [
   // Gemini
   { id: 'gemini-2.5-pro', provider: 'google_gemini', model: GEMINI_CONFIG.model, displayName: 'Gemini 2.5 Pro', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
   { id: 'gemini-3.1-pro', provider: 'google_gemini', model: GEMINI_31_CONFIG.model, displayName: 'Gemini 3.1 Pro', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
+  // Workers AI (on-network, zero egress)
+  { id: 'gemma-4-26b', provider: 'workers_ai', model: GEMMA4_CONFIG.model, displayName: 'Gemma 4 26B A4B (Workers AI)', costTier: 'free', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
   // Anthropic
   { id: 'claude-sonnet-4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5', costTier: 'high', capabilities: ['json_mode', 'reasoning'] },
   { id: 'claude-sonnet-4.5-latest', provider: 'anthropic', model: 'claude-sonnet-4-5-20251022', displayName: 'Claude Sonnet 4.5 (Latest)', costTier: 'high', capabilities: ['json_mode', 'reasoning'] },
@@ -315,8 +332,8 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     provider: 'google_gemini',
     model: GEMINI_31_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'google_gemini',
-    fallbackModel: GEMINI_CONFIG.model,
+    fallbackProvider: 'workers_ai',
+    fallbackModel: GEMMA4_CONFIG.model,
   },
 
   // Brand Ambassador — Stage 1: Visual extraction (Gemini sees the page)
@@ -324,8 +341,8 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     provider: 'google_gemini',
     model: GEMINI_31_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'google_gemini',
-    fallbackModel: GEMINI_CONFIG.model,
+    fallbackProvider: 'workers_ai',
+    fallbackModel: GEMMA4_CONFIG.model,
   },
 
   // Brand Ambassador — Stage 2: Content generation (Gemini 3.1 Pro writes structured HTML)
@@ -378,8 +395,8 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     provider: 'google_gemini',
     model: GEMINI_31_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'google_gemini',
-    fallbackModel: GEMINI_CONFIG.model,
+    fallbackProvider: 'workers_ai',
+    fallbackModel: GEMMA4_CONFIG.model,
   },
 
   // Adaptive Pipeline — Bespoke component generation (Claude)
@@ -438,10 +455,11 @@ export interface InferenceResponse {
 export class AiRouter {
   private apiKeys: Record<string, string>;
   private supabase: SupabaseClient | null;
+  private aiBinding: Ai | null;
   private inferenceLog: AiInferenceLog[] = []; // Fallback when supabase is not provided
   private overrides: Record<string, Partial<RouteDecision>> | null = null;
 
-  constructor(apiKeys: { groq?: string; together?: string; moonshot?: string; anthropic?: string; google?: string }, supabase?: SupabaseClient) {
+  constructor(apiKeys: { groq?: string; together?: string; moonshot?: string; anthropic?: string; google?: string }, supabase?: SupabaseClient, aiBinding?: Ai) {
     this.apiKeys = {
       [AI_ROUTER_CONFIG.groq.api_key_env]: apiKeys.groq || '',
       [AI_ROUTER_CONFIG.kimi_k2_5.api_key_env]: apiKeys.together || '',
@@ -450,6 +468,7 @@ export class AiRouter {
       [GEMINI_CONFIG.api_key_env]: apiKeys.google || '',
     };
     this.supabase = supabase || null;
+    this.aiBinding = aiBinding || null;
   }
 
   /**
@@ -596,6 +615,8 @@ export class AiRouter {
         return this.callCloudflareAIGateway(model, request);
       case 'google_gemini':
         return this.callGemini(model, request);
+      case 'workers_ai':
+        return this.callWorkersAi(model, request);
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -921,8 +942,62 @@ export class AiRouter {
   }
 
   /**
+   * Call Workers AI (Gemma 4 26B A4B — on-network, zero egress).
+   * Uses the Ai binding from the Worker environment.
+   * Supports vision via OpenAI-compatible chat completions format.
+   */
+  private async callWorkersAi(
+    model: string,
+    request: InferenceRequest
+  ): Promise<Omit<InferenceResponse, 'provider' | 'model' | 'latency_ms' | 'wasFallback'>> {
+    if (!this.aiBinding) {
+      throw new Error('Workers AI binding (env.AI) not available');
+    }
+
+    // Build messages in OpenAI-compatible format
+    type ContentPart =
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } };
+
+    let content: string | ContentPart[];
+
+    if (request.imageBase64) {
+      const mimeType = request.imageMimeType || 'image/png';
+      content = [
+        { type: 'image_url', image_url: { url: `data:${mimeType};base64,${request.imageBase64}` } },
+        { type: 'text', text: request.prompt },
+      ];
+    } else {
+      content = request.prompt;
+    }
+
+    const response = await this.aiBinding.run(model as any, {
+      messages: [{ role: 'user', content }],
+      temperature: GEMMA4_CONFIG.default_params.temperature,
+      max_tokens: request.maxTokens || GEMMA4_CONFIG.default_params.max_tokens,
+      ...(request.requireJson !== false ? { response_format: { type: 'json_object' } } : {}),
+    }) as any;
+
+    // Workers AI returns { response: string } or OpenAI-compatible format
+    const text = typeof response === 'string'
+      ? response
+      : response?.response || response?.choices?.[0]?.message?.content || '';
+
+    const usage = response?.usage || {};
+
+    return {
+      content: text,
+      usage: {
+        prompt_tokens: usage.prompt_tokens || 0,
+        completion_tokens: usage.completion_tokens || 0,
+        total_tokens: usage.total_tokens || (usage.prompt_tokens || 0) + (usage.completion_tokens || 0),
+      },
+    };
+  }
+
+  /**
    * Log inference to database.
-   * 
+   *
    * Spec Section 10.6 Rule 8: Log all LLM calls to ai_inference_log table
    */
   private async logInference(params: {
@@ -1006,6 +1081,11 @@ export class AiRouter {
     if (provider === 'anthropic') {
       // Claude Sonnet 4.5: ~$3/1M input, ~$15/1M output
       return promptM * 3 + completionM * 15;
+    }
+
+    // Workers AI (included tier — free)
+    if (provider === 'workers_ai') {
+      return 0;
     }
 
     // Gemini models

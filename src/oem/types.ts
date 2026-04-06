@@ -659,7 +659,7 @@ export interface DesignCapture {
 // AI Inference Logging
 // ============================================================================
 
-export type AiProvider = 'groq' | 'together' | 'moonshot' | 'anthropic' | 'cloudflare_ai_gateway' | 'google_gemini';
+export type AiProvider = 'groq' | 'together' | 'moonshot' | 'anthropic' | 'cloudflare_ai_gateway' | 'google_gemini' | 'workers_ai';
 export type AiTaskType =
   | 'html_normalisation'
   | 'llm_extraction'

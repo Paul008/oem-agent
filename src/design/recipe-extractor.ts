@@ -7,11 +7,13 @@
  */
 
 import type { OemId } from '../oem/types';
-import { GEMINI_CONFIG, GEMINI_31_CONFIG } from '../ai/router';
+import { GEMINI_CONFIG, GEMINI_31_CONFIG, GEMMA4_CONFIG } from '../ai/router';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export type VisionProvider = 'gemini' | 'workers_ai';
 
 export interface ExtractedRecipe {
   pattern: string;
@@ -26,11 +28,14 @@ export interface ExtractedRecipe {
 export interface ExtractionResult {
   suggestions: ExtractedRecipe[];
   screenshot_base64: string;
+  model_used: string;
 }
 
 export interface RecipeExtractorDeps {
   browser: Fetcher;
-  googleApiKey: string;
+  googleApiKey?: string;
+  /** Workers AI binding for Gemma 4 vision */
+  aiBinding?: Ai;
 }
 
 // ============================================================================
@@ -65,18 +70,32 @@ OEM: ${oemId}`;
 
 export class RecipeExtractor {
   private browser: Fetcher;
-  private googleApiKey: string;
+  private googleApiKey?: string;
+  private aiBinding?: Ai;
 
   constructor(deps: RecipeExtractorDeps) {
     this.browser = deps.browser;
     this.googleApiKey = deps.googleApiKey;
+    this.aiBinding = deps.aiBinding;
   }
 
   /**
-   * Capture a screenshot of the given URL, send it to Gemini 3.1 Pro Vision,
+   * Determine which vision provider to use.
+   * Prefers Workers AI (Gemma 4) when available — zero egress, on-network.
+   * Falls back to Gemini 3.1 Pro when Workers AI binding is not available.
+   */
+  private resolveProvider(override?: VisionProvider): VisionProvider {
+    if (override) return override;
+    if (this.aiBinding) return 'workers_ai';
+    if (this.googleApiKey) return 'gemini';
+    throw new Error('[RecipeExtractor] No vision provider available — need either env.AI or GOOGLE_API_KEY');
+  }
+
+  /**
+   * Capture a screenshot of the given URL, send it to a vision model,
    * and return the extracted section recipes sorted by confidence plus the screenshot.
    */
-  async extractRecipes(url: string, oemId: OemId): Promise<ExtractionResult> {
+  async extractRecipes(url: string, oemId: OemId, provider?: VisionProvider): Promise<ExtractionResult> {
     const controller = new AbortController();
     const overallTimeout = setTimeout(() => controller.abort(), 60_000);
 
@@ -93,16 +112,26 @@ export class RecipeExtractor {
       }
       const base64Image = btoa(binary);
 
-      // Step 3: Send to Gemini 3.1 Pro Vision
+      // Step 3: Send to vision model
       const prompt = buildRecipeExtractionPrompt(oemId);
-      const recipes = await this.callVisionApi(prompt, base64Image, controller.signal);
+      const resolvedProvider = this.resolveProvider(provider);
+      let recipes: ExtractedRecipe[];
+      let modelUsed: string;
+
+      if (resolvedProvider === 'workers_ai') {
+        recipes = await this.callWorkersAiVision(prompt, base64Image);
+        modelUsed = GEMMA4_CONFIG.model;
+      } else {
+        recipes = await this.callGeminiVision(prompt, base64Image, controller.signal);
+        modelUsed = GEMINI_31_CONFIG.model;
+      }
 
       // Step 4: Filter low-confidence and sort descending
       const suggestions = recipes
         .filter((r) => r.confidence > 0.5)
         .sort((a, b) => b.confidence - a.confidence);
 
-      return { suggestions, screenshot_base64: base64Image };
+      return { suggestions, screenshot_base64: base64Image, model_used: modelUsed };
     } finally {
       clearTimeout(overallTimeout);
     }
@@ -165,11 +194,15 @@ export class RecipeExtractor {
   /**
    * Call Gemini 3.1 Pro Vision API with the screenshot and extraction prompt.
    */
-  private async callVisionApi(
+  private async callGeminiVision(
     prompt: string,
     base64Image: string,
     signal: AbortSignal,
   ): Promise<ExtractedRecipe[]> {
+    if (!this.googleApiKey) {
+      throw new Error('[RecipeExtractor] GOOGLE_API_KEY not set for Gemini provider');
+    }
+
     const model = GEMINI_31_CONFIG.model;
     const url = `${GEMINI_CONFIG.api_base}/models/${model}:generateContent?key=${this.googleApiKey}`;
 
@@ -205,15 +238,65 @@ export class RecipeExtractor {
       throw new Error('[RecipeExtractor] Empty response from Gemini 3.1 Pro');
     }
 
+    return this.parseRecipeResponse(content, 'Gemini 3.1 Pro');
+  }
+
+  /**
+   * Call Workers AI (Gemma 4 26B A4B) for vision-based recipe extraction.
+   * Zero egress, on-network — runs directly on Cloudflare's infrastructure.
+   */
+  private async callWorkersAiVision(
+    prompt: string,
+    base64Image: string,
+  ): Promise<ExtractedRecipe[]> {
+    if (!this.aiBinding) {
+      throw new Error('[RecipeExtractor] Workers AI binding (env.AI) not available');
+    }
+
+    console.log(`[RecipeExtractor] Using Workers AI: ${GEMMA4_CONFIG.model}`);
+
+    const response = await this.aiBinding.run(GEMMA4_CONFIG.model as any, {
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Image}` } },
+          { type: 'text', text: prompt + '\n\nRespond with valid JSON only. Format: { "recipes": [...] }' },
+        ],
+      }],
+      temperature: GEMMA4_CONFIG.default_params.temperature,
+      max_tokens: GEMMA4_CONFIG.default_params.max_tokens,
+    }) as any;
+
+    const content = typeof response === 'string'
+      ? response
+      : response?.response || response?.choices?.[0]?.message?.content || '';
+
+    if (!content) {
+      throw new Error('[RecipeExtractor] Empty response from Workers AI (Gemma 4)');
+    }
+
+    return this.parseRecipeResponse(content, 'Gemma 4 26B (Workers AI)');
+  }
+
+  /**
+   * Parse and validate recipe JSON from any vision model response.
+   */
+  private parseRecipeResponse(content: string, modelName: string): ExtractedRecipe[] {
+    // Strip markdown code fences if present
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+    }
+
     let parsed: { recipes?: ExtractedRecipe[] };
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(cleaned);
     } catch {
-      throw new Error(`[RecipeExtractor] Invalid JSON from Gemini 3.1 Pro: ${content.slice(0, 200)}`);
+      throw new Error(`[RecipeExtractor] Invalid JSON from ${modelName}: ${cleaned.slice(0, 200)}`);
     }
 
     if (!Array.isArray(parsed.recipes)) {
-      throw new Error('[RecipeExtractor] Response missing "recipes" array');
+      throw new Error(`[RecipeExtractor] Response from ${modelName} missing "recipes" array`);
     }
 
     return parsed.recipes;
