@@ -208,15 +208,15 @@ specsApi.get('/admin/pdf-catalog', async (c) => {
   if (modelIds.length > 0) {
     const { data: chunks, error: chunksError } = await supabase
       .from('pdf_embeddings')
-      .select('model_id')
-      .in('model_id', modelIds);
+      .select('source_id')
+      .in('source_id', modelIds);
 
     if (chunksError) {
       console.error('[specs-api] pdf_embeddings error:', chunksError.message);
       // Non-fatal: continue without chunk counts
     } else if (chunks) {
       for (const row of chunks) {
-        chunkCounts[row.model_id] = (chunkCounts[row.model_id] ?? 0) + 1;
+        chunkCounts[row.source_id] = (chunkCounts[row.source_id] ?? 0) + 1;
       }
     }
   }

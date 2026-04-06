@@ -373,7 +373,7 @@ export async function executePdfSpecExtraction(
         .from('pdf_embeddings')
         .select('chunk_text, chunk_index')
         .eq('source_id', modelId)
-        .eq('source_type', 'vehicle_model')
+        .eq('source_type', 'brochure')
         .order('chunk_index', { ascending: true });
 
       if (chunksError) {
