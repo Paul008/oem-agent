@@ -298,6 +298,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/pdf-specs': RouteRecordInfo<
+      '/dashboard/pdf-specs',
+      '/dashboard/pdf-specs',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/pdfs': RouteRecordInfo<
       '/dashboard/pdfs',
       '/dashboard/pdfs',
@@ -793,6 +800,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/page-templates.vue': {
       routes:
         | '/dashboard/page-templates'
+      views:
+        | never
+    }
+    'src/pages/dashboard/pdf-specs.vue': {
+      routes:
+        | '/dashboard/pdf-specs'
       views:
         | never
     }

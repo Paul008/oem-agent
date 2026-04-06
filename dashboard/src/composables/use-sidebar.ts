@@ -29,6 +29,7 @@ export function useSidebar() {
         { title: 'Pricing', url: '/dashboard/pricing', icon: TrendingUp },
         { title: 'Specifications', url: '/dashboard/specs', icon: FileText },
         { title: 'PDFs & Specs', url: '/dashboard/pdfs', icon: ScrollText },
+        { title: 'PDF Extracted Specs', url: '/dashboard/pdf-specs', icon: ScrollText },
         { title: 'Model Pages', url: '/dashboard/model-pages', icon: FileText },
       ],
     },

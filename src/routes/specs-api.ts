@@ -306,3 +306,58 @@ specsApi.post('/admin/extract-specs', async (c) => {
 
   return c.json(result);
 });
+
+// ============================================================
+// 4. GET /admin/pdf-specs  (admin) — browse extracted specs
+// ============================================================
+
+specsApi.get('/admin/pdf-specs', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  const oemIdFilter = c.req.query('oem_id');
+
+  let query = supabase
+    .from('vehicle_models')
+    .select('id, name, slug, oem_id, brochure_url, extracted_specs, extracted_specs_at')
+    .not('extracted_specs', 'is', null);
+
+  if (oemIdFilter) {
+    query = query.eq('oem_id', oemIdFilter);
+  }
+
+  const { data: models, error } = await query.order('oem_id').order('name');
+
+  if (error) {
+    return c.json({ error: 'Database error', details: error.message }, 500);
+  }
+
+  const rows = (models ?? []).map((m) => {
+    const specs = m.extracted_specs as ExtractedSpecs | null;
+    const categories = specs?.categories ?? [];
+    const specCount = categories.reduce((sum: number, cat: SpecCategory) => sum + cat.specs.length, 0);
+    return {
+      model_id: m.id,
+      oem_id: m.oem_id,
+      model_name: m.name ?? m.slug,
+      slug: m.slug,
+      brochure_url: m.brochure_url,
+      extracted_at: m.extracted_specs_at,
+      category_count: categories.length,
+      spec_count: specCount,
+      categories: categories.map((cat: SpecCategory) => ({
+        name: cat.name,
+        specs: cat.specs.map((s: SpecEntry) => ({
+          key: s.key,
+          label: s.label,
+          value: s.value,
+          unit: s.unit,
+        })),
+      })),
+    };
+  });
+
+  return c.json({ total: rows.length, models: rows });
+});
