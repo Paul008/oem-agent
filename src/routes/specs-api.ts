@@ -25,17 +25,18 @@ import type { ExtractedSpecs, SpecCategory, SpecEntry } from '../sync/pdf-spec-e
 interface PdfRow {
   model_id: string;
   oem_id: string;
-  slug: string;
+  model_name: string;
   brochure_url: string;
-  extracted_specs_at: string | null;
+  extracted_at: string | null;
   chunk_count: number;
   has_specs: boolean;
+  spec_count: number;
 }
 
 interface CatalogStats {
   total_models: number;
-  models_with_brochures: number;
-  pdfs_vectorized: number;
+  with_brochure: number;
+  vectorized: number;
   specs_extracted: number;
 }
 
@@ -178,7 +179,7 @@ specsApi.get('/admin/pdf-catalog', async (c) => {
   // ── Fetch vehicle_models with brochure_url ─────────────────────────────────
   let modelsQuery = supabase
     .from('vehicle_models')
-    .select('id, slug, oem_id, brochure_url, extracted_specs_at, extracted_specs');
+    .select('id, name, oem_id, brochure_url, extracted_specs_at, extracted_specs');
 
   if (oemIdFilter) {
     modelsQuery = modelsQuery.eq('oem_id', oemIdFilter);
@@ -196,7 +197,7 @@ specsApi.get('/admin/pdf-catalog', async (c) => {
   }
 
   if (!models) {
-    return c.json({ stats: { total_models: 0, models_with_brochures: 0, pdfs_vectorized: 0, specs_extracted: 0 }, pdfs: [] });
+    return c.json({ stats: { total_models: 0, with_brochure: 0, vectorized: 0, specs_extracted: 0 }, pdfs: [] });
   }
 
   // ── Fetch chunk counts from pdf_embeddings ─────────────────────────────────
@@ -221,20 +222,25 @@ specsApi.get('/admin/pdf-catalog', async (c) => {
   }
 
   // ── Build response rows ────────────────────────────────────────────────────
-  const pdfs: PdfRow[] = models.map((m) => ({
-    model_id: m.id,
-    oem_id: m.oem_id,
-    slug: m.slug,
-    brochure_url: m.brochure_url,
-    extracted_specs_at: m.extracted_specs_at ?? null,
-    chunk_count: chunkCounts[m.id] ?? 0,
-    has_specs: !!m.extracted_specs,
-  }));
+  const pdfs: PdfRow[] = models.map((m) => {
+    const specs = m.extracted_specs as ExtractedSpecs | null;
+    const specCount = specs?.categories?.reduce((sum, cat) => sum + cat.specs.length, 0) ?? 0;
+    return {
+      model_id: m.id,
+      oem_id: m.oem_id,
+      model_name: m.name ?? m.id,
+      brochure_url: m.brochure_url,
+      extracted_at: m.extracted_specs_at ?? null,
+      chunk_count: chunkCounts[m.id] ?? 0,
+      has_specs: !!m.extracted_specs,
+      spec_count: specCount,
+    };
+  });
 
   const stats: CatalogStats = {
     total_models: allModelsError ? models.length : (allModels as unknown as { count: number } | null)?.count ?? models.length,
-    models_with_brochures: models.length,
-    pdfs_vectorized: pdfs.filter((p) => p.chunk_count > 0).length,
+    with_brochure: models.length,
+    vectorized: pdfs.filter((p) => p.chunk_count > 0).length,
     specs_extracted: pdfs.filter((p) => p.has_specs).length,
   };
 
