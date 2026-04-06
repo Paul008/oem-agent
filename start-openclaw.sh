@@ -277,6 +277,18 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
+// Enable dreaming (memory consolidation) — runs daily at 3am AEST
+config.plugins = config.plugins || {};
+config.plugins.entries = config.plugins.entries || {};
+config.plugins.entries['memory-core'] = config.plugins.entries['memory-core'] || {};
+config.plugins.entries['memory-core'].config = config.plugins.entries['memory-core'].config || {};
+config.plugins.entries['memory-core'].config.dreaming = {
+    enabled: true,
+    timezone: 'Australia/Sydney',
+    frequency: '0 3 * * *',
+};
+console.log('Dreaming enabled (daily 3am AEST)');
+
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Configuration patched successfully');
 EOFPATCH
