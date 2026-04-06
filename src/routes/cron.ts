@@ -767,6 +767,9 @@ async function syncEmbeddings(
   if (!GOOGLE_API_KEY) {
     return { message: 'GOOGLE_API_KEY not set, skipping embedding sync' };
   }
+  if (!env.AI) {
+    return { message: 'Workers AI binding not available, skipping embedding sync' };
+  }
 
   // Find brochures not yet embedded
   const { data: models } = await supabase
@@ -840,25 +843,18 @@ async function syncEmbeddings(
         i = end - OVERLAP;
       }
 
-      // Generate embeddings + insert
+      // Generate embeddings via Workers AI + insert
       for (let ci = 0; ci < chunks.length; ci++) {
-        const embedRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GOOGLE_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'models/gemini-embedding-001',
-              content: { parts: [{ text: chunks[ci] }] },
-              taskType: 'RETRIEVAL_DOCUMENT',
-              outputDimensionality: 768,
-            }),
-          },
-        );
-
-        if (!embedRes.ok) continue;
-        const embedData = await embedRes.json() as any;
-        const vector = embedData.embedding?.values;
+        let vector: number[] | undefined;
+        try {
+          const embedResult = await env.AI.run('@cf/google/embeddinggemma-300m', {
+            text: [chunks[ci]],
+          }) as { data: number[][] };
+          vector = embedResult.data?.[0];
+        } catch (e) {
+          console.warn(`[EmbeddingSync] Workers AI embedding failed for chunk ${ci}:`, e);
+          continue;
+        }
         if (!vector) continue;
 
         await supabase.from('pdf_embeddings').upsert({
