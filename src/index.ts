@@ -28,7 +28,7 @@ import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
-import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi } from './routes';
+import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy } from './routes';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
@@ -166,6 +166,9 @@ app.route('/media', media);
 
 // Mount dealer API (public — consumed by dealer websites without auth)
 app.route('/api/wp/v2', dealerApi);
+
+// Mount OEM page proxy (public — POC for interactive widget embedding)
+app.route('/oem-proxy', oemProxy);
 
 // =============================================================================
 // PROTECTED ROUTES: Cloudflare Access authentication required
