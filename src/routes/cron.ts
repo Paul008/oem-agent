@@ -792,22 +792,56 @@ async function syncEmbeddings(
 
   let embedded = 0;
   let failed = 0;
+  const errors: string[] = [];
+
+  // Helper: convert Uint8Array to base64 without stack overflow
+  function uint8ToBase64(bytes: Uint8Array): string {
+    const CHUNK = 8192;
+    let result = '';
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      result += String.fromCharCode(...bytes.slice(i, i + CHUNK));
+    }
+    return btoa(result);
+  }
 
   for (const model of toDo.slice(0, 10)) { // Max 10 per run to stay within Worker CPU limits
+    const label = `${model.oem_id}/${model.name}`;
     try {
       // Download PDF
       const res = await fetch(model.brochure_url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh)' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
+        redirect: 'follow',
       });
-      if (!res.ok) { failed++; continue; }
+      if (!res.ok) {
+        const reason = `download failed: ${res.status} ${res.statusText}`;
+        console.warn(`[EmbeddingSync] ${label}: ${reason}`);
+        errors.push(`${label}: ${reason}`);
+        failed++;
+        continue;
+      }
       const buffer = new Uint8Array(await res.arrayBuffer());
 
       // Validate PDF header
       const header = new TextDecoder().decode(buffer.slice(0, 5));
-      if (!header.startsWith('%PDF')) { failed++; continue; }
+      if (!header.startsWith('%PDF')) {
+        const reason = `not a valid PDF (header: ${header})`;
+        console.warn(`[EmbeddingSync] ${label}: ${reason}`);
+        errors.push(`${label}: ${reason}`);
+        failed++;
+        continue;
+      }
+
+      // Skip excessively large PDFs (>25MB) to avoid timeout
+      if (buffer.length > 25 * 1024 * 1024) {
+        const reason = `PDF too large: ${(buffer.length / 1024 / 1024).toFixed(1)}MB`;
+        console.warn(`[EmbeddingSync] ${label}: ${reason}`);
+        errors.push(`${label}: ${reason}`);
+        failed++;
+        continue;
+      }
 
       // Extract text via Gemini Vision
-      const base64 = btoa(String.fromCharCode(...buffer));
+      const base64 = uint8ToBase64(buffer);
       const extractRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
         {
@@ -825,10 +859,23 @@ async function syncEmbeddings(
         },
       );
 
-      if (!extractRes.ok) { failed++; continue; }
+      if (!extractRes.ok) {
+        const errBody = await extractRes.text().catch(() => '');
+        const reason = `Gemini extraction failed: ${extractRes.status} ${errBody.slice(0, 200)}`;
+        console.warn(`[EmbeddingSync] ${label}: ${reason}`);
+        errors.push(`${label}: ${reason}`);
+        failed++;
+        continue;
+      }
       const extractData = await extractRes.json() as any;
       const text = extractData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (text.length < 50) { failed++; continue; }
+      if (text.length < 50) {
+        const reason = `extracted text too short (${text.length} chars)`;
+        console.warn(`[EmbeddingSync] ${label}: ${reason}`);
+        errors.push(`${label}: ${reason}`);
+        failed++;
+        continue;
+      }
 
       // Chunk text
       const CHUNK_SIZE = 800;
@@ -844,6 +891,7 @@ async function syncEmbeddings(
       }
 
       // Generate embeddings via Workers AI + insert
+      let chunksFailed = 0;
       for (let ci = 0; ci < chunks.length; ci++) {
         let vector: number[] | undefined;
         try {
@@ -852,10 +900,11 @@ async function syncEmbeddings(
           }) as { data: number[][] };
           vector = embedResult.data?.[0];
         } catch (e) {
-          console.warn(`[EmbeddingSync] Workers AI embedding failed for chunk ${ci}:`, e);
+          console.warn(`[EmbeddingSync] ${label} chunk ${ci}: Workers AI failed:`, e);
+          chunksFailed++;
           continue;
         }
-        if (!vector) continue;
+        if (!vector) { chunksFailed++; continue; }
 
         await supabase.from('pdf_embeddings').upsert({
           source_type: 'brochure',
@@ -869,11 +918,18 @@ async function syncEmbeddings(
         }, { onConflict: 'source_id,source_type,chunk_index' });
       }
 
-      embedded++;
-      console.log(`[EmbeddingSync] ${model.oem_id}/${model.name}: ${chunks.length} chunks embedded`);
+      if (chunksFailed === chunks.length && chunks.length > 0) {
+        errors.push(`${label}: all ${chunks.length} embedding calls failed`);
+        failed++;
+      } else {
+        embedded++;
+        console.log(`[EmbeddingSync] ${label}: ${chunks.length - chunksFailed}/${chunks.length} chunks embedded`);
+      }
     } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      console.warn(`[EmbeddingSync] ${label}: ${reason}`);
+      errors.push(`${label}: ${reason}`);
       failed++;
-      console.warn(`[EmbeddingSync] ${model.oem_id}/${model.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -882,6 +938,7 @@ async function syncEmbeddings(
     new_brochures: toDo.length,
     embedded,
     failed,
+    errors: errors.slice(0, 20),
     remaining: Math.max(0, toDo.length - 10),
     total_embeddings: (alreadyDone.size) + embedded,
   };
