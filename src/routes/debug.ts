@@ -119,6 +119,19 @@ debug.post('/restart-gateway', async (c) => {
   }
 });
 
+// POST /debug/destroy-container - Destroy sandbox container to force new image on next request
+debug.post('/destroy-container', async (c) => {
+  const sandbox = c.get('sandbox');
+  try {
+    console.log('[DEBUG] Destroying sandbox container...');
+    await sandbox.destroy();
+    return c.json({ status: 'destroyed', message: 'Container destroyed. Next request will pull new image.' });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
 // GET /debug/gateway-api - Probe the moltbot gateway HTTP API
 debug.get('/gateway-api', async (c) => {
   const sandbox = c.get('sandbox');
