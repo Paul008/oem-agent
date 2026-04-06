@@ -202,7 +202,17 @@ async function viewSpecs(row: PdfRow) {
       .eq('id', row.model_id)
       .single()
     if (error) throw error
-    specsData.value = Array.isArray(data?.extracted_specs) ? data.extracted_specs : []
+    const raw = data?.extracted_specs
+    // extracted_specs is { categories: [{ name, specs: [{ label, value, unit }] }] }
+    if (raw?.categories && Array.isArray(raw.categories)) {
+      specsData.value = raw.categories.flatMap((cat: any) =>
+        (cat.specs ?? []).map((s: any) => ({ ...s, category: cat.name }))
+      )
+    } else if (Array.isArray(raw)) {
+      specsData.value = raw
+    } else {
+      specsData.value = []
+    }
   }
   catch (err: any) {
     toast.error(`Failed to load specs: ${err.message}`)
