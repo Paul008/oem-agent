@@ -410,12 +410,10 @@ setup_workspace() {
 
     mkdir -p "$ws_path/skills"
 
-    # Copy workspace bootstrap files
+    # Copy all workspace markdown files (SOUL, AGENTS, MEMORY, IDENTITY, USER, TOOLS, HEARTBEAT, BOOT, DREAMS, etc.)
     if [ -d "$source_dir" ]; then
-        for file in SOUL.md AGENTS.md MEMORY.md; do
-            if [ -f "$source_dir/$file" ]; then
-                cp "$source_dir/$file" "$ws_path/$file"
-            fi
+        for file in "$source_dir"/*.md; do
+            [ -f "$file" ] && cp "$file" "$ws_path/"
         done
     fi
 
@@ -441,11 +439,10 @@ if [ -d "$SKILLS_DIR" ]; then
 fi
 WORKSPACE_SOURCE="/root/clawd/workspace"
 if [ -d "$WORKSPACE_SOURCE" ]; then
-    for file in SOUL.md AGENTS.md MEMORY.md; do
-        if [ -f "$WORKSPACE_SOURCE/$file" ]; then
-            cp "$WORKSPACE_SOURCE/$file" "$WORKSPACE_DIR_OC/$file"
-        fi
+    for file in "$WORKSPACE_SOURCE"/*.md; do
+        [ -f "$file" ] && cp "$file" "$WORKSPACE_DIR_OC/"
     done
+    echo "Main workspace: copied $(ls -1 "$WORKSPACE_DIR_OC"/*.md 2>/dev/null | wc -l) markdown files"
 fi
 
 # Specialized agent workspaces
