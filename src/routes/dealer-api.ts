@@ -122,6 +122,27 @@ interface WpVariant {
   offer_disclaimer: string;
   brochure: string | null;
   specifications: any | null;
+  /** Per-variant specs extracted from the brochure PDF (vision-based) */
+  pdf_specs: PdfVariantSpecs | null;
+}
+
+export interface PdfSpecCategory {
+  name: string;
+  specs: Array<{
+    key: string;
+    label: string;
+    value: string;
+    unit: string | null;
+    raw?: string;
+  }>;
+}
+
+export interface PdfVariantSpecs {
+  variant_name: string;
+  model_year: string | null;
+  match_confidence: number;
+  extracted_at: string;
+  categories: PdfSpecCategory[];
 }
 
 // ── Shared transformation ─────────────────────────────────────────────────
@@ -207,6 +228,50 @@ function transformProduct(
     offer_disclaimer: product.disclaimer_text || product.price_qualifier || pricing?.price_qualifier || '',
     brochure: null,
     specifications: specs.engine || specs.dimensions || specs.performance ? specs : null,
+    pdf_specs: extractPdfVariantSpecs(specs),
+  };
+}
+
+/**
+ * Extract and clean per-variant PDF specs from a product's specs_json.
+ * Filters out specs marked as Unavailable / N/A / empty so the dealer app
+ * only ever sees usable values.
+ */
+function extractPdfVariantSpecs(specs: any): PdfVariantSpecs | null {
+  const raw = specs?._pdf_variant_specs;
+  if (!raw || !Array.isArray(raw.categories)) return null;
+
+  const isUnavailable = (v: unknown): boolean => {
+    if (v == null) return true;
+    const s = String(v).trim().toLowerCase();
+    return s === '' || s === '—' || s === '-' || s === 'unavailable' || s === 'n/a' || s === 'na' || s === 'not available';
+  };
+
+  const cleanCategories: PdfSpecCategory[] = [];
+  for (const cat of raw.categories) {
+    if (!cat?.name || !Array.isArray(cat.specs)) continue;
+    const cleanSpecs = cat.specs
+      .filter((s: any) => s?.key && s?.label && !isUnavailable(s.value))
+      .map((s: any) => ({
+        key: String(s.key),
+        label: String(s.label),
+        value: String(s.value),
+        unit: s.unit ?? null,
+        raw: s.raw,
+      }));
+    if (cleanSpecs.length > 0) {
+      cleanCategories.push({ name: String(cat.name), specs: cleanSpecs });
+    }
+  }
+
+  if (cleanCategories.length === 0) return null;
+
+  return {
+    variant_name: String(raw.variant_name || ''),
+    model_year: raw.model_year ?? null,
+    match_confidence: Number(raw.match_confidence ?? 0),
+    extracted_at: String(raw.extracted_at || ''),
+    categories: cleanCategories,
   };
 }
 
@@ -549,6 +614,7 @@ dealerApi.get('/variants-import', async (c) => {
         colors: {
           images: wpColors,
         },
+        pdf_specs: extractPdfVariantSpecs(specs),
       };
     });
 
