@@ -681,7 +681,7 @@ export async function executePdfSpecExtractionVision(
         prompt,
         oemId,
         pdfBase64,
-        maxTokens: 16000,
+        maxTokens: 60000,
       });
 
       // ── 3d. Parse JSON ──
