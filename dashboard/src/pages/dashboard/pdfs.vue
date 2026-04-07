@@ -150,15 +150,16 @@ function formatDate(dateStr: string | null) {
 async function extractSpecs(row: PdfRow) {
   if (extractingIds.value.has(row.model_id)) return
   extractingIds.value.add(row.model_id)
+  toast.info(`Extracting specs from ${row.model_name} PDF...`)
   try {
-    await workerFetch('/api/v1/admin/extract-specs', {
+    const result = await workerFetch('/api/v1/admin/extract-specs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model_id: row.model_id }),
     })
-    toast.success(`Spec extraction queued for ${row.model_name}`)
-    // Refresh after short delay to pick up new status
-    setTimeout(loadData, 3000)
+    const count = result?.extracted ?? result?.total ?? 0
+    toast.success(`Extracted specs for ${row.model_name}${count ? ` (${count} models)` : ''}`)
+    await loadData()
   }
   catch (err: any) {
     toast.error(`Extract failed: ${err.message}`)
@@ -175,14 +176,16 @@ async function extractAllMissing() {
     return
   }
   extractingAll.value = true
+  toast.info(`Extracting specs for ${missing.length} models — this may take a minute...`)
   try {
-    await workerFetch('/api/v1/admin/extract-specs', {
+    const result = await workerFetch('/api/v1/admin/extract-specs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     })
-    toast.success(`Bulk spec extraction queued for ${missing.length} models`)
-    setTimeout(loadData, 5000)
+    const count = result?.extracted ?? result?.total ?? missing.length
+    toast.success(`Extracted specs for ${count} models`)
+    await loadData()
   }
   catch (err: any) {
     toast.error(`Bulk extract failed: ${err.message}`)
