@@ -47,12 +47,13 @@ const filterStatus = ref<'all' | 'vectorized' | 'specs_extracted' | 'pending'>('
 const page = ref(1)
 const pageSize = ref(50)
 
-// Extract modal state
-const extractingIds = ref<Set<string>>(new Set())
+// Extract state — use a record so Vue tracks reactivity (Set mutations aren't reactive)
+const extractingIds = ref<Record<string, boolean>>({})
+const extractedIds = ref<Record<string, boolean>>({})
 const extractingAll = ref(false)
 
 // Upload state
-const uploadingIds = ref<Set<string>>(new Set())
+const uploadingIds = ref<Record<string, boolean>>({})
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const uploadTargetRow = ref<PdfRow | null>(null)
 
@@ -148,9 +149,8 @@ function formatDate(dateStr: string | null) {
 // ── Extract actions ───────────────────────────────────────────────────────────
 
 async function extractSpecs(row: PdfRow) {
-  if (extractingIds.value.has(row.model_id)) return
-  extractingIds.value.add(row.model_id)
-  toast.info(`Extracting specs from ${row.model_name} PDF...`)
+  if (extractingIds.value[row.model_id]) return
+  extractingIds.value[row.model_id] = true
   try {
     const result = await workerFetch('/api/v1/admin/extract-specs', {
       method: 'POST',
@@ -158,14 +158,15 @@ async function extractSpecs(row: PdfRow) {
       body: JSON.stringify({ model_id: row.model_id }),
     })
     const count = result?.extracted ?? result?.total ?? 0
-    toast.success(`Extracted specs for ${row.model_name}${count ? ` (${count} models)` : ''}`)
+    toast.success(`Extracted ${count} spec${count !== 1 ? 's' : ''} for ${row.model_name}`)
+    extractedIds.value[row.model_id] = true
     await loadData()
   }
   catch (err: any) {
     toast.error(`Extract failed: ${err.message}`)
   }
   finally {
-    extractingIds.value.delete(row.model_id)
+    delete extractingIds.value[row.model_id]
   }
 }
 
@@ -208,7 +209,7 @@ async function handleFileSelected(event: Event) {
   if (!file || !uploadTargetRow.value) return
 
   const row = uploadTargetRow.value
-  uploadingIds.value.add(row.model_id)
+  uploadingIds.value[row.model_id] = true
 
   try {
     const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
@@ -234,7 +235,7 @@ async function handleFileSelected(event: Event) {
     toast.error(err.message || 'Upload failed')
   }
   finally {
-    uploadingIds.value.delete(row.model_id)
+    delete uploadingIds.value[row.model_id]
     uploadTargetRow.value = null
     input.value = ''
   }
@@ -482,31 +483,37 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
                     v-if="row.has_specs"
                     variant="ghost"
                     size="sm"
-                    class="h-7 text-xs"
+                    class="h-7 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950"
                     @click="viewSpecs(row)"
                   >
+                    <FileText class="size-3 mr-1" />
                     View
                   </UiButton>
                   <UiButton
                     v-if="row.brochure_url"
-                    variant="outline"
+                    :variant="extractingIds[row.model_id] ? 'default' : 'outline'"
                     size="sm"
-                    class="h-7 text-xs"
-                    :disabled="extractingIds.has(row.model_id)"
+                    class="h-7 text-xs min-w-[90px]"
+                    :disabled="!!extractingIds[row.model_id]"
                     @click="extractSpecs(row)"
                   >
-                    <Loader2 v-if="extractingIds.has(row.model_id)" class="size-3 mr-1 animate-spin" />
-                    <Cpu v-else class="size-3 mr-1" />
-                    Extract
+                    <template v-if="extractingIds[row.model_id]">
+                      <Loader2 class="size-3 mr-1 animate-spin" />
+                      Extracting…
+                    </template>
+                    <template v-else>
+                      <Cpu class="size-3 mr-1" />
+                      {{ row.has_specs ? 'Re-extract' : 'Extract' }}
+                    </template>
                   </UiButton>
                   <UiButton
                     variant="outline"
                     size="sm"
                     class="h-7 text-xs"
-                    :disabled="uploadingIds.has(row.model_id)"
+                    :disabled="!!uploadingIds[row.model_id]"
                     @click="triggerUpload(row)"
                   >
-                    <Loader2 v-if="uploadingIds.has(row.model_id)" class="size-3 mr-1 animate-spin" />
+                    <Loader2 v-if="uploadingIds[row.model_id]" class="size-3 mr-1 animate-spin" />
                     <Upload v-else class="size-3 mr-1" />
                     {{ row.brochure_url ? 'Replace' : 'Upload' }}
                   </UiButton>
