@@ -662,19 +662,20 @@ app.post('/admin/crawl/:oemId', async (c) => {
 
   // Return immediately with job ID
   const jobId = crypto.randomUUID();
+  const withBrowser = c.req.query('render') === 'true';
 
   // Trigger crawl in background using waitUntil.
-  // skipRender=true because HTTP waitUntil budget is ~30s (not enough for browser rendering).
-  // Browser rendering happens via the scheduled cron which gets 15 minutes.
+  // skipRender=true by default because HTTP waitUntil budget is ~30s.
+  // Pass ?render=true to enable browser rendering (needed for Toyota, VW).
   c.executionCtx.waitUntil(
-    orchestrator.crawlOem(oemId, undefined, 'manual', undefined, /* skipRender */ true).catch(err => {
+    orchestrator.crawlOem(oemId, undefined, 'manual', undefined, /* skipRender */ !withBrowser).catch(err => {
       console.error(`[Crawl ${jobId}] Error crawling ${oemId}:`, err);
     })
   );
 
   return c.json({
     success: true,
-    message: `Crawl triggered for ${def.name} (quick mode — no browser rendering)`,
+    message: `Crawl triggered for ${def.name}${withBrowser ? ' (with browser rendering)' : ' (quick mode — no browser rendering)'}`,
     jobId,
     oemId,
     status: 'running',
