@@ -454,11 +454,21 @@ export class OemAgentOrchestrator {
       }
 
       // Step 2: Cheap check (fetch HTML without browser)
-      const cheapHtml = await this.fetchHtml(page.url);
-      const htmlHash = await computeHtmlHash(cheapHtml);
+      let cheapHtml = '';
+      let cheapFetchFailed = false;
+      try {
+        cheapHtml = await this.fetchHtml(page.url);
+      } catch (fetchErr: any) {
+        // 403/bot protection — skip cheap check, force browser rendering
+        console.warn(`[Orchestrator] Cheap fetch failed for ${page.url}: ${fetchErr.message} — will try browser`);
+        cheapFetchFailed = true;
+      }
+      const htmlHash = cheapFetchFailed ? '' : await computeHtmlHash(cheapHtml);
 
       // Step 3: Determine if browser rendering (smart mode) is needed
-      const renderCheck = this.scheduler.shouldRender(page, htmlHash);
+      const renderCheck = cheapFetchFailed
+        ? { shouldRender: true, reason: 'cheap_fetch_blocked' }
+        : this.scheduler.shouldRender(page, htmlHash);
       let finalHtml = cheapHtml;
       let wasRendered = false;
       let smartModeResult: SmartModeResult | null = null;
@@ -1717,6 +1727,13 @@ export class OemAgentOrchestrator {
     try {
       const html = await this.lightpandaCdpNavigate(lpUrl, url, TIMEOUT_MS);
       const loadComplete = Date.now() - startTime;
+
+      // Detect Cloudflare challenge page — Lightpanda can't solve Turnstile
+      if (html.includes('cf-mitigated') || html.includes('cf_chl_opt') || html.includes('Just a moment')) {
+        console.warn(`[Lightpanda] Got Cloudflare challenge page for ${url} — falling back to Smart Mode`);
+        return this.renderPageSmartMode(url, oemId);
+      }
+
       console.log(`[Lightpanda] Success: ${html.length} chars in ${loadComplete}ms for ${url}`);
 
       // Lightpanda doesn't support network interception yet (beta),
