@@ -311,10 +311,22 @@ async function viewSpecs(row: PdfRow) {
 }
 
 const activeSpecs = computed(() => {
-  if (activeVariantTab.value === 'combined') return specsData.value
-  const variant = specsVariants.value.find(v => v.name === activeVariantTab.value)
-  return variant?.specs ?? []
+  const list = activeVariantTab.value === 'combined'
+    ? specsData.value
+    : (specsVariants.value.find(v => v.name === activeVariantTab.value)?.specs ?? [])
+  // Hide unavailable / not-applicable specs — they add noise without value
+  return list.filter(s => !isUnavailable(s.value))
 })
+
+function isUnavailable(value: string | null | undefined): boolean {
+  if (!value) return true
+  const v = String(value).trim().toLowerCase()
+  return v === '' || v === '—' || v === '-' || v === 'unavailable' || v === 'n/a' || v === 'na' || v === 'not available'
+}
+
+function availableCount(specs: ExtractedSpecItem[]): number {
+  return specs.filter(s => !isUnavailable(s.value)).length
+}
 
 const activeSpecsByCategory = computed(() => {
   const groups = new Map<string, ExtractedSpecItem[]>()
@@ -323,7 +335,10 @@ const activeSpecsByCategory = computed(() => {
     if (!groups.has(cat)) groups.set(cat, [])
     groups.get(cat)!.push(item)
   }
-  return [...groups.entries()].map(([cat, items]) => ({ cat, items }))
+  // Drop categories that became empty after filtering
+  return [...groups.entries()]
+    .filter(([_, items]) => items.length > 0)
+    .map(([cat, items]) => ({ cat, items }))
 })
 
 function closeModal() {
@@ -648,7 +663,7 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
                 @click="activeVariantTab = 'combined'"
               >
                 Combined
-                <span class="ml-1 text-[10px] opacity-60">({{ specsData.length }})</span>
+                <span class="ml-1 text-[10px] opacity-60">({{ availableCount(specsData) }})</span>
               </button>
               <button
                 v-for="variant in specsVariants"
@@ -660,7 +675,7 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
                 @click="activeVariantTab = variant.name"
               >
                 {{ variant.name }}
-                <span class="ml-1 text-[10px] opacity-60">({{ variant.specs.length }})</span>
+                <span class="ml-1 text-[10px] opacity-60">({{ availableCount(variant.specs) }})</span>
                 <span v-if="variant.confidence !== undefined" class="ml-1 text-[10px] opacity-60">
                   · {{ Math.round(variant.confidence * 100) }}%
                 </span>
