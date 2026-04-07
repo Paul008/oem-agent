@@ -1272,12 +1272,16 @@ export class OemAgentOrchestrator {
   }
 
   private async fetchHtml(url: string): Promise<string> {
+    // AbortSignal.timeout() propagates cancellation into the underlying
+    // fetch so a hung connection actually releases the CPU instead of
+    // just rejecting the outer Promise wrapper.
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-AU,en;q=0.5',
       },
+      signal: AbortSignal.timeout(25_000),
     });
 
     if (!response.ok) {
