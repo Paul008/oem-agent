@@ -701,12 +701,16 @@ export async function executePdfSpecExtractionVision(
       const varCount = parsed.variants?.length ?? 0;
       console.log(`[pdf-spec-extractor:vision] Response shape: keys=[${topKeys.join(',')}] categories=${catCount} variants=${varCount} responseLen=${rawContent.length}`);
 
-      // ── 3e. Backfill combined categories from first variant if missing ──
-      // Gemini sometimes puts all data in variants[] and leaves categories empty.
-      if ((!parsed.categories || parsed.categories.length === 0) && parsed.variants?.length) {
-        parsed.categories = parsed.variants[0].categories;
+      // ── 3e. Build combined categories as the UNION of all variants ──
+      // The "Combined" view should show every category and spec that appears
+      // in ANY variant — giving the user the complete picture of the PDF.
+      // For each spec key, take the value from the first variant where it's
+      // available (not Unavailable/—/empty). Falls back to whatever is there
+      // if all variants list it as unavailable.
+      if (parsed.variants?.length) {
+        parsed.categories = mergeVariantsToCombined(parsed.variants);
         if (!parsed._variant) parsed._variant = parsed.variants[0].name;
-        console.log(`[pdf-spec-extractor:vision] Backfilled categories from first variant: ${parsed.categories?.length ?? 0} cats`);
+        console.log(`[pdf-spec-extractor:vision] Combined merged from ${parsed.variants.length} variants: ${parsed.categories.length} cats`);
       }
 
       // ── 3f. Validate combined ──
@@ -885,6 +889,52 @@ export async function mapVariantsToProducts(
   }
 
   return result;
+}
+
+/**
+ * Merge per-variant categories into a single combined view.
+ *
+ * Strategy:
+ *   - Iterate every variant in order, collecting unique (category, spec.key) pairs
+ *   - For each unique spec, prefer the value from the first variant where it's
+ *     "available" (not Unavailable/—/empty). Falls back to the first occurrence.
+ *   - Preserves category order from first variant that introduces them
+ */
+export function mergeVariantsToCombined(variants: VariantSpecs[]): SpecCategory[] {
+  const isUnavailable = (v: unknown): boolean => {
+    if (v == null) return true;
+    const s = String(v).trim().toLowerCase();
+    return s === '' || s === '—' || s === '-' || s === 'unavailable' || s === 'n/a' || s === 'na' || s === 'not available';
+  };
+
+  // category name → { specs: Map<key, SpecEntry>, order: index }
+  const categoriesMap = new Map<string, { specs: Map<string, SpecEntry>; order: number }>();
+  let categoryCounter = 0;
+
+  for (const variant of variants) {
+    for (const cat of variant.categories ?? []) {
+      if (!cat?.name) continue;
+      let entry = categoriesMap.get(cat.name);
+      if (!entry) {
+        entry = { specs: new Map(), order: categoryCounter++ };
+        categoriesMap.set(cat.name, entry);
+      }
+      for (const spec of cat.specs ?? []) {
+        if (!spec?.key) continue;
+        const existing = entry.specs.get(spec.key);
+        if (!existing) {
+          entry.specs.set(spec.key, spec);
+        } else if (isUnavailable(existing.value) && !isUnavailable(spec.value)) {
+          // Upgrade: replace unavailable placeholder with the real value
+          entry.specs.set(spec.key, spec);
+        }
+      }
+    }
+  }
+
+  return [...categoriesMap.entries()]
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([name, { specs }]) => ({ name, specs: [...specs.values()] }));
 }
 
 /** Tokenize a string into lowercase alphanumeric tokens, dropping common stop-words. */
