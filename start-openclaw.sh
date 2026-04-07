@@ -277,7 +277,54 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
-// Enable dreaming (memory consolidation) — runs daily at 3am AEST
+// ── Hooks: enable internal hooks so BOOT.md runs on startup ──
+config.hooks = config.hooks || {};
+config.hooks.internal = config.hooks.internal || {};
+config.hooks.internal.enabled = true;
+console.log('Internal hooks enabled (BOOT.md will run on startup)');
+
+// ── Heartbeat: periodic health checks ──
+config.channels = config.channels || {};
+config.channels.defaults = config.channels.defaults || {};
+config.channels.defaults.heartbeat = {
+    every: '30m',
+    target: 'last',
+    isolatedSession: true,
+    activeHours: { start: 6, end: 22, timezone: 'Australia/Sydney' },
+};
+console.log('Heartbeat configured (30min, 6am-10pm AEST, target: last)');
+
+// ── Session maintenance: auto-prune old sessions ──
+config.session = config.session || {};
+config.session.maintenance = config.session.maintenance || {};
+config.session.maintenance.mode = 'enforce';
+config.session.maintenance.maxSessions = 50;
+config.session.maintenance.maxDiskBytes = 100 * 1024 * 1024; // 100MB
+console.log('Session maintenance: enforce, max 50 sessions, 100MB disk cap');
+
+// ── Compaction: use a cheaper model for summarization ──
+config.agents = config.agents || {};
+config.agents.defaults = config.agents.defaults || {};
+config.agents.defaults.compaction = config.agents.defaults.compaction || {};
+config.agents.defaults.compaction.notifyUser = true;
+// Use the same provider but a smaller model for compaction if available
+console.log('Compaction: notifyUser enabled');
+
+// ── Tool loop detection: prevent infinite tool call cycles ──
+config.tools = config.tools || {};
+config.tools.loopDetection = config.tools.loopDetection || {};
+config.tools.loopDetection.enabled = true;
+config.tools.loopDetection.maxRepeats = 5;
+config.tools.loopDetection.windowSize = 10;
+console.log('Tool loop detection enabled (max 5 repeats in 10-call window)');
+
+// ── Agent timeouts ──
+config.agents.defaults.timeoutSeconds = 600; // 10 min per agent turn
+config.tools.exec = config.tools.exec || {};
+config.tools.exec.timeoutSec = 300; // 5 min per exec call
+console.log('Agent timeout: 600s, exec timeout: 300s');
+
+// ── Dreaming: memory consolidation — runs daily at 3am AEST ──
 config.plugins = config.plugins || {};
 config.plugins.entries = config.plugins.entries || {};
 config.plugins.entries['memory-core'] = config.plugins.entries['memory-core'] || {};

@@ -1,5 +1,43 @@
 # Operating Instructions
 
+## Standing Orders
+
+These are your permanent operating authorities. Follow them every session without being asked.
+
+### 1. Crawl Self-Healing
+- **Scope**: When a crawl fails due to selector drift, 404, or browser error — attempt repair automatically
+- **Triggers**: Crawl error detected in extraction or heartbeat check
+- **Actions**: Curl the OEM page, inspect the current HTML, update the selector in registry.ts
+- **Approval gate**: If the fix requires changing more than 3 selectors or modifying extraction logic beyond CSS selectors, stop and report to Paul
+- **Escalation**: If a crawl fails 3 times consecutively for the same OEM, send a Slack alert
+
+### 2. Stale Data Watchdog
+- **Scope**: Monitor data freshness across all 19 OEMs
+- **Triggers**: Heartbeat check, daily crawl completion
+- **Actions**: Flag any OEM with offers/banners not updated in 7+ days, products not updated in 14+ days
+- **Approval gate**: Never delete stale data — only flag it and report
+- **Escalation**: If 3+ OEMs are stale simultaneously, send a Slack alert
+
+### 3. Agent Stuck Recovery
+- **Scope**: Detect and recover stuck autonomous agents
+- **Triggers**: Heartbeat check finds `agent_actions` with `running` status older than 1 hour
+- **Actions**: Update status to `failed` with reason "timeout — auto-recovered by standing order"
+- **Approval gate**: None — always safe to mark stale running actions as failed
+- **Escalation**: If the same agent type gets stuck 3+ times in 24 hours, report to Paul
+
+### 4. Data Integrity
+- **Scope**: Protect all data in Supabase
+- **Never**: Delete products, offers, banners, or vehicle_models without explicit approval from Paul
+- **Never**: Truncate tables, drop columns, or run destructive migrations
+- **Never**: Overwrite existing data with empty/null values from a failed extraction
+- **Always**: Validate extracted data before upserting — reject if critical fields (title, oem_id) are missing
+
+### 5. Execute-Verify-Report
+- **Every task follows this discipline. No exceptions.**
+- Execute the action
+- Verify the result (check DB, curl the endpoint, read the response)
+- Report the outcome with specifics (OEM, model, field, before/after)
+
 ## Your 14 Specialized Skills (all loaded)
 
 | Skill | Purpose | Key Capability |
