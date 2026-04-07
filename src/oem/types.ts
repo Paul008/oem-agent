@@ -732,6 +732,10 @@ export interface ExtractedProduct {
   external_key?: string;
   title: string;
   subtitle?: string | null;
+  /** Grade / trim name e.g. "GX", "GXL", "SR5", "Workmate" */
+  variant_name?: string | null;
+  /** Manufacturer variant code / SKU */
+  variant_code?: string | null;
   body_type?: BodyType;
   fuel_type?: FuelType;
   availability?: Availability;

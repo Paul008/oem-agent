@@ -524,8 +524,12 @@ export class OemAgentOrchestrator {
       }
 
       // Step 6: Direct Ford API fetch for known endpoints
+      // Only run on vehicle pages — running it on news/offers/homepage causes
+      // bare nameplates from the vehiclesmenu API to be inserted with the
+      // calling page's URL as source_url, creating orphan rows when the
+      // enrichment step (Step 6.5) fails or returns shallow data.
       let fordApiDebug: any = { attempted: false };
-      if (oemId === 'ford-au' && page.url.includes('ford.com.au')) {
+      if (oemId === 'ford-au' && page.url.includes('ford.com.au') && page.page_type === 'vehicle') {
         fordApiDebug.attempted = true;
         console.log(`[Orchestrator] Attempting direct Ford API fetch for ${page.url}`);
         try {
@@ -913,7 +917,9 @@ export class OemAgentOrchestrator {
       // Normalize to our product format
       const product = {
         title: item.name || item.title || item.modelName || item.model || item.vehicleName,
-        subtitle: item.subtitle || item.variant || item.trim || item.tagline,
+        subtitle: item.subtitle || item.tagline,
+        variant_name: item.variant || item.variantName || item.trim || item.trimName || item.grade || item.gradeName || null,
+        variant_code: item.variantCode || item.trimCode || item.gradeCode || item.sku || null,
         body_type: item.bodyType || item.body_type || item.type || item.vehicleType || item.category,
         fuel_type: item.fuelType || item.fuel_type || item.fuel || item.powerTrain,
         availability: item.availability || item.status || 'available',
@@ -3440,6 +3446,8 @@ ${html.substring(0, 50000)}
       source_url: sourceUrl,
       title: productData.title,
       subtitle: productData.subtitle,
+      variant_name: productData.variant_name ?? null,
+      variant_code: productData.variant_code ?? null,
       body_type: productData.body_type,
       fuel_type: productData.fuel_type,
       availability: productData.availability || 'available',
@@ -3460,6 +3468,22 @@ ${html.substring(0, 50000)}
       drivetrain: productData.meta?.drivetrain || productData.drivetrain || null,
       last_seen_at: new Date().toISOString(),
     };
+
+    // Guard: refuse to CREATE a new row that has no real product data.
+    // Updates to existing rows are still allowed (extraction may be transiently
+    // shallow). This stops bare-nameplate orphans from polluting the catalog
+    // when an upstream API returns model names without trim/price/spec data —
+    // the failure mode that produced 7 orphan Ford rows on 2026-04-02.
+    if (!existing) {
+      const hasPrice = product.price_amount != null && product.price_amount > 0;
+      const hasSpecs = product.specs_json && Object.keys(product.specs_json).length > 0;
+      const hasFeatures = Array.isArray(product.key_features) && product.key_features.length > 0;
+      const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+      if (!hasPrice && !hasSpecs && !hasFeatures && !hasVariants) {
+        console.warn(`[UpsertProduct] Refusing to create empty product "${productData.title}" (oem=${oemId}, source=${sourceUrl}) — no price, specs, features, or variants`);
+        return { created: false, updated: false, changeDetected: false };
+      }
+    }
 
     if (existing) {
       console.log(`[UpsertProduct] Existing product found: ${existing.id}`);
