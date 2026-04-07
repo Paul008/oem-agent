@@ -194,6 +194,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   safety: 'Safety', wheels: 'Wheels',
 }
 
+// Keys in specs_json that aren't regular spec categories — rendered separately
+const SPEC_META_KEYS = new Set(['_pdf_variant_specs'])
+
 function orderedCategories(specs: ProductSpecs): { key: string, label: string, entries: [string, string][] }[] {
   const result: { key: string, label: string, entries: [string, string][] }[] = []
   // Collect top-level scalar values (strings, numbers) into an "other" bucket
@@ -211,6 +214,7 @@ function orderedCategories(specs: ProductSpecs): { key: string, label: string, e
   }
   for (const cat of Object.keys(specs)) {
     if (SPEC_CATEGORY_ORDER.includes(cat)) continue
+    if (SPEC_META_KEYS.has(cat)) continue // Rendered as its own section
     const section = specs[cat]
     if (!section) continue
     if (typeof section === 'string' || typeof section === 'number') {
@@ -223,6 +227,50 @@ function orderedCategories(specs: ProductSpecs): { key: string, label: string, e
     result.push({ key: '_other', label: 'Other', entries: otherEntries })
   }
   return result
+}
+
+// ── PDF variant specs (from brochure extraction) ───────────────────────────
+interface PdfSpecItem {
+  key: string
+  label: string
+  value: string
+  unit?: string | null
+}
+interface PdfSpecCategory {
+  name: string
+  specs: PdfSpecItem[]
+}
+interface PdfVariantSpecs {
+  variant_name?: string
+  match_confidence?: number
+  extracted_at?: string
+  categories?: PdfSpecCategory[]
+}
+
+function isSpecUnavailable(v: unknown): boolean {
+  if (v == null) return true
+  const s = String(v).trim().toLowerCase()
+  return s === '' || s === '—' || s === '-' || s === 'unavailable' || s === 'n/a' || s === 'na' || s === 'not available'
+}
+
+function pdfVariantSpecs(specs: ProductSpecs | null): PdfVariantSpecs | null {
+  if (!specs) return null
+  const raw = (specs as any)._pdf_variant_specs as PdfVariantSpecs | undefined
+  if (!raw?.categories?.length) return null
+  // Filter out unavailable specs and empty categories
+  const cats = raw.categories
+    .map(cat => ({
+      name: cat.name,
+      specs: (cat.specs ?? []).filter(s => !isSpecUnavailable(s.value)),
+    }))
+    .filter(cat => cat.specs.length > 0)
+  if (cats.length === 0) return null
+  return {
+    variant_name: raw.variant_name,
+    match_confidence: raw.match_confidence,
+    extracted_at: raw.extracted_at,
+    categories: cats,
+  }
 }
 
 function formatSpecKey(key: string): string {
@@ -593,6 +641,13 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                 >
                   <component :is="expandedSpecs.has(product.id) ? ChevronUp : ChevronDown" class="size-3" />
                   {{ orderedCategories(product.specs_json!).length }} cats
+                  <span
+                    v-if="pdfVariantSpecs(product.specs_json)"
+                    class="ml-0.5 inline-flex items-center rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[9px] font-semibold px-1 py-px"
+                    title="Includes per-variant specs from brochure PDF"
+                  >
+                    PDF
+                  </span>
                 </button>
                 <span v-else class="text-xs text-muted-foreground">-</span>
               </UiTableCell>
@@ -603,26 +658,73 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
             <!-- Expandable Specs -->
             <UiTableRow v-if="expandedSpecs.has(product.id) && hasSpecs(product)" class="bg-muted/30 hover:bg-muted/40">
               <UiTableCell :colspan="8" class="p-0">
-                <div class="px-6 py-4">
-                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div
-                      v-for="category in orderedCategories(product.specs_json!)"
-                      :key="category.key"
-                      class="rounded-md bg-muted/50 p-3"
-                    >
-                      <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                        {{ category.label }}
-                      </h4>
-                      <dl class="space-y-1">
-                        <div
-                          v-for="[key, value] in category.entries"
-                          :key="key"
-                          class="flex justify-between gap-2 text-xs"
-                        >
-                          <dt class="text-muted-foreground shrink-0">{{ formatSpecKey(key) }}</dt>
-                          <dd class="text-right font-medium truncate" :title="value">{{ value }}</dd>
-                        </div>
-                      </dl>
+                <div class="px-6 py-4 space-y-5">
+                  <!-- Regular specs_json categories -->
+                  <div v-if="orderedCategories(product.specs_json!).length > 0">
+                    <h3 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                      Crawled Specs
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div
+                        v-for="category in orderedCategories(product.specs_json!)"
+                        :key="category.key"
+                        class="rounded-md bg-muted/50 p-3"
+                      >
+                        <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          {{ category.label }}
+                        </h4>
+                        <dl class="space-y-1">
+                          <div
+                            v-for="[key, value] in category.entries"
+                            :key="key"
+                            class="flex justify-between gap-2 text-xs"
+                          >
+                            <dt class="text-muted-foreground shrink-0">{{ formatSpecKey(key) }}</dt>
+                            <dd class="text-right font-medium truncate" :title="value">{{ value }}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PDF Variant Specs (from brochure extraction) -->
+                  <div v-if="pdfVariantSpecs(product.specs_json)" class="border-t pt-4">
+                    <div class="flex items-center gap-2 mb-2">
+                      <h3 class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                        PDF Brochure Specs
+                      </h3>
+                      <span v-if="pdfVariantSpecs(product.specs_json)?.variant_name" class="text-[10px] text-muted-foreground">
+                        → {{ pdfVariantSpecs(product.specs_json)?.variant_name }}
+                      </span>
+                      <span
+                        v-if="pdfVariantSpecs(product.specs_json)?.match_confidence !== undefined"
+                        class="text-[10px] text-muted-foreground"
+                      >
+                        · {{ Math.round((pdfVariantSpecs(product.specs_json)?.match_confidence ?? 0) * 100) }}% match
+                      </span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div
+                        v-for="category in pdfVariantSpecs(product.specs_json)?.categories ?? []"
+                        :key="category.name"
+                        class="rounded-md bg-blue-500/5 border border-blue-500/20 p-3"
+                      >
+                        <h4 class="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-2">
+                          {{ category.name }}
+                        </h4>
+                        <dl class="space-y-1">
+                          <div
+                            v-for="spec in category.specs"
+                            :key="spec.key"
+                            class="flex justify-between gap-2 text-xs"
+                          >
+                            <dt class="text-muted-foreground shrink-0">{{ spec.label }}</dt>
+                            <dd class="text-right font-medium truncate" :title="spec.value">
+                              {{ spec.value }}<span v-if="spec.unit" class="text-muted-foreground ml-0.5">{{ spec.unit }}</span>
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
                     </div>
                   </div>
                 </div>
