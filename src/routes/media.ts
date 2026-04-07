@@ -202,6 +202,24 @@ async function servePageAsset(c: any) {
   return new Response(obj.body, { status: 200, headers });
 }
 
+// GET /media/brochures/:oemId/:slug/:filename — serve uploaded brochure PDFs
+media.get('/brochures/:oemId/:slug/:filename', async (c) => {
+  const { oemId, slug, filename } = c.req.param();
+  const r2Key = `brochures/${oemId}/${slug}/${filename}`;
+  const bucket = (c.env as any).MOLTBOT_BUCKET as R2Bucket;
+
+  const obj = await bucket.get(r2Key);
+  if (!obj) return c.notFound();
+
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/pdf');
+  headers.set('Cache-Control', 'public, max-age=86400');
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.set('Content-Disposition', `inline; filename="${filename}"`);
+
+  return new Response(obj.body, { status: 200, headers });
+});
+
 // GET /media/pages/assets/:oemId/:modelSlug/:filename — canonical path
 // Must be registered BEFORE the catch-all /:oemId/:encodedUrl route
 media.get('/pages/assets/:oemId/:modelSlug/:filename', servePageAsset);

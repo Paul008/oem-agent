@@ -361,3 +361,100 @@ specsApi.get('/admin/pdf-specs', async (c) => {
 
   return c.json({ total: rows.length, models: rows });
 });
+
+// ============================================================
+// 5. POST /admin/upload-brochure/:modelId  (admin)
+//    Upload or replace a brochure PDF for a vehicle model.
+//    Stores in R2 and updates vehicle_models.brochure_url.
+//    Also clears existing embeddings + extracted_specs so
+//    the pipeline can re-process from the new PDF.
+// ============================================================
+
+specsApi.post('/admin/upload-brochure/:modelId', async (c) => {
+  const modelId = c.req.param('modelId');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // Verify model exists
+  const { data: model, error: modelError } = await supabase
+    .from('vehicle_models')
+    .select('id, oem_id, slug, name, brochure_url')
+    .eq('id', modelId)
+    .single();
+
+  if (modelError || !model) {
+    return c.json({ error: 'Model not found', model_id: modelId }, 404);
+  }
+
+  // Parse multipart form
+  const formData = await c.req.formData();
+  const file = formData.get('file');
+
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: 'No file uploaded. Send as multipart/form-data with field "file".' }, 400);
+  }
+
+  if (!file.type.includes('pdf') && !file.name.endsWith('.pdf')) {
+    return c.json({ error: 'Only PDF files are accepted' }, 400);
+  }
+
+  if (file.size > 50 * 1024 * 1024) {
+    return c.json({ error: 'File too large (max 50MB)' }, 400);
+  }
+
+  // Upload to R2
+  const r2Key = `brochures/${model.oem_id}/${model.slug}/${file.name}`;
+  const buffer = await file.arrayBuffer();
+
+  await c.env.MOLTBOT_BUCKET.put(r2Key, buffer, {
+    httpMetadata: { contentType: 'application/pdf' },
+    customMetadata: {
+      model_id: modelId,
+      oem_id: model.oem_id,
+      original_name: file.name,
+      uploaded_at: new Date().toISOString(),
+    },
+  });
+
+  // Build public URL via media serving route
+  const workerUrl = new URL(c.req.url).origin;
+  const brochureUrl = `${workerUrl}/media/${r2Key}`;
+
+  // Update model with new brochure_url and clear stale extraction data
+  const { error: updateError } = await supabase
+    .from('vehicle_models')
+    .update({
+      brochure_url: brochureUrl,
+      extracted_specs: null,
+      extracted_specs_at: null,
+    })
+    .eq('id', modelId);
+
+  if (updateError) {
+    return c.json({ error: 'Failed to update model', details: updateError.message }, 500);
+  }
+
+  // Clear old embeddings so re-vectorization picks this up
+  await supabase
+    .from('pdf_embeddings')
+    .delete()
+    .eq('source_id', modelId)
+    .eq('source_type', 'brochure');
+
+  return c.json({
+    success: true,
+    model_id: modelId,
+    oem_id: model.oem_id,
+    model_name: model.name,
+    brochure_url: brochureUrl,
+    r2_key: r2Key,
+    file_size: file.size,
+    replaced: !!model.brochure_url,
+    message: model.brochure_url
+      ? `Replaced brochure for ${model.name}. Old embeddings cleared — will re-vectorize on next sync.`
+      : `Uploaded brochure for ${model.name}. Will vectorize on next sync.`,
+  });
+});

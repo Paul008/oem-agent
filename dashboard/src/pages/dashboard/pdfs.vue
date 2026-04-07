@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, FileText, CheckCircle2, Layers, Cpu, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink, X, RefreshCw, AlertTriangle } from 'lucide-vue-next'
+import { Loader2, FileText, CheckCircle2, Layers, Cpu, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink, X, RefreshCw, AlertTriangle, Upload } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
@@ -50,6 +50,11 @@ const pageSize = ref(50)
 // Extract modal state
 const extractingIds = ref<Set<string>>(new Set())
 const extractingAll = ref(false)
+
+// Upload state
+const uploadingIds = ref<Set<string>>(new Set())
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const uploadTargetRow = ref<PdfRow | null>(null)
 
 // Specs modal state
 const specsModalOpen = ref(false)
@@ -184,6 +189,51 @@ async function extractAllMissing() {
   }
   finally {
     extractingAll.value = false
+  }
+}
+
+// ── Upload / Replace brochure ─────────────────────────────────────────────────
+
+function triggerUpload(row: PdfRow) {
+  uploadTargetRow.value = row
+  fileInputRef.value?.click()
+}
+
+async function handleFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !uploadTargetRow.value) return
+
+  const row = uploadTargetRow.value
+  uploadingIds.value.add(row.model_id)
+
+  try {
+    const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch(`${WORKER_BASE}/api/v1/admin/upload-brochure/${row.model_id}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Upload failed: ${res.status} ${text.slice(0, 200)}`)
+    }
+
+    const result = await res.json() as any
+    toast.success(result.message || `Brochure uploaded for ${row.model_name}`)
+    setTimeout(loadData, 1000)
+  }
+  catch (err: any) {
+    toast.error(err.message || 'Upload failed')
+  }
+  finally {
+    uploadingIds.value.delete(row.model_id)
+    uploadTargetRow.value = null
+    input.value = ''
   }
 }
 
@@ -446,6 +496,17 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
                     <Cpu v-else class="size-3 mr-1" />
                     Extract
                   </UiButton>
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs"
+                    :disabled="uploadingIds.has(row.model_id)"
+                    @click="triggerUpload(row)"
+                  >
+                    <Loader2 v-if="uploadingIds.has(row.model_id)" class="size-3 mr-1 animate-spin" />
+                    <Upload v-else class="size-3 mr-1" />
+                    {{ row.brochure_url ? 'Replace' : 'Upload' }}
+                  </UiButton>
                 </div>
               </UiTableCell>
             </UiTableRow>
@@ -495,6 +556,15 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
         </div>
       </UiCard>
     </template>
+
+    <!-- Hidden file input for brochure upload -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".pdf,application/pdf"
+      class="hidden"
+      @change="handleFileSelected"
+    />
 
     <!-- Specs Modal -->
     <Teleport to="body">
