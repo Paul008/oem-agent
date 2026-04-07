@@ -458,3 +458,122 @@ specsApi.post('/admin/upload-brochure/:modelId', async (c) => {
       : `Uploaded brochure for ${model.name}. Will vectorize on next sync.`,
   });
 });
+
+// ============================================================
+// 6. POST /admin/backfill-toyota-variants  (admin)
+//    One-off fix: Toyota crawl doesn't populate variant_name.
+//    Assigns grade names per model using known price-ordered
+//    grade lists. Safe to re-run — idempotent.
+// ============================================================
+
+const TOYOTA_GRADES: Record<string, string[]> = {
+  // Price-ordered grade lists (cheapest → most expensive).
+  // Unmatched products (more grades than list) get "Base" or keep nulls.
+  hilux: ['Workmate', 'SR', 'SR5', 'Rogue', 'GR Sport'],
+  rav4: ['GX', 'GXL', 'Cruiser', 'Edge'],
+  'corolla-hatch': ['Ascent Sport', 'SX', 'ZR', 'GR'],
+  'corolla-sedan': ['Ascent Sport', 'SX', 'ZR'],
+  'corolla-cross': ['GX', 'GXL', 'Atmos'],
+  kluger: ['GX', 'GXL', 'Grande'],
+  fortuner: ['GX', 'GXL', 'Crusade'],
+  'landcruiser-prado': ['GX', 'GXL', 'VX', 'Kakadu', 'Altitude'],
+  prado: ['GX', 'GXL', 'VX', 'Kakadu', 'Altitude'],
+  camry: ['Ascent Sport', 'SX', 'SL'],
+  hiace: ['LWB', 'SLWB', 'Crew', 'Commuter'],
+  bz4x: ['GX', 'GXL'],
+  yaris: ['Ascent Sport', 'SX', 'ZR', 'GR'],
+  'yaris-cross': ['GX', 'GXL', 'Urban', 'GR Sport'],
+  'gr-corolla': ['GTS', 'GT'],
+  gr86: ['GT', 'GTS'],
+  'gr-yaris': ['Rallye', 'GR4', 'GT'],
+  'gr-supra': ['GT', 'GTS'],
+  tundra: ['Limited'],
+  granvia: ['VX', 'VX Premium'],
+};
+
+specsApi.post('/admin/backfill-toyota-variants', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  // Fetch all Toyota products with their model info
+  const { data: models, error: modelsErr } = await supabase
+    .from('vehicle_models')
+    .select('id, slug, name')
+    .eq('oem_id', 'toyota-au');
+
+  if (modelsErr) return c.json({ error: modelsErr.message }, 500);
+
+  const results: Array<{
+    model: string;
+    products_updated: number;
+    assignments: Array<{ title: string; price: number | null; variant_name: string }>;
+    note?: string;
+  }> = [];
+  let totalUpdated = 0;
+
+  for (const model of models ?? []) {
+    const grades = TOYOTA_GRADES[model.slug];
+    if (!grades) {
+      results.push({ model: model.slug, products_updated: 0, assignments: [], note: 'No grade list defined' });
+      continue;
+    }
+
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, title, price_amount, variant_name')
+      .eq('oem_id', 'toyota-au')
+      .eq('model_id', model.id);
+
+    if (!products || products.length === 0) continue;
+
+    // Group by distinct price_amount (many duplicates share same price)
+    const pricedProducts = products.filter((p: any) => p.price_amount != null);
+    const uniquePrices = [...new Set(pricedProducts.map((p: any) => p.price_amount))].sort(
+      (a: number, b: number) => a - b,
+    );
+
+    // Map each unique price (ascending) to a grade name
+    const priceToGrade: Record<number, string> = {};
+    uniquePrices.forEach((price: number, idx: number) => {
+      priceToGrade[price] = grades[Math.min(idx, grades.length - 1)];
+    });
+
+    const assignments: Array<{ title: string; price: number | null; variant_name: string }> = [];
+    let updated = 0;
+
+    for (const p of products as any[]) {
+      if (p.price_amount == null) continue;
+      const variantName = priceToGrade[p.price_amount];
+      if (!variantName) continue;
+      if (p.variant_name === variantName) continue; // already set
+
+      const { error: updateErr } = await supabase
+        .from('products')
+        .update({ variant_name: variantName })
+        .eq('id', p.id);
+
+      if (!updateErr) {
+        updated++;
+        if (assignments.length < 10) {
+          assignments.push({ title: p.title, price: p.price_amount, variant_name: variantName });
+        }
+      }
+    }
+
+    totalUpdated += updated;
+    results.push({
+      model: model.slug,
+      products_updated: updated,
+      assignments,
+    });
+  }
+
+  return c.json({
+    success: true,
+    total_updated: totalUpdated,
+    models_processed: results.length,
+    results,
+  });
+});
