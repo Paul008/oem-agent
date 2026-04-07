@@ -695,16 +695,25 @@ export async function executePdfSpecExtractionVision(
         throw new Error(`Failed to parse AI response as JSON: ${String(parseErr)}`);
       }
 
+      // Debug: log the top-level shape
+      const topKeys = Object.keys(parsed as Record<string, unknown>);
+      const catCount = parsed.categories?.length ?? 0;
+      const varCount = parsed.variants?.length ?? 0;
+      console.log(`[pdf-spec-extractor:vision] Response shape: keys=[${topKeys.join(',')}] categories=${catCount} variants=${varCount} responseLen=${rawContent.length}`);
+
       // ── 3e. Backfill combined categories from first variant if missing ──
       // Gemini sometimes puts all data in variants[] and leaves categories empty.
       if ((!parsed.categories || parsed.categories.length === 0) && parsed.variants?.length) {
         parsed.categories = parsed.variants[0].categories;
         if (!parsed._variant) parsed._variant = parsed.variants[0].name;
+        console.log(`[pdf-spec-extractor:vision] Backfilled categories from first variant: ${parsed.categories?.length ?? 0} cats`);
       }
 
       // ── 3f. Validate combined ──
       const validation = validateSpecsJson(parsed);
       if (!validation.valid) {
+        // Log first 500 chars of response so we can see what Gemini returned
+        console.warn(`[pdf-spec-extractor:vision] Validation failed. Response preview: ${rawContent.slice(0, 500)}`);
         throw new Error(`Validation failed: ${validation.error}`);
       }
 
