@@ -597,7 +597,7 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                 <span v-else class="text-xs text-muted-foreground">-</span>
               </UiTableCell>
               <UiTableCell class="text-xs text-muted-foreground">
-                {{ new Date(product.last_seen_at).toLocaleDateString('en-AU') }}
+                {{ product.last_seen_at ? new Date(product.last_seen_at).toLocaleDateString('en-AU') : '-' }}
               </UiTableCell>
             </UiTableRow>
             <!-- Expandable Specs -->
