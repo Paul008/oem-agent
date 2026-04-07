@@ -32,9 +32,9 @@ RUN mkdir -p /root/.openclaw \
     && mkdir -p /root/clawd/skills
 
 # Copy startup script
-# Build cache bust: 2026-04-07-gemini-switch
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
+ENV BUILD_REV=2026-04-07-gemini-switch-v2
 
 # Copy custom skills, workspace files, and documentation
 COPY skills/ /root/clawd/skills/
