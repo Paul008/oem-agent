@@ -695,7 +695,14 @@ export async function executePdfSpecExtractionVision(
         throw new Error(`Failed to parse AI response as JSON: ${String(parseErr)}`);
       }
 
-      // ── 3e. Validate combined ──
+      // ── 3e. Backfill combined categories from first variant if missing ──
+      // Gemini sometimes puts all data in variants[] and leaves categories empty.
+      if ((!parsed.categories || parsed.categories.length === 0) && parsed.variants?.length) {
+        parsed.categories = parsed.variants[0].categories;
+        if (!parsed._variant) parsed._variant = parsed.variants[0].name;
+      }
+
+      // ── 3f. Validate combined ──
       const validation = validateSpecsJson(parsed);
       if (!validation.valid) {
         throw new Error(`Validation failed: ${validation.error}`);
