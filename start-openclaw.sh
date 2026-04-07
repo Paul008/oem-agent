@@ -277,6 +277,26 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
     };
 }
 
+// ── Model providers: Gemini primary, Groq fallback (Anthropic removed OpenClaw compat) ──
+config.agents = config.agents || {};
+config.agents.defaults = config.agents.defaults || {};
+config.agents.defaults.model = {
+    primary: 'google/gemini-2.5-pro',
+    fallbacks: [
+        'groq/llama-3.3-70b-versatile',
+    ],
+};
+// Compaction uses the cheaper Groq model
+config.agents.defaults.compaction = config.agents.defaults.compaction || {};
+config.agents.defaults.compaction.model = 'groq/llama-3.3-70b-versatile';
+console.log('Models: primary=google/gemini-2.5-pro, fallback=groq/llama-3.3-70b-versatile');
+
+// Disable the anthropic plugin since it no longer supports OpenClaw
+config.plugins = config.plugins || {};
+config.plugins.entries = config.plugins.entries || {};
+config.plugins.entries['anthropic'] = { enabled: false };
+console.log('Anthropic plugin disabled');
+
 // ── Hooks: enable internal hooks so BOOT.md runs on startup ──
 config.hooks = config.hooks || {};
 config.hooks.internal = config.hooks.internal || {};
