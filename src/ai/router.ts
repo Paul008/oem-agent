@@ -409,12 +409,13 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
   },
 
   // PDF Spec Extraction — Extract structured specs from OEM PDF spec sheets
+  // Uses Gemini's native PDF input (vision). Fallback must also support PDF.
   spec_extraction: {
     provider: 'google_gemini',
     model: GEMINI_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'groq',
-    fallbackModel: AI_ROUTER_CONFIG.groq.models.balanced.model,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_31_CONFIG.model,
   },
 };
 
