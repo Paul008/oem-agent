@@ -63,6 +63,8 @@ const specsLoading = ref(false)
 const specsModelId = ref<string | null>(null)
 const specsModelName = ref('')
 const specsData = ref<ExtractedSpecItem[]>([])
+const specsVariants = ref<Array<{ name: string, specs: ExtractedSpecItem[], confidence?: number }>>([])
+const activeVariantTab = ref<string>('combined')
 
 // ── Load data ─────────────────────────────────────────────────────────────────
 
@@ -155,10 +157,21 @@ async function extractSpecs(row: PdfRow) {
     const result = await workerFetch('/api/v1/admin/extract-specs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model_id: row.model_id }),
+      body: JSON.stringify({ model_id: row.model_id, force: true }),
     })
-    const count = result?.extracted ?? result?.total ?? 0
-    toast.success(`Extracted ${count} spec${count !== 1 ? 's' : ''} for ${row.model_name}`)
+    const variantsExtracted = result?.variants_extracted ?? 0
+    const variantsMatched = result?.variants_matched ?? 0
+    const processed = result?.models_processed ?? 0
+    if (processed > 0) {
+      const variantNote = variantsExtracted > 0
+        ? ` · ${variantsMatched}/${variantsExtracted} variants matched`
+        : ''
+      toast.success(`Extracted ${row.model_name}${variantNote}`)
+    } else if (result?.errors?.length) {
+      toast.error(`Extract failed: ${result.errors[0].error}`)
+    } else {
+      toast.warning(`No specs extracted for ${row.model_name}`)
+    }
     extractedIds.value[row.model_id] = true
     await loadData()
   }
@@ -247,9 +260,12 @@ async function viewSpecs(row: PdfRow) {
   specsModelId.value = row.model_id
   specsModelName.value = row.model_name
   specsData.value = []
+  specsVariants.value = []
+  activeVariantTab.value = 'combined'
   specsModalOpen.value = true
   specsLoading.value = true
   try {
+    // Load model-level extracted_specs (combined view)
     const { data, error } = await supabase
       .from('vehicle_models')
       .select('extracted_specs')
@@ -257,16 +273,34 @@ async function viewSpecs(row: PdfRow) {
       .single()
     if (error) throw error
     const raw = data?.extracted_specs
-    // extracted_specs is { categories: [{ name, specs: [{ label, value, unit }] }] }
     if (raw?.categories && Array.isArray(raw.categories)) {
       specsData.value = raw.categories.flatMap((cat: any) =>
-        (cat.specs ?? []).map((s: any) => ({ ...s, category: cat.name }))
+        (cat.specs ?? []).map((s: any) => ({ ...s, category: cat.name })),
       )
     } else if (Array.isArray(raw)) {
       specsData.value = raw
-    } else {
-      specsData.value = []
     }
+
+    // Load per-variant specs from products.specs_json._pdf_variant_specs
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, title, variant_name, specs_json')
+      .eq('model_id', row.model_id)
+
+    const variants: typeof specsVariants.value = []
+    for (const p of (products ?? [])) {
+      const pdfSpecs = (p.specs_json as any)?._pdf_variant_specs
+      if (!pdfSpecs?.categories) continue
+      const flatSpecs = pdfSpecs.categories.flatMap((cat: any) =>
+        (cat.specs ?? []).map((s: any) => ({ ...s, category: cat.name })),
+      )
+      variants.push({
+        name: pdfSpecs.variant_name || p.variant_name || p.title,
+        specs: flatSpecs,
+        confidence: pdfSpecs.match_confidence,
+      })
+    }
+    specsVariants.value = variants
   }
   catch (err: any) {
     toast.error(`Failed to load specs: ${err.message}`)
@@ -276,23 +310,28 @@ async function viewSpecs(row: PdfRow) {
   }
 }
 
-function closeModal() {
-  specsModalOpen.value = false
-  specsModelId.value = null
-  specsData.value = []
-}
+const activeSpecs = computed(() => {
+  if (activeVariantTab.value === 'combined') return specsData.value
+  const variant = specsVariants.value.find(v => v.name === activeVariantTab.value)
+  return variant?.specs ?? []
+})
 
-// ── Specs grouping ────────────────────────────────────────────────────────────
-
-const specsByCategory = computed(() => {
+const activeSpecsByCategory = computed(() => {
   const groups = new Map<string, ExtractedSpecItem[]>()
-  for (const item of specsData.value) {
+  for (const item of activeSpecs.value) {
     const cat = item.category || 'General'
     if (!groups.has(cat)) groups.set(cat, [])
     groups.get(cat)!.push(item)
   }
   return [...groups.entries()].map(([cat, items]) => ({ cat, items }))
 })
+
+function closeModal() {
+  specsModalOpen.value = false
+  specsModelId.value = null
+  specsData.value = []
+}
+
 
 // Models with brochure but no specs (for bulk action label)
 const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url && !r.has_specs).length)
@@ -599,20 +638,49 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
               </button>
             </div>
 
+            <!-- Variant tabs -->
+            <div v-if="!specsLoading && specsVariants.length > 0" class="px-6 pt-3 border-b shrink-0 flex items-center gap-1 overflow-x-auto">
+              <button
+                class="px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap"
+                :class="activeVariantTab === 'combined'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'"
+                @click="activeVariantTab = 'combined'"
+              >
+                Combined
+                <span class="ml-1 text-[10px] opacity-60">({{ specsData.length }})</span>
+              </button>
+              <button
+                v-for="variant in specsVariants"
+                :key="variant.name"
+                class="px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap"
+                :class="activeVariantTab === variant.name
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'"
+                @click="activeVariantTab = variant.name"
+              >
+                {{ variant.name }}
+                <span class="ml-1 text-[10px] opacity-60">({{ variant.specs.length }})</span>
+                <span v-if="variant.confidence !== undefined" class="ml-1 text-[10px] opacity-60">
+                  · {{ Math.round(variant.confidence * 100) }}%
+                </span>
+              </button>
+            </div>
+
             <!-- Modal body -->
             <div class="overflow-y-auto flex-1 px-6 py-4">
               <div v-if="specsLoading" class="flex items-center justify-center h-32">
                 <Loader2 class="size-5 animate-spin" />
               </div>
 
-              <div v-else-if="specsData.length === 0" class="flex flex-col items-center justify-center h-32 gap-2">
+              <div v-else-if="activeSpecs.length === 0" class="flex flex-col items-center justify-center h-32 gap-2">
                 <FileText class="size-8 text-muted-foreground/30" />
                 <p class="text-sm text-muted-foreground">No specs extracted yet</p>
               </div>
 
               <div v-else class="space-y-5">
                 <div
-                  v-for="group in specsByCategory"
+                  v-for="group in activeSpecsByCategory"
                   :key="group.cat"
                 >
                   <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">

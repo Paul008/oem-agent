@@ -429,6 +429,8 @@ export interface InferenceRequest {
   imageBase64?: string;
   /** MIME type of the image (default: image/png) */
   imageMimeType?: string;
+  /** Base64-encoded PDF data (Gemini supports PDF input natively via inlineData) */
+  pdfBase64?: string;
   oemId?: OemId;
   importRunId?: string;
   useBatch?: boolean;
@@ -888,6 +890,16 @@ export class AiRouter {
         inlineData: {
           mimeType: request.imageMimeType || 'image/png',
           data: request.imageBase64,
+        },
+      });
+    }
+
+    // Add PDF if provided (Gemini supports native PDF input)
+    if (request.pdfBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: request.pdfBase64,
         },
       });
     }

@@ -219,6 +219,76 @@ export function validateSpecsJson(data: unknown): ValidationResult {
 const MAX_CHUNK_LENGTH = 50_000;
 
 /**
+ * Builds the vision-based LLM prompt for variant-aware spec extraction.
+ * Used with Gemini vision (PDF input) — instructs the model to detect variant
+ * matrices (column headers + standard/optional dots) and emit per-variant specs.
+ */
+export function buildVisionExtractionPrompt(modelName: string, oemName: string): string {
+  const wellKnownList = WELL_KNOWN_KEYS.join(', ');
+
+  return `You are an automotive data extraction specialist. Extract all technical specifications from this ${oemName} ${modelName} brochure PDF.
+
+## Critical Instructions
+- The PDF may contain a VARIANT MATRIX: a table with multiple variant columns (e.g. "V7-C 4x2", "V7-C 4x4", "V9-L 4x4") and rows with spec values.
+- Standard/Optional/Unavailable dots (● ○ —) in cells indicate which variants HAVE that feature.
+- A spec value in column 1 with dots in variant columns means: that value applies to all variants where the dot is filled (●).
+- Different values across variant columns mean each variant has its own value (extract per-variant).
+
+## Output Structure
+Return a single JSON object with TWO sections:
+
+1. **categories** — combined/base spec set (use the most common/base variant). This is the model-level overview.
+2. **variants** — array of per-variant spec sets, ONE entry per variant column you detect. If the PDF has only ONE variant (no matrix), omit "variants" or leave it empty.
+
+For each variant, populate match_hints with anything that helps identify which dealer product row it matches:
+- Drivetrain: "4x2", "4x4", "AWD", "FWD", "RWD"
+- Trim level: "V7-C", "V9-L", "GR Sport", "Cruiser"
+- Engine: "2.0L Diesel", "1.8L Hybrid"
+- Body: "Dual Cab", "Single Cab", "Wagon"
+
+## Spec Format
+For each spec provide:
+- key: snake_case identifier (use well-known keys when applicable)
+- label: human-readable label from the document
+- value: extracted value as a string (use "Standard"/"Optional"/"—" for boolean features)
+- unit: unit of measurement (e.g. "kW", "mm", "L") or null
+- raw: exact text from source
+
+## Well-Known Keys (use when applicable)
+${wellKnownList}
+
+## Required JSON Schema
+{
+  "_version": 2,
+  "_source_pdf": "<filename or section>",
+  "_extracted_at": "<ISO timestamp>",
+  "_model_year": "<year if found>",
+  "_variant": "<base variant name>",
+  "categories": [
+    {
+      "name": "Engine",
+      "specs": [
+        { "key": "engine_type", "label": "Type", "value": "2.0L 4 Cylinder Diesel", "unit": null, "raw": "2.0L 4 Cylinder Diesel with 48V Assist" }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "name": "Tunland V7-C 4x2",
+      "match_hints": ["v7-c", "4x2", "v7c"],
+      "model_year": "2026",
+      "categories": [
+        { "name": "Engine", "specs": [...] },
+        { "name": "Performance", "specs": [...] }
+      ]
+    }
+  ]
+}
+
+Return only the JSON object — no markdown, no code fences, no commentary.`;
+}
+
+/**
  * Builds the LLM prompt for structured spec extraction.
  */
 export function buildExtractionPrompt(
@@ -281,7 +351,33 @@ ${truncated}`;
 // ============================================================================
 
 interface AiRouter {
-  route: (req: { taskType: string; prompt: string; oemId?: string }) => Promise<{ content: string }>;
+  route: (req: {
+    taskType: string;
+    prompt: string;
+    oemId?: string;
+    pdfBase64?: string;
+    maxTokens?: number;
+  }) => Promise<{ content: string }>;
+}
+
+// ============================================================================
+// Variant types (per-variant spec extraction)
+// ============================================================================
+
+export interface VariantSpecs {
+  /** Display name from PDF e.g. "Tunland V7-C 4x4" */
+  name: string;
+  /** Hints to help match this variant to a product row (variant codes, drivetrains, trim names) */
+  match_hints: string[];
+  /** Optional model year if PDF segregates by year */
+  model_year?: string | null;
+  /** Per-variant categories with specs */
+  categories: SpecCategory[];
+}
+
+export interface ExtractedSpecsWithVariants extends ExtractedSpecs {
+  /** Per-variant specs when the PDF contains a variant matrix */
+  variants?: VariantSpecs[];
 }
 
 interface ExecuteOptions {
@@ -466,4 +562,342 @@ export async function executePdfSpecExtraction(
   );
 
   return result;
+}
+
+// ============================================================================
+// Vision-Based Extractor (Gemini PDF input + variant matrix support)
+// ============================================================================
+
+export interface VisionExtractionResult extends SpecExtractionResult {
+  variants_matched: number;
+  variants_unmatched: number;
+  variants_extracted: number;
+}
+
+/**
+ * Vision-based PDF spec extraction using Gemini's native PDF input.
+ *
+ * Unlike the text-chunk extractor, this sends the entire PDF directly to Gemini
+ * as inlineData (mime: application/pdf). The model can SEE variant matrices
+ * with standard/optional dots and emit per-variant specs.
+ *
+ * Pipeline:
+ *   1. Fetch model + brochure_url
+ *   2. Download PDF, base64-encode
+ *   3. Call Gemini with vision prompt + PDF
+ *   4. Parse combined + variants from response
+ *   5. Save combined to vehicle_models.extracted_specs
+ *   6. Map variants to products and update each product's specs_json
+ */
+export async function executePdfSpecExtractionVision(
+  supabase: SupabaseClient,
+  aiRouter: AiRouter,
+  options: ExecuteOptions = {},
+): Promise<VisionExtractionResult> {
+  const { modelIds, maxModels, force = false } = options;
+
+  const result: VisionExtractionResult = {
+    models_processed: 0,
+    models_skipped: 0,
+    models_failed: 0,
+    extractions: [],
+    errors: [],
+    variants_matched: 0,
+    variants_unmatched: 0,
+    variants_extracted: 0,
+  };
+
+  // ── 1. Fetch models ──
+  let query = supabase
+    .from('vehicle_models')
+    .select('id, slug, name, oem_id, brochure_url, extracted_specs_at')
+    .not('brochure_url', 'is', null);
+
+  if (modelIds?.length) query = query.in('id', modelIds);
+  if (maxModels) query = query.limit(maxModels);
+
+  const { data: models, error: modelsError } = await query;
+  if (modelsError) {
+    console.error('[pdf-spec-extractor:vision] Failed to fetch models:', modelsError.message);
+    return result;
+  }
+  if (!models?.length) {
+    console.log('[pdf-spec-extractor:vision] No models with brochure_url found.');
+    return result;
+  }
+
+  console.log(`[pdf-spec-extractor:vision] Found ${models.length} model(s) to process.`);
+
+  // ── 2. OEM names ──
+  const oemIds = [...new Set(models.map((m: { oem_id: string }) => m.oem_id))];
+  const { data: oems } = await supabase.from('oems').select('id, name').in('id', oemIds);
+  const oemNameById: Record<string, string> = {};
+  for (const oem of oems ?? []) oemNameById[oem.id] = oem.name;
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // ── 3. Process each model ──
+  for (const model of models) {
+    const modelId: string = model.id;
+    const oemId: string = model.oem_id;
+    const slug: string = model.slug;
+    const modelName: string = model.name ?? slug;
+    const brochureUrl: string = model.brochure_url;
+    const oemName = oemNameById[oemId] ?? oemId;
+
+    if (!force && model.extracted_specs_at && model.extracted_specs_at > thirtyDaysAgo) {
+      console.log(`[pdf-spec-extractor:vision] Skipping ${slug} — extracted ${model.extracted_specs_at}`);
+      result.models_skipped++;
+      continue;
+    }
+
+    try {
+      // ── 3a. Download PDF ──
+      console.log(`[pdf-spec-extractor:vision] Downloading PDF for ${oemId}/${slug}: ${brochureUrl}`);
+      const pdfResponse = await fetch(brochureUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      });
+      if (!pdfResponse.ok) {
+        throw new Error(`PDF download failed: HTTP ${pdfResponse.status}`);
+      }
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+      const pdfSizeMb = pdfBuffer.byteLength / 1024 / 1024;
+      console.log(`[pdf-spec-extractor:vision] Downloaded ${pdfSizeMb.toFixed(2)}MB`);
+
+      // Gemini has a 20MB inline limit; PDFs over that need Files API (skip for now)
+      if (pdfSizeMb > 18) {
+        throw new Error(`PDF too large for inline upload (${pdfSizeMb.toFixed(2)}MB > 18MB limit)`);
+      }
+
+      // ── 3b. Base64 encode ──
+      const pdfBase64 = arrayBufferToBase64(pdfBuffer);
+
+      // ── 3c. Build prompt + call Gemini vision ──
+      const prompt = buildVisionExtractionPrompt(modelName, oemName);
+      console.log(`[pdf-spec-extractor:vision] Calling Gemini for ${oemId}/${slug}...`);
+
+      const response = await aiRouter.route({
+        taskType: 'spec_extraction',
+        prompt,
+        oemId,
+        pdfBase64,
+        maxTokens: 16000,
+      });
+
+      // ── 3d. Parse JSON ──
+      let rawContent = response.content.trim();
+      rawContent = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+
+      let parsed: ExtractedSpecsWithVariants;
+      try {
+        parsed = JSON.parse(rawContent) as ExtractedSpecsWithVariants;
+      } catch (parseErr) {
+        throw new Error(`Failed to parse AI response as JSON: ${String(parseErr)}`);
+      }
+
+      // ── 3e. Validate combined ──
+      const validation = validateSpecsJson(parsed);
+      if (!validation.valid) {
+        throw new Error(`Validation failed: ${validation.error}`);
+      }
+
+      // ── 3f. Enrich + save combined to vehicle_models ──
+      parsed._version = 2;
+      parsed._source_pdf = brochureUrl;
+      parsed._extracted_at = new Date().toISOString();
+
+      const { error: upsertError } = await supabase
+        .from('vehicle_models')
+        .update({
+          extracted_specs: parsed,
+          extracted_specs_source: 'pdf-vision',
+          extracted_specs_at: parsed._extracted_at,
+        })
+        .eq('id', modelId);
+
+      if (upsertError) {
+        throw new Error(`DB update failed: ${upsertError.message}`);
+      }
+
+      // ── 3g. Map variants to products ──
+      let matched = 0;
+      let unmatched = 0;
+      const variants = parsed.variants ?? [];
+      if (variants.length > 0) {
+        const matchResult = await mapVariantsToProducts(supabase, modelId, variants);
+        matched = matchResult.matched;
+        unmatched = matchResult.unmatched;
+        result.variants_extracted += variants.length;
+        result.variants_matched += matched;
+        result.variants_unmatched += unmatched;
+        console.log(`[pdf-spec-extractor:vision] ${variants.length} variants → ${matched} matched, ${unmatched} unmatched`);
+      }
+
+      result.models_processed++;
+      result.extractions.push({
+        model_id: modelId,
+        oem_id: oemId,
+        slug,
+        categories_count: validation.categoriesCount,
+        specs_count: validation.specsCount,
+        source_pdf: brochureUrl,
+      });
+
+      console.log(
+        `[pdf-spec-extractor:vision] ✓ ${oemId}/${slug}: ` +
+        `${validation.specsCount} specs, ${variants.length} variants (${matched} matched)`,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[pdf-spec-extractor:vision] ✗ ${oemId}/${slug}: ${message}`);
+      result.models_failed++;
+      result.errors.push({ model_id: modelId, error: message });
+    }
+  }
+
+  console.log(
+    `[pdf-spec-extractor:vision] Done. processed=${result.models_processed} ` +
+    `skipped=${result.models_skipped} failed=${result.models_failed} ` +
+    `variants_matched=${result.variants_matched}/${result.variants_extracted}`,
+  );
+
+  return result;
+}
+
+// ============================================================================
+// Variant → Product Matching
+// ============================================================================
+
+interface MatchResult {
+  matched: number;
+  unmatched: number;
+  details: Array<{ variant_name: string; product_id?: string; confidence: number }>;
+}
+
+/**
+ * Maps extracted variants to existing product rows by fuzzy matching.
+ *
+ * Strategy:
+ *   1. Fetch all products for the given model_id
+ *   2. For each variant from the PDF, score each product on token overlap
+ *      between variant.name + variant.match_hints and product.title/variant_name/variant_code
+ *   3. Pick the highest-scoring product (must exceed 0.4 confidence)
+ *   4. Update the product's specs_json with a _pdf_variant_specs key
+ */
+export async function mapVariantsToProducts(
+  supabase: SupabaseClient,
+  modelId: string,
+  variants: VariantSpecs[],
+): Promise<MatchResult> {
+  const result: MatchResult = { matched: 0, unmatched: 0, details: [] };
+
+  // Fetch all products for this model
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('id, title, variant_name, variant_code, subtitle, specs_json')
+    .eq('model_id', modelId);
+
+  if (error || !products?.length) {
+    console.warn(`[mapVariantsToProducts] No products for model ${modelId}: ${error?.message ?? 'empty'}`);
+    for (const v of variants) result.details.push({ variant_name: v.name, confidence: 0 });
+    result.unmatched = variants.length;
+    return result;
+  }
+
+  // Track which products have already been matched (one-to-one)
+  const usedProductIds = new Set<string>();
+
+  for (const variant of variants) {
+    const variantTokens = tokenize([
+      variant.name,
+      ...(variant.match_hints ?? []),
+    ].join(' '));
+
+    let bestScore = 0;
+    let bestProductId: string | undefined;
+    let bestProduct: typeof products[number] | undefined;
+
+    for (const product of products) {
+      if (usedProductIds.has(product.id)) continue;
+
+      const productTokens = tokenize([
+        product.title ?? '',
+        product.variant_name ?? '',
+        product.variant_code ?? '',
+        product.subtitle ?? '',
+      ].join(' '));
+
+      const score = jaccardSimilarity(variantTokens, productTokens);
+      if (score > bestScore) {
+        bestScore = score;
+        bestProductId = product.id;
+        bestProduct = product;
+      }
+    }
+
+    if (bestProductId && bestProduct && bestScore >= 0.25) {
+      usedProductIds.add(bestProductId);
+      result.matched++;
+      result.details.push({ variant_name: variant.name, product_id: bestProductId, confidence: bestScore });
+
+      // Merge variant specs into product.specs_json under _pdf_variant_specs
+      const existingSpecs = (bestProduct.specs_json as Record<string, unknown>) ?? {};
+      const updatedSpecs = {
+        ...existingSpecs,
+        _pdf_variant_specs: {
+          variant_name: variant.name,
+          model_year: variant.model_year ?? null,
+          extracted_at: new Date().toISOString(),
+          match_confidence: bestScore,
+          categories: variant.categories,
+        },
+      };
+
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ specs_json: updatedSpecs })
+        .eq('id', bestProductId);
+
+      if (updateError) {
+        console.warn(`[mapVariantsToProducts] Failed to update product ${bestProductId}: ${updateError.message}`);
+      }
+    } else {
+      result.unmatched++;
+      result.details.push({ variant_name: variant.name, confidence: bestScore });
+      console.log(`[mapVariantsToProducts] No match for "${variant.name}" (best score: ${bestScore.toFixed(2)})`);
+    }
+  }
+
+  return result;
+}
+
+/** Tokenize a string into lowercase alphanumeric tokens, dropping common stop-words. */
+function tokenize(s: string): Set<string> {
+  const STOP = new Set(['the', 'and', 'or', 'with', 'a', 'an', 'of', 'for']);
+  return new Set(
+    s.toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length >= 2 && !STOP.has(t)),
+  );
+}
+
+/** Jaccard similarity = |A ∩ B| / |A ∪ B|. */
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let intersection = 0;
+  for (const t of a) if (b.has(t)) intersection++;
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/** Convert ArrayBuffer to base64 (Workers-compatible — no Buffer). */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(binary);
 }

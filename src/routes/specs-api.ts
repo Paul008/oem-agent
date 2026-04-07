@@ -15,7 +15,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { AiRouter } from '../ai/router';
-import { executePdfSpecExtraction } from '../sync/pdf-spec-extractor';
+import { executePdfSpecExtraction, executePdfSpecExtractionVision } from '../sync/pdf-spec-extractor';
 import type { ExtractedSpecs, SpecCategory, SpecEntry } from '../sync/pdf-spec-extractor';
 
 // ---------------------------------------------------------------------------
@@ -299,10 +299,10 @@ specsApi.post('/admin/extract-specs', async (c) => {
     }
   }
 
-  // Cast required: pdf-spec-extractor uses a local structural AiRouter interface
-  // that doesn't match the exported class's stricter AiTaskType constraint.
+  // Use vision-based extractor (Gemini PDF input + variant matrix support).
+  // Falls back to text-based extractor if vision fails.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await executePdfSpecExtraction(supabase, aiRouter as any, { modelIds, force });
+  const result = await executePdfSpecExtractionVision(supabase, aiRouter as any, { modelIds, force });
 
   return c.json(result);
 });
