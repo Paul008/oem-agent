@@ -283,14 +283,23 @@ config.hooks.internal = config.hooks.internal || {};
 config.hooks.internal.enabled = true;
 console.log('Internal hooks enabled (BOOT.md will run on startup)');
 
-// ── Heartbeat: periodic health checks ──
-config.channels = config.channels || {};
-config.channels.defaults = config.channels.defaults || {};
-config.channels.defaults.heartbeat = {
+// ── Heartbeat: periodic health checks (agent-level config) ──
+config.agents = config.agents || {};
+config.agents.defaults = config.agents.defaults || {};
+config.agents.defaults.heartbeat = {
     every: '30m',
     target: 'last',
     isolatedSession: true,
-    activeHours: { start: 6, end: 22, timezone: 'Australia/Sydney' },
+    lightContext: true,
+    activeHours: { start: '06:00', end: '22:00', timezone: 'Australia/Sydney' },
+};
+// Channel-level heartbeat display settings
+config.channels = config.channels || {};
+config.channels.defaults = config.channels.defaults || {};
+config.channels.defaults.heartbeat = {
+    showOk: false,
+    showAlerts: true,
+    useIndicator: true,
 };
 console.log('Heartbeat configured (30min, 6am-10pm AEST, target: last)');
 
@@ -298,25 +307,23 @@ console.log('Heartbeat configured (30min, 6am-10pm AEST, target: last)');
 config.session = config.session || {};
 config.session.maintenance = config.session.maintenance || {};
 config.session.maintenance.mode = 'enforce';
-config.session.maintenance.maxSessions = 50;
-config.session.maintenance.maxDiskBytes = 100 * 1024 * 1024; // 100MB
+config.session.maintenance.maxEntries = 50;
+config.session.maintenance.maxDiskBytes = '100mb';
 console.log('Session maintenance: enforce, max 50 sessions, 100MB disk cap');
 
-// ── Compaction: use a cheaper model for summarization ──
-config.agents = config.agents || {};
-config.agents.defaults = config.agents.defaults || {};
+// ── Compaction: notify user when context is compressed ──
 config.agents.defaults.compaction = config.agents.defaults.compaction || {};
 config.agents.defaults.compaction.notifyUser = true;
-// Use the same provider but a smaller model for compaction if available
 console.log('Compaction: notifyUser enabled');
 
 // ── Tool loop detection: prevent infinite tool call cycles ──
 config.tools = config.tools || {};
 config.tools.loopDetection = config.tools.loopDetection || {};
 config.tools.loopDetection.enabled = true;
-config.tools.loopDetection.maxRepeats = 5;
-config.tools.loopDetection.windowSize = 10;
-console.log('Tool loop detection enabled (max 5 repeats in 10-call window)');
+config.tools.loopDetection.historySize = 10;
+config.tools.loopDetection.warningThreshold = 3;
+config.tools.loopDetection.criticalThreshold = 5;
+console.log('Tool loop detection enabled (warn at 3, stop at 5)');
 
 // ── Agent timeouts ──
 config.agents.defaults.timeoutSeconds = 600; // 10 min per agent turn
@@ -331,8 +338,7 @@ config.plugins.entries['memory-core'] = config.plugins.entries['memory-core'] ||
 config.plugins.entries['memory-core'].config = config.plugins.entries['memory-core'].config || {};
 config.plugins.entries['memory-core'].config.dreaming = {
     enabled: true,
-    timezone: 'Australia/Sydney',
-    frequency: '0 3 * * *',
+    frequency: '0 17 * * *',  // 17:00 UTC = 3am AEST
 };
 console.log('Dreaming enabled (daily 3am AEST)');
 
