@@ -226,16 +226,15 @@ const MAX_CHUNK_LENGTH = 50_000;
 export function buildVisionExtractionPrompt(modelName: string, oemName: string): string {
   const wellKnownList = WELL_KNOWN_KEYS.join(', ');
 
-  return `You are an automotive data extraction specialist. Extract EVERY technical specification from this ${oemName} ${modelName} brochure PDF — be exhaustive, not selective.
+  return `You are an automotive data extraction specialist. Extract technical specifications from this ${oemName} ${modelName} brochure PDF.
 
 ## Critical Instructions
-- Extract ALL specs visible anywhere in the PDF — Engine, Transmission, Performance, Suspension, Brakes, Steering, Wheels & Tyres, Dimensions, Capacities, Weights, Towing, Safety, Driver Assistance, Infotainment, Comfort, Exterior, Interior, Lights, Warranty, Service, etc. Aim for 50+ specs per variant when the PDF has them.
 - The PDF may contain a VARIANT MATRIX: a table with multiple variant columns (e.g. "V7-C 4x2", "V7-C 4x4", "V9-L 4x4") and rows with spec values.
 - Standard/Optional/Unavailable dots (● ○ —) in cells indicate which variants HAVE that feature.
 - A spec value in column 1 with dots in variant columns means: that value applies to all variants where the dot is filled (●).
 - Different values across variant columns mean each variant has its own value (extract per-variant).
-- For boolean/feature rows where the only data is the dot pattern, use value: "Standard" / "Optional" / "Unavailable" — DO NOT skip them.
-- Do NOT abbreviate or summarize — every row in a spec table should become a spec entry per variant.
+- For boolean/feature rows where the only data is the dot pattern, use value: "Standard" / "Optional" / "Unavailable" — include them (don't skip).
+- Skip fluff: marketing copy, dealer disclaimers, footnotes. Only extract actual measured specs.
 
 ## Output Structure
 Return a single JSON object with TWO sections:
@@ -684,7 +683,7 @@ export async function executePdfSpecExtractionVision(
         prompt,
         oemId,
         pdfBase64,
-        maxTokens: 60000,
+        maxTokens: 32000,
       });
 
       // ── 3d. Parse JSON ──
