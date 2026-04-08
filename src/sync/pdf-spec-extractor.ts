@@ -656,8 +656,11 @@ export async function executePdfSpecExtractionVision(
     try {
       // ── 3a. Download PDF ──
       console.log(`[pdf-spec-extractor:vision] Downloading PDF for ${oemId}/${slug}: ${brochureUrl}`);
+      // 30s timeout — PDFs are usually <10MB and download in <1s. AbortSignal.timeout()
+      // is required (not a wrapped Promise) so the underlying fetch is actually cancelled.
       const pdfResponse = await fetch(brochureUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(30_000),
       });
       if (!pdfResponse.ok) {
         throw new Error(`PDF download failed: HTTP ${pdfResponse.status}`);

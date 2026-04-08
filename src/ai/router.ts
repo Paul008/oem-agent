@@ -923,10 +923,15 @@ export class AiRouter {
 
     const url = `${GEMINI_CONFIG.api_base}/models/${model}:generateContent?key=${apiKey}`;
 
+    // 90s per-call timeout — vision PDF inference can stall indefinitely otherwise.
+    // AbortSignal.timeout() actually cancels the underlying fetch (a withTimeout()
+    // wrapper would only reject the Promise while the worker keeps waiting).
+    // On timeout this throws → router falls back to the configured fallback model.
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(90_000),
     });
 
     if (!response.ok) {
