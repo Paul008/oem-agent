@@ -1950,13 +1950,28 @@ app.get('/pages/:slug', async (c) => {
             // Inject variant_groups and upsize flat colors in color-picker sections
             for (const section of page.content.sections) {
               if ((section as any).type === 'color-picker') {
-                (section as any).variant_groups = variantGroups;
-                // Also upsize existing flat colors (from R2 page data)
+                // Build hex lookup from page's flat colors (R2 data has hex from scraping)
+                const hexByName = new Map<string, string>();
                 if (Array.isArray((section as any).colors)) {
                   for (const color of (section as any).colors) {
+                    if (color.hex && color.name) {
+                      hexByName.set(color.name.toLowerCase().replace(/\*$/,'').trim(), color.hex);
+                    }
                     color.hero_image_url = ensureHiRes(color.hero_image_url);
                   }
                 }
+
+                // Merge hex into variant_groups colors (DB may not have hex)
+                for (const group of variantGroups) {
+                  for (const color of group.colors) {
+                    if (!color.hex) {
+                      const key = (color.name || '').toLowerCase().replace(/\*$/,'').trim();
+                      color.hex = hexByName.get(key) || null;
+                    }
+                  }
+                }
+
+                (section as any).variant_groups = variantGroups;
               }
             }
           }
