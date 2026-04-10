@@ -13,6 +13,7 @@ import { Hono } from 'hono';
 import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
+import { encodeUrl } from './media';
 import { AiRouter, TASK_ROUTING, AVAILABLE_MODELS, TASK_TYPE_GROUPS, TASK_TYPE_LABELS } from '../ai/router';
 import type { RouteDecision } from '../ai/router';
 import { SalesRepAgent } from '../ai/sales-rep';
@@ -1915,11 +1916,22 @@ app.get('/pages/:slug', async (c) => {
             .in('product_id', productIds)
             .limit(100);
 
-          // Ensure Foton CDN images are full resolution (Umbraco supports ?width= resize)
-          const ensureHiRes = (url: string | null): string | null => {
-            if (!url || !url.includes('fotonaustralia.com.au/media/')) return url;
-            if (url.includes('width=')) return url;
-            return url + (url.includes('?') ? '&' : '?') + 'width=1920';
+          // Proxy external OEM images through our CDN (/media/:oemId/:base64url)
+          // For Foton, also ensure hi-res via Umbraco ?width= param
+          const oemId = slug.replace(/-[^-]+$/, ''); // foton-au-tunland → foton-au
+          const proxyImage = (url: string | null): string | null => {
+            if (!url) return url;
+            // Already proxied through our CDN
+            if (url.includes('oem-agent') && url.includes('/media/')) return url;
+            // Foton hi-res: add ?width=1920 before proxying
+            if (url.includes('fotonaustralia.com.au/media/') && !url.includes('width=')) {
+              url = url + (url.includes('?') ? '&' : '?') + 'width=1920';
+            }
+            // Only proxy external URLs
+            if (url.startsWith('http')) {
+              return `/media/${oemId}/${encodeUrl(url)}`;
+            }
+            return url;
           };
 
           // Group by product — only create variant_groups when >1 product has colors
@@ -1931,7 +1943,7 @@ app.get('/pages/:slug', async (c) => {
               name: c.color_name,
               code: c.color_code,
               swatch_url: isHex ? null : (c.swatch_url || null),
-              hero_image_url: ensureHiRes(c.hero_image_url),
+              hero_image_url: proxyImage(c.hero_image_url),
               hex: isHex ? c.swatch_url : null,
               price_delta: c.price_delta != null ? Number(c.price_delta) : 0,
               is_standard: c.is_standard ?? false,
@@ -1957,7 +1969,7 @@ app.get('/pages/:slug', async (c) => {
                     if (color.hex && color.name) {
                       hexByName.set(color.name.toLowerCase().replace(/\*$/,'').trim(), color.hex);
                     }
-                    color.hero_image_url = ensureHiRes(color.hero_image_url);
+                    color.hero_image_url = proxyImage(color.hero_image_url);
                   }
                 }
 

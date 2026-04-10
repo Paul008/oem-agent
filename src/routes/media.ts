@@ -57,6 +57,11 @@ const OEM_HEADERS: Record<string, Record<string, string>> = {
     Referer: 'https://www.renault.com.au/',
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
   },
+  'foton-au': {
+    Origin: 'https://www.fotonaustralia.com.au',
+    Referer: 'https://www.fotonaustralia.com.au/',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+  },
 };
 
 // ── Base URLs for resolving relative paths ──────────────────────────────────
@@ -98,6 +103,7 @@ const ALLOWED_HOSTS = new Set([
   'cdn.rotorint.com',
   'cdn.cms-uploads.i-motor.me',
   'www.renault.com.au',
+  'www.fotonaustralia.com.au',
 ]);
 
 /**
