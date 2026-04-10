@@ -15,8 +15,20 @@
     }
     .container { max-width: 960px; margin: 0 auto; }
     h1 { font-size: 2rem; margin-bottom: 0.25rem; color: #fff; }
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    h2 .count { color: #888; font-size: 0.85rem; font-weight: 400; }
     .subtitle { color: #888; font-size: 1rem; margin-bottom: 1.5rem; }
-    .meta { display: flex; gap: 1rem; margin-bottom: 2rem; font-size: 0.85rem; color: #888; }
+    .meta { display: flex; gap: 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: #888; flex-wrap: wrap; }
     .meta span { background: rgba(255,255,255,0.06); padding: 0.3rem 0.75rem; border-radius: 6px; }
     .job-card {
       background: rgba(255,255,255,0.05);
@@ -27,8 +39,10 @@
       transition: border-color 0.2s;
     }
     .job-card:hover { border-color: rgba(255,255,255,0.25); }
-    .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .job-card.stale { border-color: rgba(234,179,8,0.35); }
+    .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
     .job-name { font-size: 1.1rem; font-weight: 600; color: #fff; }
+    .job-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
     .badge {
       display: inline-block;
       padding: 0.2rem 0.6rem;
@@ -43,10 +57,27 @@
     .badge-failed { background: #ef444433; color: #ef4444; }
     .badge-running { background: #3b82f633; color: #3b82f6; }
     .badge-none { background: rgba(255,255,255,0.08); color: #888; }
+    .badge-stale { background: #eab30833; color: #eab308; }
+    .badge-event { background: #8b5cf633; color: #a78bfa; }
     .job-desc { color: #aaa; font-size: 0.9rem; margin-bottom: 0.75rem; }
     .job-details { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; color: #999; }
+    .job-details > div { min-width: 0; }
     .job-details dt { color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .job-details dd { color: #ccc; margin-top: 0.15rem; }
+    .job-error {
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.8rem;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #fca5a5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-word;
+      white-space: pre-wrap;
+      max-height: 6rem;
+      overflow: auto;
+    }
     .actions { margin-top: 0.75rem; }
     .btn {
       background: #3b82f6;
@@ -81,73 +112,146 @@
     <h1>Cron Jobs</h1>
     <p class="subtitle">OEM Agent Scheduled Tasks</p>
     <div class="meta" id="meta"></div>
+    <h2>OpenClaw Jobs <span class="count" id="openclawCount"></span></h2>
     <div id="jobs"></div>
+    <h2>Cloudflare Triggers <span class="count" id="cfCount"></span></h2>
+    <div id="cfTriggers"></div>
   </div>
   <div class="toast" id="toast"></div>
   <script>
     const data = {{JOBS_JSON}};
 
+    const STALE_DAYS = 3;
+    const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
+
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      const d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
+
+    function truncate(s, n) {
+      const str = String(s ?? '');
+      return str.length > n ? str.slice(0, n) + '…' : str;
+    }
+
     // Render meta
     const meta = document.getElementById('meta');
     meta.innerHTML = `
-      <span>Version ${data.version}</span>
-      <span>Max concurrent: ${data.globalConfig?.max_concurrent_jobs ?? '—'}</span>
-      <span>Timeout: ${data.globalConfig?.job_timeout_minutes ?? '—'}m</span>
+      <span>Version ${esc(data.version)}</span>
+      <span>Max concurrent: ${esc(data.globalConfig?.max_concurrent_jobs ?? '—')}</span>
+      <span>Timeout: ${esc(data.globalConfig?.job_timeout_minutes ?? '—')}m</span>
     `;
 
-    // Render jobs
-    const container = document.getElementById('jobs');
-    container.innerHTML = data.jobs.map(job => {
+    function renderJob(job, opts) {
+      const canTrigger = opts && opts.canTrigger;
       const statusBadge = job.enabled
         ? '<span class="badge badge-enabled">Enabled</span>'
         : '<span class="badge badge-disabled">Disabled</span>';
 
       let lastRunHtml = '<span class="badge badge-none">No runs</span>';
+      let stale = false;
+      let errorBlock = '';
       if (job.lastRun) {
         const cls = 'badge-' + job.lastRun.status;
-        const time = new Date(job.lastRun.completedAt || job.lastRun.startedAt).toLocaleString();
-        lastRunHtml = `<span class="badge ${cls}">${job.lastRun.status}</span> <span style="margin-left:0.25rem">${time}</span>`;
+        const whenStr = job.lastRun.completedAt || job.lastRun.startedAt;
+        const whenMs = whenStr ? new Date(whenStr).getTime() : NaN;
+        const time = Number.isFinite(whenMs) ? new Date(whenMs).toLocaleString() : '—';
+        stale = job.lastRun.status === 'success' && Number.isFinite(whenMs) && (Date.now() - whenMs) > STALE_MS;
+        const staleBadge = stale ? ' <span class="badge badge-stale">Stale</span>' : '';
+        lastRunHtml = `<span class="badge ${cls}">${esc(job.lastRun.status)}</span>${staleBadge} <span style="margin-left:0.25rem">${esc(time)}</span>`;
+
+        if (job.lastRun.status === 'failed' && job.lastRun.error) {
+          errorBlock = `<div class="job-error" title="${esc(job.lastRun.error)}">${esc(truncate(job.lastRun.error, 500))}</div>`;
+        }
       }
 
+      const scheduleDisplay = job.schedule
+        ? esc(job.nextRun || job.schedule)
+        : '<span class="badge badge-event">Event-driven</span>';
+
+      const runCount = Number.isFinite(job.runCount) ? job.runCount : 0;
+      const triggerDisabled = !canTrigger || !job.enabled || !job.schedule;
+
       return `
-        <div class="job-card">
+        <div class="job-card${stale ? ' stale' : ''}">
           <div class="job-header">
             <span class="job-name">${esc(job.name)}</span>
-            <span>${statusBadge}</span>
+            <span class="job-badges">${statusBadge}</span>
           </div>
           <p class="job-desc">${esc(job.description)}</p>
           <dl class="job-details">
-            <div><dt>Schedule</dt><dd>${esc(job.nextRun || job.schedule)}</dd></div>
+            <div><dt>Schedule</dt><dd>${scheduleDisplay}</dd></div>
             <div><dt>Skill</dt><dd><code>${esc(job.skill)}</code></dd></div>
             <div><dt>Timezone</dt><dd>${esc(job.timezone)}</dd></div>
-            <div><dt>Runs</dt><dd>${job.runCount}</dd></div>
+            <div><dt>Runs</dt><dd>${esc(runCount)}</dd></div>
             <div><dt>Last Run</dt><dd>${lastRunHtml}</dd></div>
           </dl>
+          ${errorBlock}
           <div class="actions">
-            <button class="btn" onclick="triggerJob('${esc(job.id)}')" ${job.enabled ? '' : 'disabled'}>Run Now</button>
+            <button class="btn" data-job-id="${esc(job.id)}" onclick="triggerJob('${esc(job.id)}')" ${triggerDisabled ? 'disabled' : ''}>Run Now</button>
             <a class="btn btn-secondary" href="/cron/runs/${esc(job.id)}" style="text-decoration:none; margin-left:0.5rem">History</a>
           </div>
         </div>
       `;
-    }).join('');
+    }
 
-    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    // Render OpenClaw jobs
+    const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+    document.getElementById('openclawCount').textContent = `(${jobs.length})`;
+    document.getElementById('jobs').innerHTML = jobs.length
+      ? jobs.map(j => renderJob(j, { canTrigger: true })).join('')
+      : '<p style="color:#666; font-size:0.9rem">No OpenClaw jobs configured.</p>';
+
+    // Render Cloudflare triggers
+    const cfJobs = Array.isArray(data.cloudflareTriggers) ? data.cloudflareTriggers : [];
+    document.getElementById('cfCount').textContent = `(${cfJobs.length})`;
+    document.getElementById('cfTriggers').innerHTML = cfJobs.length
+      ? cfJobs.map(j => renderJob(j, { canTrigger: false })).join('')
+      : '<p style="color:#666; font-size:0.9rem">No Cloudflare triggers registered.</p>';
 
     async function triggerJob(jobId) {
+      // Find the button so we can give immediate feedback — the backend runs
+      // lightweight jobs inline, which can take several seconds before the
+      // fetch resolves. Without this the click looks like it did nothing.
+      const btn = document.querySelector(`button[data-job-id="${jobId}"]`);
+      const originalText = btn?.textContent;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Running…';
+      }
+      showToast('Triggering ' + jobId + '…', { persistent: true });
       try {
         const res = await fetch('/cron/run/' + jobId, { method: 'POST' });
         const result = await res.json();
-        showToast(res.ok ? 'Triggered: ' + result.runId : 'Error: ' + (result.error || 'Unknown'));
+        if (res.ok) {
+          const verb = result.status === 'running' ? 'Started' : (result.status === 'success' ? 'Completed' : (result.status || 'Triggered'));
+          showToast(`${verb}: ${result.runId}`);
+        } else {
+          showToast('Error: ' + (result.error || 'Unknown'));
+        }
+        // Reload after a beat so fresh status + last-run data appears.
+        setTimeout(() => window.location.reload(), 1500);
       } catch (e) {
         showToast('Failed: ' + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText || 'Run Now';
+        }
       }
     }
 
-    function showToast(msg) {
+    let toastTimer = null;
+    function showToast(msg, opts) {
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 4000);
+      if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+      if (!(opts && opts.persistent)) {
+        toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+      }
     }
   </script>
 </body>

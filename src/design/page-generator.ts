@@ -91,6 +91,12 @@ interface ModelData {
     price_delta: number | null;
     is_standard: boolean;
   }>;
+  /** Colors grouped by variant/product — populated when multiple products have colors */
+  colorsByVariant?: Array<{
+    variant: string;
+    slug: string;
+    colors: ModelData['colors'];
+  }>;
   pricing: Array<{
     product_title: string;
     state: string;
@@ -160,15 +166,17 @@ async function assembleModelData(
   const products = productRows || [];
   const productIds = products.map((p: any) => p.id);
 
-  // 3. Get colors for these products
+  // 3. Get colors for these products (include product_id for variant grouping)
   let colors: ModelData['colors'] = [];
+  let colorsByVariant: ModelData['colorsByVariant'] = undefined;
   if (productIds.length > 0) {
     const { data: colorRows } = await supabase
       .from('variant_colors')
-      .select('color_name, color_code, swatch_url, hero_image_url, gallery_urls, color_type, price_delta, is_standard')
+      .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, color_type, price_delta, is_standard')
       .in('product_id', productIds)
       .limit(50);
-    colors = (colorRows || []).map((c: any) => ({
+
+    const mapColor = (c: any) => ({
       color_name: c.color_name,
       color_code: c.color_code,
       swatch_url: c.swatch_url,
@@ -177,7 +185,31 @@ async function assembleModelData(
       color_type: c.color_type || null,
       price_delta: c.price_delta != null ? Number(c.price_delta) : null,
       is_standard: c.is_standard ?? false,
-    }));
+    });
+
+    colors = (colorRows || []).map(mapColor);
+
+    // Group colors by variant when multiple products have colors
+    const productMap = new Map(products.map((p: any) => [p.id, p.title]));
+    const grouped = new Map<string, typeof colors>();
+    for (const c of colorRows || []) {
+      const pid = c.product_id;
+      if (!grouped.has(pid)) grouped.set(pid, []);
+      grouped.get(pid)!.push(mapColor(c));
+    }
+
+    // Only create variant_groups when >1 product actually has colors
+    if (grouped.size > 1) {
+      colorsByVariant = [];
+      for (const [pid, variantColors] of grouped) {
+        const title = productMap.get(pid) || '';
+        colorsByVariant.push({
+          variant: title,
+          slug: title.toLowerCase().replace(/\s+/g, '-'),
+          colors: variantColors,
+        });
+      }
+    }
   }
 
   // 4. Get pricing for these products
@@ -221,7 +253,7 @@ async function assembleModelData(
 
   const offers = offerRows || [];
 
-  return { model, products, colors, pricing, accessories, offers };
+  return { model, products, colors, colorsByVariant, pricing, accessories, offers };
 }
 
 // ============================================================================

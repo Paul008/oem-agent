@@ -36,7 +36,14 @@ const RANGE_SOURCES = [
 ]
 
 function slugify(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  // Preserve "+" used to distinguish "LS-U" from "LS-U+", "X-Terrain+" etc.
+  // (otherwise stripping non-alphanumerics collapses them to the same key —
+  // see comment on line ~47 about "Keep + in the carName for uniqueness")
+  return str
+    .toLowerCase()
+    .replace(/\+/g, '-plus')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 function buildCarName(model, carRawName) {

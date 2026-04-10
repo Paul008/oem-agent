@@ -347,6 +347,12 @@ export const gwmAu: OemDefinition = {
 
 // ============================================================================
 // 1.11 Suzuki Australia
+//
+// API-first: products / variants / colors / pricing all come from
+//   https://www.suzuki.com.au/suzuki-finance-calculator-data.json
+// via src/sync/suzuki-sync.ts (executeSuzukiSync). Browser rendering is
+// no longer needed for product data — only homepage/offers banner extraction
+// uses HTML, which Suzuki serves via WordPress SSR (no JS required).
 // ============================================================================
 export const suzukiAu: OemDefinition = {
   id: 'suzuki-au',
@@ -369,7 +375,7 @@ export const suzukiAu: OemDefinition = {
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: true, // Hero carousel images injected by JS from data-respim attrs
+    requiresBrowserRendering: false, // API-first via finance-calculator-data.json
     framework: 'wordpress',
   },
 };

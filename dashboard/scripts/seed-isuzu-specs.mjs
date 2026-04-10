@@ -132,7 +132,12 @@ const WHEEL_SPECS = {
 }
 
 function slugify(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  // Preserve "+" for trim disambiguation (LS-U vs LS-U+, X-Terrain vs X-Terrain+)
+  return str
+    .toLowerCase()
+    .replace(/\+/g, '-plus')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 /** Extract tag value from Range API car tags */

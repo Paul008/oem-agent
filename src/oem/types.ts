@@ -1036,13 +1036,22 @@ export interface TabsSection {
   default_tab: number;
 }
 
+export interface ColorPickerColor {
+  name: string; code?: string; swatch_url?: string;
+  hero_image_url?: string; hex?: string;
+}
+
+export interface ColorPickerVariantGroup {
+  variant: string;
+  slug: string;
+  colors: ColorPickerColor[];
+}
+
 export interface ColorPickerSection {
   type: 'color-picker'; id: string; order: number;
   title?: string;
-  colors: Array<{
-    name: string; code?: string; swatch_url?: string;
-    hero_image_url?: string; hex?: string;
-  }>;
+  colors?: ColorPickerColor[];
+  variant_groups?: ColorPickerVariantGroup[];
 }
 
 export interface SpecsGridSection {

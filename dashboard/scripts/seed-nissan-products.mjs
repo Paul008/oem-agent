@@ -93,7 +93,14 @@ const MODEL_GRADES = {
 }
 
 function slugify(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  // Preserve the trailing "+" used for "ST+", "Advance+", "LS-U+" trim distinctions
+  // (strip-to-alphanumeric collapses ST and ST+ to the same key otherwise — see
+  // 7 historical collision pairs in products before 2026-04-08).
+  return str
+    .toLowerCase()
+    .replace(/\+/g, '-plus')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
 }
 
 async function fetchApigeeModels() {

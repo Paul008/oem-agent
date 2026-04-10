@@ -792,6 +792,31 @@ async function syncFotonBrochures(
       const otherLinks = existingLinks.filter(l => l.type !== 'brochure' && l.type !== 'warranty');
       await supabase.from('products').update({ cta_links: [...otherLinks, ...ctaLinks] }).eq('id', product.id);
     }
+
+    // Refresh vehicle_models.brochure_url so PDF spec extraction stays unbroken
+    // when Foton's Umbraco CMS rotates media filenames (same GUID, new filename).
+    // Tunland: all variants share one full spec sheet. Aumark S: pick the 5D15
+    // cab chassis variant to match the existing canonical convention.
+    const modelBrochures: Record<string, string | undefined> = {
+      'tunland': [...tunlandMap.values()][0],
+      'aumark-s': aumarkMap.get('5d15 mt swb cab chassis') ?? [...aumarkMap.values()][0],
+    };
+    const { data: fotonModels } = await supabase
+      .from('vehicle_models')
+      .select('id, slug, brochure_url')
+      .eq('oem_id', 'foton-au');
+    for (const m of fotonModels ?? []) {
+      const fresh = modelBrochures[m.slug as string];
+      if (!fresh || fresh === m.brochure_url) continue;
+      await supabase
+        .from('vehicle_models')
+        .update({ brochure_url: fresh, extracted_specs: null, extracted_specs_at: null })
+        .eq('id', m.id);
+      // Stale embeddings reference the old PDF — drop them so re-vectorize picks up the new one
+      await supabase.from('pdf_embeddings').delete()
+        .eq('source_id', m.id).eq('source_type', 'brochure');
+      console.log(`[syncFoton] Refreshed brochure_url for ${m.slug}: ${fresh}`);
+    }
   } catch (e) {
     console.warn('[syncFoton] Brochure scrape failed:', e);
   }

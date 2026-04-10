@@ -1882,6 +1882,76 @@ app.get('/pages/:slug', async (c) => {
     }
   } catch { /* cost lookup is non-critical */ }
 
+  // Enrich color-picker sections with per-variant color groups from DB
+  if (page.content?.sections?.length) {
+    // Extract oemId and modelSlug from the page slug (e.g. "foton-au-tunland")
+    const pageOemId = page.oem_id || slug.replace(/-[^-]+$/, '');
+    const pageModelSlug = slug.replace(/^[a-z]+-[a-z]+-/, '');
+
+    try {
+      // Get products for this model
+      const { data: modelRows } = await supabase
+        .from('vehicle_models')
+        .select('name')
+        .eq('oem_id', pageOemId)
+        .eq('slug', pageModelSlug)
+        .limit(1);
+
+      if (modelRows?.[0]) {
+        const { data: productRows } = await supabase
+          .from('products')
+          .select('id, title')
+          .eq('oem_id', pageOemId)
+          .ilike('title', `%${modelRows[0].name}%`)
+          .order('price_amount', { ascending: true });
+
+        const products = productRows || [];
+        const productIds = products.map((p: any) => p.id);
+
+        if (productIds.length > 0) {
+          const { data: colorRows } = await supabase
+            .from('variant_colors')
+            .select('product_id, color_name, color_code, swatch_url, hero_image_url, color_type, price_delta, is_standard')
+            .in('product_id', productIds)
+            .limit(100);
+
+          // Group by product — only create variant_groups when >1 product has colors
+          const grouped = new Map<string, any[]>();
+          for (const c of colorRows || []) {
+            if (!grouped.has(c.product_id)) grouped.set(c.product_id, []);
+            const isHex = c.swatch_url?.startsWith('#');
+            grouped.get(c.product_id)!.push({
+              name: c.color_name,
+              code: c.color_code,
+              swatch_url: isHex ? null : (c.swatch_url || null),
+              hero_image_url: c.hero_image_url,
+              hex: isHex ? c.swatch_url : null,
+              price_delta: c.price_delta != null ? Number(c.price_delta) : 0,
+              is_standard: c.is_standard ?? false,
+              paint_type: c.color_type || 'Solid',
+            });
+          }
+
+          if (grouped.size > 1) {
+            const productMap = new Map(products.map((p: any) => [p.id, p.title]));
+            const variantGroups = [...grouped.entries()].map(([pid, colors]) => ({
+              variant: productMap.get(pid) || '',
+              slug: (productMap.get(pid) || '').toLowerCase().replace(/\s+/g, '-'),
+              colors,
+            }));
+
+            // Inject variant_groups into color-picker sections
+            for (const section of page.content.sections) {
+              if ((section as any).type === 'color-picker') {
+                (section as any).variant_groups = variantGroups;
+              }
+            }
+          }
+        }
+      }
+    } catch { /* color enrichment is non-critical */ }
+  }
+
   // Strip cloned HTML from API response when structured sections exist.
   // The raw HTML stays in R2 for re-extraction but shouldn't be in the API payload.
   const includeRendered = c.req.query('includeRendered') === 'true';

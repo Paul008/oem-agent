@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Run History - OEM Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e4e4e4;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+    .back { color: #888; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 1rem; }
+    .back:hover { color: #ccc; }
+    h1 { font-size: 1.75rem; color: #fff; margin-bottom: 0.25rem; }
+    .subtitle { color: #888; font-size: 0.95rem; margin-bottom: 1.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .summary { display: flex; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; flex-wrap: wrap; }
+    .summary span { background: rgba(255,255,255,0.06); padding: 0.3rem 0.75rem; border-radius: 6px; color: #aaa; }
+    .run-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .run-card.failed { border-color: rgba(239,68,68,0.3); }
+    .run-card.running { border-color: rgba(59,130,246,0.3); }
+    .run-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .run-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; color: #aaa; word-break: break-all; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .badge-success { background: #22c55e33; color: #22c55e; }
+    .badge-failed { background: #ef444433; color: #ef4444; }
+    .badge-running { background: #3b82f633; color: #3b82f6; }
+    .run-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.5rem;
+    }
+    .run-details dt { color: #666; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.7rem; }
+    .run-details dd { color: #bbb; margin-top: 0.1rem; }
+    details {
+      margin-top: 0.5rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 0.5rem;
+    }
+    summary {
+      cursor: pointer;
+      color: #888;
+      font-size: 0.8rem;
+      user-select: none;
+    }
+    summary:hover { color: #ccc; }
+    pre {
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      color: #ccc;
+      overflow: auto;
+      max-height: 20rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .error-block {
+      margin-top: 0.5rem;
+      padding: 0.6rem 0.8rem;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      color: #fca5a5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 15rem;
+      overflow: auto;
+    }
+    .empty {
+      text-align: center;
+      color: #666;
+      padding: 3rem 1rem;
+      font-size: 0.9rem;
+    }
+    @media (max-width: 600px) { body { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="/cron">← Back to Cron Jobs</a>
+    <h1 id="title">Run History</h1>
+    <p class="subtitle" id="subtitle"></p>
+    <div class="summary" id="summary"></div>
+    <div id="runs"></div>
+  </div>
+  <script>
+    const data = {{RUNS_JSON}};
+
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      const d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
+
+    function fmtDuration(startedAt, completedAt) {
+      if (!startedAt || !completedAt) return '—';
+      const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+      if (!Number.isFinite(ms) || ms < 0) return '—';
+      if (ms < 1000) return ms + 'ms';
+      if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+      const mins = Math.floor(ms / 60000);
+      const secs = Math.round((ms % 60000) / 1000);
+      return `${mins}m ${secs}s`;
+    }
+
+    document.getElementById('title').textContent = data.jobName || data.jobId || 'Run History';
+    document.getElementById('subtitle').textContent = data.jobId || '';
+
+    const runs = Array.isArray(data.runs) ? data.runs : [];
+    const counts = runs.reduce((acc, r) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    }, {});
+    document.getElementById('summary').innerHTML = `
+      <span>Total: ${runs.length}</span>
+      <span>✓ ${counts.success || 0}</span>
+      <span>✗ ${counts.failed || 0}</span>
+      <span>⟳ ${counts.running || 0}</span>
+    `;
+
+    const runsEl = document.getElementById('runs');
+    if (runs.length === 0) {
+      runsEl.innerHTML = '<div class="empty">No runs recorded for this job yet.</div>';
+    } else {
+      runsEl.innerHTML = runs.map(run => {
+        const cls = 'badge-' + run.status;
+        const started = run.startedAt ? new Date(run.startedAt).toLocaleString() : '—';
+        const completed = run.completedAt ? new Date(run.completedAt).toLocaleString() : '—';
+        const duration = fmtDuration(run.startedAt, run.completedAt);
+
+        const errorHtml = run.error
+          ? `<div class="error-block">${esc(run.error)}</div>`
+          : '';
+
+        const resultHtml = run.result
+          ? `<details><summary>Result payload</summary><pre>${esc(JSON.stringify(run.result, null, 2))}</pre></details>`
+          : '';
+
+        return `
+          <div class="run-card ${esc(run.status)}">
+            <div class="run-header">
+              <span class="run-id">${esc(run.id)}</span>
+              <span class="badge ${cls}">${esc(run.status)}</span>
+            </div>
+            <dl class="run-details">
+              <div><dt>Started</dt><dd>${esc(started)}</dd></div>
+              <div><dt>Completed</dt><dd>${esc(completed)}</dd></div>
+              <div><dt>Duration</dt><dd>${esc(duration)}</dd></div>
+            </dl>
+            ${errorHtml}
+            ${resultHtml}
+          </div>
+        `;
+      }).join('');
+    }
+  </script>
+</body>
+</html>

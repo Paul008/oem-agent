@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import cronJobsConfig from '../../config/openclaw/cron-jobs.json';
 import cronDashboardHtml from '../assets/cron-dashboard.html';
+import cronHistoryHtml from '../assets/cron-history.html';
 import { getRunHistory, saveRun, cleanStaleRuns, type JobRun } from '../utils/cron-runs';
 import { CLOUDFLARE_TRIGGERS } from '../scheduled';
 
@@ -49,6 +50,20 @@ function getNextRun(cronExpr: string, timezone: string): string {
     '0 3 * * 0': 'Sunday 3:00 AM',
     '0 3 1 * *': '1st of month 3:00 AM',
     '0 4 * * 2': 'Tuesday 4:00 AM',
+    '0 3 * * *': 'Daily 3:00 AM',
+    '0 18 * * *': 'Daily 6:00 PM',
+    '0 */2 * * *': 'Every 2 hours',
+    '30 */2 * * *': 'Every 2 hours (:30)',
+    '0 9 * * 3': 'Wednesday 9:00 AM',
+    '0 16 * * 0': 'Sunday 4:00 PM UTC',
+    '0 5 1 * *': '1st of month 5:00 AM',
+    '0 16 15 * *': '15th of month 4:00 PM UTC',
+    '0 17 * * *': 'Daily 5:00 PM UTC',
+    '0 6,18 * * *': 'Twice daily (6am, 6pm)',
+    '0 19 * * *': 'Daily 7:00 PM UTC',
+    '0 20 * * *': 'Daily 8:00 PM UTC',
+    '30 17 * * *': 'Daily 5:30 PM UTC',
+    '0 16 1 * *': '1st of month 4:00 PM UTC',
   };
 
   return patterns[cronExpr] || cronExpr;
@@ -277,12 +292,20 @@ cron.get('/runs/:jobId', async (c) => {
   const bucket = c.env.MOLTBOT_BUCKET;
   const runs = await getRunHistory(bucket, jobId, limit);
 
-  return c.json({
+  const payload = {
     jobId,
     jobName: job?.name ?? cfTrigger?.name,
     runs,
     total: runs.length,
-  });
+  };
+
+  // Return HTML history page for browser requests, JSON for API requests
+  if (c.req.header('Accept')?.includes('text/html')) {
+    const html = cronHistoryHtml.replace('{{RUNS_JSON}}', JSON.stringify(payload));
+    return c.html(html);
+  }
+
+  return c.json(payload);
 });
 
 /**
@@ -323,7 +346,16 @@ async function executeJob(
 
     switch (job.skill) {
       case 'oem-extract':
-        result = await executeOemExtract(job, env);
+        // Incremental progress saves: update the R2 run record after every
+        // OEM completes so diagnostic data survives even if the Worker is
+        // killed mid-crawl (the cron hang bug mode). Without this the run
+        // stays stuck in "running" with zero data.
+        result = await executeOemExtract(job, env, async (partial) => {
+          run.result = { ...(run.result ?? {}), ...partial };
+          try { await saveRun(bucket, run); } catch (e) {
+            console.warn('[Cron] Failed to save progress update:', e);
+          }
+        });
         break;
       
       case 'oem-build-price-discover':
@@ -434,7 +466,8 @@ async function executeJob(
  */
 async function executeOemExtract(
   job: CronJob,
-  env: AppEnv['Bindings']
+  env: AppEnv['Bindings'],
+  onProgress?: (partial: Record<string, unknown>) => Promise<void>,
 ): Promise<Record<string, unknown>> {
   const config = job.config as {
     oem_ids: string[];
@@ -477,13 +510,46 @@ async function executeOemExtract(
     lightpandaUrl: env.LIGHTPANDA_URL,
   });
   
-  // Run extraction for specified OEMs
-  const result = await orchestrator.runScheduledCrawl();
-  
+  // OUTER SAFETY NET: race the whole crawl against a 7-min wall-clock timeout.
+  // If the orchestrator hangs in any Supabase/fetch/browser call before reaching
+  // its own global deadline check, this ensures executeJob still catches a
+  // rejection and saveRun fires. The inner work keeps running in the background
+  // (Promise trap), but control flow exits so the run record gets finalised.
+  const OUTER_TIMEOUT_MS = 7 * 60_000;
+  const crawlStart = Date.now();
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(
+      () => reject(new Error(`runScheduledCrawl exceeded outer ${OUTER_TIMEOUT_MS}ms wall-clock timeout`)),
+      OUTER_TIMEOUT_MS,
+    );
+  });
+
+  let result: Awaited<ReturnType<typeof orchestrator.runScheduledCrawl>>;
+  try {
+    result = await Promise.race([
+      orchestrator.runScheduledCrawl(undefined, { onProgress }),
+      timeoutPromise,
+    ]);
+  } catch (err) {
+    // Re-throw so executeJob records the error and saveRun runs.
+    // Any partial oemResults will have already been saved via onProgress callbacks.
+    const elapsed = Date.now() - crawlStart;
+    console.error(`[Cron] oem-extract crawl terminated after ${elapsed}ms:`, err);
+    throw err;
+  }
+
+  // Surface the full per-OEM breakdown to the cron run record so the
+  // history page shows exactly which OEMs timed out and how long each took.
+  // This is how we diagnose the remaining hang without blind refactoring.
   return {
     oem_ids: config.oem_ids,
     jobsProcessed: result.jobsProcessed,
     pagesChanged: result.pagesChanged,
+    errors: result.errors,
+    durationMs: result.durationMs,
+    deadlineHit: result.deadlineHit,
+    oemsSkipped: result.oemsSkipped,
+    oemResults: result.oemResults,
   };
 }
 
@@ -958,6 +1024,7 @@ async function executeOemDataSync(
   const { createSupabaseClient } = await import('../utils/supabase');
   const { executeKiaColorSync } = await import('../sync/kia-colors');
   const { executeAllOemSync } = await import('../sync/all-oem-sync');
+  const { executeSuzukiSync } = await import('../sync/suzuki-sync');
 
   const supabase = createSupabaseClient({
     url: env.SUPABASE_URL,
@@ -967,6 +1034,9 @@ async function executeOemDataSync(
   // Kia: BYO colors + 8-state driveaway pricing
   const kiaResult = await executeKiaColorSync(supabase);
 
+  // Suzuki: API-first via finance-calculator-data.json (products + colors + pricing)
+  const suzukiResult = await executeSuzukiSync(supabase);
+
   // All other OEMs: colors + pricing from their respective APIs
   const allOemResult = await executeAllOemSync(supabase);
 
@@ -974,6 +1044,7 @@ async function executeOemDataSync(
     skill: 'oem-data-sync',
     schedule: config.schedule,
     kia_color_sync: kiaResult,
+    suzuki_sync: suzukiResult,
     all_oem_sync: allOemResult,
   };
 }

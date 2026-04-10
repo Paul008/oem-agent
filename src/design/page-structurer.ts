@@ -547,6 +547,16 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
             color.hero_image_url = r(color.hero_image_url);
           }
         }
+        if (Array.isArray(section.variant_groups)) {
+          for (const group of section.variant_groups) {
+            if (Array.isArray(group.colors)) {
+              for (const color of group.colors) {
+                color.swatch_url = r(color.swatch_url);
+                color.hero_image_url = r(color.hero_image_url);
+              }
+            }
+          }
+        }
         break;
       case 'gallery':
         if (Array.isArray(section.images)) {
@@ -641,7 +651,8 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
           });
           break;
         case 'color-picker':
-          if (!Array.isArray(s.colors) || s.colors.length === 0) continue;
+          if ((!Array.isArray(s.colors) || s.colors.length === 0) &&
+              (!Array.isArray(s.variant_groups) || s.variant_groups.length === 0)) continue;
           sections.push({ ...s, id, order });
           break;
         case 'specs-grid':

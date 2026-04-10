@@ -410,16 +410,28 @@ Referer: https://www.hyundai.com/au/en/shop/calculator
 
 ## 6. Suzuki Australia
 
-**Key script:** `scripts/suzuki/fetchSuzukiVariants.js`
-**Models:** 8 active
+**Live module:** `src/sync/suzuki-sync.ts` (`executeSuzukiSync(supabase)` — runs in worker via `oem-data-sync` cron)
+**One-shot script:** `scripts/seed-suzuki.mjs` (mirrors the worker module for manual runs with SERVICE_ROLE_KEY)
+**Models:** 7 active (Swift Hybrid, Swift Sport, Ignis, Vitara Hybrid, S-CROSS, Jimny, Fronx Hybrid)
+**Variants:** 15 total → 18 products (some variants have both auto + manual transmissions)
 
 ### Pipeline Flow
 
 ```
 ① Fetch single JSON (entire catalog in one call)
-   → output/suzuki/{model}.json (one file per model)
         ↓
-② Legacy JSON → ③ R2 Sync → ④ Supabase Sync
+② Walk models → variants → transmissions:
+   – Parse features HTML into structured specs_json buckets
+     (engine, transmission, performance, safety, multimedia, wheels, convenience)
+   – Inherit specs from base trim → top trim within each model (Suzuki API only
+     lists *deltas* on higher trims, so we accumulate as we walk)
+   – Resolve transmission specs per-product (auto/manual differ when packed
+     in one bullet, e.g. "5-speed manual or 4-speed automatic transmission")
+   – Synthesise SVG data-URL swatches from each paint colour's hex
+        ↓
+③ Direct Supabase upsert into products / variant_colors / variant_pricing
+   (query-then-update/insert by external_key, with title fallback so
+   variant-ID drift across model years doesn't create duplicates)
 ```
 
 ### API Endpoint
@@ -428,20 +440,26 @@ Referer: https://www.hyundai.com/au/en/shop/calculator
 |-----|--------|------|---------|
 | `https://www.suzuki.com.au/suzuki-finance-calculator-data.json` | GET | None | Entire model catalog — all models, variants, colors, pricing, features in one response |
 
+Registered in `discovered_apis` (reliability 0.95, status `verified`). This is the only data source needed for Suzuki — no browser rendering, no HTML scraping.
+
 ### What Data Comes From Where
 
 Everything comes from the single JSON endpoint:
 
 | Data | Source |
 |------|--------|
-| Model list | Top-level array |
-| RRP by state (VIC, NSW, ACT, SA, WA, TAS, NT) | `modelVariants[].price.{state}.automatic.price` |
-| Driveaway pricing | NOT available |
-| Colors (name, hex, two-tone, extra cost, images) | `modelVariants[].paintColours[]` |
-| Features | `modelVariants[].features` (HTML string) |
-| Engine type, seats, doors | NOT available (known gaps) |
+| Model list | `models[]` (top-level array) |
+| 8-state driveaway pricing per transmission | `modelVariants[].price.{NSW,VIC,QLD,WA,SA,TAS,ACT,NT}.{automatic,manual}.price` |
+| Variant ID (used in `external_key` as `suzuki-{variantID}-{transmission}`) | `modelVariants[].variantID` |
+| Colors (name, hex, two-tone secondHex, type, per-state price delta, hero + gallery images) | `modelVariants[].paintColours[]` |
+| Hero image (636×346 webp) | `paintColours[].image.sizes.default.src` |
+| Gallery image (932×507 webp) | `paintColours[].image.sizes['large-up'].src` |
+| Features (parsed into structured specs) | `modelVariants[].features` (HTML `<ul><li>` string) |
+| GFV finance schedules | `modelVariants[].price.{state}.{trans}.futureValue` |
 
-**Cache TTL:** 24 hours
+**Known gaps:** Suzuki does not publish brochure PDFs publicly (only a "Request a Brochure" form), so `vehicle_models.brochure_url` is left null and the PDF spec extraction pipeline is skipped for Suzuki. Seats/doors/dimensions aren't in the API either — the dashboard shows whatever the parsed `features` cover (engine displacement, transmission gears, fuel economy L/100km, airbag count, touchscreen size, wheel diameter, safety/convenience booleans).
+
+**Cache TTL:** 24 hours (driven by `oem-data-sync` cron schedule)
 
 ---
 
@@ -562,7 +580,7 @@ T60 MAX (PRO/PLUS), Terron 9 (Origin/Evolve), eT60, D90 (2WD/4WD), MIFA 9, G10+,
 - **Gatsby page-data pattern**: Any Gatsby site exposes `page-data.json` at every route — a rich structured data source that bypasses the need for browser rendering or API discovery.
 - **i-Motor CMS**: Backend CMS that feeds the Gatsby build. CDN at `cdn.cms-uploads.i-motor.me`.
 - **No auth required**: All endpoints are public static JSON files.
-- **Framework field**: OEM registry now includes `framework: 'gatsby'` for LDV, `'aem'` for Ford/Kia/Nissan/Hyundai/GMSV, `'nextjs'` for GWM/GAC/Mazda/Suzuki.
+- **Framework field**: OEM registry now includes `framework: 'gatsby'` for LDV, `'aem'` for Ford/Kia/Nissan/Hyundai/GMSV, `'nextjs'` for GWM/GAC/Mazda, `'wordpress'` for Suzuki.
 
 ---
 

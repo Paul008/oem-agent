@@ -181,10 +181,42 @@ export class OemAgentOrchestrator {
    * This is the main entry point called by the scheduled worker.
    * When crawlType is provided, only pages matching that type are crawled.
    */
-  async runScheduledCrawl(crawlType?: string): Promise<{
+  async runScheduledCrawl(
+    crawlType?: string,
+    opts?: {
+      oemIds?: string[];
+      onProgress?: (partial: {
+        phase: string;
+        completed: number;
+        total: number;
+        elapsedMs: number;
+        oemResults: Array<{
+          oemId: string;
+          status: 'success' | 'timeout' | 'error' | 'skipped';
+          durationMs: number;
+          jobsProcessed: number;
+          pagesChanged: number;
+          errors: number;
+          error?: string;
+        }>;
+      }) => Promise<void>;
+    },
+  ): Promise<{
     jobsProcessed: number;
     pagesChanged: number;
     errors: number;
+    durationMs: number;
+    deadlineHit: boolean;
+    oemsSkipped: string[];
+    oemResults: Array<{
+      oemId: string;
+      status: 'success' | 'timeout' | 'error' | 'skipped';
+      durationMs: number;
+      jobsProcessed: number;
+      pagesChanged: number;
+      errors: number;
+      error?: string;
+    }>;
   }> {
     const pageTypes = crawlType
       ? OemAgentOrchestrator.CRAWL_TYPE_TO_PAGE_TYPES[crawlType]
@@ -197,90 +229,237 @@ export class OemAgentOrchestrator {
     let pagesChanged = 0;
     let errors = 0;
 
+    // Safe-fire wrapper for the progress callback — a buggy or hung callback
+    // must never take down the crawl.
+    const reportProgress = async (phase: string, completed: number, total: number, results: any[]) => {
+      if (!opts?.onProgress) return;
+      try {
+        await Promise.race([
+          opts.onProgress({ phase, completed, total, elapsedMs: Date.now() - startTime, oemResults: results }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('onProgress timeout')), 5_000)),
+        ]);
+      } catch (e) {
+        console.warn('[Orchestrator] onProgress callback failed (non-fatal):', e);
+      }
+    };
+
+    // Mark that we've started — this lands in R2 immediately so if the next
+    // Supabase query hangs, the run record at least shows phase='setup'.
+    await reportProgress('setup', 0, 0, []);
+
     // ── Housekeeping: mark stale "running" import_runs as timed out ──
     // Any run stuck in "running" for >10 min is dead (Worker was killed).
+    //
+    // HANG FIX: these Supabase queries previously had no timeout and were
+    // the confirmed hang point (diagnosed via incremental progress saves).
+    // Each query is now wrapped with a 10s timeout and the crawl continues
+    // even if housekeeping fails — data correctness matters more than the
+    // cleanup niceties.
     const staleThreshold = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: staleRuns, error: staleErr } = await this.config.supabaseClient
-      .from('import_runs')
-      .update({
-        status: 'timeout',
-        finished_at: new Date().toISOString(),
-        error_log: 'Automatically marked as timeout — run exceeded 10 min without completion',
-      })
-      .eq('status', 'running')
-      .lt('started_at', staleThreshold)
-      .select('id');
-
-    if (staleRuns?.length) {
-      console.log(`[Orchestrator] Cleaned up ${staleRuns.length} stale "running" import_runs`);
+    type SupaResult = { data?: any; error?: any };
+    try {
+      const staleResult = await withTimeout<SupaResult>(
+        this.config.supabaseClient
+          .from('import_runs')
+          .update({
+            status: 'timeout',
+            finished_at: new Date().toISOString(),
+            error_log: 'Automatically marked as timeout — run exceeded 10 min without completion',
+          })
+          .eq('status', 'running')
+          .lt('started_at', staleThreshold)
+          .select('id') as unknown as Promise<SupaResult>,
+        10_000,
+        'stale-running-cleanup',
+      );
+      if (staleResult.data?.length) {
+        console.log(`[Orchestrator] Cleaned up ${staleResult.data.length} stale "running" import_runs`);
+      }
+      if (staleResult.error) {
+        console.warn('[Orchestrator] Failed to clean stale runs:', staleResult.error);
+      }
+    } catch (e) {
+      console.warn('[Orchestrator] stale-running-cleanup skipped (timeout or error):', e instanceof Error ? e.message : e);
     }
-    if (staleErr) {
-      console.warn('[Orchestrator] Failed to clean stale runs:', staleErr);
-    }
+    await reportProgress('stale_running_cleaned', 0, 0, []);
 
     // Also clean up orphaned "pending" retry runs (never picked up)
-    const { data: stalePending } = await this.config.supabaseClient
-      .from('import_runs')
-      .update({
-        status: 'timeout',
-        finished_at: new Date().toISOString(),
-        error_log: 'Orphaned pending run — never picked up by crawler',
-      })
-      .eq('status', 'pending')
-      .lt('started_at', staleThreshold)
-      .select('id');
-
-    if (stalePending?.length) {
-      console.log(`[Orchestrator] Cleaned up ${stalePending.length} orphaned "pending" import_runs`);
+    try {
+      const stalePendingResult = await withTimeout<SupaResult>(
+        this.config.supabaseClient
+          .from('import_runs')
+          .update({
+            status: 'timeout',
+            finished_at: new Date().toISOString(),
+            error_log: 'Orphaned pending run — never picked up by crawler',
+          })
+          .eq('status', 'pending')
+          .lt('started_at', staleThreshold)
+          .select('id') as unknown as Promise<SupaResult>,
+        10_000,
+        'stale-pending-cleanup',
+      );
+      if (stalePendingResult.data?.length) {
+        console.log(`[Orchestrator] Cleaned up ${stalePendingResult.data.length} orphaned "pending" import_runs`);
+      }
+    } catch (e) {
+      console.warn('[Orchestrator] stale-pending-cleanup skipped (timeout or error):', e instanceof Error ? e.message : e);
     }
+    await reportProgress('stale_pending_cleaned', 0, 0, []);
 
     // Get all active OEMs
-    const { data: oems, error: oemsError } = await this.config.supabaseClient
-      .from('oems')
-      .select('*')
-      .eq('is_active', true);
+    let oems: any[] = [];
+    let oemsError: any = null;
+    try {
+      const oemsResult = await withTimeout<SupaResult>(
+        this.config.supabaseClient
+          .from('oems')
+          .select('*')
+          .eq('is_active', true) as unknown as Promise<SupaResult>,
+        10_000,
+        'fetch-active-oems',
+      );
+      oems = oemsResult.data || [];
+      oemsError = oemsResult.error;
+    } catch (e) {
+      console.error('[Orchestrator] fetch-active-oems failed:', e instanceof Error ? e.message : e);
+      oemsError = e;
+    }
+    // Honour oemIds filter from the cron config. Without this the crawl
+    // always fans out to every active OEM in the DB, which exhausts the
+    // Worker's CPU/subrequest budget before any OEM finishes.
+    if (opts?.oemIds && opts.oemIds.length > 0) {
+      const allow = new Set(opts.oemIds);
+      const beforeCount = oems.length;
+      oems = oems.filter((o: any) => allow.has(o.id));
+      console.log(`[Orchestrator] Filtered ${beforeCount} → ${oems.length} OEMs by oemIds filter`);
+    }
+    await reportProgress('oems_fetched', 0, oems.length, []);
 
     if (oemsError) {
       console.error('[Orchestrator] Failed to fetch OEMs:', oemsError);
-      return { jobsProcessed: 0, pagesChanged: 0, errors: 1 };
+      return {
+        jobsProcessed: 0,
+        pagesChanged: 0,
+        errors: 1,
+        durationMs: Date.now() - startTime,
+        deadlineHit: false,
+        oemsSkipped: [],
+        oemResults: [],
+      };
     }
 
     // Fan-out: process OEMs in parallel batches of 6.
     // Each OEM gets its own 60s timeout with AbortController.
     // 18 OEMs / 6 concurrent = 3 batches × ~90s = ~4.5 min.
-    // Previous CONCURRENCY=3 caused last batches to hit the 10-min CF Worker cron limit.
+    //
+    // SAFETY NET: a hard global deadline enforced between batches. Even if
+    // individual per-OEM timeouts fail to propagate (the hang bug from Mar 25),
+    // this guarantees the cron completes before hitting the 10-min stale
+    // cleanup. Any OEMs not started before the deadline are recorded as
+    // 'skipped' so we can see them in the run history.
     const PER_OEM_TIMEOUT_MS = 60_000;
     const CONCURRENCY = 6;
+    const GLOBAL_DEADLINE_MS = 6 * 60_000; // 6 min hard cap (cron stale cleanup at 10 min)
 
-    for (let i = 0; i < oems.length; i += CONCURRENCY) {
+    const oemResults: Array<{
+      oemId: string;
+      status: 'success' | 'timeout' | 'error' | 'skipped';
+      durationMs: number;
+      jobsProcessed: number;
+      pagesChanged: number;
+      errors: number;
+      error?: string;
+    }> = [];
+    const oemsSkipped: string[] = [];
+    let deadlineHit = false;
+
+    batchLoop: for (let i = 0; i < oems.length; i += CONCURRENCY) {
+      // Global deadline check — break out before starting next batch if
+      // we're approaching the hard cap. This is the safety net that
+      // guarantees the cron completes regardless of downstream hangs.
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= GLOBAL_DEADLINE_MS) {
+        deadlineHit = true;
+        console.warn(`[Orchestrator] Global deadline hit at ${elapsed}ms — skipping remaining ${oems.length - i} OEMs`);
+        for (let k = i; k < oems.length; k++) {
+          oemsSkipped.push(oems[k].id);
+          oemResults.push({
+            oemId: oems[k].id,
+            status: 'skipped',
+            durationMs: 0,
+            jobsProcessed: 0,
+            pagesChanged: 0,
+            errors: 0,
+            error: 'Skipped: global deadline exceeded before batch started',
+          });
+        }
+        break batchLoop;
+      }
+
       const batch = oems.slice(i, i + CONCURRENCY);
+      console.log(`[Orchestrator] Batch ${Math.floor(i / CONCURRENCY) + 1} (${batch.length} OEMs): ${batch.map((o: any) => o.id).join(', ')} | elapsed ${elapsed}ms`);
+      await reportProgress(`batch_${Math.floor(i / CONCURRENCY) + 1}_start`, oemResults.length, oems.length, oemResults);
+
+      const batchStartTimes = batch.map(() => Date.now());
       const batchResults = await Promise.allSettled(
-        batch.map((oem: any) =>
-          withAbortableTimeout(
+        batch.map((oem: any, idx: number) => {
+          batchStartTimes[idx] = Date.now();
+          console.log(`[Orchestrator] [crawl-start] ${oem.id}`);
+          return withAbortableTimeout(
             (signal) => this.crawlOem(oem.id as OemId, pageTypes, 'scheduled', signal),
             PER_OEM_TIMEOUT_MS,
             `crawlOem(${oem.id})`,
-          )
-        )
+          );
+        })
       );
 
       for (let j = 0; j < batchResults.length; j++) {
         const result = batchResults[j];
+        const oemId = batch[j].id;
+        const oemDuration = Date.now() - batchStartTimes[j];
+
         if (result.status === 'fulfilled') {
           jobsProcessed += result.value.jobsProcessed;
           pagesChanged += result.value.pagesChanged;
           errors += result.value.errors;
+          console.log(`[Orchestrator] [crawl-end] ${oemId} ${oemDuration}ms success (${result.value.jobsProcessed} jobs, ${result.value.errors} errors)`);
+          oemResults.push({
+            oemId,
+            status: 'success',
+            durationMs: oemDuration,
+            jobsProcessed: result.value.jobsProcessed,
+            pagesChanged: result.value.pagesChanged,
+            errors: result.value.errors,
+          });
         } else {
-          console.error(`[Orchestrator] Error crawling OEM ${batch[j].id}:`, result.reason);
+          const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+          const isTimeout = /Timeout:/.test(reason);
+          console.error(`[Orchestrator] [crawl-end] ${oemId} ${oemDuration}ms ${isTimeout ? 'TIMEOUT' : 'ERROR'} — ${reason}`);
           errors++;
+          oemResults.push({
+            oemId,
+            status: isTimeout ? 'timeout' : 'error',
+            durationMs: oemDuration,
+            jobsProcessed: 0,
+            pagesChanged: 0,
+            errors: 1,
+            error: reason,
+          });
         }
       }
+
+      // Persist progress after every batch so if the Worker is killed next,
+      // the diagnostic data for completed OEMs is already in R2.
+      await reportProgress('batch_complete', oemResults.length, oems.length, oemResults);
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[Orchestrator] Scheduled crawl complete (type: ${crawlType ?? 'full'}): ${jobsProcessed} jobs, ${pagesChanged} changed, ${errors} errors in ${duration}ms`);
+    console.log(`[Orchestrator] Scheduled crawl complete (type: ${crawlType ?? 'full'}): ${jobsProcessed} jobs, ${pagesChanged} changed, ${errors} errors in ${duration}ms${deadlineHit ? ' [DEADLINE HIT]' : ''}`);
 
-    return { jobsProcessed, pagesChanged, errors };
+    await reportProgress('done', oemResults.length, oems.length, oemResults);
+
+    return { jobsProcessed, pagesChanged, errors, durationMs: duration, deadlineHit, oemsSkipped, oemResults };
   }
 
   /**
@@ -349,7 +528,7 @@ export class OemAgentOrchestrator {
         }
         try {
           const result = await withTimeout(
-            this.crawlPage(oemId, page, skipRender),
+            this.crawlPage(oemId, page, skipRender, signal),
             PER_PAGE_TIMEOUT_MS,
             `crawlPage(${page.url})`,
           );
@@ -435,8 +614,25 @@ export class OemAgentOrchestrator {
    * When skipRender is true, only cheap fetch is used (no browser) — suitable for
    * HTTP-triggered crawls where waitUntil budget is limited to ~30s.
    */
-  async crawlPage(oemId: OemId, page: SourcePage, skipRender = false): Promise<CrawlPipelineResult> {
+  async crawlPage(oemId: OemId, page: SourcePage, skipRender = false, signal?: AbortSignal): Promise<CrawlPipelineResult> {
     const startTime = Date.now();
+
+    // Cooperative cancellation: bail immediately if parent already aborted.
+    // This is the one low-cost propagation we can add without refactoring
+    // every downstream fetch — catches the common case where a previous
+    // page on the same OEM already blew the per-OEM budget.
+    if (signal?.aborted) {
+      return {
+        success: false,
+        sourcePageId: page.id,
+        url: page.url,
+        htmlHash: page.last_hash || '',
+        wasRendered: false,
+        smartMode: false,
+        error: 'Aborted by parent timeout before crawl started',
+        durationMs: Date.now() - startTime,
+      };
+    }
 
     try {
       // Step 1: Check schedule
@@ -942,12 +1138,24 @@ export class OemAgentOrchestrator {
       };
 
       // Only add if we have at least a title
-      if (product.title) {
-        products.push(product);
-      } else {
+      if (!product.title) {
         skippedNoTitle++;
         console.log(`[Orchestrator] Skipping item without title: ${JSON.stringify(item).substring(0, 200)}`);
+        continue;
       }
+
+      // Skip CMS draft/duplicate artifacts. Headless CMSes (Storyblok, Contentful,
+      // Strapi) frequently expose draft or duplicated entries as top-level items
+      // in the same API response as real content. They have titles like
+      // "Foo Copy", "Foo - Copy", or "Foo (draft)" and no product data.
+      // These polluted GMSV on 2026-04-02 ("GMSV", "GMSV Copy", "Testing Rule
+      // Copy (draft)") before the upsertProduct empty-row guard landed.
+      if (/\(draft\)/i.test(product.title) || /\s-?\s*Copy\s*$/i.test(product.title)) {
+        console.log(`[Orchestrator] Skipping CMS draft/copy artifact: "${product.title}"`);
+        continue;
+      }
+
+      products.push(product);
     }
     
     if (skippedNoTitle > 0) {
