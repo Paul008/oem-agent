@@ -1915,6 +1915,13 @@ app.get('/pages/:slug', async (c) => {
             .in('product_id', productIds)
             .limit(100);
 
+          // Ensure Foton CDN images are full resolution (Umbraco supports ?width= resize)
+          const ensureHiRes = (url: string | null): string | null => {
+            if (!url || !url.includes('fotonaustralia.com.au/media/')) return url;
+            if (url.includes('width=')) return url;
+            return url + (url.includes('?') ? '&' : '?') + 'width=1920';
+          };
+
           // Group by product — only create variant_groups when >1 product has colors
           const grouped = new Map<string, any[]>();
           for (const c of colorRows || []) {
@@ -1924,7 +1931,7 @@ app.get('/pages/:slug', async (c) => {
               name: c.color_name,
               code: c.color_code,
               swatch_url: isHex ? null : (c.swatch_url || null),
-              hero_image_url: c.hero_image_url,
+              hero_image_url: ensureHiRes(c.hero_image_url),
               hex: isHex ? c.swatch_url : null,
               price_delta: c.price_delta != null ? Number(c.price_delta) : 0,
               is_standard: c.is_standard ?? false,
@@ -1940,10 +1947,16 @@ app.get('/pages/:slug', async (c) => {
               colors,
             }));
 
-            // Inject variant_groups into color-picker sections
+            // Inject variant_groups and upsize flat colors in color-picker sections
             for (const section of page.content.sections) {
               if ((section as any).type === 'color-picker') {
                 (section as any).variant_groups = variantGroups;
+                // Also upsize existing flat colors (from R2 page data)
+                if (Array.isArray((section as any).colors)) {
+                  for (const color of (section as any).colors) {
+                    color.hero_image_url = ensureHiRes(color.hero_image_url);
+                  }
+                }
               }
             }
           }
