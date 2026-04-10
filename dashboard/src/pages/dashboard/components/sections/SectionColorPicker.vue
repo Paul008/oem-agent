@@ -5,6 +5,23 @@ import { useInlineEdit } from '@/composables/use-inline-edit'
 import { useOemData, type VariantColor } from '@/composables/use-oem-data'
 import Vehicle360Viewer from '@/components/Vehicle360Viewer.vue'
 
+const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+
+/** Proxy an external OEM URL through /media/{oemId}/{base64url} to avoid hotlinking */
+function proxiedUrl(url: string | null, oemId: string | undefined): string | null {
+  if (!url) return null
+  // Already a relative /media/ path — resolve to worker
+  if (url.startsWith('/media/')) return `${WORKER_BASE}${url}`
+  // Already pointing at our worker — leave as-is
+  if (url.includes('oem-agent') || url.includes('workers.dev')) return url
+  // Hex color swatch (not a URL) — leave as-is
+  if (!url.startsWith('http')) return url
+  if (!oemId) return url
+  // Encode the source URL as base64url
+  const encoded = btoa(url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  return `${WORKER_BASE}/media/${oemId}/${encoded}`
+}
+
 const props = defineProps<{
   section: {
     type: 'color-picker'
@@ -38,8 +55,8 @@ const colors = computed(() => {
     return dbColors.value.map(c => ({
       name: c.color_name,
       code: c.color_code,
-      swatch_url: c.swatch_url,
-      hero_image_url: c.hero_image_url,
+      swatch_url: proxiedUrl(c.swatch_url, props.oemId),
+      hero_image_url: proxiedUrl(c.hero_image_url, props.oemId),
       gallery_urls: c.gallery_urls ?? [],
       color_type: c.color_type,
       price_delta: c.price_delta,
@@ -49,6 +66,8 @@ const colors = computed(() => {
   }
   return props.section.colors?.map(c => ({
     ...c,
+    swatch_url: proxiedUrl(c.swatch_url ?? null, props.oemId),
+    hero_image_url: proxiedUrl(c.hero_image_url ?? null, props.oemId),
     gallery_urls: [] as string[],
     color_type: null as string | null,
     price_delta: null as number | null,

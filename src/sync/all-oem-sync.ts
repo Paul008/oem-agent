@@ -711,7 +711,7 @@ async function scrapeFotonAumarkWhite(
   try {
     // Extract variant names and hero images in page order
     const variantNames = [...html.matchAll(/versionCar">([^<]+)</g)].map(m => m[1].trim().toLowerCase());
-    const heroImages = [...html.matchAll(/showcase_container__iframe"[^>]*src="([^"]+)"/g)].map(m => `${FOTON_BASE}${m[1]}`);
+    const heroImages = [...html.matchAll(/showcase_container__iframe"[^>]*src="([^"]+)"/g)].map(m => `${FOTON_BASE}${m[1]}${m[1].includes('?') ? '&' : '?'}width=1920`);
 
     const variantToImage = new Map<string, string>();
     for (let i = 0; i < variantNames.length && i < heroImages.length; i++) {

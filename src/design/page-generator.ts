@@ -945,8 +945,8 @@ export class PageGenerator {
               httpMetadata: { contentType },
             });
 
-            // Build the public URL using the media route
-            const publicUrl = `${workerBaseUrl}/media/pages/${oemId}/${modelSlug}/${filename}`;
+            // Build the public URL using a relative /media/ path so it works in any environment
+            const publicUrl = `/media/pages/${oemId}/${modelSlug}/${filename}`;
             urlMapping.set(originalUrl, publicUrl);
           } catch (err) {
             failCount++;
