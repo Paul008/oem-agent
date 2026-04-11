@@ -14,6 +14,7 @@ import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
 import { encodeUrl } from './media';
+import { proxyImage } from '../utils/image-proxy';
 import { AiRouter, TASK_ROUTING, AVAILABLE_MODELS, TASK_TYPE_GROUPS, TASK_TYPE_LABELS } from '../ai/router';
 import type { RouteDecision } from '../ai/router';
 import { SalesRepAgent } from '../ai/sales-rep';
@@ -1916,23 +1917,8 @@ app.get('/pages/:slug', async (c) => {
             .in('product_id', productIds)
             .limit(100);
 
-          // Proxy external OEM images through our CDN (/media/:oemId/:base64url)
-          // For Foton, also ensure hi-res via Umbraco ?width= param
           const oemId = slug.replace(/-[^-]+$/, ''); // foton-au-tunland → foton-au
-          const proxyImage = (url: string | null): string | null => {
-            if (!url) return url;
-            // Already proxied through our CDN
-            if (url.includes('oem-agent') && url.includes('/media/')) return url;
-            // Foton hi-res: add ?width=1920 before proxying
-            if (url.includes('fotonaustralia.com.au/media/') && !url.includes('width=')) {
-              url = url + (url.includes('?') ? '&' : '?') + 'width=1920';
-            }
-            // Only proxy external URLs
-            if (url.startsWith('http')) {
-              return `/media/${oemId}/${encodeUrl(url)}`;
-            }
-            return url;
-          };
+          const proxy = (url: string | null) => proxyImage(url, { oemId }) || null;
 
           // Group by product — only create variant_groups when >1 product has colors
           const grouped = new Map<string, any[]>();
@@ -1943,7 +1929,7 @@ app.get('/pages/:slug', async (c) => {
               name: c.color_name,
               code: c.color_code,
               swatch_url: isHex ? null : (c.swatch_url || null),
-              hero_image_url: proxyImage(c.hero_image_url),
+              hero_image_url: proxy(c.hero_image_url),
               hex: isHex ? c.swatch_url : null,
               price_delta: c.price_delta != null ? Number(c.price_delta) : 0,
               is_standard: c.is_standard ?? false,
@@ -1969,7 +1955,7 @@ app.get('/pages/:slug', async (c) => {
                     if (color.hex && color.name) {
                       hexByName.set(color.name.toLowerCase().replace(/\*$/,'').trim(), color.hex);
                     }
-                    color.hero_image_url = proxyImage(color.hero_image_url);
+                    color.hero_image_url = proxy(color.hero_image_url);
                   }
                 }
 
@@ -2328,18 +2314,34 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
     }),
   ]);
 
-  // Purge dealer network cache so model page serves fresh data immediately
-  if (c.env.DEALER_NETWORK_URL) {
-    c.executionCtx.waitUntil(
-      fetch(`${c.env.DEALER_NETWORK_URL}/api/webhooks/purge-model-cache`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oem_code: oemId, model_slug: modelSlug }),
-      }).catch((err) => {
-        console.error(`[page-builder] Cache purge failed for ${oemId}/${modelSlug}:`, err);
-      })
-    );
-  }
+  // Purge dealer network cache so model pages serve fresh data immediately.
+  // Fan out to ALL registered webhook subscribers (multi-tenant: multiple dealers per OEM).
+  // Falls back to DEALER_NETWORK_URL for backward compat if no webhooks registered.
+  c.executionCtx.waitUntil(
+    (async () => {
+      const purgePayload = { oem_code: oemId, model_slug: modelSlug };
+      const hooks = await loadWebhooks(c.env.MOLTBOT_BUCKET);
+      const cacheHooks = hooks.filter(h => h.events.includes('page.updated'));
+
+      if (cacheHooks.length > 0) {
+        // Fan out to all registered dealer sites
+        await Promise.allSettled(cacheHooks.map(h =>
+          fetch(h.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(purgePayload),
+          }).catch(err => console.error(`[page-builder] Webhook failed ${h.url}:`, err))
+        ));
+      } else if (c.env.DEALER_NETWORK_URL) {
+        // Backward compat: single URL fallback
+        await fetch(`${c.env.DEALER_NETWORK_URL}/api/webhooks/purge-model-cache`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(purgePayload),
+        }).catch(err => console.error(`[page-builder] Cache purge failed for ${oemId}/${modelSlug}:`, err));
+      }
+    })()
+  );
 
   return c.json({
     success: true,

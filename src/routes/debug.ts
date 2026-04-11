@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { findExistingMoltbotProcess } from '../gateway';
+import { createSupabaseClient } from '../utils/supabase';
 
 /**
  * Debug routes for inspecting container state
@@ -434,6 +435,117 @@ debug.get('/container-config', async (c) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// GET /debug/data-gaps?oem=<id> — surface sync data gaps that break the dealer API.
+// Flags: models with no products, models with products but no variant_colors,
+// and OEM image hosts missing from the media proxy allowlist.
+debug.get('/data-gaps', async (c) => {
+  const oemParam = c.req.query('oem');
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  try {
+    let oemIds: string[];
+    if (oemParam) {
+      oemIds = [oemParam.includes('-') ? oemParam : `${oemParam}-au`];
+    } else {
+      const { data: oems } = await supabase.from('oems').select('id').eq('is_active', true);
+      oemIds = (oems || []).map((o: any) => o.id);
+    }
+
+    const results: Record<string, any> = {};
+
+    for (const oemId of oemIds) {
+      const [modelsRes, productsRes] = await Promise.all([
+        supabase.from('vehicle_models')
+          .select('id, name, slug, model_year')
+          .eq('oem_id', oemId)
+          .eq('is_active', true),
+        supabase.from('products')
+          .select('id, title, model_id')
+          .eq('oem_id', oemId),
+      ]);
+
+      const models = (modelsRes.data || []) as any[];
+      const products = (productsRes.data || []) as any[];
+
+      const modelById = new Map(models.map((m) => [m.id, m]));
+      const modelsByNameLen = [...models]
+        .filter((m) => (m.name?.length || 0) >= 3)
+        .sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+
+      // Match products to models using the same algorithm as /catalog
+      const productsByModelId: Record<string, any[]> = {};
+      const unmatched: any[] = [];
+      for (const p of products) {
+        const title = (p.title || '').toLowerCase();
+        let modelId: string | null = null;
+        for (const m of modelsByNameLen) {
+          if (title.startsWith((m.name || '').toLowerCase())) { modelId = m.id; break; }
+        }
+        if (!modelId && p.model_id && modelById.has(p.model_id)) modelId = p.model_id;
+        if (modelId) (productsByModelId[modelId] ||= []).push(p);
+        else unmatched.push({ id: p.id, title: p.title, model_id: p.model_id });
+      }
+
+      const orphanModels = models
+        .filter((m) => !productsByModelId[m.id] || productsByModelId[m.id].length === 0)
+        .map((m) => ({ name: m.name, slug: m.slug, model_year: m.model_year }));
+
+      // Models whose products exist but have zero variant_colors
+      const productIdsWithModels = Object.values(productsByModelId).flat().map((p) => p.id);
+      let modelsMissingColors: any[] = [];
+      if (productIdsWithModels.length > 0) {
+        const { data: colorRows } = await supabase
+          .from('variant_colors')
+          .select('product_id')
+          .in('product_id', productIdsWithModels);
+        const productIdsWithColors = new Set((colorRows || []).map((c: any) => c.product_id));
+        modelsMissingColors = models
+          .filter((m) => {
+            const ps = productsByModelId[m.id];
+            if (!ps || ps.length === 0) return false; // already in orphanModels
+            return ps.every((p) => !productIdsWithColors.has(p.id));
+          })
+          .map((m) => ({ name: m.name, slug: m.slug, product_count: productsByModelId[m.id].length }));
+      }
+
+      // OEM hosts that appear in variant_colors.hero_image_url
+      const { data: sampleColors } = await supabase
+        .from('variant_colors')
+        .select('hero_image_url')
+        .in('product_id', products.map((p) => p.id).slice(0, 500))
+        .not('hero_image_url', 'is', null);
+
+      const hosts = new Set<string>();
+      for (const row of (sampleColors || []) as any[]) {
+        if (!row.hero_image_url || !row.hero_image_url.startsWith('http')) continue;
+        try { hosts.add(new URL(row.hero_image_url).host); } catch { /* skip */ }
+      }
+
+      results[oemId] = {
+        totals: {
+          models: models.length,
+          products: products.length,
+          models_with_products: Object.keys(productsByModelId).length,
+          unmatched_products: unmatched.length,
+        },
+        orphan_models: orphanModels,
+        models_missing_variant_colors: modelsMissingColors,
+        unmatched_products: unmatched.slice(0, 10),
+        image_hosts_seen: [...hosts].sort(),
+      };
+    }
+
+    return c.json({ ok: true, results });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[DEBUG] data-gaps failed:', errorMessage);
     return c.json({ error: errorMessage }, 500);
   }
 });

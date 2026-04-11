@@ -83,6 +83,7 @@ const ALLOWED_HOSTS = new Set([
   'kia.com',
   'www.nissan.com.au',
   'www-asia.nissan-cdn.net',
+  'ms-prd.apn.mediaserver.heliosnissan.net',
   'a.storyblok.com',
   'payloadb.therefinerydesign.com',
   'kgm.com.au',
@@ -117,12 +118,8 @@ function decodeUrl(encoded: string): string {
   return atob(padded);
 }
 
-/**
- * Encode a URL to base64url.
- */
-export function encodeUrl(url: string): string {
-  return btoa(url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+// Re-export encodeUrl from utils for existing consumers.
+export { encodeUrl } from '../utils/image-proxy';
 
 /**
  * Resolve a possibly-relative URL for a given OEM.

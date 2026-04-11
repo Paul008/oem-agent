@@ -14,6 +14,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
+import { proxyImage } from '../utils/image-proxy';
 
 const dealerApi = new Hono<AppEnv>();
 
@@ -174,6 +175,8 @@ function transformProduct(
   colors: any[],
   pricingRows: any[],
   hexByCode: Record<string, string>,
+  oemId: string,
+  workerOrigin: string,
 ): WpVariant {
   const stdPricing = pricingRows.find((p: any) => p.price_type === 'standard');
   const rrpPricing = pricingRows.find((p: any) => p.price_type === 'rrp');
@@ -184,7 +187,7 @@ function transformProduct(
   const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
 
   const wpColours: WpColour[] = colors.map((clr: any) => ({
-    images: clr.hero_image_url || '',
+    images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
     swatch_colour_: hexByCode[clr.color_code] || '',
     swatch_image: clr.swatch_url || '',
     colour_name: clr.color_name || '',
@@ -361,8 +364,9 @@ dealerApi.get('/variants', async (c) => {
     const hexByCode: Record<string, string> = {};
     for (const p of paletteData) hexByCode[p.color_code] = p.hex_approx || '';
 
+    const workerOrigin = new URL(c.req.url).origin;
     const result = products.map((product: any) =>
-      transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode),
+      transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode, oemId, workerOrigin),
     );
 
     c.header('X-WP-Total', String(count || 0));
@@ -396,8 +400,74 @@ dealerApi.get('/models', async (c) => {
 
     if (error) return c.json({ code: 'internal_error', message: error.message }, 500);
 
+    const allModels = models || [];
+    const workerOrigin = new URL(c.req.url).origin;
+
+    // Hero fallback: vehicle_models.hero_image_url is currently empty for
+    // every OEM. Derive hero from the first variant color of any product
+    // mapped to the model (by model_id or title prefix match).
+    let firstHeroByModelId: Record<string, string> = {};
+    if (allModels.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, title, model_id')
+        .eq('oem_id', oemId)
+        .order('price_amount', { ascending: true });
+
+      const productList = products || [];
+      const productIdByModelId: Record<string, string> = {};
+      const modelsByNameLen = [...allModels]
+        .filter((m: any) => (m.name?.length || 0) >= 3)
+        .sort((a: any, b: any) => (b.name?.length || 0) - (a.name?.length || 0));
+      const modelById = new Map(allModels.map((m: any) => [m.id, m]));
+
+      for (const p of productList as any[]) {
+        const title = (p.title || '').toLowerCase();
+        let modelId: string | null = null;
+
+        // Prefer longest title-prefix match (matches catalog logic, handles
+        // mislinked rows). Fallback to stored model_id.
+        for (const m of modelsByNameLen as any[]) {
+          if (title.startsWith((m.name || '').toLowerCase())) { modelId = m.id; break; }
+        }
+        if (!modelId && p.model_id && modelById.has(p.model_id)) modelId = p.model_id;
+
+        if (modelId && !productIdByModelId[modelId]) {
+          productIdByModelId[modelId] = p.id;
+        }
+      }
+
+      const firstProductIds = Object.values(productIdByModelId);
+      if (firstProductIds.length > 0) {
+        const { data: colors } = await supabase
+          .from('variant_colors')
+          .select('product_id, hero_image_url, is_standard, sort_order')
+          .in('product_id', firstProductIds)
+          .order('sort_order', { ascending: true });
+
+        const firstColorByProductId: Record<string, string> = {};
+        for (const c of (colors || []) as any[]) {
+          if (!firstColorByProductId[c.product_id] && c.hero_image_url) {
+            firstColorByProductId[c.product_id] = c.hero_image_url;
+          }
+        }
+
+        firstHeroByModelId = Object.fromEntries(
+          Object.entries(productIdByModelId)
+            .map(([modelId, pid]) => [modelId, firstColorByProductId[pid] || ''])
+            .filter(([, hero]) => hero),
+        );
+      }
+    }
+
+    const result = allModels.map((m: any) => {
+      const explicit = proxyImage(m.hero_image_url, { oemId, workerOrigin });
+      const fallback = proxyImage(firstHeroByModelId[m.id], { oemId, workerOrigin });
+      return { ...m, hero_image_url: explicit || fallback };
+    });
+
     c.header('Cache-Control', 'public, max-age=300');
-    return c.json(models || []);
+    return c.json(result);
   } catch (err) {
     console.error('[dealer-api] models error:', err);
     return c.json({ code: 'internal_error', message: 'Failed to fetch models' }, 500);
@@ -426,12 +496,15 @@ dealerApi.get('/catalog', async (c) => {
     if (modelsErr) return c.json({ code: 'internal_error', message: modelsErr.message }, 500);
     if (!models || models.length === 0) return c.json([], 200);
 
-    const modelIds = models.map((m: any) => m.id);
+    const modelIds = new Set(models.map((m: any) => m.id));
 
+    // Fetch all products for this OEM (not just ones with linked model_id) so
+    // we can title-match orphans whose model_id is null or points at a
+    // deactivated model. Fixes Ford-style data where sync didn't link.
     const { data: products, error: prodErr } = await supabase
       .from('products')
       .select(PRODUCT_SELECT)
-      .in('model_id', modelIds)
+      .eq('oem_id', oemId)
       .order('price_amount', { ascending: true });
 
     if (prodErr) return c.json({ code: 'internal_error', message: prodErr.message }, 500);
@@ -463,15 +536,51 @@ dealerApi.get('/catalog', async (c) => {
 
     const colorsByProduct = groupBy(colorsData, 'product_id' as any);
     const pricingByProduct = groupBy(pricingData, 'product_id' as any);
-    const productsByModel = groupBy(allProducts, 'model_id' as any);
     const hexByCode: Record<string, string> = {};
     for (const p of paletteData) hexByCode[p.color_code] = p.hex_approx || '';
 
+    // Assign products to models, preferring longest title-prefix match over
+    // stored model_id. Covers both Ford-style orphans (null model_id) AND
+    // mislinked rows where sync assigned e.g. "Mustang Mach-E GT" to Mustang
+    // instead of to the distinct Mustang Mach-E model.
+    const productsByModel: Record<string, any[]> = {};
+    const modelsByNameLen = [...models as any[]]
+      .filter((m: any) => (m.name?.length || 0) >= 3)
+      .sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+
+    for (const p of allProducts as any[]) {
+      const title = (p.title || '').toLowerCase();
+      let targetModelId: string | null = null;
+
+      // 1) Longest title-prefix match wins (handles mislinked products)
+      for (const m of modelsByNameLen) {
+        if (title.startsWith((m.name || '').toLowerCase())) {
+          targetModelId = m.id;
+          break;
+        }
+      }
+
+      // 2) Fallback: stored model_id if it points at an active model
+      if (!targetModelId && p.model_id && modelIds.has(p.model_id)) {
+        targetModelId = p.model_id;
+      }
+
+      if (targetModelId) (productsByModel[targetModelId] ||= []).push(p);
+    }
+
+    const workerOrigin = new URL(c.req.url).origin;
     const catalog = models.map((model: any) => {
       const modelProducts = (productsByModel[model.id] || []) as any[];
       const variants = modelProducts.map((product: any) =>
-        transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode),
+        transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode, oemId, workerOrigin),
       );
+
+      // Hero fallback: when the vehicle_models column is empty (currently
+      // universal — no sync job writes it), synthesise from the first
+      // variant's first color image. Already-proxied since transformProduct
+      // ran proxyImage over it.
+      const explicitHero = proxyImage(model.hero_image_url, { oemId, workerOrigin });
+      const fallbackHero = variants[0]?.colours?.[0]?.images || '';
 
       return {
         model: model.name,
@@ -479,7 +588,7 @@ dealerApi.get('/catalog', async (c) => {
         body_type: model.body_type || '',
         category: model.category || '',
         model_year: model.model_year,
-        hero_image_url: model.hero_image_url || '',
+        hero_image_url: explicitHero || fallbackHero,
         variant_count: variants.length,
         variants,
       };
@@ -563,6 +672,7 @@ dealerApi.get('/variants-import', async (c) => {
     for (const p of (paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [])) hexByCode[p.color_code] = p.hex_approx || '';
 
     // Transform to flat oem-variants schema for WP All Import
+    const workerOrigin = new URL(c.req.url).origin;
     const result = allProducts.map((product: any) => {
       const model = modelMap.get(product.model_id);
       const modelName = model?.name || '';
@@ -577,7 +687,7 @@ dealerApi.get('/variants-import', async (c) => {
       const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
 
       const wpColors = colors.map((clr: any) => ({
-        images: clr.hero_image_url || '',
+        images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
         paint_price: String(clr.price_delta ?? (clr.is_standard ? '0' : '')),
         swatch_colour_: hexByCode[clr.color_code] || '',
         colour_main_frame_code: clr.color_code || '',
