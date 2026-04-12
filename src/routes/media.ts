@@ -261,37 +261,42 @@ media.get('/:oemId/:encodedUrl', async (c) => {
     return c.text('Host not allowed', 403);
   }
 
+  // ── Edge cache via Cache API ──────────────────────────────────────────
+  // `cf: { cacheEverything }` on the subrequest only works when the worker
+  // is accessed through a zone-bound custom domain — it's silently ignored
+  // on *.workers.dev. Using the explicit Cache API instead so images are
+  // edge-cached regardless of which hostname serves the worker.
+  const cache = (caches as any).default as Cache;
+  const cacheKey = new Request(c.req.url, { method: 'GET' });
+
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
   // Build headers for OEM origin
   const headers: Record<string, string> = {
     Accept: 'image/webp,image/avif,image/png,image/jpeg,image/*,*/*',
     ...OEM_HEADERS[oemId],
   };
 
-  // Fetch from origin with Cloudflare edge cache
-  // Only cache 2xx responses; don't cache errors (prevents stale 403s)
-  const originResp = await fetch(resolved, {
-    headers,
-    cf: {
-      cacheEverything: true,
-      cacheTtlByStatus: { '200-299': 2592000, '300-399': 0, '400-599': -1 },
-    },
-  });
+  const originResp = await fetch(resolved, { headers });
 
   if (!originResp.ok) {
     return c.text(`Origin returned ${originResp.status}`, originResp.status as any);
   }
 
-  // Return with cache headers
+  // Build cacheable response
   const respHeaders = new Headers();
   const ct = originResp.headers.get('content-type');
   if (ct) respHeaders.set('Content-Type', ct);
   respHeaders.set('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
   respHeaders.set('Access-Control-Allow-Origin', '*');
 
-  return new Response(originResp.body, {
-    status: 200,
-    headers: respHeaders,
-  });
+  const response = new Response(originResp.body, { status: 200, headers: respHeaders });
+
+  // Store in edge cache (non-blocking — don't delay the response)
+  c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+
+  return response;
 });
 
 export { media };
