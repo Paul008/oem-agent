@@ -50,6 +50,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'sticky-bar': defineAsyncComponent(() => import('./SectionStickyBar.vue')),
   'finance-calculator': defineAsyncComponent(() => import('./SectionFinanceCalculator.vue')),
   'comparison-table': defineAsyncComponent(() => import('./SectionComparisonTable.vue')),
+  'pinned-scroll': defineAsyncComponent(() => import('./SectionPinnedScroll.vue')),
 }
 </script>
 

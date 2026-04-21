@@ -214,6 +214,7 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'pricing-table': defineAsyncComponent(() => import('../sections/SectionPricingTable.vue')),
   'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
   'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
+  'pinned-scroll': defineAsyncComponent(() => import('../sections/SectionPinnedScroll.vue')),
 }
 
 function resolveComponent(section: any) {

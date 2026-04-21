@@ -5,6 +5,7 @@ export type PageSectionType =
   | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
   | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
   | 'image' | 'image-showcase' | 'card-grid' | 'split-content' | 'media'
+  | 'pinned-scroll'
 
 export interface SectionTemplate {
   id: string
@@ -45,6 +46,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'card-grid': () => ({ title: '', columns: 3, cards: [{ title: '', body: '', image_url: '' }], card_composition: ['image', 'title', 'body'], card_style: { background: '#ffffff', border: '1px solid #e5e7eb', border_radius: 8, shadow: false, text_align: 'left', padding: '0' }, section_style: { background: '', padding: '' } }),
   'split-content': () => ({ title: '', body_html: '', image_url: '', image_position: 'right', layout: 'contained', background: '' }),
   'media': () => ({ title: '', images: [{ url: '', alt: '', caption: '' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
+  'pinned-scroll': () => ({ title: '', background_image: '', background_image_mobile: '', cards: [{ image: '', mobile_image: '', caption: '', title_bg: '', content_bg: '' }], mobile_layout: 'carousel', animation: 'none' }),
 }
 
 export const SECTION_TEMPLATES: SectionTemplate[] = [

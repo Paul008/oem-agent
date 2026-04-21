@@ -2561,6 +2561,121 @@ app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/scrape-gac/:oemId/:modelSlug
+ * Scrape a GAC OEM model page via its Nuxt _payload.json endpoint and import into the page builder.
+ * Body: { path?: string } — optional path override (e.g. "/hatchback/aion-ut"); defaults to the GAC_MODEL_PATHS map.
+ */
+app.post('/admin/scrape-gac/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+  const body = await c.req.json<{ path?: string }>().catch(() => ({}));
+
+  const { scrapeGacModelPage, GAC_MODEL_PATHS } = await import('../design/gac-scraper');
+  const path = body.path || GAC_MODEL_PATHS[modelSlug];
+
+  if (!path) {
+    return c.json({ error: `No known GAC path for model "${modelSlug}". Provide a "path" in the request body (e.g. "/hatchback/aion-ut").`, known_slugs: Object.keys(GAC_MODEL_PATHS) }, 400);
+  }
+
+  let result;
+  try {
+    result = await scrapeGacModelPage(path);
+  } catch (err) {
+    return c.json({ error: (err as Error).message, path }, 400);
+  }
+
+  if (!result.sections.length) {
+    return c.json({ error: 'No sections could be extracted from GAC page', path, warnings: result.warnings }, 400);
+  }
+
+  // Save to R2
+  const R2_PREFIX = 'pages/definitions';
+  const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+  const existing = await c.env.MOLTBOT_BUCKET.get(latestKey);
+  const existingData = existing ? await existing.json() as any : null;
+
+  const pageData = {
+    ...(existingData || {}),
+    id: `${oemId}-${modelSlug}`,
+    slug: modelSlug,
+    name: result.name,
+    oem_id: oemId,
+    header: result.header,
+    content: {
+      rendered: existingData?.content?.rendered || '',
+      sections: result.sections,
+    },
+    form: true,
+    variant_link: existingData?.variant_link || '',
+    generated_at: new Date().toISOString(),
+    source_url: result.source_url,
+    version: existingData ? (existingData.version || 0) + 1 : 1,
+    page_type: 'model' as const,
+    imported_from: 'gac-scraper',
+    imported_at: new Date().toISOString(),
+    manually_edited: true,
+    manually_edited_at: new Date().toISOString(),
+  };
+
+  const jsonStr = JSON.stringify(pageData);
+  const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
+
+  await Promise.all([
+    c.env.MOLTBOT_BUCKET.put(latestKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'gac-scraper', oem_id: oemId, model_slug: modelSlug },
+    }),
+    c.env.MOLTBOT_BUCKET.put(versionKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'gac-scraper' },
+    }),
+  ]);
+
+  return c.json({
+    success: true,
+    oemId,
+    modelSlug,
+    source_url: result.source_url,
+    sections_count: result.sections.length,
+    section_types: result.sections.map(s => s.type),
+    warnings: result.warnings,
+    version: pageData.version,
+  });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/preview-gac-scrape
+ * Preview what sections would be scraped from a GAC OEM page without saving.
+ * Body: { path?: string, model_slug?: string }
+ */
+app.post('/admin/preview-gac-scrape', async (c) => {
+  const body = await c.req.json<{ path?: string; model_slug?: string }>().catch(() => ({}));
+  const { scrapeGacModelPage, GAC_MODEL_PATHS } = await import('../design/gac-scraper');
+  const path = body.path || (body.model_slug ? GAC_MODEL_PATHS[body.model_slug] : null);
+
+  if (!path) {
+    return c.json({ error: 'Provide "path" or "model_slug" in request body', known_slugs: Object.keys(GAC_MODEL_PATHS) }, 400);
+  }
+
+  try {
+    const result = await scrapeGacModelPage(path);
+    return c.json({
+      success: result.success,
+      source_url: result.source_url,
+      slug: result.slug,
+      name: result.name,
+      sections_count: result.sections.length,
+      section_types: result.sections.map(s => s.type),
+      sections: result.sections,
+      header: result.header,
+      warnings: result.warnings,
+    });
+  } catch (err) {
+    return c.json({ error: (err as Error).message, path }, 400);
+  }
+});
+
+/**
  * POST /api/v1/oem-agent/admin/preview-oem-scrape
  * Preview what sections would be scraped from a GWM OEM page without saving.
  * Body: { url?: string, model_slug?: string }
