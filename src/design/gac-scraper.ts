@@ -99,6 +99,12 @@ function nextId(prefix: string): string {
   return `${prefix}-${Date.now()}-${++sectionCounter}`;
 }
 
+function isVideoUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.split('?')[0].toLowerCase();
+  return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov');
+}
+
 function mapBigHeaderPic(module: any, order: number): OemSection | null {
   const components = module.componentList || [];
   // C_BIGHEADER_PIC holds the background image; C_TITLE_INTRO holds the
@@ -107,8 +113,13 @@ function mapBigHeaderPic(module: any, order: number): OemSection | null {
   const introAttr = parseAttr(components.find((c: any) => c.type === 'C_TITLE_INTRO')?.attr) || {};
   const btnAttr = parseAttr(components.find((c: any) => c.type === 'C_BUTTON')?.attr);
 
-  const desktop = bgAttr.pcBgImage || bgAttr.pcVideo || introAttr.pcBgImage || '';
-  const mobile = bgAttr.mBgImage || bgAttr.mVideo || introAttr.mBgImage || desktop;
+  // GAC stores both images and videos in the same `pcBgImage` / `mBgImage`
+  // fields — discriminate by file extension. Dedicated `pcVideo`/`mVideo`
+  // fields also exist but are used inconsistently.
+  const desktopRaw = bgAttr.pcVideo || bgAttr.pcBgImage || introAttr.pcBgImage || '';
+  const mobileRaw = bgAttr.mVideo || bgAttr.mBgImage || introAttr.mBgImage || desktopRaw;
+  const isVideo = isVideoUrl(desktopRaw);
+
   const heading = introAttr.title || introAttr.mainTitle || '';
   const subHeading = introAttr.content || introAttr.subTitle || introAttr.describe || '';
 
@@ -117,7 +128,7 @@ function mapBigHeaderPic(module: any, order: number): OemSection | null {
   const ctaText = firstBtn?.title || '';
   const ctaUrl = firstBtn?.linkObj?.linkUrl || firstBtn?.linkUrl || '';
 
-  if (!desktop && !heading) return null;
+  if (!desktopRaw && !heading) return null;
 
   return {
     type: 'hero',
@@ -125,8 +136,10 @@ function mapBigHeaderPic(module: any, order: number): OemSection | null {
     order,
     heading,
     sub_heading: subHeading,
-    desktop_image_url: desktop,
-    mobile_image_url: mobile,
+    // Route videos to video_url, otherwise to image fields.
+    video_url: isVideo ? desktopRaw : '',
+    desktop_image_url: isVideo ? '' : desktopRaw,
+    mobile_image_url: isVideo ? '' : mobileRaw,
     cta_text: ctaText,
     cta_url: ctaUrl,
     text_color: '#ffffff',
