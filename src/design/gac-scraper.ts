@@ -129,11 +129,11 @@ function mapBigHeaderPic(module: any, order: number): OemSection | null {
     mobile_image_url: mobile,
     cta_text: ctaText,
     cta_url: ctaUrl,
-    text_color: introAttr.titleBgColour || '#ffffff',
+    text_color: '#ffffff',
     text_align: 'left',
     overlay_position: 'bottom-left',
     show_overlay: !!(heading || subHeading),
-    full_width_image: true,
+    full_width_image: false,
     animation: 'none',
   };
 }
@@ -248,8 +248,14 @@ export async function scrapeGacModelPage(path: string): Promise<OemScraperResult
   const payloadUrl = `${sourceUrl}/_payload.json`;
   const warnings: string[] = [];
 
+  // Note: GAC sits behind Tencent EdgeOne, which blocks non-browser User-Agents.
+  // Use a full Chrome UA string or fetches 404 from the edge.
   const resp = await fetch(payloadUrl, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OemAgent/1.0)' },
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-AU,en;q=0.9',
+    },
   });
   if (!resp.ok) {
     throw new Error(`GAC payload fetch failed: ${resp.status} ${resp.statusText} (${payloadUrl})`);
