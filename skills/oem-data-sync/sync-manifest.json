@@ -380,6 +380,16 @@
       "tables_affected": ["variant_colors"],
       "stability": "high",
       "schedule": "weekly"
+    },
+    {
+      "id": "ford-au:portal-assets",
+      "oem_id": "ford-au",
+      "operation": "portal-assets",
+      "script": "seed-ford-fil-assets.mjs",
+      "tables_affected": ["portal_assets"],
+      "stability": "low",
+      "schedule": "weekly",
+      "notes": "Requires FORD_FIL_TOKEN env var (JWT from a logged-in fordimagelibrary.com.au session; ~24h TTL). Auto-refresh not wired."
     }
   ],
   "schedules": {

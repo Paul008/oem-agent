@@ -187,6 +187,21 @@ Toyota data (21 models, 149 products, 802 colors, 132 pricing rows) was seeded v
 - Extracts: portal_url, username, password, marketing_contact, guidelines_pdf_url (from Monday files column).
 - 31 portals across all 19 OEMs. Platforms: sesimi, okta, dokio, sharepoint, box, fordimagelibrary, bms.hmc.co.kr, ateco.
 
+### Portal Assets (1 script)
+
+| OEM | Script | API Source | Tables | Stability | Schedule |
+|-----|--------|-----------|--------|-----------|----------|
+| ford-au | `seed-ford-fil-assets.mjs` | Indicia BrandHub DAM (`api-fil.brandhub.cloud`) behind fordimagelibrary.com.au | portal_assets | low | weekly |
+
+**Notes:**
+- Paginates the six FIL root categories (38441, 38443, 38444, 38445, 44149, 44150) via the `allPublications` search endpoint with `fetchSize=1000`. Recursive into subcategories.
+- Upserts ~15k Ford assets keyed by `(oem_id, external_source='ford_image_library', external_id=assetID)`.
+- CDN URLs come from `assetS3PreviewPath` (JSON-encoded preview S3 URL) falling back to `assetThumbnailPath`. Both are public `s3-ap-southeast-2.amazonaws.com/fil-filestor-storage-au` URLs — no proxy needed.
+- Asset-type classification derives from the filename extension (preferred) or `fileFormat` string. Critically, FIL's `fileFormat` values start with "Portable Network Graphics" / "Portable Document Format" — keyword matching must handle "portable" specifically or ~12k image rows get mis-classified as OTHER.
+- Model parser covers ranger/everest/mustang/transit-custom/escape/puma/f-150/tourneo etc. Unparsed rate ~4%.
+- Auth: JWT Bearer token scraped from a logged-in browser session (`FORD_FIL_TOKEN` env var). ~24h TTL. **No automated refresh wired yet** — the BrandHub login endpoint needs reverse-engineering (guessed POSTs to `/UserService/v1/login` etc. all return 401). Until then this operation is manual-trigger only.
+- Sesimi/Algolia (Kia) uses a different pattern and is populated via `dashboard/scripts/seed-kia-sesimi-assets.mjs` — not part of this manifest yet.
+
 ### Brochures (1 script)
 
 | OEM | Script | API Source | Tables | Stability | Schedule |
