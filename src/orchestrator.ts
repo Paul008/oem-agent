@@ -3573,6 +3573,33 @@ ${html.substring(0, 50000)}
           console.error(`[Orchestrator] Failed to upsert banner:`, error);
         }
       }
+
+      // Reconcile: prune stale banner rows at positions we didn't see this crawl.
+      // Guards against zombie rows from prior bad extractions (e.g. LLM-hallucinated
+      // nav tiles). Only runs when we actually got banner data, so a transient
+      // extraction failure doesn't wipe the table.
+      const currentPositions = extractionResult.bannerSlides.data
+        .map((s: any) => s.position)
+        .filter((p: unknown) => typeof p === 'number');
+      if (currentPositions.length > 0) {
+        try {
+          const maxPos = Math.max(...currentPositions);
+          const { data: pruned, error: pruneError } = await this.config.supabaseClient
+            .from('banners')
+            .delete()
+            .eq('oem_id', oemId)
+            .eq('page_url', page.url)
+            .gt('position', maxPos)
+            .select('id, position, headline');
+          if (pruneError) {
+            console.error(`[Orchestrator] Banner reconcile failed for ${page.url}:`, pruneError);
+          } else if (pruned && pruned.length > 0) {
+            console.log(`[Orchestrator] Pruned ${pruned.length} stale banner rows at positions > ${maxPos} for ${page.url}`);
+          }
+        } catch (e) {
+          console.error(`[Orchestrator] Banner reconcile threw for ${page.url}:`, e);
+        }
+      }
     }
 
     // Detect banner extraction failure for homepage crawls
