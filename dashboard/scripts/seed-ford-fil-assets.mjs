@@ -275,9 +275,33 @@ function rowToPortalAsset(row, portalId) {
     parsed_trim,
     parsed_angle,
     parsed_color,
+    // Free fields from the search response — no detail-endpoint round trip needed.
+    record_name: row.recordName || null,
+    interface_id: row.interfaceID ? String(row.interfaceID) : null,
+    category_id: row.cid ? String(row.cid) : null,
+    category_path: row.categoryPath || null,
+    source_modified_at: parseFilDate(row.modDate),
+    source_created_at: parseFilDate(row.crDate),
+    modified_by: row.modBy || null,
     is_active: true,
     last_synced_at: new Date().toISOString(),
   }
+}
+
+// FIL timestamps: "DD-MM-YY HH:MM AM/PM" or "DD/MM/YYYY HH:MM AM/PM"
+function parseFilDate(s) {
+  if (!s) return null
+  const m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+  if (!m) return null
+  let [, dd, mm, yy, hh, mi, ap] = m
+  const year = yy.length === 2 ? 2000 + parseInt(yy, 10) : parseInt(yy, 10)
+  let hour = parseInt(hh, 10)
+  if (ap?.toUpperCase() === 'PM' && hour < 12) hour += 12
+  if (ap?.toUpperCase() === 'AM' && hour === 12) hour = 0
+  // Interpret as AEST (+10), which is what FIL shows for AU content.
+  const iso = `${year}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${mi}:00+10:00`
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? null : d.toISOString()
 }
 
 // ═══════════════ MAIN ═══════════════
