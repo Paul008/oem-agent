@@ -1,11 +1,13 @@
 # Ford pipeline — session handoff
 
-**Date:** 2026-04-22
-**Context at handoff:** brochure variants + pricing + offers + accessories complete. Per-variant gallery enrichment deliberately deferred (see Session 3 note).
+**Date:** 2026-04-23
+**Context at handoff:** brochure variants + variant pricing + offers + accessories + colour premium pricing all complete. Per-variant gallery enrichment deliberately deferred (see Session 3 note).
 
-**Session 2 status (2026-04-22):** ✅ Shipped. `scripts/populate-ford-pricing-rsc.ts` parses `/price/<Name>?_rsc=x` payloads, writes 8 `variant_pricing` rows + 8 `offers` rows across Ranger / Everest / F-150 (the three nameplates Ford exposes pricing for via RSC). The other 14 nameplates return a 153k template-only payload — documented limitation, not a parser bug. Chained into `populate-ford-from-brochures.ts` after the color seed.
+**Session 2 status:** ✅ Shipped (2026-04-22). `scripts/populate-ford-pricing-rsc.ts` parses `/price/<Name>?_rsc=x` payloads, writes 8 `variant_pricing` rows + 8 `offers` rows across Ranger / Everest / F-150 (the three nameplates Ford exposes pricing for via RSC). The other 14 nameplates return a 153k template-only payload — documented limitation, not a parser bug. Chained into `populate-ford-from-brochures.ts` after the color seed.
 
-**Accessories (2026-04-22):** ✅ Shipped. `scripts/populate-ford-accessories-rsc.ts` parses `/price/<Name>/summary?_rsc=x`, extracts priced factory-fit options (state=A, price>0, non-config category), and upserts into the `accessories` table. 10 rows written covering Ranger (6), Everest (3), Mustang (1) — categories: Utility, Styling & Appearance, Option Packs, Comfort and Convenience. Image URLs proxied via the existing CF worker. Chained after the pricing step.
+**Accessories:** ✅ Shipped (2026-04-22). `scripts/populate-ford-accessories-rsc.ts` parses `/price/<Name>/summary?_rsc=x`, extracts priced factory-fit options (state=A, price>0, non-config category), and upserts into the `accessories` table. 10 rows written covering Ranger (6), Everest (3), Mustang (1) — categories: Utility, Styling & Appearance, Option Packs, Comfort and Convenience. Image URLs proxied via the existing CF worker. Chained after the pricing step.
+
+**Colour premium pricing:** ✅ Shipped (2026-04-23). `scripts/populate-ford-colour-pricing-rsc.ts` hits the same `/summary` endpoint, isolates paint entries by their `colourchip` image path, and updates `variant_colors.price_delta` + `is_standard` in place. 71 rows updated (of 301 Ford rows) across Ranger / Everest / F-150 / Mustang — premium paints are $750 on most nameplates, $700 on Mustang. Matches by normalised `color_name` (since `color_code` is a slugified name, not Ford's PM/PN internal code). Idempotent — only touches rows where current values differ from RSC. Chained after accessories.
 
 ---
 
