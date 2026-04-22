@@ -3491,9 +3491,17 @@ ${html.substring(0, 50000)}
         coverage: extractionResult.offers.coverage,
       },
       bannerSlides: {
-        data: llmResult.banner_slides?.length ? llmResult.banner_slides : extractionResult.bannerSlides.data,
+        // Prefer CSS over LLM: the LLM tends to hallucinate nav/menu tiles
+        // as banners (e.g. Ford's "Trucks", "SUVs" category buttons), while
+        // CSS targets the actual hero carousel (.billboard-item on Ford).
+        // Use LLM only when CSS returns nothing.
+        data: extractionResult.bannerSlides.data?.length
+          ? extractionResult.bannerSlides.data
+          : (llmResult.banner_slides?.length ? llmResult.banner_slides : null),
         confidence: extractionResult.bannerSlides.confidence,
-        method: llmResult.banner_slides?.length ? 'llm' as const : extractionResult.bannerSlides.method,
+        method: extractionResult.bannerSlides.data?.length
+          ? extractionResult.bannerSlides.method
+          : (llmResult.banner_slides?.length ? 'llm' as const : 'none'),
         coverage: extractionResult.bannerSlides.coverage,
       },
     };
