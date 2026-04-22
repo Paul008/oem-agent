@@ -1489,11 +1489,23 @@ export class OemAgentOrchestrator {
     // AbortSignal.timeout() propagates cancellation into the underlying
     // fetch so a hung connection actually releases the CPU instead of
     // just rejecting the outer Promise wrapper.
+    // Full Chrome fingerprint + Sec-Fetch headers — Akamai-fronted sites
+    // (ford.com.au, others) serve stripped fallback HTML to anything that
+    // looks bot-shaped. A complete browser-like header set dodges that.
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-AU,en;q=0.5',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-AU,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
       },
       signal: AbortSignal.timeout(25_000),
     });

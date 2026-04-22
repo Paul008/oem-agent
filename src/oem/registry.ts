@@ -122,11 +122,11 @@ export const fordAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/showroom/"]',
-    heroSlides: '.billboard, [class*="billboard"]',
+    heroSlides: '.billboard-item',
     offerTiles: '.offer-card, [class*="offer"]',
   },
   flags: {
-    requiresBrowserRendering: false, // AEM SSR — vehiclesmenu.data + GPAS APIs
+    requiresBrowserRendering: true, // Akamai strips hero content from non-browser fetches
     isAEM: true,
     framework: 'aem',
   },
