@@ -237,17 +237,24 @@ export function extractWithSelectors(
 
   // Extract hero slides (banners)
   if (selectors.heroSlides) {
+    const baseUrl = oemDef?.baseUrl || '';
+    const absolutise = (u: string | null): string | null => {
+      if (!u) return u;
+      if (/^https?:\/\//i.test(u) || u.startsWith('data:')) return u;
+      return resolveUrl(u, baseUrl);
+    };
     $(selectors.heroSlides).each((index, el) => {
       const $slide = $(el);
       const headlineText = $slide.find('h1, h2, .headline, .big_title .title').first().text().trim();
+      const ctaHref = $slide.find('.kv_btn, a.cta, a').first().attr('href') || null;
       const slide: ExtractedBannerSlide = {
         position: index,
         headline: headlineText || $slide.find('img[alt]').first().attr('alt')?.trim() || null,
         sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span').first().text().trim() || null,
         cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
-        cta_url: $slide.find('.kv_btn, a.cta, a').first().attr('href') || null,
-        image_url_desktop: extractImageUrl($slide, $) || '',
-        image_url_mobile: extractMobileImageUrl($slide, $),
+        cta_url: absolutise(ctaHref),
+        image_url_desktop: absolutise(extractImageUrl($slide, $)) || '',
+        image_url_mobile: absolutise(extractMobileImageUrl($slide, $)),
         disclaimer_text: $slide.find('.disclaimer, small').first().text().trim() || null,
       };
       bannerSlides.push(slide);
