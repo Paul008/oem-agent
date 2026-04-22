@@ -91,8 +91,8 @@ export const CLOUDFLARE_TRIGGERS = [
   {
     id: 'cf-portal-asset-health',
     name: 'Portal Asset Health Check',
-    description: 'Weekly HEAD-check of every portal_assets.cdn_url; marks broken rows inactive (Sunday 4am AEDT)',
-    schedule: '0 17 * * 0',
+    description: 'Weekly HEAD-check of every portal_assets.cdn_url; marks broken rows inactive (Monday 5:30am AEDT)',
+    schedule: '30 18 * * 1',
     timezone: 'Australia/Melbourne',
     skill: 'cloudflare-scheduled',
     enabled: true,
