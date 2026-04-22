@@ -48,6 +48,7 @@ export interface PortalAsset {
   interface_id?: string | null
   category_id?: string | null
   category_path?: string | null
+  category_leaf?: string | null
   metadata?: Record<string, unknown> | null
   metadata_hydrated_at?: string | null
 }
@@ -83,6 +84,7 @@ export interface PortalAssetPageOpts {
   nameplate?: string         // F_Nameplate — campaign grouping
   mediaType?: string         // F_Media_Type
   assetTypeLabel?: string    // F_AssetTypes (DAM-native type)
+  categoryLeaf?: string      // DAM leaf category (e.g. "Website Banners")
   usageRights?: string
   keyword?: string           // single keyword (GIN ANY match)
   excludeExpired?: boolean
@@ -120,6 +122,7 @@ export function usePortalAssets() {
     if (opts.nameplate) q = q.eq('nameplate', opts.nameplate)
     if (opts.mediaType) q = q.eq('media_type', opts.mediaType)
     if (opts.assetTypeLabel) q = q.eq('asset_type_label', opts.assetTypeLabel)
+    if (opts.categoryLeaf) q = q.eq('category_leaf', opts.categoryLeaf)
     if (opts.usageRights) q = q.eq('usage_rights', opts.usageRights)
     if (opts.keyword) q = q.contains('keywords', [opts.keyword])
     if (opts.excludeExpired) {

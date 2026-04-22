@@ -136,7 +136,7 @@ declare global {
   export type { HistoryEntry } from '../composables/use-page-builder'
   import('../composables/use-page-builder')
   // @ts-ignore
-  export type { PortalAsset, PortalAssetCoverage } from '../composables/use-portal-assets'
+  export type { PortalAsset, PortalAssetCampaign, PortalAssetCoverage, PortalAssetPageOpts, PortalAssetPage } from '../composables/use-portal-assets'
   import('../composables/use-portal-assets')
   // @ts-ignore
   export type { AnimationType, AnimationConfig } from '../composables/use-section-animation'

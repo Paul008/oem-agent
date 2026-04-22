@@ -30,6 +30,7 @@ const filterNameplate = ref('all')
 const filterMediaType = ref('all')
 const filterUsageRights = ref('all')
 const filterAssetTypeLabel = ref('all')
+const filterCategoryLeaf = ref('all')
 const filterExcludeExpired = ref(false)
 const searchQuery = ref('')
 
@@ -59,6 +60,7 @@ function filterOpts() {
     mediaType: filterMediaType.value === 'all' ? undefined : filterMediaType.value,
     usageRights: filterUsageRights.value === 'all' ? undefined : filterUsageRights.value,
     assetTypeLabel: filterAssetTypeLabel.value === 'all' ? undefined : filterAssetTypeLabel.value,
+    categoryLeaf: filterCategoryLeaf.value === 'all' ? undefined : filterCategoryLeaf.value,
     excludeExpired: filterExcludeExpired.value || undefined,
     search: searchQuery.value.trim() || undefined,
   }
@@ -115,7 +117,7 @@ watch(filterOem, async () => {
   await Promise.all([refreshAggregates(), loadPage()])
 })
 watch(
-  [filterType, filterModel, filterNameplate, filterMediaType, filterUsageRights, filterAssetTypeLabel, filterExcludeExpired],
+  [filterType, filterModel, filterNameplate, filterMediaType, filterUsageRights, filterAssetTypeLabel, filterCategoryLeaf, filterExcludeExpired],
   () => {
     page.value = 1
     loadPage()
@@ -168,6 +170,7 @@ function resetFilters() {
   filterMediaType.value = 'all'
   filterUsageRights.value = 'all'
   filterAssetTypeLabel.value = 'all'
+  filterCategoryLeaf.value = 'all'
   filterExcludeExpired.value = false
   searchQuery.value = ''
 }
@@ -191,6 +194,7 @@ const hasFilters = computed(() =>
   || filterMediaType.value !== 'all'
   || filterUsageRights.value !== 'all'
   || filterAssetTypeLabel.value !== 'all'
+  || filterCategoryLeaf.value !== 'all'
   || filterExcludeExpired.value
   || !!searchQuery.value.trim(),
 )
@@ -249,6 +253,17 @@ function isExpired(a: PortalAsset) {
           <UiSelectItem value="all">All Campaigns ({{ campaigns.length }})</UiSelectItem>
           <UiSelectItem v-for="c in campaigns" :key="`${c.oem_id}-${c.nameplate}`" :value="c.nameplate">
             {{ c.nameplate }} &middot; {{ c.asset_count }}
+          </UiSelectItem>
+        </UiSelectContent>
+      </UiSelect>
+      <UiSelect v-if="facets.category_leaf?.length" v-model="filterCategoryLeaf">
+        <UiSelectTrigger class="w-[220px]">
+          <UiSelectValue placeholder="DAM category" />
+        </UiSelectTrigger>
+        <UiSelectContent class="max-h-[400px]">
+          <UiSelectItem value="all">All DAM categories ({{ facets.category_leaf.length }})</UiSelectItem>
+          <UiSelectItem v-for="f in facets.category_leaf" :key="f.value" :value="f.value">
+            {{ f.value }} &middot; {{ f.n }}
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
