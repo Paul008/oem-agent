@@ -587,3 +587,159 @@ export async function executeBannerImageHealthCheck(
     details: broken.map(b => ({ oem_id: b.oem_id, field: b.field, status: b.status, filename: b.url.split('/').pop() || '' })),
   };
 }
+
+// ============================================================================
+// Portal Asset Health Check — runs weekly (off-hours).
+// HEAD-requests every portal_assets.cdn_url, marks broken rows is_active=false,
+// emits a single change_event per OEM so editors know to re-pick assets.
+// ============================================================================
+
+export interface PortalAssetHealthResult {
+  timestamp: string;
+  urls_checked: number;
+  urls_broken: number;
+  oems_affected: string[];
+  details: Array<{ oem_id: string; asset_id: string; status: number; filename: string }>;
+}
+
+export async function executePortalAssetHealthCheck(
+  supabase: SupabaseClient,
+  slackWebhookUrl?: string,
+  opts: { batchSize?: number; timeoutMs?: number; limit?: number } = {},
+): Promise<PortalAssetHealthResult> {
+  const now = new Date();
+  const BATCH = opts.batchSize ?? 25;
+  const TIMEOUT = opts.timeoutMs ?? 5000;
+  const LIMIT = opts.limit ?? Number.POSITIVE_INFINITY;
+  console.log('[PortalAssetHealth] Starting portal asset URL health check...');
+
+  // Stream candidates in 1000-row pages to keep memory flat.
+  const checks: Array<{ id: string; oem_id: string; url: string; name: string }> = [];
+  const PAGE = 1000;
+  for (let from = 0; from < LIMIT; from += PAGE) {
+    const to = Math.min(from + PAGE - 1, LIMIT - 1);
+    const { data, error } = await supabase
+      .from('portal_assets')
+      .select('id, oem_id, cdn_url, name')
+      .eq('is_active', true)
+      .order('oem_id')
+      .range(from, to);
+    if (error) {
+      console.error('[PortalAssetHealth] Query failed:', error.message);
+      break;
+    }
+    if (!data?.length) break;
+    for (const r of data) {
+      if (r.cdn_url) checks.push({ id: r.id, oem_id: r.oem_id, url: r.cdn_url, name: r.name });
+    }
+    if (data.length < PAGE) break;
+  }
+
+  if (checks.length === 0) {
+    console.log('[PortalAssetHealth] No active portal assets to check');
+    return { timestamp: now.toISOString(), urls_checked: 0, urls_broken: 0, oems_affected: [], details: [] };
+  }
+  console.log(`[PortalAssetHealth] Checking ${checks.length} URLs...`);
+
+  const broken: Array<{ id: string; oem_id: string; url: string; name: string; status: number }> = [];
+
+  for (let i = 0; i < checks.length; i += BATCH) {
+    const slice = checks.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      slice.map(async (c) => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), TIMEOUT);
+          const res = await fetch(c.url, { method: 'HEAD', signal: controller.signal });
+          clearTimeout(timeout);
+          return res.status >= 400 ? { ...c, status: res.status } : null;
+        } catch {
+          return { ...c, status: 0 };
+        }
+      }),
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) broken.push(r.value);
+    }
+    if (i % (BATCH * 20) === 0) {
+      console.log(`[PortalAssetHealth]   Progress: ${Math.min(i + BATCH, checks.length)}/${checks.length}, ${broken.length} broken so far`);
+    }
+  }
+
+  if (broken.length === 0) {
+    console.log(`[PortalAssetHealth] All ${checks.length} URLs are healthy`);
+    return { timestamp: now.toISOString(), urls_checked: checks.length, urls_broken: 0, oems_affected: [], details: [] };
+  }
+
+  // Group + mark inactive in batches.
+  const brokenByOem: Record<string, typeof broken> = {};
+  for (const b of broken) {
+    if (!brokenByOem[b.oem_id]) brokenByOem[b.oem_id] = [];
+    brokenByOem[b.oem_id].push(b);
+  }
+
+  for (const [oemId, items] of Object.entries(brokenByOem)) {
+    // Soft-delete broken rows so they stop appearing in the grid / filters.
+    const ids = items.map(i => i.id);
+    await supabase
+      .from('portal_assets')
+      .update({ is_active: false })
+      .in('id', ids);
+
+    // Dedup — one event per 24h per OEM.
+    const { count: recent } = await supabase
+      .from('change_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('oem_id', oemId)
+      .eq('event_type', 'portal_asset_broken')
+      .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString());
+
+    if (!recent) {
+      await supabase.from('change_events').insert({
+        id: crypto.randomUUID(),
+        entity_type: 'portal_asset',
+        entity_id: null,
+        oem_id: oemId,
+        event_type: 'portal_asset_broken',
+        severity: items.length > 50 ? 'high' : 'medium',
+        summary: `${items.length} portal asset URL(s) broken for ${oemId} — HTTP ${[...new Set(items.map(b => b.status))].join('/')} — marked inactive`,
+        diff_json: {
+          trigger: 'portal_asset_health_check',
+          broken: items.slice(0, 100).map(b => ({ id: b.id, name: b.name, status: b.status })),
+          truncated: items.length > 100,
+        },
+        created_at: now.toISOString(),
+      });
+    }
+  }
+
+  const oemsAffected = Object.keys(brokenByOem);
+  console.log(`[PortalAssetHealth] ${broken.length} broken URLs across ${oemsAffected.length} OEMs — marked inactive, triage events emitted`);
+
+  if (slackWebhookUrl) {
+    const summary = oemsAffected
+      .map(oem => `• \`${oem}\`: ${brokenByOem[oem].length} broken (${[...new Set(brokenByOem[oem].map(b => b.status))].join('/')})`)
+      .join('\n');
+    try {
+      await fetch(slackWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `🎨 Portal Asset Health: ${broken.length} broken URLs`,
+          blocks: [
+            { type: 'header', text: { type: 'plain_text', text: `🎨 Portal Asset Health — ${broken.length} broken` } },
+            { type: 'section', text: { type: 'mrkdwn', text: summary } },
+          ],
+        }),
+      });
+    } catch { /* skip slack errors */ }
+  }
+
+  return {
+    timestamp: now.toISOString(),
+    urls_checked: checks.length,
+    urls_broken: broken.length,
+    oems_affected: oemsAffected,
+    details: broken.slice(0, 200).map(b => ({ oem_id: b.oem_id, asset_id: b.id, status: b.status, filename: b.name })),
+  };
+}

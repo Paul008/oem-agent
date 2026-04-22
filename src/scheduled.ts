@@ -88,6 +88,16 @@ export const CLOUDFLARE_TRIGGERS = [
     enabled: true,
     config: { crawl_type: 'design-drift' },
   },
+  {
+    id: 'cf-portal-asset-health',
+    name: 'Portal Asset Health Check',
+    description: 'Weekly HEAD-check of every portal_assets.cdn_url; marks broken rows inactive (Sunday 4am AEDT)',
+    schedule: '0 17 * * 0',
+    timezone: 'Australia/Melbourne',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'portal-asset-health' },
+  },
 ] as const satisfies ReadonlyArray<{
   id: string;
   name: string;
@@ -146,6 +156,19 @@ export async function handleScheduled(
           run.status = 'success';
           run.completedAt = new Date().toISOString();
           run.result = { crawl_type: 'banner-health', ...result };
+          await saveRun(bucket, run);
+          return;
+        }
+
+        // Portal asset (DAM) health check — weekly
+        if (crawlType === 'portal-asset-health') {
+          const { executePortalAssetHealthCheck } = await import('./sync/crawl-doctor');
+          const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+          const result = await executePortalAssetHealthCheck(supabase, env.SLACK_WEBHOOK_URL);
+
+          run.status = 'success';
+          run.completedAt = new Date().toISOString();
+          run.result = { crawl_type: 'portal-asset-health', ...result };
           await saveRun(bucket, run);
           return;
         }
