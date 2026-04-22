@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref, watch, computed } from 'vue'
-import { Loader2, Search, Image, Camera, Palette, Car, X, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Loader2, Search, Image, Camera, Palette, Car, X, ChevronLeft, ChevronRight, Download, Package } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
@@ -206,6 +206,76 @@ function fmtDate(s: string | null | undefined) {
   return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function assetFilename(a: PortalAsset): string {
+  // Prefer the DAM filename; fall back to asset name; ensure the extension
+  // matches original_format (cdn_url is always a PNG preview).
+  const base = a.name || a.record_name || `asset-${a.external_id}`
+  const ext = (a.original_format || 'png').toLowerCase()
+  if (base.toLowerCase().endsWith('.' + ext)) return base
+  return base.replace(/\.[^.]+$/, '') + '.' + ext
+}
+
+function downloadSingle(a: PortalAsset) {
+  const qs = new URLSearchParams({ url: a.cdn_url, name: assetFilename(a) })
+  window.location.href = `/dam/download?${qs.toString()}`
+}
+
+const packInFlight = ref(false)
+async function downloadPack() {
+  if (packInFlight.value) return
+  packInFlight.value = true
+  try {
+    // Zip whatever the current filters match, capped at 500.
+    const PACK_CAP = 500
+    const { rows: firstRows, total } = await fetchPortalAssetsPage({
+      ...filterOpts(),
+      page: 1,
+      pageSize: Math.min(PACK_CAP, 200),
+    })
+    const all: PortalAsset[] = [...firstRows]
+    const cap = Math.min(PACK_CAP, total)
+    let next = 2
+    while (all.length < cap) {
+      const { rows } = await fetchPortalAssetsPage({
+        ...filterOpts(),
+        page: next,
+        pageSize: 200,
+      })
+      if (!rows.length) break
+      all.push(...rows)
+      next++
+    }
+    const assets = all.slice(0, cap).map(a => ({ url: a.cdn_url, name: assetFilename(a) }))
+    const packName = [
+      filterCategoryLeaf.value !== 'all' ? filterCategoryLeaf.value : null,
+      filterNameplate.value !== 'all' ? filterNameplate.value : null,
+      filterOem.value !== 'all' ? oemName(filterOem.value) : 'portal',
+    ].filter(Boolean).join('-').toLowerCase().replace(/[^\w-]+/g, '-') || 'pack'
+
+    const res = await fetch(`/dam/download?zip=1&packName=${encodeURIComponent(packName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assets }),
+    })
+    if (!res.ok) {
+      alert(`Pack download failed: HTTP ${res.status}`)
+      return
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${packName}.zip`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+  finally {
+    packInFlight.value = false
+  }
+}
+
 function isExpired(a: PortalAsset) {
   if (!a.expiry_date) return false
   return new Date(a.expiry_date).getTime() < Date.now()
@@ -316,6 +386,27 @@ function isExpired(a: PortalAsset) {
         <template v-else-if="pageTotal === 0">0 assets</template>
         <template v-else>{{ pageStart.toLocaleString() }}–{{ pageEnd.toLocaleString() }} of {{ pageTotal.toLocaleString() }}</template>
       </span>
+      <UiButton
+        v-if="pageTotal > 0 && pageTotal <= 500"
+        size="sm"
+        variant="outline"
+        :disabled="packInFlight"
+        @click="downloadPack"
+      >
+        <Loader2 v-if="packInFlight" class="size-3.5 mr-1 animate-spin" />
+        <Package v-else class="size-3.5 mr-1" />
+        {{ packInFlight ? 'Zipping…' : `Download pack (${pageTotal.toLocaleString()})` }}
+      </UiButton>
+      <UiTooltip v-else-if="pageTotal > 500">
+        <UiTooltipTrigger>
+          <UiButton size="sm" variant="outline" disabled>
+            <Package class="size-3.5 mr-1" />Pack too large
+          </UiButton>
+        </UiTooltipTrigger>
+        <UiTooltipContent>
+          Narrow the filters — pack download caps at 500 assets ({{ pageTotal.toLocaleString() }} currently match).
+        </UiTooltipContent>
+      </UiTooltip>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center h-64">
@@ -637,6 +728,9 @@ function isExpired(a: PortalAsset) {
         <UiDialogFooter>
           <UiButton variant="outline" size="sm" @click="previewAsset = null">
             <X class="size-4 mr-1" />Close
+          </UiButton>
+          <UiButton size="sm" @click="downloadSingle(previewAsset!)">
+            <Download class="size-4 mr-1" />Download
           </UiButton>
         </UiDialogFooter>
       </UiDialogContent>
