@@ -298,11 +298,17 @@ async function processModel(
       if (delErr) { console.log(`  ✗ delete old driveaway for "${p.title}": ${delErr.message}`); continue; }
       const { error: insErr } = await sb.from('variant_pricing').insert(priceRow);
       if (insErr) { console.log(`  ✗ insert pricing for "${p.title}": ${insErr.message}`); continue; }
+      // Denormalise onto products so the dashboard variants page (which reads
+      // products.price_amount, not variant_pricing) can render Ford pricing.
       const { error: upErr } = await sb.from('products').update({
         variant_code: build.seriesCode,
         variant_name: build.seriesName,
+        price_amount: build.driveaway,
+        price_currency: 'AUD',
+        price_type: 'driveaway',
+        price_raw_string: `$${Math.round(build.driveaway).toLocaleString('en-AU')} driveaway`,
       }).eq('id', p.id);
-      if (upErr) console.log(`  ! products.variant_code stamp failed for "${p.title}": ${upErr.message}`);
+      if (upErr) console.log(`  ! products.variant_code/price stamp failed for "${p.title}": ${upErr.message}`);
     }
 
     console.log(`  ✓ "${p.title}" → ${build.seriesName} [${build.seriesCode}]  drive=$${build.driveaway.toLocaleString()}  rrp=$${build.rrp.toLocaleString()}`);
