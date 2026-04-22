@@ -13,6 +13,7 @@ const {
   fetchPortalAssetCoverage,
   fetchPortalAssetCampaigns,
   fetchRelatedAssets,
+  fetchFacets,
   fetchPortalAssetStats,
   fetchParsedModels,
   thumbnailUrl,
@@ -26,6 +27,9 @@ const filterOem = ref('all')
 const filterType = ref('all')
 const filterModel = ref('all')
 const filterNameplate = ref('all')
+const filterMediaType = ref('all')
+const filterUsageRights = ref('all')
+const filterAssetTypeLabel = ref('all')
 const filterExcludeExpired = ref(false)
 const searchQuery = ref('')
 
@@ -33,6 +37,7 @@ const searchQuery = ref('')
 const oems = ref<{ id: string; name: string }[]>([])
 const coverage = ref<PortalAssetCoverage[]>([])
 const campaigns = ref<PortalAssetCampaign[]>([])
+const facets = ref<Record<string, { value: string; n: number }[]>>({})
 const stats = ref({ total: 0, images: 0, renders: 0, models: 0 })
 const models = ref<string[]>([])
 const pageRows = ref<PortalAsset[]>([])
@@ -51,6 +56,9 @@ function filterOpts() {
     assetType: filterType.value === 'all' ? undefined : filterType.value,
     model: filterModel.value === 'all' ? undefined : filterModel.value,
     nameplate: filterNameplate.value === 'all' ? undefined : filterNameplate.value,
+    mediaType: filterMediaType.value === 'all' ? undefined : filterMediaType.value,
+    usageRights: filterUsageRights.value === 'all' ? undefined : filterUsageRights.value,
+    assetTypeLabel: filterAssetTypeLabel.value === 'all' ? undefined : filterAssetTypeLabel.value,
     excludeExpired: filterExcludeExpired.value || undefined,
     search: searchQuery.value.trim() || undefined,
   }
@@ -73,18 +81,20 @@ async function loadPage() {
 }
 
 async function refreshAggregates() {
-  // Coverage + stats + model list + campaigns are scoped to the active OEM filter.
+  // Coverage + stats + model list + campaigns + facets are scoped to the active OEM.
   const oemId = filterOpts().oemId
-  const [c, s, m, camps] = await Promise.all([
+  const [c, s, m, camps, f] = await Promise.all([
     fetchPortalAssetCoverage(oemId),
     fetchPortalAssetStats(oemId),
     fetchParsedModels(oemId),
     fetchPortalAssetCampaigns(oemId),
+    fetchFacets(oemId),
   ])
   coverage.value = c
   stats.value = s
   models.value = m
   campaigns.value = camps
+  facets.value = f
 }
 
 onMounted(async () => {
@@ -104,10 +114,13 @@ watch(filterOem, async () => {
   filterModel.value = 'all'
   await Promise.all([refreshAggregates(), loadPage()])
 })
-watch([filterType, filterModel, filterNameplate, filterExcludeExpired], () => {
-  page.value = 1
-  loadPage()
-})
+watch(
+  [filterType, filterModel, filterNameplate, filterMediaType, filterUsageRights, filterAssetTypeLabel, filterExcludeExpired],
+  () => {
+    page.value = 1
+    loadPage()
+  },
+)
 
 // Load related assets whenever the preview opens.
 watch(previewAsset, async (a) => {
@@ -152,6 +165,9 @@ function resetFilters() {
   filterType.value = 'all'
   filterModel.value = 'all'
   filterNameplate.value = 'all'
+  filterMediaType.value = 'all'
+  filterUsageRights.value = 'all'
+  filterAssetTypeLabel.value = 'all'
   filterExcludeExpired.value = false
   searchQuery.value = ''
 }
@@ -172,6 +188,9 @@ const hasFilters = computed(() =>
   || filterType.value !== 'all'
   || filterModel.value !== 'all'
   || filterNameplate.value !== 'all'
+  || filterMediaType.value !== 'all'
+  || filterUsageRights.value !== 'all'
+  || filterAssetTypeLabel.value !== 'all'
   || filterExcludeExpired.value
   || !!searchQuery.value.trim(),
 )
@@ -230,6 +249,39 @@ function isExpired(a: PortalAsset) {
           <UiSelectItem value="all">All Campaigns ({{ campaigns.length }})</UiSelectItem>
           <UiSelectItem v-for="c in campaigns" :key="`${c.oem_id}-${c.nameplate}`" :value="c.nameplate">
             {{ c.nameplate }} &middot; {{ c.asset_count }}
+          </UiSelectItem>
+        </UiSelectContent>
+      </UiSelect>
+      <UiSelect v-if="facets.asset_type_label?.length" v-model="filterAssetTypeLabel">
+        <UiSelectTrigger class="w-[180px]">
+          <UiSelectValue placeholder="DAM type" />
+        </UiSelectTrigger>
+        <UiSelectContent>
+          <UiSelectItem value="all">All DAM types</UiSelectItem>
+          <UiSelectItem v-for="f in facets.asset_type_label" :key="f.value" :value="f.value">
+            {{ f.value }} &middot; {{ f.n }}
+          </UiSelectItem>
+        </UiSelectContent>
+      </UiSelect>
+      <UiSelect v-if="facets.media_type?.length" v-model="filterMediaType">
+        <UiSelectTrigger class="w-[180px]">
+          <UiSelectValue placeholder="Media type" />
+        </UiSelectTrigger>
+        <UiSelectContent>
+          <UiSelectItem value="all">All media types</UiSelectItem>
+          <UiSelectItem v-for="f in facets.media_type" :key="f.value" :value="f.value">
+            {{ f.value }} &middot; {{ f.n }}
+          </UiSelectItem>
+        </UiSelectContent>
+      </UiSelect>
+      <UiSelect v-if="facets.usage_rights?.length" v-model="filterUsageRights">
+        <UiSelectTrigger class="w-[160px]">
+          <UiSelectValue placeholder="Usage rights" />
+        </UiSelectTrigger>
+        <UiSelectContent>
+          <UiSelectItem value="all">Any rights</UiSelectItem>
+          <UiSelectItem v-for="f in facets.usage_rights" :key="f.value" :value="f.value">
+            {{ f.value }} &middot; {{ f.n }}
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>

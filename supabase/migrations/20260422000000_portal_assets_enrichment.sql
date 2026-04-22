@@ -64,3 +64,20 @@ GROUP BY oem_id, nameplate;
 
 -- Update coverage view to be resilient if parsed_model gets normalised later.
 -- (Keeping original definition — this migration doesn't change it.)
+
+-- ═══════════════ FACETS ═══════════════
+-- Distinct values + counts per dimension, per OEM. Populates filter dropdowns
+-- without scanning portal_assets from the client. UNION ALL is cheap because
+-- each leg hits a partial index added above.
+CREATE OR REPLACE VIEW portal_asset_facets AS
+  SELECT oem_id, 'media_type'       AS dimension, media_type       AS value, count(*) AS n
+    FROM portal_assets WHERE is_active = true AND media_type       IS NOT NULL
+    GROUP BY oem_id, media_type
+  UNION ALL
+  SELECT oem_id, 'asset_type_label' AS dimension, asset_type_label AS value, count(*) AS n
+    FROM portal_assets WHERE is_active = true AND asset_type_label IS NOT NULL
+    GROUP BY oem_id, asset_type_label
+  UNION ALL
+  SELECT oem_id, 'usage_rights'     AS dimension, usage_rights     AS value, count(*) AS n
+    FROM portal_assets WHERE is_active = true AND usage_rights     IS NOT NULL
+    GROUP BY oem_id, usage_rights;

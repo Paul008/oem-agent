@@ -161,6 +161,24 @@ export function usePortalAssets() {
     return (data ?? []) as PortalAssetCampaign[]
   }
 
+  /** Facet values + counts for filter dropdowns (media_type, usage_rights,
+   *  asset_type_label). Groups by dimension; soft-fails if the view is missing. */
+  async function fetchFacets(oemId?: string): Promise<Record<string, { value: string; n: number }[]>> {
+    let q = supabase.from('portal_asset_facets').select('dimension, value, n').order('n', { ascending: false })
+    if (oemId) q = q.eq('oem_id', oemId)
+    const { data, error: err } = await q
+    if (err) {
+      if (/relation .*portal_asset_facets.* does not exist/i.test(err.message)) return {}
+      throw err
+    }
+    const out: Record<string, { value: string; n: number }[]> = {}
+    for (const r of (data ?? []) as { dimension: string; value: string; n: number }[]) {
+      if (!out[r.dimension]) out[r.dimension] = []
+      out[r.dimension].push({ value: r.value, n: r.n })
+    }
+    return out
+  }
+
   /** Siblings of an asset — same nameplate + oem. Limit for safety. */
   async function fetchRelatedAssets(asset: PortalAsset, limit = 24): Promise<PortalAsset[]> {
     if (!asset.nameplate) return []
@@ -246,6 +264,7 @@ export function usePortalAssets() {
     fetchPortalAssetCoverage,
     fetchPortalAssetCampaigns,
     fetchRelatedAssets,
+    fetchFacets,
     fetchPortalAssetStats,
     fetchParsedModels,
     thumbnailUrl,
