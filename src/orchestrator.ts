@@ -4064,7 +4064,7 @@ ${html.substring(0, 50000)}
     // Match by oem_id + page_url + position
     const { data: existing, error: queryError } = await this.config.supabaseClient
       .from('banners')
-      .select('id, headline, position')
+      .select('id, headline, position, image_url_desktop, image_url_mobile, cta_url')
       .eq('oem_id', oemId)
       .eq('page_url', pageUrl)
       .eq('position', slideData.position || 0)
@@ -4094,9 +4094,12 @@ ${html.substring(0, 50000)}
     if (existing) {
       console.log(`[UpsertBanner] Existing banner found: ${existing.id}`);
 
-      // Simple change detection - check if headline or image changed
+      // Simple change detection - check if any user-visible field changed
       const headlineChanged = existing.headline !== banner.headline;
-      const changeDetected = headlineChanged; // Can expand this logic
+      const desktopImgChanged = (existing as any).image_url_desktop !== banner.image_url_desktop;
+      const mobileImgChanged = (existing as any).image_url_mobile !== banner.image_url_mobile;
+      const ctaChanged = (existing as any).cta_url !== banner.cta_url;
+      const changeDetected = headlineChanged || desktopImgChanged || mobileImgChanged || ctaChanged;
 
       if (changeDetected) {
         console.log(`[UpsertBanner] Changes detected, updating banner at position ${slideData.position}`);
