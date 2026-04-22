@@ -3572,14 +3572,14 @@ ${html.substring(0, 50000)}
       page.page_type === 'homepage' &&
       (!extractionResult.bannerSlides?.data || extractionResult.bannerSlides.data.length === 0)
     ) {
-      const { count: previousBannerCount } = await this.supabase
+      const { count: previousBannerCount } = await this.config.supabaseClient
         .from('banners')
         .select('id', { count: 'exact', head: true })
         .eq('oem_id', oemId);
 
       if (previousBannerCount && previousBannerCount > 0) {
         // Dedup: check if event already exists in last 24h
-        const { count: recentEventCount } = await this.supabase
+        const { count: recentEventCount } = await this.config.supabaseClient
           .from('change_events')
           .select('id', { count: 'exact', head: true })
           .eq('oem_id', oemId)
@@ -3588,7 +3588,7 @@ ${html.substring(0, 50000)}
 
         if (!recentEventCount) {
           console.log(`[Orchestrator] Banner extraction returned 0 for ${oemId} homepage (previously had ${previousBannerCount}). Emitting banner_extraction_failed event.`);
-          await this.supabase.from('change_events').insert({
+          await this.config.supabaseClient.from('change_events').insert({
             id: crypto.randomUUID(),
             entity_type: 'banner',
             entity_id: null,
