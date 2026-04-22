@@ -1228,11 +1228,35 @@ app.post('/admin/direct-extract/:oemId', async (c) => {
  */
 app.post('/admin/force-crawl/:oemId', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
+  const withBrowser = c.req.query('render') === 'true';
+  const rehabErrors = c.req.query('rehab') !== 'false'; // default true
 
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,
     serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
   });
+
+  // Optionally rehabilitate error'd pages back to active so the crawler retries them.
+  let rehabCount = 0;
+  if (rehabErrors) {
+    const { data: rehabData, error: rehabErr } = await supabase
+      .from('source_pages')
+      .update({
+        status: 'active',
+        error_message: null,
+        last_checked_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('oem_id', oemId)
+      .eq('status', 'error')
+      .select();
+    if (rehabErr) {
+      console.error(`[Force Crawl] Rehab failed:`, rehabErr);
+      return c.json({ error: rehabErr.message }, 500);
+    }
+    rehabCount = rehabData?.length || 0;
+    console.log(`[Force Crawl] Rehabilitated ${rehabCount} error'd pages for ${oemId}`);
+  }
 
   // Reset last_checked_at for all active pages to force them due
   console.log(`[Force Crawl] Resetting pages for ${oemId}...`);
@@ -1250,7 +1274,7 @@ app.post('/admin/force-crawl/:oemId', async (c) => {
     console.error(`[Force Crawl] Reset failed:`, resetError);
     return c.json({ error: resetError.message }, 500);
   }
-  
+
   console.log(`[Force Crawl] Reset ${resetData?.length || 0} pages for ${oemId}`);
 
   // Now trigger the crawl
@@ -1262,16 +1286,18 @@ app.post('/admin/force-crawl/:oemId', async (c) => {
   const jobId = crypto.randomUUID();
 
   c.executionCtx.waitUntil(
-    orchestrator.crawlOem(oemId, undefined, 'manual', undefined, /* skipRender */ true).catch(err => {
+    orchestrator.crawlOem(oemId, undefined, 'manual', undefined, /* skipRender */ !withBrowser).catch(err => {
       console.error(`[Force Crawl ${jobId}] Error crawling ${oemId}:`, err);
     })
   );
 
   return c.json({
     success: true,
-    message: `Force crawl triggered for ${oemId} - all pages reset to due`,
+    message: `Force crawl triggered for ${oemId}${withBrowser ? ' (with browser rendering)' : ''}${rehabCount > 0 ? ` — rehabilitated ${rehabCount} error'd pages` : ''}`,
     jobId,
     oemId,
+    rehabCount,
+    activeCount: resetData?.length || 0,
     status: 'running',
   });
 });
