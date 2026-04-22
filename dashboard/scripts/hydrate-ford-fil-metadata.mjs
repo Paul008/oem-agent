@@ -222,16 +222,19 @@ async function main() {
     }
 
     if (updates.length) {
-      // Upsert in a single call keyed on id (primary key).
-      const { error } = await supabase
-        .from('portal_assets')
-        .upsert(updates, { onConflict: 'id', ignoreDuplicates: false })
-      if (error) {
-        console.error(`\nBatch ${off / BATCH} upsert failed: ${error.message}`)
-        failed += updates.length
-      }
-      else {
-        done += updates.length
+      // Per-row UPDATE — upsert would try to re-insert and fail NOT NULL
+      // constraints on oem_id/cdn_url/etc. since we only pass enrichment cols.
+      const results = await mapLimit(updates, CONCURRENCY, async (u) => {
+        const { id, ...rest } = u
+        const { error } = await supabase.from('portal_assets').update(rest).eq('id', id)
+        return { ok: !error, error: error?.message }
+      })
+      for (const r of results) {
+        if (r?.ok) done++
+        else {
+          failed++
+          if (r?.error) console.error(`\n  update failed: ${r.error}`)
+        }
       }
     }
 
