@@ -1570,6 +1570,7 @@ app.get('/admin/test-ford-api', async (c) => {
 app.post('/admin/debug-crawl/:oemId', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const body = await c.req.json<{ url?: string }>().catch(() => ({ url: undefined }));
+  const withBrowser = c.req.query('render') === 'true';
 
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,
@@ -1603,7 +1604,7 @@ app.post('/admin/debug-crawl/:oemId', async (c) => {
   }
 
   try {
-    const result = await orchestrator.crawlPage(oemId, page as any, /* skipRender */ true);
+    const result = await orchestrator.crawlPage(oemId, page as any, /* skipRender */ !withBrowser);
 
     // Also check what's in discovered_apis and products now
     const { data: apis } = await supabase
