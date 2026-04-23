@@ -50,6 +50,11 @@ type BuildBlock = {
   keyFeatures: { code: string; descKf: string }[];
   tagLine?: string;
   specialInformation?: string;
+  // Everything below is flattened from the RSC wrapper's powerTrain.techSpecs
+  // and bodyStyle.images — Ford's authoritative figures vs our brochure-LLM
+  // approximation. `bodyGalleryUrls` are the 9 angle frames per body style.
+  techSpecs?: Record<string, unknown>;
+  bodyGalleryUrls?: string[];
 };
 
 /** Pull out a balanced JSON substring starting at a `{` or `[`. */
@@ -73,6 +78,45 @@ function parseBalanced(str: string, startIdx: number): string | null {
 function safeJson<T = any>(s: string | null): T | null {
   if (!s) return null;
   try { return JSON.parse(s) as T; } catch { return null; }
+}
+
+/**
+ * Ford nests techSpecs like:
+ *   fuel_and_performance.children.maximum_power.unitTypes.kW.value = "154"
+ *   fuel_and_performance.children.maximum_power.unitTypes.kW.unit  = "kW"
+ * Walk every leaf `unitTypes.<unit>` and flatten to
+ *   { maximum_power: { value: "154", unit: "kW" }, ... }
+ * so downstream code doesn't need to know the nested shape.
+ */
+function flattenTechSpecs(raw: unknown): Record<string, { value: string; unit: string }> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Record<string, { value: string; unit: string }> = {};
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const n = node as Record<string, unknown>;
+    if (n.children && typeof n.children === 'object') {
+      for (const [specKey, specVal] of Object.entries(n.children as Record<string, unknown>)) {
+        const specObj = specVal as Record<string, unknown>;
+        const unitTypes = specObj?.unitTypes as Record<string, unknown> | undefined;
+        if (unitTypes && typeof unitTypes === 'object') {
+          const firstUnit = Object.entries(unitTypes)[0];
+          if (firstUnit) {
+            const [unitKey, unitVal] = firstUnit;
+            const v = (unitVal as any)?.value;
+            if (v != null && v !== '-') {
+              out[specKey] = { value: String(v), unit: String((unitVal as any)?.unit ?? unitKey) };
+            }
+          }
+        }
+        // Nested group (e.g. img_tax has its own children)
+        if ((specVal as any)?.children) visit(specVal);
+      }
+    }
+    // Top-level techSpecs groups (img_tax, weights_and_loads, fuel_and_performance…)
+    for (const v of Object.values(n)) visit(v);
+  };
+  visit(raw);
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** In RSC streaming, `$$` is the escape for a literal `$`. */
@@ -157,6 +201,22 @@ function extractBuilds(rsc: string): BuildBlock[] {
       : seriesCode.includes('_VS-') ? seriesCode.split('_VS-').pop() ?? ''
       : seriesCode;
 
+    // Flatten powerTrain.techSpecs — Ford nests every spec under
+    //   <group>.children.<spec>.unitTypes.<unit>.value
+    // Collapse to a flat { spec_name: { value, unit } } dictionary.
+    const techSpecs = flattenTechSpecs(wrapper.powerTrain?.techSpecs);
+
+    // Per-body-style gallery: 9 angle frames. These are shared by every build
+    // with the same bodyStyle, but they're more authoritative than the
+    // static seed's angle set and are refreshed every run.
+    const bodyImages: unknown = wrapper.bodyStyle?.images?.exterior;
+    const bodyGalleryUrls: string[] = Array.isArray(bodyImages)
+      ? bodyImages.flatMap((entry: any) =>
+          Array.isArray(entry?.urls)
+            ? entry.urls.map((u: string) => u.startsWith('//') ? `https:${u}` : u)
+            : [])
+      : [];
+
     builds.push({
       tuple: dedupeKey,
       seriesCode,
@@ -169,6 +229,8 @@ function extractBuilds(rsc: string): BuildBlock[] {
       driveaway: drive,
       rrp,
       keyFeatures: Array.isArray(wrapper.keyFeatures?.features) ? wrapper.keyFeatures.features : [],
+      techSpecs,
+      bodyGalleryUrls,
     });
   }
 
@@ -381,8 +443,26 @@ async function processModel(
       if (delErr) { console.log(`  ✗ delete old driveaway for "${p.title}": ${delErr.message}`); continue; }
       const { error: insErr } = await sb.from('variant_pricing').insert(priceRow);
       if (insErr) { console.log(`  ✗ insert pricing for "${p.title}": ${insErr.message}`); continue; }
+
+      // Read current products row so we can merge RSC data into existing
+      // brochure-derived fields (specs_json, meta_json) rather than clobber them.
+      const { data: current } = await sb.from('products')
+        .select('specs_json,meta_json')
+        .eq('id', p.id).single();
+      const mergedSpecs = { ...(current?.specs_json ?? {}), ...(build.techSpecs ?? {}) };
+      const mergedMeta = {
+        ...(current?.meta_json ?? {}),
+        rsc_source: 'price_endpoint',
+        rsc_series_code: build.seriesCode,
+        rsc_power_train_code: build.powerTrainCode,
+        rsc_body_style_code: build.bodyStyleCode,
+        rsc_body_gallery_urls: build.bodyGalleryUrls ?? [],
+        rsc_fetched_at: new Date().toISOString(),
+      };
+
       // Denormalise onto products so the dashboard variants page (which reads
       // products.price_amount, not variant_pricing) can render Ford pricing.
+      // Also stamp the richer RSC tech specs and per-body gallery URLs.
       const { error: upErr } = await sb.from('products').update({
         variant_code: build.seriesCode,
         variant_name: build.seriesName,
@@ -390,6 +470,8 @@ async function processModel(
         price_currency: 'AUD',
         price_type: 'driveaway',
         price_raw_string: `$${Math.round(build.driveaway).toLocaleString('en-AU')} driveaway`,
+        specs_json: mergedSpecs,
+        meta_json: mergedMeta,
       }).eq('id', p.id);
       if (upErr) console.log(`  ! products.variant_code/price stamp failed for "${p.title}": ${upErr.message}`);
     }
