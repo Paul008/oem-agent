@@ -10,7 +10,7 @@
  */
 import 'dotenv/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { modelToUrlName } from './ford-url-map.ts';
+import { modelToUrlName, siblingSlugsFor } from './ford-url-map.ts';
 
 const APPLY = process.argv.includes('--apply');
 const SLUG_FILTER = process.argv.find((a) => a.startsWith('--slug='))?.split('=')[1];
@@ -130,9 +130,13 @@ function cleanUndefined<T>(v: T): T | null {
 function buildRow(acc: Accessory, modelSlug: string) {
   return {
     oem_id: 'ford-au',
-    external_key: `ford-au_${acc.id}`,
+    // Scope external_key by model_slug so sibling nameplates that legitimately
+    // reuse Ford part numbers (e.g. Ranger's A9BAC = "Stylish Dual Lift Canopy"
+    // vs Ranger-Hybrid's A9BAC = "Stylish Lift and Slide Canopy") each get
+    // their own row instead of stomping on each other via upsert.
+    external_key: `ford-au_${modelSlug}_${acc.id}`,
     name: acc.name.trim(),
-    slug: slugify(acc.name),
+    slug: slugify(`${modelSlug}-${acc.name}`),
     part_number: acc.id,
     category: acc.categoryName ?? null,
     price: acc.price,
@@ -175,18 +179,25 @@ async function processModel(model: { id: string; name: string; slug: string }): 
   }
 
   const accs = extractAccessories(rsc);
-  console.log(`  payload=${(rsc.length / 1024).toFixed(0)}k accessories=${accs.length}`);
+  // When this endpoint is shared by sibling nameplates (e.g. /Ranger serves
+  // both Ranger and Ranger-Raptor; /TransitCustom serves Transit Custom +
+  // PHEV + Trail), write a row for each sibling slug so every nameplate's
+  // dashboard page gets the accessories the endpoint lists.
+  const applicableSlugs = [model.slug, ...siblingSlugsFor(model.slug)];
+  console.log(`  payload=${(rsc.length / 1024).toFixed(0)}k accessories=${accs.length} applies_to=[${applicableSlugs.join(', ')}]`);
   if (!accs.length) return 0;
 
   let written = 0;
   for (const acc of accs) {
-    const row = buildRow(acc, model.slug);
-    if (APPLY) {
-      const { error } = await sb.from('accessories').upsert(row, { onConflict: 'oem_id,external_key' });
-      if (error) { console.log(`  ✗ upsert ${acc.id}: ${error.message}`); continue; }
+    for (const slug of applicableSlugs) {
+      const row = buildRow(acc, slug);
+      if (APPLY) {
+        const { error } = await sb.from('accessories').upsert(row, { onConflict: 'oem_id,external_key' });
+        if (error) { console.log(`  ✗ upsert ${acc.id} for ${slug}: ${error.message}`); continue; }
+      }
+      written++;
     }
-    console.log(`  ${APPLY ? '✓' : '+'} ${acc.id.padEnd(6)} $${acc.price.toLocaleString().padStart(8)}  [${acc.categoryName}]  ${acc.name}`);
-    written++;
+    console.log(`  ${APPLY ? '✓' : '+'} ${acc.id.padEnd(6)} $${acc.price.toLocaleString().padStart(8)}  [${acc.categoryName}]  ${acc.name}  ×${applicableSlugs.length}`);
   }
   return written;
 }
