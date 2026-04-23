@@ -9,7 +9,7 @@ How we fetch variant data (pricing, colors, specs, images, features) for each Au
 | OEM | API Type | Auth | Pricing | Colors/Images | Features | In Daily Sync |
 |-----|----------|------|---------|---------------|----------|---------------|
 | Kia | REST API + HTML scrape | None (UA + Referer) | RRP + driveaway (8 states) | HTML parse from B&P pages | Brochure PDFs → Groq LLM | Yes |
-| Ford | Polk API (PUT/GET) via Puppeteer | Akamai bypass (in-browser fetch) | RRP + driveaway per variant | Polk API image GUIDs | Polk API key features | Yes |
+| Ford | Menu JSON + brochure PDFs + public RSC (`_rsc=x`) — see Ford section below | None required (RSC is Akamai-open; PDFs plain fetch) | Driveaway + RRP from `/price/<Name>?_rsc=x` (40/50 products) | GPAS CDN: static seed + `/summary` enrichment; 100% hero/swatch/gallery | Groq Llama 3.3 from brochure PDFs + RSC keyFeatures | Out-of-band chain (`populate-ford-from-brochures.ts`); daily cron does change-detection only |
 | Nissan | 4 APIs (REST + GraphQL + CMS) | apiKey/clientKey + x-api-key | Driveaway via Choices API | CMS colors + Helios 360° renderer | GraphQL mainFeatures + CMS USPs | Yes |
 | Toyota | REST APIs via Puppeteer | None (UA + Referer) | RRP + driveaway via Finance API | rotorint.com CDN (360° + hero) | Not extracted | Yes |
 | Hyundai | 2-step REST API | None (UA + Referer) | RRP + driveaway (VIC) | Relative paths on hyundai.com | Not extracted | Yes |
@@ -156,80 +156,66 @@ Both write to `variant_colors.hero_image_url` — Sesimi colors script skips row
 
 ## 2. Ford Australia
 
-**Orchestrator:** `scripts/ford/syncFordPipeline.js`
-**Models:** 9 active (+ 2 disabled EVs) | **Variants:** 52 | **Colors:** 400
+**Orchestrator:** `scripts/populate-ford-from-brochures.ts` — **not** the legacy `scripts/ford/syncFordPipeline.js` which depended on Polk/Puppeteer and is deprecated (see "History" below). **Models:** 17 active + 1 inactive (Tourneo Custom) | **Products:** 50 | **Colors:** 301 | **Priced:** 40/50 | **Accessories:** 20.
 
-### Pipeline Flow
+For the full architecture + per-nameplate coverage table, see `docs/HANDOFF-ford-pipeline.md`. This section summarises only the pipeline shape.
 
-```
-① Discover via Polk API (Puppeteer loads ford.com.au, calls API from browser)
-   → data/ford/ford-color-guids.json
-   → data/ford/ford-key-features.json
-        ↓
-② Build from Cache
-   → output/ford/{model}.json
-        ↓
-③ Legacy JSON → ④ Brochures → ⑤ R2 Sync → ⑥ Supabase Sync
+### Canonical command
+
+```bash
+pnpm tsx scripts/populate-ford-from-brochures.ts --apply
 ```
 
-### API Endpoints
+Idempotent, ~5–7 min. Chains 6 steps:
 
-All Polk API calls MUST originate from within Puppeteer's `page.evaluate(fetch())` on ford.com.au — direct curl/axios calls are blocked by Akamai.
+1. **Brochure PDF → Groq LLM** → upserts `products` specs + lineup
+2. **Color re-seed** via `dashboard/scripts/seed-ford-colors.mjs` (static GPAS ref data)
+3. **Pricing + offers** via public RSC (`/price/<Name>?_rsc=x`)
+4. **Accessories** via RSC (`/price/<Name>/summary?_rsc=x`)
+5. **Colour premium pricing** via same `/summary`
+6. **Gallery enrichment** via same `/summary`, threshold-guarded
 
-| # | URL | Method | Returns |
-|---|-----|--------|---------|
-| 1 | `https://www.imgservices.ford.com/api/buy/vehicle/polk/update` | PUT | Stateful configurator — per-variant pricing, key features, chained configState |
-| 2 | `https://www.imgservices.ford.com/api/buy/vehicle/polk/describe` | GET | Stateless image lookup — exterior/interior/showroom images by GUID |
-| 3 | `https://www.ford.com.au/content/ford/au/en_au.vehiclesmenu.data` | GET | Full vehicle catalog menu (for new model detection) |
+### RSC endpoints (Akamai-open, no auth required)
 
-**Entry point (Puppeteer navigates to):**
-```
-https://www.ford.com.au/price/{modelSlug}?postalCode={postCode}&usageType=P
-```
+| URL pattern | Returns |
+|---|---|
+| `https://www.ford.com.au/price/<Name>?postalCode=3000&usageType=P&_rsc=x` | Full build list (series, powerTrain, bodyStyle, price, keyFeatures). Ranger 341KB / 20 builds; Everest 233KB / 6 builds; F-150 244KB / 3 builds. |
+| `https://www.ford.com.au/price/<Name>/summary?_rsc=x` | Colour palette, interior trims, accessories, multi-angle GPAS gallery frames. |
 
-**Polk `update` request body:**
-```json
+Headers: `User-Agent: Mozilla/5.0 Chrome/120` + `RSC: 1`. No cookies, no JavaScript execution.
+
+Ford's canonical `/price/<Name>` URLs don't map cleanly from slugs (RangerHybrid no dashes; F-150 / Mach-E keep dashes; Ranger-Raptor → /Ranger; Transit-Custom-Trail → /TransitCustom). Resolution is data-driven — `scripts/ford-url-map.ts` reads each nameplate's `additionalCTA` from `scripts/ford-vehiclesmenu.json` (refreshed by `scripts/fetch-ford-json.ts`). Adding a new nameplate = re-run fetch-ford-json.ts + sync-ford-models.ts, no code change.
+
+### RSC build wrapper shape
+
+Every `"basePrice":{` is two `{` levels inside:
+
+```jsonc
 {
-  "configState": "<base64 from previous response>",
-  "displayContext": "VISTA",
-  "feature": "<entity code or paint code>",
-  "locale": "en_AU",
-  "postCode": "3000",
-  "productType": "P",
-  "retrieve": "images,specs,featuresMkt,selectedMkt,featureImages,featureSpecs,keyFeatures,keyFeaturesModel,keyFeaturesWalkup,uscCodes,prices,featurePrices,content,disclaimers",
-  "suppressDisplayContext": true,
-  "unselect": false
+  "series":     { "name": "Wildtrak", "code": "ABML1_SE#R1" },
+  "powerTrain": { "name": "2.0L Bi-Turbo Diesel 10AT Part-Time 4x4", "code": "..." },
+  "bodyStyle":  { "name": "Double Cab Pick-up", "code": "CA#BC" },
+  "price":      { "basePrice": { "polkVehicleDriveAwayPrice": 75886.6, "grossRetail": 69890 } },
+  "keyFeatures":{ "features": [...] }
 }
 ```
 
-**Polk `describe` query params:**
-```
-locale=en_AU&retrieve=images&config={catalogId}~{seriesCode},{bodyCode},{powertrainCode},{paintCode}&namedConfig=default&postCode=3000&productType=P&suppressDisplayContext=true&displayContext=VISTA
-```
+`extractBuilds` walks up to that grandparent. An optional second pass finds `entity.code` blocks to pair offers. This shape is present even when no offer is attached (which is why Mustang — entity-less — extracts cleanly).
 
-**Image URL format:**
+### Coverage ceiling
+
+Ford publicly publishes Build & Price for 13 of 17 active nameplates. The remaining 4 (E-Transit, E-Transit Custom, Transit Van/Bus/Cab Chassis) return a 153KB template-only RSC with no build data. Those 10 products stay without `price_amount` until we add a Playwright Build & Price walker or alternate data source.
+
+### Image URL format (unchanged)
+
 ```
 https://www.gpas-cache.ford.com/guid/{guid}.png?catalogId={catalogId}
 ```
+All image URLs are proxied through `https://oem-agent.adme-dev.workers.dev/media/ford-au/<base64>` before persisting.
 
-**Puppeteer stealth flags required:**
-- `--disable-blink-features=AutomationControlled`
-- `--disable-web-security`
-- `navigator.webdriver` removed
-- Do NOT block stylesheets (breaks SPA hydration)
+### History
 
-### What Data Comes From Where
-
-| Data | Source |
-|------|--------|
-| Variant matrix (entity codes, grades, bodies, powertrains) | Polk `update` initial interception |
-| Per-variant pricing (RRP + driveaway + dealer delivery) | Polk `update` per entity code |
-| Key features per variant/grade | Polk `update` `keyFeatures` |
-| Color images (exterior, interior, showroom) | Polk `describe` (preferred, drift-free) or Polk `update` per paint code |
-| New model detection | Ford vehicles menu API |
-
-### Key Caveat: Grade Drift
-Polk `update` with paint codes can drift to a different grade's body styling on "hero colors" (e.g. Command Grey → Raptor, Blue Lightning → Sport). Use `polk/describe` for color images to avoid this.
+The legacy Polk/Puppeteer pipeline (`imgservices.ford.com/api/buy/vehicle/polk/update` via `page.evaluate` stealth) relied on a `configState` bootstrap that required browser rendering and had "grade drift" issues where hero colours silently switched bodyshapes. Ford migrated pricing delivery to their Next.js RSC framework in early 2026; `/price/<Name>?_rsc=x` exposes the same data without Puppeteer. The legacy files (`scripts/ford/syncFordPipeline.js`, etc.) are retained only for historical reference — see `scripts/populate-ford-db.ts` header comment for the deprecation note.
 
 ---
 

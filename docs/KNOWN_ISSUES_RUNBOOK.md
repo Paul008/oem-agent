@@ -67,6 +67,31 @@ Updated: 2026-03-25.
 **Diagnosis:** Check which pages errored by looking at `source_pages` for that OEM where `status = 'error'` or `error_message IS NOT NULL`.
 **Fix:** Fix the specific page errors (see patterns above), then reset page to active.
 
+### 10b. Ford trim/variant/pricing/accessories/colour data goes stale
+
+**Cause:** The orchestrator's legacy `enrichFordProductsWithVariants()` fetched `pricing.data` per nameplate, but Ford retired that endpoint in early 2026 in favour of their Polk/Nukleus API (`imgservices.ford.com/api/buy/vehicle/polk/update`), which requires a `configState` bootstrap that can't be produced without walking the Build & Price SPA.
+
+Ford refresh now runs **out-of-band** via a single chained script that hits public RSC endpoints (Ford's own Next.js `_rsc=x` mechanism, which is not Akamai-protected):
+
+```bash
+pnpm tsx scripts/populate-ford-from-brochures.ts --apply
+```
+
+That orchestrator chains 6 steps:
+
+1. **Brochure extraction** — Groq Llama 3.3 70B parses the spec-sheet PDFs (discovered per-nameplate at `/showroom/<cat>/<model>/`). Retries transient 429/5xx/network failures with exp. backoff; writes variants to `products` with `meta_json.source = 'brochure'`.
+2. **Color re-seed** — `dashboard/scripts/seed-ford-colors.mjs` rewrites all Ford `variant_colors` from static GPAS reference data (`~/Downloads/OEM-variants-main/data/ford/`).
+3. **Pricing + offers** — `populate-ford-pricing-rsc.ts` hits `/price/<Name>?_rsc=x`, extracts `{series, powerTrain, bodyStyle, price, keyFeatures}` wrappers, upserts `variant_pricing`, `offers`, and `products.price_amount` (so the dashboard variants page renders).
+4. **Accessories** — `populate-ford-accessories-rsc.ts` hits `/price/<Name>/summary?_rsc=x`, extracts priced factory-fit options, upserts into `accessories` on `(oem_id, external_key)`.
+5. **Colour premium pricing** — `populate-ford-colour-pricing-rsc.ts` hits the same `/summary`, updates `variant_colors.price_delta` + `is_standard` for paint upcharges.
+6. **Gallery enrichment** — `populate-ford-galleries-rsc.ts` appends /summary's multi-angle GPAS URLs to `variant_colors.gallery_urls`, threshold-guarded (only touches rows with fewer than 8 images).
+
+URL resolution is **data-driven**, not hardcoded — `scripts/ford-url-map.ts` reads `scripts/ford-vehiclesmenu.json` (refreshed by `scripts/fetch-ford-json.ts`) to derive every nameplate's canonical `/price/<Name>` path from Ford's own `additionalCTA` field. When Ford adds a nameplate, re-run `fetch-ford-json.ts` and no code change is needed.
+
+**Fix for operators:** run the chain. Idempotent; ~5–7 minutes. See `docs/HANDOFF-ford-pipeline.md` for full architecture + coverage tables.
+
+**Coverage ceiling**: Ford publicly publishes Build & Price for 13 of 17 active nameplates. E-Transit, E-Transit Custom, Transit Van / Bus / Cab Chassis (commercial EVs/vans) return template-only RSC — no public pricing. Those 10 products stay without `price_amount` until we add a Playwright configurator walker or alternate data source.
+
 ### 10. All pages for an OEM show `last_hash = NULL`
 **Cause:** Hashes weren't being stored (fixed in commit 184f977). Or the OEM has never had a successful crawl.
 **Fix:** Trigger one admin crawl: `POST /api/v1/oem-agent/admin/crawl/{oem-id}`. This seeds hashes via cheap fetch (skipRender=true). After seeding, subsequent crons skip rendering for unchanged pages.
