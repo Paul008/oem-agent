@@ -8,15 +8,19 @@ For `oem_id='ford-au'` in Supabase:
 
 | Table / column | Rows populated | Source |
 |---|---|---|
-| `products` (title, variant_name, variant_code, specs_json, key_features, power_kw, torque_nm, etc.) | 47 / 50 (rest are legacy Tourneo Custom — inactive model) | Brochure PDF → Groq LLM extraction |
-| `products.price_amount`, `price_type`, `price_raw_string`, `price_currency` | 40 / 50 | `/price/<Name>?_rsc=x` RSC |
-| `variant_pricing` (driveaway_*, rrp) | 37 rows | same RSC |
-| `offers` (title, description, validity_start/end) | ~11 rows | same RSC, entity blocks |
-| `accessories` (name, price, category, part_number, image_url, desc) | 20 rows | `/price/<Name>/summary?_rsc=x` |
-| `variant_colors` hero, swatch, gallery_urls | 301 / 301 (100%) | Static seed (`dashboard/scripts/seed-ford-colors.mjs`) + targeted RSC enrichment |
-| `variant_colors.price_delta`, `is_standard` | 157 premium / 144 standard | `/price/<Name>/summary?_rsc=x` |
+| `products` core (title, variant_name, variant_code, key_features, power_kw, torque_nm) | 47 / 50 (rest are legacy Tourneo Custom — inactive model) | Brochure PDF → Groq LLM extraction |
+| `products.specs_json` — up to **37 authoritative fields per variant** (engine_capacity, max_power/torque, kerbweight, GVM/GCM, towing braked/unbraked, fuel_tank_capacity, co2_emission, fuel consumption, axle_ratio, drive_type, etc.) | 37 / 50 | `/price/<Name>?_rsc=x` — `powerTrain.techSpecs` merged into brochure-derived specs |
+| `products.price_amount`, `price_type`, `price_raw_string`, `price_currency` | 40 / 50 (37 RSC + 3 legacy Tourneo) | `/price/<Name>?_rsc=x` RSC |
+| `products.meta_json.rsc_body_gallery_urls` — 9 GPAS angle URLs per body style | 37 / 50 | RSC `bodyStyle.images.exterior[]` |
+| `products.meta_json.rsc_series_code / rsc_power_train_code / rsc_body_style_code` | 37 / 50 | RSC wrapper identifiers (reproducible lookups) |
+| `variant_pricing` (driveaway_*, rrp, effective_date) | 37 rows | RSC |
+| `offers` (title, description, validity_start/end, eligibility) | 11 rows | RSC, `entity` blocks |
+| `accessories` (name, price, category, part_number, image_url, description_html) | 35 rows across 9 nameplates (incl. 2 free extras) | `/price/<Name>/summary?_rsc=x` — `featureOptions[]` |
+| `accessory_models` (many-to-many: accessory_id ↔ model_id) | 35 joins | sibling-slug propagation from same endpoint |
+| `variant_colors` hero, swatch, gallery_urls | 301 / 301 (100%) | Static seed + targeted RSC enrichment (Super Duty bumped 2 → 25 images/colour) |
+| `variant_colors.price_delta`, `is_standard` | 157 premium / 144 standard | RSC `/summary` — paint entries via colourchip detection |
 
-**Limit** (not a bug): the 10 products without `price_amount` are nameplates Ford genuinely does not publish a Build & Price endpoint for — E-Transit, E-Transit Custom, Transit Van, Transit Bus, Transit Cab Chassis, plus the retired Ranger XLS trim. Their `/price/<Name>` returns a 153KB template-only payload. Closing that gap requires either a Playwright-driven Build & Price flow or an alternate data source (RedBook, CarSales, dealer feeds).
+**Limit** (not a bug): the 10 products without `price_amount` are nameplates Ford genuinely does not publish a Build & Price endpoint for — E-Transit, E-Transit Custom, Transit Van, Transit Bus, Transit Cab Chassis, plus the retired Ranger XLS trim. Their `/price/<Name>` returns a 153KB template-only payload. F-150, Mustang Mach-E, and Tourneo ARE priced (featureOptions has been verified empty via balanced-JSON parse) but publish zero factory-fit accessories. Closing these gaps requires either a Playwright-driven Build & Price flow or an alternate data source (RedBook, CarSales, dealer feeds).
 
 ## Canonical command
 
@@ -46,15 +50,25 @@ Runs the full chain. Idempotent — re-running produces the same row counts. Typ
 │    - Populates hero_image_url, swatch_url, gallery_urls              │
 │                                                                      │
 │ 3. populate-ford-pricing-rsc.ts (RSC /price endpoint)                │
-│    - Grandparent-walk every "basePrice":{ block to its               │
+│    - Grandparent-walk every "basePrice":{ block to its full           │
 │      {series, powerTrain, bodyStyle, price, keyFeatures} wrapper     │
 │    - Match products by series.name (word-boundary), body, trans     │
-│    - Upsert variant_pricing + offers + products.price_amount         │
+│    - variant_pricing driveaway_* + rrp                                │
+│    - products.price_amount + price_type + price_raw_string            │
+│    - products.specs_json merged with Ford's authoritative             │
+│      powerTrain.techSpecs (kerbweight, GVM/GCM, towing, CO2,          │
+│      fuel consumption, engine cc, axle ratio, and ~30 more fields)    │
+│    - products.meta_json.rsc_body_gallery_urls: 9 angle frames         │
+│      per body style from bodyStyle.images.exterior[]                  │
+│    - offers via secondary entity pass                                 │
 │                                                                      │
 │ 4. populate-ford-accessories-rsc.ts (RSC /summary endpoint)          │
-│    - Walk every "id":"..." block, keep state=A + price>0 + non-     │
-│      config category                                                 │
-│    - Upsert into accessories on (oem_id, external_key)               │
+│    - Walk every "id":"..." block, keep state=A + price>=0 + non-     │
+│      config category (free extras like $0 Snorkel Removal included)  │
+│    - external_key scoped per model_slug so sibling nameplates that   │
+│      reuse Ford part codes each get their own row                    │
+│    - Upsert accessories (oem_id, external_key) + accessory_models    │
+│      join rows propagated across all applicable sibling slugs        │
 │                                                                      │
 │ 5. populate-ford-colour-pricing-rsc.ts (RSC /summary endpoint)       │
 │    - Find paint entries by /colourchip/ image path                   │
