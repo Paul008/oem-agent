@@ -182,3 +182,56 @@ If public RSC ever stops being enough (currently 40/50 priced), the two viable r
 - **Alternate data source** — RedBook API, CarSales partner feed, dealer network. Quality/freshness/legal constraints vary.
 
 Neither is needed for the 40/50 today — flag only if missing nameplates become material to the product.
+
+---
+
+## Next session — open threads
+
+Three pieces of follow-up work identified at the end of the 2026-04-23 session. All are independent and can be picked up in any order.
+
+### 1. Per-state driveaway pricing (data bug, real impact)
+
+**Problem:** `populate-ford-pricing-rsc.ts` fetches `/price/<Name>?postalCode=3000&usageType=P&_rsc=x` once per nameplate and copies the single `polkVehicleDriveAwayPrice` into all 8 `variant_pricing.driveaway_*` columns. Postcode 3000 is Melbourne, so every state column actually holds VIC pricing.
+
+Ford's RSC is postcode-sensitive — stamp duty, CTP, and rego differ per state. Verified spread for Ranger Sport 2.0L BiT:
+```
+VIC 3000: $72,289   QLD 4000: $72,309   NT 0800: $72,356
+SA 5000:  $72,509   TAS 7000: $72,981   NSW 2000: $73,443
+ACT 2601: $73,524   WA 6000:  $75,176   ← +$2.9k vs VIC
+```
+
+**Fix:** in `processModel`, swap the single fetch for 8 parallel fetches (one per capital-city postcode) and populate each `driveaway_<state>` column from its matching payload. RRP / offers / techSpecs / accessories / colour pricing are NOT postcode-sensitive — keep single-fetch for those. Expected scale: ~104 fetches per run (13 priced nameplates × 8 states), all parallel, under a minute.
+
+Postcode map:
+```ts
+const STATE_POSTCODES: Record<string, string> = {
+  nsw: '2000', vic: '3000', qld: '4000', wa: '6000',
+  sa:  '5000', tas: '7000', act: '2601', nt: '0800',
+};
+```
+
+`products.price_amount` (single headline figure) should keep the VIC value as the default display price, since most dashboard users are eastern-seaboard.
+
+### 2. Automated Ford refresh (cron)
+
+Currently everything runs manually via `pnpm tsx scripts/populate-ford-from-brochures.ts --apply`. No cron. Other OEMs in this repo refresh daily via `src/orchestrator.ts`. Options:
+
+- **Simplest**: add a Cloudflare Worker cron trigger (weekly is enough — Ford prices don't change daily). Existing Cloudflare infra is already deployed for the dashboard.
+- **Run cadence**: weekly for the brochure + colour seed (expensive LLM extraction); daily for the 4 RSC scripts (cheap, idempotent, refreshes offers / paint premiums / Ford tweaks).
+- **Watch list**: brochure URLs in `vehicle_models.brochure_url` can go stale if Ford publishes a new MY — detect 404s and fall back to the previous successful run.
+
+### 3. Dealer accessory catalog (Playwright)
+
+Current `accessories` coverage is 35 rows from Ford's `/summary` `featureOptions` — factory-fit options only. Ford's full dealer catalog at `https://www.ford.com.au/accessories/<model>/` is 403-blocked on plain fetch (Akamai). Every other accessory-rich OEM uses Playwright via `dashboard/scripts/seed-<oem>-accessories.mjs` (KGM: 225, Mitsubishi: 223, Mazda: 266). New `seed-ford-accessories.mjs` following the same template should unlock 100-300 more accessories per nameplate. See `docs/ACCESSORIES_DISCOVERY.md` for the shared pattern.
+
+**Note:** the existing 35 `accessories` + 35 `accessory_models` join rows should stay — they're the factory-fit-at-order-time options, which are distinct from dealer-installed. Use `meta_json.source` to distinguish: `'rsc_summary'` (current) vs `'dealer_catalog'` (new).
+
+---
+
+## Session state at handoff (2026-04-23 04:23 UTC)
+
+- DB fresh: all 37 Ford priced products + 35 accessories + 301 variant_colors
+- Code state: 13 commits ahead on origin/main, all pushed
+- Deployment: oem-dashboard.pages.dev redeployed with ABN price display + meta_json in fetchProducts
+- Open PRs: none
+- Blocked on: nothing — the three threads above are standalone new work
