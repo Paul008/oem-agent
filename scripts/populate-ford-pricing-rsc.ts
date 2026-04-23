@@ -14,6 +14,7 @@
 import 'dotenv/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
+import { modelToUrlName, siblingSlugsFor } from './ford-url-map.ts';
 
 const APPLY = process.argv.includes('--apply');
 const SLUG_FILTER = process.argv.find((a) => a.startsWith('--slug='))?.split('=')[1];
@@ -315,11 +316,10 @@ function hash(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
 
-// ---- URL builder ----
-
-function modelToUrlName(slug: string): string {
-  return slug.split('-').map((s) => s ? s[0].toUpperCase() + s.slice(1) : s).join('-');
-}
+// URL resolution (modelToUrlName, siblingSlugsFor) is imported from
+// ./ford-url-map.ts at the top of the file. That module loads Ford's own
+// nameplate menu JSON so the mapping updates whenever
+// `scripts/fetch-ford-json.ts` is re-run.
 
 // ---- Per-model processing ----
 
@@ -455,15 +455,6 @@ async function processModel(
 
 // ---- Main ----
 
-// When a parent nameplate's /price endpoint contains builds that actually
-// belong to a separate vehicle_model (e.g. the Raptor build is served from
-// /price/Ranger, not from its own /price/Ranger-Raptor endpoint which returns
-// template-only), include products from those sibling models in the match
-// pool. Extend this map as new cross-model cases are observed.
-const EXTRA_MODELS: Record<string, string[]> = {
-  ranger: ['ranger-raptor'],
-};
-
 async function main() {
   // Fetch all Ford active models once (regardless of SLUG_FILTER) so that
   // cross-model matching can resolve slugs in EXTRA_MODELS.
@@ -481,9 +472,21 @@ async function main() {
   console.log(`Mode: ${APPLY ? 'APPLY' : 'DRY-RUN'}${SLUG_FILTER ? ` (slug=${SLUG_FILTER})` : ''}`);
   console.log(`Models: ${models.length}  Products: ${allProducts?.length ?? 0}`);
 
+  // Multiple nameplates share a single Build & Price endpoint
+  // (Ranger/Ranger-Raptor both hit /Ranger; all Transit-Custom variants hit
+  // /TransitCustom). Dedupe fetches so we only hit each unique URL once —
+  // match pool expansion via EXTRA_MODELS already pulls in sibling products.
+  const processedUrls = new Set<string>();
+
   let totalP = 0, totalO = 0;
   for (const m of models) {
-    const slugs = [m.slug, ...(EXTRA_MODELS[m.slug] ?? [])];
+    const urlName = modelToUrlName(m.slug);
+    if (processedUrls.has(urlName)) {
+      console.log(`\n[${m.name}] /${urlName} already fetched via sibling iteration — skipping`);
+      continue;
+    }
+    processedUrls.add(urlName);
+    const slugs = [m.slug, ...siblingSlugsFor(m.slug)];
     const poolModelIds = slugs.map((s) => slugToId.get(s)).filter(Boolean) as string[];
     const prods = (allProducts ?? []).filter((p) => poolModelIds.includes(p.model_id));
     const r = await processModel(m, prods);

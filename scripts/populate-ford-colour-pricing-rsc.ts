@@ -14,6 +14,7 @@
  */
 import 'dotenv/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { modelToUrlName, siblingSlugsFor } from './ford-url-map.ts';
 
 const APPLY = process.argv.includes('--apply');
 const SLUG_FILTER = process.argv.find((a) => a.startsWith('--slug='))?.split('=')[1];
@@ -97,11 +98,7 @@ function extractPaints(rsc: string): PaintOption[] {
   return out;
 }
 
-// ---- URL ----
-
-function modelToUrlName(slug: string): string {
-  return slug.split('-').map((s) => s ? s[0].toUpperCase() + s.slice(1) : s).join('-');
-}
+// URL resolution imported from ./ford-url-map.ts (menu-driven).
 
 // ---- Per-model ----
 
@@ -125,8 +122,15 @@ async function processModel(model: { id: string; name: string; slug: string }) {
   console.log(`  payload=${(rsc.length / 1024).toFixed(0)}k paints=${paints.length} (active=${active.length})`);
   if (!active.length) return { matched: 0, updated: 0, unmatched: 0 };
 
-  // Products of this model
-  const { data: prods } = await sb.from('products').select('id,title').eq('oem_id', 'ford-au').eq('model_id', model.id);
+  // Products of this model + any siblings that share the same /summary
+  // endpoint (e.g. Transit-Custom's paints apply equally to Transit-Custom-PHEV
+  // and Transit-Custom-Trail since all three render the same colour palette).
+  const siblings = siblingSlugsFor(model.slug);
+  const candidateSlugs = [model.slug, ...siblings];
+  const { data: siblingModels } = await sb.from('vehicle_models')
+    .select('id').eq('oem_id', 'ford-au').in('slug', candidateSlugs);
+  const modelIds = (siblingModels ?? []).map((m) => m.id);
+  const { data: prods } = await sb.from('products').select('id,title').eq('oem_id', 'ford-au').in('model_id', modelIds);
   const productIds = (prods ?? []).map((p) => p.id);
   if (!productIds.length) { console.log(`  (no products for this model)`); return { matched: 0, updated: 0, unmatched: 0 }; }
 
@@ -194,8 +198,19 @@ async function main() {
   console.log(`Mode: ${APPLY ? 'APPLY' : 'DRY-RUN'}${SLUG_FILTER ? ` (slug=${SLUG_FILTER})` : ''}`);
   console.log(`Models: ${models.length}`);
 
+  // Dedupe URL fetches — sibling slugs share the same /summary endpoint and
+  // the colour palette is resolved at the URL level (processModel already
+  // pulls sibling products into the match pool). Without this we'd fetch the
+  // same 222k payload two or three times for Transit Custom family.
+  const processedUrls = new Set<string>();
   let totalMatched = 0, totalUpdated = 0, totalUnmatched = 0;
   for (const m of models) {
+    const urlName = modelToUrlName(m.slug);
+    if (processedUrls.has(urlName)) {
+      console.log(`\n[${m.name}] /${urlName}/summary already fetched via sibling — skipping`);
+      continue;
+    }
+    processedUrls.add(urlName);
     const r = await processModel(m);
     totalMatched += r.matched;
     totalUpdated += r.updated;

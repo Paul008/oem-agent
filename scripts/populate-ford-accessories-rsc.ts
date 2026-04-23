@@ -10,6 +10,7 @@
  */
 import 'dotenv/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { modelToUrlName } from './ford-url-map.ts';
 
 const APPLY = process.argv.includes('--apply');
 const SLUG_FILTER = process.argv.find((a) => a.startsWith('--slug='))?.split('=')[1];
@@ -153,11 +154,8 @@ function buildRow(acc: Accessory, modelSlug: string) {
   };
 }
 
-// ---- URL ----
-
-function modelToUrlName(slug: string): string {
-  return slug.split('-').map((s) => s ? s[0].toUpperCase() + s.slice(1) : s).join('-');
-}
+// URL resolution imported from ./ford-url-map.ts (menu-driven — see that file
+// for the reasoning behind not hand-rolling the slug → URL mapping).
 
 // ---- Per-model ----
 
@@ -207,8 +205,21 @@ async function main() {
   console.log(`Mode: ${APPLY ? 'APPLY' : 'DRY-RUN'}${SLUG_FILTER ? ` (slug=${SLUG_FILTER})` : ''}`);
   console.log(`Models: ${models.length}`);
 
+  // Sibling nameplates (e.g. Transit-Custom, Transit-Custom-PHEV,
+  // Transit-Custom-Trail) share a single /summary endpoint via the menu-driven
+  // URL map. Only fetch each unique URL once — the matched accessory set is
+  // OEM-level anyway, not per-variant.
+  const processedUrls = new Set<string>();
   let total = 0;
-  for (const m of models) total += await processModel(m);
+  for (const m of models) {
+    const urlName = modelToUrlName(m.slug);
+    if (processedUrls.has(urlName)) {
+      console.log(`\n[${m.name}] /${urlName}/summary already fetched via sibling — skipping`);
+      continue;
+    }
+    processedUrls.add(urlName);
+    total += await processModel(m);
+  }
 
   console.log(`\n=== Summary ===`);
   console.log(`Accessories written: ${total}`);
