@@ -256,7 +256,7 @@ export function useOemData() {
   async function fetchProducts() {
     const { data, error: err } = await supabase
       .from('products')
-      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, availability, specs_json, last_seen_at')
+      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, availability, specs_json, meta_json, last_seen_at')
       .order('oem_id, title')
     if (err) throw err
     return (data ?? []) as Product[]
