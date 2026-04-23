@@ -36,10 +36,14 @@ const RSC_HEADERS = {
 // ---- RSC parsing ----
 
 type BuildBlock = {
-  tuple: string;
+  tuple: string;            // synthesised "<seriesCode>|<powerTrainCode>|<bodyStyleCode>"
   seriesCode: string;       // "ABML1_SE#F7" or "ACMRE_VS-AB"
   seriesShort: string;      // "F7" or "AB"
-  seriesName?: string;      // "Sport" / "EcoBoost" — filled from descriptor map
+  seriesName?: string;      // "Sport" / "EcoBoost" / "GT" / "Wildtrak"
+  bodyStyleName?: string;   // "Double Cab Pick-up" / "Fastback" / "Convertible" / "SUV"
+  bodyStyleCode?: string;
+  powerTrainName?: string;  // "2.0L Bi-Turbo Diesel 10AT Part-Time 4x4"
+  powerTrainCode?: string;
   driveaway: number;
   rrp: number;
   keyFeatures: { code: string; descKf: string }[];
@@ -84,101 +88,180 @@ function extractSeriesMap(rsc: string): Map<string, string> {
   return map;
 }
 
-function extractBuilds(rsc: string): BuildBlock[] {
-  // Ranger-style payloads put all builds inside the single big line prefixed `5:`.
-  // Fall back to the whole payload otherwise (some nameplates use a different layout).
-  const lines = rsc.split('\n');
-  const big = lines.find((l) => /^5:/.test(l));
-  const text = big ? big.slice(2) : rsc;
+/**
+ * Walk up the brace tree `levels` levels from `idx`, then return the position
+ * of the enclosing '{'. Used to find the build wrapper that sits 2 levels
+ * above each `basePrice` block.
+ */
+function findAncestorBrace(str: string, idx: number, levels: number): number {
+  let pos = idx;
+  for (let lv = 0; lv < levels; lv++) {
+    let depth = 0;
+    while (pos > 0) {
+      pos--;
+      if (str[pos] === '}') depth++;
+      if (str[pos] === '{') { if (depth === 0) break; depth--; }
+    }
+    pos--;
+  }
+  while (pos < str.length && str[pos] !== '{') pos++;
+  return pos;
+}
 
+/**
+ * Extract one BuildBlock per unique (series, powerTrain, bodyStyle) triple.
+ *
+ * The earlier entity-based extractor only captured builds that Ford decorated
+ * with an offer (entity.code/tagLine), which missed Mustang (no entities at
+ * all) and the majority of Ranger/Everest builds. Ford's actual build wrapper
+ * sits two levels up from every basePrice and always contains a clean
+ * `{series, powerTrain, bodyStyle, price, keyFeatures}` shape, whether or not
+ * an offer is attached.
+ *
+ * Offer data (tagLine / specialInformation) is collected separately in a
+ * second pass since it's not always inside the build wrapper.
+ */
+function extractBuilds(rsc: string): BuildBlock[] {
   const builds: BuildBlock[] = [];
   const seen = new Set<string>();
+
   let scan = 0;
   while (true) {
-    const pIdx = text.indexOf('"basePrice":{', scan);
+    const pIdx = rsc.indexOf('"basePrice":{', scan);
     if (pIdx < 0) break;
+    scan = pIdx + 12;
 
-    const bpRaw = parseBalanced(text, pIdx + '"basePrice":'.length);
-    const bp = safeJson<any>(bpRaw);
+    const gpStart = findAncestorBrace(rsc, pIdx, 2);
+    const gpBlob = parseBalanced(rsc, gpStart);
+    const wrapper = safeJson<any>(gpBlob);
+    if (!wrapper || !wrapper.price || !wrapper.series) continue;
 
-    // Find the "entity":{ between this basePrice and the next one.
-    const nextBP = text.indexOf('"basePrice":{', pIdx + 12);
-    const entIdx = text.indexOf('"entity":{', pIdx);
-    const hasEntity = entIdx > pIdx && (nextBP < 0 || entIdx < nextBP);
-    const entity = hasEntity ? safeJson<any>(parseBalanced(text, entIdx + '"entity":'.length)) : null;
+    const seriesCode: string = wrapper.series.code ?? '';
+    const seriesName: string | undefined = wrapper.series.name;
+    const bodyStyleCode: string | undefined = wrapper.bodyStyle?.code;
+    const bodyStyleName: string | undefined = wrapper.bodyStyle?.name;
+    const powerTrainCode: string | undefined = wrapper.powerTrain?.code;
+    const powerTrainName: string | undefined = wrapper.powerTrain?.name;
 
-    // keyFeatures usually sits between basePrice and entity.
-    const kfIdx = text.indexOf('"keyFeatures":{', pIdx);
-    const kf = kfIdx > pIdx && (!hasEntity || kfIdx < entIdx)
-      ? safeJson<any>(parseBalanced(text, kfIdx + '"keyFeatures":'.length))
-      : null;
+    const dedupeKey = `${seriesCode}|${powerTrainCode ?? ''}|${bodyStyleCode ?? ''}`;
+    if (!seriesCode || seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
 
-    scan = (hasEntity ? entIdx : pIdx) + 12;
+    const bp = wrapper.price.basePrice ?? {};
+    const drive = typeof bp.polkVehicleDriveAwayPrice === 'number' ? bp.polkVehicleDriveAwayPrice : 0;
+    const rrp = typeof bp.grossRetail === 'number' ? bp.grossRetail : 0;
+    if (!drive || !rrp) continue;
 
-    if (!bp || !entity?.code) continue;
-    const tuple: string = entity.code;
-    if (seen.has(tuple)) continue;
-    seen.add(tuple);
+    const seriesShort = seriesCode.includes('_SE#') ? seriesCode.split('_SE#').pop() ?? ''
+      : seriesCode.includes('_VS-') ? seriesCode.split('_VS-').pop() ?? ''
+      : seriesCode;
 
-    // Tuples come in two shapes:
-    //   Ranger/Everest: "ABML1_CA#BC_DGACX_DR--G_EN-YN_SE#F7_TR-EU" (platform + segments)
-    //   Mustang:        "ACMRE_VS-AB"                               (platform + series)
-    // The series descriptor map is keyed by `<platform>_<SE#|VS-><code>`, so we
-    // must rebuild the key by combining the first segment (platform) with the
-    // series segment — not just grab the nearest `[A-Z0-9]+_SE#XX` match.
-    const parts = tuple.split('_');
-    const platform = parts[0] ?? '';
-    const seriesSegment = parts.find((p) => p.startsWith('SE#') || p.startsWith('VS-')) ?? '';
-    const seriesCode = platform && seriesSegment ? `${platform}_${seriesSegment}` : '';
-    const seriesShort = seriesSegment.replace(/^(SE#|VS-)/, '');
     builds.push({
-      tuple,
+      tuple: dedupeKey,
       seriesCode,
       seriesShort,
-      driveaway: typeof bp.polkVehicleDriveAwayPrice === 'number' ? bp.polkVehicleDriveAwayPrice : 0,
-      rrp: typeof bp.grossRetail === 'number' ? bp.grossRetail : 0,
-      keyFeatures: Array.isArray(kf?.features) ? kf.features : [],
-      tagLine: cleanDollarEscape(entity.tagLine),
-      specialInformation: cleanDollarEscape(entity.specialInformation),
+      seriesName,
+      bodyStyleCode,
+      bodyStyleName,
+      powerTrainCode,
+      powerTrainName,
+      driveaway: drive,
+      rrp,
+      keyFeatures: Array.isArray(wrapper.keyFeatures?.features) ? wrapper.keyFeatures.features : [],
     });
+  }
+
+  // Second pass: pair each build with the nearest `entity` offer (if any).
+  const entities = extractEntityOffers(rsc);
+  for (const b of builds) {
+    const match = entities.find((e) => e.seriesCode === b.seriesCode);
+    if (match) {
+      b.tagLine = match.tagLine;
+      b.specialInformation = match.specialInformation;
+    }
   }
   return builds;
 }
 
+function extractEntityOffers(rsc: string): { seriesCode: string; tagLine?: string; specialInformation?: string }[] {
+  const out: { seriesCode: string; tagLine?: string; specialInformation?: string }[] = [];
+  let scan = 0;
+  while (true) {
+    const idx = rsc.indexOf('"entity":{', scan);
+    if (idx < 0) break;
+    scan = idx + 10;
+    const blob = parseBalanced(rsc, idx + '"entity":'.length);
+    const ent = safeJson<any>(blob);
+    if (!ent?.code) continue;
+    const parts = String(ent.code).split('_');
+    const platform = parts[0] ?? '';
+    const segment = parts.find((p: string) => p.startsWith('SE#') || p.startsWith('VS-')) ?? '';
+    const seriesCode = platform && segment ? `${platform}_${segment}` : '';
+    if (!seriesCode) continue;
+    out.push({
+      seriesCode,
+      tagLine: cleanDollarEscape(ent.tagLine),
+      specialInformation: cleanDollarEscape(ent.specialInformation),
+    });
+  }
+  return out;
+}
+
+// Retained so existing callers compile; extractBuilds now fills seriesName
+// directly from wrapper.series.name so this is a no-op when the map is absent.
 function annotateSeriesNames(builds: BuildBlock[], map: Map<string, string>): void {
-  for (const b of builds) if (b.seriesCode && map.has(b.seriesCode)) b.seriesName = map.get(b.seriesCode);
+  for (const b of builds) {
+    if (!b.seriesName && b.seriesCode && map.has(b.seriesCode)) b.seriesName = map.get(b.seriesCode);
+  }
 }
 
 // ---- Product ↔ series matching ----
 
 /**
- * Pick the single build that best represents a product.
- * Longest matching series name (e.g. "Platinum" beats "XL"), then tie-break by
- * tokens in the title hitting keyFeatures descKf (e.g. "Manual"/"Auto"/"V8").
+ * Pick the build that best represents a product. Matching uses the full
+ * {series, body, powerTrain} shape now available in every BuildBlock.
+ *
+ * 1. Filter to builds whose series name appears in the product title (case-
+ *    insensitive). Prefer the longest match so "Wildtrak" beats "XL".
+ * 2. If multiple candidates remain, score each against title tokens that
+ *    appear in bodyStyleName, powerTrainName, or keyFeatures descKf. That
+ *    handles the Mustang case cleanly: "Mustang GT Fastback Manual" scores
+ *    high against the build with bodyStyleName="Fastback" and
+ *    powerTrainName="5.0L V8  6-Speed Manual RWD Petrol".
+ * 3. Final tie-break: cheapest driveaway ("from $X" semantics for products
+ *    like "Ranger XL" which cover multiple configurations).
  */
 function pickBuildForProduct(product: { title: string }, builds: BuildBlock[]): BuildBlock | null {
   const title = product.title.toLowerCase();
 
   const candidates = builds.filter((b) => {
     const name = b.seriesName?.toLowerCase();
-    return name && title.includes(name);
+    if (!name) return false;
+    // Word-boundary match so "Ranger XLS" doesn't false-match series "XL".
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(title);
   });
   if (!candidates.length) return null;
 
-  // Prefer the candidate whose series name is the longest match.
   const maxLen = Math.max(...candidates.map((b) => b.seriesName!.length));
   const top = candidates.filter((b) => b.seriesName!.length === maxLen);
   if (top.length === 1) return top[0];
 
-  // Tie-break: score by how many non-series title tokens appear in tuple + features.
   const seriesWords = new Set(top[0].seriesName!.toLowerCase().split(/\s+/));
-  const titleTokens = title.split(/[\s-]+/).filter((t) => t.length > 2 && !seriesWords.has(t));
+  const titleTokens = title
+    .split(/[\s-]+/)
+    .filter((t) => t.length > 2 && !seriesWords.has(t));
 
-  const scored = top.map((b) => {
-    const hay = (b.tuple + ' ' + b.keyFeatures.map((f) => f.descKf).join(' ')).toLowerCase();
-    const hits = titleTokens.filter((t) => hay.includes(t)).length;
-    return { b, hits };
-  }).sort((a, z) => z.hits - a.hits || a.b.driveaway - z.b.driveaway);
+  // Only score against body + powerTrain. Features like "Android Auto" in
+  // keyFeatures descKf would cause false positives on the word "auto" in
+  // product titles like "Mustang GT Fastback Auto" vs "… Manual".
+  const scored = top
+    .map((b) => {
+      const hay = `${b.bodyStyleName ?? ''} ${b.powerTrainName ?? ''}`.toLowerCase();
+      const hits = titleTokens.filter((t) => hay.includes(t)).length;
+      return { b, hits };
+    })
+    .sort((a, z) => z.hits - a.hits || a.b.driveaway - z.b.driveaway);
 
   return scored[0]?.b ?? null;
 }
@@ -372,24 +455,37 @@ async function processModel(
 
 // ---- Main ----
 
+// When a parent nameplate's /price endpoint contains builds that actually
+// belong to a separate vehicle_model (e.g. the Raptor build is served from
+// /price/Ranger, not from its own /price/Ranger-Raptor endpoint which returns
+// template-only), include products from those sibling models in the match
+// pool. Extend this map as new cross-model cases are observed.
+const EXTRA_MODELS: Record<string, string[]> = {
+  ranger: ['ranger-raptor'],
+};
+
 async function main() {
-  const modelQ = sb.from('vehicle_models').select('id,name,slug').eq('oem_id', 'ford-au').eq('is_active', true);
-  if (SLUG_FILTER) modelQ.eq('slug', SLUG_FILTER);
-  const { data: models, error: mErr } = await modelQ;
-  if (mErr || !models?.length) {
+  // Fetch all Ford active models once (regardless of SLUG_FILTER) so that
+  // cross-model matching can resolve slugs in EXTRA_MODELS.
+  const { data: allModels, error: mErr } = await sb.from('vehicle_models')
+    .select('id,name,slug').eq('oem_id', 'ford-au').eq('is_active', true);
+  if (mErr || !allModels?.length) {
     console.error('No models found:', mErr?.message ?? '(empty)');
     process.exit(1);
   }
+  const models = SLUG_FILTER ? allModels.filter((m) => m.slug === SLUG_FILTER) : allModels;
+  const slugToId = new Map(allModels.map((m) => [m.slug, m.id]));
 
-  const modelIds = models.map((m) => m.id);
-  const { data: allProducts } = await sb.from('products').select('id,title,model_id').eq('oem_id', 'ford-au').in('model_id', modelIds);
+  const { data: allProducts } = await sb.from('products').select('id,title,model_id').eq('oem_id', 'ford-au').in('model_id', allModels.map((m) => m.id));
 
   console.log(`Mode: ${APPLY ? 'APPLY' : 'DRY-RUN'}${SLUG_FILTER ? ` (slug=${SLUG_FILTER})` : ''}`);
   console.log(`Models: ${models.length}  Products: ${allProducts?.length ?? 0}`);
 
   let totalP = 0, totalO = 0;
   for (const m of models) {
-    const prods = (allProducts ?? []).filter((p) => p.model_id === m.id);
+    const slugs = [m.slug, ...(EXTRA_MODELS[m.slug] ?? [])];
+    const poolModelIds = slugs.map((s) => slugToId.get(s)).filter(Boolean) as string[];
+    const prods = (allProducts ?? []).filter((p) => poolModelIds.includes(p.model_id));
     const r = await processModel(m, prods);
     totalP += r.priceRows;
     totalO += r.offerRows;
