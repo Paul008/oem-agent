@@ -521,6 +521,10 @@ async function processModel(
         price_raw_string: `$${Math.round(build.driveaway).toLocaleString('en-AU')} driveaway`,
         specs_json: mergedSpecs,
         meta_json: mergedMeta,
+        // Bump audit column so dashboards that sort/filter by updated_at
+        // reflect the most recent RSC pricing refresh rather than the last
+        // brochure upsert.
+        updated_at: new Date().toISOString(),
       }).eq('id', p.id);
       if (upErr) console.log(`  ! products.variant_code/price stamp failed for "${p.title}": ${upErr.message}`);
     }
