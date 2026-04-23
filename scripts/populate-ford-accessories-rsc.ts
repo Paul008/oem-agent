@@ -92,9 +92,13 @@ function extractAccessories(rsc: string): Accessory[] {
     if (!obj || typeof obj.id !== 'string') continue;
     if (seen.has(obj.id)) continue;
 
-    // Filter: must be active, priced, non-config, with a plausible name.
+    // Filter: must be active, has numeric price (including $0 for free
+    // extras like "Matching Full Size Spare Wheel" on Ranger Hybrid or
+    // "Snorkel Removal" on Ranger Super Duty), non-config category, plausible
+    // name. Items priced `$undefined` are interior/default trims — those
+    // belong on variant_colors/trim metadata, not the accessories table.
     if (obj.state !== 'A') continue;
-    if (typeof obj.price !== 'number' || obj.price <= 0) continue;
+    if (typeof obj.price !== 'number' || obj.price < 0) continue;
     if (!obj.categoryName || CONFIG_CATEGORIES.has(obj.categoryName)) continue;
     if (typeof obj.name !== 'string' || obj.name === '$undefined') continue;
 
