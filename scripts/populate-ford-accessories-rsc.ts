@@ -187,18 +187,50 @@ async function processModel(model: { id: string; name: string; slug: string }): 
   console.log(`  payload=${(rsc.length / 1024).toFixed(0)}k accessories=${accs.length} applies_to=[${applicableSlugs.join(', ')}]`);
   if (!accs.length) return 0;
 
+  // Resolve slug → model_id once so we can write accessory_models join rows.
+  const slugToModelId = new Map<string, string>();
+  {
+    const { data: modelRows } = await sb.from('vehicle_models')
+      .select('id,slug').eq('oem_id', 'ford-au').in('slug', applicableSlugs);
+    for (const m of modelRows ?? []) slugToModelId.set(m.slug, m.id);
+  }
+
   let written = 0;
+  let joinsWritten = 0;
   for (const acc of accs) {
     for (const slug of applicableSlugs) {
       const row = buildRow(acc, slug);
+      let accessoryId: string | null = null;
       if (APPLY) {
-        const { error } = await sb.from('accessories').upsert(row, { onConflict: 'oem_id,external_key' });
+        // Upsert the accessory and grab the id back so we can link it in
+        // accessory_models. Other OEM accessories live in accessory_models too
+        // (2,981 joins across KGM/Kia/Nissan/Mazda/...) — this is the proper
+        // per-model attribution, not just meta_json.model_slug.
+        const { data: upserted, error } = await sb
+          .from('accessories')
+          .upsert(row, { onConflict: 'oem_id,external_key' })
+          .select('id')
+          .single();
         if (error) { console.log(`  ✗ upsert ${acc.id} for ${slug}: ${error.message}`); continue; }
+        accessoryId = upserted?.id ?? null;
       }
       written++;
+
+      const modelId = slugToModelId.get(slug);
+      if (APPLY && accessoryId && modelId) {
+        const existing = await sb.from('accessory_models')
+          .select('id').eq('accessory_id', accessoryId).eq('model_id', modelId).limit(1);
+        if (!existing.data?.length) {
+          const { error } = await sb.from('accessory_models')
+            .insert({ accessory_id: accessoryId, model_id: modelId });
+          if (error) console.log(`  ! join insert failed ${slug}/${acc.id}: ${error.message}`);
+          else joinsWritten++;
+        }
+      }
     }
     console.log(`  ${APPLY ? '✓' : '+'} ${acc.id.padEnd(6)} $${acc.price.toLocaleString().padStart(8)}  [${acc.categoryName}]  ${acc.name}  ×${applicableSlugs.length}`);
   }
+  if (APPLY && joinsWritten) console.log(`  + ${joinsWritten} accessory_models joins written`);
   return written;
 }
 
