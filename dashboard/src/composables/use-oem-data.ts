@@ -117,6 +117,9 @@ export interface Offer {
   validity_end: string | null
   validity_raw: string | null
   hero_image_r2_key: string | null
+  disclaimer_text: string | null
+  disclaimer_html: string | null
+  source_url: string | null
   last_seen_at: string
   created_at: string
   updated_at: string
@@ -269,6 +272,36 @@ export function useOemData() {
       .order('updated_at', { ascending: false })
     if (err) throw err
     return (data ?? []) as Offer[]
+  }
+
+  /**
+   * Fetch offers attached to products via the offer_products join. Returns a
+   * map from product_id → Offer[] so callers can render per-variant offer
+   * lists without N+1 queries.
+   *
+   * The implementation pulls the full join table (small — total joins across
+   * the system are in the hundreds, not thousands) instead of an IN-filter on
+   * the productIds. A list of 817 UUIDs in an IN clause blows past PostgREST's
+   * URL length cap (~16KB) and the request is rejected with a 400.
+   *
+   * `productIds`, when supplied, is used to prune the result set client-side
+   * so callers only get the keys they care about.
+   */
+  async function fetchOffersByProducts(productIds?: string[]) {
+    const map = new Map<string, Offer[]>()
+    const wanted = productIds ? new Set(productIds) : null
+    const { data, error: err } = await supabase
+      .from('offer_products')
+      .select('product_id, offers(*)')
+    if (err) throw err
+    for (const row of (data ?? []) as { product_id: string; offers: Offer | null }[]) {
+      if (!row.offers) continue
+      if (wanted && !wanted.has(row.product_id)) continue
+      const list = map.get(row.product_id) ?? []
+      list.push(row.offers)
+      map.set(row.product_id, list)
+    }
+    return map
   }
 
   async function fetchVariantColors(productIds?: string[]) {
@@ -469,6 +502,7 @@ export function useOemData() {
     fetchVehicleModels,
     fetchProducts,
     fetchOffers,
+    fetchOffersByProducts,
     fetchBanners,
     fetchPortals,
     fetchVariantColors,

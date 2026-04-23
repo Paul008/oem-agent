@@ -1,19 +1,20 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, FileText, ImageOff, LayoutGrid, LayoutList, AlertTriangle } from 'lucide-vue-next'
+import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, FileText, ImageOff, LayoutGrid, LayoutList, AlertTriangle, Tag } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
-import type { Product, VehicleModel, ProductSpecs } from '@/composables/use-oem-data'
+import type { Product, VehicleModel, ProductSpecs, Offer } from '@/composables/use-oem-data'
 
-const { fetchProducts, fetchVehicleModels, fetchOems } = useOemData()
+const { fetchProducts, fetchVehicleModels, fetchOems, fetchOffersByProducts } = useOemData()
 
 const products = ref<Product[]>([])
 const models = ref<VehicleModel[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const heroMap = ref<Map<string, string>>(new Map())
+const offersByProduct = ref<Map<string, Offer[]>>(new Map())
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 
@@ -62,6 +63,8 @@ onMounted(async () => {
     models.value = m
     oems.value = o
     heroMap.value = heroes
+    // Load offers after products so we know which ids to query.
+    offersByProduct.value = await fetchOffersByProducts(p.map(x => x.id))
   } catch (err: any) {
     loadError.value = err.message || 'Failed to load variant data'
     toast.error(loadError.value!)
@@ -651,18 +654,25 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               </UiTableCell>
               <UiTableCell>
                 <button
-                  v-if="hasSpecs(product)"
+                  v-if="hasSpecs(product) || offersByProduct.get(product.id)?.length"
                   class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 transition-colors"
                   @click="toggleSpecs(product.id)"
                 >
                   <component :is="expandedSpecs.has(product.id) ? ChevronUp : ChevronDown" class="size-3" />
-                  {{ orderedCategories(product.specs_json!).length }} cats
+                  <template v-if="hasSpecs(product)">{{ orderedCategories(product.specs_json!).length }} cats</template>
                   <span
                     v-if="pdfVariantSpecs(product.specs_json)"
                     class="ml-0.5 inline-flex items-center rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[9px] font-semibold px-1 py-px"
                     title="Includes per-variant specs from brochure PDF"
                   >
                     PDF
+                  </span>
+                  <span
+                    v-if="offersByProduct.get(product.id)?.length"
+                    class="ml-0.5 inline-flex items-center rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-semibold px-1 py-px"
+                    :title="`${offersByProduct.get(product.id)!.length} active offer(s)`"
+                  >
+                    {{ offersByProduct.get(product.id)!.length }} offer{{ offersByProduct.get(product.id)!.length === 1 ? '' : 's' }}
                   </span>
                 </button>
                 <span v-else class="text-xs text-muted-foreground">-</span>
@@ -672,11 +682,42 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               </UiTableCell>
             </UiTableRow>
             <!-- Expandable Specs -->
-            <UiTableRow v-if="expandedSpecs.has(product.id) && hasSpecs(product)" class="bg-muted/30 hover:bg-muted/40">
+            <UiTableRow v-if="expandedSpecs.has(product.id) && (hasSpecs(product) || offersByProduct.get(product.id)?.length)" class="bg-muted/30 hover:bg-muted/40">
               <UiTableCell :colspan="8" class="p-0">
                 <div class="px-6 py-4 space-y-5">
+                  <!-- Offers attached to this variant -->
+                  <div v-if="offersByProduct.get(product.id)?.length">
+                    <h3 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Tag class="size-3" /> Current Offers
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div
+                        v-for="offer in offersByProduct.get(product.id)"
+                        :key="offer.id"
+                        class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3"
+                      >
+                        <div class="flex items-start justify-between gap-2 mb-1">
+                          <h4 class="text-xs font-semibold">{{ offer.title }}</h4>
+                          <span
+                            v-if="offer.validity_end"
+                            class="text-[10px] text-muted-foreground whitespace-nowrap"
+                          >
+                            until {{ new Date(offer.validity_end).toLocaleDateString('en-AU') }}
+                          </span>
+                        </div>
+                        <p
+                          v-if="offer.disclaimer_text"
+                          class="text-[11px] text-muted-foreground leading-snug line-clamp-3"
+                          :title="offer.disclaimer_text"
+                        >
+                          {{ offer.disclaimer_text }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Regular specs_json categories -->
-                  <div v-if="orderedCategories(product.specs_json!).length > 0">
+                  <div v-if="hasSpecs(product) && orderedCategories(product.specs_json!).length > 0">
                     <h3 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                       Crawled Specs
                     </h3>

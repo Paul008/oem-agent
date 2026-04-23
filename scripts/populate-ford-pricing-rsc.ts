@@ -7,6 +7,9 @@
  * nameplate, parses the Next.js streaming payload, and upserts:
  *   - variant_pricing (one driveaway row per matched product)
  *   - offers (dedup per tagLine+specialInformation, linked by model_id)
+ *   - offer_products (per-variant join rows — entity.code carries the full
+ *     {body, powertrain, drive, engine, series, transmission} tuple so each
+ *     offer is attached to the exact variant(s) Ford targets it at)
  *   - products.variant_code / variant_name (stamped for future matching)
  *
  * Flags: --apply to write (default is dry-run), --slug=<x> to limit to one nameplate.
@@ -246,10 +249,16 @@ function extractBuilds(rsc: string): BuildBlock[] {
     });
   }
 
-  // Second pass: pair each build with the nearest `entity` offer (if any).
+  // Second pass: pair each build with the matching `entity` offer (if any).
+  // Prefer exact full-tuple match — entity.code carries body+powertrain+drive+
+  // engine+series+transmission, so two builds that share a series but differ on
+  // engine (e.g. Sport Bi-Turbo vs Sport V6) get the right offer text. Fall back
+  // to seriesCode-only when an entity has a non-standard code shape we can't
+  // decompose, or when no full-tuple build exists for it.
   const entities = extractEntityOffers(rsc);
   for (const b of builds) {
-    const match = entities.find((e) => e.seriesCode === b.seriesCode);
+    const exact = entities.find((e) => e.tuple && e.tuple === b.tuple);
+    const match = exact ?? entities.find((e) => e.seriesCode === b.seriesCode);
     if (match) {
       b.tagLine = match.tagLine;
       b.specialInformation = match.specialInformation;
@@ -258,8 +267,40 @@ function extractBuilds(rsc: string): BuildBlock[] {
   return builds;
 }
 
-function extractEntityOffers(rsc: string): { seriesCode: string; tagLine?: string; specialInformation?: string }[] {
-  const out: { seriesCode: string; tagLine?: string; specialInformation?: string }[] = [];
+type EntityOffer = {
+  fullCode: string;        // raw entity.code, kept for diagnostics
+  tuple?: string;          // (seriesCode|powerTrainCode|bodyStyleCode) when parseable
+  seriesCode: string;      // platform_series — always derivable
+  tagLine?: string;
+  specialInformation?: string;
+};
+
+/**
+ * Decompose a Ford entity.code into the same tuple shape a BuildBlock carries.
+ * Standard layout: `<platform>_<body=XX#XX>_<pt-prefix>_<drive=DR--X>_<engine=EN-XX>_<series=SE#XX>_<trans=TR-XX>`
+ * (e.g. `ABML1_CA#BC_DGACX_DR--G_EN-YN_SE#F7_TR-EU`). Returns null when the
+ * shape doesn't match — series-only fallback handles those.
+ */
+function parseEntityCode(
+  code: string
+): { tuple: string; seriesCode: string; powerTrainCode: string; bodyStyleCode: string } | null {
+  const parts = code.split('_');
+  if (parts.length < 7) return null;
+  const platform = parts[0];
+  const ptPrefix = parts[2];
+  const body = parts.find((p, i) => i > 0 && /^[A-Z]+#[A-Z]+$/.test(p) && !p.startsWith('SE#'));
+  const drive = parts.find((p) => p.startsWith('DR--'));
+  const engine = parts.find((p) => p.startsWith('EN-'));
+  const series = parts.find((p) => p.startsWith('SE#') || p.startsWith('VS-'));
+  const trans = parts.find((p) => p.startsWith('TR-'));
+  if (!platform || !ptPrefix || !body || !drive || !engine || !series || !trans) return null;
+  const seriesCode = `${platform}_${series}`;
+  const powerTrainCode = `${ptPrefix}_${drive}_${engine}_${trans}`;
+  return { tuple: `${seriesCode}|${powerTrainCode}|${body}`, seriesCode, powerTrainCode, bodyStyleCode: body };
+}
+
+function extractEntityOffers(rsc: string): EntityOffer[] {
+  const out: EntityOffer[] = [];
   let scan = 0;
   while (true) {
     const idx = rsc.indexOf('"entity":{', scan);
@@ -268,12 +309,20 @@ function extractEntityOffers(rsc: string): { seriesCode: string; tagLine?: strin
     const blob = parseBalanced(rsc, idx + '"entity":'.length);
     const ent = safeJson<any>(blob);
     if (!ent?.code) continue;
-    const parts = String(ent.code).split('_');
-    const platform = parts[0] ?? '';
-    const segment = parts.find((p: string) => p.startsWith('SE#') || p.startsWith('VS-')) ?? '';
-    const seriesCode = platform && segment ? `${platform}_${segment}` : '';
+    const code = String(ent.code);
+    const parsed = parseEntityCode(code);
+    // Series-only fallback for codes that don't fit the standard layout.
+    let seriesCode = parsed?.seriesCode;
+    if (!seriesCode) {
+      const parts = code.split('_');
+      const platform = parts[0] ?? '';
+      const segment = parts.find((p: string) => p.startsWith('SE#') || p.startsWith('VS-')) ?? '';
+      seriesCode = platform && segment ? `${platform}_${segment}` : '';
+    }
     if (!seriesCode) continue;
     out.push({
+      fullCode: code,
+      tuple: parsed?.tuple,
       seriesCode,
       tagLine: cleanDollarEscape(ent.tagLine),
       specialInformation: cleanDollarEscape(ent.specialInformation),
@@ -390,6 +439,18 @@ function hash(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
 
+/**
+ * Plain-text projection of an offer's HTML body for content-hashing. Ford's
+ * CMS occasionally emits the same offer with minor HTML defects (trailing
+ * `</b></u><br></b></u><br>` vs `</b></u><br>`) — without normalisation those
+ * become distinct rows that all link to the same underlying campaign. We hash
+ * on (stripped-tags + collapsed-whitespace) instead.
+ */
+function offerContentKey(tagLine: string, specialInformation: string): string {
+  const text = specialInformation.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return `${tagLine.trim()}|${text}`;
+}
+
 // URL resolution (modelToUrlName, siblingSlugsFor) is imported from
 // ./ford-url-map.ts at the top of the file. That module loads Ford's own
 // nameplate menu JSON so the mapping updates whenever
@@ -447,6 +508,10 @@ async function processModel(
 
   // Pricing
   let priceRows = 0;
+  // (offer-content-hash → product_ids) drives the offer_products join writes
+  // below. Populated by the build-walk after this loop — see the variant
+  // linkage expansion comment.
+  const productIdsByOfferHash = new Map<string, Set<string>>();
   for (const p of products) {
     const build = pickBuildForProduct(p, builds);
     if (!build) { console.log(`  ? no series match for "${p.title}"`); continue; }
@@ -537,21 +602,46 @@ async function processModel(
   const offerMap = new Map<string, BuildBlock>();
   for (const b of builds) {
     if (!b.tagLine || !b.specialInformation) continue;
-    const key = hash(`${b.tagLine}|${b.specialInformation}`);
+    const key = hash(offerContentKey(b.tagLine, b.specialInformation));
     if (!offerMap.has(key)) offerMap.set(key, b);
   }
 
+  // Variant linkage expansion: pickBuildForProduct above only links each
+  // product to its single cheapest matching build, which leaves engine-variant
+  // offers (e.g. Ranger V6 fuel-card offer) orphaned because our products are
+  // engine-agnostic (one "Ranger Wildtrak" row covers Bi-Turbo + V6). Walk
+  // every build that carries an offer and attach it to ALL products whose
+  // title series-matches this build — that way V6-specific offers also
+  // surface on the Wildtrak / Sport / XLT product pages.
+  for (const b of builds) {
+    if (!b.tagLine || !b.specialInformation || !b.seriesName) continue;
+    const offerHash = hash(offerContentKey(b.tagLine, b.specialInformation));
+    const seriesEsc = b.seriesName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const seriesRx = new RegExp(`\\b${seriesEsc}\\b`, 'i');
+    for (const p of products) {
+      if (!seriesRx.test(p.title)) continue;
+      let set = productIdsByOfferHash.get(offerHash);
+      if (!set) { set = new Set(); productIdsByOfferHash.set(offerHash, set); }
+      set.add(p.id);
+    }
+  }
+
   let offerRows = 0;
+  let offerProductJoins = 0;
   for (const [h, b] of offerMap) {
     const validity = parseValidity(b.specialInformation);
     const externalKey = `ford-au_${model.slug}_${h.slice(0, 16)}`;
+    const descriptionText = b.specialInformation!.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     const row = {
       oem_id: 'ford-au',
       external_key: externalKey,
       model_id: model.id,
       title: b.tagLine!,
-      description: b.specialInformation!.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000),
+      description: descriptionText.slice(0, 2000),
       disclaimer_html: b.specialInformation!,
+      // Plain-text version of the disclaimer for surfaces that can't render
+      // HTML (search, mobile previews, AI prompts).
+      disclaimer_text: descriptionText,
       offer_type: classifyOffer(b.tagLine),
       source_url: pageUrl,
       validity_start: validity.start,
@@ -562,28 +652,49 @@ async function processModel(
     };
 
     // offers has no unique constraint on external_key, so do a manual upsert:
-    // look for an existing row, UPDATE it if found, otherwise INSERT.
+    // look for an existing row, UPDATE it if found, otherwise INSERT. Capture
+    // the resulting offer_id so we can populate the offer_products join table.
     let writeErr: string | null = null;
+    let offerId: string | null = null;
     if (APPLY) {
       const { data: existing, error: selErr } = await sb
         .from('offers').select('id').eq('external_key', externalKey).limit(1);
       if (selErr) writeErr = `select: ${selErr.message}`;
       else if (existing?.length) {
-        const { error } = await sb.from('offers').update(row).eq('id', existing[0].id);
+        offerId = existing[0].id;
+        const { error } = await sb.from('offers').update(row).eq('id', offerId);
         if (error) writeErr = `update: ${error.message}`;
       } else {
-        const { error } = await sb.from('offers').insert(row);
+        const { data: inserted, error } = await sb.from('offers').insert(row).select('id').single();
         if (error) writeErr = `insert: ${error.message}`;
+        else offerId = inserted?.id ?? null;
       }
     }
     if (writeErr) { console.log(`  ✗ offer write: ${writeErr}`); continue; }
 
+    // Per-variant linkage. Reset to the current variant set so removed
+    // applicability (Ford retiring an offer on one trim) actually drops the
+    // join row instead of leaving a stale one behind.
+    const productIds = productIdsByOfferHash.get(h);
+    if (APPLY && offerId && productIds?.size) {
+      const { error: delErr } = await sb.from('offer_products').delete().eq('offer_id', offerId);
+      if (delErr) console.log(`  ! offer_products clear failed for "${b.tagLine}": ${delErr.message}`);
+      else {
+        const joinRows = [...productIds].map((pid) => ({ offer_id: offerId!, product_id: pid }));
+        const { error: insErr } = await sb.from('offer_products').insert(joinRows);
+        if (insErr) console.log(`  ! offer_products insert failed for "${b.tagLine}": ${insErr.message}`);
+        else offerProductJoins += joinRows.length;
+      }
+    }
+
     const window = validity.start || validity.end
       ? `${validity.start?.slice(0, 10) ?? '—'} → ${validity.end?.slice(0, 10) ?? 'ongoing'}`
       : '(validity not parsed)';
-    console.log(`  + offer: "${b.tagLine}"  ${window}`);
+    const variantCount = productIds?.size ?? 0;
+    console.log(`  + offer: "${b.tagLine}"  ${window}  ×${variantCount} variants`);
     offerRows++;
   }
+  if (APPLY && offerProductJoins) console.log(`  + ${offerProductJoins} offer_products joins written`);
 
   return { priceRows, offerRows };
 }
