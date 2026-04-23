@@ -45,8 +45,12 @@ type BuildBlock = {
   bodyStyleCode?: string;
   powerTrainName?: string;  // "2.0L Bi-Turbo Diesel 10AT Part-Time 4x4"
   powerTrainCode?: string;
-  driveaway: number;
-  rrp: number;
+  driveaway: number;           // polkVehicleDriveAwayPrice — full incl GST + on-roads
+  rrp: number;                  // grossRetail — list price incl GST
+  netRetail?: number;           // ex-GST list price (business-effective; ABN buyers claim GST back)
+  dealerDelivery?: number;
+  reservationFee?: number;
+  vatAmount?: number;
   keyFeatures: { code: string; descKf: string }[];
   tagLine?: string;
   specialInformation?: string;
@@ -195,6 +199,10 @@ function extractBuilds(rsc: string): BuildBlock[] {
     const bp = wrapper.price.basePrice ?? {};
     const drive = typeof bp.polkVehicleDriveAwayPrice === 'number' ? bp.polkVehicleDriveAwayPrice : 0;
     const rrp = typeof bp.grossRetail === 'number' ? bp.grossRetail : 0;
+    const netRetail = typeof bp.netRetail === 'number' ? bp.netRetail : undefined;
+    const dealerDelivery = typeof bp.dealerDelivery === 'number' ? bp.dealerDelivery : undefined;
+    const reservationFee = typeof bp.reservationFee === 'number' ? bp.reservationFee : undefined;
+    const vatAmount = typeof bp.vatAmount === 'number' ? bp.vatAmount : undefined;
     if (!drive || !rrp) continue;
 
     const seriesShort = seriesCode.includes('_SE#') ? seriesCode.split('_SE#').pop() ?? ''
@@ -228,6 +236,10 @@ function extractBuilds(rsc: string): BuildBlock[] {
       powerTrainName,
       driveaway: drive,
       rrp,
+      netRetail,
+      dealerDelivery,
+      reservationFee,
+      vatAmount,
       keyFeatures: Array.isArray(wrapper.keyFeatures?.features) ? wrapper.keyFeatures.features : [],
       techSpecs,
       bodyGalleryUrls,
@@ -391,14 +403,20 @@ async function processModel(
 ): Promise<{ priceRows: number; offerRows: number }> {
   const urlName = modelToUrlName(model.slug);
   const pageUrl = `https://www.ford.com.au/price/${urlName}`;
-  const rscUrl = `${pageUrl}?postalCode=3000&usageType=P&_rsc=x`;
+  const rscUrlRetail = `${pageUrl}?postalCode=3000&usageType=P&_rsc=x`;
+  const rscUrlAbn = `${pageUrl}?postalCode=3000&usageType=B&_rsc=x`;
 
-  console.log(`\n[${model.name}] GET ${rscUrl}`);
+  console.log(`\n[${model.name}] GET ${rscUrlRetail}  (+ usageType=B for ABN)`);
   let rsc: string;
+  let rscAbn: string | null = null;
   try {
-    const res = await fetch(rscUrl, { headers: RSC_HEADERS });
-    if (!res.ok) { console.log(`  ✗ HTTP ${res.status}, skip`); return { priceRows: 0, offerRows: 0 }; }
-    rsc = await res.text();
+    const [resP, resB] = await Promise.all([
+      fetch(rscUrlRetail, { headers: RSC_HEADERS }),
+      fetch(rscUrlAbn, { headers: RSC_HEADERS }),
+    ]);
+    if (!resP.ok) { console.log(`  ✗ HTTP ${resP.status}, skip`); return { priceRows: 0, offerRows: 0 }; }
+    rsc = await resP.text();
+    if (resB.ok) rscAbn = await resB.text();
   } catch (e) {
     console.log(`  ✗ fetch error: ${(e as Error).message}`);
     return { priceRows: 0, offerRows: 0 };
@@ -407,7 +425,20 @@ async function processModel(
   const seriesMap = extractSeriesMap(rsc);
   const builds = extractBuilds(rsc);
   annotateSeriesNames(builds, seriesMap);
-  console.log(`  payload=${(rsc.length / 1024).toFixed(0)}k builds=${builds.length} series=${seriesMap.size}`);
+
+  // Build an ABN price lookup by (seriesCode|powerTrainCode|bodyStyleCode) so
+  // each retail build can pick up its ABN counterpart. Ford returns identical
+  // driveaway values for usageType=P vs =B today (LCT handling same), but we
+  // capture the ABN payload's full breakdown in case it diverges in future —
+  // and so downstream consumers have an authoritative business-pricing figure
+  // distinct from the retail one.
+  const abnByTuple = new Map<string, BuildBlock>();
+  if (rscAbn) {
+    const abnBuilds = extractBuilds(rscAbn);
+    for (const b of abnBuilds) abnByTuple.set(b.tuple, b);
+  }
+
+  console.log(`  payload=${(rsc.length / 1024).toFixed(0)}k builds=${builds.length} series=${seriesMap.size}  abn_builds=${abnByTuple.size}`);
 
   if (!builds.length) {
     console.log(`  (no build blocks — nameplate may not expose pricing on this endpoint)`);
@@ -450,6 +481,13 @@ async function processModel(
         .select('specs_json,meta_json')
         .eq('id', p.id).single();
       const mergedSpecs = { ...(current?.specs_json ?? {}), ...(build.techSpecs ?? {}) };
+
+      // Resolve the ABN-equivalent build from the usageType=B fetch (same
+      // tuple). Ford currently returns identical driveaway for P and B, but
+      // netRetail is the ex-GST business-effective figure — the number an
+      // ABN-registered buyer effectively pays after claiming GST back.
+      const abnBuild = abnByTuple.get(build.tuple);
+
       const mergedMeta = {
         ...(current?.meta_json ?? {}),
         rsc_source: 'price_endpoint',
@@ -457,6 +495,17 @@ async function processModel(
         rsc_power_train_code: build.powerTrainCode,
         rsc_body_style_code: build.bodyStyleCode,
         rsc_body_gallery_urls: build.bodyGalleryUrls ?? [],
+        rsc_price_breakdown: {
+          retail_driveaway: build.driveaway,
+          retail_gross: build.rrp,
+          net_retail_ex_gst: build.netRetail ?? null,
+          dealer_delivery: build.dealerDelivery ?? null,
+          reservation_fee: build.reservationFee ?? null,
+          vat_amount: build.vatAmount ?? null,
+          abn_driveaway: abnBuild?.driveaway ?? null,
+          abn_net_retail_ex_gst: abnBuild?.netRetail ?? null,
+          abn_divergence: abnBuild ? Math.abs((abnBuild.driveaway ?? 0) - build.driveaway) : null,
+        },
         rsc_fetched_at: new Date().toISOString(),
       };
 
