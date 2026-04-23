@@ -506,11 +506,11 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                 {{ formatPrice(product.price_amount) }}
               </span>
               <span
-                v-if="product.meta_json?.rsc_price_breakdown?.net_retail_ex_gst"
+                v-if="(product as any).meta_json?.rsc_price_breakdown?.net_retail_ex_gst"
                 class="bg-emerald-700/80 text-white text-[10px] font-medium px-1.5 py-0.5 rounded"
                 title="Ex-GST list price — effective cost for ABN-registered buyers who claim GST back"
               >
-                ABN {{ formatPrice(product.meta_json.rsc_price_breakdown.net_retail_ex_gst) }}
+                ABN {{ formatPrice((product as any).meta_json.rsc_price_breakdown.net_retail_ex_gst) }}
               </span>
             </div>
             <!-- Fuel badge -->
@@ -642,11 +642,11 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               <UiTableCell class="text-right font-medium text-sm">
                 <div>{{ formatPrice(product.price_amount) }}</div>
                 <div
-                  v-if="product.meta_json?.rsc_price_breakdown?.net_retail_ex_gst"
+                  v-if="(product as any).meta_json?.rsc_price_breakdown?.net_retail_ex_gst"
                   class="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal"
                   title="Ex-GST — ABN-registered buyer effective price"
                 >
-                  ABN {{ formatPrice(product.meta_json.rsc_price_breakdown.net_retail_ex_gst) }}
+                  ABN {{ formatPrice((product as any).meta_json.rsc_price_breakdown.net_retail_ex_gst) }}
                 </div>
               </UiTableCell>
               <UiTableCell>
