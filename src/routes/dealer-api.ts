@@ -74,6 +74,64 @@ function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
   return map;
 }
 
+/**
+ * Build the short attention-grabbing label for an offer card.
+ *
+ * Priority:
+ *   1. OEM-provided short string (`price_raw_string`, e.g. "$3K Off"). Only
+ *      used when ≤30 chars to avoid overflow on small cards.
+ *   2. Derived "Save $X,XXX" from `saving_amount`.
+ *   3. Tail of the title after " - " (Ford pattern: "Ranger XLT … MY26 - $3K Off").
+ *   4. Trimmed full title (back-stop, e.g. "$4K Fuel Card Offer").
+ */
+function deriveShortHeadline(offer: any): string {
+  const raw = typeof offer.price_raw_string === 'string' ? offer.price_raw_string.trim() : '';
+  if (raw && raw.length <= 30) return raw;
+
+  if (typeof offer.saving_amount === 'number' && offer.saving_amount > 0) {
+    return `Save $${Number(offer.saving_amount).toLocaleString('en-AU')}`;
+  }
+
+  const title = typeof offer.title === 'string' ? offer.title.trim() : '';
+  if (title.includes(' - ')) {
+    const tail = title.split(' - ').pop()?.trim();
+    if (tail && tail.length <= 40) return tail;
+  }
+
+  return title || 'Special offer';
+}
+
+/**
+ * Transform raw Supabase offer rows into OfferSummary cards. Hero images are
+ * routed through this worker's /media proxy so the dealer app never hotlinks
+ * OEM CDNs. Sorted by saving_amount desc so the most valuable offer ranks
+ * first when a consumer takes only `offers[0]`.
+ */
+function transformOffers(
+  rawOffers: any[],
+  oemId: string,
+  workerOrigin: string,
+): OfferSummary[] {
+  return rawOffers
+    .map((o: any): OfferSummary => ({
+      id: String(o.id),
+      title: String(o.title || ''),
+      shortHeadline: deriveShortHeadline(o),
+      description: o.description || null,
+      type: o.offer_type || null,
+      savingAmount: typeof o.saving_amount === 'number' ? o.saving_amount : null,
+      heroImage: o.hero_image_r2_key
+        ? proxyImage(o.hero_image_r2_key, { oemId, workerOrigin })
+        : null,
+      disclaimer: o.disclaimer_text || null,
+      ctaText: o.cta_text || null,
+      ctaUrl: o.cta_url || null,
+      validityEnd: o.validity_end || null,
+      sourceUrl: o.source_url || null,
+    }))
+    .sort((a, b) => (b.savingAmount ?? 0) - (a.savingAmount ?? 0));
+}
+
 // ── Shared product select columns ─────────────────────────────────────────
 
 const PRODUCT_SELECT = 'id, model_id, title, subtitle, body_type, fuel_type, drivetrain, drive, engine_desc, engine_size, cylinders, transmission, seats, doors, price_amount, price_type, price_raw_string, price_qualifier, disclaimer_text, primary_image_r2_key, key_features, meta_json, specs_json, variant_code, variant_name, external_key, created_at, updated_at';
@@ -90,6 +148,32 @@ interface WpColour {
   images_360_roof: string;
   roof_color: string;
   roof_price: string;
+}
+
+/**
+ * Per-variant offer card. One variant can have multiple offers attached
+ * (e.g. manufacturer discount + finance + accessory pack). The dealer app
+ * renders these as a stacked panel; the legacy single-string `offer` /
+ * `offer_price` / `offer_disclaimer` fields below are derived from the
+ * highest-saving entry for back-compat with older WP-shape consumers.
+ */
+export interface OfferSummary {
+  id: string;
+  title: string;
+  /** Short attention-grabbing label, e.g. "$3K Off" or "Save $3,000". */
+  shortHeadline: string;
+  description: string | null;
+  /** Source taxonomy: discount | finance | fuel_card | accessory_pack | … */
+  type: string | null;
+  savingAmount: number | null;
+  /** Proxied through /media to avoid hotlinking OEM CDNs. */
+  heroImage: string | null;
+  disclaimer: string | null;
+  ctaText: string | null;
+  ctaUrl: string | null;
+  /** ISO-8601 timestamp; null when offer is open-ended. */
+  validityEnd: string | null;
+  sourceUrl: string | null;
 }
 
 interface WpVariant {
@@ -121,6 +205,8 @@ interface WpVariant {
   offer: string;
   offer_price: string;
   offer_disclaimer: string;
+  /** All offers linked to this variant via offer_products. */
+  offers: OfferSummary[];
   brochure: string | null;
   specifications: any | null;
   /** Per-variant specs extracted from the brochure PDF (vision-based) */
@@ -177,6 +263,7 @@ function transformProduct(
   hexByCode: Record<string, string>,
   oemId: string,
   workerOrigin: string,
+  offers: OfferSummary[] = [],
 ): WpVariant {
   const stdPricing = pricingRows.find((p: any) => p.price_type === 'standard');
   const rrpPricing = pricingRows.find((p: any) => p.price_type === 'rrp');
@@ -185,6 +272,11 @@ function transformProduct(
   const specs = product.specs_json || {};
 
   const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
+
+  // Legacy single-offer strings derived from the highest-saving offer for
+  // back-compat with consumers that read `offer` / `offer_price` /
+  // `offer_disclaimer` directly. New consumers should read `offers[]`.
+  const primaryOffer = offers[0];
 
   const wpColours: WpColour[] = colors.map((clr: any) => ({
     images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
@@ -226,9 +318,16 @@ function transformProduct(
     colours: wpColours,
     drive_away: formatDriveaway(driveawayAmount) || product.price_raw_string || '',
     drive_away_manual: '',
-    offer: '',
-    offer_price: '',
-    offer_disclaimer: product.disclaimer_text || product.price_qualifier || pricing?.price_qualifier || '',
+    offer: primaryOffer?.shortHeadline || '',
+    offer_price: primaryOffer?.savingAmount
+      ? `$${primaryOffer.savingAmount.toLocaleString('en-AU')}`
+      : '',
+    offer_disclaimer: primaryOffer?.disclaimer
+      || product.disclaimer_text
+      || product.price_qualifier
+      || pricing?.price_qualifier
+      || '',
+    offers,
     brochure: null,
     specifications: specs.engine || specs.dimensions || specs.performance ? specs : null,
     pdf_specs: extractPdfVariantSpecs(specs),
@@ -341,7 +440,7 @@ dealerApi.get('/variants', async (c) => {
 
     const productIds = products.map((p: any) => p.id);
 
-    const [colorsSettled, pricingSettled, paletteSettled] = await Promise.allSettled([
+    const [colorsSettled, pricingSettled, paletteSettled, offersSettled] = await Promise.allSettled([
       supabase.from('variant_colors')
         .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
         .in('product_id', productIds)
@@ -353,21 +452,46 @@ dealerApi.get('/variants', async (c) => {
         .select('color_code, hex_approx')
         .eq('oem_id', oemId)
         .eq('is_active', true),
+      supabase.from('offer_products')
+        .select('product_id, offers!inner(id, title, description, offer_type, price_raw_string, saving_amount, disclaimer_text, hero_image_r2_key, cta_text, cta_url, validity_end, source_url)')
+        .in('product_id', productIds),
     ]);
 
     const colorsData = colorsSettled.status === 'fulfilled' ? colorsSettled.value.data || [] : [];
     const pricingData = pricingSettled.status === 'fulfilled' ? pricingSettled.value.data || [] : [];
     const paletteData = paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [];
+    const offerLinks = offersSettled.status === 'fulfilled' ? offersSettled.value.data || [] : [];
 
     const colorsByProduct = groupBy(colorsData, 'product_id' as any);
     const pricingByProduct = groupBy(pricingData, 'product_id' as any);
     const hexByCode: Record<string, string> = {};
     for (const p of paletteData) hexByCode[p.color_code] = p.hex_approx || '';
 
+    // Group raw offer rows by product_id, then transform each group once.
+    const rawOffersByProduct: Record<string, any[]> = {};
+    for (const link of offerLinks as any[]) {
+      if (!link.offers) continue;
+      (rawOffersByProduct[link.product_id] ??= []).push(link.offers);
+    }
+
     const workerOrigin = new URL(c.req.url).origin;
-    const result = products.map((product: any) =>
-      transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode, oemId, workerOrigin),
-    );
+    const result = products.map((product: any) => {
+      const productOffers = transformOffers(
+        rawOffersByProduct[product.id] || [],
+        oemId,
+        workerOrigin,
+      );
+      return transformProduct(
+        product,
+        model.name,
+        colorsByProduct[product.id] || [],
+        pricingByProduct[product.id] || [],
+        hexByCode,
+        oemId,
+        workerOrigin,
+        productOffers,
+      );
+    });
 
     c.header('X-WP-Total', String(count || 0));
     c.header('X-WP-TotalPages', String(Math.ceil((count || 0) / perPage)));
@@ -512,7 +636,7 @@ dealerApi.get('/catalog', async (c) => {
     const allProducts = products || [];
     const productIds = allProducts.map((p: any) => p.id);
 
-    const [colorsSettled, pricingSettled, paletteSettled] = await Promise.allSettled([
+    const [colorsSettled, pricingSettled, paletteSettled, offersSettled] = await Promise.allSettled([
       productIds.length > 0
         ? supabase.from('variant_colors')
             .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
@@ -528,16 +652,28 @@ dealerApi.get('/catalog', async (c) => {
         .select('color_code, hex_approx')
         .eq('oem_id', oemId)
         .eq('is_active', true),
+      productIds.length > 0
+        ? supabase.from('offer_products')
+            .select('product_id, offers!inner(id, title, description, offer_type, price_raw_string, saving_amount, disclaimer_text, hero_image_r2_key, cta_text, cta_url, validity_end, source_url)')
+            .in('product_id', productIds)
+        : { data: [], error: null },
     ]);
 
     const colorsData = colorsSettled.status === 'fulfilled' ? colorsSettled.value.data || [] : [];
     const pricingData = pricingSettled.status === 'fulfilled' ? pricingSettled.value.data || [] : [];
     const paletteData = paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [];
+    const offerLinks = offersSettled.status === 'fulfilled' ? offersSettled.value.data || [] : [];
 
     const colorsByProduct = groupBy(colorsData, 'product_id' as any);
     const pricingByProduct = groupBy(pricingData, 'product_id' as any);
     const hexByCode: Record<string, string> = {};
     for (const p of paletteData) hexByCode[p.color_code] = p.hex_approx || '';
+
+    const rawOffersByProduct: Record<string, any[]> = {};
+    for (const link of offerLinks as any[]) {
+      if (!link.offers) continue;
+      (rawOffersByProduct[link.product_id] ??= []).push(link.offers);
+    }
 
     // Assign products to models, preferring longest title-prefix match over
     // stored model_id. Covers both Ford-style orphans (null model_id) AND
@@ -571,9 +707,23 @@ dealerApi.get('/catalog', async (c) => {
     const workerOrigin = new URL(c.req.url).origin;
     const catalog = models.map((model: any) => {
       const modelProducts = (productsByModel[model.id] || []) as any[];
-      const variants = modelProducts.map((product: any) =>
-        transformProduct(product, model.name, colorsByProduct[product.id] || [], pricingByProduct[product.id] || [], hexByCode, oemId, workerOrigin),
-      );
+      const variants = modelProducts.map((product: any) => {
+        const productOffers = transformOffers(
+          rawOffersByProduct[product.id] || [],
+          oemId,
+          workerOrigin,
+        );
+        return transformProduct(
+          product,
+          model.name,
+          colorsByProduct[product.id] || [],
+          pricingByProduct[product.id] || [],
+          hexByCode,
+          oemId,
+          workerOrigin,
+          productOffers,
+        );
+      });
 
       // Hero fallback: when the vehicle_models column is empty (currently
       // universal — no sync job writes it), synthesise from the first
