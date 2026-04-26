@@ -106,13 +106,42 @@ function deriveShortHeadline(offer: any): string {
  * routed through this worker's /media proxy so the dealer app never hotlinks
  * OEM CDNs. Sorted by saving_amount desc so the most valuable offer ranks
  * first when a consumer takes only `offers[0]`.
+ *
+ * Deduplication: the offer extractor stores a separate row per source page
+ * where a promo appears (Ford's "$4K Fuel Card Offer" exists on multiple
+ * model pages → multiple rows with different external_keys but identical
+ * user-facing fields). Fold by canonical key so consumers see one card per
+ * distinct offer, picking the row with the most populated fields as the
+ * representative — preserves hero/disclaimer if any source captured them.
  */
 function transformOffers(
   rawOffers: any[],
   oemId: string,
   workerOrigin: string,
 ): OfferSummary[] {
-  return rawOffers
+  const byKey = new Map<string, any>();
+  for (const o of rawOffers) {
+    const key = [
+      String(o.title || '').trim().toLowerCase(),
+      String(o.price_raw_string || '').trim().toLowerCase(),
+      typeof o.saving_amount === 'number' ? o.saving_amount : '',
+    ].join('|');
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, o);
+      continue;
+    }
+    // Keep whichever row has more useful fields populated (prefer rows with
+    // hero image, disclaimer, CTA) so we don't lose data to dedup.
+    const score = (r: any) =>
+      (r.hero_image_r2_key ? 1 : 0)
+      + (r.disclaimer_text ? 1 : 0)
+      + (r.cta_url ? 1 : 0)
+      + (r.validity_end ? 1 : 0);
+    if (score(o) > score(existing)) byKey.set(key, o);
+  }
+
+  return Array.from(byKey.values())
     .map((o: any): OfferSummary => ({
       id: String(o.id),
       title: String(o.title || ''),
