@@ -75,6 +75,73 @@ function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
 }
 
 /**
+ * Compute Excluding Government Charges (EGC) price from an OEM pricing
+ * breakdown. EGC = MSRP (incl GST) + dealer delivery + reservation fee, i.e.
+ * everything the dealer charges minus statutory amounts (stamp duty, CTP,
+ * rego, plates) that vary by state and individual circumstances.
+ *
+ * Returns null when the breakdown is missing or the math doesn't add up to
+ * a value strictly less than driveaway — better to omit than display a
+ * misleading EGC equal to or above the all-in price.
+ */
+function computeEgcFromBreakdown(
+  breakdown: Record<string, number | null | undefined> | null | undefined,
+  driveaway: number | null | undefined,
+): number | null {
+  if (!breakdown) return null;
+  const retailGross = Number(breakdown.retail_gross) || 0;
+  const dealerDelivery = Number(breakdown.dealer_delivery) || 0;
+  const reservationFee = Number(breakdown.reservation_fee) || 0;
+  const egc = retailGross + dealerDelivery + reservationFee;
+  if (egc <= 0) return null;
+  if (typeof driveaway === 'number' && driveaway > 0 && egc >= driveaway) return null;
+  return Math.round(egc * 100) / 100;
+}
+
+/**
+ * Parse a "from $X" / "from $Xk" headline price out of an offer title.
+ * Returns the dollar value or null when no such pattern is present.
+ *
+ *   "Driveaway Offer from $62k"   → 62000
+ *   "Driveaway Offer from $115k"  → 115000
+ *   "From $62,500 driveaway"      → 62500
+ *   "$3K Off"                     → null  (not a from-price headline)
+ */
+function parseFromPrice(title: string | null | undefined): number | null {
+  if (!title) return null;
+  const m = title.match(/\bfrom\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?/i);
+  if (!m) return null;
+  const raw = m[1].replace(/,/g, '');
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return m[2] ? value * 1000 : value;
+}
+
+/**
+ * Filter offers that don't make sense to attach to this variant.
+ *
+ * Today the only rule: drop "Driveaway Offer from $X" headlines whose $X is
+ * meaningfully lower than this variant's actual driveaway. Ford publishes one
+ * such headline per model (typically the cheapest trim's driveaway) but the
+ * extractor links it to every variant of the model — which makes Wildtrak
+ * @ $86k look like it has a "$62k driveaway offer", which is wrong and
+ * misleads customers. Tolerance is loose (5%) to forgive minor rounding.
+ *
+ * Universal-discount-style offers ($X off, fuel cards, finance, accessory
+ * packs) are unaffected — they apply regardless of trim price.
+ */
+function isMisattachedFromPriceOffer(
+  offer: OfferSummary,
+  variantDriveaway: number | null | undefined,
+): boolean {
+  if (offer.type !== 'driveaway') return false;
+  if (typeof variantDriveaway !== 'number' || variantDriveaway <= 0) return false;
+  const fromPrice = parseFromPrice(offer.title) ?? parseFromPrice(offer.shortHeadline);
+  if (fromPrice === null) return false;
+  return fromPrice < variantDriveaway * 0.95;
+}
+
+/**
  * Build the short attention-grabbing label for an offer card.
  *
  * Priority:
@@ -231,6 +298,13 @@ interface WpVariant {
   colours: WpColour[];
   drive_away: string;
   drive_away_manual: string;
+  /**
+   * Excluding Government Charges price. Derived from the OEM pricing
+   * breakdown when available (MSRP + GST + dealer delivery + reservation,
+   * without stamp duty / CTP / rego / plates). Numeric AUD; null when
+   * the breakdown isn't available or doesn't compute to a sane value.
+   */
+  price_excl_govt_charges: number | null;
   offer: string;
   offer_price: string;
   offer_disclaimer: string;
@@ -302,10 +376,23 @@ function transformProduct(
 
   const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
 
-  // Legacy single-offer strings derived from the highest-saving offer for
-  // back-compat with consumers that read `offer` / `offer_price` /
+  // EGC (Excluding Government Charges) — derived from the OEM pricing
+  // breakdown when present (Ford via Nukleus, others as schemas land).
+  const priceExclGovtCharges = computeEgcFromBreakdown(
+    meta.rsc_price_breakdown,
+    typeof driveawayAmount === 'number' ? driveawayAmount : null,
+  );
+
+  // Drop offers that don't make sense for this variant (e.g. "from $62k"
+  // headlines on a $78k variant). See isMisattachedFromPriceOffer.
+  const applicableOffers = offers.filter(
+    o => !isMisattachedFromPriceOffer(o, typeof driveawayAmount === 'number' ? driveawayAmount : null),
+  );
+
+  // Legacy single-offer strings derived from the highest-saving applicable
+  // offer for back-compat with consumers that read `offer` / `offer_price` /
   // `offer_disclaimer` directly. New consumers should read `offers[]`.
-  const primaryOffer = offers[0];
+  const primaryOffer = applicableOffers[0];
 
   const wpColours: WpColour[] = colors.map((clr: any) => ({
     images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
@@ -347,6 +434,7 @@ function transformProduct(
     colours: wpColours,
     drive_away: formatDriveaway(driveawayAmount) || product.price_raw_string || '',
     drive_away_manual: '',
+    price_excl_govt_charges: priceExclGovtCharges,
     offer: primaryOffer?.shortHeadline || '',
     offer_price: primaryOffer?.savingAmount
       ? `$${primaryOffer.savingAmount.toLocaleString('en-AU')}`
@@ -356,7 +444,7 @@ function transformProduct(
       || product.price_qualifier
       || pricing?.price_qualifier
       || '',
-    offers,
+    offers: applicableOffers,
     brochure: null,
     specifications: specs.engine || specs.dimensions || specs.performance ? specs : null,
     pdf_specs: extractPdfVariantSpecs(specs),
