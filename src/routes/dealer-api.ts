@@ -236,6 +236,12 @@ const PRODUCT_SELECT = 'id, model_id, title, subtitle, body_type, fuel_type, dri
 
 interface WpColour {
   images: string;
+  /**
+   * Full per-colour gallery (multiple angles). Empty array when the OEM
+   * doesn't ship one. Each entry already routed through this worker's
+   * /media proxy so consumers can render them directly.
+   */
+  gallery_urls: string[];
   swatch_colour_: string;
   swatch_image: string;
   colour_name: string;
@@ -419,17 +425,26 @@ function transformProduct(
   // `offer_disclaimer` directly. New consumers should read `offers[]`.
   const primaryOffer = applicableOffers[0];
 
-  const wpColours: WpColour[] = colors.map((clr: any) => ({
-    images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
-    swatch_colour_: hexByCode[clr.color_code] || '',
-    swatch_image: clr.swatch_url || '',
-    colour_name: clr.color_name || '',
-    paint_price: String(clr.price_delta ?? (clr.is_standard ? '0' : '')),
-    images_360: '',
-    images_360_roof: '',
-    roof_color: '',
-    roof_price: '',
-  }));
+  const wpColours: WpColour[] = colors.map((clr: any) => {
+    // gallery_urls is JSONB in Postgres; defensively normalise array | string | null.
+    const rawGallery = clr.gallery_urls;
+    const galleryArr: string[] = Array.isArray(rawGallery)
+      ? rawGallery.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+      : [];
+    return {
+      images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
+      // Re-proxy defensively — already-proxied URLs are a no-op via isAlreadyProxied().
+      gallery_urls: galleryArr.map(u => proxyImage(u, { oemId, workerOrigin })),
+      swatch_colour_: hexByCode[clr.color_code] || '',
+      swatch_image: clr.swatch_url || '',
+      colour_name: clr.color_name || '',
+      paint_price: String(clr.price_delta ?? (clr.is_standard ? '0' : '')),
+      images_360: '',
+      images_360_roof: '',
+      roof_color: '',
+      roof_price: '',
+    };
+  });
 
   const features = Array.isArray(product.key_features) ? product.key_features : [];
 
