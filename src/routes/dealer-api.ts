@@ -299,6 +299,15 @@ interface WpVariant {
   drive_away: string;
   drive_away_manual: string;
   /**
+   * Numeric driveaway prices for the buyer-type toggle in the dealer footer.
+   * `driveaway_retail_price` is the standard private-buyer driveaway. `driveaway_abn_price`
+   * is the ABN/business equivalent (often identical to retail when the OEM
+   * doesn't publish a separate business price). Both null when the OEM
+   * doesn't expose a structured pricing breakdown.
+   */
+  driveaway_retail_price: number | null;
+  driveaway_abn_price: number | null;
+  /**
    * Excluding Government Charges price. Derived from the OEM pricing
    * breakdown when available (MSRP + GST + dealer delivery + reservation,
    * without stamp duty / CTP / rego / plates). Numeric AUD; null when
@@ -383,6 +392,22 @@ function transformProduct(
     typeof driveawayAmount === 'number' ? driveawayAmount : null,
   );
 
+  // Numeric retail / ABN driveaway prices — read directly from the breakdown
+  // when present, fall back to the unified driveawayAmount so the buyer-type
+  // toggle always has a price to display. We deliberately emit ABN even when
+  // it equals retail (Ford's `abn_divergence === 0` case): consumers can
+  // decide whether to surface the toggle as informational or hide it.
+  const breakdown = meta.rsc_price_breakdown as
+    | { retail_driveaway?: number; abn_driveaway?: number }
+    | undefined;
+  const driveawayRetail =
+    typeof breakdown?.retail_driveaway === 'number' ? breakdown.retail_driveaway
+    : typeof driveawayAmount === 'number' ? driveawayAmount
+    : null;
+  const driveawayAbn =
+    typeof breakdown?.abn_driveaway === 'number' ? breakdown.abn_driveaway
+    : driveawayRetail;
+
   // Drop offers that don't make sense for this variant (e.g. "from $62k"
   // headlines on a $78k variant). See isMisattachedFromPriceOffer.
   const applicableOffers = offers.filter(
@@ -434,6 +459,8 @@ function transformProduct(
     colours: wpColours,
     drive_away: formatDriveaway(driveawayAmount) || product.price_raw_string || '',
     drive_away_manual: '',
+    driveaway_retail_price: driveawayRetail,
+    driveaway_abn_price: driveawayAbn,
     price_excl_govt_charges: priceExclGovtCharges,
     offer: primaryOffer?.shortHeadline || '',
     offer_price: primaryOffer?.savingAmount
