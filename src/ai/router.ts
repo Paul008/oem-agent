@@ -178,8 +178,9 @@ export const AVAILABLE_MODELS: AvailableModel[] = [
   // Workers AI (on-network, zero egress)
   { id: 'gemma-4-26b', provider: 'workers_ai', model: GEMMA4_CONFIG.model, displayName: 'Gemma 4 26B A4B (Workers AI)', costTier: 'free', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
   // Anthropic
-  { id: 'claude-sonnet-4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5', costTier: 'high', capabilities: ['json_mode', 'reasoning'] },
-  { id: 'claude-sonnet-4.5-latest', provider: 'anthropic', model: 'claude-sonnet-4-5-20251022', displayName: 'Claude Sonnet 4.5 (Latest)', costTier: 'high', capabilities: ['json_mode', 'reasoning'] },
+  { id: 'claude-haiku-4.5', provider: 'anthropic', model: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4.5', costTier: 'low', capabilities: ['json_mode', 'tools'] },
+  { id: 'claude-sonnet-4.6', provider: 'anthropic', model: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6', costTier: 'high', capabilities: ['json_mode', 'reasoning', 'tools'] },
+  { id: 'claude-opus-4.7', provider: 'anthropic', model: 'claude-opus-4-7', displayName: 'Claude Opus 4.7', costTier: 'high', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
 ];
 
 // ============================================================================

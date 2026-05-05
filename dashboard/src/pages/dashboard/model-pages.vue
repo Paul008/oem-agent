@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, Search, ChevronLeft, ChevronRight, ImageOff, ExternalLink, FileText, Factory, Clock, DollarSign, AlertCircle, LayoutGrid, List, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Layers, FilePlus2, Plus, Trash2, Zap, Square } from 'lucide-vue-next'
+import { Loader2, Search, ChevronLeft, ChevronRight, ImageOff, ExternalLink, FileText, Factory, Clock, DollarSign, AlertCircle, LayoutGrid, List, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Layers, FilePlus2, Plus, Trash2, Zap, Square, RefreshCw } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData, type VehicleModel } from '@/composables/use-oem-data'
@@ -660,6 +660,35 @@ const statusConfig: Record<PageStatus, { label: string; color: string }> = {
 function openPageBuilder(item: { oem_id: string; slug: string }) {
   router.push(`/dashboard/page-builder/${fullSlug(item)}`)
 }
+
+const refreshing = ref(false)
+
+async function handleRefresh() {
+  if (refreshing.value) return
+  refreshing.value = true
+  pageCache.value.clear()
+  try {
+    const results = await Promise.allSettled(
+      OEM_IDS.map(async (oemId) => {
+        const res = await fetchGeneratedPages(oemId)
+        return { oemId, pages: res.pages as string[] }
+      }),
+    )
+    const slugs: { oem_id: string; slug: string }[] = []
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value.pages?.length) {
+        for (const s of r.value.pages) {
+          slugs.push({ oem_id: r.value.oemId, slug: s })
+        }
+      }
+    }
+    allSlugs.value = slugs
+    await prefetchPages(slugs.slice(0, 48))
+  }
+  finally {
+    refreshing.value = false
+  }
+}
 </script>
 
 <template>
@@ -717,6 +746,15 @@ function openPageBuilder(item: { oem_id: string; slug: string }) {
           <UiSelectItem value="48">48 per page</UiSelectItem>
         </UiSelectContent>
       </UiSelect>
+      <button
+        class="flex items-center gap-1.5 h-9 px-3 rounded-md border text-sm transition-colors hover:bg-muted disabled:opacity-50"
+        title="Refresh page list"
+        :disabled="refreshing"
+        @click="handleRefresh"
+      >
+        <RefreshCw class="size-3.5" :class="refreshing ? 'animate-spin' : ''" />
+        Refresh
+      </button>
       <span class="text-sm text-muted-foreground ml-auto">
         <template v-if="viewMode === 'coverage'">
           {{ coverageStats.created }}/{{ coverageStats.total }} models ({{ coverageStats.percentage }}%)
