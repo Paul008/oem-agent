@@ -7,7 +7,7 @@ const props = defineProps<{
     position: 'top' | 'bottom'
     model_name: string
     price_text?: string
-    buttons: Array<{ text: string; url: string; variant: 'primary' | 'secondary' | 'ghost' }>
+    buttons: Array<{ text: string, url: string, variant: 'primary' | 'secondary' | 'ghost' }>
     show_after_scroll_px: number
     background_color?: string
   }
@@ -18,8 +18,8 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const nameEdit = useInlineEdit((v) => emit('update-text', 'model_name', v))
-const priceEdit = useInlineEdit((v) => emit('update-text', 'price_text', v))
+const nameEdit = useInlineEdit(v => emit('update-text', 'model_name', v))
+const priceEdit = useInlineEdit(v => emit('update-text', 'price_text', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement

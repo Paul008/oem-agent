@@ -1,8 +1,21 @@
 /**
- * Populate Ford variants, colors, and gallery manually
- * 
- * Since Ford's pricing API is protected, this script manually creates
- * variant products based on publicly available Ford AU specifications.
+ * @deprecated 2026-04-22 — replaced by scripts/populate-ford-from-brochures.ts
+ *
+ * HISTORICAL: This file contains hardcoded Ford variant data typed by hand
+ * in Feb 2026 because Ford's pricing API was already Akamai-protected. It
+ * was run once on 2026-02-14 and produced the first 44 Ford variant rows.
+ *
+ * Do NOT run this again. The data is frozen at Feb-2026 and is missing
+ * every trim Ford has added since (Ranger Stormtrak, Everest Tremor,
+ * Transit Custom PHEV Trend/Sport, etc.).
+ *
+ * The working replacement parses Ford's own spec-sheet PDFs via an LLM:
+ *     pnpm tsx scripts/populate-ford-from-brochures.ts --apply
+ * which writes fresher, auto-refreshing trim data with specs/features.
+ *
+ * Kept in the tree only as a reference for Feb-2026 price memory — if
+ * you want a price overlay on brochure-extracted variants, read prices
+ * from the hardcoded arrays below. See docs/OEM_DATA_PIPELINES.md.
  */
 import { createClient } from '@supabase/supabase-js';
 

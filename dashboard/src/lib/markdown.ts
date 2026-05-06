@@ -70,7 +70,8 @@ export function renderMarkdown(md: string): string {
       const cells = line.split('|').slice(1, -1).map(c => c.trim())
 
       // Separator row
-      if (cells.every(c => /^[-:]+$/.test(c))) continue
+      if (cells.every(c => /^[-:]+$/.test(c)))
+        continue
 
       if (!inTable) {
         inTable = true
@@ -116,9 +117,12 @@ export function renderMarkdown(md: string): string {
   }
 
   // Close any open blocks
-  if (inCodeBlock) html.push('</code></pre>')
-  if (inTable) html.push('</tbody></table></div>')
-  if (inList) html.push(listType === 'ul' ? '</ul>' : '</ol>')
+  if (inCodeBlock)
+    html.push('</code></pre>')
+  if (inTable)
+    html.push('</tbody></table></div>')
+  if (inList)
+    html.push(listType === 'ul' ? '</ul>' : '</ol>')
 
   return html.join('\n')
 }

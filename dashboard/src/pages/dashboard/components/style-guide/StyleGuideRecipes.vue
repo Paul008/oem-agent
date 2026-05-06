@@ -1,13 +1,20 @@
 <script lang="ts" setup>
 import {
-  Image as ImageIcon, Grid3x3, SplitSquareHorizontal, Play,
-  Columns3, Database, Megaphone, Layers, SquareStack,
+  Columns3,
+  Database,
+  Grid3x3,
+  Image as ImageIcon,
+  Layers,
+  Megaphone,
+  Play,
+  SplitSquareHorizontal,
+  SquareStack,
 } from 'lucide-vue-next'
 
 defineProps<{
-  recipesByPattern: Record<string, Array<{ label: string; variant: string; resolves_to: string; defaults_json: any; source: 'brand' | 'default' }>>
+  recipesByPattern: Record<string, Array<{ label: string, variant: string, resolves_to: string, defaults_json: any, source: 'brand' | 'default' }>>
   colors: any
-  patterns: Array<{ key: string; label: string; icon: any }>
+  patterns: Array<{ key: string, label: string, icon: any }>
 }>()
 
 const PATTERNS = [
@@ -27,9 +34,13 @@ const PATTERNS = [
     <div class="px-6 pt-6 pb-2">
       <div class="flex items-center gap-2 mb-1">
         <SquareStack class="size-5 text-muted-foreground" />
-        <h2 class="text-2xl font-bold">Recipes</h2>
+        <h2 class="text-2xl font-bold">
+          Recipes
+        </h2>
       </div>
-      <p class="text-sm text-muted-foreground">Section layout recipes grouped by pattern</p>
+      <p class="text-sm text-muted-foreground">
+        Section layout recipes grouped by pattern
+      </p>
     </div>
 
     <div class="px-6 pb-6">
@@ -38,7 +49,9 @@ const PATTERNS = [
           <div v-if="recipesByPattern[pattern.key]?.length">
             <div class="flex items-center gap-2 mb-3">
               <component :is="pattern.icon" class="size-4 text-muted-foreground" />
-              <h3 class="text-sm font-semibold">{{ pattern.label }}</h3>
+              <h3 class="text-sm font-semibold">
+                {{ pattern.label }}
+              </h3>
               <UiBadge variant="secondary" class="text-[10px]">
                 {{ recipesByPattern[pattern.key].length }}
               </UiBadge>
@@ -58,7 +71,7 @@ const PATTERNS = [
                       :src="recipe.defaults_json.thumbnail_url"
                       class="w-full h-full object-cover object-top"
                       loading="lazy"
-                    />
+                    >
                   </template>
 
                   <!-- Card-grid preview -->
@@ -80,15 +93,23 @@ const PATTERNS = [
                           :style="{
                             backgroundColor: recipe.defaults_json?.card_style?.background || '#fff',
                             border: recipe.defaults_json?.card_style?.border || '1px solid #e5e7eb',
-                            borderRadius: (recipe.defaults_json?.card_style?.border_radius ?? 6) + 'px',
+                            borderRadius: `${recipe.defaults_json?.card_style?.border_radius ?? 6}px`,
                           }"
                         >
                           <template v-for="slot in (recipe.defaults_json?.card_composition || ['image', 'title', 'body'])" :key="slot">
                             <div v-if="slot === 'image'" class="w-full h-6 bg-muted rounded-t" />
-                            <div v-else-if="slot === 'title'" class="text-[7px] font-semibold px-1.5 truncate">Title</div>
-                            <div v-else-if="slot === 'body'" class="text-[6px] text-muted-foreground px-1.5">Body text</div>
-                            <div v-else-if="slot === 'cta'" class="text-[6px] px-1.5 pb-1" :style="{ color: colors?.primary || 'hsl(var(--primary))' }">CTA</div>
-                            <div v-else-if="slot === 'badge'" class="px-1.5"><span class="text-[5px] px-1 py-0.5 rounded-full bg-primary/10 text-primary">Tag</span></div>
+                            <div v-else-if="slot === 'title'" class="text-[7px] font-semibold px-1.5 truncate">
+                              Title
+                            </div>
+                            <div v-else-if="slot === 'body'" class="text-[6px] text-muted-foreground px-1.5">
+                              Body text
+                            </div>
+                            <div v-else-if="slot === 'cta'" class="text-[6px] px-1.5 pb-1" :style="{ color: colors?.primary || 'hsl(var(--primary))' }">
+                              CTA
+                            </div>
+                            <div v-else-if="slot === 'badge'" class="px-1.5">
+                              <span class="text-[5px] px-1 py-0.5 rounded-full bg-primary/10 text-primary">Tag</span>
+                            </div>
                           </template>
                         </div>
                       </div>
@@ -138,8 +159,12 @@ const PATTERNS = [
                       }"
                     >
                       <div class="flex-1 flex flex-col justify-center gap-1">
-                        <div class="text-[8px] font-semibold">Section Title</div>
-                        <div class="text-[6px] text-muted-foreground">Content preview text here...</div>
+                        <div class="text-[8px] font-semibold">
+                          Section Title
+                        </div>
+                        <div class="text-[6px] text-muted-foreground">
+                          Content preview text here...
+                        </div>
                       </div>
                       <div class="flex-1 bg-muted rounded" />
                     </div>
@@ -152,9 +177,13 @@ const PATTERNS = [
                       :style="{ backgroundColor: recipe.defaults_json?.section_style?.background || '#f9fafb' }"
                     >
                       <div class="text-center">
-                        <div class="text-[8px] font-medium text-muted-foreground mb-1">{{ pattern.label }}</div>
+                        <div class="text-[8px] font-medium text-muted-foreground mb-1">
+                          {{ pattern.label }}
+                        </div>
                         <div class="border rounded px-3 py-2 bg-background inline-block">
-                          <div class="text-[7px] font-semibold">Content</div>
+                          <div class="text-[7px] font-semibold">
+                            Content
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -175,7 +204,9 @@ const PATTERNS = [
                   <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span class="font-mono">{{ recipe.variant }}</span>
                     <span>&rarr;</span>
-                    <UiBadge variant="outline" class="text-[9px]">{{ recipe.resolves_to }}</UiBadge>
+                    <UiBadge variant="outline" class="text-[9px]">
+                      {{ recipe.resolves_to }}
+                    </UiBadge>
                   </div>
                 </div>
               </div>
@@ -188,7 +219,9 @@ const PATTERNS = [
           v-if="!Object.values(recipesByPattern).some(arr => arr.length)"
           class="py-8 text-center"
         >
-          <p class="text-sm text-muted-foreground">No recipes available for this OEM</p>
+          <p class="text-sm text-muted-foreground">
+            No recipes available for this OEM
+          </p>
         </div>
       </div>
     </div>

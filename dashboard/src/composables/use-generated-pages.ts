@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import { workerFetch } from '@/lib/worker-api'
 
 export interface RegenerationDecision {
@@ -37,10 +38,12 @@ export function useGeneratedPages() {
     try {
       const result = await workerFetch(`/api/v1/oem-agent/pages/${oemId}/${modelSlug}/should-regenerate`)
       return result as RegenerationDecision
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to check regeneration status'
       return null
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -56,10 +59,12 @@ export function useGeneratedPages() {
 
       const result = await workerFetch(url)
       return result as PageStats
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch page stats'
       return null
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }

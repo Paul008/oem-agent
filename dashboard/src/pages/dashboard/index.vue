@@ -1,14 +1,15 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign, Factory, FileText, Globe, Image, Palette, Shield, Tag, Wrench, Sparkles } from 'lucide-vue-next'
+import { Activity, AlertTriangle, BellOff, Car, ClipboardList, Clock, DollarSign, Factory, FileText, Globe, Image, Palette, Shield, Sparkles, Tag, Wrench } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { PageStats } from '@/composables/use-generated-pages'
+import type { ChangeEvent, ImportRun, SourcePage } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
-import { useOemData } from '@/composables/use-oem-data'
 import { useGeneratedPages } from '@/composables/use-generated-pages'
+import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
 import { supabase } from '@/lib/supabase'
-import type { ImportRun, ChangeEvent, SourcePage } from '@/composables/use-oem-data'
-import type { PageStats } from '@/composables/use-generated-pages'
 
 const { fetchCounts, fetchImportRuns, fetchChangeEvents, fetchSourcePages, fetchOems } = useOemData()
 const { fetchPageStats } = useGeneratedPages()
@@ -67,7 +68,8 @@ useRealtimeSubscription<ImportRun>({
   dataRef: recentRuns,
   maxItems: 10,
   onEvent: (_payload, eventType) => {
-    if (eventType === 'INSERT') counts.value.runs++
+    if (eventType === 'INSERT')
+      counts.value.runs++
   },
 })
 
@@ -79,16 +81,19 @@ useRealtimeSubscription<ChangeEvent>({
   dataRef: recentChanges,
   maxItems: 15,
   onEvent: (payload) => {
-    if (!(payload.new as any)?.notified_at) unnotifiedCount.value++
+    if (!(payload.new as any)?.notified_at)
+      unnotifiedCount.value++
   },
 })
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 60)
+    return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24)
+    return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
@@ -97,16 +102,22 @@ function oemName(id: string) {
 }
 
 function statusColor(status: string) {
-  if (status === 'success' || status === 'completed') return 'text-green-500'
-  if (status === 'failed') return 'text-red-500'
-  if (status === 'running') return 'text-blue-500'
+  if (status === 'success' || status === 'completed')
+    return 'text-green-500'
+  if (status === 'failed')
+    return 'text-red-500'
+  if (status === 'running')
+    return 'text-blue-500'
   return 'text-muted-foreground'
 }
 
 function severityColor(severity: string) {
-  if (severity === 'critical') return 'bg-red-500/10 text-red-500 border-red-500/20'
-  if (severity === 'high') return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
-  if (severity === 'medium') return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+  if (severity === 'critical')
+    return 'bg-red-500/10 text-red-500 border-red-500/20'
+  if (severity === 'high')
+    return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+  if (severity === 'medium')
+    return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
   return 'bg-muted text-muted-foreground border-border'
 }
 </script>
@@ -126,99 +137,151 @@ function severityColor(severity: string) {
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">OEMs</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              OEMs
+            </UiCardTitle>
             <Factory class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.oems }}</div>
-            <p class="text-xs text-muted-foreground">Active manufacturers</p>
+            <div class="text-2xl font-bold">
+              {{ counts.oems }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Active manufacturers
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Models</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Models
+            </UiCardTitle>
             <Car class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.models }}</div>
-            <p class="text-xs text-muted-foreground">Vehicle models</p>
+            <div class="text-2xl font-bold">
+              {{ counts.models }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Vehicle models
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Variants</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Variants
+            </UiCardTitle>
             <Car class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.products }}</div>
-            <p class="text-xs text-muted-foreground">Product listings</p>
+            <div class="text-2xl font-bold">
+              {{ counts.products }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Product listings
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Offers</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Offers
+            </UiCardTitle>
             <Tag class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.offers }}</div>
-            <p class="text-xs text-muted-foreground">Active promotions</p>
+            <div class="text-2xl font-bold">
+              {{ counts.offers }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Active promotions
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Accessories</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Accessories
+            </UiCardTitle>
             <Wrench class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.accessories }}</div>
-            <p class="text-xs text-muted-foreground">Across {{ counts.accessoryModels }} model links</p>
+            <div class="text-2xl font-bold">
+              {{ counts.accessories }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Across {{ counts.accessoryModels }} model links
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Colors</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Colors
+            </UiCardTitle>
             <Palette class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.colors.toLocaleString() }}</div>
-            <p class="text-xs text-muted-foreground">Variant colors with images</p>
+            <div class="text-2xl font-bold">
+              {{ counts.colors.toLocaleString() }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Variant colors with images
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Pricing</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Pricing
+            </UiCardTitle>
             <DollarSign class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.pricing }}</div>
-            <p class="text-xs text-muted-foreground">State driveaway rows</p>
+            <div class="text-2xl font-bold">
+              {{ counts.pricing }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              State driveaway rows
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Import Runs</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Import Runs
+            </UiCardTitle>
             <Clock class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.runs }}</div>
-            <p class="text-xs text-muted-foreground">Total crawl executions</p>
+            <div class="text-2xl font-bold">
+              {{ counts.runs }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Total crawl executions
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard class="cursor-pointer hover:bg-accent/50 transition-colors" @click="$router.push('/dashboard/model-pages')">
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">AI Pages</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              AI Pages
+            </UiCardTitle>
             <Sparkles class="size-4 text-purple-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ pageStats?.generated_pages ?? '—' }}</div>
+            <div class="text-2xl font-bold">
+              {{ pageStats?.generated_pages ?? '—' }}
+            </div>
             <p class="text-xs text-muted-foreground">
               {{ pageStats?.pending_generation ?? 0 }} pending generation
             </p>
@@ -227,12 +290,18 @@ function severityColor(severity: string) {
 
         <UiCard class="cursor-pointer hover:bg-accent/50 transition-colors" @click="$router.push('/dashboard/banners')">
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Banners</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Banners
+            </UiCardTitle>
             <Image class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ counts.banners }}</div>
-            <p class="text-xs text-muted-foreground">Hero slides & carousels</p>
+            <div class="text-2xl font-bold">
+              {{ counts.banners }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Hero slides & carousels
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -241,7 +310,9 @@ function severityColor(severity: string) {
       <div class="grid gap-4 sm:grid-cols-3 lg:grid-cols-5 mt-4">
         <UiCard :class="feedHealth.errored > 0 ? 'border-red-500/30' : ''">
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Feed Health</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Feed Health
+            </UiCardTitle>
             <Shield class="size-4" :class="feedHealth.errored > 0 ? 'text-red-500' : 'text-green-500'" />
           </UiCardHeader>
           <UiCardContent>
@@ -256,7 +327,9 @@ function severityColor(severity: string) {
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Specs Coverage</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Specs Coverage
+            </UiCardTitle>
             <ClipboardList class="size-4" :class="counts.products > 0 && counts.specsProducts / counts.products >= 0.9 ? 'text-green-500' : 'text-yellow-500'" />
           </UiCardHeader>
           <UiCardContent>
@@ -271,7 +344,9 @@ function severityColor(severity: string) {
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Brochures</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Brochures
+            </UiCardTitle>
             <FileText class="size-4" :class="counts.models > 0 && counts.brochureModels / counts.models >= 0.7 ? 'text-green-500' : 'text-yellow-500'" />
           </UiCardHeader>
           <UiCardContent>
@@ -286,18 +361,26 @@ function severityColor(severity: string) {
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Discovered APIs</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Discovered APIs
+            </UiCardTitle>
             <Globe class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ apiCount }}</div>
-            <p class="text-xs text-muted-foreground">Via network capture</p>
+            <div class="text-2xl font-bold">
+              {{ apiCount }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Via network capture
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard :class="unnotifiedCount > 0 ? 'border-yellow-500/30' : ''">
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Unnotified Changes</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Unnotified Changes
+            </UiCardTitle>
             <BellOff v-if="unnotifiedCount > 0" class="size-4 text-yellow-500" />
             <AlertTriangle v-else class="size-4 text-muted-foreground" />
           </UiCardHeader>
@@ -305,7 +388,9 @@ function severityColor(severity: string) {
             <div class="text-2xl font-bold" :class="unnotifiedCount > 0 ? 'text-yellow-500' : ''">
               {{ unnotifiedCount }}
             </div>
-            <p class="text-xs text-muted-foreground">Pending notification</p>
+            <p class="text-xs text-muted-foreground">
+              Pending notification
+            </p>
           </UiCardContent>
         </UiCard>
       </div>

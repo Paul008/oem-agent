@@ -17,9 +17,9 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const headingEdit = useInlineEdit((v) => emit('update-text', 'heading', v))
-const bodyEdit = useInlineEdit((v) => emit('update-text', 'body', v))
-const ctaEdit = useInlineEdit((v) => emit('update-text', 'cta_text', v))
+const headingEdit = useInlineEdit(v => emit('update-text', 'heading', v))
+const bodyEdit = useInlineEdit(v => emit('update-text', 'body', v))
+const ctaEdit = useInlineEdit(v => emit('update-text', 'cta_text', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -40,7 +40,9 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
       @blur="headingEdit.stopEdit()"
       @keydown="headingEdit.onKeydown"
       @paste="headingEdit.onPaste"
-    >{{ section.heading || 'Double-click to edit' }}</h3>
+    >
+      {{ section.heading || 'Double-click to edit' }}
+    </h3>
     <p
       class="mb-4 cursor-text outline-none"
       :style="{ opacity: section.body ? 0.9 : 0.4 }"
@@ -48,7 +50,9 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
       @blur="bodyEdit.stopEdit()"
       @keydown="bodyEdit.onKeydown"
       @paste="bodyEdit.onPaste"
-    >{{ section.body || 'Double-click to add body text' }}</p>
+    >
+      {{ section.body || 'Double-click to add body text' }}
+    </p>
     <a
       v-if="section.cta_text"
       class="inline-block bg-white text-black text-sm font-semibold px-6 py-2.5 rounded hover:bg-white/90 transition-colors cursor-text outline-none"

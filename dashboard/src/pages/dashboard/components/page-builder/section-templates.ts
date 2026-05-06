@@ -1,11 +1,11 @@
-export type PageSectionType =
-  | 'hero' | 'heading' | 'intro' | 'tabs' | 'color-picker' | 'specs-grid'
-  | 'gallery' | 'feature-cards' | 'video' | 'cta-banner' | 'content-block'
-  | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
-  | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
-  | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
-  | 'image' | 'image-showcase' | 'card-grid' | 'split-content' | 'media'
-  | 'pinned-scroll'
+export type PageSectionType
+  = | 'hero' | 'heading' | 'intro' | 'tabs' | 'color-picker' | 'specs-grid'
+    | 'gallery' | 'feature-cards' | 'video' | 'cta-banner' | 'content-block'
+    | 'accordion' | 'enquiry-form' | 'map' | 'alert' | 'divider'
+    | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
+    | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
+    | 'image' | 'image-showcase' | 'card-grid' | 'split-content' | 'media'
+    | 'pinned-scroll'
 
 export interface SectionTemplate {
   id: string
@@ -165,7 +165,7 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { id: 'card-grid-logos', name: 'Logo Grid', description: 'Grid of logos with optional links', type: 'card-grid', data: { title: '', columns: 4, cards: [{ logo_url: '', title: 'Brand' }], card_composition: ['logo', 'title'], card_style: { background: '#f9fafb', border: '1px solid #e5e7eb', border_radius: 8, text_align: 'center', padding: '16px' } } },
 ]
 
-export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string; description: string }> = {
+export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string, description: string }> = {
   'hero': { label: 'Hero', description: 'Full-width banner with heading and CTA' },
   'heading': { label: 'Heading', description: 'Heading and subheading with typography controls' },
   'intro': { label: 'Intro', description: 'Introduction text with optional image' },

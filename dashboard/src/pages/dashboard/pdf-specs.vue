@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, AlertTriangle, FileText, ExternalLink, RefreshCw } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronUp, ExternalLink, FileText, Loader2, RefreshCw, Search } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
@@ -54,10 +54,12 @@ async function loadData() {
   try {
     const data = await workerFetch('/api/v1/admin/pdf-specs')
     models.value = data.models ?? []
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load PDF specs'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -69,7 +71,8 @@ onMounted(loadData)
 const oemList = computed(() => {
   const seen = new Map<string, string>()
   for (const row of models.value) {
-    if (!seen.has(row.oem_id)) seen.set(row.oem_id, row.oem_id.replace(/-au$/, '').toUpperCase())
+    if (!seen.has(row.oem_id))
+      seen.set(row.oem_id, row.oem_id.replace(/-au$/, '').toUpperCase())
   }
   return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
 })
@@ -99,12 +102,15 @@ const filtered = computed(() => {
 
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter(m => {
-      if (m.model_name.toLowerCase().includes(q)) return true
-      if (m.oem_id.toLowerCase().includes(q)) return true
+    list = list.filter((m) => {
+      if (m.model_name.toLowerCase().includes(q))
+        return true
+      if (m.oem_id.toLowerCase().includes(q))
+        return true
       for (const cat of m.categories) {
         for (const s of cat.specs) {
-          if (s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q)) return true
+          if (s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q))
+            return true
         }
       }
       return false
@@ -129,20 +135,23 @@ function oemLabel(id: string) {
 }
 
 function formatDate(dateStr: string | null) {
-  if (!dateStr) return '-'
+  if (!dateStr)
+    return '-'
   return new Date(dateStr).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function toggleModel(id: string) {
   if (expandedModels.value.has(id)) {
     expandedModels.value.delete(id)
-  } else {
+  }
+  else {
     expandedModels.value.add(id)
   }
 }
 
 function filteredCategories(model: PdfSpecModel): SpecCategory[] {
-  if (filterCategory.value === 'all') return model.categories
+  if (filterCategory.value === 'all')
+    return model.categories
   return model.categories.filter(c => c.name === filterCategory.value)
 }
 </script>
@@ -156,7 +165,9 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
           <UiSelectValue placeholder="All OEMs" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oemList" :key="oem.id" :value="oem.id">
             {{ oem.name }}
           </UiSelectItem>
@@ -168,7 +179,9 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
           <UiSelectValue placeholder="All Categories" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Categories</UiSelectItem>
+          <UiSelectItem value="all">
+            All Categories
+          </UiSelectItem>
           <UiSelectItem v-for="cat in allCategories" :key="cat" :value="cat">
             {{ cat }}
           </UiSelectItem>
@@ -201,7 +214,9 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
       <UiButton variant="outline" size="sm" @click="loadData">
         <RefreshCw class="size-3.5 mr-1.5" /> Retry
       </UiButton>
@@ -209,8 +224,12 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
 
     <div v-else-if="models.length === 0" class="flex flex-col items-center justify-center h-64 gap-2">
       <FileText class="size-8 text-muted-foreground/30" />
-      <p class="text-sm text-muted-foreground">No PDF specs extracted yet</p>
-      <p class="text-xs text-muted-foreground">Run the extraction pipeline from the PDFs & Specs page</p>
+      <p class="text-sm text-muted-foreground">
+        No PDF specs extracted yet
+      </p>
+      <p class="text-xs text-muted-foreground">
+        Run the extraction pipeline from the PDFs & Specs page
+      </p>
     </div>
 
     <!-- Table -->
@@ -221,8 +240,12 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
             <UiTableHead>OEM</UiTableHead>
             <UiTableHead>Model</UiTableHead>
             <UiTableHead>PDF</UiTableHead>
-            <UiTableHead class="text-center">Categories</UiTableHead>
-            <UiTableHead class="text-center">Specs</UiTableHead>
+            <UiTableHead class="text-center">
+              Categories
+            </UiTableHead>
+            <UiTableHead class="text-center">
+              Specs
+            </UiTableHead>
             <UiTableHead>Extracted</UiTableHead>
           </UiTableRow>
         </UiTableHeader>
@@ -284,7 +307,9 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
                           :key="spec.key"
                           class="flex justify-between gap-3 text-xs"
                         >
-                          <dt class="text-muted-foreground shrink-0">{{ spec.label }}</dt>
+                          <dt class="text-muted-foreground shrink-0">
+                            {{ spec.label }}
+                          </dt>
                           <dd class="text-right font-medium truncate" :title="`${spec.value}${spec.unit ? ` ${spec.unit}` : ''}`">
                             {{ spec.value }}
                             <span v-if="spec.unit" class="text-muted-foreground ml-0.5">{{ spec.unit }}</span>
@@ -319,9 +344,15 @@ function filteredCategories(model: PdfSpecModel): SpecCategory[] {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="25">25</UiSelectItem>
-              <UiSelectItem value="50">50</UiSelectItem>
-              <UiSelectItem value="100">100</UiSelectItem>
+              <UiSelectItem value="25">
+                25
+              </UiSelectItem>
+              <UiSelectItem value="50">
+                50
+              </UiSelectItem>
+              <UiSelectItem value="100">
+                100
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
           <span>

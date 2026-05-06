@@ -23,6 +23,7 @@ Successfully discovered **comprehensive vehicle color data** for all Suzuki Aust
 ## Data Source
 
 ### Primary Endpoint
+
 ```
 https://www.suzuki.com.au/suzuki-finance-calculator-data.json
 ```
@@ -33,6 +34,7 @@ https://www.suzuki.com.au/suzuki-finance-calculator-data.json
 **Update Frequency:** Unknown (likely monthly with model updates)
 
 ### Data Structure
+
 ```
 models[]
   ├─ model: string (e.g., "Swift Hybrid")
@@ -56,22 +58,26 @@ models[]
 ## Statistics
 
 ### Coverage
+
 - **Total models:** 7
 - **Total variants:** 15
 - **Total colors:** 95
 - **Coverage:** 100% (all variants have color data)
 
 ### Color Distribution
+
 - **Solid colors:** 15 (15.8%)
 - **Metallic/Pearl colors:** 58 (61.1%)
 - **Two-tone colors:** 22 (23.2%)
 
 ### Pricing
+
 - **Extra cost range:** $645 - $1,345 AUD
 - **Free colors:** 15 (15.8%)
 - **Premium colors:** 80 (84.2%)
 
 ### Image Assets
+
 - **Format:** WebP (optimized for web)
 - **Resolutions:** 2 sizes per color
   - Default: 636×346px
@@ -85,24 +91,24 @@ models[]
 
 ### Target Table: `variant_colors`
 
-| Database Column | Source Field | Example Value |
-|----------------|--------------|---------------|
-| `product_id` | JOIN via `variantID` | `(SELECT id FROM products WHERE external_key = 'suzuki-au-10651')` |
-| `name` | `paintColour.name` | `"Pure White Pearl"` |
-| `hex_code` | `paintColour.hex` | `"#f7f7f8"` |
-| `type` | `paintColour.type` | `"Solid"` |
-| `is_two_tone` | `paintColour.twoToned` | `false` |
-| `second_hex_code` | `paintColour.secondHex` | `null` or `"#000000"` |
-| `extra_cost_nsw` | `paintColour.extraCost.NSW` | `0` |
-| `extra_cost_vic` | `paintColour.extraCost.VIC` | `0` |
-| `extra_cost_qld` | `paintColour.extraCost.QLD` | `0` |
-| `extra_cost_wa` | `paintColour.extraCost.WA` | `0` |
-| `extra_cost_sa` | `paintColour.extraCost.SA` | `0` |
-| `extra_cost_tas` | `paintColour.extraCost.TAS` | `0` |
-| `extra_cost_act` | `paintColour.extraCost.ACT` | `0` |
-| `extra_cost_nt` | `paintColour.extraCost.NT` | `0` |
-| `image_url` | `paintColour.image.sizes.default.src` | `"https://www.suzuki.com.au/..."` |
-| `meta_json` | Full image object | `{ image, offer, disclaimer }` |
+| Database Column   | Source Field                          | Example Value                                                      |
+| ----------------- | ------------------------------------- | ------------------------------------------------------------------ |
+| `product_id`      | JOIN via `variantID`                  | `(SELECT id FROM products WHERE external_key = 'suzuki-au-10651')` |
+| `name`            | `paintColour.name`                    | `"Pure White Pearl"`                                               |
+| `hex_code`        | `paintColour.hex`                     | `"#f7f7f8"`                                                        |
+| `type`            | `paintColour.type`                    | `"Solid"`                                                          |
+| `is_two_tone`     | `paintColour.twoToned`                | `false`                                                            |
+| `second_hex_code` | `paintColour.secondHex`               | `null` or `"#000000"`                                              |
+| `extra_cost_nsw`  | `paintColour.extraCost.NSW`           | `0`                                                                |
+| `extra_cost_vic`  | `paintColour.extraCost.VIC`           | `0`                                                                |
+| `extra_cost_qld`  | `paintColour.extraCost.QLD`           | `0`                                                                |
+| `extra_cost_wa`   | `paintColour.extraCost.WA`            | `0`                                                                |
+| `extra_cost_sa`   | `paintColour.extraCost.SA`            | `0`                                                                |
+| `extra_cost_tas`  | `paintColour.extraCost.TAS`           | `0`                                                                |
+| `extra_cost_act`  | `paintColour.extraCost.ACT`           | `0`                                                                |
+| `extra_cost_nt`   | `paintColour.extraCost.NT`            | `0`                                                                |
+| `image_url`       | `paintColour.image.sizes.default.src` | `"https://www.suzuki.com.au/..."`                                  |
+| `meta_json`       | Full image object                     | `{ image, offer, disclaimer }`                                     |
 
 ### Key Mapping Considerations
 
@@ -130,6 +136,7 @@ models[]
 ## Sample Data
 
 ### Example 1: Solid Color (No Extra Cost)
+
 ```json
 {
   "name": "Pure White Pearl",
@@ -137,8 +144,14 @@ models[]
   "hex": "#f7f7f8",
   "secondHex": "",
   "extraCost": {
-    "ACT": 0, "NSW": 0, "VIC": 0, "QLD": 0,
-    "WA": 0, "SA": 0, "TAS": 0, "NT": 0
+    "ACT": 0,
+    "NSW": 0,
+    "VIC": 0,
+    "QLD": 0,
+    "WA": 0,
+    "SA": 0,
+    "TAS": 0,
+    "NT": 0
   },
   "type": "Solid",
   "image": {
@@ -156,6 +169,7 @@ models[]
 ```
 
 ### Example 2: Premium Metallic Color (With Extra Cost)
+
 ```json
 {
   "name": "Premium Silver Metallic",
@@ -163,14 +177,21 @@ models[]
   "hex": "#a4a5ab",
   "secondHex": "",
   "extraCost": {
-    "ACT": 645, "NSW": 645, "VIC": 645, "QLD": 645,
-    "WA": 645, "SA": 645, "TAS": 645, "NT": 645
+    "ACT": 645,
+    "NSW": 645,
+    "VIC": 645,
+    "QLD": 645,
+    "WA": 645,
+    "SA": 645,
+    "TAS": 645,
+    "NT": 645
   },
   "type": "Premium/Metallic"
 }
 ```
 
 ### Example 3: Two-Tone Color
+
 ```json
 {
   "name": "Frontier Blue Pearl Metallic with Black Roof",
@@ -178,8 +199,14 @@ models[]
   "hex": "#0a2b4d",
   "secondHex": "#000000",
   "extraCost": {
-    "ACT": 1345, "NSW": 1345, "VIC": 1345, "QLD": 1345,
-    "WA": 1345, "SA": 1345, "TAS": 1345, "NT": 1345
+    "ACT": 1345,
+    "NSW": 1345,
+    "VIC": 1345,
+    "QLD": 1345,
+    "WA": 1345,
+    "SA": 1345,
+    "TAS": 1345,
+    "NT": 1345
   },
   "type": "Two-Tone Metallic"
 }
@@ -190,6 +217,7 @@ models[]
 ## Implementation Notes
 
 ### Variant ID Matching
+
 Current DB products use `external_key` pattern but actual keys need verification:
 
 ```sql
@@ -201,21 +229,25 @@ ORDER BY external_key;
 ```
 
 If keys don't match `suzuki-au-{variantID}` pattern, will need to:
+
 1. Query existing keys
 2. Build mapping from variant names to product IDs
 3. Update seed script to use name-based matching
 
 ### Color Uniqueness
+
 - **Per-product uniqueness:** Each variant can have different color options
 - **Constraint:** `UNIQUE(product_id, name)` recommended
 - **Duplicates:** Same color name may appear across variants with different images
 
 ### State-Based Pricing
+
 - All 8 Australian states/territories represented
 - Extra costs are **consistent** across all states for each color
 - No regional color availability restrictions observed
 
 ### Image Optimization
+
 - WebP format already optimized (modern, compressed)
 - Consider caching/mirroring to own CDN for reliability
 - Alt text provided for accessibility compliance
@@ -231,6 +263,7 @@ If keys don't match `suzuki-au-{variantID}` pattern, will need to:
 5. **Validate results:** Query to confirm 100% coverage
 
 ### Seed Script Requirements
+
 - Fetch finance data from JSON endpoint
 - Map `variantID` to `product_id` via `external_key`
 - Transform color objects to DB schema

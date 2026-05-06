@@ -5,7 +5,7 @@ const props = defineProps<{
   section: {
     type: 'testimonial'
     title?: string
-    testimonials: Array<{ quote: string; author: string; role?: string; avatar_url?: string; rating?: number }>
+    testimonials: Array<{ quote: string, author: string, role?: string, avatar_url?: string, rating?: number }>
     layout: 'carousel' | 'grid' | 'stacked'
     style?: 'default' | 'dark' | 'minimal'
     cta_text?: string
@@ -18,7 +18,7 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -46,7 +46,9 @@ const isDark = computed(() => props.section.style === 'dark')
       @blur="titleEdit.stopEdit()"
       @keydown="titleEdit.onKeydown"
       @paste="titleEdit.onPaste"
-    >{{ section.title || 'Double-click to add title' }}</h2>
+    >
+      {{ section.title || 'Double-click to add title' }}
+    </h2>
 
     <!-- Dark style: large quote, single testimonial -->
     <template v-if="isDark">
@@ -54,7 +56,9 @@ const isDark = computed(() => props.section.style === 'dark')
         <blockquote
           v-if="section.testimonials?.[0]"
           class="text-2xl md:text-4xl font-bold leading-tight mb-8"
-        >"{{ section.testimonials[0].quote }}"</blockquote>
+        >
+          "{{ section.testimonials[0].quote }}"
+        </blockquote>
         <div v-if="section.testimonials?.[0]?.author" class="text-sm text-gray-400">
           — {{ section.testimonials[0].author }}
           <span v-if="section.testimonials[0].role" class="ml-1">· {{ section.testimonials[0].role }}</span>
@@ -66,7 +70,7 @@ const isDark = computed(() => props.section.style === 'dark')
           @click.prevent
         >
           {{ section.cta_text }}
-          <svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.6 12.5a.9.9 0 0 1 .9-.9h12.765l-4.989-4.751a.9.9 0 1 1 1.248-1.298l6.6 6.3a.9.9 0 0 1 0 1.298l-6.6 6.3a.9.9 0 1 1-1.248-1.298l4.989-4.751H4.5a.9.9 0 0 1-.9-.9Z" fill="currentColor"/></svg>
+          <svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.6 12.5a.9.9 0 0 1 .9-.9h12.765l-4.989-4.751a.9.9 0 1 1 1.248-1.298l6.6 6.3a.9.9 0 0 1 0 1.298l-6.6 6.3a.9.9 0 1 1-1.248-1.298l4.989-4.751H4.5a.9.9 0 0 1-.9-.9Z" fill="currentColor" /></svg>
         </a>
       </div>
     </template>
@@ -82,14 +86,18 @@ const isDark = computed(() => props.section.style === 'dark')
           :key="i"
           class="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm border"
         >
-          <p v-if="section.style !== 'minimal'" class="text-amber-400 text-sm mb-2">{{ stars(t.rating) }}</p>
-          <p class="text-sm italic text-muted-foreground mb-3">"{{ t.quote || 'Customer quote...' }}"</p>
+          <p v-if="section.style !== 'minimal'" class="text-amber-400 text-sm mb-2">
+            {{ stars(t.rating) }}
+          </p>
+          <p class="text-sm italic text-muted-foreground mb-3">
+            "{{ t.quote || 'Customer quote...' }}"
+          </p>
           <div class="flex items-center gap-2">
             <div
               v-if="t.avatar_url"
               class="size-8 rounded-full bg-muted overflow-hidden shrink-0"
             >
-              <img :src="t.avatar_url" :alt="t.author" class="size-full object-cover" />
+              <img :src="t.avatar_url" :alt="t.author" class="size-full object-cover">
             </div>
             <div
               v-else
@@ -98,8 +106,12 @@ const isDark = computed(() => props.section.style === 'dark')
               {{ (t.author || '?')[0].toUpperCase() }}
             </div>
             <div>
-              <p class="text-sm font-medium">{{ t.author || 'Customer' }}</p>
-              <p v-if="t.role" class="text-[10px] text-muted-foreground">{{ t.role }}</p>
+              <p class="text-sm font-medium">
+                {{ t.author || 'Customer' }}
+              </p>
+              <p v-if="t.role" class="text-[10px] text-muted-foreground">
+                {{ t.role }}
+              </p>
             </div>
           </div>
         </div>

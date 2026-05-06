@@ -1,6 +1,18 @@
 /**
- * Populate Ford inventory into the database
- * Uses the local ford-vehiclesmenu.json and fetches detailed variant data
+ * @deprecated 2026-04-22 — split into two newer scripts:
+ *
+ *   scripts/sync-ford-models.ts              — upserts vehicle_models from
+ *                                              ford-vehiclesmenu.json
+ *   scripts/populate-ford-from-brochures.ts  — extracts variant products
+ *                                              from Ford's spec-sheet PDFs
+ *
+ * This file's enrichment step calls Ford's old `/pricing.data` endpoints,
+ * which have been dead since early 2026 (return 200 with 0-byte body).
+ * The `fordPublicUrl()` helper still here works correctly but is unused
+ * by the canonical path.
+ *
+ * Kept in the tree only for the URL-rewrite regex, which is also inlined
+ * in sync-ford-models.ts.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -16,6 +28,22 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+/**
+ * Ford's vehiclesmenu.json exposes internal AEM CMS paths like
+ *   /content/ecomm-img/au/en_au/home/suv/everest.html
+ * which are NOT public URLs. The public showroom equivalent is
+ *   https://www.ford.com.au/showroom/suv/everest/
+ * This helper rewrites the former into the latter. Anything that doesn't
+ * match the expected prefix is returned unchanged (and flagged with null
+ * so callers can decide what to do).
+ */
+function fordPublicUrl(path: string | undefined | null): string | null {
+  if (!path) return null;
+  const m = path.match(/^\/content\/ecomm-img\/au\/en_au\/home\/(.+)\.html$/);
+  if (!m) return path.startsWith('http') ? path : null;
+  return `https://www.ford.com.au/showroom/${m[1]}/`;
+}
 
 interface FordVehicle {
   code: string;
@@ -40,43 +68,21 @@ interface FordCategory {
   nameplates: FordVehicle[];
 }
 
-async function fetchFordPricingData(vehicleCode: string): Promise<any> {
-  try {
-    // Try the pricing API
-    const pricingUrl = `https://www.ford.com.au/content/ford/au/en_au/home/${vehicleCode.toLowerCase().replace(/_/g, '-')}/pricing.data`;
-    
-    const response = await fetch(pricingUrl, {
-      headers: {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-AU,en;q=0.9',
-        'Referer': 'https://www.ford.com.au/',
-        'Origin': 'https://www.ford.com.au',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      },
-    });
-
-    if (!response.ok) {
-      // Try alternative URL
-      const altUrl = `https://www.ford.com.au/content/ford/au/en_au/home/vehicles/${vehicleCode.toLowerCase().replace(/_/g, '-')}/pricing.data`;
-      const altResponse = await fetch(altUrl, {
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-AU,en;q=0.9',
-          'Referer': 'https://www.ford.com.au/',
-          'Origin': 'https://www.ford.com.au',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        },
-      });
-      
-      if (!altResponse.ok) return null;
-      return await altResponse.json();
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.log(`  Error fetching pricing for ${vehicleCode}:`, (error as Error).message);
-    return null;
-  }
+/**
+ * Ford removed the public pricing.data JSON endpoints some time before
+ * 2026-04-22. Both
+ *   /content/ford/au/en_au/home/<code>/pricing.data
+ *   /content/ford/au/en_au/home/vehicles/<code>/pricing.data
+ * now return 200 / 0 bytes or 503. Showroom pages are fully server-rendered;
+ * the Build & Price flow exposes no variant JSON either (confirmed by
+ * puppeteer network capture).
+ *
+ * Until a proper HTML scraper is written, this returns null so the script
+ * falls through to inserting the nameplate with just the menu-level fields
+ * (name, code, image, body type) — no variant/colour enrichment.
+ */
+async function fetchFordPricingData(_vehicleCode: string): Promise<any> {
+  return null;
 }
 
 function extractColorsFromData(data: any): any[] {
@@ -217,7 +223,7 @@ async function populateFordInventory() {
       const baseProduct: any = {
         oem_id: 'ford-au',
         external_key: np.code,
-        source_url: np.path?.startsWith('/') ? `https://www.ford.com.au${np.path}` : np.path,
+        source_url: fordPublicUrl(np.path) ?? (np.path?.startsWith('/') ? `https://www.ford.com.au${np.path}` : np.path),
         title: np.name,
         subtitle: null,
         body_type: catName,
@@ -227,12 +233,11 @@ async function populateFordInventory() {
         price_currency: 'AUD',
         price_type: parsedPrice && parsedPrice > 0 ? 'driveaway' : null,
         price_raw_string: priceVat,
-        primary_image_url: np.image?.startsWith('/') ? `https://www.ford.com.au${np.image}` : np.image,
         key_features: [],
         variants: [],
-        cta_links: np.additionalCTA ? [{ 
-          label: np.additionalLabel || 'Build & Price', 
-          url: np.additionalCTA 
+        cta_links: np.additionalCTA ? [{
+          label: np.additionalLabel || 'Build & Price',
+          url: np.additionalCTA
         }] : [],
         meta_json: {
           category: catName,
@@ -242,6 +247,10 @@ async function populateFordInventory() {
           imgUrlHeader: np.imgUrlHeader,
           imgAltText: np.imgAltText,
           additionalCategories: np.additionalCategories || [],
+          // The products table has no primary_image_url column — store the
+          // upstream CDN URL here; primary_image_r2_key is populated later
+          // when the image is uploaded to R2.
+          primary_image_url: np.image?.startsWith('/') ? `https://www.ford.com.au${np.image}` : np.image,
         },
         last_seen_at: new Date().toISOString(),
       };

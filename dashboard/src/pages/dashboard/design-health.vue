@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, HeartPulse, AlertTriangle, Check, ChevronDown, ScanSearch } from 'lucide-vue-next'
+import { Check, ChevronDown, Loader2, ScanSearch } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
-import { fetchDesignHealth, checkDrift } from '@/lib/worker-api'
+import { checkDrift, fetchDesignHealth } from '@/lib/worker-api'
 
 const loading = ref(true)
-const oems = ref<Array<{ oem_id: string; last_crawled: string | null; token_count: number; has_fonts: boolean }>>([])
+const oems = ref<Array<{ oem_id: string, last_crawled: string | null, token_count: number, has_fonts: boolean }>>([])
 
 // Drift state per OEM
-const driftResults = ref<Map<string, { severity: string; changes: any[]; change_count: number; crawled_at: string }>>(new Map())
+const driftResults = ref<Map<string, { severity: string, changes: any[], change_count: number, crawled_at: string }>>(new Map())
 const checkingOem = ref<string | null>(null)
 const expandedOem = ref<Set<string>>(new Set())
 const checkingAll = ref(false)
@@ -20,9 +20,11 @@ onMounted(async () => {
   try {
     const data = await fetchDesignHealth()
     oems.value = data.oems.sort((a, b) => a.oem_id.localeCompare(b.oem_id))
-  } catch {
+  }
+  catch {
     toast.error('Failed to load design health')
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -35,21 +37,26 @@ const summary = computed(() => {
 })
 
 async function handleCheckDrift(oemId: string) {
-  if (checkingOem.value) return
+  if (checkingOem.value)
+    return
   checkingOem.value = oemId
   try {
     const result = await checkDrift(oemId)
     driftResults.value.set(oemId, result)
-    if (result.severity !== 'none') expandedOem.value.add(oemId)
-  } catch (err: any) {
+    if (result.severity !== 'none')
+      expandedOem.value.add(oemId)
+  }
+  catch (err: any) {
     toast.error(`${oemId}: ${err.message}`)
-  } finally {
+  }
+  finally {
     checkingOem.value = null
   }
 }
 
 async function handleCheckAll() {
-  if (checkingAll.value) return
+  if (checkingAll.value)
+    return
   checkingAll.value = true
   for (let i = 0; i < oems.value.length; i++) {
     const oem = oems.value[i]
@@ -58,8 +65,10 @@ async function handleCheckAll() {
     try {
       const result = await checkDrift(oem.oem_id)
       driftResults.value.set(oem.oem_id, result)
-      if (result.severity !== 'none') expandedOem.value.add(oem.oem_id)
-    } catch {}
+      if (result.severity !== 'none')
+        expandedOem.value.add(oem.oem_id)
+    }
+    catch {}
   }
   checkingOem.value = null
   checkingAll.value = false
@@ -87,18 +96,28 @@ const severityColors: Record<string, string> = {
       <!-- Summary -->
       <div class="grid grid-cols-3 gap-4">
         <UiCard class="p-4">
-          <p class="text-xs text-muted-foreground">OEMs Checked</p>
-          <p class="text-2xl font-bold">{{ summary.checked }} / {{ oems.length }}</p>
+          <p class="text-xs text-muted-foreground">
+            OEMs Checked
+          </p>
+          <p class="text-2xl font-bold">
+            {{ summary.checked }} / {{ oems.length }}
+          </p>
         </UiCard>
         <UiCard class="p-4">
-          <p class="text-xs text-muted-foreground">With Drift</p>
+          <p class="text-xs text-muted-foreground">
+            With Drift
+          </p>
           <p class="text-2xl font-bold" :class="summary.withDrift ? 'text-amber-600' : 'text-green-600'">
             {{ summary.withDrift }}
           </p>
         </UiCard>
         <UiCard class="p-4">
-          <p class="text-xs text-muted-foreground">Total Changes</p>
-          <p class="text-2xl font-bold">{{ summary.totalChanges }}</p>
+          <p class="text-xs text-muted-foreground">
+            Total Changes
+          </p>
+          <p class="text-2xl font-bold">
+            {{ summary.totalChanges }}
+          </p>
         </UiCard>
       </div>
 
@@ -117,18 +136,32 @@ const severityColors: Record<string, string> = {
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b bg-muted/50">
-              <th class="px-4 py-2.5 text-left font-medium">OEM</th>
-              <th class="px-4 py-2.5 text-center font-medium">Tokens</th>
-              <th class="px-4 py-2.5 text-center font-medium">Fonts</th>
-              <th class="px-4 py-2.5 text-center font-medium">Drift</th>
-              <th class="px-4 py-2.5 text-right font-medium">Action</th>
+              <th class="px-4 py-2.5 text-left font-medium">
+                OEM
+              </th>
+              <th class="px-4 py-2.5 text-center font-medium">
+                Tokens
+              </th>
+              <th class="px-4 py-2.5 text-center font-medium">
+                Fonts
+              </th>
+              <th class="px-4 py-2.5 text-center font-medium">
+                Drift
+              </th>
+              <th class="px-4 py-2.5 text-right font-medium">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody class="divide-y">
             <template v-for="oem in oems" :key="oem.oem_id">
               <tr>
-                <td class="px-4 py-2.5 font-medium">{{ oemLabel(oem.oem_id) }}</td>
-                <td class="px-4 py-2.5 text-center text-muted-foreground">{{ oem.token_count }}</td>
+                <td class="px-4 py-2.5 font-medium">
+                  {{ oemLabel(oem.oem_id) }}
+                </td>
+                <td class="px-4 py-2.5 text-center text-muted-foreground">
+                  {{ oem.token_count }}
+                </td>
                 <td class="px-4 py-2.5 text-center">
                   <Check v-if="oem.has_fonts" class="size-4 text-green-600 mx-auto" />
                   <span v-else class="text-xs text-muted-foreground">—</span>

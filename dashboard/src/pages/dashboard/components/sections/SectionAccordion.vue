@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
 defineProps<{
   section: {
     type: 'accordion'
     title?: string
-    items: Array<{ question: string; answer: string }>
+    items: Array<{ question: string, answer: string }>
     section_id?: string
   }
 }>()
@@ -16,11 +17,12 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 const expanded = ref<Set<number>>(new Set())
 
 function toggle(index: number) {
-  if (expanded.value.has(index)) expanded.value.delete(index)
+  if (expanded.value.has(index))
+    expanded.value.delete(index)
   else expanded.value.add(index)
 }
 
@@ -40,7 +42,9 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
       @blur="titleEdit.stopEdit()"
       @keydown="titleEdit.onKeydown"
       @paste="titleEdit.onPaste"
-    >{{ section.title || 'Double-click to add title' }}</h3>
+    >
+      {{ section.title || 'Double-click to add title' }}
+    </h3>
     <div class="divide-y border rounded-lg">
       <div v-for="(item, i) in section.items" :key="i">
         <button

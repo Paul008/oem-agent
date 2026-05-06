@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, Globe, Factory, Car, Palette, ExternalLink, Copy, Check, RefreshCw, AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle, Car, Check, Copy, ExternalLink, Factory, Globe, Loader2, Palette, RefreshCw } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
+
+import type { Oem, VehicleModel } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import type { Oem, VehicleModel } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
@@ -36,7 +37,7 @@ const checking = ref(false)
 const copiedUrl = ref<string | null>(null)
 const filterOem = ref('all')
 const expandedOem = ref<string | null>(null)
-const expandedModels = ref<{ slug: string; name: string; variantsUrl: string }[]>([])
+const expandedModels = ref<{ slug: string, name: string, variantsUrl: string }[]>([])
 
 onMounted(async () => {
   try {
@@ -48,8 +49,10 @@ onMounted(async () => {
     const activeOemIds = new Set(oems.value.map(o => o.id))
     const modelsByOem = new Map<string, VehicleModel[]>()
     for (const model of m) {
-      if (!activeOemIds.has(model.oem_id)) continue
-      if (!modelsByOem.has(model.oem_id)) modelsByOem.set(model.oem_id, [])
+      if (!activeOemIds.has(model.oem_id))
+        continue
+      if (!modelsByOem.has(model.oem_id))
+        modelsByOem.set(model.oem_id, [])
       modelsByOem.get(model.oem_id)!.push(model)
     }
 
@@ -60,7 +63,7 @@ onMounted(async () => {
       fetchVariantCountsByOem(),
     ])
 
-    endpoints.value = oems.value.map(oem => {
+    endpoints.value = oems.value.map((oem) => {
       const oemModels = modelsByOem.get(oem.id) || []
       return {
         oemId: oem.id,
@@ -77,10 +80,12 @@ onMounted(async () => {
         variantCountFromApi: null,
       }
     })
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load dealer API data'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -92,7 +97,8 @@ async function fetchCountsByOem(table: string): Promise<Map<string, number>> {
       .from('products')
       .select('id')
       .eq('oem_id', oem.id)
-    if (!products?.length) continue
+    if (!products?.length)
+      continue
 
     const { count } = await supabase
       .from(table)
@@ -141,10 +147,12 @@ async function checkEndpoint(ep: EndpointStatus) {
     if (Array.isArray(data)) {
       ep.variantCountFromApi = data.reduce((sum: number, m: any) => sum + (m.variant_count || 0), 0)
       ep.status = 'ok'
-    } else {
+    }
+    else {
       ep.status = 'error'
     }
-  } catch {
+  }
+  catch {
     ep.status = 'error'
     ep.responseTime = Math.round(performance.now() - start)
     ep.lastChecked = new Date()
@@ -181,7 +189,8 @@ function toggleExpand(oemId: string) {
 }
 
 const filtered = computed(() => {
-  if (filterOem.value === 'all') return endpoints.value
+  if (filterOem.value === 'all')
+    return endpoints.value
   return endpoints.value.filter(ep => ep.oemId === filterOem.value)
 })
 
@@ -200,9 +209,12 @@ const stats = computed(() => {
 })
 
 function statusBadge(status: string) {
-  if (status === 'ok') return 'bg-green-500/10 text-green-500 border-green-500/20'
-  if (status === 'checking') return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-  if (status === 'error') return 'bg-red-500/10 text-red-500 border-red-500/20'
+  if (status === 'ok')
+    return 'bg-green-500/10 text-green-500 border-green-500/20'
+  if (status === 'checking')
+    return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+  if (status === 'error')
+    return 'bg-red-500/10 text-red-500 border-red-500/20'
   return 'bg-muted text-muted-foreground border-muted'
 }
 </script>
@@ -225,42 +237,60 @@ function statusBadge(status: string) {
     <div class="grid gap-4 sm:grid-cols-4 mb-4">
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Active OEMs</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Active OEMs
+          </UiCardTitle>
           <Factory class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.withData }}</div>
-          <p class="text-xs text-muted-foreground">of {{ stats.totalOems }} with catalog data</p>
+          <div class="text-2xl font-bold">
+            {{ stats.withData }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            of {{ stats.totalOems }} with catalog data
+          </p>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Total Models</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Total Models
+          </UiCardTitle>
           <Car class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.totalModels }}</div>
+          <div class="text-2xl font-bold">
+            {{ stats.totalModels }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Total Variants</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Total Variants
+          </UiCardTitle>
           <Palette class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.totalVariants }}</div>
+          <div class="text-2xl font-bold">
+            {{ stats.totalVariants }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Live Endpoints</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Live Endpoints
+          </UiCardTitle>
           <Globe class="size-4 text-green-500" />
         </UiCardHeader>
         <UiCardContent>
           <div class="text-2xl font-bold" :class="stats.live > 0 ? 'text-green-500' : ''">
             {{ stats.live }}
           </div>
-          <p class="text-xs text-muted-foreground">verified responding</p>
+          <p class="text-xs text-muted-foreground">
+            verified responding
+          </p>
         </UiCardContent>
       </UiCard>
     </div>
@@ -268,7 +298,9 @@ function statusBadge(status: string) {
     <!-- API Schema Info -->
     <UiCard class="mb-4">
       <UiCardHeader>
-        <UiCardTitle class="text-sm font-medium">Endpoint Reference</UiCardTitle>
+        <UiCardTitle class="text-sm font-medium">
+          Endpoint Reference
+        </UiCardTitle>
         <UiCardDescription>
           WordPress REST API compatible endpoints — drop-in replacement for legacy WP variant APIs
         </UiCardDescription>
@@ -276,31 +308,55 @@ function statusBadge(status: string) {
       <UiCardContent>
         <div class="grid gap-3 text-sm font-mono">
           <div class="flex items-start gap-3">
-            <UiBadge variant="outline" class="shrink-0 mt-0.5">GET</UiBadge>
+            <UiBadge variant="outline" class="shrink-0 mt-0.5">
+              GET
+            </UiBadge>
             <div>
-              <p class="text-foreground">/api/wp/v2/catalog?oem_id=<span class="text-blue-500">{oem_id}</span></p>
-              <p class="text-muted-foreground text-xs font-sans mt-0.5">All models with nested variants, colours, and pricing for an OEM</p>
+              <p class="text-foreground">
+                /api/wp/v2/catalog?oem_id=<span class="text-blue-500">{oem_id}</span>
+              </p>
+              <p class="text-muted-foreground text-xs font-sans mt-0.5">
+                All models with nested variants, colours, and pricing for an OEM
+              </p>
             </div>
           </div>
           <div class="flex items-start gap-3">
-            <UiBadge variant="outline" class="shrink-0 mt-0.5">GET</UiBadge>
+            <UiBadge variant="outline" class="shrink-0 mt-0.5">
+              GET
+            </UiBadge>
             <div>
-              <p class="text-foreground">/api/wp/v2/models?oem_id=<span class="text-blue-500">{oem_id}</span></p>
-              <p class="text-muted-foreground text-xs font-sans mt-0.5">List of active models for an OEM</p>
+              <p class="text-foreground">
+                /api/wp/v2/models?oem_id=<span class="text-blue-500">{oem_id}</span>
+              </p>
+              <p class="text-muted-foreground text-xs font-sans mt-0.5">
+                List of active models for an OEM
+              </p>
             </div>
           </div>
           <div class="flex items-start gap-3">
-            <UiBadge variant="outline" class="shrink-0 mt-0.5">GET</UiBadge>
+            <UiBadge variant="outline" class="shrink-0 mt-0.5">
+              GET
+            </UiBadge>
             <div>
-              <p class="text-foreground">/api/wp/v2/variants?filter[variant_category]=<span class="text-blue-500">{slug}</span>&amp;oem_id=<span class="text-blue-500">{oem_id}</span></p>
-              <p class="text-muted-foreground text-xs font-sans mt-0.5">Paginated variants for a specific model (supports per_page, page params)</p>
+              <p class="text-foreground">
+                /api/wp/v2/variants?filter[variant_category]=<span class="text-blue-500">{slug}</span>&amp;oem_id=<span class="text-blue-500">{oem_id}</span>
+              </p>
+              <p class="text-muted-foreground text-xs font-sans mt-0.5">
+                Paginated variants for a specific model (supports per_page, page params)
+              </p>
             </div>
           </div>
           <div class="flex items-start gap-3">
-            <UiBadge variant="outline" class="shrink-0 mt-0.5">GET</UiBadge>
+            <UiBadge variant="outline" class="shrink-0 mt-0.5">
+              GET
+            </UiBadge>
             <div>
-              <p class="text-foreground">/api/wp/v2/variants-import?oem=<span class="text-blue-500">{oem_id}</span></p>
-              <p class="text-muted-foreground text-xs font-sans mt-0.5">Flat variant list for WP All Import (matches oem-variants schema)</p>
+              <p class="text-foreground">
+                /api/wp/v2/variants-import?oem=<span class="text-blue-500">{oem_id}</span>
+              </p>
+              <p class="text-muted-foreground text-xs font-sans mt-0.5">
+                Flat variant list for WP All Import (matches oem-variants schema)
+              </p>
             </div>
           </div>
         </div>
@@ -314,7 +370,9 @@ function statusBadge(status: string) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -329,7 +387,9 @@ function statusBadge(status: string) {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <!-- Endpoints Table -->
@@ -339,12 +399,22 @@ function statusBadge(status: string) {
           <UiTableHeader>
             <UiTableRow>
               <UiTableHead>OEM</UiTableHead>
-              <UiTableHead class="text-right">Models</UiTableHead>
-              <UiTableHead class="text-right">Variants</UiTableHead>
-              <UiTableHead class="text-right">Colors</UiTableHead>
-              <UiTableHead class="text-right">Pricing</UiTableHead>
+              <UiTableHead class="text-right">
+                Models
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Variants
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Colors
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Pricing
+              </UiTableHead>
               <UiTableHead>Status</UiTableHead>
-              <UiTableHead class="text-right">Response</UiTableHead>
+              <UiTableHead class="text-right">
+                Response
+              </UiTableHead>
               <UiTableHead>Catalog URL</UiTableHead>
               <UiTableHead />
             </UiTableRow>
@@ -355,7 +425,9 @@ function statusBadge(status: string) {
                 class="cursor-pointer hover:bg-muted/50"
                 @click="toggleExpand(ep.oemId)"
               >
-                <UiTableCell class="font-medium text-sm">{{ ep.oemName }}</UiTableCell>
+                <UiTableCell class="font-medium text-sm">
+                  {{ ep.oemName }}
+                </UiTableCell>
                 <UiTableCell class="text-right text-sm">
                   <span :class="ep.modelCount > 0 ? 'text-foreground' : 'text-muted-foreground'">
                     {{ ep.modelCount }}

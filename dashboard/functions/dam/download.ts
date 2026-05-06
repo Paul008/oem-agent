@@ -37,10 +37,12 @@ function asciiFilename(name: string): string {
 }
 
 async function handleSingle(url: string, name: string): Promise<Response> {
-  if (!isAllowed(url)) return new Response('Disallowed URL', { status: 400 })
+  if (!isAllowed(url))
+    return new Response('Disallowed URL', { status: 400 })
 
   const upstream = await fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } })
-  if (!upstream.ok) return new Response('Upstream error', { status: upstream.status })
+  if (!upstream.ok)
+    return new Response('Upstream error', { status: upstream.status })
 
   const filename = asciiFilename(name || url.split('/').pop() || 'asset')
   const h = new Headers(upstream.headers)
@@ -52,22 +54,24 @@ async function handleSingle(url: string, name: string): Promise<Response> {
   return new Response(upstream.body, { status: 200, headers: h })
 }
 
-async function handleZip(assets: { url: string; name: string }[], packName: string): Promise<Response> {
+async function handleZip(assets: { url: string, name: string }[], packName: string): Promise<Response> {
   const valid = assets.filter(a => isAllowed(a.url))
-  if (valid.length === 0) return new Response('No valid assets', { status: 400 })
+  if (valid.length === 0)
+    return new Response('No valid assets', { status: 400 })
 
   // Stream via an async generator so client-zip's single-pass consumer can
   // pull one file's bytes at a time without buffering the whole pack.
   async function* gen() {
     for (const a of valid) {
       const r = await fetch(a.url, { cf: { cacheTtl: 3600, cacheEverything: true } })
-      if (!r.ok || !r.body) continue
+      if (!r.ok || !r.body)
+        continue
       yield { name: asciiFilename(a.name), lastModified: new Date(), input: r }
     }
   }
 
   const zipResponse = downloadZip(gen())
-  const filename = asciiFilename(packName || 'ford-fil-pack') + '.zip'
+  const filename = `${asciiFilename(packName || 'ford-fil-pack')}.zip`
 
   // Pass the client-zip response body straight through. Copy only the
   // transfer-related headers we care about to avoid clobbering its stream.
@@ -86,16 +90,18 @@ export const onRequestGet: PagesFunction = async ({ request }) => {
   const u = new URL(request.url)
   const target = u.searchParams.get('url')
   const name = u.searchParams.get('name') || ''
-  if (!target) return new Response('Missing ?url', { status: 400 })
+  if (!target)
+    return new Response('Missing ?url', { status: 400 })
   return handleSingle(target, name)
 }
 
 export const onRequestPost: PagesFunction = async ({ request }) => {
   const u = new URL(request.url)
-  if (u.searchParams.get('zip') !== '1') return new Response('Missing ?zip=1', { status: 400 })
+  if (u.searchParams.get('zip') !== '1')
+    return new Response('Missing ?zip=1', { status: 400 })
   const packName = u.searchParams.get('packName') || 'ford-fil-pack'
 
-  let body: { assets: { url: string; name: string }[] }
+  let body: { assets: { url: string, name: string }[] }
   try {
     body = await request.json()
   }

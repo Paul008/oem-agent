@@ -2579,17 +2579,36 @@ export class OemAgentOrchestrator {
   }
 
   /**
-   * Expand Ford products into separate variant products.
-   * Fetches pricing.data endpoint and creates a product record for EACH variant/trim.
+   * DEPRECATED (2026-04-22). Ford's public pricing.data endpoints now return
+   * 200 / 0 bytes — Ford migrated to the Polk/Nukleus API
+   * (imgservices.ford.com/api/buy/...) which requires a pre-encoded
+   * configState blob we can't produce without walking the Build & Price SPA.
+   *
+   * Variant-level refresh now happens out-of-band via:
+   *   scripts/populate-ford-from-brochures.ts
+   * which parses Ford's own spec-sheet PDFs. See discovered_apis table
+   * (ford-au) and docs/OEM_DATA_PIPELINES.md for the current design.
+   *
+   * This no-op is kept so the call site in Step 6.5 still type-checks.
+   * It returns the base products unchanged — no dead HTTP calls, no
+   * wasted cycles, no silent failures.
    */
   private async enrichFordProductsWithVariants(products: any[]): Promise<any[]> {
+    return products;
+  }
+
+  /**
+   * Legacy body of enrichFordProductsWithVariants — kept for reference only.
+   * Do not call. Endpoints return 0 bytes as of Feb 2026.
+   */
+  private async _deprecated_enrichFordProductsWithVariants(products: any[]): Promise<any[]> {
     const expandedProducts: any[] = [];
     const maxToExpand = 10; // Limit to avoid timeout - prioritize popular models
     let expanded = 0;
 
     // Priority order for variant expansion
     const priorityModels = ['Ranger', 'Everest', 'Mustang', 'F-150', 'Transit Custom', 'Ranger Raptor', 'Transit Van'];
-    
+
     // Sort products by priority
     const sortedProducts = [...products].sort((a, b) => {
       const aIdx = priorityModels.findIndex(p => a.title?.includes(p));

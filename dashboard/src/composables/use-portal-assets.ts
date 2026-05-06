@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import { supabase } from '@/lib/supabase'
 
 export interface PortalAsset {
@@ -19,7 +20,7 @@ export interface PortalAsset {
   height: number | null
   original_format: string | null
   file_size_bytes: number | null
-  export_sizes: { format: string; quality: string; size: number }[]
+  export_sizes: { format: string, quality: string, size: number }[]
   parsed_model: string | null
   parsed_trim: string | null
   parsed_color: string | null
@@ -81,14 +82,14 @@ export interface PortalAssetPageOpts {
   oemId?: string
   assetType?: string
   model?: string
-  nameplate?: string         // F_Nameplate — campaign grouping
-  mediaType?: string         // F_Media_Type
-  assetTypeLabel?: string    // F_AssetTypes (DAM-native type)
-  categoryLeaf?: string      // DAM leaf category (e.g. "Website Banners")
+  nameplate?: string // F_Nameplate — campaign grouping
+  mediaType?: string // F_Media_Type
+  assetTypeLabel?: string // F_AssetTypes (DAM-native type)
+  categoryLeaf?: string // DAM leaf category (e.g. "Website Banners")
   usageRights?: string
-  keyword?: string           // single keyword (GIN ANY match)
+  keyword?: string // single keyword (GIN ANY match)
   excludeExpired?: boolean
-  search?: string            // ILIKE on name
+  search?: string // ILIKE on name
   page?: number
   pageSize?: number
 }
@@ -116,15 +117,24 @@ export function usePortalAssets() {
       .order('last_synced_at', { ascending: false })
       .range(from, to)
 
-    if (opts.oemId) q = q.eq('oem_id', opts.oemId)
-    if (opts.assetType) q = q.eq('asset_type', opts.assetType)
-    if (opts.model) q = q.eq('parsed_model', opts.model)
-    if (opts.nameplate) q = q.eq('nameplate', opts.nameplate)
-    if (opts.mediaType) q = q.eq('media_type', opts.mediaType)
-    if (opts.assetTypeLabel) q = q.eq('asset_type_label', opts.assetTypeLabel)
-    if (opts.categoryLeaf) q = q.eq('category_leaf', opts.categoryLeaf)
-    if (opts.usageRights) q = q.eq('usage_rights', opts.usageRights)
-    if (opts.keyword) q = q.contains('keywords', [opts.keyword])
+    if (opts.oemId)
+      q = q.eq('oem_id', opts.oemId)
+    if (opts.assetType)
+      q = q.eq('asset_type', opts.assetType)
+    if (opts.model)
+      q = q.eq('parsed_model', opts.model)
+    if (opts.nameplate)
+      q = q.eq('nameplate', opts.nameplate)
+    if (opts.mediaType)
+      q = q.eq('media_type', opts.mediaType)
+    if (opts.assetTypeLabel)
+      q = q.eq('asset_type_label', opts.assetTypeLabel)
+    if (opts.categoryLeaf)
+      q = q.eq('category_leaf', opts.categoryLeaf)
+    if (opts.usageRights)
+      q = q.eq('usage_rights', opts.usageRights)
+    if (opts.keyword)
+      q = q.contains('keywords', [opts.keyword])
     if (opts.excludeExpired) {
       // Keep rows that have no expiry set, or expire in the future.
       q = q.or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString()}`)
@@ -136,15 +146,18 @@ export function usePortalAssets() {
     }
 
     const { data, count, error: err } = await q
-    if (err) throw err
+    if (err)
+      throw err
     return { rows: (data ?? []) as PortalAsset[], total: count ?? 0 }
   }
 
   async function fetchPortalAssetCoverage(oemId?: string): Promise<PortalAssetCoverage[]> {
     let q = supabase.from('portal_asset_coverage').select('*').order('total_assets', { ascending: false })
-    if (oemId) q = q.eq('oem_id', oemId)
+    if (oemId)
+      q = q.eq('oem_id', oemId)
     const { data, error: err } = await q
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as PortalAssetCoverage[]
   }
 
@@ -154,29 +167,36 @@ export function usePortalAssets() {
       .from('portal_asset_campaigns')
       .select('*')
       .order('first_appearance_at', { ascending: false, nullsFirst: false })
-    if (oemId) q = q.eq('oem_id', oemId)
+    if (oemId)
+      q = q.eq('oem_id', oemId)
     const { data, error: err } = await q
     if (err) {
       // View may not exist yet if migration hasn't been applied. Soft-fail.
-      if (/relation .*portal_asset_campaigns.* does not exist/i.test(err.message)) return []
+      if (/relation .*portal_asset_campaigns.* does not exist/i.test(err.message))
+        return []
       throw err
     }
     return (data ?? []) as PortalAssetCampaign[]
   }
 
-  /** Facet values + counts for filter dropdowns (media_type, usage_rights,
-   *  asset_type_label). Groups by dimension; soft-fails if the view is missing. */
-  async function fetchFacets(oemId?: string): Promise<Record<string, { value: string; n: number }[]>> {
+  /**
+   * Facet values + counts for filter dropdowns (media_type, usage_rights,
+   *  asset_type_label). Groups by dimension; soft-fails if the view is missing.
+   */
+  async function fetchFacets(oemId?: string): Promise<Record<string, { value: string, n: number }[]>> {
     let q = supabase.from('portal_asset_facets').select('dimension, value, n').order('n', { ascending: false })
-    if (oemId) q = q.eq('oem_id', oemId)
+    if (oemId)
+      q = q.eq('oem_id', oemId)
     const { data, error: err } = await q
     if (err) {
-      if (/relation .*portal_asset_facets.* does not exist/i.test(err.message)) return {}
+      if (/relation .*portal_asset_facets.* does not exist/i.test(err.message))
+        return {}
       throw err
     }
-    const out: Record<string, { value: string; n: number }[]> = {}
-    for (const r of (data ?? []) as { dimension: string; value: string; n: number }[]) {
-      if (!out[r.dimension]) out[r.dimension] = []
+    const out: Record<string, { value: string, n: number }[]> = {}
+    for (const r of (data ?? []) as { dimension: string, value: string, n: number }[]) {
+      if (!out[r.dimension])
+        out[r.dimension] = []
       out[r.dimension].push({ value: r.value, n: r.n })
     }
     return out
@@ -184,7 +204,8 @@ export function usePortalAssets() {
 
   /** Siblings of an asset — same nameplate + oem. Limit for safety. */
   async function fetchRelatedAssets(asset: PortalAsset, limit = 24): Promise<PortalAsset[]> {
-    if (!asset.nameplate) return []
+    if (!asset.nameplate)
+      return []
     const { data, error: err } = await supabase
       .from('portal_assets')
       .select('*')
@@ -194,7 +215,8 @@ export function usePortalAssets() {
       .neq('id', asset.id)
       .order('appearance_date', { ascending: false, nullsFirst: false })
       .limit(limit)
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as PortalAsset[]
   }
 
@@ -215,7 +237,10 @@ export function usePortalAssets() {
   async function fetchParsedModels(oemId?: string): Promise<string[]> {
     const coverage = await fetchPortalAssetCoverage(oemId)
     const set = new Set<string>()
-    for (const c of coverage) if (c.parsed_model) set.add(c.parsed_model)
+    for (const c of coverage) {
+      if (c.parsed_model)
+        set.add(c.parsed_model)
+    }
     return [...set].sort()
   }
 
@@ -225,7 +250,8 @@ export function usePortalAssets() {
    * (e.g. Ford's public S3 previews) are returned unchanged.
    */
   function thumbnailUrl(cdnUrl: string, width = 300, quality = 60): string {
-    if (!cdnUrl.includes('/image/upload/v1/')) return cdnUrl
+    if (!cdnUrl.includes('/image/upload/v1/'))
+      return cdnUrl
     return cdnUrl.replace('/image/upload/v1/', `/image/upload/f_auto/q_${quality}/w_${width}/v1/`)
   }
 
@@ -234,7 +260,7 @@ export function usePortalAssets() {
    * back-compat with callers that haven't migrated to fetchPortalAssetsPage.
    * Do not use on pages that render the Ford-au catalogue (>10k rows).
    */
-  async function fetchPortalAssets(opts?: { oemId?: string; assetType?: string; model?: string; limit?: number; offset?: number }): Promise<PortalAsset[]> {
+  async function fetchPortalAssets(opts?: { oemId?: string, assetType?: string, model?: string, limit?: number, offset?: number }): Promise<PortalAsset[]> {
     const PAGE = 1000
     const rows: PortalAsset[] = []
     let from = opts?.offset ?? 0
@@ -246,14 +272,20 @@ export function usePortalAssets() {
         .eq('is_active', true)
         .order('parsed_model')
         .range(from, from + PAGE - 1)
-      if (opts?.oemId) query = query.eq('oem_id', opts.oemId)
-      if (opts?.assetType) query = query.eq('asset_type', opts.assetType)
-      if (opts?.model) query = query.eq('parsed_model', opts.model)
+      if (opts?.oemId)
+        query = query.eq('oem_id', opts.oemId)
+      if (opts?.assetType)
+        query = query.eq('asset_type', opts.assetType)
+      if (opts?.model)
+        query = query.eq('parsed_model', opts.model)
       const { data, error: err } = await query
-      if (err) throw err
-      if (!data?.length) break
+      if (err)
+        throw err
+      if (!data?.length)
+        break
       rows.push(...(data as PortalAsset[]))
-      if (data.length < PAGE) break
+      if (data.length < PAGE)
+        break
       from += PAGE
     }
     return rows

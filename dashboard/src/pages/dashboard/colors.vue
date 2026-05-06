@@ -1,14 +1,15 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, reactive } from 'vue'
-import { Loader2, Palette, Image, ImageOff, ChevronLeft, ChevronRight, X, Search, RotateCw, AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle, ChevronLeft, ChevronRight, Image, ImageOff, Loader2, Palette, RotateCw, Search, X } from 'lucide-vue-next'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { toast } from 'vue-sonner'
+
+import type { VariantColor } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import Vehicle360Viewer from '@/components/Vehicle360Viewer.vue'
 import { useOemData } from '@/composables/use-oem-data'
-import type { VariantColor } from '@/composables/use-oem-data'
 
-type ColorWithOem = VariantColor & { products: { oem_id: string; title: string; price_amount: number | null } }
+type ColorWithOem = VariantColor & { products: { oem_id: string, title: string, price_amount: number | null } }
 
 interface VariantCard {
   productId: string
@@ -23,14 +24,14 @@ interface VariantCard {
 
 // OEM-specific URL resolution for relative image paths (fallback for non-proxied URLs)
 const IMAGE_RESOLVERS: Record<string, (path: string) => string> = {
-  'kgm-au': (path) =>
-    `https://kgm.com.au/_next/image?url=${encodeURIComponent('https://payloadb.therefinerydesign.com' + path)}&w=828&q=75`,
+  'kgm-au': path =>
+    `https://kgm.com.au/_next/image?url=${encodeURIComponent(`https://payloadb.therefinerydesign.com${path}`)}&w=828&q=75`,
 }
 
 const { fetchOems, fetchVariantColorsWithProducts } = useOemData()
 
 const allColors = ref<ColorWithOem[]>([])
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const filterOem = ref('all')
@@ -55,17 +56,21 @@ onMounted(async () => {
     ])
     oems.value = o
     allColors.value = c
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load color data'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
 
 function resolveUrl(url: string | null, oemId: string): string | null {
-  if (!url) return null
-  if (url.startsWith('http')) return url
+  if (!url)
+    return null
+  if (url.startsWith('http'))
+    return url
   const resolver = IMAGE_RESOLVERS[oemId]
   return resolver ? resolver(url) : url
 }
@@ -97,9 +102,12 @@ const variantCards = computed((): VariantCard[] => {
     }
     const card = map.get(pid)!
     card.colors.push(c)
-    if (c.hero_image_url) card.heroCount++
-    if (c.swatch_url) card.swatchCount++
-    if (c.gallery_urls?.length) card.galleryCount++
+    if (c.hero_image_url)
+      card.heroCount++
+    if (c.swatch_url)
+      card.swatchCount++
+    if (c.gallery_urls?.length)
+      card.galleryCount++
   }
   for (const card of map.values()) {
     card.colors.sort((a, b) => (a.sort_order ?? 99) - (b.sort_order ?? 99))
@@ -145,9 +153,12 @@ const totalStats = computed(() => {
     t.variants++
     for (const c of card.colors) {
       t.total++
-      if (c.swatch_url) t.swatch++
-      if (c.hero_image_url) t.hero++
-      if (c.gallery_urls?.length) t.gallery++
+      if (c.swatch_url)
+        t.swatch++
+      if (c.hero_image_url)
+        t.hero++
+      if (c.gallery_urls?.length)
+        t.gallery++
       const resolvedHero = resolveUrl(c.hero_image_url, card.oemId)
       const resolvedSwatch = resolveUrl(c.swatch_url, card.oemId)
       if (isImageBroken(`hero-${c.id}`) || isImageBroken(`swatch-${c.id}`)) {
@@ -165,7 +176,8 @@ function getSelected(card: VariantCard): ColorWithOem {
   const selId = selectedColor[card.productId]
   if (selId) {
     const found = card.colors.find(c => c.id === selId)
-    if (found) return found
+    if (found)
+      return found
   }
   return card.colors.find(c => c.hero_image_url) || card.colors[0]
 }
@@ -183,31 +195,46 @@ function pct(n: number, total: number) {
 }
 
 function formatPrice(amount: number | null) {
-  if (!amount) return null
+  if (!amount)
+    return null
   return `$${Math.round(amount).toLocaleString()}`
 }
 
 function fallbackHex(name: string) {
   const n = (name || '').toLowerCase()
-  if (n.includes('white') || n.includes('pearl') || n.includes('ivory')) return '#f5f5f5'
-  if (n.includes('black') || n.includes('mica') || n.includes('eclipse')) return '#1a1a1a'
-  if (n.includes('grey') || n.includes('gray') || n.includes('graphite')) return '#808080'
-  if (n.includes('silver') || n.includes('platinum') || n.includes('steel')) return '#c0c0c0'
-  if (n.includes('blue') || n.includes('sapphire') || n.includes('denim') || n.includes('ocean')) return '#4a90d9'
-  if (n.includes('red') || n.includes('ruby') || n.includes('flame') || n.includes('scarlet')) return '#d64545'
-  if (n.includes('green') || n.includes('jungle') || n.includes('khaki') || n.includes('olive')) return '#45a049'
-  if (n.includes('orange') || n.includes('amber') || n.includes('sunset') || n.includes('copper')) return '#e67e22'
-  if (n.includes('brown') || n.includes('bronze') || n.includes('earth') || n.includes('mocha')) return '#8b4513'
-  if (n.includes('yellow') || n.includes('gold') || n.includes('sand')) return '#f1c40f'
-  if (n.includes('beige') || n.includes('cream') || n.includes('latte')) return '#f5f0e1'
-  if (n.includes('purple') || n.includes('plum') || n.includes('violet')) return '#8e44ad'
+  if (n.includes('white') || n.includes('pearl') || n.includes('ivory'))
+    return '#f5f5f5'
+  if (n.includes('black') || n.includes('mica') || n.includes('eclipse'))
+    return '#1a1a1a'
+  if (n.includes('grey') || n.includes('gray') || n.includes('graphite'))
+    return '#808080'
+  if (n.includes('silver') || n.includes('platinum') || n.includes('steel'))
+    return '#c0c0c0'
+  if (n.includes('blue') || n.includes('sapphire') || n.includes('denim') || n.includes('ocean'))
+    return '#4a90d9'
+  if (n.includes('red') || n.includes('ruby') || n.includes('flame') || n.includes('scarlet'))
+    return '#d64545'
+  if (n.includes('green') || n.includes('jungle') || n.includes('khaki') || n.includes('olive'))
+    return '#45a049'
+  if (n.includes('orange') || n.includes('amber') || n.includes('sunset') || n.includes('copper'))
+    return '#e67e22'
+  if (n.includes('brown') || n.includes('bronze') || n.includes('earth') || n.includes('mocha'))
+    return '#8b4513'
+  if (n.includes('yellow') || n.includes('gold') || n.includes('sand'))
+    return '#f1c40f'
+  if (n.includes('beige') || n.includes('cream') || n.includes('latte'))
+    return '#f5f0e1'
+  if (n.includes('purple') || n.includes('plum') || n.includes('violet'))
+    return '#8e44ad'
   return '#888888'
 }
 
 function is360Url(url: string | null) {
-  if (!url) return false
+  if (!url)
+    return false
   // Nissan Helios: pov=E01 pattern
-  if (url.includes('heliosnissan.net/iris/iris')) return true
+  if (url.includes('heliosnissan.net/iris/iris'))
+    return true
   return false
 }
 
@@ -236,7 +263,9 @@ function closePreview() {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -256,9 +285,15 @@ function closePreview() {
           <UiSelectValue />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="12">12 per page</UiSelectItem>
-          <UiSelectItem value="24">24 per page</UiSelectItem>
-          <UiSelectItem value="48">48 per page</UiSelectItem>
+          <UiSelectItem value="12">
+            12 per page
+          </UiSelectItem>
+          <UiSelectItem value="24">
+            24 per page
+          </UiSelectItem>
+          <UiSelectItem value="48">
+            48 per page
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <span class="text-sm text-muted-foreground ml-auto">
@@ -272,7 +307,9 @@ function closePreview() {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <template v-else>
@@ -280,52 +317,82 @@ function closePreview() {
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-5 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Variants</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Variants
+            </UiCardTitle>
             <Palette class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ totalStats.variants }}</div>
-            <p class="text-xs text-muted-foreground">{{ totalStats.total.toLocaleString() }} total colors</p>
+            <div class="text-2xl font-bold">
+              {{ totalStats.variants }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ totalStats.total.toLocaleString() }} total colors
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Hero Images</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Hero Images
+            </UiCardTitle>
             <Image class="size-4 text-green-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ pct(totalStats.hero, totalStats.total) }}%</div>
-            <p class="text-xs text-muted-foreground">{{ totalStats.hero.toLocaleString() }} of {{ totalStats.total.toLocaleString() }}</p>
+            <div class="text-2xl font-bold">
+              {{ pct(totalStats.hero, totalStats.total) }}%
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ totalStats.hero.toLocaleString() }} of {{ totalStats.total.toLocaleString() }}
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Swatches</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Swatches
+            </UiCardTitle>
             <Image class="size-4 text-blue-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ pct(totalStats.swatch, totalStats.total) }}%</div>
-            <p class="text-xs text-muted-foreground">{{ totalStats.swatch.toLocaleString() }} of {{ totalStats.total.toLocaleString() }}</p>
+            <div class="text-2xl font-bold">
+              {{ pct(totalStats.swatch, totalStats.total) }}%
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ totalStats.swatch.toLocaleString() }} of {{ totalStats.total.toLocaleString() }}
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">No Image</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              No Image
+            </UiCardTitle>
             <ImageOff class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold" :class="totalStats.noImage > 0 ? 'text-yellow-500' : ''">{{ totalStats.noImage }}</div>
-            <p class="text-xs text-muted-foreground">Missing hero &amp; swatch</p>
+            <div class="text-2xl font-bold" :class="totalStats.noImage > 0 ? 'text-yellow-500' : ''">
+              {{ totalStats.noImage }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Missing hero &amp; swatch
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard :class="totalStats.broken > 0 ? 'border-red-500/30' : ''">
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Broken</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Broken
+            </UiCardTitle>
             <ImageOff class="size-4" :class="totalStats.broken > 0 ? 'text-red-500' : 'text-muted-foreground'" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold" :class="totalStats.broken > 0 ? 'text-red-500' : ''">{{ totalStats.broken }}</div>
-            <p class="text-xs text-muted-foreground">Failed to load</p>
+            <div class="text-2xl font-bold" :class="totalStats.broken > 0 ? 'text-red-500' : ''">
+              {{ totalStats.broken }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Failed to load
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -349,7 +416,7 @@ function closePreview() {
                 loading="lazy"
                 @error="onImgError(`hero-${getSelected(card).id}`)"
                 @click="openPreview(resolveUrl(getSelected(card).hero_image_url, card.oemId)!, `${getSelected(card).color_name} — ${card.productTitle}`, getSelected(card).gallery_urls)"
-              />
+              >
             </template>
             <!-- Fallback: swatch image or solid color -->
             <div
@@ -364,7 +431,7 @@ function closePreview() {
                 class="max-w-[50%] max-h-[50%] object-contain rounded-lg"
                 loading="lazy"
                 @error="onImgError(`swatch-${getSelected(card).id}`)"
-              />
+              >
               <div v-else class="flex flex-col items-center gap-1">
                 <ImageOff class="size-6 text-white/30" />
                 <span class="text-[10px] text-white/40">{{ isImageBroken(`hero-${getSelected(card).id}`) ? 'Broken' : 'No image' }}</span>
@@ -396,7 +463,9 @@ function closePreview() {
             <!-- Title + meta -->
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
-                <h3 class="text-sm font-semibold truncate">{{ card.productTitle }}</h3>
+                <h3 class="text-sm font-semibold truncate">
+                  {{ card.productTitle }}
+                </h3>
                 <p class="text-xs text-muted-foreground mt-0.5 truncate">
                   {{ getSelected(card).color_name }}
                   <span v-if="getSelected(card).color_type" class="opacity-60"> &middot; {{ getSelected(card).color_type }}</span>
@@ -436,7 +505,7 @@ function closePreview() {
                   class="w-full h-full rounded-full object-cover"
                   loading="lazy"
                   @error="onImgError(`swatch-${color.id}`)"
-                />
+                >
               </button>
             </div>
           </div>
@@ -446,7 +515,9 @@ function closePreview() {
       <!-- Empty state -->
       <div v-if="filteredCards.length === 0" class="text-center py-16">
         <Palette class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p class="text-sm text-muted-foreground">No variants found matching your filters</p>
+        <p class="text-sm text-muted-foreground">
+          No variants found matching your filters
+        </p>
       </div>
 
       <!-- Pagination -->
@@ -511,8 +582,10 @@ function closePreview() {
                   :src="previewUrl"
                   :alt="previewName"
                   class="max-w-full max-h-[75vh] rounded-lg object-contain mx-auto block"
-                />
-                <p v-if="previewName" class="text-sm text-neutral-500 mt-3 text-center">{{ previewName }}</p>
+                >
+                <p v-if="previewName" class="text-sm text-neutral-500 mt-3 text-center">
+                  {{ previewName }}
+                </p>
               </div>
             </template>
           </div>

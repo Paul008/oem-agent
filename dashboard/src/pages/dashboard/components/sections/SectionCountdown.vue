@@ -16,11 +16,13 @@ const props = defineProps<{
 }>()
 
 const timeLeft = computed(() => {
-  if (!props.section.target_date) return null
+  if (!props.section.target_date)
+    return null
   const target = new Date(props.section.target_date).getTime()
   const now = Date.now()
   const diff = target - now
-  if (diff <= 0) return null
+  if (diff <= 0)
+    return null
   return {
     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
     hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
@@ -30,7 +32,8 @@ const timeLeft = computed(() => {
 })
 
 const isExpired = computed(() => {
-  if (!props.section.target_date) return false
+  if (!props.section.target_date)
+    return false
   return new Date(props.section.target_date).getTime() <= Date.now()
 })
 </script>
@@ -48,8 +51,12 @@ const isExpired = computed(() => {
   >
     <div v-if="section.background_image_url" class="absolute inset-0 bg-black/50" />
     <div class="relative z-10">
-      <h2 v-if="section.title" class="text-2xl font-bold mb-2">{{ section.title }}</h2>
-      <p v-if="section.subtitle" class="text-sm opacity-80 mb-8">{{ section.subtitle }}</p>
+      <h2 v-if="section.title" class="text-2xl font-bold mb-2">
+        {{ section.title }}
+      </h2>
+      <p v-if="section.subtitle" class="text-sm opacity-80 mb-8">
+        {{ section.subtitle }}
+      </p>
 
       <!-- Countdown display -->
       <template v-if="!isExpired && (timeLeft || !section.target_date)">
@@ -58,15 +65,21 @@ const isExpired = computed(() => {
             <div class="text-4xl font-bold tabular-nums bg-white/10 rounded-lg px-4 py-3 min-w-[72px]">
               {{ String(unit).padStart(2, '0') }}
             </div>
-            <p class="text-[10px] uppercase tracking-wider opacity-60 mt-1.5">{{ key }}</p>
+            <p class="text-[10px] uppercase tracking-wider opacity-60 mt-1.5">
+              {{ key }}
+            </p>
           </div>
         </div>
-        <p v-if="!section.target_date" class="text-xs opacity-50 mb-4">Set a target date to start the countdown</p>
+        <p v-if="!section.target_date" class="text-xs opacity-50 mb-4">
+          Set a target date to start the countdown
+        </p>
       </template>
 
       <!-- Expired state -->
       <template v-else>
-        <p class="text-xl font-semibold mb-6">{{ section.expired_message }}</p>
+        <p class="text-xl font-semibold mb-6">
+          {{ section.expired_message }}
+        </p>
       </template>
 
       <a

@@ -16,8 +16,8 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const headingEdit = useInlineEdit((v) => emit('update-text', 'heading', v))
-const subEdit = useInlineEdit((v) => emit('update-text', 'sub_heading', v))
+const headingEdit = useInlineEdit(v => emit('update-text', 'heading', v))
+const subEdit = useInlineEdit(v => emit('update-text', 'sub_heading', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -40,7 +40,9 @@ const formTypeLabels: Record<string, string> = {
       @blur="headingEdit.stopEdit()"
       @keydown="headingEdit.onKeydown"
       @paste="headingEdit.onPaste"
-    >{{ section.heading || 'Double-click to edit heading' }}</h3>
+    >
+      {{ section.heading || 'Double-click to edit heading' }}
+    </h3>
     <p
       class="text-sm text-muted-foreground mb-6 cursor-text outline-none"
       :style="{ opacity: section.sub_heading ? 1 : 0.4 }"
@@ -48,7 +50,9 @@ const formTypeLabels: Record<string, string> = {
       @blur="subEdit.stopEdit()"
       @keydown="subEdit.onKeydown"
       @paste="subEdit.onPaste"
-    >{{ section.sub_heading || 'Double-click to add subtitle' }}</p>
+    >
+      {{ section.sub_heading || 'Double-click to add subtitle' }}
+    </p>
     <div class="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center bg-muted/20">
       <div class="mb-3">
         <span class="inline-block px-2.5 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary">
@@ -58,8 +62,12 @@ const formTypeLabels: Record<string, string> = {
           Vehicle Context
         </span>
       </div>
-      <p class="text-sm text-muted-foreground">Enquiry form will render here</p>
-      <p class="text-xs text-muted-foreground/60 mt-1">The consuming platform renders its native form with CAPTCHA, CRM integration, and tracking.</p>
+      <p class="text-sm text-muted-foreground">
+        Enquiry form will render here
+      </p>
+      <p class="text-xs text-muted-foreground/60 mt-1">
+        The consuming platform renders its native form with CAPTCHA, CRM integration, and tracking.
+      </p>
     </div>
   </div>
 </template>

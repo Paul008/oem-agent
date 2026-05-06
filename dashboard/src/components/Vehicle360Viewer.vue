@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Loader2, RotateCw } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   heroUrl: string
@@ -14,14 +14,16 @@ const isHelios = computed(() => /pov=E\d{2}/.test(props.heroUrl))
 const hasGallery = computed(() => (props.galleryUrls?.length ?? 0) > 1)
 
 const TOTAL_FRAMES = computed(() => {
-  if (hasGallery.value) return props.galleryUrls!.length
+  if (hasGallery.value)
+    return props.galleryUrls!.length
   return 36
 })
 
 // Generate frame URLs: use gallery array directly, or generate from pattern
 const frameUrls = computed(() => {
   // Gallery array provided (Ford GPAS, Subaru, etc.) — use directly
-  if (hasGallery.value) return props.galleryUrls!
+  if (hasGallery.value)
+    return props.galleryUrls!
 
   const urls: string[] = []
   for (let i = 0; i < TOTAL_FRAMES.value; i++) {
@@ -33,7 +35,8 @@ const frameUrls = computed(() => {
         .replace(/width=\d+/, 'width=1200')
         .replace(/quality=\d+/, 'quality=85')
       urls.push(url)
-    } else {
+    }
+    else {
       urls.push(props.heroUrl)
     }
   }
@@ -43,13 +46,15 @@ const frameUrls = computed(() => {
 // Thumbnail indices: evenly spaced across available frames
 const thumbIndices = computed(() => {
   const total = TOTAL_FRAMES.value
-  if (total <= 6) return Array.from({ length: total }, (_, i) => i)
+  if (total <= 6)
+    return Array.from({ length: total }, (_, i) => i)
   const step = total / 6
   return Array.from({ length: 6 }, (_, i) => Math.round(i * step))
 })
 
-const thumbUrls = computed(() => thumbIndices.value.map(i => {
-  if (hasGallery.value) return props.galleryUrls![i]
+const thumbUrls = computed(() => thumbIndices.value.map((i) => {
+  if (hasGallery.value)
+    return props.galleryUrls![i]
   if (isHelios.value) {
     return props.heroUrl
       .replace(/pov=E\d{2}/, `pov=E${String(i + 1).padStart(2, '0')}`)
@@ -60,9 +65,11 @@ const thumbUrls = computed(() => thumbIndices.value.map(i => {
 }))
 
 function resolveInitialFrame(): number {
-  if (props.initialThumb == null) return 0
+  if (props.initialThumb == null)
+    return 0
   const total = TOTAL_FRAMES.value
-  if (total <= 6) return Math.min(props.initialThumb, total - 1)
+  if (total <= 6)
+    return Math.min(props.initialThumb, total - 1)
   const step = total / 6
   const idx = Math.max(0, Math.min(props.initialThumb, 5))
   return Math.round(idx * step)
@@ -116,18 +123,21 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
-  if (!isDragging.value) return
+  if (!isDragging.value)
+    return
   e.preventDefault()
 
   const container = containerRef.value
-  if (!container) return
+  if (!container)
+    return
 
   const dx = e.clientX - dragStartX.value
   const containerWidth = container.offsetWidth
   // Map drag distance to frames: full width = full rotation
   const frameDelta = Math.round((dx / containerWidth) * TOTAL_FRAMES.value)
   let newFrame = (dragStartFrame.value - frameDelta) % TOTAL_FRAMES.value
-  if (newFrame < 0) newFrame += TOTAL_FRAMES.value
+  if (newFrame < 0)
+    newFrame += TOTAL_FRAMES.value
   currentFrame.value = newFrame
 }
 
@@ -140,9 +150,11 @@ function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'ArrowLeft') {
     e.preventDefault()
     let f = (currentFrame.value - 1) % TOTAL_FRAMES.value
-    if (f < 0) f += TOTAL_FRAMES.value
+    if (f < 0)
+      f += TOTAL_FRAMES.value
     currentFrame.value = f
-  } else if (e.key === 'ArrowRight') {
+  }
+  else if (e.key === 'ArrowRight') {
     e.preventDefault()
     currentFrame.value = (currentFrame.value + 1) % TOTAL_FRAMES.value
   }
@@ -191,7 +203,9 @@ watch(() => props.heroUrl, () => {
             :style="{ width: `${loadProgress}%` }"
           />
         </div>
-        <p class="text-xs text-neutral-400 mt-2">Loading {{ TOTAL_FRAMES }} frames... {{ loadProgress }}%</p>
+        <p class="text-xs text-neutral-400 mt-2">
+          Loading {{ TOTAL_FRAMES }} frames... {{ loadProgress }}%
+        </p>
       </div>
 
       <!-- Frame display -->
@@ -204,7 +218,7 @@ watch(() => props.heroUrl, () => {
           class="absolute inset-0 w-full h-full object-contain"
           :class="idx === currentFrame ? 'opacity-100' : 'opacity-0'"
           draggable="false"
-        />
+        >
       </div>
 
       <!-- Drag hint -->
@@ -237,11 +251,13 @@ watch(() => props.heroUrl, () => {
           :alt="`Angle ${Math.round((thumbIdx / TOTAL_FRAMES) * 360)}°`"
           class="w-full h-full object-contain"
           draggable="false"
-        />
+        >
       </button>
     </div>
 
     <!-- Name + angle label -->
-    <p v-if="name" class="text-sm text-neutral-500 mt-2 text-center">{{ name }}</p>
+    <p v-if="name" class="text-sm text-neutral-500 mt-2 text-center">
+      {{ name }}
+    </p>
   </div>
 </template>

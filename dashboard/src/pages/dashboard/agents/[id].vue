@@ -1,28 +1,28 @@
 <script lang="ts" setup>
-import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowLeft,
   Activity,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Clock,
-  ShieldCheck,
-  DollarSign,
-  Zap,
-  TrendingUp,
-  RotateCcw,
-  Eye,
-  RefreshCw,
-  Calendar,
-  Settings,
   AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Settings,
+  ShieldCheck,
+  TrendingUp,
+  XCircle,
+  Zap,
 } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+
+import type { AgentAction } from '@/composables/use-agents'
 
 import { BasicPage } from '@/components/global-layout'
-import { useAgentProfile, WORKFLOW_METADATA, TOOL_DESCRIPTIONS } from '@/composables/use-agent-profile'
+import { TOOL_DESCRIPTIONS, useAgentProfile, WORKFLOW_METADATA } from '@/composables/use-agent-profile'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
-import type { AgentAction } from '@/composables/use-agents'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,15 +70,20 @@ useRealtimeSubscription<AgentAction>({
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 60)
+    return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24)
+    return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString('en-AU', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -87,22 +92,29 @@ function formatShortDate(dateStr: string) {
 }
 
 function statusIcon(status: string) {
-  if (status === 'completed') return { icon: CheckCircle, class: 'text-green-500' }
-  if (status === 'failed') return { icon: XCircle, class: 'text-red-500' }
-  if (status === 'running') return { icon: Loader2, class: 'text-blue-500 animate-spin' }
-  if (status === 'requires_approval') return { icon: ShieldCheck, class: 'text-yellow-500' }
+  if (status === 'completed')
+    return { icon: CheckCircle, class: 'text-green-500' }
+  if (status === 'failed')
+    return { icon: XCircle, class: 'text-red-500' }
+  if (status === 'running')
+    return { icon: Loader2, class: 'text-blue-500 animate-spin' }
+  if (status === 'requires_approval')
+    return { icon: ShieldCheck, class: 'text-yellow-500' }
   return { icon: Clock, class: 'text-muted-foreground' }
 }
 
 function confidenceColor(score: number) {
-  if (score >= 0.9) return 'text-green-500'
-  if (score >= 0.7) return 'text-yellow-500'
+  if (score >= 0.9)
+    return 'text-green-500'
+  if (score >= 0.7)
+    return 'text-yellow-500'
   return 'text-red-500'
 }
 
 // Activity chart helpers
 const chartMax = computed(() => {
-  if (!dailyActivity.value.length) return 1
+  if (!dailyActivity.value.length)
+    return 1
   return Math.max(1, ...dailyActivity.value.map(d => d.completed + d.failed + d.other))
 })
 
@@ -150,20 +162,30 @@ function viewDetails(action: AgentAction) {
                 >
                   {{ workflowSetting?.enabled ? 'Enabled' : 'Disabled' }}
                 </UiBadge>
-                <UiBadge variant="secondary">{{ meta.agent_type }}</UiBadge>
+                <UiBadge variant="secondary">
+                  {{ meta.agent_type }}
+                </UiBadge>
               </div>
               <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p class="text-xs text-muted-foreground uppercase mb-1">Skill</p>
-                  <p class="font-mono text-xs">{{ meta.skill }}</p>
+                  <p class="text-xs text-muted-foreground uppercase mb-1">
+                    Skill
+                  </p>
+                  <p class="font-mono text-xs">
+                    {{ meta.skill }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted-foreground uppercase mb-1">Tools</p>
+                  <p class="text-xs text-muted-foreground uppercase mb-1">
+                    Tools
+                  </p>
                   <div class="flex flex-wrap gap-1">
                     <UiTooltipProvider v-for="t in meta.tools" :key="t">
                       <UiTooltip>
                         <UiTooltipTrigger as-child>
-                          <UiBadge variant="outline" class="text-[10px] cursor-help">{{ t }}</UiBadge>
+                          <UiBadge variant="outline" class="text-[10px] cursor-help">
+                            {{ t }}
+                          </UiBadge>
                         </UiTooltipTrigger>
                         <UiTooltipContent side="bottom" class="max-w-xs text-xs">
                           {{ TOOL_DESCRIPTIONS[t] || t }}
@@ -173,14 +195,20 @@ function viewDetails(action: AgentAction) {
                   </div>
                 </div>
                 <div>
-                  <p class="text-xs text-muted-foreground uppercase mb-1">Confidence Threshold</p>
+                  <p class="text-xs text-muted-foreground uppercase mb-1">
+                    Confidence Threshold
+                  </p>
                   <p class="font-medium" :class="confidenceColor(workflowSetting?.confidence_threshold ?? meta.defaultConfidence)">
                     {{ ((workflowSetting?.confidence_threshold ?? meta.defaultConfidence) * 100).toFixed(0) }}%
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted-foreground uppercase mb-1">Priority</p>
-                  <p class="font-medium">{{ workflowSetting?.priority ?? meta.defaultPriority }}/10</p>
+                  <p class="text-xs text-muted-foreground uppercase mb-1">
+                    Priority
+                  </p>
+                  <p class="font-medium">
+                    {{ workflowSetting?.priority ?? meta.defaultPriority }}/10
+                  </p>
                 </div>
               </div>
               <div v-if="workflowSetting?.rate_limit_hourly || workflowSetting?.rate_limit_daily" class="mt-3 flex gap-4 text-xs text-muted-foreground">
@@ -196,69 +224,103 @@ function viewDetails(action: AgentAction) {
       <div v-if="stats" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Runs</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Runs
+            </UiCardTitle>
             <Activity class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total }}</div>
-            <p class="text-xs text-muted-foreground">All time</p>
+            <div class="text-2xl font-bold">
+              {{ stats.total }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              All time
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Success Rate</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Success Rate
+            </UiCardTitle>
             <TrendingUp class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
             <div class="text-2xl font-bold" :class="stats.success_rate >= 90 ? 'text-green-500' : stats.success_rate >= 70 ? 'text-yellow-500' : 'text-red-500'">
               {{ stats.success_rate.toFixed(1) }}%
             </div>
-            <p class="text-xs text-muted-foreground">{{ stats.completed }} / {{ stats.completed + stats.failed }}</p>
+            <p class="text-xs text-muted-foreground">
+              {{ stats.completed }} / {{ stats.completed + stats.failed }}
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Avg Time</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Avg Time
+            </UiCardTitle>
             <Zap class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.avg_execution_ms }}ms</div>
-            <p class="text-xs text-muted-foreground">Per run</p>
+            <div class="text-2xl font-bold">
+              {{ stats.avg_execution_ms }}ms
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Per run
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Cost</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Cost
+            </UiCardTitle>
             <DollarSign class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">${{ stats.total_cost_usd.toFixed(4) }}</div>
-            <p class="text-xs text-muted-foreground">All time</p>
+            <div class="text-2xl font-bold">
+              ${{ stats.total_cost_usd.toFixed(4) }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              All time
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Avg Cost</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Avg Cost
+            </UiCardTitle>
             <DollarSign class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">${{ stats.avg_cost_usd.toFixed(6) }}</div>
-            <p class="text-xs text-muted-foreground">Per run</p>
+            <div class="text-2xl font-bold">
+              ${{ stats.avg_cost_usd.toFixed(6) }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Per run
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">This Week</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              This Week
+            </UiCardTitle>
             <Calendar class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.this_week }}</div>
-            <p class="text-xs text-muted-foreground">Last 7 days</p>
+            <div class="text-2xl font-bold">
+              {{ stats.this_week }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Last 7 days
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -266,7 +328,9 @@ function viewDetails(action: AgentAction) {
       <!-- Activity Chart (last 30 days) -->
       <UiCard v-if="dailyActivity.length" class="mb-6">
         <UiCardHeader>
-          <UiCardTitle class="text-sm font-medium">Activity — Last 30 Days</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Activity — Last 30 Days
+          </UiCardTitle>
         </UiCardHeader>
         <UiCardContent>
           <div class="flex items-end gap-[2px] h-24">
@@ -277,9 +341,15 @@ function viewDetails(action: AgentAction) {
             >
               <!-- Tooltip -->
               <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 whitespace-nowrap rounded bg-popover border px-2 py-1 text-xs shadow-md">
-                <p class="font-medium">{{ formatShortDate(day.date) }}</p>
-                <p class="text-green-500">{{ day.completed }} ok</p>
-                <p v-if="day.failed" class="text-red-500">{{ day.failed }} fail</p>
+                <p class="font-medium">
+                  {{ formatShortDate(day.date) }}
+                </p>
+                <p class="text-green-500">
+                  {{ day.completed }} ok
+                </p>
+                <p v-if="day.failed" class="text-red-500">
+                  {{ day.failed }} fail
+                </p>
               </div>
               <!-- Bars -->
               <div
@@ -321,7 +391,9 @@ function viewDetails(action: AgentAction) {
       <UiCard class="mb-6">
         <UiCardHeader>
           <div class="flex items-center justify-between">
-            <UiCardTitle class="text-sm font-medium">Recent Actions</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Recent Actions
+            </UiCardTitle>
             <span class="text-xs text-muted-foreground">{{ totalCount }} total</span>
           </div>
         </UiCardHeader>
@@ -332,10 +404,16 @@ function viewDetails(action: AgentAction) {
               <UiTableHead>OEM</UiTableHead>
               <UiTableHead>Change Event</UiTableHead>
               <UiTableHead>Status</UiTableHead>
-              <UiTableHead class="text-right">Confidence</UiTableHead>
-              <UiTableHead class="text-right">Cost</UiTableHead>
-              <UiTableHead class="text-right">Time</UiTableHead>
-              <UiTableHead class="w-[60px]"></UiTableHead>
+              <UiTableHead class="text-right">
+                Confidence
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Cost
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Time
+              </UiTableHead>
+              <UiTableHead class="w-[60px]" />
             </UiTableRow>
           </UiTableHeader>
           <UiTableBody>
@@ -380,12 +458,20 @@ function viewDetails(action: AgentAction) {
                 <span v-else class="text-muted-foreground">—</span>
               </UiTableCell>
               <UiTableCell class="text-right text-sm font-mono text-muted-foreground">
-                <template v-if="action.cost_usd !== null">${{ action.cost_usd.toFixed(6) }}</template>
-                <template v-else>—</template>
+                <template v-if="action.cost_usd !== null">
+                  ${{ action.cost_usd.toFixed(6) }}
+                </template>
+                <template v-else>
+                  —
+                </template>
               </UiTableCell>
               <UiTableCell class="text-right text-sm text-muted-foreground">
-                <template v-if="action.execution_time_ms !== null">{{ action.execution_time_ms }}ms</template>
-                <template v-else>—</template>
+                <template v-if="action.execution_time_ms !== null">
+                  {{ action.execution_time_ms }}ms
+                </template>
+                <template v-else>
+                  —
+                </template>
               </UiTableCell>
               <UiTableCell>
                 <UiButton variant="ghost" size="icon-sm" title="View details" @click.stop="viewDetails(action)">
@@ -422,9 +508,15 @@ function viewDetails(action: AgentAction) {
           <UiTableHeader>
             <UiTableRow>
               <UiTableHead>Error Message</UiTableHead>
-              <UiTableHead class="text-right w-[80px]">Count</UiTableHead>
-              <UiTableHead class="w-[120px]">First Seen</UiTableHead>
-              <UiTableHead class="w-[120px]">Last Seen</UiTableHead>
+              <UiTableHead class="text-right w-[80px]">
+                Count
+              </UiTableHead>
+              <UiTableHead class="w-[120px]">
+                First Seen
+              </UiTableHead>
+              <UiTableHead class="w-[120px]">
+                Last Seen
+              </UiTableHead>
             </UiTableRow>
           </UiTableHeader>
           <UiTableBody>
@@ -457,26 +549,42 @@ function viewDetails(action: AgentAction) {
         <UiCardContent>
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
             <div>
-              <p class="text-xs text-muted-foreground uppercase mb-1">Confidence Threshold</p>
+              <p class="text-xs text-muted-foreground uppercase mb-1">
+                Confidence Threshold
+              </p>
               <p class="font-medium" :class="confidenceColor(workflowSetting.confidence_threshold)">
                 {{ (workflowSetting.confidence_threshold * 100).toFixed(0) }}%
               </p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground uppercase mb-1">Hourly Limit</p>
-              <p class="font-medium">{{ workflowSetting.rate_limit_hourly ?? 'None' }}</p>
+              <p class="text-xs text-muted-foreground uppercase mb-1">
+                Hourly Limit
+              </p>
+              <p class="font-medium">
+                {{ workflowSetting.rate_limit_hourly ?? 'None' }}
+              </p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground uppercase mb-1">Daily Limit</p>
-              <p class="font-medium">{{ workflowSetting.rate_limit_daily ?? 'None' }}</p>
+              <p class="text-xs text-muted-foreground uppercase mb-1">
+                Daily Limit
+              </p>
+              <p class="font-medium">
+                {{ workflowSetting.rate_limit_daily ?? 'None' }}
+              </p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground uppercase mb-1">Priority</p>
-              <p class="font-medium">{{ workflowSetting.priority }}/10</p>
+              <p class="text-xs text-muted-foreground uppercase mb-1">
+                Priority
+              </p>
+              <p class="font-medium">
+                {{ workflowSetting.priority }}/10
+              </p>
             </div>
           </div>
           <div v-if="workflowSetting.config && Object.keys(workflowSetting.config).length">
-            <p class="text-xs text-muted-foreground uppercase mb-2">Raw Config</p>
+            <p class="text-xs text-muted-foreground uppercase mb-2">
+              Raw Config
+            </p>
             <pre class="text-xs font-mono rounded-lg border bg-muted/50 p-3 overflow-x-auto">{{ JSON.stringify(workflowSetting.config, null, 2) }}</pre>
           </div>
         </UiCardContent>
@@ -490,7 +598,9 @@ function viewDetails(action: AgentAction) {
               <Settings class="size-3.5 text-blue-500" />
             </div>
             <div class="text-xs text-muted-foreground leading-relaxed">
-              <p class="font-medium text-foreground mb-1">How tools work</p>
+              <p class="font-medium text-foreground mb-1">
+                How tools work
+              </p>
               <p>
                 Tools are <a href="https://docs.openclaw.ai/tools" target="_blank" rel="noopener" class="underline hover:text-foreground">OpenClaw capabilities</a> granted to the agent at spawn time.
                 The <code class="rounded bg-muted px-1 py-0.5">browser</code> tool sends CDP commands over WebSocket to our
@@ -525,15 +635,25 @@ function viewDetails(action: AgentAction) {
         <div v-if="selectedAction" class="space-y-6 py-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">ID</p>
-              <p class="text-sm font-mono">{{ selectedAction.id.slice(0, 8) }}...</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                ID
+              </p>
+              <p class="text-sm font-mono">
+                {{ selectedAction.id.slice(0, 8) }}...
+              </p>
             </div>
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">OEM</p>
-              <p class="text-sm font-medium uppercase">{{ selectedAction.oem_id }}</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                OEM
+              </p>
+              <p class="text-sm font-medium uppercase">
+                {{ selectedAction.oem_id }}
+              </p>
             </div>
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">Status</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Status
+              </p>
               <div class="flex items-center gap-1.5">
                 <component
                   :is="statusIcon(selectedAction.status).icon"
@@ -544,34 +664,50 @@ function viewDetails(action: AgentAction) {
               </div>
             </div>
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">Confidence</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Confidence
+              </p>
               <p class="text-sm" :class="selectedAction.confidence_score !== null ? confidenceColor(selectedAction.confidence_score) : 'text-muted-foreground'">
-                {{ selectedAction.confidence_score !== null ? (selectedAction.confidence_score * 100).toFixed(1) + '%' : 'N/A' }}
+                {{ selectedAction.confidence_score !== null ? `${(selectedAction.confidence_score * 100).toFixed(1)}%` : 'N/A' }}
               </p>
             </div>
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">Cost</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Cost
+              </p>
               <p class="text-sm font-mono">
-                {{ selectedAction.cost_usd !== null ? '$' + selectedAction.cost_usd.toFixed(6) : 'N/A' }}
+                {{ selectedAction.cost_usd !== null ? `$${selectedAction.cost_usd.toFixed(6)}` : 'N/A' }}
               </p>
             </div>
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">Duration</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Duration
+              </p>
               <p class="text-sm">
-                {{ selectedAction.execution_time_ms !== null ? selectedAction.execution_time_ms + 'ms' : 'N/A' }}
+                {{ selectedAction.execution_time_ms !== null ? `${selectedAction.execution_time_ms}ms` : 'N/A' }}
               </p>
             </div>
             <div>
-              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">Created</p>
-              <p class="text-sm text-muted-foreground">{{ formatDate(selectedAction.created_at) }}</p>
+              <p class="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Created
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {{ formatDate(selectedAction.created_at) }}
+              </p>
             </div>
           </div>
 
           <div v-if="selectedAction.change_events" class="rounded-lg border bg-muted/50 p-4">
-            <p class="text-xs font-medium text-muted-foreground uppercase mb-2">Change Event</p>
-            <p class="text-sm font-medium mb-2">{{ selectedAction.change_events.summary }}</p>
+            <p class="text-xs font-medium text-muted-foreground uppercase mb-2">
+              Change Event
+            </p>
+            <p class="text-sm font-medium mb-2">
+              {{ selectedAction.change_events.summary }}
+            </p>
             <div class="flex items-center gap-2 flex-wrap">
-              <UiBadge variant="secondary" class="text-xs">{{ selectedAction.change_events.event_type }}</UiBadge>
+              <UiBadge variant="secondary" class="text-xs">
+                {{ selectedAction.change_events.event_type }}
+              </UiBadge>
               <UiBadge
                 variant="outline"
                 :class="{
@@ -591,12 +727,16 @@ function viewDetails(action: AgentAction) {
           </div>
 
           <div v-if="selectedAction.reasoning">
-            <p class="text-xs font-medium text-muted-foreground uppercase mb-2">AI Reasoning</p>
+            <p class="text-xs font-medium text-muted-foreground uppercase mb-2">
+              AI Reasoning
+            </p>
             <pre class="text-sm whitespace-pre-wrap rounded-lg border bg-muted/50 p-4 leading-relaxed">{{ selectedAction.reasoning }}</pre>
           </div>
 
           <div v-if="selectedAction.actions_taken?.length">
-            <p class="text-xs font-medium text-muted-foreground uppercase mb-2">Actions Taken</p>
+            <p class="text-xs font-medium text-muted-foreground uppercase mb-2">
+              Actions Taken
+            </p>
             <ul class="space-y-1 pl-4">
               <li v-for="(a, idx) in selectedAction.actions_taken" :key="idx" class="text-sm list-disc text-muted-foreground">
                 {{ a }}
@@ -605,7 +745,9 @@ function viewDetails(action: AgentAction) {
           </div>
 
           <div v-if="selectedAction.error_message" class="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-            <p class="text-xs font-medium text-red-500 uppercase mb-2">Error</p>
+            <p class="text-xs font-medium text-red-500 uppercase mb-2">
+              Error
+            </p>
             <pre class="text-sm whitespace-pre-wrap text-red-400">{{ selectedAction.error_message }}</pre>
           </div>
         </div>

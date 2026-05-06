@@ -1,12 +1,26 @@
-import { ref, computed } from 'vue'
-import { fetchGeneratedPages, fetchGeneratedPage } from '@/lib/worker-api'
-import { OEM_CURATED_TEMPLATES, type OemSectionTemplate } from '@/pages/dashboard/components/page-builder/oem-templates'
-import type { PageSectionType } from '@/pages/dashboard/components/page-builder/section-templates'
+import { computed, ref } from 'vue'
+
+import type { OemSectionTemplate } from '@/pages/dashboard/components/page-builder/oem-templates'
+
+import { fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
+import { OEM_CURATED_TEMPLATES } from '@/pages/dashboard/components/page-builder/oem-templates'
 
 const OEM_IDS = [
-  'ford-au', 'gac-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
-  'mazda-au', 'mitsubishi-au', 'nissan-au', 'subaru-au', 'suzuki-au',
-  'toyota-au', 'volkswagen-au', 'kgm-au',
+  'ford-au',
+  'gac-au',
+  'gwm-au',
+  'hyundai-au',
+  'isuzu-au',
+  'kia-au',
+  'ldv-au',
+  'mazda-au',
+  'mitsubishi-au',
+  'nissan-au',
+  'subaru-au',
+  'suzuki-au',
+  'toyota-au',
+  'volkswagen-au',
+  'kgm-au',
 ]
 
 export interface SlugEntry {
@@ -24,7 +38,7 @@ export interface CachedSection {
 // Shared state (singleton across components)
 const allSlugs = ref<SlugEntry[]>([])
 const sectionCache = new Map<string, any[]>()
-const pageCache = new Map<string, { name: string; source_url?: string; oem_id: string }>()
+const pageCache = new Map<string, { name: string, source_url?: string, oem_id: string }>()
 const indexLoaded = ref(false)
 const indexLoading = ref(false)
 
@@ -35,7 +49,8 @@ export function useTemplateGallery() {
   const loadingSections = ref(false)
 
   async function loadIndex() {
-    if (indexLoaded.value || indexLoading.value) return
+    if (indexLoaded.value || indexLoading.value)
+      return
     indexLoading.value = true
     try {
       const results = await Promise.allSettled(
@@ -54,14 +69,16 @@ export function useTemplateGallery() {
       }
       allSlugs.value = slugs
       indexLoaded.value = true
-    } finally {
+    }
+    finally {
       indexLoading.value = false
     }
   }
 
   async function loadPageSections(oemId: string, slug: string): Promise<any[]> {
     const fullSlug = `${oemId}-${slug}`
-    if (sectionCache.has(fullSlug)) return sectionCache.get(fullSlug)!
+    if (sectionCache.has(fullSlug))
+      return sectionCache.get(fullSlug)!
 
     loadingSections.value = true
     try {
@@ -74,9 +91,11 @@ export function useTemplateGallery() {
         oem_id: oemId,
       })
       return sections
-    } catch {
+    }
+    catch {
       return []
-    } finally {
+    }
+    finally {
       loadingSections.value = false
     }
   }
@@ -106,7 +125,7 @@ export function useTemplateGallery() {
     }
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
-      list = list.filter(s => {
+      list = list.filter((s) => {
         const meta = pageCache.get(`${s.oem_id}-${s.slug}`)
         return s.slug.toLowerCase().includes(q)
           || s.oem_id.toLowerCase().includes(q)
@@ -168,13 +187,21 @@ export function useTemplateGallery() {
 
 function countImages(section: any): number {
   let count = 0
-  if (section.desktop_image_url) count++
-  if (section.mobile_image_url) count++
-  if (section.image_url) count++
-  if (section.background_image_url) count++
-  if (Array.isArray(section.images)) count += section.images.length
-  if (Array.isArray(section.tabs)) count += section.tabs.filter((t: any) => t.image_url).length
-  if (Array.isArray(section.cards)) count += section.cards.filter((c: any) => c.image_url).length
-  if (Array.isArray(section.colors)) count += section.colors.length
+  if (section.desktop_image_url)
+    count++
+  if (section.mobile_image_url)
+    count++
+  if (section.image_url)
+    count++
+  if (section.background_image_url)
+    count++
+  if (Array.isArray(section.images))
+    count += section.images.length
+  if (Array.isArray(section.tabs))
+    count += section.tabs.filter((t: any) => t.image_url).length
+  if (Array.isArray(section.cards))
+    count += section.cards.filter((c: any) => c.image_url).length
+  if (Array.isArray(section.colors))
+    count += section.colors.length
   return count
 }

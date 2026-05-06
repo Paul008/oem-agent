@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Save, RotateCcw, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Info, Loader2, RotateCcw, Save } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 
 import { BasicPage } from '@/components/global-layout'
 import { useAgents } from '@/composables/use-agents'
@@ -59,18 +59,24 @@ const estimatedSkipRate = computed(() => {
   let rate = 0
 
   // Age-based skips
-  if (config.value.min_age_days > 0) rate += 30
+  if (config.value.min_age_days > 0)
+    rate += 30
 
   // Timestamp checks reduce unnecessary regenerations
-  if (config.value.check_source_timestamps) rate += 20
+  if (config.value.check_source_timestamps)
+    rate += 20
 
   // Content hash is most effective
-  if (config.value.check_content_hash) rate += 30
+  if (config.value.check_content_hash)
+    rate += 30
 
   // Priority threshold affects sensitivity
-  if (config.value.priority_threshold === 'high') rate += 10
-  else if (config.value.priority_threshold === 'critical') rate += 20
-  else if (config.value.priority_threshold === 'low') rate -= 10
+  if (config.value.priority_threshold === 'high')
+    rate += 10
+  else if (config.value.priority_threshold === 'critical')
+    rate += 20
+  else if (config.value.priority_threshold === 'low')
+    rate -= 10
 
   return Math.max(0, Math.min(95, rate))
 })
@@ -105,14 +111,17 @@ async function saveConfiguration() {
       config: { regeneration_strategy: { ...config.value } },
     })
 
-    if (!success) throw new Error('Failed to save configuration')
+    if (!success)
+      throw new Error('Failed to save configuration')
 
     saveStatus.value = 'success'
     setTimeout(() => { saveStatus.value = 'idle' }, 3000)
-  } catch (err) {
+  }
+  catch (err) {
     saveStatus.value = 'error'
     errorMessage.value = err instanceof Error ? err.message : 'Failed to save configuration'
-  } finally {
+  }
+  finally {
     saving.value = false
   }
 }
@@ -125,9 +134,11 @@ onMounted(async () => {
     if (saved) {
       config.value = { ...DEFAULT_CONFIG, ...saved }
     }
-  } catch (e) {
+  }
+  catch (e) {
     console.error('[Regeneration] Failed to load config:', e)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -145,7 +156,9 @@ onMounted(async () => {
         <UiCardContent class="flex items-start gap-3 pt-6">
           <Info class="size-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
           <div class="text-sm text-blue-900 dark:text-blue-100">
-            <p class="font-medium mb-1">Smart Regeneration Strategy</p>
+            <p class="font-medium mb-1">
+              Smart Regeneration Strategy
+            </p>
             <p class="text-blue-800 dark:text-blue-200">
               Configure how Brand Ambassador decides when to regenerate model pages.
               Optimal settings can save 70-80% of API costs while keeping pages fresh.
@@ -192,7 +205,7 @@ onMounted(async () => {
                 min="1"
                 max="90"
                 class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+              >
               <p class="text-xs text-muted-foreground">
                 Force regenerate after this many days
               </p>
@@ -206,7 +219,7 @@ onMounted(async () => {
                 min="1"
                 max="30"
                 class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+              >
               <p class="text-xs text-muted-foreground">
                 Skip regeneration if page is newer than this
               </p>
@@ -221,7 +234,7 @@ onMounted(async () => {
                 v-model="config.check_source_timestamps"
                 type="checkbox"
                 class="mt-1"
-              />
+              >
               <div class="flex-1">
                 <label for="check-timestamps" class="text-sm font-medium cursor-pointer">
                   Check Source Timestamps
@@ -238,7 +251,7 @@ onMounted(async () => {
                 v-model="config.check_content_hash"
                 type="checkbox"
                 class="mt-1"
-              />
+              >
               <div class="flex-1">
                 <label for="check-hash" class="text-sm font-medium cursor-pointer">
                   Check Content Hash
@@ -258,10 +271,18 @@ onMounted(async () => {
                 <UiSelectValue />
               </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="low">Low - Regenerate for all changes</UiSelectItem>
-                <UiSelectItem value="medium">Medium - Balanced (recommended)</UiSelectItem>
-                <UiSelectItem value="high">High - Only major changes</UiSelectItem>
-                <UiSelectItem value="critical">Critical - Emergency only</UiSelectItem>
+                <UiSelectItem value="low">
+                  Low - Regenerate for all changes
+                </UiSelectItem>
+                <UiSelectItem value="medium">
+                  Medium - Balanced (recommended)
+                </UiSelectItem>
+                <UiSelectItem value="high">
+                  High - Only major changes
+                </UiSelectItem>
+                <UiSelectItem value="critical">
+                  Critical - Emergency only
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
             <p class="text-xs text-muted-foreground">
@@ -274,17 +295,27 @@ onMounted(async () => {
       <!-- Impact Preview -->
       <UiCard class="mb-6 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
         <UiCardHeader>
-          <UiCardTitle class="text-green-900 dark:text-green-100">Estimated Impact</UiCardTitle>
+          <UiCardTitle class="text-green-900 dark:text-green-100">
+            Estimated Impact
+          </UiCardTitle>
         </UiCardHeader>
         <UiCardContent class="text-green-900 dark:text-green-100">
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
-              <div class="text-3xl font-bold">{{ estimatedSkipRate }}%</div>
-              <p class="text-sm text-green-800 dark:text-green-200">Pages skipped</p>
+              <div class="text-3xl font-bold">
+                {{ estimatedSkipRate }}%
+              </div>
+              <p class="text-sm text-green-800 dark:text-green-200">
+                Pages skipped
+              </p>
             </div>
             <div>
-              <div class="text-3xl font-bold">${{ estimatedCostSavings }}</div>
-              <p class="text-sm text-green-800 dark:text-green-200">Estimated monthly savings</p>
+              <div class="text-3xl font-bold">
+                ${{ estimatedCostSavings }}
+              </div>
+              <p class="text-sm text-green-800 dark:text-green-200">
+                Estimated monthly savings
+              </p>
             </div>
           </div>
           <p class="text-sm text-green-800 dark:text-green-200 mt-4">
@@ -296,12 +327,12 @@ onMounted(async () => {
 
       <!-- Actions -->
       <div class="flex gap-3">
-        <UiButton @click="saveConfiguration" :disabled="saving">
+        <UiButton :disabled="saving" @click="saveConfiguration">
           <Loader2 v-if="saving" class="size-4 mr-2 animate-spin" />
           <Save v-else class="size-4 mr-2" />
           Save Configuration
         </UiButton>
-        <UiButton variant="outline" @click="resetToDefaults" :disabled="saving">
+        <UiButton variant="outline" :disabled="saving" @click="resetToDefaults">
           <RotateCcw class="size-4 mr-2" />
           Reset to Defaults
         </UiButton>

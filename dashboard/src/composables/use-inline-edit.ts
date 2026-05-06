@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
 /**
  * Composable for inline contenteditable text editing.
@@ -23,7 +23,8 @@ export function useInlineEdit(onUpdate: (value: string) => void) {
   }
 
   function stopEdit() {
-    if (!editEl.value) return
+    if (!editEl.value)
+      return
     const el = editEl.value
     el.removeAttribute('contenteditable')
     const text = el.textContent?.trim() || ''

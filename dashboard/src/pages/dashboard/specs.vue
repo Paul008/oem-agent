@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronUp, Loader2, Search } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+
+import type { Product, ProductSpecs, VehicleModel } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import type { Product, VehicleModel, ProductSpecs } from '@/composables/use-oem-data'
 
 const { fetchProducts, fetchVehicleModels, fetchOems } = useOemData()
 
@@ -35,10 +36,12 @@ onMounted(async () => {
     products.value = p
     models.value = m
     oems.value = o
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load specifications data'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -60,29 +63,37 @@ const productsWithSpecs = computed(() =>
 // ── Filter options ───────────────────────────────────────────────────────────
 
 const modelsForOem = computed(() => {
-  if (filterOem.value === 'all') return models.value
+  if (filterOem.value === 'all')
+    return models.value
   return models.value.filter(m => m.oem_id === filterOem.value)
 })
 
 const fuelTypes = computed(() => {
   const types = new Set<string>()
-  productsWithSpecs.value.forEach(p => { if (p.fuel_type) types.add(p.fuel_type) })
+  productsWithSpecs.value.forEach((p) => {
+    if (p.fuel_type)
+      types.add(p.fuel_type)
+  })
   return [...types].sort()
 })
 
 const bodyTypes = computed(() => {
   const types = new Set<string>()
-  productsWithSpecs.value.forEach(p => { if (p.body_type) types.add(p.body_type) })
+  productsWithSpecs.value.forEach((p) => {
+    if (p.body_type)
+      types.add(p.body_type)
+  })
   return [...types].sort()
 })
 
 const allCategories = computed(() => {
   const cats = new Set<string>()
-  productsWithSpecs.value.forEach(p => {
+  productsWithSpecs.value.forEach((p) => {
     if (p.specs_json) {
-      Object.keys(p.specs_json).forEach(k => {
+      Object.keys(p.specs_json).forEach((k) => {
         const section = p.specs_json![k as keyof ProductSpecs]
-        if (section && Object.keys(section).length > 0) cats.add(k)
+        if (section && Object.keys(section).length > 0)
+          cats.add(k)
       })
     }
   })
@@ -94,9 +105,14 @@ const allCategories = computed(() => {
 const SPEC_CATEGORY_ORDER = ['engine', 'transmission', 'dimensions', 'performance', 'towing', 'capacity', 'safety', 'wheels']
 
 const CATEGORY_LABELS: Record<string, string> = {
-  engine: 'Engine', transmission: 'Transmission', dimensions: 'Dimensions',
-  performance: 'Performance', towing: 'Towing', capacity: 'Capacity',
-  safety: 'Safety', wheels: 'Wheels',
+  engine: 'Engine',
+  transmission: 'Transmission',
+  dimensions: 'Dimensions',
+  performance: 'Performance',
+  towing: 'Towing',
+  capacity: 'Capacity',
+  safety: 'Safety',
+  wheels: 'Wheels',
 }
 
 function orderedCategories(specs: ProductSpecs): { key: string, label: string, entries: [string, string][] }[] {
@@ -105,20 +121,25 @@ function orderedCategories(specs: ProductSpecs): { key: string, label: string, e
 
   for (const cat of SPEC_CATEGORY_ORDER) {
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     if (typeof section === 'string' || typeof section === 'number') {
       otherEntries.push([formatSpecKey(cat), String(section)])
-    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
+    }
+    else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({ key: cat, label: CATEGORY_LABELS[cat] || cat.charAt(0).toUpperCase() + cat.slice(1), entries: Object.entries(section).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]) })
     }
   }
   for (const cat of Object.keys(specs)) {
-    if (SPEC_CATEGORY_ORDER.includes(cat)) continue
+    if (SPEC_CATEGORY_ORDER.includes(cat))
+      continue
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     if (typeof section === 'string' || typeof section === 'number') {
       otherEntries.push([formatSpecKey(cat), String(section)])
-    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
+    }
+    else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({ key: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' '), entries: Object.entries(section).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]) })
     }
   }
@@ -140,7 +161,8 @@ function specCount(specs: ProductSpecs): number {
   let count = 0
   for (const cat of Object.keys(specs)) {
     const section = specs[cat as keyof ProductSpecs]
-    if (section) count += Object.keys(section).length
+    if (section)
+      count += Object.keys(section).length
   }
   return count
 }
@@ -167,25 +189,30 @@ const filtered = computed(() => {
     list = list.filter(p => p.body_type === filterBody.value)
   }
   if (filterCategory.value !== 'all') {
-    list = list.filter(p => {
-      if (!p.specs_json) return false
+    list = list.filter((p) => {
+      if (!p.specs_json)
+        return false
       const section = p.specs_json[filterCategory.value as keyof ProductSpecs]
       return section && Object.keys(section).length > 0
     })
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter(p => {
+    list = list.filter((p) => {
       // Search title
-      if (p.title.toLowerCase().includes(q)) return true
-      if (p.variant_name?.toLowerCase().includes(q)) return true
+      if (p.title.toLowerCase().includes(q))
+        return true
+      if (p.variant_name?.toLowerCase().includes(q))
+        return true
       // Search spec keys and values
       if (p.specs_json) {
         for (const cat of Object.keys(p.specs_json)) {
           const section = p.specs_json[cat as keyof ProductSpecs]
-          if (!section) continue
+          if (!section)
+            continue
           for (const [key, value] of Object.entries(section)) {
-            if (key.toLowerCase().includes(q) || value.toLowerCase().includes(q)) return true
+            if (key.toLowerCase().includes(q) || value.toLowerCase().includes(q))
+              return true
           }
         }
       }
@@ -195,14 +222,18 @@ const filtered = computed(() => {
 
   if (sortBy.value === 'price-asc') {
     list = [...list].sort((a, b) => (a.price_amount ?? 99999999) - (b.price_amount ?? 99999999))
-  } else if (sortBy.value === 'price-desc') {
+  }
+  else if (sortBy.value === 'price-desc') {
     list = [...list].sort((a, b) => (b.price_amount ?? 0) - (a.price_amount ?? 0))
-  } else if (sortBy.value === 'title') {
+  }
+  else if (sortBy.value === 'title') {
     list = [...list].sort((a, b) => a.title.localeCompare(b.title))
-  } else {
+  }
+  else {
     list = [...list].sort((a, b) => {
       const oemCmp = a.oem_id.localeCompare(b.oem_id)
-      if (oemCmp !== 0) return oemCmp
+      if (oemCmp !== 0)
+        return oemCmp
       const modelA = modelMap.value.get(a.model_id ?? '')?.name ?? ''
       const modelB = modelMap.value.get(b.model_id ?? '')?.name ?? ''
       const modelCmp = modelA.localeCompare(modelB)
@@ -233,19 +264,22 @@ function oemName(id: string) {
 }
 
 function modelName(id: string | null) {
-  if (!id) return '-'
+  if (!id)
+    return '-'
   return modelMap.value.get(id)?.name ?? '-'
 }
 
 function formatPrice(amount: number | null) {
-  if (!amount) return '-'
+  if (!amount)
+    return '-'
   return `$${Math.round(amount).toLocaleString()}`
 }
 
 function toggleSpecs(id: string) {
   if (expandedSpecs.value.has(id)) {
     expandedSpecs.value.delete(id)
-  } else {
+  }
+  else {
     expandedSpecs.value.add(id)
   }
 }
@@ -254,11 +288,12 @@ function toggleSpecs(id: string) {
 
 const uniqueCategories = computed(() => {
   const cats = new Set<string>()
-  filtered.value.forEach(p => {
+  filtered.value.forEach((p) => {
     if (p.specs_json) {
-      Object.keys(p.specs_json).forEach(k => {
+      Object.keys(p.specs_json).forEach((k) => {
         const section = p.specs_json![k as keyof ProductSpecs]
-        if (section && Object.keys(section).length > 0) cats.add(k)
+        if (section && Object.keys(section).length > 0)
+          cats.add(k)
       })
     }
   })
@@ -266,7 +301,8 @@ const uniqueCategories = computed(() => {
 })
 
 const avgSpecsPerProduct = computed(() => {
-  if (filtered.value.length === 0) return 0
+  if (filtered.value.length === 0)
+    return 0
   const total = filtered.value.reduce((sum, p) => sum + (p.specs_json ? specCount(p.specs_json) : 0), 0)
   return Math.round(total / filtered.value.length)
 })
@@ -281,7 +317,9 @@ const avgSpecsPerProduct = computed(() => {
           <UiSelectValue placeholder="All OEMs" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -293,7 +331,9 @@ const avgSpecsPerProduct = computed(() => {
           <UiSelectValue placeholder="All Models" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Models</UiSelectItem>
+          <UiSelectItem value="all">
+            All Models
+          </UiSelectItem>
           <UiSelectItem v-for="m in modelsForOem" :key="m.id" :value="m.id">
             {{ m.name }}
           </UiSelectItem>
@@ -305,8 +345,12 @@ const avgSpecsPerProduct = computed(() => {
           <UiSelectValue placeholder="All Fuels" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Fuels</UiSelectItem>
-          <UiSelectItem v-for="ft in fuelTypes" :key="ft" :value="ft">{{ ft }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Fuels
+          </UiSelectItem>
+          <UiSelectItem v-for="ft in fuelTypes" :key="ft" :value="ft">
+            {{ ft }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -315,8 +359,12 @@ const avgSpecsPerProduct = computed(() => {
           <UiSelectValue placeholder="All Body Types" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Body Types</UiSelectItem>
-          <UiSelectItem v-for="bt in bodyTypes" :key="bt" :value="bt">{{ bt }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Body Types
+          </UiSelectItem>
+          <UiSelectItem v-for="bt in bodyTypes" :key="bt" :value="bt">
+            {{ bt }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -325,8 +373,12 @@ const avgSpecsPerProduct = computed(() => {
           <UiSelectValue placeholder="All Categories" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Categories</UiSelectItem>
-          <UiSelectItem v-for="cat in allCategories" :key="cat" :value="cat">{{ categoryLabel(cat) }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Categories
+          </UiSelectItem>
+          <UiSelectItem v-for="cat in allCategories" :key="cat" :value="cat">
+            {{ categoryLabel(cat) }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -344,10 +396,18 @@ const avgSpecsPerProduct = computed(() => {
           <UiSelectValue placeholder="Sort by" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="oem">OEM / Model</UiSelectItem>
-          <UiSelectItem value="title">Name A-Z</UiSelectItem>
-          <UiSelectItem value="price-asc">Price Low-High</UiSelectItem>
-          <UiSelectItem value="price-desc">Price High-Low</UiSelectItem>
+          <UiSelectItem value="oem">
+            OEM / Model
+          </UiSelectItem>
+          <UiSelectItem value="title">
+            Name A-Z
+          </UiSelectItem>
+          <UiSelectItem value="price-asc">
+            Price Low-High
+          </UiSelectItem>
+          <UiSelectItem value="price-desc">
+            Price High-Low
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -365,7 +425,9 @@ const avgSpecsPerProduct = computed(() => {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <!-- Table View -->
@@ -376,9 +438,15 @@ const avgSpecsPerProduct = computed(() => {
             <UiTableHead>OEM</UiTableHead>
             <UiTableHead>Model</UiTableHead>
             <UiTableHead>Variant</UiTableHead>
-            <UiTableHead class="text-right">Price</UiTableHead>
-            <UiTableHead class="text-center">Categories</UiTableHead>
-            <UiTableHead class="text-center">Total Specs</UiTableHead>
+            <UiTableHead class="text-right">
+              Price
+            </UiTableHead>
+            <UiTableHead class="text-center">
+              Categories
+            </UiTableHead>
+            <UiTableHead class="text-center">
+              Total Specs
+            </UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -387,13 +455,21 @@ const avgSpecsPerProduct = computed(() => {
               class="cursor-pointer group"
               @click="toggleSpecs(product.id)"
             >
-              <UiTableCell class="text-sm">{{ oemName(product.oem_id) }}</UiTableCell>
-              <UiTableCell class="text-sm font-medium">{{ modelName(product.model_id) }}</UiTableCell>
+              <UiTableCell class="text-sm">
+                {{ oemName(product.oem_id) }}
+              </UiTableCell>
+              <UiTableCell class="text-sm font-medium">
+                {{ modelName(product.model_id) }}
+              </UiTableCell>
               <UiTableCell>
                 <span class="text-sm font-medium">{{ product.variant_name || product.subtitle || product.title }}</span>
-                <p v-if="product.variant_code" class="text-xs text-muted-foreground mt-0.5">{{ product.variant_code }}</p>
+                <p v-if="product.variant_code" class="text-xs text-muted-foreground mt-0.5">
+                  {{ product.variant_code }}
+                </p>
               </UiTableCell>
-              <UiTableCell class="text-right font-medium text-sm">{{ formatPrice(product.price_amount) }}</UiTableCell>
+              <UiTableCell class="text-right font-medium text-sm">
+                {{ formatPrice(product.price_amount) }}
+              </UiTableCell>
               <UiTableCell class="text-center">
                 <button
                   class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 transition-colors"
@@ -426,8 +502,12 @@ const avgSpecsPerProduct = computed(() => {
                           :key="key"
                           class="flex justify-between gap-2 text-xs"
                         >
-                          <dt class="text-muted-foreground shrink-0">{{ formatSpecKey(key) }}</dt>
-                          <dd class="text-right font-medium truncate" :title="value">{{ value }}</dd>
+                          <dt class="text-muted-foreground shrink-0">
+                            {{ formatSpecKey(key) }}
+                          </dt>
+                          <dd class="text-right font-medium truncate" :title="value">
+                            {{ value }}
+                          </dd>
                         </div>
                       </dl>
                     </div>
@@ -453,7 +533,9 @@ const avgSpecsPerProduct = computed(() => {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem v-for="size in PAGE_SIZES" :key="size" :value="size">{{ size }}</UiSelectItem>
+              <UiSelectItem v-for="size in PAGE_SIZES" :key="size" :value="size">
+                {{ size }}
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
           <span>{{ (page - 1) * pageSize + 1 }}-{{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }}</span>

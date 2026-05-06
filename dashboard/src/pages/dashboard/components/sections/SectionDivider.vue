@@ -17,7 +17,7 @@ const spacingClass = computed(() => {
 
 <template>
   <div :class="spacingClass" class="px-8">
-    <hr v-if="section.style === 'line'" class="border-t border-border" />
+    <hr v-if="section.style === 'line'" class="border-t border-border">
     <div v-else-if="section.style === 'dots'" class="flex items-center justify-center gap-2">
       <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
       <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />

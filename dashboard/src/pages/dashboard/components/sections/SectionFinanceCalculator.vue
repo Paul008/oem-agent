@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
@@ -19,9 +20,9 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
-const subEdit = useInlineEdit((v) => emit('update-text', 'subtitle', v))
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement], 'update-text': [field: string, value: string] }>()
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
+const subEdit = useInlineEdit(v => emit('update-text', 'subtitle', v))
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 
 const price = ref(props.section.default_price)
@@ -31,10 +32,12 @@ const rate = ref(props.section.default_rate)
 
 const monthlyRepayment = computed(() => {
   const principal = price.value - deposit.value
-  if (principal <= 0 || term.value <= 0) return 0
+  if (principal <= 0 || term.value <= 0)
+    return 0
   const monthlyRate = (rate.value / 100) / 12
-  if (monthlyRate === 0) return principal / term.value
-  const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, term.value)) / (Math.pow(1 + monthlyRate, term.value) - 1)
+  if (monthlyRate === 0)
+    return principal / term.value
+  const payment = principal * (monthlyRate * (1 + monthlyRate) ** term.value) / ((1 + monthlyRate) ** term.value - 1)
   return Math.round(payment)
 })
 
@@ -50,8 +53,12 @@ function fmt(n: number) {
   <div class="px-8 py-10 bg-slate-50 dark:bg-slate-900/30">
     <div class="max-w-2xl mx-auto">
       <div class="text-center mb-6">
-        <h2 class="text-xl font-bold cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">{{ section.title || 'Double-click to add title' }}</h2>
-        <p class="text-sm text-muted-foreground mt-1 cursor-text outline-none" :style="{ opacity: section.subtitle ? 1 : 0.4 }" @dblclick="startEditing('subtitle', subEdit, $event)" @blur="subEdit.stopEdit()" @keydown="subEdit.onKeydown" @paste="subEdit.onPaste">{{ section.subtitle || 'Double-click to add subtitle' }}</p>
+        <h2 class="text-xl font-bold cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">
+          {{ section.title || 'Double-click to add title' }}
+        </h2>
+        <p class="text-sm text-muted-foreground mt-1 cursor-text outline-none" :style="{ opacity: section.subtitle ? 1 : 0.4 }" @dblclick="startEditing('subtitle', subEdit, $event)" @blur="subEdit.stopEdit()" @keydown="subEdit.onKeydown" @paste="subEdit.onPaste">
+          {{ section.subtitle || 'Double-click to add subtitle' }}
+        </p>
       </div>
 
       <div class="grid sm:grid-cols-2 gap-6">
@@ -68,7 +75,7 @@ function fmt(n: number) {
                 :max="150000"
                 :step="1000"
                 class="flex-1"
-              />
+              >
               <span class="text-sm font-medium w-20 text-right">${{ fmt(price) }}</span>
             </div>
           </div>
@@ -83,7 +90,7 @@ function fmt(n: number) {
                 :max="price"
                 :step="500"
                 class="flex-1"
-              />
+              >
               <span class="text-sm font-medium w-20 text-right">${{ fmt(deposit) }}</span>
             </div>
           </div>
@@ -97,7 +104,7 @@ function fmt(n: number) {
                 :max="section.max_term"
                 :step="12"
                 class="flex-1"
-              />
+              >
               <span class="text-sm font-medium w-20 text-right">{{ term }} mo</span>
             </div>
           </div>
@@ -111,7 +118,7 @@ function fmt(n: number) {
                 :max="15"
                 :step="0.1"
                 class="flex-1"
-              />
+              >
               <span class="text-sm font-medium w-20 text-right">{{ rate.toFixed(1) }}%</span>
             </div>
           </div>
@@ -119,18 +126,32 @@ function fmt(n: number) {
 
         <!-- Result -->
         <div class="bg-white dark:bg-slate-800 rounded-xl border p-6 flex flex-col items-center justify-center text-center">
-          <p class="text-sm text-muted-foreground mb-1">Estimated Monthly Repayment</p>
-          <p class="text-4xl font-bold text-primary">${{ fmt(monthlyRepayment) }}</p>
-          <p class="text-xs text-muted-foreground mt-1">per month</p>
+          <p class="text-sm text-muted-foreground mb-1">
+            Estimated Monthly Repayment
+          </p>
+          <p class="text-4xl font-bold text-primary">
+            ${{ fmt(monthlyRepayment) }}
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            per month
+          </p>
 
           <div class="grid grid-cols-2 gap-4 mt-4 w-full text-xs">
             <div>
-              <p class="text-muted-foreground">Total Cost</p>
-              <p class="font-semibold">${{ fmt(totalCost) }}</p>
+              <p class="text-muted-foreground">
+                Total Cost
+              </p>
+              <p class="font-semibold">
+                ${{ fmt(totalCost) }}
+              </p>
             </div>
             <div>
-              <p class="text-muted-foreground">Total Interest</p>
-              <p class="font-semibold">${{ fmt(totalInterest) }}</p>
+              <p class="text-muted-foreground">
+                Total Interest
+              </p>
+              <p class="font-semibold">
+                ${{ fmt(totalInterest) }}
+              </p>
             </div>
           </div>
 

@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, FileText, CheckCircle2, Layers, Cpu, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink, X, RefreshCw, AlertTriangle, Upload } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Cpu, ExternalLink, FileText, Layers, Loader2, RefreshCw, Upload, X } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
-import { workerFetch } from '@/lib/worker-api'
 import { supabase } from '@/lib/supabase'
+import { workerFetch } from '@/lib/worker-api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,8 @@ onMounted(loadData)
 const oemList = computed(() => {
   const seen = new Map<string, string>()
   for (const row of pdfs.value) {
-    if (!seen.has(row.oem_id)) seen.set(row.oem_id, row.oem_id.replace(/-au$/, '').toUpperCase())
+    if (!seen.has(row.oem_id))
+      seen.set(row.oem_id, row.oem_id.replace(/-au$/, '').toUpperCase())
   }
   return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
 })
@@ -131,7 +132,8 @@ function oemLabel(id: string) {
 }
 
 function truncateUrl(url: string | null) {
-  if (!url) return '-'
+  if (!url)
+    return '-'
   try {
     const u = new URL(url)
     const parts = u.pathname.split('/')
@@ -144,14 +146,16 @@ function truncateUrl(url: string | null) {
 }
 
 function formatDate(dateStr: string | null) {
-  if (!dateStr) return '-'
+  if (!dateStr)
+    return '-'
   return new Date(dateStr).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 // ── Extract actions ───────────────────────────────────────────────────────────
 
 async function extractSpecs(row: PdfRow) {
-  if (extractingIds.value[row.model_id]) return
+  if (extractingIds.value[row.model_id])
+    return
   extractingIds.value[row.model_id] = true
   try {
     const result = await workerFetch('/api/v1/admin/extract-specs', {
@@ -167,9 +171,11 @@ async function extractSpecs(row: PdfRow) {
         ? ` · ${variantsMatched}/${variantsExtracted} variants matched`
         : ''
       toast.success(`Extracted ${row.model_name}${variantNote}`)
-    } else if (result?.errors?.length) {
+    }
+    else if (result?.errors?.length) {
       toast.error(`Extract failed: ${result.errors[0].error}`)
-    } else {
+    }
+    else {
       toast.warning(`No specs extracted for ${row.model_name}`)
     }
     extractedIds.value[row.model_id] = true
@@ -219,7 +225,8 @@ function triggerUpload(row: PdfRow) {
 async function handleFileSelected(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || !uploadTargetRow.value) return
+  if (!file || !uploadTargetRow.value)
+    return
 
   const row = uploadTargetRow.value
   uploadingIds.value[row.model_id] = true
@@ -271,13 +278,15 @@ async function viewSpecs(row: PdfRow) {
       .select('extracted_specs')
       .eq('id', row.model_id)
       .single()
-    if (error) throw error
+    if (error)
+      throw error
     const raw = data?.extracted_specs
     if (raw?.categories && Array.isArray(raw.categories)) {
       specsData.value = raw.categories.flatMap((cat: any) =>
         (cat.specs ?? []).map((s: any) => ({ ...s, category: cat.name })),
       )
-    } else if (Array.isArray(raw)) {
+    }
+    else if (Array.isArray(raw)) {
       specsData.value = raw
     }
 
@@ -290,7 +299,8 @@ async function viewSpecs(row: PdfRow) {
     const variants: typeof specsVariants.value = []
     for (const p of (products ?? [])) {
       const pdfSpecs = (p.specs_json as any)?._pdf_variant_specs
-      if (!pdfSpecs?.categories) continue
+      if (!pdfSpecs?.categories)
+        continue
       const flatSpecs = pdfSpecs.categories.flatMap((cat: any) =>
         (cat.specs ?? []).map((s: any) => ({ ...s, category: cat.name })),
       )
@@ -319,7 +329,8 @@ const activeSpecs = computed(() => {
 })
 
 function isUnavailable(value: string | null | undefined): boolean {
-  if (!value) return true
+  if (!value)
+    return true
   const v = String(value).trim().toLowerCase()
   return v === '' || v === '—' || v === '-' || v === 'unavailable' || v === 'n/a' || v === 'na' || v === 'not available'
 }
@@ -332,7 +343,8 @@ const activeSpecsByCategory = computed(() => {
   const groups = new Map<string, ExtractedSpecItem[]>()
   for (const item of activeSpecs.value) {
     const cat = item.category || 'General'
-    if (!groups.has(cat)) groups.set(cat, [])
+    if (!groups.has(cat))
+      groups.set(cat, [])
     groups.get(cat)!.push(item)
   }
   // Drop categories that became empty after filtering
@@ -347,7 +359,6 @@ function closeModal() {
   specsData.value = []
 }
 
-
 // Models with brochure but no specs (for bulk action label)
 const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url && !r.has_specs).length)
 </script>
@@ -361,7 +372,9 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
           <UiSelectValue placeholder="All OEMs" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oemList" :key="oem.id" :value="oem.id">
             {{ oem.name }}
           </UiSelectItem>
@@ -373,10 +386,18 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
           <UiSelectValue placeholder="All statuses" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All</UiSelectItem>
-          <UiSelectItem value="vectorized">Vectorized</UiSelectItem>
-          <UiSelectItem value="specs_extracted">Specs Extracted</UiSelectItem>
-          <UiSelectItem value="pending">Pending (brochure, no specs)</UiSelectItem>
+          <UiSelectItem value="all">
+            All
+          </UiSelectItem>
+          <UiSelectItem value="vectorized">
+            Vectorized
+          </UiSelectItem>
+          <UiSelectItem value="specs_extracted">
+            Specs Extracted
+          </UiSelectItem>
+          <UiSelectItem value="pending">
+            Pending (brochure, no specs)
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -408,7 +429,9 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
       <UiButton variant="outline" size="sm" @click="loadData">
         <RefreshCw class="size-3.5 mr-1.5" /> Retry
       </UiButton>
@@ -419,42 +442,66 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Models</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Models
+            </UiCardTitle>
             <FileText class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total_models }}</div>
-            <p class="text-xs text-muted-foreground">Across all OEMs</p>
+            <div class="text-2xl font-bold">
+              {{ stats.total_models }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Across all OEMs
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">With Brochures</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              With Brochures
+            </UiCardTitle>
             <FileText class="size-4 text-blue-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-blue-500">{{ stats.with_brochure }}</div>
-            <p class="text-xs text-muted-foreground">Have PDF brochure URL</p>
+            <div class="text-2xl font-bold text-blue-500">
+              {{ stats.with_brochure }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have PDF brochure URL
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Vectorized</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Vectorized
+            </UiCardTitle>
             <Layers class="size-4 text-purple-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-purple-500">{{ stats.vectorized }}</div>
-            <p class="text-xs text-muted-foreground">Have embedded chunks</p>
+            <div class="text-2xl font-bold text-purple-500">
+              {{ stats.vectorized }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have embedded chunks
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Specs Extracted</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Specs Extracted
+            </UiCardTitle>
             <CheckCircle2 class="size-4 text-green-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-green-500">{{ stats.specs_extracted }}</div>
-            <p class="text-xs text-muted-foreground">Have structured specs</p>
+            <div class="text-2xl font-bold text-green-500">
+              {{ stats.specs_extracted }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have structured specs
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -467,11 +514,19 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
               <UiTableHead>OEM</UiTableHead>
               <UiTableHead>Model</UiTableHead>
               <UiTableHead>PDF</UiTableHead>
-              <UiTableHead class="text-right">Chunks</UiTableHead>
-              <UiTableHead class="text-center">Specs</UiTableHead>
-              <UiTableHead class="text-right">Spec Count</UiTableHead>
+              <UiTableHead class="text-right">
+                Chunks
+              </UiTableHead>
+              <UiTableHead class="text-center">
+                Specs
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Spec Count
+              </UiTableHead>
               <UiTableHead>Extracted</UiTableHead>
-              <UiTableHead class="text-right">Actions</UiTableHead>
+              <UiTableHead class="text-right">
+                Actions
+              </UiTableHead>
             </UiTableRow>
           </UiTableHeader>
           <UiTableBody>
@@ -592,9 +647,15 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
                 <UiSelectValue />
               </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="25">25</UiSelectItem>
-                <UiSelectItem value="50">50</UiSelectItem>
-                <UiSelectItem value="100">100</UiSelectItem>
+                <UiSelectItem value="25">
+                  25
+                </UiSelectItem>
+                <UiSelectItem value="50">
+                  50
+                </UiSelectItem>
+                <UiSelectItem value="100">
+                  100
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
             <span>
@@ -628,7 +689,7 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
       accept=".pdf,application/pdf"
       class="hidden"
       @change="handleFileSelected"
-    />
+    >
 
     <!-- Specs Modal -->
     <Teleport to="body">
@@ -642,8 +703,12 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
             <!-- Modal header -->
             <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
               <div>
-                <h2 class="text-base font-semibold">{{ specsModelName }}</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Extracted specifications from brochure PDF</p>
+                <h2 class="text-base font-semibold">
+                  {{ specsModelName }}
+                </h2>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                  Extracted specifications from brochure PDF
+                </p>
               </div>
               <button
                 class="text-muted-foreground hover:text-foreground transition-colors rounded-md p-1"
@@ -690,7 +755,9 @@ const missingSpecsCount = computed(() => pdfs.value.filter(r => r.brochure_url &
 
               <div v-else-if="activeSpecs.length === 0" class="flex flex-col items-center justify-center h-32 gap-2">
                 <FileText class="size-8 text-muted-foreground/30" />
-                <p class="text-sm text-muted-foreground">No specs extracted yet</p>
+                <p class="text-sm text-muted-foreground">
+                  No specs extracted yet
+                </p>
               </div>
 
               <div v-else class="space-y-5">

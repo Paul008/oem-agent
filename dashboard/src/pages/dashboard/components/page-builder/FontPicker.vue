@@ -1,7 +1,10 @@
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
 import { ChevronsUpDown } from 'lucide-vue-next'
-import { useGoogleFonts, type GoogleFont } from '@/composables/use-google-fonts'
+import { computed, ref } from 'vue'
+
+import type { GoogleFont } from '@/composables/use-google-fonts'
+
+import { useGoogleFonts } from '@/composables/use-google-fonts'
 
 const props = defineProps<{
   modelValue?: string
@@ -18,7 +21,8 @@ const search = ref('')
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
-  if (!q) return fonts.value
+  if (!q)
+    return fonts.value
   return fonts.value.filter(f => f.family.toLowerCase().includes(q))
 })
 
@@ -26,7 +30,8 @@ const categories = computed(() => {
   const cats: Record<string, GoogleFont[]> = {}
   for (const f of filtered.value) {
     const cat = f.category || 'other'
-    if (!cats[cat]) cats[cat] = []
+    if (!cats[cat])
+      cats[cat] = []
     cats[cat].push(f)
   }
   return cats
@@ -70,7 +75,7 @@ async function onHover(family: string) {
           placeholder="Search fonts..."
           class="w-full h-7 px-2 text-xs bg-muted rounded outline-none"
           @keydown.stop
-        />
+        >
       </div>
 
       <!-- Font list -->

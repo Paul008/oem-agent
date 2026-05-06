@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
@@ -18,6 +19,8 @@ const props = defineProps<{
     overlay_style: 'dark' | 'light' | 'none'
   }
 }>()
+
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement], 'update-text': [field: string, value: string] }>()
 
 const heightClass = computed(() => {
   const map: Record<string, string> = {
@@ -40,13 +43,14 @@ function positionClass(pos?: string) {
 }
 
 function overlayBg(style: string) {
-  if (style === 'dark') return 'bg-black/40 text-white'
-  if (style === 'light') return 'bg-white/70 text-slate-900'
+  if (style === 'dark')
+    return 'bg-black/40 text-white'
+  if (style === 'light')
+    return 'bg-white/70 text-slate-900'
   return ''
 }
 
-const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 </script>
 
@@ -74,7 +78,7 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
         :src="img.url"
         :alt="img.alt || ''"
         class="absolute inset-0 w-full h-full object-cover"
-      />
+      >
       <div
         v-else
         class="absolute inset-0 flex items-center justify-center text-sm text-slate-500 bg-slate-800"
@@ -88,8 +92,12 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
         class="absolute z-10 max-w-md px-5 py-3 rounded-lg"
         :class="[positionClass(img.overlay_position), overlayBg(section.overlay_style)]"
       >
-        <p v-if="img.caption" class="text-lg font-bold leading-tight">{{ img.caption }}</p>
-        <p v-if="img.description" class="text-sm mt-1 opacity-80">{{ img.description }}</p>
+        <p v-if="img.caption" class="text-lg font-bold leading-tight">
+          {{ img.caption }}
+        </p>
+        <p v-if="img.description" class="text-sm mt-1 opacity-80">
+          {{ img.description }}
+        </p>
       </div>
 
       <!-- Dark overlay scrim for readability -->

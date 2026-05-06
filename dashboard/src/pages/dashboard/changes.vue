@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Activity, Bell, BellOff, Loader2 } from 'lucide-vue-next'
+import { Bell, BellOff, Loader2 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { ChangeEvent } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
-import type { ChangeEvent } from '@/composables/use-oem-data'
 
 const { fetchChangeEvents, fetchOems } = useOemData()
 
@@ -38,11 +39,15 @@ useRealtimeSubscription<ChangeEvent>({
 const unnotifiedCount = computed(() => changes.value.filter(c => !c.notified_at).length)
 
 const filtered = computed(() => {
-  return changes.value.filter(c => {
-    if (filterOem.value !== 'all' && c.oem_id !== filterOem.value) return false
-    if (filterSeverity.value !== 'all' && c.severity !== filterSeverity.value) return false
-    if (filterNotified.value === 'unnotified' && c.notified_at) return false
-    if (filterNotified.value === 'notified' && !c.notified_at) return false
+  return changes.value.filter((c) => {
+    if (filterOem.value !== 'all' && c.oem_id !== filterOem.value)
+      return false
+    if (filterSeverity.value !== 'all' && c.severity !== filterSeverity.value)
+      return false
+    if (filterNotified.value === 'unnotified' && c.notified_at)
+      return false
+    if (filterNotified.value === 'notified' && !c.notified_at)
+      return false
     return true
   })
 })
@@ -52,15 +57,21 @@ function oemName(id: string) {
 }
 
 function severityColor(severity: string) {
-  if (severity === 'critical') return 'bg-red-500/10 text-red-500 border-red-500/20'
-  if (severity === 'high') return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
-  if (severity === 'medium') return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+  if (severity === 'critical')
+    return 'bg-red-500/10 text-red-500 border-red-500/20'
+  if (severity === 'high')
+    return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+  if (severity === 'medium')
+    return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
   return 'bg-muted text-muted-foreground border-border'
 }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString('en-AU', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 </script>
@@ -91,7 +102,9 @@ function formatDate(dateStr: string) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -103,11 +116,21 @@ function formatDate(dateStr: string) {
           <UiSelectValue placeholder="Severity" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Severity</UiSelectItem>
-          <UiSelectItem value="critical">Critical</UiSelectItem>
-          <UiSelectItem value="high">High</UiSelectItem>
-          <UiSelectItem value="medium">Medium</UiSelectItem>
-          <UiSelectItem value="low">Low</UiSelectItem>
+          <UiSelectItem value="all">
+            All Severity
+          </UiSelectItem>
+          <UiSelectItem value="critical">
+            Critical
+          </UiSelectItem>
+          <UiSelectItem value="high">
+            High
+          </UiSelectItem>
+          <UiSelectItem value="medium">
+            Medium
+          </UiSelectItem>
+          <UiSelectItem value="low">
+            Low
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -122,13 +145,15 @@ function formatDate(dateStr: string) {
       <UiTable>
         <UiTableHeader>
           <UiTableRow>
-            <UiTableHead class="w-[100px]">Severity</UiTableHead>
+            <UiTableHead class="w-[100px]">
+              Severity
+            </UiTableHead>
             <UiTableHead>OEM</UiTableHead>
             <UiTableHead>Entity</UiTableHead>
             <UiTableHead>Event</UiTableHead>
             <UiTableHead>Summary</UiTableHead>
             <UiTableHead>When</UiTableHead>
-            <UiTableHead class="w-[40px]"></UiTableHead>
+            <UiTableHead class="w-[40px]" />
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -143,12 +168,20 @@ function formatDate(dateStr: string) {
                 {{ change.severity }}
               </UiBadge>
             </UiTableCell>
-            <UiTableCell class="font-medium text-sm">{{ oemName(change.oem_id) }}</UiTableCell>
-            <UiTableCell>
-              <UiBadge variant="secondary" class="text-xs">{{ change.entity_type }}</UiBadge>
+            <UiTableCell class="font-medium text-sm">
+              {{ oemName(change.oem_id) }}
             </UiTableCell>
-            <UiTableCell class="text-sm">{{ change.event_type }}</UiTableCell>
-            <UiTableCell class="text-sm max-w-[300px] truncate">{{ change.summary }}</UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="secondary" class="text-xs">
+                {{ change.entity_type }}
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-sm">
+              {{ change.event_type }}
+            </UiTableCell>
+            <UiTableCell class="text-sm max-w-[300px] truncate">
+              {{ change.summary }}
+            </UiTableCell>
             <UiTableCell class="text-sm text-muted-foreground whitespace-nowrap">
               {{ formatDate(change.created_at) }}
             </UiTableCell>

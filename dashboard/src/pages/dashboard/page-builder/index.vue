@@ -1,14 +1,28 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import {
-  Search, Loader2, FileText, Layers, LayoutGrid, Sparkles,
-  ChevronRight, Image, Type, Columns3, Palette, TableProperties,
-  Images, Video, Megaphone,
+  ChevronRight,
+  Columns3,
+  FileText,
+  Image,
+  Images,
+  Layers,
+  LayoutGrid,
+  Loader2,
+  Megaphone,
+  Palette,
+  Search,
+  Sparkles,
+  TableProperties,
+  Type,
+  Video,
 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useTemplateGallery } from '@/composables/use-template-gallery'
+
 import { SECTION_TYPE_INFO } from '../components/page-builder/section-templates'
 import SectionTemplateCard from '../components/page-builder/SectionTemplateCard.vue'
 
@@ -16,12 +30,23 @@ const router = useRouter()
 const { fetchOems } = useOemData()
 
 const {
-  allSlugs, indexLoaded, indexLoading, filterOem, filterSectionType, searchQuery,
-  loadingSections, oemGroups, filteredSlugs, filteredCuratedTemplates,
-  loadIndex, loadPageSections, getPageMeta, getCachedSections,
+  allSlugs,
+  indexLoaded,
+  indexLoading,
+  filterOem,
+  filterSectionType,
+  searchQuery,
+  loadingSections,
+  oemGroups,
+  filteredSlugs,
+  filteredCuratedTemplates,
+  loadIndex,
+  loadPageSections,
+  getPageMeta,
+  getCachedSections,
 } = useTemplateGallery()
 
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const activeTab = ref<'pages' | 'curated'>('pages')
 const expandedOem = ref<string | null>(null)
 const expandedSlug = ref<string | null>(null)
@@ -63,7 +88,7 @@ function handleUseTemplate(section: any) {
 const stats = computed(() => {
   let totalSections = 0
   for (const [, sections] of Object.entries(Object.fromEntries(
-    Array.from({ length: 0 }) // placeholder
+    Array.from({ length: 0 }), // placeholder
   ))) {
     totalSections += (sections as any[]).length
   }
@@ -94,42 +119,66 @@ const typeIcons: Record<string, any> = {
     <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Total Pages</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Total Pages
+          </UiCardTitle>
           <FileText class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.totalPages }}</div>
-          <p class="text-xs text-muted-foreground">Generated model pages</p>
+          <div class="text-2xl font-bold">
+            {{ stats.totalPages }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            Generated model pages
+          </p>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">OEMs</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            OEMs
+          </UiCardTitle>
           <Layers class="size-4 text-blue-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-blue-500">{{ stats.oemsCovered }}</div>
-          <p class="text-xs text-muted-foreground">With generated pages</p>
+          <div class="text-2xl font-bold text-blue-500">
+            {{ stats.oemsCovered }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            With generated pages
+          </p>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Curated Templates</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Curated Templates
+          </UiCardTitle>
           <Sparkles class="size-4 text-violet-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-violet-500">{{ stats.curatedCount }}</div>
-          <p class="text-xs text-muted-foreground">OEM-branded templates</p>
+          <div class="text-2xl font-bold text-violet-500">
+            {{ stats.curatedCount }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            OEM-branded templates
+          </p>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Section Types</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Section Types
+          </UiCardTitle>
           <LayoutGrid class="size-4 text-emerald-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-emerald-500">{{ Object.keys(SECTION_TYPE_INFO).length }}</div>
-          <p class="text-xs text-muted-foreground">Available section types</p>
+          <div class="text-2xl font-bold text-emerald-500">
+            {{ Object.keys(SECTION_TYPE_INFO).length }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            Available section types
+          </p>
         </UiCardContent>
       </UiCard>
     </div>
@@ -141,7 +190,9 @@ const typeIcons: Record<string, any> = {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="g in oemGroups" :key="g.oem_id" :value="g.oem_id">
             {{ oemName(g.oem_id) }} ({{ g.count }})
           </UiSelectItem>
@@ -152,7 +203,9 @@ const typeIcons: Record<string, any> = {
           <UiSelectValue placeholder="Section type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Types</UiSelectItem>
+          <UiSelectItem value="all">
+            All Types
+          </UiSelectItem>
           <UiSelectItem
             v-for="(info, type) in SECTION_TYPE_INFO"
             :key="type"
@@ -207,7 +260,9 @@ const typeIcons: Record<string, any> = {
       <template v-if="activeTab === 'pages'">
         <div v-if="filteredSlugs.length === 0" class="text-center py-16">
           <FileText class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p class="text-sm text-muted-foreground">No pages found matching filters</p>
+          <p class="text-sm text-muted-foreground">
+            No pages found matching filters
+          </p>
         </div>
 
         <!-- OEM groups -->
@@ -223,8 +278,12 @@ const typeIcons: Record<string, any> = {
                   <Layers class="size-4 text-primary" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="font-semibold text-sm">{{ oemName(group.oem_id) }}</p>
-                  <p class="text-xs text-muted-foreground">{{ slugsForOem(group.oem_id).length }} pages</p>
+                  <p class="font-semibold text-sm">
+                    {{ oemName(group.oem_id) }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ slugsForOem(group.oem_id).length }} pages
+                  </p>
                 </div>
                 <ChevronRight
                   class="size-4 text-muted-foreground transition-transform"
@@ -266,7 +325,7 @@ const typeIcons: Record<string, any> = {
                   >
                     <SectionTemplateCard
                       v-for="(section, idx) in getCachedSections(item.oem_id, item.slug)!.filter(
-                        s => filterSectionType === 'all' || s.type === filterSectionType
+                        s => filterSectionType === 'all' || s.type === filterSectionType,
                       )"
                       :key="idx"
                       :section="section"
@@ -287,7 +346,9 @@ const typeIcons: Record<string, any> = {
       <template v-else>
         <div v-if="filteredCuratedTemplates.length === 0" class="text-center py-16">
           <Sparkles class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p class="text-sm text-muted-foreground">No curated templates match your filters</p>
+          <p class="text-sm text-muted-foreground">
+            No curated templates match your filters
+          </p>
         </div>
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           <SectionTemplateCard

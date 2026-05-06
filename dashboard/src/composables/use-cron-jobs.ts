@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { fetchCronJobs, triggerCronJob, fetchCronRuns, updateCronJobOverride } from '@/lib/worker-api'
+
+import { fetchCronJobs, fetchCronRuns, triggerCronJob, updateCronJobOverride } from '@/lib/worker-api'
 
 export interface CronJob {
   id: string
@@ -67,10 +68,12 @@ export function useCronJobs() {
       jobs.value = response.jobs
       cloudflareTriggers.value = response.cloudflareTriggers ?? []
       return response
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load cron jobs'
       return null
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -81,7 +84,8 @@ export function useCronJobs() {
       // Reload jobs to get updated status
       await loadJobs()
       return result
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to trigger job'
       throw err
     }
@@ -97,7 +101,8 @@ export function useCronJobs() {
       }
       runHistory.value[jobId] = response.runs
       return response.runs
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load run history'
       return []
     }
@@ -112,7 +117,8 @@ export function useCronJobs() {
         job.enabled = enabled
         job.enabledOverride = enabled
       }
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to toggle job'
       throw err
     }

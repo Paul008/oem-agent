@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Save, RotateCcw, AlertCircle, CheckCircle2, Loader2, Info, ChevronDown, ChevronRight, Undo } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Info, Loader2, RotateCcw, Save, Undo } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 
 import { BasicPage } from '@/components/global-layout'
 import { fetchAiModelConfig, saveAiModelConfig } from '@/lib/worker-api'
@@ -16,7 +16,7 @@ interface AvailableModel {
 
 interface TaskTypeGroup {
   label: string
-  taskTypes: { type: string; label: string }[]
+  taskTypes: { type: string, label: string }[]
 }
 
 interface ModelOverride {
@@ -45,7 +45,7 @@ const modelOptions = computed(() =>
     label: m.displayName,
     costTier: m.costTier,
     capabilities: m.capabilities,
-  }))
+  })),
 )
 
 const overrideCount = computed(() => Object.keys(overrides.value).length)
@@ -53,12 +53,13 @@ const overrideCount = computed(() => Object.keys(overrides.value).length)
 function toggleGroup(label: string) {
   if (collapsedGroups.value.has(label)) {
     collapsedGroups.value.delete(label)
-  } else {
+  }
+  else {
     collapsedGroups.value.add(label)
   }
 }
 
-function getEffective(taskType: string): { provider: string; model: string; isOverridden: boolean } {
+function getEffective(taskType: string): { provider: string, model: string, isOverridden: boolean } {
   const override = overrides.value[taskType]
   const def = defaults.value[taskType]
   if (override?.provider && override?.model) {
@@ -67,7 +68,7 @@ function getEffective(taskType: string): { provider: string; model: string; isOv
   return { provider: def?.provider || '', model: def?.model || '', isOverridden: false }
 }
 
-function getEffectiveFallback(taskType: string): { provider: string; model: string; isOverridden: boolean } {
+function getEffectiveFallback(taskType: string): { provider: string, model: string, isOverridden: boolean } {
   const override = overrides.value[taskType]
   const def = defaults.value[taskType]
   if (override?.fallbackProvider && override?.fallbackModel) {
@@ -87,7 +88,8 @@ function getFallbackSelectValue(taskType: string): string {
 }
 
 function setOverride(taskType: string, value: string) {
-  if (!value) return
+  if (!value)
+    return
   const [provider, model] = value.split('::')
   const def = defaults.value[taskType]
   // If selecting back to the default, remove override for this field
@@ -97,7 +99,8 @@ function setOverride(taskType: string, value: string) {
       const { provider: _p, model: _m, ...rest } = existing
       if (Object.keys(rest).length === 0) {
         delete overrides.value[taskType]
-      } else {
+      }
+      else {
         overrides.value[taskType] = rest
       }
     }
@@ -111,7 +114,8 @@ function setOverride(taskType: string, value: string) {
 }
 
 function setFallbackOverride(taskType: string, value: string) {
-  if (!value) return
+  if (!value)
+    return
   const [provider, model] = value.split('::')
   const def = defaults.value[taskType]
   if (provider === def?.fallbackProvider && model === def?.fallbackModel) {
@@ -120,7 +124,8 @@ function setFallbackOverride(taskType: string, value: string) {
       const { fallbackProvider: _fp, fallbackModel: _fm, ...rest } = existing
       if (Object.keys(rest).length === 0) {
         delete overrides.value[taskType]
-      } else {
+      }
+      else {
         overrides.value[taskType] = rest
       }
     }
@@ -153,7 +158,7 @@ const COST_COLORS: Record<string, string> = {
   high: 'text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400',
 }
 
-function costBadge(provider: string, model: string): { label: string; classes: string } {
+function costBadge(provider: string, model: string): { label: string, classes: string } {
   const found = availableModels.value.find(m => m.provider === provider && m.model === model)
   const tier = found?.costTier || 'medium'
   return { label: tier, classes: COST_COLORS[tier] || '' }
@@ -168,10 +173,12 @@ async function saveConfiguration() {
     await saveAiModelConfig(overrides.value)
     saveStatus.value = 'success'
     setTimeout(() => { saveStatus.value = 'idle' }, 3000)
-  } catch (err) {
+  }
+  catch (err) {
     saveStatus.value = 'error'
     errorMessage.value = err instanceof Error ? err.message : 'Failed to save configuration'
-  } finally {
+  }
+  finally {
     saving.value = false
   }
 }
@@ -184,10 +191,12 @@ onMounted(async () => {
     overrides.value = config.overrides || {}
     availableModels.value = config.availableModels || []
     taskTypeGroups.value = config.taskTypeGroups || []
-  } catch (e) {
+  }
+  catch (e) {
     console.error('[AI Models] Failed to load config:', e)
     errorMessage.value = 'Failed to load AI model configuration'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -211,7 +220,9 @@ onMounted(async () => {
           <UiCardContent class="flex items-start gap-3 pt-6">
             <Info class="size-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div class="text-sm text-blue-900 dark:text-blue-100">
-              <p class="font-medium mb-1">AI Model Routing</p>
+              <p class="font-medium mb-1">
+                AI Model Routing
+              </p>
               <p class="text-blue-800 dark:text-blue-200">
                 Override the default model for any task type. Changes take effect immediately.
                 Use the page builder model selector for per-generation A/B testing.
@@ -255,8 +266,12 @@ onMounted(async () => {
               >
                 <!-- Task label -->
                 <div class="sm:w-48 shrink-0">
-                  <div class="text-sm font-medium">{{ tt.label }}</div>
-                  <div class="text-[10px] text-muted-foreground font-mono">{{ tt.type }}</div>
+                  <div class="text-sm font-medium">
+                    {{ tt.label }}
+                  </div>
+                  <div class="text-[10px] text-muted-foreground font-mono">
+                    {{ tt.type }}
+                  </div>
                 </div>
 
                 <!-- Primary model select -->
@@ -351,12 +366,12 @@ onMounted(async () => {
 
         <!-- Actions -->
         <div class="flex gap-3 mt-6">
-          <UiButton @click="saveConfiguration" :disabled="saving">
+          <UiButton :disabled="saving" @click="saveConfiguration">
             <Loader2 v-if="saving" class="size-4 mr-2 animate-spin" />
             <Save v-else class="size-4 mr-2" />
             Save Configuration
           </UiButton>
-          <UiButton variant="outline" @click="resetAll" :disabled="saving || overrideCount === 0">
+          <UiButton variant="outline" :disabled="saving || overrideCount === 0" @click="resetAll">
             <RotateCcw class="size-4 mr-2" />
             Reset All to Defaults
           </UiButton>

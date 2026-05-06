@@ -1,7 +1,10 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
-import { Upload, Loader2, Check } from 'lucide-vue-next'
+import { Check, Loader2, Upload } from 'lucide-vue-next'
+import { ref, useAttrs } from 'vue'
+
 import { uploadMedia } from '@/lib/worker-api'
+
+defineOptions({ inheritAttrs: false })
 
 const props = defineProps<{
   oemId: string
@@ -12,6 +15,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   uploaded: [url: string]
 }>()
+
+const attrs = useAttrs()
 
 const uploading = ref(false)
 const done = ref(false)
@@ -24,7 +29,8 @@ function openPicker() {
 async function handleFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  if (!file)
+    return
 
   uploading.value = true
   done.value = false
@@ -33,9 +39,11 @@ async function handleFile(e: Event) {
     emit('uploaded', result.url)
     done.value = true
     setTimeout(() => { done.value = false }, 2000)
-  } catch (err: any) {
+  }
+  catch (err: any) {
     console.error('Upload failed:', err)
-  } finally {
+  }
+  finally {
     uploading.value = false
     input.value = ''
   }
@@ -49,7 +57,7 @@ async function handleFile(e: Event) {
     :accept="accept || 'image/jpeg,image/png,image/webp,image/gif'"
     class="hidden"
     @change="handleFile"
-  />
+  >
   <UiButton
     type="button"
     size="icon"
@@ -57,6 +65,7 @@ async function handleFile(e: Event) {
     class="size-7 shrink-0"
     :disabled="uploading"
     title="Upload file"
+    v-bind="attrs"
     @click="openPicker"
   >
     <Loader2 v-if="uploading" class="size-3.5 animate-spin" />

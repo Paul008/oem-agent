@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useInlineEdit } from '@/composables/use-inline-edit'
+
 import ImageOverlay from '../page-builder/ImageOverlay.vue'
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -50,7 +51,9 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
         @blur="titleEdit.stopEdit()"
         @keydown="titleEdit.onKeydown"
         @paste="titleEdit.onPaste"
-      >{{ section.title || 'Double-click to add title' }}</h3>
+      >
+        {{ section.title || 'Double-click to add title' }}
+      </h3>
       <div
         class="prose prose-sm prose-invert max-w-none"
         v-html="section.body_html"
@@ -67,10 +70,11 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
       @blur="titleEdit.stopEdit()"
       @keydown="titleEdit.onKeydown"
       @paste="titleEdit.onPaste"
-    >{{ section.title || 'Double-click to add title' }}</h3>
+    >
+      {{ section.title || 'Double-click to add title' }}
+    </h3>
     <div
-      :class="[
-        'gap-8',
+      class="gap-8" :class="[
         section.image_url ? 'flex flex-col sm:flex-row items-start' : '',
         section.image_position === 'left' ? 'sm:flex-row-reverse' : '',
       ]"
@@ -84,7 +88,7 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
           :src="section.image_url"
           :alt="section.title || ''"
           class="rounded-lg w-full object-cover"
-        />
+        >
         <ImageOverlay
           :current-url="section.image_url"
           :oem-id="oemId"

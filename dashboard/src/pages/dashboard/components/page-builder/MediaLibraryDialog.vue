@@ -1,10 +1,12 @@
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue'
-import { Search, Loader2, Upload, Film, ImageIcon, Library, Palette } from 'lucide-vue-next'
-import { listMedia, uploadMedia } from '@/lib/worker-api'
-import type { MediaItem } from '@/lib/worker-api'
-import { usePortalAssets } from '@/composables/use-portal-assets'
+import { Film, ImageIcon, Library, Loader2, Palette, Search, Upload } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+
 import type { PortalAsset } from '@/composables/use-portal-assets'
+import type { MediaItem } from '@/lib/worker-api'
+
+import { usePortalAssets } from '@/composables/use-portal-assets'
+import { listMedia, uploadMedia } from '@/lib/worker-api'
 
 const props = defineProps<{
   open: boolean
@@ -14,7 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [val: boolean]
-  select: [url: string]
+  'select': [url: string]
 }>()
 
 const { fetchPortalAssetsPage, fetchParsedModels, thumbnailUrl } = usePortalAssets()
@@ -39,7 +41,8 @@ const modelSlugs = computed(() => {
 
 const filteredItems = computed(() => {
   let result = items.value
-  if (filterModel.value) result = result.filter(i => i.modelSlug === filterModel.value)
+  if (filterModel.value)
+    result = result.filter(i => i.modelSlug === filterModel.value)
   if (search.value) {
     const q = search.value.toLowerCase()
     result = result.filter(i => i.filename.toLowerCase().includes(q))
@@ -53,8 +56,8 @@ const portalTotal = ref(0)
 const portalPage = ref(1)
 const portalLoading = ref(false)
 const portalParsedModels = ref<string[]>([])
-const portalFilterModel = ref<string>('')       // blank = all
-const portalFilterType = ref<string>('IMAGE')    // default to images for page-builder use
+const portalFilterModel = ref<string>('') // blank = all
+const portalFilterType = ref<string>('IMAGE') // default to images for page-builder use
 const portalSearch = ref('')
 const PORTAL_PAGE_SIZE = 60
 
@@ -62,10 +65,12 @@ const PORTAL_PAGE_SIZE = 60
 // values (e.g. "ranger", "ranger-hybrid", "ranger-raptor"). Pick the most
 // specific contains-match, else leave blank so user can pick.
 function autoDetectParsedModel(slug: string | null | undefined, options: string[]): string {
-  if (!slug) return ''
+  if (!slug)
+    return ''
   const s = slug.toLowerCase()
   const direct = options.find(o => o === s)
-  if (direct) return direct
+  if (direct)
+    return direct
   const contains = options.find(o => o.includes(s) || s.includes(o))
   return contains ?? ''
 }
@@ -96,7 +101,8 @@ async function loadPortalPage() {
 
 // ── Lifecycle ──
 watch(() => props.open, async (val) => {
-  if (!val) return
+  if (!val)
+    return
   tab.value = 'library'
   // Library
   items.value = []
@@ -114,15 +120,18 @@ watch(() => props.open, async (val) => {
 
 // Refetch portal when filters change (after first visit)
 watch([portalFilterModel, portalFilterType], () => {
-  if (tab.value !== 'portal') return
+  if (tab.value !== 'portal')
+    return
   portalPage.value = 1
   loadPortalPage()
 })
 
 let portalSearchTimer: ReturnType<typeof setTimeout> | null = null
 watch(portalSearch, () => {
-  if (tab.value !== 'portal') return
-  if (portalSearchTimer) clearTimeout(portalSearchTimer)
+  if (tab.value !== 'portal')
+    return
+  if (portalSearchTimer)
+    clearTimeout(portalSearchTimer)
   portalSearchTimer = setTimeout(() => {
     portalPage.value = 1
     loadPortalPage()
@@ -152,7 +161,8 @@ async function fetchItems() {
 }
 
 async function loadMore() {
-  if (!cursor.value || loadingMore.value) return
+  if (!cursor.value || loadingMore.value)
+    return
   loadingMore.value = true
   try {
     const res = await listMedia(props.oemId, { cursor: cursor.value })
@@ -182,9 +192,12 @@ function isVideo(item: MediaItem) {
 }
 
 function formatSize(bytes: number | null) {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  if (!bytes)
+    return ''
+  if (bytes < 1024)
+    return `${bytes} B`
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
@@ -195,7 +208,8 @@ function openUploadPicker() {
 async function handleUpload(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  if (!file)
+    return
   uploading.value = true
   try {
     const result = await uploadMedia(props.oemId, props.modelSlug, file)
@@ -237,7 +251,7 @@ function goPortal(delta: number) {
     accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
     class="hidden"
     @change="handleUpload"
-  />
+  >
   <UiDialog :open="open" @update:open="emit('update:open', $event)">
     <UiDialogContent class="sm:max-w-[900px] max-h-[85vh] flex flex-col p-0">
       <UiDialogHeader class="px-4 py-3 border-b shrink-0">
@@ -250,8 +264,7 @@ function goPortal(delta: number) {
       <!-- Tabs -->
       <div class="flex items-center gap-1 px-4 pt-3 border-b shrink-0">
         <button
-          :class="[
-            'inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 transition',
+          class="inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 transition" :class="[
             tab === 'library' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
           ]"
           @click="tab = 'library'"
@@ -260,8 +273,7 @@ function goPortal(delta: number) {
           Library <span class="text-xs text-muted-foreground">({{ items.length }})</span>
         </button>
         <button
-          :class="[
-            'inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 transition',
+          class="inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 transition" :class="[
             tab === 'portal' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
           ]"
           @click="tab = 'portal'"
@@ -281,11 +293,15 @@ function goPortal(delta: number) {
               type="text"
               placeholder="Search by filename..."
               class="w-full text-sm bg-background border rounded-md pl-7 pr-2 py-1.5"
-            />
+            >
           </div>
           <select v-model="filterModel" class="text-sm bg-background border rounded-md px-2 py-1.5 min-w-[140px]">
-            <option value="">All models</option>
-            <option v-for="slug in modelSlugs" :key="slug" :value="slug">{{ slug }}</option>
+            <option value="">
+              All models
+            </option>
+            <option v-for="slug in modelSlugs" :key="slug" :value="slug">
+              {{ slug }}
+            </option>
           </select>
           <UiButton size="sm" variant="outline" :disabled="uploading" @click="openUploadPicker">
             <Loader2 v-if="uploading" class="size-3.5 mr-1 animate-spin" />
@@ -300,7 +316,9 @@ function goPortal(delta: number) {
           </div>
           <div v-else-if="filteredItems.length === 0" class="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <ImageIcon class="size-8 mb-2" />
-            <p class="text-sm">{{ items.length === 0 ? 'No media uploaded yet' : 'No matching files' }}</p>
+            <p class="text-sm">
+              {{ items.length === 0 ? 'No media uploaded yet' : 'No matching files' }}
+            </p>
           </div>
           <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3">
             <button
@@ -311,11 +329,15 @@ function goPortal(delta: number) {
             >
               <div class="aspect-square flex items-center justify-center overflow-hidden">
                 <Film v-if="isVideo(item)" class="size-8 text-muted-foreground" />
-                <img v-else :src="item.url" :alt="item.filename" loading="lazy" class="w-full h-full object-cover" />
+                <img v-else :src="item.url" :alt="item.filename" loading="lazy" class="w-full h-full object-cover">
               </div>
               <div class="px-2 py-1.5 border-t bg-background">
-                <p class="text-[10px] font-medium truncate">{{ item.filename }}</p>
-                <p class="text-[9px] text-muted-foreground">{{ formatSize(item.size) }} · {{ item.modelSlug }}</p>
+                <p class="text-[10px] font-medium truncate">
+                  {{ item.filename }}
+                </p>
+                <p class="text-[9px] text-muted-foreground">
+                  {{ formatSize(item.size) }} · {{ item.modelSlug }}
+                </p>
               </div>
             </button>
           </div>
@@ -338,18 +360,32 @@ function goPortal(delta: number) {
               type="text"
               placeholder="Search portal assets..."
               class="w-full text-sm bg-background border rounded-md pl-7 pr-2 py-1.5"
-            />
+            >
           </div>
           <select v-model="portalFilterModel" class="text-sm bg-background border rounded-md px-2 py-1.5 min-w-[160px]">
-            <option value="">All models</option>
-            <option v-for="m in portalParsedModels" :key="m" :value="m">{{ m }}</option>
+            <option value="">
+              All models
+            </option>
+            <option v-for="m in portalParsedModels" :key="m" :value="m">
+              {{ m }}
+            </option>
           </select>
           <select v-model="portalFilterType" class="text-sm bg-background border rounded-md px-2 py-1.5 min-w-[110px]">
-            <option value="">Any type</option>
-            <option value="IMAGE">Images</option>
-            <option value="VIDEO">Videos</option>
-            <option value="DOCUMENT">Documents</option>
-            <option value="TEMPLATE">Templates</option>
+            <option value="">
+              Any type
+            </option>
+            <option value="IMAGE">
+              Images
+            </option>
+            <option value="VIDEO">
+              Videos
+            </option>
+            <option value="DOCUMENT">
+              Documents
+            </option>
+            <option value="TEMPLATE">
+              Templates
+            </option>
           </select>
         </div>
 
@@ -359,7 +395,9 @@ function goPortal(delta: number) {
           </div>
           <div v-else-if="portalRows.length === 0" class="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <ImageIcon class="size-8 mb-2" />
-            <p class="text-sm">No portal assets match these filters</p>
+            <p class="text-sm">
+              No portal assets match these filters
+            </p>
           </div>
           <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3">
             <button
@@ -376,11 +414,13 @@ function goPortal(delta: number) {
                   :alt="a.name"
                   loading="lazy"
                   class="w-full h-full object-cover"
-                />
+                >
                 <ImageIcon v-else class="size-8 text-muted-foreground/40" />
               </div>
               <div class="px-2 py-1.5 border-t bg-background">
-                <p class="text-[10px] font-medium truncate">{{ a.record_name || a.name }}</p>
+                <p class="text-[10px] font-medium truncate">
+                  {{ a.record_name || a.name }}
+                </p>
                 <p class="text-[9px] text-muted-foreground truncate">
                   {{ a.width && a.height ? `${a.width}×${a.height}` : '' }}
                   {{ a.parsed_model ? `· ${a.parsed_model}` : '' }}
@@ -397,8 +437,12 @@ function goPortal(delta: number) {
         >
           <span>Page {{ portalPage }} of {{ portalPageCount.toLocaleString() }} &middot; {{ portalTotal.toLocaleString() }} assets</span>
           <div class="flex gap-1">
-            <UiButton size="sm" variant="outline" :disabled="portalPage <= 1 || portalLoading" @click="goPortal(-1)">Prev</UiButton>
-            <UiButton size="sm" variant="outline" :disabled="portalPage >= portalPageCount || portalLoading" @click="goPortal(1)">Next</UiButton>
+            <UiButton size="sm" variant="outline" :disabled="portalPage <= 1 || portalLoading" @click="goPortal(-1)">
+              Prev
+            </UiButton>
+            <UiButton size="sm" variant="outline" :disabled="portalPage >= portalPageCount || portalLoading" @click="goPortal(1)">
+              Next
+            </UiButton>
           </div>
         </div>
       </template>

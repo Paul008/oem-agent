@@ -1,15 +1,28 @@
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue'
-import { Loader2, Search, Film, ImageIcon, Copy, Check, Image, Video, X } from 'lucide-vue-next'
+import { Check, Copy, Film, Image, ImageIcon, Loader2, Search, Video, X } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+
+import type { MediaItem } from '@/lib/worker-api'
 
 import { BasicPage } from '@/components/global-layout'
 import { listMedia } from '@/lib/worker-api'
-import type { MediaItem } from '@/lib/worker-api'
 
 const OEM_IDS = [
-  'ford-au', 'gac-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
-  'mazda-au', 'mitsubishi-au', 'nissan-au', 'subaru-au', 'suzuki-au',
-  'toyota-au', 'volkswagen-au', 'kgm-au',
+  'ford-au',
+  'gac-au',
+  'gwm-au',
+  'hyundai-au',
+  'isuzu-au',
+  'kia-au',
+  'ldv-au',
+  'mazda-au',
+  'mitsubishi-au',
+  'nissan-au',
+  'subaru-au',
+  'suzuki-au',
+  'toyota-au',
+  'volkswagen-au',
+  'kgm-au',
 ]
 
 const selectedOem = ref('')
@@ -49,7 +62,8 @@ const filteredItems = computed(() => {
   }
   if (filterType.value === 'images') {
     result = result.filter(i => i.contentType.startsWith('image/'))
-  } else if (filterType.value === 'videos') {
+  }
+  else if (filterType.value === 'videos') {
     result = result.filter(i => i.contentType.startsWith('video/'))
   }
   if (searchQuery.value.trim()) {
@@ -65,7 +79,8 @@ const hasMoreDisplay = computed(() => displayLimit.value < filteredItems.value.l
 
 // Fetch when OEM changes
 watch(selectedOem, async (oemId) => {
-  if (!oemId) return
+  if (!oemId)
+    return
   items.value = []
   cursor.value = null
   filterModel.value = 'all'
@@ -81,23 +96,28 @@ async function fetchItems(oemId: string) {
     const res = await listMedia(oemId)
     items.value = res.items
     cursor.value = res.cursor
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Failed to list media:', err)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
 
 async function loadMore() {
-  if (!cursor.value || loadingMore.value || !selectedOem.value) return
+  if (!cursor.value || loadingMore.value || !selectedOem.value)
+    return
   loadingMore.value = true
   try {
     const res = await listMedia(selectedOem.value, { cursor: cursor.value })
     items.value = [...items.value, ...res.items]
     cursor.value = res.cursor
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Failed to load more media:', err)
-  } finally {
+  }
+  finally {
     loadingMore.value = false
   }
 }
@@ -107,8 +127,10 @@ function isVideo(item: MediaItem) {
 }
 
 function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  if (bytes < 1024)
+    return `${bytes} B`
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
@@ -152,7 +174,9 @@ async function copyUrl(url: string) {
             <UiSelectValue placeholder="All models" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="all">All Models</UiSelectItem>
+            <UiSelectItem value="all">
+              All Models
+            </UiSelectItem>
             <UiSelectItem v-for="[slug, count] in modelSlugs" :key="slug" :value="slug">
               {{ slug }} ({{ count }})
             </UiSelectItem>
@@ -164,9 +188,15 @@ async function copyUrl(url: string) {
             <UiSelectValue placeholder="All types" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="all">All Types</UiSelectItem>
-            <UiSelectItem value="images">Images</UiSelectItem>
-            <UiSelectItem value="videos">Videos</UiSelectItem>
+            <UiSelectItem value="all">
+              All Types
+            </UiSelectItem>
+            <UiSelectItem value="images">
+              Images
+            </UiSelectItem>
+            <UiSelectItem value="videos">
+              Videos
+            </UiSelectItem>
           </UiSelectContent>
         </UiSelect>
 
@@ -188,7 +218,9 @@ async function copyUrl(url: string) {
     <!-- Empty state: no OEM selected -->
     <div v-if="!selectedOem" class="text-center py-16">
       <ImageIcon class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-      <p class="text-sm text-muted-foreground">Select an OEM to browse uploaded media</p>
+      <p class="text-sm text-muted-foreground">
+        Select an OEM to browse uploaded media
+      </p>
     </div>
 
     <!-- Loading -->
@@ -201,29 +233,41 @@ async function copyUrl(url: string) {
       <div class="grid gap-4 grid-cols-3 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Files</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Files
+            </UiCardTitle>
             <ImageIcon class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ totalFiles.toLocaleString() }}</div>
+            <div class="text-2xl font-bold">
+              {{ totalFiles.toLocaleString() }}
+            </div>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Images</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Images
+            </UiCardTitle>
             <Image class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-blue-500">{{ imageCount.toLocaleString() }}</div>
+            <div class="text-2xl font-bold text-blue-500">
+              {{ imageCount.toLocaleString() }}
+            </div>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Videos</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Videos
+            </UiCardTitle>
             <Video class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-purple-500">{{ videoCount.toLocaleString() }}</div>
+            <div class="text-2xl font-bold text-purple-500">
+              {{ videoCount.toLocaleString() }}
+            </div>
           </UiCardContent>
         </UiCard>
       </div>
@@ -244,10 +288,12 @@ async function copyUrl(url: string) {
               :alt="item.filename"
               loading="lazy"
               class="w-full h-full object-cover"
-            />
+            >
           </div>
           <div class="p-2">
-            <p class="text-xs font-medium truncate" :title="item.filename">{{ item.filename }}</p>
+            <p class="text-xs font-medium truncate" :title="item.filename">
+              {{ item.filename }}
+            </p>
             <div class="flex items-center gap-1 mt-1">
               <UiBadge v-if="item.modelSlug" variant="secondary" class="text-[10px] px-1">
                 {{ item.modelSlug }}
@@ -288,7 +334,9 @@ async function copyUrl(url: string) {
     <UiDialog :open="!!previewItem" @update:open="v => { if (!v) previewItem = null }">
       <UiDialogContent v-if="previewItem" class="sm:max-w-[800px]">
         <UiDialogHeader>
-          <UiDialogTitle class="text-sm">{{ previewItem.filename }}</UiDialogTitle>
+          <UiDialogTitle class="text-sm">
+            {{ previewItem.filename }}
+          </UiDialogTitle>
           <UiDialogDescription>
             {{ formatSize(previewItem.size) }} &middot;
             {{ previewItem.contentType }} &middot;
@@ -307,13 +355,15 @@ async function copyUrl(url: string) {
             :src="previewItem.url"
             :alt="previewItem.filename"
             class="w-full object-contain max-h-[500px]"
-          />
+          >
         </div>
         <div class="flex flex-wrap gap-2 mt-2">
           <UiBadge v-if="previewItem.modelSlug" variant="secondary">
             {{ previewItem.modelSlug }}
           </UiBadge>
-          <UiBadge variant="outline">{{ previewItem.contentType }}</UiBadge>
+          <UiBadge variant="outline">
+            {{ previewItem.contentType }}
+          </UiBadge>
         </div>
         <UiDialogFooter class="gap-2">
           <UiButton variant="outline" size="sm" @click="copyUrl(previewItem!.url)">

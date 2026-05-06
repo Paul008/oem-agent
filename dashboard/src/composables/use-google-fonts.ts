@@ -60,7 +60,8 @@ export function useGoogleFonts() {
    * Injects a Google Fonts stylesheet link for the family.
    */
   async function loadFont(family: string): Promise<void> {
-    if (loadedFamilies.has(family)) return
+    if (loadedFamilies.has(family))
+      return
     loadedFamilies.add(family)
 
     // Inject a <link> for this font
@@ -72,7 +73,8 @@ export function useGoogleFonts() {
     // Wait for the font to be available
     try {
       await document.fonts.load(`400 16px "${family}"`)
-    } catch {
+    }
+    catch {
       // Font may still work via the link tag
     }
   }

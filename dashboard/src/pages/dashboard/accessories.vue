@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, ImageOff, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ImageOff, Loader2, Search } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+
+import type { Accessory, AccessoryModel, VehicleModel } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
-import type { Accessory, AccessoryModel, VehicleModel } from '@/composables/use-oem-data'
 
 const { fetchAccessories, fetchAccessoryModels, fetchVehicleModels, fetchOems } = useOemData()
 
@@ -61,7 +62,10 @@ const oemsWithAccessories = computed(() => {
 
 const categories = computed(() => {
   const cats = new Set<string>()
-  accessories.value.forEach(a => { if (a.category) cats.add(a.category) })
+  accessories.value.forEach((a) => {
+    if (a.category)
+      cats.add(a.category)
+  })
   return [...cats].sort()
 })
 
@@ -73,8 +77,9 @@ const modelMap = computed(() => {
 
 const accessoryModelMap = computed(() => {
   const map = new Map<string, string[]>()
-  accessoryModels.value.forEach(am => {
-    if (!map.has(am.accessory_id)) map.set(am.accessory_id, [])
+  accessoryModels.value.forEach((am) => {
+    if (!map.has(am.accessory_id))
+      map.set(am.accessory_id, [])
     map.get(am.accessory_id)!.push(am.model_id)
   })
   return map
@@ -93,8 +98,9 @@ const modelsWithAccessories = computed(() => {
 // Reverse map: model_id → Set of accessory_ids
 const modelAccessoryMap = computed(() => {
   const map = new Map<string, Set<string>>()
-  accessoryModels.value.forEach(am => {
-    if (!map.has(am.model_id)) map.set(am.model_id, new Set())
+  accessoryModels.value.forEach((am) => {
+    if (!map.has(am.model_id))
+      map.set(am.model_id, new Set())
     map.get(am.model_id)!.add(am.accessory_id)
   })
   return map
@@ -113,24 +119,27 @@ const filtered = computed(() => {
     const accIds = modelAccessoryMap.value.get(filterModel.value)
     if (accIds) {
       list = list.filter(a => accIds.has(a.id))
-    } else {
+    }
+    else {
       list = []
     }
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(a =>
-      a.name.toLowerCase().includes(q) ||
-      a.part_number?.toLowerCase().includes(q) ||
-      a.category?.toLowerCase().includes(q)
+      a.name.toLowerCase().includes(q)
+      || a.part_number?.toLowerCase().includes(q)
+      || a.category?.toLowerCase().includes(q),
     )
   }
 
   if (sortBy.value === 'price-asc') {
     list = [...list].sort((a, b) => (a.price ?? 99999) - (b.price ?? 99999))
-  } else if (sortBy.value === 'price-desc') {
+  }
+  else if (sortBy.value === 'price-desc') {
     list = [...list].sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
-  } else {
+  }
+  else {
     list = [...list].sort((a, b) => a.name.localeCompare(b.name))
   }
 
@@ -151,8 +160,9 @@ const paginatedItems = computed(() => {
 
 const oemStats = computed(() => {
   const stats: Record<string, { count: number, withPrice: number, minPrice: number, maxPrice: number, categories: Set<string>, modelLinks: number }> = {}
-  accessories.value.forEach(a => {
-    if (!stats[a.oem_id]) stats[a.oem_id] = { count: 0, withPrice: 0, minPrice: Infinity, maxPrice: 0, categories: new Set(), modelLinks: 0 }
+  accessories.value.forEach((a) => {
+    if (!stats[a.oem_id])
+      stats[a.oem_id] = { count: 0, withPrice: 0, minPrice: Infinity, maxPrice: 0, categories: new Set(), modelLinks: 0 }
     const s = stats[a.oem_id]
     s.count++
     if (a.price) {
@@ -160,11 +170,13 @@ const oemStats = computed(() => {
       s.minPrice = Math.min(s.minPrice, a.price)
       s.maxPrice = Math.max(s.maxPrice, a.price)
     }
-    if (a.category) s.categories.add(a.category)
+    if (a.category)
+      s.categories.add(a.category)
   })
-  accessoryModels.value.forEach(am => {
+  accessoryModels.value.forEach((am) => {
     const acc = accessories.value.find(a => a.id === am.accessory_id)
-    if (acc && stats[acc.oem_id]) stats[acc.oem_id].modelLinks++
+    if (acc && stats[acc.oem_id])
+      stats[acc.oem_id].modelLinks++
   })
   return stats
 })
@@ -176,7 +188,8 @@ function oemName(id: string) {
 }
 
 function formatPrice(amount: number | null) {
-  if (!amount) return '-'
+  if (!amount)
+    return '-'
   return `$${amount.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
@@ -189,8 +202,10 @@ function modelNamesForAccessory(accId: string) {
 }
 
 function fittingLabel(val: string | null) {
-  if (val === 'includes') return 'Inc. fitting'
-  if (val === 'excludes') return 'Parts only'
+  if (val === 'includes')
+    return 'Inc. fitting'
+  if (val === 'excludes')
+    return 'Parts only'
   return null
 }
 </script>
@@ -208,7 +223,9 @@ function fittingLabel(val: string | null) {
       >
         <UiCardContent class="p-4">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-semibold">{{ oemName(oem.id) }}</h3>
+            <h3 class="text-sm font-semibold">
+              {{ oemName(oem.id) }}
+            </h3>
             <UiBadge variant="secondary" class="text-xs">
               {{ oemStats[oem.id]?.count ?? 0 }}
             </UiBadge>
@@ -241,7 +258,9 @@ function fittingLabel(val: string | null) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oemsWithAccessories" :key="oem.id" :value="oem.id">
             {{ oemName(oem.id) }}
           </UiSelectItem>
@@ -253,7 +272,9 @@ function fittingLabel(val: string | null) {
           <UiSelectValue placeholder="Filter by category" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Categories</UiSelectItem>
+          <UiSelectItem value="all">
+            All Categories
+          </UiSelectItem>
           <UiSelectItem v-for="cat in categories" :key="cat" :value="cat">
             {{ cat }}
           </UiSelectItem>
@@ -265,7 +286,9 @@ function fittingLabel(val: string | null) {
           <UiSelectValue placeholder="Filter by model" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Models</UiSelectItem>
+          <UiSelectItem value="all">
+            All Models
+          </UiSelectItem>
           <UiSelectItem v-for="m in modelsWithAccessories" :key="m.id" :value="m.id">
             {{ oemName(m.oem_id) }} {{ m.name }}
           </UiSelectItem>
@@ -277,9 +300,15 @@ function fittingLabel(val: string | null) {
           <UiSelectValue placeholder="Sort by" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="name">Name A-Z</UiSelectItem>
-          <UiSelectItem value="price-asc">Price: Low-High</UiSelectItem>
-          <UiSelectItem value="price-desc">Price: High-Low</UiSelectItem>
+          <UiSelectItem value="name">
+            Name A-Z
+          </UiSelectItem>
+          <UiSelectItem value="price-asc">
+            Price: Low-High
+          </UiSelectItem>
+          <UiSelectItem value="price-desc">
+            Price: High-Low
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -331,7 +360,9 @@ function fittingLabel(val: string | null) {
             <UiTableHead>OEM</UiTableHead>
             <UiTableHead>Category</UiTableHead>
             <UiTableHead>Part #</UiTableHead>
-            <UiTableHead class="text-right">Price</UiTableHead>
+            <UiTableHead class="text-right">
+              Price
+            </UiTableHead>
             <UiTableHead>Fitting</UiTableHead>
             <UiTableHead>Models</UiTableHead>
           </UiTableRow>
@@ -347,7 +378,7 @@ function fittingLabel(val: string | null) {
                   class="size-8 object-cover"
                   loading="lazy"
                   @error="($event.target as HTMLImageElement).style.display = 'none'"
-                />
+                >
                 <ImageOff v-else class="size-3 text-muted-foreground" />
               </div>
             </UiTableCell>
@@ -438,19 +469,25 @@ function fittingLabel(val: string | null) {
               class="w-full h-full object-contain p-2"
               loading="lazy"
               @error="($event.target as HTMLImageElement).style.display = 'none'"
-            />
+            >
             <ImageOff v-else class="size-8 text-muted-foreground/30" />
           </div>
           <UiCardContent class="p-3">
             <div class="flex items-start justify-between gap-2 mb-1">
-              <h3 class="text-sm font-semibold leading-tight line-clamp-2">{{ acc.name }}</h3>
+              <h3 class="text-sm font-semibold leading-tight line-clamp-2">
+                {{ acc.name }}
+              </h3>
               <span class="text-sm font-bold whitespace-nowrap" :class="acc.price ? 'text-foreground' : 'text-muted-foreground'">
                 {{ formatPrice(acc.price) }}
               </span>
             </div>
             <div class="flex items-center gap-1.5 flex-wrap mt-2">
-              <UiBadge variant="outline" class="text-[10px]">{{ oemName(acc.oem_id) }}</UiBadge>
-              <UiBadge v-if="acc.category" variant="secondary" class="text-[10px]">{{ acc.category }}</UiBadge>
+              <UiBadge variant="outline" class="text-[10px]">
+                {{ oemName(acc.oem_id) }}
+              </UiBadge>
+              <UiBadge v-if="acc.category" variant="secondary" class="text-[10px]">
+                {{ acc.category }}
+              </UiBadge>
               <UiBadge v-if="fittingLabel(acc.inc_fitting)" variant="secondary" class="text-[10px]">
                 {{ fittingLabel(acc.inc_fitting) }}
               </UiBadge>

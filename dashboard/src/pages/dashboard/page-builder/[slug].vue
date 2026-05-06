@@ -1,43 +1,101 @@
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowLeft, Copy, Sparkles, Save, ExternalLink, Code,
-  Loader2, Zap, Check, Circle, ChevronRight, Globe,
-  Undo2, Redo2, Import, ClipboardPaste, History, Menu, Cpu, MousePointer2,
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Circle,
+  ClipboardPaste,
+  Code,
+  Copy,
+  Cpu,
+  ExternalLink,
+  Globe,
+  History,
+  Import,
+  Loader2,
+  Menu,
+  MousePointer2,
+  Redo2,
+  Save,
+  Sparkles,
+  Undo2,
+  Zap,
 } from 'lucide-vue-next'
-import { usePageBuilder } from '@/composables/use-page-builder'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
 import { useOemData } from '@/composables/use-oem-data'
+import { usePageBuilder } from '@/composables/use-page-builder'
 import { generatePage } from '@/lib/worker-api'
 import { useThemeStore } from '@/stores/theme'
-import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
-import SectionCapture from '../components/page-builder/SectionCapture.vue'
-import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
-import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
-import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
+
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
+import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
+import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
+import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
+import SectionCapture from '../components/page-builder/SectionCapture.vue'
+import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { fetchOems } = useOemData()
 
 const {
-  page, loading, saving, error, isDirty,
-  sections, selectedSectionId, selectedSection,
-  isStructured, isCloned, workflowStage,
-  oemId, modelSlug,
-  isSubpage, subpageSlug, parentModelSlug, parentFullSlug, sourceUrlOverride,
-  regenerating, cloning, structuring, pipelining, pipelineResult,
-  history, historyIndex, canUndo, canRedo,
-  loadPage, selectSection, deleteSection, moveSection,
-  addSection, addSectionFromTemplate, addSectionFromLiveData, addSectionFromRecipe, duplicateSection, updateSection,
-  saveSections, regenerateSectionById, handleClone, handleStructure, handleAdaptivePipeline,
-  undo, redo, jumpTo,
+  page,
+  loading,
+  saving,
+  error,
+  isDirty,
+  sections,
+  selectedSectionId,
+  selectedSection,
+  isStructured,
+  isCloned,
+  workflowStage,
+  oemId,
+  modelSlug,
+  isSubpage,
+  subpageSlug,
+  parentModelSlug,
+  parentFullSlug,
+  sourceUrlOverride,
+  regenerating,
+  cloning,
+  structuring,
+  pipelining,
+  pipelineResult,
+  history,
+  historyIndex,
+  canUndo,
+  canRedo,
+  loadPage,
+  selectSection,
+  deleteSection,
+  moveSection,
+  addSection,
+  addSectionFromTemplate,
+  addSectionFromLiveData,
+  addSectionFromRecipe,
+  duplicateSection,
+  updateSection,
+  saveSections,
+  regenerateSectionById,
+  handleClone,
+  handleStructure,
+  handleAdaptivePipeline,
+  undo,
+  redo,
+  jumpTo,
   recipes,
-  pasteSections, copySectionToClipboard, pasteSectionFromClipboard, replaceSections,
-  convertSection, getConvertibleTypes,
-  splitSection, canSplitSection,
+  pasteSections,
+  copySectionToClipboard,
+  pasteSectionFromClipboard,
+  replaceSections,
+  convertSection,
+  getConvertibleTypes,
+  splitSection,
+  canSplitSection,
   saveCurrentAsRecipe,
 } = usePageBuilder()
 
@@ -57,19 +115,23 @@ const generatingPage = ref(false)
 const generateError = ref<string | null>(null)
 
 async function handleGeneratePage() {
-  if (!oemId.value || !modelSlug.value) return
+  if (!oemId.value || !modelSlug.value)
+    return
   generatingPage.value = true
   generateError.value = null
   try {
     const result = await generatePage(oemId.value, modelSlug.value)
     if (result.success) {
       await loadPage(route.params.slug as string)
-    } else {
+    }
+    else {
       generateError.value = result.error || 'Generation failed'
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     generateError.value = err.message || 'Generation failed'
-  } finally {
+  }
+  finally {
     generatingPage.value = false
   }
 }
@@ -82,7 +144,8 @@ function closeEditor() {
   editorSectionId.value = null
 }
 function updateEditorSection(updates: Record<string, any>) {
-  if (editorSectionId.value) updateSection(editorSectionId.value, updates)
+  if (editorSectionId.value)
+    updateSection(editorSectionId.value, updates)
 }
 
 function onCaptureHtml(html: string) {
@@ -98,7 +161,7 @@ function onCaptureHtml(html: string) {
   }
 }
 
-function onSmartCapture(section: { type: string; data: Record<string, any> }) {
+function onSmartCapture(section: { type: string, data: Record<string, any> }) {
   // AI identified the section type — create a properly typed section
   const type = section.type as any
   addSection(type)
@@ -107,7 +170,7 @@ function onSmartCapture(section: { type: string; data: Record<string, any> }) {
     updateSection(newest.id, section.data)
   }
 }
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
@@ -116,30 +179,36 @@ const MODEL_OPTIONS = [
   { value: 'default', label: 'Default (from settings)', provider: '', model: '' },
   { value: 'google_gemini::gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', provider: 'google_gemini', model: 'gemini-3.1-pro-preview' },
   { value: 'google_gemini::gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google_gemini', model: 'gemini-2.5-pro' },
+  { value: 'moonshot::kimi-k2.6', label: 'Kimi K2.6', provider: 'moonshot', model: 'kimi-k2.6' },
   { value: 'moonshot::kimi-k2.5', label: 'Kimi K2.5', provider: 'moonshot', model: 'kimi-k2.5' },
   { value: 'anthropic::claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929' },
 ]
 const selectedModel = ref('default')
 const selectedModelOverride = computed(() => {
-  if (selectedModel.value === 'default') return undefined
+  if (selectedModel.value === 'default')
+    return undefined
   const opt = MODEL_OPTIONS.find(o => o.value === selectedModel.value)
   return opt ? { provider: opt.provider, model: opt.model } : undefined
 })
 
 function handleKeyboard(e: KeyboardEvent) {
   const mod = e.metaKey || e.ctrlKey
-  if (!mod) return
+  if (!mod)
+    return
 
   if (e.key === 'z' && !e.shiftKey) {
     e.preventDefault()
     undo()
-  } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+  }
+  else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
     e.preventDefault()
     redo()
-  } else if (e.key === 'v' && !e.shiftKey) {
+  }
+  else if (e.key === 'v' && !e.shiftKey) {
     // Only intercept if no input/textarea is focused
     const tag = (e.target as HTMLElement)?.tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')
+      return
     e.preventDefault()
     pasteSectionFromClipboard()
   }
@@ -170,7 +239,8 @@ function oemName(id: string) {
 }
 
 const pageTitle = computed(() => {
-  if (!page.value) return 'Page Builder'
+  if (!page.value)
+    return 'Page Builder'
   return `${page.value.name} (${oemName(page.value.oem_id)})`
 })
 
@@ -178,12 +248,14 @@ const isCustomPage = computed(() => page.value?.page_type === 'custom')
 const needsSourceUrl = computed(() => isSubpage.value && !isCloned.value)
 
 const subpageDisplayName = computed(() => {
-  if (!isSubpage.value || !subpageSlug.value) return ''
+  if (!isSubpage.value || !subpageSlug.value)
+    return ''
   return page.value?.subpage_name || subpageSlug.value.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 })
 
 const parentPageName = computed(() => {
-  if (!parentModelSlug.value) return ''
+  if (!parentModelSlug.value)
+    return ''
   return parentModelSlug.value.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 })
 
@@ -358,7 +430,7 @@ const workflowSteps = computed(() => {
             type="url"
             placeholder="OEM page URL to clone..."
             class="h-7 w-64 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
+          >
         </div>
 
         <!-- Model selector for A/B testing -->
@@ -603,12 +675,16 @@ const workflowSteps = computed(() => {
         <div class="mx-auto size-16 rounded-full bg-muted flex items-center justify-center">
           <Globe class="size-8 text-muted-foreground" />
         </div>
-        <h2 class="text-xl font-semibold">Page not generated yet</h2>
+        <h2 class="text-xl font-semibold">
+          Page not generated yet
+        </h2>
         <p class="text-sm text-muted-foreground">
           No page exists for <span class="font-medium text-foreground">{{ oemId }} / {{ modelSlug }}</span>.
           Generate one from the OEM source site.
         </p>
-        <div v-if="generateError" class="text-sm text-destructive">{{ generateError }}</div>
+        <div v-if="generateError" class="text-sm text-destructive">
+          {{ generateError }}
+        </div>
         <button
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           :disabled="generatingPage"
@@ -618,7 +694,9 @@ const workflowSteps = computed(() => {
           <Sparkles v-else class="size-4" />
           {{ generatingPage ? 'Generating...' : 'Generate Page' }}
         </button>
-        <p v-if="generatingPage" class="text-xs text-muted-foreground">This may take 1–2 minutes</p>
+        <p v-if="generatingPage" class="text-xs text-muted-foreground">
+          This may take 1–2 minutes
+        </p>
         <div class="pt-2">
           <button class="text-sm text-muted-foreground hover:text-foreground" @click="router.push('/dashboard/model-pages')">
             <ArrowLeft class="size-3 inline mr-1" /> Back to model pages
@@ -750,4 +828,3 @@ const workflowSteps = computed(() => {
     </UiSheet>
   </div>
 </template>
-

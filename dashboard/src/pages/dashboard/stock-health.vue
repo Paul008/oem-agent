@@ -1,15 +1,22 @@
 <script lang="ts" setup>
-import { onMounted, computed } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import {
-  HeartPulse, Package, Tag, Palette, TrendingUp, Image,
-  AlertTriangle, Clock, CheckCircle2, XCircle, RefreshCw,
-  ArrowUpRight, Timer,
+  AlertTriangle,
+  HeartPulse,
+  Package,
+  Palette,
+  RefreshCw,
+  Tag,
+  Timer,
+  TrendingUp,
+  XCircle,
 } from 'lucide-vue-next'
+import { computed, onMounted } from 'vue'
+
+import type { OemStockHealth } from '@/composables/use-stock-health'
 
 import { BasicPage } from '@/components/global-layout'
 import { useStockHealth } from '@/composables/use-stock-health'
-import type { OemStockHealth } from '@/composables/use-stock-health'
 
 const { loading, error, health, summary, fetchStockHealth } = useStockHealth()
 
@@ -32,29 +39,40 @@ function statusText(status: OemStockHealth['health_status']) {
 }
 
 function ageColor(days: number) {
-  if (days <= 3) return 'text-green-600 dark:text-green-400'
-  if (days <= 7) return 'text-yellow-600 dark:text-yellow-400'
-  if (days <= 14) return 'text-orange-600 dark:text-orange-400'
+  if (days <= 3)
+    return 'text-green-600 dark:text-green-400'
+  if (days <= 7)
+    return 'text-yellow-600 dark:text-yellow-400'
+  if (days <= 14)
+    return 'text-orange-600 dark:text-orange-400'
   return 'text-red-600 dark:text-red-400'
 }
 
 function ageBadgeVariant(days: number): string {
-  if (days <= 3) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-  if (days <= 7) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-  if (days <= 14) return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+  if (days <= 3)
+    return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+  if (days <= 7)
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+  if (days <= 14)
+    return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
   return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
 }
 
 function pricingColor(pct: number) {
-  if (pct >= 90) return 'text-green-600 dark:text-green-400'
-  if (pct >= 70) return 'text-yellow-600 dark:text-yellow-400'
+  if (pct >= 90)
+    return 'text-green-600 dark:text-green-400'
+  if (pct >= 70)
+    return 'text-yellow-600 dark:text-yellow-400'
   return 'text-red-600 dark:text-red-400'
 }
 
 function formatAge(days: number) {
-  if (days === 0) return 'today'
-  if (days === 1) return '1d ago'
-  if (days >= 999) return 'never'
+  if (days === 0)
+    return 'today'
+  if (days === 1)
+    return '1d ago'
+  if (days >= 999)
+    return 'never'
   return `${days}d ago`
 }
 
@@ -81,7 +99,9 @@ const sortedHealth = computed(() => {
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">OEM Status</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              OEM Status
+            </UiCardTitle>
             <HeartPulse class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
@@ -100,11 +120,15 @@ const sortedHealth = computed(() => {
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Products</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Products
+            </UiCardTitle>
             <Package class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ summary.total_products }}</div>
+            <div class="text-2xl font-bold">
+              {{ summary.total_products }}
+            </div>
             <p class="text-xs text-muted-foreground mt-1">
               Avg age: <span :class="ageColor(summary.avg_product_age_days)">{{ summary.avg_product_age_days }}d</span>
             </p>
@@ -113,11 +137,15 @@ const sortedHealth = computed(() => {
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Offers</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Offers
+            </UiCardTitle>
             <Tag class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ summary.total_offers }}</div>
+            <div class="text-2xl font-bold">
+              {{ summary.total_offers }}
+            </div>
             <p v-if="summary.offers_expiring_soon > 0" class="text-xs text-orange-600 mt-1">
               <Timer class="inline size-3 mr-1" />{{ summary.offers_expiring_soon }} expiring within 7 days
             </p>
@@ -132,23 +160,35 @@ const sortedHealth = computed(() => {
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Colors</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Colors
+            </UiCardTitle>
             <Palette class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ summary.total_colors.toLocaleString() }}</div>
-            <p class="text-xs text-muted-foreground mt-1">Across all products</p>
+            <div class="text-2xl font-bold">
+              {{ summary.total_colors.toLocaleString() }}
+            </div>
+            <p class="text-xs text-muted-foreground mt-1">
+              Across all products
+            </p>
           </UiCardContent>
         </UiCard>
 
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Pricing</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Pricing
+            </UiCardTitle>
             <TrendingUp class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ summary.total_pricing.toLocaleString() }}</div>
-            <p class="text-xs text-muted-foreground mt-1">Variant pricing rows</p>
+            <div class="text-2xl font-bold">
+              {{ summary.total_pricing.toLocaleString() }}
+            </div>
+            <p class="text-xs text-muted-foreground mt-1">
+              Variant pricing rows
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -160,7 +200,7 @@ const sortedHealth = computed(() => {
             <UiCardTitle>Per-OEM Stock Health</UiCardTitle>
             <UiCardDescription>Sorted by health score (worst first)</UiCardDescription>
           </div>
-          <UiButton variant="outline" size="sm" @click="fetchStockHealth()" :disabled="loading">
+          <UiButton variant="outline" size="sm" :disabled="loading" @click="fetchStockHealth()">
             <RefreshCw class="size-4 mr-2" :class="{ 'animate-spin': loading }" />
             Refresh
           </UiButton>
@@ -170,16 +210,36 @@ const sortedHealth = computed(() => {
             <UiTable>
               <UiTableHeader>
                 <UiTableRow>
-                  <UiTableHead class="w-[140px]">OEM</UiTableHead>
-                  <UiTableHead class="text-center w-[80px]">Score</UiTableHead>
-                  <UiTableHead class="text-center">Products</UiTableHead>
-                  <UiTableHead class="text-center">Product Age</UiTableHead>
-                  <UiTableHead class="text-center">Offers</UiTableHead>
-                  <UiTableHead class="text-center">Offer Age</UiTableHead>
-                  <UiTableHead class="text-center">Colors</UiTableHead>
-                  <UiTableHead class="text-center">Pricing %</UiTableHead>
-                  <UiTableHead class="text-center">Last Crawl</UiTableHead>
-                  <UiTableHead class="text-center">Pages</UiTableHead>
+                  <UiTableHead class="w-[140px]">
+                    OEM
+                  </UiTableHead>
+                  <UiTableHead class="text-center w-[80px]">
+                    Score
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Products
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Product Age
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Offers
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Offer Age
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Colors
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Pricing %
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Last Crawl
+                  </UiTableHead>
+                  <UiTableHead class="text-center">
+                    Pages
+                  </UiTableHead>
                 </UiTableRow>
               </UiTableHeader>
               <UiTableBody>
@@ -194,18 +254,22 @@ const sortedHealth = computed(() => {
 
                   <!-- Health Score -->
                   <UiTableCell class="text-center">
-                    <span class="inline-flex items-center justify-center text-xs font-bold rounded-full size-8"
+                    <span
+                      class="inline-flex items-center justify-center text-xs font-bold rounded-full size-8"
                       :class="{
                         'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200': oem.health_score >= 80,
                         'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200': oem.health_score >= 60 && oem.health_score < 80,
                         'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': oem.health_score < 60,
-                      }">
+                      }"
+                    >
                       {{ oem.health_score }}
                     </span>
                   </UiTableCell>
 
                   <!-- Product Count -->
-                  <UiTableCell class="text-center tabular-nums">{{ oem.product_count }}</UiTableCell>
+                  <UiTableCell class="text-center tabular-nums">
+                    {{ oem.product_count }}
+                  </UiTableCell>
 
                   <!-- Product Age -->
                   <UiTableCell class="text-center">
@@ -233,7 +297,9 @@ const sortedHealth = computed(() => {
                   </UiTableCell>
 
                   <!-- Colors -->
-                  <UiTableCell class="text-center tabular-nums">{{ oem.color_count }}</UiTableCell>
+                  <UiTableCell class="text-center tabular-nums">
+                    {{ oem.color_count }}
+                  </UiTableCell>
 
                   <!-- Pricing Coverage -->
                   <UiTableCell class="text-center">

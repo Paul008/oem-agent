@@ -1,16 +1,17 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, ExternalLink, Eye, EyeOff, Search, Copy, Check, Plus, Pencil, Trash2, Download } from 'lucide-vue-next'
+import { Check, Copy, Download, ExternalLink, Eye, EyeOff, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { OemPortal } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import type { OemPortal } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
 
 const { fetchPortals, fetchOems } = useOemData()
 
 const portals = ref<OemPortal[]>([])
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
 const filterOem = ref('all')
 const searchQuery = ref('')
@@ -82,8 +83,9 @@ async function copyToClipboard(text: string, fieldKey: string) {
 }
 
 // Parse guidelines_pdf_url — can be JSON array or comma-separated URLs
-function parseGuidelines(raw: string | null): { name: string; url: string; size_mb?: number }[] {
-  if (!raw) return []
+function parseGuidelines(raw: string | null): { name: string, url: string, size_mb?: number }[] {
+  if (!raw)
+    return []
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
@@ -96,7 +98,7 @@ function parseGuidelines(raw: string | null): { name: string; url: string; size_
   }
   catch { /* not JSON, fall through */ }
   // Legacy: comma-separated URLs
-  return raw.split(', ').filter(Boolean).map(url => {
+  return raw.split(', ').filter(Boolean).map((url) => {
     const name = decodeURIComponent(url.split('/').pop() || 'PDF')
     return { name, url }
   })
@@ -125,7 +127,8 @@ function openEditForm(portal: OemPortal) {
 }
 
 async function savePortal() {
-  if (!form.value.oem_id || !form.value.portal_name) return
+  if (!form.value.oem_id || !form.value.portal_name)
+    return
   saving.value = true
   try {
     const payload = {
@@ -147,10 +150,12 @@ async function savePortal() {
         .update(payload)
         .eq('id', editingPortal.value.id)
         .select()
-      if (error) throw error
+      if (error)
+        throw error
       if (data?.[0]) {
         const idx = portals.value.findIndex(p => p.id === editingPortal.value!.id)
-        if (idx >= 0) portals.value[idx] = data[0] as OemPortal
+        if (idx >= 0)
+          portals.value[idx] = data[0] as OemPortal
       }
     }
     else {
@@ -159,8 +164,10 @@ async function savePortal() {
         .from('oem_portals')
         .insert(payload)
         .select()
-      if (error) throw error
-      if (data?.[0]) portals.value.push(data[0] as OemPortal)
+      if (error)
+        throw error
+      if (data?.[0])
+        portals.value.push(data[0] as OemPortal)
     }
     showForm.value = false
   }
@@ -173,14 +180,16 @@ async function savePortal() {
 }
 
 async function deletePortal() {
-  if (!deleteTarget.value) return
+  if (!deleteTarget.value)
+    return
   deleting.value = true
   try {
     const { error } = await supabase
       .from('oem_portals')
       .delete()
       .eq('id', deleteTarget.value.id)
-    if (error) throw error
+    if (error)
+      throw error
     portals.value = portals.value.filter(p => p.id !== deleteTarget.value!.id)
     deleteTarget.value = null
   }
@@ -196,9 +205,12 @@ const stats = computed(() => {
   const t = { total: portals.value.length, withUrl: 0, withCreds: 0, withGuidelines: 0, oemCount: 0 }
   const oemSet = new Set<string>()
   for (const p of portals.value) {
-    if (p.portal_url) t.withUrl++
-    if (p.username || p.password) t.withCreds++
-    if (p.guidelines_pdf_url) t.withGuidelines++
+    if (p.portal_url)
+      t.withUrl++
+    if (p.username || p.password)
+      t.withCreds++
+    if (p.guidelines_pdf_url)
+      t.withGuidelines++
     oemSet.add(p.oem_id)
   }
   t.oemCount = oemSet.size
@@ -215,7 +227,9 @@ const stats = computed(() => {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -247,38 +261,62 @@ const stats = computed(() => {
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Portals</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Portals
+            </UiCardTitle>
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total }}</div>
-            <p class="text-xs text-muted-foreground">Across {{ stats.oemCount }} OEMs</p>
+            <div class="text-2xl font-bold">
+              {{ stats.total }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Across {{ stats.oemCount }} OEMs
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">With URL</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              With URL
+            </UiCardTitle>
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-green-500">{{ stats.withUrl }}</div>
-            <p class="text-xs text-muted-foreground">Have portal link</p>
+            <div class="text-2xl font-bold text-green-500">
+              {{ stats.withUrl }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have portal link
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">With Credentials</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              With Credentials
+            </UiCardTitle>
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.withCreds }}</div>
-            <p class="text-xs text-muted-foreground">Have username/password</p>
+            <div class="text-2xl font-bold">
+              {{ stats.withCreds }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have username/password
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Brand Guidelines</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Brand Guidelines
+            </UiCardTitle>
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.withGuidelines }}</div>
-            <p class="text-xs text-muted-foreground">Have PDF documents</p>
+            <div class="text-2xl font-bold">
+              {{ stats.withGuidelines }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have PDF documents
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -408,7 +446,9 @@ const stats = computed(() => {
       <!-- Empty state -->
       <div v-if="filtered.length === 0 && !loading" class="text-center py-16">
         <ExternalLink class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p class="text-sm text-muted-foreground">No portals found matching your filters</p>
+        <p class="text-sm text-muted-foreground">
+          No portals found matching your filters
+        </p>
       </div>
     </template>
 
@@ -423,7 +463,9 @@ const stats = computed(() => {
         </UiDialogHeader>
         <div class="grid gap-4 py-4">
           <div class="grid gap-2">
-            <UiLabel for="oem">OEM</UiLabel>
+            <UiLabel for="oem">
+              OEM
+            </UiLabel>
             <UiSelect v-model="form.oem_id">
               <UiSelectTrigger>
                 <UiSelectValue placeholder="Select OEM" />
@@ -436,40 +478,56 @@ const stats = computed(() => {
             </UiSelect>
           </div>
           <div class="grid gap-2">
-            <UiLabel for="name">Portal Name</UiLabel>
+            <UiLabel for="name">
+              Portal Name
+            </UiLabel>
             <UiInput id="name" v-model="form.portal_name" placeholder="e.g. Ford Image Library" />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="grid gap-2">
-              <UiLabel for="url">Portal URL</UiLabel>
+              <UiLabel for="url">
+                Portal URL
+              </UiLabel>
               <UiInput id="url" v-model="form.portal_url" placeholder="https://..." />
             </div>
             <div class="grid gap-2">
-              <UiLabel for="platform">Platform</UiLabel>
+              <UiLabel for="platform">
+                Platform
+              </UiLabel>
               <UiInput id="platform" v-model="form.portal_platform" placeholder="sesimi, okta, etc." />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="grid gap-2">
-              <UiLabel for="user">Username</UiLabel>
+              <UiLabel for="user">
+                Username
+              </UiLabel>
               <UiInput id="user" v-model="form.username" />
             </div>
             <div class="grid gap-2">
-              <UiLabel for="pass">Password</UiLabel>
+              <UiLabel for="pass">
+                Password
+              </UiLabel>
               <UiInput id="pass" v-model="form.password" type="text" />
             </div>
           </div>
           <div class="grid gap-2">
-            <UiLabel for="contact">Marketing Contact</UiLabel>
+            <UiLabel for="contact">
+              Marketing Contact
+            </UiLabel>
             <UiInput id="contact" v-model="form.marketing_contact" />
           </div>
           <div class="grid gap-2">
-            <UiLabel for="notes">Notes</UiLabel>
+            <UiLabel for="notes">
+              Notes
+            </UiLabel>
             <UiTextarea id="notes" v-model="form.notes" rows="2" />
           </div>
         </div>
         <UiDialogFooter>
-          <UiButton variant="outline" @click="showForm = false">Cancel</UiButton>
+          <UiButton variant="outline" @click="showForm = false">
+            Cancel
+          </UiButton>
           <UiButton :disabled="saving || !form.oem_id || !form.portal_name" @click="savePortal">
             <Loader2 v-if="saving" class="size-4 mr-1 animate-spin" />
             {{ editingPortal ? 'Save Changes' : 'Add Portal' }}
@@ -488,7 +546,9 @@ const stats = computed(() => {
           </UiAlertDialogDescription>
         </UiAlertDialogHeader>
         <UiAlertDialogFooter>
-          <UiAlertDialogCancel @click="deleteTarget = null">Cancel</UiAlertDialogCancel>
+          <UiAlertDialogCancel @click="deleteTarget = null">
+            Cancel
+          </UiAlertDialogCancel>
           <UiAlertDialogAction
             class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             :disabled="deleting"

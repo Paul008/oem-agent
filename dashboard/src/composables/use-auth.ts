@@ -20,7 +20,8 @@ export function useAuth() {
       },
     })
     loading.value = false
-    if (error) throw error
+    if (error)
+      throw error
   }
 
   async function logout() {

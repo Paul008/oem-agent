@@ -136,6 +136,7 @@ app.get('/health', (c) => {
   });
 });
 
+
 /**
  * GET /api/v1/oem-agent/admin/proxy-html?url=...
  * Fetch a webpage and return its HTML for the section capture tool

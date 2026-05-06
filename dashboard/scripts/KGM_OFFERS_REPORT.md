@@ -1,7 +1,7 @@
 # KGM Offers Discovery Report
 
-**Date**: February 20, 2026  
-**OEM**: KGM Australia  
+**Date**: February 20, 2026
+**OEM**: KGM Australia
 **API**: Payload CMS (payloadb.therefinerydesign.com)
 
 ## Summary
@@ -11,6 +11,7 @@ KGM stores offer/discount data directly in their existing `models` and `grades` 
 ## Offer Fields Discovered
 
 ### 1. `models.abn_discount` (Model-Level ABN Discount)
+
 - **Type**: Integer (negative number representing discount)
 - **Scope**: Per vehicle model
 - **Data**: 8/8 models have ABN discounts
@@ -27,17 +28,20 @@ KGM stores offer/discount data directly in their existing `models` and `grades` 
 | Torres | -$800 |
 | Korando | -$1,000 |
 
-**Pattern**: 
+**Pattern**:
+
 - MY26 models: $800-$1,000 discount
 - MY24 models: $1,000 discount
 - Typically $1,000 for trucks/SUVs, $800 for smaller vehicles
 
 ### 2. `models.pricing_offers` (Structured Offers)
+
 - **Type**: Array (currently empty for all models)
 - **Status**: Field exists but no active pricing offers
 - **Potential**: Likely for promotional campaigns, finance offers, etc.
 
 ### 3. `grades.year_discount` (Grade-Level End-of-Year Discount)
+
 - **Type**: Integer (discount amount)
 - **Scope**: Per grade/variant
 - **Data**: 0/26 grades currently have year-end discounts
@@ -46,11 +50,13 @@ KGM stores offer/discount data directly in their existing `models` and `grades` 
 ## Collections Tested
 
 **Existing (200 OK)**:
+
 - ✅ `models` - Contains `abn_discount` and `pricing_offers`
 - ✅ `grades` - Contains `year_discount`
 - ✅ `pages` - Empty collection
 
 **Non-Existent (404)**:
+
 - ❌ `offers`
 - ❌ `promotions`
 - ❌ `specials`
@@ -60,10 +66,11 @@ KGM stores offer/discount data directly in their existing `models` and `grades` 
 
 ## API Details
 
-**Base URL**: `https://payloadb.therefinerydesign.com/api`  
+**Base URL**: `https://payloadb.therefinerydesign.com/api`
 **Auth**: None required (just Origin/Referer headers)
 
 **Query for Offers**:
+
 ```javascript
 // Get all models with ABN discounts
 GET /api/models?depth=2&limit=100
@@ -73,6 +80,7 @@ GET /api/grades?depth=2&limit=100
 ```
 
 **Response Structure**:
+
 ```json
 {
   "docs": [
@@ -91,7 +99,9 @@ GET /api/grades?depth=2&limit=100
 ## Database Storage Recommendations
 
 ### Option 1: Store in `offers` table
+
 Map ABN discounts to our existing `offers` table:
+
 - `offer_type`: "abn_discount"
 - `title`: "ABN Holder Discount"
 - `description`: Auto-generated per model
@@ -100,7 +110,9 @@ Map ABN discounts to our existing `offers` table:
 - Scope: Link via `vehicle_models` (one-to-many)
 
 ### Option 2: Store in `variant_pricing` meta
+
 Add `abn_discount` to `variant_pricing.meta_json`:
+
 ```json
 {
   "abn_discount": 800,
@@ -109,6 +121,7 @@ Add `abn_discount` to `variant_pricing.meta_json`:
 ```
 
 ### Recommendation: **Option 1** (offers table)
+
 - Better UI visibility
 - Separates pricing from offers
 - Allows future expansion (finance offers, trade-in bonuses, etc.)
@@ -141,6 +154,7 @@ Add `abn_discount` to `variant_pricing.meta_json`:
 ---
 
 **Files Created**:
+
 - `_probe-kgm-offers.mjs` - Initial collection probe
 - `_probe-kgm-offers-html.mjs` - Website HTML analysis
 - `_probe-kgm-offers-v2.mjs` - Field discovery in existing collections

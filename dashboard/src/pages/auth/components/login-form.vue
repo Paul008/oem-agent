@@ -9,7 +9,8 @@ const email = ref('')
 const sent = ref(false)
 
 async function handleSubmit() {
-  if (!email.value) return
+  if (!email.value)
+    return
 
   try {
     await sendMagicLink(email.value)

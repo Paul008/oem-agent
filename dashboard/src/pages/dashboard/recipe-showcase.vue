@@ -1,15 +1,17 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Eye, Wand2, Save, X, Plus, Trash2, GripVertical, Monitor, Tablet, Smartphone } from 'lucide-vue-next'
+import { Eye, Loader2, Monitor, Save, Smartphone, Tablet, Wand2 } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+
+import type { ExtractedRecipe, StyleGuideData } from '@/lib/worker-api'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, generateRecipeComponent, saveRecipe, extractRecipesFromUrl, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
+import { extractRecipesFromUrl, fetchStyleGuide, generateRecipeComponent, saveRecipe } from '@/lib/worker-api'
 
 const { fetchOems } = useOemData()
 
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const selectedOem = ref('')
 const loading = ref(false)
 const data = ref<StyleGuideData | null>(null)
@@ -42,7 +44,7 @@ const capturingReference = ref(false)
 const referenceScreenshot = ref<string | null>(null)
 
 // AI-dynamic config
-const configSchema = ref<Record<string, { type: string; label: string; default: any; options?: any[] }> | null>(null)
+const configSchema = ref<Record<string, { type: string, label: string, default: any, options?: any[] }> | null>(null)
 const configValues = ref<Record<string, any>>({})
 
 // Accordion state — preview open by default
@@ -58,22 +60,26 @@ onMounted(async () => {
 })
 
 watch(selectedOem, async (oemId) => {
-  if (!oemId) return
+  if (!oemId)
+    return
   loading.value = true
   data.value = null
   selectedRecipe.value = null
   previewHtml.value = null
   try {
     data.value = await fetchStyleGuide(oemId)
-  } catch {
+  }
+  catch {
     toast.error('Failed to load recipes')
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }, { immediate: true })
 
 const allRecipes = computed(() => {
-  if (!data.value) return []
+  if (!data.value)
+    return []
   const brand = (data.value.brand_recipes || []).map((r: any) => ({ ...r, source: 'brand' }))
   const defaults = (data.value.default_recipes || []).map((r: any) => ({ ...r, source: 'default' }))
   return [...brand, ...defaults]
@@ -83,7 +89,8 @@ const recipesByPattern = computed(() => {
   const grouped: Record<string, any[]> = {}
   for (const p of PATTERNS) grouped[p.key] = []
   for (const r of allRecipes.value) {
-    if (grouped[r.pattern]) grouped[r.pattern].push(r)
+    if (grouped[r.pattern])
+      grouped[r.pattern].push(r)
   }
   return grouped
 })
@@ -126,7 +133,8 @@ body { font-family: ${tokens.value?.typography?.font_primary || 'system-ui, sans
 }
 
 async function handleRegenerate() {
-  if (!selectedRecipe.value || !selectedOem.value || regenerating.value) return
+  if (!selectedRecipe.value || !selectedOem.value || regenerating.value)
+    return
   regenerating.value = true
   previewHtml.value = null
   try {
@@ -149,42 +157,53 @@ async function handleRegenerate() {
           }
         }
       }
-    } else {
+    }
+    else {
       toast.error(result.error || 'Generation failed')
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Generation failed')
-  } finally {
+  }
+  finally {
     regenerating.value = false
   }
 }
 
 async function captureReference() {
-  if (!referenceUrl.value || !selectedOem.value || capturingReference.value) return
+  if (!referenceUrl.value || !selectedOem.value || capturingReference.value)
+    return
   capturingReference.value = true
   try {
     const result = await extractRecipesFromUrl(referenceUrl.value, selectedOem.value)
     if (result.screenshot_base64) {
-      referenceScreenshot.value = 'data:image/png;base64,' + result.screenshot_base64
+      referenceScreenshot.value = `data:image/png;base64,${result.screenshot_base64}`
       toast.success('Reference captured')
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Capture failed')
-  } finally {
+  }
+  finally {
     capturingReference.value = false
   }
 }
 
 async function handleSave() {
-  if (!selectedRecipe.value || !selectedOem.value || saving.value) return
+  if (!selectedRecipe.value || !selectedOem.value || saving.value)
+    return
   saving.value = true
   try {
     // Persist generated state into defaults_json
     const defaults = { ...editDefaults.value }
-    if (previewHtml.value) defaults._generated_html = previewHtml.value
-    if (configSchema.value) defaults._config_schema = configSchema.value
-    if (Object.keys(configValues.value).length) defaults._config_values = configValues.value
-    if (referenceScreenshot.value) defaults._reference_screenshot = referenceScreenshot.value
+    if (previewHtml.value)
+      defaults._generated_html = previewHtml.value
+    if (configSchema.value)
+      defaults._config_schema = configSchema.value
+    if (Object.keys(configValues.value).length)
+      defaults._config_values = configValues.value
+    if (referenceScreenshot.value)
+      defaults._reference_screenshot = referenceScreenshot.value
 
     await saveRecipe({
       oem_id: selectedOem.value,
@@ -197,16 +216,19 @@ async function handleSave() {
     // Update local data
     selectedRecipe.value.defaults_json = JSON.parse(JSON.stringify(defaults))
     toast.success('Recipe saved')
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Save failed')
-  } finally {
+  }
+  finally {
     saving.value = false
   }
 }
 
 // Composition helpers
 function addSlot(slot: string) {
-  if (!editDefaults.value.card_composition) editDefaults.value.card_composition = []
+  if (!editDefaults.value.card_composition)
+    editDefaults.value.card_composition = []
   editDefaults.value.card_composition.push(slot)
 }
 
@@ -256,8 +278,12 @@ function updateConfigSelect(key: string, value: string) {
               @click="selectRecipe(recipe)"
             >
               <div class="min-w-0 flex-1">
-                <p class="truncate font-medium text-xs">{{ recipe.label }}</p>
-                <p class="text-[10px] text-muted-foreground truncate">{{ recipe.variant }}</p>
+                <p class="truncate font-medium text-xs">
+                  {{ recipe.label }}
+                </p>
+                <p class="text-[10px] text-muted-foreground truncate">
+                  {{ recipe.variant }}
+                </p>
               </div>
               <span
                 v-if="recipe.defaults_json?.thumbnail_url"
@@ -271,13 +297,18 @@ function updateConfigSelect(key: string, value: string) {
 
       <!-- ═══ MAIN: Stacked Refinement Panels ═══ -->
       <div v-if="selectedRecipe" class="flex-1 overflow-y-auto space-y-4 min-w-0">
-
         <!-- Header + Actions -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-semibold">{{ selectedRecipe.label }}</h2>
-            <UiBadge variant="outline" class="text-[10px]">{{ selectedRecipe.pattern }}</UiBadge>
-            <UiBadge variant="secondary" class="text-[10px]">{{ selectedRecipe.variant }}</UiBadge>
+            <h2 class="text-lg font-semibold">
+              {{ selectedRecipe.label }}
+            </h2>
+            <UiBadge variant="outline" class="text-[10px]">
+              {{ selectedRecipe.pattern }}
+            </UiBadge>
+            <UiBadge variant="secondary" class="text-[10px]">
+              {{ selectedRecipe.variant }}
+            </UiBadge>
           </div>
           <div class="flex gap-2">
             <UiButton size="sm" :disabled="regenerating" @click="handleRegenerate">
@@ -294,8 +325,7 @@ function updateConfigSelect(key: string, value: string) {
         </div>
 
         <!-- Accordion panels -->
-        <UiAccordion type="multiple" v-model="openPanels" class="space-y-3">
-
+        <UiAccordion v-model="openPanels" type="multiple" class="space-y-3">
           <!-- Panel 1: OEM Reference -->
           <UiAccordionItem value="reference" class="border rounded-lg overflow-hidden">
             <UiAccordionTrigger class="px-4 py-2 bg-muted/50 text-xs font-medium hover:no-underline">
@@ -317,10 +347,12 @@ function updateConfigSelect(key: string, value: string) {
               </div>
               <div v-if="capturingReference" class="py-12 text-center">
                 <Loader2 class="size-6 animate-spin text-muted-foreground mx-auto mb-2" />
-                <p class="text-xs text-muted-foreground">Capturing screenshot...</p>
+                <p class="text-xs text-muted-foreground">
+                  Capturing screenshot...
+                </p>
               </div>
               <div v-else-if="referenceScreenshot" class="bg-muted/10">
-                <img :src="referenceScreenshot" class="w-full object-contain" style="max-height: 500px;" />
+                <img :src="referenceScreenshot" class="w-full object-contain" style="max-height: 500px;">
               </div>
               <div v-else class="py-6 text-center text-xs text-muted-foreground">
                 <Eye class="size-5 mx-auto opacity-20 mb-1" />
@@ -343,7 +375,9 @@ function updateConfigSelect(key: string, value: string) {
               <div v-if="configSchema && Object.keys(configSchema).length" class="p-4">
                 <div class="grid grid-cols-3 gap-4">
                   <div v-for="(field, key) in configSchema" :key="key" class="space-y-1.5">
-                    <UiLabel class="text-[10px] font-semibold text-muted-foreground uppercase">{{ field.label }}</UiLabel>
+                    <UiLabel class="text-[10px] font-semibold text-muted-foreground uppercase">
+                      {{ field.label }}
+                    </UiLabel>
 
                     <!-- String input -->
                     <UiInput
@@ -380,13 +414,15 @@ function updateConfigSelect(key: string, value: string) {
                         <UiSelectValue />
                       </UiSelectTrigger>
                       <UiSelectContent>
-                        <UiSelectItem v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</UiSelectItem>
+                        <UiSelectItem v-for="opt in field.options" :key="opt" :value="opt">
+                          {{ opt }}
+                        </UiSelectItem>
                       </UiSelectContent>
                     </UiSelect>
 
                     <!-- Color input -->
                     <div v-else-if="field.type === 'color'" class="flex items-center gap-2">
-                      <input v-model="configValues[key]" type="color" class="size-7 rounded border cursor-pointer" />
+                      <input v-model="configValues[key]" type="color" class="size-7 rounded border cursor-pointer">
                       <UiInput v-model="configValues[key]" type="text" class="h-8 flex-1 text-xs font-mono" />
                     </div>
                   </div>
@@ -410,21 +446,27 @@ function updateConfigSelect(key: string, value: string) {
                   <button
                     class="p-1 rounded"
                     :class="previewViewport === 'desktop' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-                    @click="previewViewport = 'desktop'"
                     title="Desktop (100%)"
-                  ><Monitor class="size-3.5" /></button>
+                    @click="previewViewport = 'desktop'"
+                  >
+                    <Monitor class="size-3.5" />
+                  </button>
                   <button
                     class="p-1 rounded"
                     :class="previewViewport === 'tablet' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-                    @click="previewViewport = 'tablet'"
                     title="Tablet (768px)"
-                  ><Tablet class="size-3.5" /></button>
+                    @click="previewViewport = 'tablet'"
+                  >
+                    <Tablet class="size-3.5" />
+                  </button>
                   <button
                     class="p-1 rounded"
                     :class="previewViewport === 'mobile' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-                    @click="previewViewport = 'mobile'"
                     title="Mobile (375px)"
-                  ><Smartphone class="size-3.5" /></button>
+                    @click="previewViewport = 'mobile'"
+                  >
+                    <Smartphone class="size-3.5" />
+                  </button>
                 </div>
               </div>
             </UiAccordionTrigger>
@@ -452,7 +494,6 @@ function updateConfigSelect(key: string, value: string) {
               </div>
             </UiAccordionContent>
           </UiAccordionItem>
-
         </UiAccordion>
       </div>
 
@@ -460,7 +501,9 @@ function updateConfigSelect(key: string, value: string) {
       <div v-else class="flex-1 flex items-center justify-center border rounded-lg">
         <div class="text-center space-y-2">
           <Eye class="size-10 mx-auto text-muted-foreground/20" />
-          <p class="text-sm text-muted-foreground">Select a recipe from the list to open the refinement studio</p>
+          <p class="text-sm text-muted-foreground">
+            Select a recipe from the list to open the refinement studio
+          </p>
         </div>
       </div>
     </div>

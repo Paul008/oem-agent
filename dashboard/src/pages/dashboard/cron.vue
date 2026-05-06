@@ -1,11 +1,13 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import cronstrue from 'cronstrue'
-import { Clock, Play, CheckCircle2, XCircle, Loader2, Calendar, Activity, AlertCircle, RefreshCw, Settings2, ChevronDown, Cloud, Globe, Tag, Newspaper, Map } from 'lucide-vue-next'
+import { Activity, AlertCircle, Calendar, CheckCircle2, ChevronDown, Clock, Cloud, Globe, Loader2, Map, Newspaper, Play, RefreshCw, Settings2, Tag, XCircle } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { CloudflareTriggerStatus, JobRun } from '@/composables/use-cron-jobs'
 
 import { BasicPage } from '@/components/global-layout'
-import { useCronJobs, type JobRun, type CloudflareTriggerStatus } from '@/composables/use-cron-jobs'
+import { useCronJobs } from '@/composables/use-cron-jobs'
 
 const { loading, error, jobs, cloudflareTriggers, runHistory, loadJobs, triggerJob, toggleJob, loadRunHistory } = useCronJobs()
 
@@ -42,27 +44,33 @@ async function handleRefresh() {
 }
 
 async function handleTriggerJob(jobId: string) {
-  if (triggering.value.has(jobId)) return
+  if (triggering.value.has(jobId))
+    return
 
   triggering.value.add(jobId)
   try {
     await triggerJob(jobId)
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Failed to trigger job:', err)
-  } finally {
+  }
+  finally {
     triggering.value.delete(jobId)
   }
 }
 
 async function handleToggleJob(jobId: string, enabled: boolean) {
-  if (toggling.value.has(jobId)) return
+  if (toggling.value.has(jobId))
+    return
 
   toggling.value.add(jobId)
   try {
     await toggleJob(jobId, enabled)
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Failed to toggle job:', err)
-  } finally {
+  }
+  finally {
     toggling.value.delete(jobId)
   }
 }
@@ -70,7 +78,8 @@ async function handleToggleJob(jobId: string, enabled: boolean) {
 function toggleConfig(jobId: string) {
   if (expandedConfigs.value.has(jobId)) {
     expandedConfigs.value.delete(jobId)
-  } else {
+  }
+  else {
     expandedConfigs.value.add(jobId)
   }
 }
@@ -89,7 +98,8 @@ function closeHistory() {
 function formatSchedule(cronExpr: string): string {
   try {
     return cronstrue.toString(cronExpr, { use24HourTimeFormat: false })
-  } catch {
+  }
+  catch {
     return cronExpr
   }
 }
@@ -97,61 +107,79 @@ function formatSchedule(cronExpr: string): string {
 function formatRelative(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1)
+    return 'Just now'
+  if (mins < 60)
+    return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24)
+    return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   return `${days}d ago`
 }
 
 function formatDuration(run: JobRun): string {
-  if (!run.completedAt) return 'Running...'
+  if (!run.completedAt)
+    return 'Running...'
   const start = new Date(run.startedAt).getTime()
   const end = new Date(run.completedAt).getTime()
   const ms = end - start
-  if (ms < 1000) return `${ms}ms`
+  if (ms < 1000)
+    return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
 }
 
 function isStaleRun(run: JobRun): boolean {
-  if (run.status !== 'running') return false
+  if (run.status !== 'running')
+    return false
   const elapsed = Date.now() - new Date(run.startedAt).getTime()
   return elapsed > 10 * 60 * 1000 // 10 minutes
 }
 
 function effectiveStatus(run: JobRun): string {
-  if (isStaleRun(run)) return 'timed out'
+  if (isStaleRun(run))
+    return 'timed out'
   return run.status
 }
 
 function statusColor(status: string): string {
-  if (status === 'success') return 'text-green-500'
-  if (status === 'failed' || status === 'timed out') return 'text-red-500'
-  if (status === 'running') return 'text-blue-500'
+  if (status === 'success')
+    return 'text-green-500'
+  if (status === 'failed' || status === 'timed out')
+    return 'text-red-500'
+  if (status === 'running')
+    return 'text-blue-500'
   return 'text-muted-foreground'
 }
 
-function configSummary(config: Record<string, unknown>): Array<{ label: string; value: string }> {
-  const items: Array<{ label: string; value: string }> = []
-  if (config.oem_ids) items.push({ label: 'OEMs', value: (config.oem_ids as string[]).join(', ') })
-  if (config.pilot_oems) items.push({ label: 'Pilot OEMs', value: (config.pilot_oems as string[]).join(', ') })
-  if (config.max_concurrent) items.push({ label: 'Concurrency', value: String(config.max_concurrent) })
-  if (config.action) items.push({ label: 'Action', value: String(config.action) })
-  if (config.max_models_per_run) items.push({ label: 'Max models', value: String(config.max_models_per_run) })
-  if (config.batch_size) items.push({ label: 'Batch', value: String(config.batch_size) })
+function configSummary(config: Record<string, unknown>): Array<{ label: string, value: string }> {
+  const items: Array<{ label: string, value: string }> = []
+  if (config.oem_ids)
+    items.push({ label: 'OEMs', value: (config.oem_ids as string[]).join(', ') })
+  if (config.pilot_oems)
+    items.push({ label: 'Pilot OEMs', value: (config.pilot_oems as string[]).join(', ') })
+  if (config.max_concurrent)
+    items.push({ label: 'Concurrency', value: String(config.max_concurrent) })
+  if (config.action)
+    items.push({ label: 'Action', value: String(config.action) })
+  if (config.max_models_per_run)
+    items.push({ label: 'Max models', value: String(config.max_models_per_run) })
+  if (config.batch_size)
+    items.push({ label: 'Batch', value: String(config.batch_size) })
   return items.slice(0, 3)
 }
 
 const enabledJobs = computed(() => jobs.value.filter(j => j.enabled))
 const disabledJobs = computed(() => jobs.value.filter(j => !j.enabled))
 const selectedJobData = computed(() => {
-  if (!selectedJob.value) return null
+  if (!selectedJob.value)
+    return null
   return jobs.value.find(j => j.id === selectedJob.value)
     || cloudflareTriggers.value.find(t => t.id === selectedJob.value)
 })
 const selectedJobHistory = computed(() => {
-  if (!selectedJob.value) return []
+  if (!selectedJob.value)
+    return []
   return runHistory.value[selectedJob.value] || []
 })
 </script>
@@ -168,8 +196,8 @@ const selectedJobHistory = computed(() => {
           <span class="size-1.5 rounded-full bg-green-500 animate-pulse" />
           Auto-refreshing
         </span>
-        <UiButton size="sm" variant="outline" @click="handleRefresh" :disabled="loading">
-          <RefreshCw :class="['size-3.5 mr-1.5', loading ? 'animate-spin' : '']" />
+        <UiButton size="sm" variant="outline" :disabled="loading" @click="handleRefresh">
+          <RefreshCw class="size-3.5 mr-1.5" :class="[loading ? 'animate-spin' : '']" />
           Refresh
         </UiButton>
       </div>
@@ -182,21 +210,29 @@ const selectedJobHistory = computed(() => {
     <div v-else-if="error" class="flex items-center justify-center h-64">
       <div class="text-center">
         <AlertCircle class="size-12 text-red-500 mx-auto mb-4" />
-        <p class="text-red-500">{{ error }}</p>
+        <p class="text-red-500">
+          {{ error }}
+        </p>
       </div>
     </div>
 
     <template v-else>
       <!-- Enabled Jobs -->
       <div v-if="enabledJobs.length > 0">
-        <h2 class="text-lg font-semibold mb-4">Active Jobs ({{ enabledJobs.length }})</h2>
+        <h2 class="text-lg font-semibold mb-4">
+          Active Jobs ({{ enabledJobs.length }})
+        </h2>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
           <UiCard v-for="job in enabledJobs" :key="job.id" class="relative">
             <UiCardHeader class="pb-3">
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0">
-                  <UiCardTitle class="text-base">{{ job.name }}</UiCardTitle>
-                  <p class="text-xs text-muted-foreground mt-1">{{ job.description }}</p>
+                  <UiCardTitle class="text-base">
+                    {{ job.name }}
+                  </UiCardTitle>
+                  <p class="text-xs text-muted-foreground mt-1">
+                    {{ job.description }}
+                  </p>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0 ml-2">
                   <UiSwitch
@@ -228,10 +264,9 @@ const selectedJobHistory = computed(() => {
               <div v-if="job.lastRun" class="flex items-center text-sm">
                 <component
                   :is="effectiveStatus(job.lastRun) === 'success' ? CheckCircle2 : effectiveStatus(job.lastRun) === 'running' ? Loader2 : XCircle"
-                  :class="[
-                    'size-4 mr-2',
+                  class="size-4 mr-2" :class="[
                     statusColor(effectiveStatus(job.lastRun)),
-                    effectiveStatus(job.lastRun) === 'running' ? 'animate-spin' : ''
+                    effectiveStatus(job.lastRun) === 'running' ? 'animate-spin' : '',
                   ]"
                 />
                 <span :class="statusColor(effectiveStatus(job.lastRun))">
@@ -267,7 +302,7 @@ const selectedJobHistory = computed(() => {
               >
                 <Settings2 class="size-3" />
                 Config
-                <ChevronDown :class="['size-3 transition-transform', expandedConfigs.has(job.id) ? 'rotate-180' : '']" />
+                <ChevronDown class="size-3 transition-transform" :class="[expandedConfigs.has(job.id) ? 'rotate-180' : '']" />
               </button>
               <pre
                 v-if="expandedConfigs.has(job.id)"
@@ -302,22 +337,28 @@ const selectedJobHistory = computed(() => {
 
       <!-- Disabled Jobs -->
       <div v-if="disabledJobs.length > 0">
-        <h2 class="text-lg font-semibold mb-4 text-muted-foreground">Disabled Jobs ({{ disabledJobs.length }})</h2>
+        <h2 class="text-lg font-semibold mb-4 text-muted-foreground">
+          Disabled Jobs ({{ disabledJobs.length }})
+        </h2>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <UiCard v-for="job in disabledJobs" :key="job.id" class="opacity-60">
             <UiCardHeader class="pb-2">
               <div class="flex items-start justify-between">
-                <UiCardTitle class="text-sm">{{ job.name }}</UiCardTitle>
+                <UiCardTitle class="text-sm">
+                  {{ job.name }}
+                </UiCardTitle>
                 <UiSwitch
                   :model-value="job.enabled"
                   :disabled="toggling.has(job.id)"
-                  @update:model-value="(val: boolean) => handleToggleJob(job.id, val)"
                   class="flex-shrink-0 ml-2"
+                  @update:model-value="(val: boolean) => handleToggleJob(job.id, val)"
                 />
               </div>
             </UiCardHeader>
             <UiCardContent>
-              <p class="text-xs text-muted-foreground">{{ job.description }}</p>
+              <p class="text-xs text-muted-foreground">
+                {{ job.description }}
+              </p>
               <div class="flex items-center text-xs text-muted-foreground mt-2">
                 <Clock class="size-3 mr-1" />
                 {{ formatSchedule(job.schedule) }}
@@ -340,12 +381,16 @@ const selectedJobHistory = computed(() => {
           <UiCard v-for="trigger in cloudflareTriggers" :key="trigger.id">
             <UiCardHeader class="pb-2">
               <div class="flex items-start justify-between">
-                <UiCardTitle class="text-sm">{{ trigger.name }}</UiCardTitle>
+                <UiCardTitle class="text-sm">
+                  {{ trigger.name }}
+                </UiCardTitle>
                 <component :is="getCfIcon(trigger)" class="size-4 text-orange-500 flex-shrink-0 ml-2" />
               </div>
             </UiCardHeader>
             <UiCardContent class="space-y-2">
-              <p class="text-xs text-muted-foreground">{{ trigger.description }}</p>
+              <p class="text-xs text-muted-foreground">
+                {{ trigger.description }}
+              </p>
 
               <!-- Schedule -->
               <UiTooltipProvider>
@@ -366,10 +411,9 @@ const selectedJobHistory = computed(() => {
               <div v-if="trigger.lastRun" class="flex items-center text-xs">
                 <component
                   :is="effectiveStatus(trigger.lastRun) === 'success' ? CheckCircle2 : effectiveStatus(trigger.lastRun) === 'running' ? Loader2 : XCircle"
-                  :class="[
-                    'size-3 mr-1',
+                  class="size-3 mr-1" :class="[
                     statusColor(effectiveStatus(trigger.lastRun)),
-                    effectiveStatus(trigger.lastRun) === 'running' ? 'animate-spin' : ''
+                    effectiveStatus(trigger.lastRun) === 'running' ? 'animate-spin' : '',
                   ]"
                 />
                 <span :class="statusColor(effectiveStatus(trigger.lastRun))">
@@ -412,8 +456,12 @@ const selectedJobHistory = computed(() => {
           <div class="p-6 border-b">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-lg font-semibold">{{ selectedJobData.name }}</h3>
-                <p class="text-sm text-muted-foreground">Run History ({{ selectedJobHistory.length }} runs)</p>
+                <h3 class="text-lg font-semibold">
+                  {{ selectedJobData.name }}
+                </h3>
+                <p class="text-sm text-muted-foreground">
+                  Run History ({{ selectedJobHistory.length }} runs)
+                </p>
               </div>
               <UiButton variant="ghost" size="sm" @click="closeHistory">
                 Close
@@ -452,7 +500,7 @@ const selectedJobHistory = computed(() => {
                   <div class="flex items-center gap-2">
                     <component
                       :is="effectiveStatus(run) === 'success' ? CheckCircle2 : effectiveStatus(run) === 'running' ? Loader2 : XCircle"
-                      :class="['size-4', statusColor(effectiveStatus(run))]"
+                      class="size-4" :class="[statusColor(effectiveStatus(run))]"
                     />
                     <span class="font-medium capitalize" :class="statusColor(effectiveStatus(run))">
                       {{ effectiveStatus(run) }}

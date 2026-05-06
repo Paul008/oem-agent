@@ -1,15 +1,13 @@
 <script lang="ts" setup>
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowRightLeft, ImageIcon, ImageOff, Loader2, Plus, RefreshCw, Trash2, X } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
-import { RefreshCw, Trash2, Loader2, Plus, X, ImageOff, ImageIcon, ArrowRightLeft, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-vue-next'
-import MediaUploadButton from './MediaUploadButton.vue'
-import MediaLibraryDialog from './MediaLibraryDialog.vue'
-import { getConvertibleTypes } from './section-converter'
-import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
 
-const brokenImages = ref(new Set<string>())
-function onImgError(url: string) {
-  brokenImages.value.add(url)
-}
+import type { PageSectionType } from './section-templates'
+
+import MediaLibraryDialog from './MediaLibraryDialog.vue'
+import MediaUploadButton from './MediaUploadButton.vue'
+import { getConvertibleTypes } from './section-converter'
+import { SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
   section: any
@@ -17,13 +15,16 @@ const props = defineProps<{
   oemId: string
   modelSlug: string
 }>()
-
 const emit = defineEmits<{
-  regenerate: []
-  delete: []
-  convert: [targetType: string]
+  'regenerate': []
+  'delete': []
+  'convert': [targetType: string]
   'update:section': [updates: Record<string, any>]
 }>()
+const brokenImages = ref(new Set<string>())
+function onImgError(url: string) {
+  brokenImages.value.add(url)
+}
 
 const convertibleTypes = computed(() => {
   return getConvertibleTypes(props.section?.type as PageSectionType)
@@ -76,7 +77,9 @@ function onMediaLibrarySelect(url: string) {
 
 <template>
   <div class="space-y-4">
-    <h3 class="text-sm font-semibold">Section Editor</h3>
+    <h3 class="text-sm font-semibold">
+      Section Editor
+    </h3>
 
     <!-- Type & ID (read-only) -->
     <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
@@ -116,15 +119,33 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="none">None</UiSelectItem>
-              <UiSelectItem value="fade-up">Fade Up</UiSelectItem>
-              <UiSelectItem value="fade-in">Fade In</UiSelectItem>
-              <UiSelectItem value="slide-left">Slide from Left</UiSelectItem>
-              <UiSelectItem value="slide-right">Slide from Right</UiSelectItem>
-              <UiSelectItem value="scale-in">Scale In</UiSelectItem>
-              <UiSelectItem value="parallax">Parallax (images)</UiSelectItem>
-              <UiSelectItem value="stagger-children">Stagger Children</UiSelectItem>
-              <UiSelectItem value="count-up">Count Up (numbers)</UiSelectItem>
+              <UiSelectItem value="none">
+                None
+              </UiSelectItem>
+              <UiSelectItem value="fade-up">
+                Fade Up
+              </UiSelectItem>
+              <UiSelectItem value="fade-in">
+                Fade In
+              </UiSelectItem>
+              <UiSelectItem value="slide-left">
+                Slide from Left
+              </UiSelectItem>
+              <UiSelectItem value="slide-right">
+                Slide from Right
+              </UiSelectItem>
+              <UiSelectItem value="scale-in">
+                Scale In
+              </UiSelectItem>
+              <UiSelectItem value="parallax">
+                Parallax (images)
+              </UiSelectItem>
+              <UiSelectItem value="stagger-children">
+                Stagger Children
+              </UiSelectItem>
+              <UiSelectItem value="count-up">
+                Count Up (numbers)
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -175,8 +196,8 @@ function onMediaLibrarySelect(url: string) {
               max="48"
               step="2"
               class="flex-1"
-              @input="update('border_radius', ($event.target as HTMLInputElement).value + 'px')"
-            />
+              @input="update('border_radius', `${($event.target as HTMLInputElement).value}px`)"
+            >
             <UiInput
               :model-value="section.border_radius || ''"
               class="h-7 text-xs w-20"
@@ -193,7 +214,9 @@ function onMediaLibrarySelect(url: string) {
 
         <!-- Spacing -->
         <div class="border-t pt-2">
-          <p class="text-[10px] text-muted-foreground mb-1.5 font-medium">Spacing</p>
+          <p class="text-[10px] text-muted-foreground mb-1.5 font-medium">
+            Spacing
+          </p>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-[10px] text-muted-foreground">Padding Top</label>
@@ -238,29 +261,59 @@ function onMediaLibrarySelect(url: string) {
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Heading Size</label>
             <UiSelect :model-value="section.heading_size || '3xl'" @update:model-value="update('heading_size', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="lg">Large</UiSelectItem>
-                <UiSelectItem value="xl">XL</UiSelectItem>
-                <UiSelectItem value="2xl">2XL</UiSelectItem>
-                <UiSelectItem value="3xl">3XL</UiSelectItem>
-                <UiSelectItem value="4xl">4XL</UiSelectItem>
-                <UiSelectItem value="5xl">5XL</UiSelectItem>
-                <UiSelectItem value="6xl">6XL</UiSelectItem>
+                <UiSelectItem value="lg">
+                  Large
+                </UiSelectItem>
+                <UiSelectItem value="xl">
+                  XL
+                </UiSelectItem>
+                <UiSelectItem value="2xl">
+                  2XL
+                </UiSelectItem>
+                <UiSelectItem value="3xl">
+                  3XL
+                </UiSelectItem>
+                <UiSelectItem value="4xl">
+                  4XL
+                </UiSelectItem>
+                <UiSelectItem value="5xl">
+                  5XL
+                </UiSelectItem>
+                <UiSelectItem value="6xl">
+                  6XL
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Heading Weight</label>
             <UiSelect :model-value="section.heading_weight || 'bold'" @update:model-value="update('heading_weight', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="light">Light</UiSelectItem>
-                <UiSelectItem value="normal">Normal</UiSelectItem>
-                <UiSelectItem value="medium">Medium</UiSelectItem>
-                <UiSelectItem value="semibold">Semibold</UiSelectItem>
-                <UiSelectItem value="bold">Bold</UiSelectItem>
-                <UiSelectItem value="extrabold">Extra Bold</UiSelectItem>
+                <UiSelectItem value="light">
+                  Light
+                </UiSelectItem>
+                <UiSelectItem value="normal">
+                  Normal
+                </UiSelectItem>
+                <UiSelectItem value="medium">
+                  Medium
+                </UiSelectItem>
+                <UiSelectItem value="semibold">
+                  Semibold
+                </UiSelectItem>
+                <UiSelectItem value="bold">
+                  Bold
+                </UiSelectItem>
+                <UiSelectItem value="extrabold">
+                  Extra Bold
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
@@ -275,27 +328,53 @@ function onMediaLibrarySelect(url: string) {
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Sub Size</label>
             <UiSelect :model-value="section.sub_heading_size || 'lg'" @update:model-value="update('sub_heading_size', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="sm">Small</UiSelectItem>
-                <UiSelectItem value="base">Base</UiSelectItem>
-                <UiSelectItem value="lg">Large</UiSelectItem>
-                <UiSelectItem value="xl">XL</UiSelectItem>
-                <UiSelectItem value="2xl">2XL</UiSelectItem>
-                <UiSelectItem value="3xl">3XL</UiSelectItem>
+                <UiSelectItem value="sm">
+                  Small
+                </UiSelectItem>
+                <UiSelectItem value="base">
+                  Base
+                </UiSelectItem>
+                <UiSelectItem value="lg">
+                  Large
+                </UiSelectItem>
+                <UiSelectItem value="xl">
+                  XL
+                </UiSelectItem>
+                <UiSelectItem value="2xl">
+                  2XL
+                </UiSelectItem>
+                <UiSelectItem value="3xl">
+                  3XL
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Sub Weight</label>
             <UiSelect :model-value="section.sub_heading_weight || 'normal'" @update:model-value="update('sub_heading_weight', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="light">Light</UiSelectItem>
-                <UiSelectItem value="normal">Normal</UiSelectItem>
-                <UiSelectItem value="medium">Medium</UiSelectItem>
-                <UiSelectItem value="semibold">Semibold</UiSelectItem>
-                <UiSelectItem value="bold">Bold</UiSelectItem>
+                <UiSelectItem value="light">
+                  Light
+                </UiSelectItem>
+                <UiSelectItem value="normal">
+                  Normal
+                </UiSelectItem>
+                <UiSelectItem value="medium">
+                  Medium
+                </UiSelectItem>
+                <UiSelectItem value="semibold">
+                  Semibold
+                </UiSelectItem>
+                <UiSelectItem value="bold">
+                  Bold
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
@@ -314,7 +393,7 @@ function onMediaLibrarySelect(url: string) {
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Text Colour</label>
             <div class="flex gap-1 items-center">
-              <input type="color" :value="section.text_color || '#ffffff'" class="h-7 w-7 rounded border cursor-pointer" @input="update('text_color', ($event.target as HTMLInputElement).value)" />
+              <input type="color" :value="section.text_color || '#ffffff'" class="h-7 w-7 rounded border cursor-pointer" @input="update('text_color', ($event.target as HTMLInputElement).value)">
               <UiInput :model-value="section.text_color || '#ffffff'" class="h-7 text-xs flex-1" @update:model-value="update('text_color', $event)" />
             </div>
           </div>
@@ -324,14 +403,28 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-[10px] text-muted-foreground mb-0.5 block">Text Position</label>
           <UiSelect :model-value="section.overlay_position || 'bottom-left'" @update:model-value="update('overlay_position', $event)">
-            <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-7 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="top-left">Top Left</UiSelectItem>
-              <UiSelectItem value="top-center">Top Centre</UiSelectItem>
-              <UiSelectItem value="center">Centre</UiSelectItem>
-              <UiSelectItem value="bottom-left">Bottom Left</UiSelectItem>
-              <UiSelectItem value="bottom-center">Bottom Centre</UiSelectItem>
-              <UiSelectItem value="bottom-right">Bottom Right</UiSelectItem>
+              <UiSelectItem value="top-left">
+                Top Left
+              </UiSelectItem>
+              <UiSelectItem value="top-center">
+                Top Centre
+              </UiSelectItem>
+              <UiSelectItem value="center">
+                Centre
+              </UiSelectItem>
+              <UiSelectItem value="bottom-left">
+                Bottom Left
+              </UiSelectItem>
+              <UiSelectItem value="bottom-center">
+                Bottom Centre
+              </UiSelectItem>
+              <UiSelectItem value="bottom-right">
+                Bottom Right
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -351,26 +444,30 @@ function onMediaLibrarySelect(url: string) {
           <label class="text-xs text-muted-foreground mb-1 block">Desktop Image</label>
           <div v-if="section.desktop_image_url && !brokenImages.has(section.desktop_image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.desktop_image_url" target="_blank" class="block">
-              <img :src="section.desktop_image_url" alt="Desktop hero" class="w-full h-20 object-cover" @error="onImgError(section.desktop_image_url)" />
+              <img :src="section.desktop_image_url" alt="Desktop hero" class="w-full h-20 object-cover" @error="onImgError(section.desktop_image_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.desktop_image_url || ''" class="h-8 text-xs" @update:model-value="update('desktop_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('desktop_image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('desktop_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('desktop_image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Mobile Image</label>
           <div v-if="section.mobile_image_url && !brokenImages.has(section.mobile_image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.mobile_image_url" target="_blank" class="block">
-              <img :src="section.mobile_image_url" alt="Mobile hero" class="w-full h-20 object-cover" @error="onImgError(section.mobile_image_url)" />
+              <img :src="section.mobile_image_url" alt="Mobile hero" class="w-full h-20 object-cover" @error="onImgError(section.mobile_image_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.mobile_image_url || ''" class="h-8 text-xs" @update:model-value="update('mobile_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('mobile_image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('mobile_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('mobile_image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
@@ -378,7 +475,9 @@ function onMediaLibrarySelect(url: string) {
           <div class="flex gap-1">
             <UiInput :model-value="section.video_url || ''" class="h-8 text-xs" @update:model-value="update('video_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" accept="video/mp4,video/webm" @uploaded="onMediaUploaded('video_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
 
@@ -387,11 +486,11 @@ function onMediaLibrarySelect(url: string) {
         <!-- Image Display Options -->
         <div class="space-y-2">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="rounded" :checked="section.show_overlay !== false" @change="update('show_overlay', ($event.target as HTMLInputElement).checked)" />
+            <input type="checkbox" class="rounded" :checked="section.show_overlay !== false" @change="update('show_overlay', ($event.target as HTMLInputElement).checked)">
             <span class="text-xs">Gradient overlay</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="rounded" :checked="section.full_width_image === true" @change="update('full_width_image', ($event.target as HTMLInputElement).checked)" />
+            <input type="checkbox" class="rounded" :checked="section.full_width_image === true" @change="update('full_width_image', ($event.target as HTMLInputElement).checked)">
             <span class="text-xs">Full-width image (no crop)</span>
           </label>
         </div>
@@ -410,42 +509,84 @@ function onMediaLibrarySelect(url: string) {
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Tag</label>
             <UiSelect :model-value="section.heading_tag || 'h2'" @update:model-value="update('heading_tag', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="h1">H1</UiSelectItem>
-                <UiSelectItem value="h2">H2</UiSelectItem>
-                <UiSelectItem value="h3">H3</UiSelectItem>
-                <UiSelectItem value="h4">H4</UiSelectItem>
-                <UiSelectItem value="h5">H5</UiSelectItem>
+                <UiSelectItem value="h1">
+                  H1
+                </UiSelectItem>
+                <UiSelectItem value="h2">
+                  H2
+                </UiSelectItem>
+                <UiSelectItem value="h3">
+                  H3
+                </UiSelectItem>
+                <UiSelectItem value="h4">
+                  H4
+                </UiSelectItem>
+                <UiSelectItem value="h5">
+                  H5
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Size</label>
             <UiSelect :model-value="section.heading_size || '3xl'" @update:model-value="update('heading_size', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="lg">Large</UiSelectItem>
-                <UiSelectItem value="xl">XL</UiSelectItem>
-                <UiSelectItem value="2xl">2XL</UiSelectItem>
-                <UiSelectItem value="3xl">3XL</UiSelectItem>
-                <UiSelectItem value="4xl">4XL</UiSelectItem>
-                <UiSelectItem value="5xl">5XL</UiSelectItem>
-                <UiSelectItem value="6xl">6XL</UiSelectItem>
+                <UiSelectItem value="lg">
+                  Large
+                </UiSelectItem>
+                <UiSelectItem value="xl">
+                  XL
+                </UiSelectItem>
+                <UiSelectItem value="2xl">
+                  2XL
+                </UiSelectItem>
+                <UiSelectItem value="3xl">
+                  3XL
+                </UiSelectItem>
+                <UiSelectItem value="4xl">
+                  4XL
+                </UiSelectItem>
+                <UiSelectItem value="5xl">
+                  5XL
+                </UiSelectItem>
+                <UiSelectItem value="6xl">
+                  6XL
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Weight</label>
             <UiSelect :model-value="section.heading_weight || 'bold'" @update:model-value="update('heading_weight', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="light">Light</UiSelectItem>
-                <UiSelectItem value="normal">Normal</UiSelectItem>
-                <UiSelectItem value="medium">Medium</UiSelectItem>
-                <UiSelectItem value="semibold">Semibold</UiSelectItem>
-                <UiSelectItem value="bold">Bold</UiSelectItem>
-                <UiSelectItem value="extrabold">Extra Bold</UiSelectItem>
+                <UiSelectItem value="light">
+                  Light
+                </UiSelectItem>
+                <UiSelectItem value="normal">
+                  Normal
+                </UiSelectItem>
+                <UiSelectItem value="medium">
+                  Medium
+                </UiSelectItem>
+                <UiSelectItem value="semibold">
+                  Semibold
+                </UiSelectItem>
+                <UiSelectItem value="bold">
+                  Bold
+                </UiSelectItem>
+                <UiSelectItem value="extrabold">
+                  Extra Bold
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
@@ -462,26 +603,50 @@ function onMediaLibrarySelect(url: string) {
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Sub Size</label>
             <UiSelect :model-value="section.sub_heading_size || 'lg'" @update:model-value="update('sub_heading_size', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="sm">Small</UiSelectItem>
-                <UiSelectItem value="base">Base</UiSelectItem>
-                <UiSelectItem value="lg">Large</UiSelectItem>
-                <UiSelectItem value="xl">XL</UiSelectItem>
-                <UiSelectItem value="2xl">2XL</UiSelectItem>
+                <UiSelectItem value="sm">
+                  Small
+                </UiSelectItem>
+                <UiSelectItem value="base">
+                  Base
+                </UiSelectItem>
+                <UiSelectItem value="lg">
+                  Large
+                </UiSelectItem>
+                <UiSelectItem value="xl">
+                  XL
+                </UiSelectItem>
+                <UiSelectItem value="2xl">
+                  2XL
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Sub Weight</label>
             <UiSelect :model-value="section.sub_heading_weight || 'normal'" @update:model-value="update('sub_heading_weight', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="light">Light</UiSelectItem>
-                <UiSelectItem value="normal">Normal</UiSelectItem>
-                <UiSelectItem value="medium">Medium</UiSelectItem>
-                <UiSelectItem value="semibold">Semibold</UiSelectItem>
-                <UiSelectItem value="bold">Bold</UiSelectItem>
+                <UiSelectItem value="light">
+                  Light
+                </UiSelectItem>
+                <UiSelectItem value="normal">
+                  Normal
+                </UiSelectItem>
+                <UiSelectItem value="medium">
+                  Medium
+                </UiSelectItem>
+                <UiSelectItem value="semibold">
+                  Semibold
+                </UiSelectItem>
+                <UiSelectItem value="bold">
+                  Bold
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
@@ -501,16 +666,34 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-[10px] text-muted-foreground mb-0.5 block">Line Gap (heading → subheading)</label>
           <UiSelect :model-value="section.line_gap || '8'" @update:model-value="update('line_gap', $event)">
-            <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-7 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="0">None</UiSelectItem>
-              <UiSelectItem value="2">Tight (2px)</UiSelectItem>
-              <UiSelectItem value="4">Small (4px)</UiSelectItem>
-              <UiSelectItem value="8">Default (8px)</UiSelectItem>
-              <UiSelectItem value="12">Medium (12px)</UiSelectItem>
-              <UiSelectItem value="16">Large (16px)</UiSelectItem>
-              <UiSelectItem value="24">XL (24px)</UiSelectItem>
-              <UiSelectItem value="32">2XL (32px)</UiSelectItem>
+              <UiSelectItem value="0">
+                None
+              </UiSelectItem>
+              <UiSelectItem value="2">
+                Tight (2px)
+              </UiSelectItem>
+              <UiSelectItem value="4">
+                Small (4px)
+              </UiSelectItem>
+              <UiSelectItem value="8">
+                Default (8px)
+              </UiSelectItem>
+              <UiSelectItem value="12">
+                Medium (12px)
+              </UiSelectItem>
+              <UiSelectItem value="16">
+                Large (16px)
+              </UiSelectItem>
+              <UiSelectItem value="24">
+                XL (24px)
+              </UiSelectItem>
+              <UiSelectItem value="32">
+                2XL (32px)
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -518,14 +701,14 @@ function onMediaLibrarySelect(url: string) {
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Text Colour</label>
             <div class="flex gap-1 items-center">
-              <input type="color" :value="section.text_color || '#000000'" class="h-7 w-7 rounded border cursor-pointer" @input="update('text_color', ($event.target as HTMLInputElement).value)" />
+              <input type="color" :value="section.text_color || '#000000'" class="h-7 w-7 rounded border cursor-pointer" @input="update('text_color', ($event.target as HTMLInputElement).value)">
               <UiInput :model-value="section.text_color || ''" class="h-7 text-xs flex-1" placeholder="inherit" @update:model-value="update('text_color', $event)" />
             </div>
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-0.5 block">Background</label>
             <div class="flex gap-1 items-center">
-              <input type="color" :value="section.background_color || '#ffffff'" class="h-7 w-7 rounded border cursor-pointer" @input="update('background_color', ($event.target as HTMLInputElement).value)" />
+              <input type="color" :value="section.background_color || '#ffffff'" class="h-7 w-7 rounded border cursor-pointer" @input="update('background_color', ($event.target as HTMLInputElement).value)">
               <UiInput :model-value="section.background_color || ''" class="h-7 text-xs flex-1" placeholder="none" @update:model-value="update('background_color', $event)" />
             </div>
           </div>
@@ -551,8 +734,12 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="left">Left</UiSelectItem>
-              <UiSelectItem value="right">Right</UiSelectItem>
+              <UiSelectItem value="left">
+                Left
+              </UiSelectItem>
+              <UiSelectItem value="right">
+                Right
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -560,13 +747,15 @@ function onMediaLibrarySelect(url: string) {
           <label class="text-xs text-muted-foreground mb-1 block">Image</label>
           <div v-if="section.image_url && !brokenImages.has(section.image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.image_url" target="_blank" class="block">
-              <img :src="section.image_url" alt="Intro image" class="w-full h-20 object-cover" @error="onImgError(section.image_url)" />
+              <img :src="section.image_url" alt="Intro image" class="w-full h-20 object-cover" @error="onImgError(section.image_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.image_url || ''" class="h-8 text-xs" @update:model-value="update('image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
       </div>
@@ -583,8 +772,12 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="default">Default Tab Bar</UiSelectItem>
-              <UiSelectItem value="kia-feature-bullets">Kia Feature Bullets</UiSelectItem>
+              <UiSelectItem value="default">
+                Default Tab Bar
+              </UiSelectItem>
+              <UiSelectItem value="kia-feature-bullets">
+                Kia Feature Bullets
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -597,8 +790,12 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="light">Light</UiSelectItem>
-              <UiSelectItem value="dark">Dark</UiSelectItem>
+              <UiSelectItem value="light">
+                Light
+              </UiSelectItem>
+              <UiSelectItem value="dark">
+                Dark
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -611,8 +808,12 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="left">Left</UiSelectItem>
-              <UiSelectItem value="right">Right</UiSelectItem>
+              <UiSelectItem value="left">
+                Left
+              </UiSelectItem>
+              <UiSelectItem value="right">
+                Right
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -652,7 +853,7 @@ function onMediaLibrarySelect(url: string) {
                   :alt="tab.label || 'Tab image'"
                   class="w-full h-16 object-cover"
                   @error="onImgError(tab.image_url)"
-                />
+                >
               </a>
             </div>
             <div v-else-if="tab.image_url && brokenImages.has(tab.image_url)" class="flex items-center gap-1.5 rounded bg-muted px-2 py-1">
@@ -662,7 +863,9 @@ function onMediaLibrarySelect(url: string) {
             <div class="flex gap-1">
               <UiInput :model-value="tab.image_url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('tabs', i, 'image_url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('tabs', i, 'image_url', $event)" />
-              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('tabs', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('tabs', i, 'image_url', url))">
+                <ImageIcon class="size-3.5" />
+              </UiButton>
             </div>
             <!-- Disclaimer fields only for kia-feature-bullets -->
             <template v-if="section.variant === 'kia-feature-bullets'">
@@ -688,16 +891,30 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="1">Position 1 — Front (0°)</UiSelectItem>
-              <UiSelectItem value="2">Position 2 — 60°</UiSelectItem>
-              <UiSelectItem value="3">Position 3 — 120°</UiSelectItem>
-              <UiSelectItem value="4">Position 4 — Rear (180°)</UiSelectItem>
-              <UiSelectItem value="5">Position 5 — 240°</UiSelectItem>
-              <UiSelectItem value="6">Position 6 — 300°</UiSelectItem>
+              <UiSelectItem value="1">
+                Position 1 — Front (0°)
+              </UiSelectItem>
+              <UiSelectItem value="2">
+                Position 2 — 60°
+              </UiSelectItem>
+              <UiSelectItem value="3">
+                Position 3 — 120°
+              </UiSelectItem>
+              <UiSelectItem value="4">
+                Position 4 — Rear (180°)
+              </UiSelectItem>
+              <UiSelectItem value="5">
+                Position 5 — 240°
+              </UiSelectItem>
+              <UiSelectItem value="6">
+                Position 6 — 300°
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
-        <p class="text-xs text-muted-foreground">Colours loaded from database for this model.</p>
+        <p class="text-xs text-muted-foreground">
+          Colours loaded from database for this model.
+        </p>
       </div>
     </template>
 
@@ -730,8 +947,12 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="carousel">Carousel</UiSelectItem>
-              <UiSelectItem value="grid">Grid</UiSelectItem>
+              <UiSelectItem value="carousel">
+                Carousel
+              </UiSelectItem>
+              <UiSelectItem value="grid">
+                Grid
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -745,13 +966,15 @@ function onMediaLibrarySelect(url: string) {
           <div v-for="(img, i) in (section.images || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
             <div v-if="img.url && !brokenImages.has(img.url)" class="relative rounded overflow-hidden bg-muted">
               <a :href="img.url" target="_blank" class="block">
-                <img :src="img.url" :alt="img.caption || 'Gallery image'" class="w-full h-16 object-cover" @error="onImgError(img.url)" />
+                <img :src="img.url" :alt="img.caption || 'Gallery image'" class="w-full h-16 object-cover" @error="onImgError(img.url)">
               </a>
             </div>
             <div class="flex items-center gap-1">
               <UiInput :model-value="img.url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('images', i, 'url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('images', i, 'url', $event)" />
-              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('images', i, 'url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('images', i, 'url', url))">
+                <ImageIcon class="size-3.5" />
+              </UiButton>
               <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('images', i)">
                 <X class="size-3.5" />
               </button>
@@ -777,9 +1000,15 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="2">2</UiSelectItem>
-              <UiSelectItem value="3">3</UiSelectItem>
-              <UiSelectItem value="4">4</UiSelectItem>
+              <UiSelectItem value="2">
+                2
+              </UiSelectItem>
+              <UiSelectItem value="3">
+                3
+              </UiSelectItem>
+              <UiSelectItem value="4">
+                4
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -790,8 +1019,12 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="default">Default</UiSelectItem>
-              <UiSelectItem value="overlay">Image Overlay</UiSelectItem>
+              <UiSelectItem value="default">
+                Default
+              </UiSelectItem>
+              <UiSelectItem value="overlay">
+                Image Overlay
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -812,13 +1045,15 @@ function onMediaLibrarySelect(url: string) {
             <UiTextarea :model-value="card.description || ''" class="text-xs min-h-12" placeholder="Description" @update:model-value="updateNested('cards', i, 'description', $event)" />
             <div v-if="card.image_url && !brokenImages.has(card.image_url)" class="relative rounded overflow-hidden bg-muted">
               <a :href="card.image_url" target="_blank" class="block">
-                <img :src="card.image_url" :alt="card.title || 'Card image'" class="w-full h-16 object-cover" @error="onImgError(card.image_url)" />
+                <img :src="card.image_url" :alt="card.title || 'Card image'" class="w-full h-16 object-cover" @error="onImgError(card.image_url)">
               </a>
             </div>
             <div class="flex gap-1">
               <UiInput :model-value="card.image_url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('cards', i, 'image_url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('cards', i, 'image_url', $event)" />
-              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('cards', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('cards', i, 'image_url', url))">
+                <ImageIcon class="size-3.5" />
+              </UiButton>
             </div>
             <div class="flex gap-1">
               <UiInput :model-value="card.cta_text || ''" class="h-7 text-xs flex-[2]" placeholder="CTA text" @update:model-value="updateNested('cards', i, 'cta_text', $event)" />
@@ -837,26 +1072,30 @@ function onMediaLibrarySelect(url: string) {
           <label class="text-xs text-muted-foreground mb-1 block">Desktop Image</label>
           <div v-if="section.desktop_image_url && !brokenImages.has(section.desktop_image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.desktop_image_url" target="_blank" class="block">
-              <img :src="section.desktop_image_url" alt="Desktop image" class="w-full h-20 object-cover" @error="onImgError(section.desktop_image_url)" />
+              <img :src="section.desktop_image_url" alt="Desktop image" class="w-full h-20 object-cover" @error="onImgError(section.desktop_image_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.desktop_image_url || ''" class="h-8 text-xs" @update:model-value="update('desktop_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('desktop_image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('desktop_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('desktop_image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Mobile Image</label>
           <div v-if="section.mobile_image_url && !brokenImages.has(section.mobile_image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.mobile_image_url" target="_blank" class="block">
-              <img :src="section.mobile_image_url" alt="Mobile image" class="w-full h-20 object-cover" @error="onImgError(section.mobile_image_url)" />
+              <img :src="section.mobile_image_url" alt="Mobile image" class="w-full h-20 object-cover" @error="onImgError(section.mobile_image_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.mobile_image_url || ''" class="h-8 text-xs" @update:model-value="update('mobile_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('mobile_image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('mobile_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('mobile_image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
@@ -874,11 +1113,21 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="full-width">Full Width (edge-to-edge)</UiSelectItem>
-              <UiSelectItem value="contained">Contained</UiSelectItem>
-              <UiSelectItem value="center">Centred</UiSelectItem>
-              <UiSelectItem value="left">Left Aligned</UiSelectItem>
-              <UiSelectItem value="right">Right Aligned</UiSelectItem>
+              <UiSelectItem value="full-width">
+                Full Width (edge-to-edge)
+              </UiSelectItem>
+              <UiSelectItem value="contained">
+                Contained
+              </UiSelectItem>
+              <UiSelectItem value="center">
+                Centred
+              </UiSelectItem>
+              <UiSelectItem value="left">
+                Left Aligned
+              </UiSelectItem>
+              <UiSelectItem value="right">
+                Right Aligned
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -889,21 +1138,31 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="auto">Auto (natural)</UiSelectItem>
-              <UiSelectItem value="16:9">16:9 (Video)</UiSelectItem>
-              <UiSelectItem value="21:9">21:9 (Ultra-wide)</UiSelectItem>
-              <UiSelectItem value="4:3">4:3 (Classic)</UiSelectItem>
-              <UiSelectItem value="1:1">1:1 (Square)</UiSelectItem>
+              <UiSelectItem value="auto">
+                Auto (natural)
+              </UiSelectItem>
+              <UiSelectItem value="16:9">
+                16:9 (Video)
+              </UiSelectItem>
+              <UiSelectItem value="21:9">
+                21:9 (Ultra-wide)
+              </UiSelectItem>
+              <UiSelectItem value="4:3">
+                4:3 (Classic)
+              </UiSelectItem>
+              <UiSelectItem value="1:1">
+                1:1 (Square)
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
         <div class="flex items-center gap-4">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="rounded" :checked="section.rounded === true" @change="update('rounded', ($event.target as HTMLInputElement).checked)" />
+            <input type="checkbox" class="rounded" :checked="section.rounded === true" @change="update('rounded', ($event.target as HTMLInputElement).checked)">
             <span class="text-xs">Rounded corners</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="rounded" :checked="section.shadow === true" @change="update('shadow', ($event.target as HTMLInputElement).checked)" />
+            <input type="checkbox" class="rounded" :checked="section.shadow === true" @change="update('shadow', ($event.target as HTMLInputElement).checked)">
             <span class="text-xs">Shadow</span>
           </label>
         </div>
@@ -922,20 +1181,24 @@ function onMediaLibrarySelect(url: string) {
           <div class="flex gap-1">
             <UiInput :model-value="section.video_url || ''" class="h-8 text-xs" @update:model-value="update('video_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" accept="video/mp4,video/webm" @uploaded="onMediaUploaded('video_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('video_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Poster Image</label>
           <div v-if="section.poster_url && !brokenImages.has(section.poster_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.poster_url" target="_blank" class="block">
-              <img :src="section.poster_url" alt="Video poster" class="w-full h-20 object-cover" @error="onImgError(section.poster_url)" />
+              <img :src="section.poster_url" alt="Video poster" class="w-full h-20 object-cover" @error="onImgError(section.poster_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.poster_url || ''" class="h-8 text-xs" @update:model-value="update('poster_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('poster_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('poster_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('poster_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
@@ -945,9 +1208,15 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="contained">Contained</UiSelectItem>
-              <UiSelectItem value="wide">Wide</UiSelectItem>
-              <UiSelectItem value="full-width">Full Width</UiSelectItem>
+              <UiSelectItem value="contained">
+                Contained
+              </UiSelectItem>
+              <UiSelectItem value="wide">
+                Wide
+              </UiSelectItem>
+              <UiSelectItem value="full-width">
+                Full Width
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1009,20 +1278,34 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="contained">Contained</UiSelectItem>
-              <UiSelectItem value="full-width">Full Width</UiSelectItem>
-              <UiSelectItem value="two-column">Two Column</UiSelectItem>
+              <UiSelectItem value="contained">
+                Contained
+              </UiSelectItem>
+              <UiSelectItem value="full-width">
+                Full Width
+              </UiSelectItem>
+              <UiSelectItem value="two-column">
+                Two Column
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Columns</label>
           <UiSelect :model-value="String(section.columns || 1)" @update:model-value="update('columns', Number($event))">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="1">1 (default)</UiSelectItem>
-              <UiSelectItem value="2">2</UiSelectItem>
-              <UiSelectItem value="3">3</UiSelectItem>
+              <UiSelectItem value="1">
+                1 (default)
+              </UiSelectItem>
+              <UiSelectItem value="2">
+                2
+              </UiSelectItem>
+              <UiSelectItem value="3">
+                3
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1030,13 +1313,15 @@ function onMediaLibrarySelect(url: string) {
           <label class="text-xs text-muted-foreground mb-1 block">Image</label>
           <div v-if="section.image_url && !brokenImages.has(section.image_url)" class="relative rounded overflow-hidden bg-muted mb-1">
             <a :href="section.image_url" target="_blank" class="block">
-              <img :src="section.image_url" alt="Content image" class="w-full h-20 object-cover" @error="onImgError(section.image_url)" />
+              <img :src="section.image_url" alt="Content image" class="w-full h-20 object-cover" @error="onImgError(section.image_url)">
             </a>
           </div>
           <div class="flex gap-1">
             <UiInput :model-value="section.image_url || ''" class="h-8 text-xs" @update:model-value="update('image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
         <div>
@@ -1095,9 +1380,15 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="contact">Contact</UiSelectItem>
-              <UiSelectItem value="test-drive">Test Drive</UiSelectItem>
-              <UiSelectItem value="service">Service</UiSelectItem>
+              <UiSelectItem value="contact">
+                Contact
+              </UiSelectItem>
+              <UiSelectItem value="test-drive">
+                Test Drive
+              </UiSelectItem>
+              <UiSelectItem value="service">
+                Service
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1144,10 +1435,18 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="info">Info</UiSelectItem>
-              <UiSelectItem value="warning">Warning</UiSelectItem>
-              <UiSelectItem value="success">Success</UiSelectItem>
-              <UiSelectItem value="destructive">Destructive</UiSelectItem>
+              <UiSelectItem value="info">
+                Info
+              </UiSelectItem>
+              <UiSelectItem value="warning">
+                Warning
+              </UiSelectItem>
+              <UiSelectItem value="success">
+                Success
+              </UiSelectItem>
+              <UiSelectItem value="destructive">
+                Destructive
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1168,9 +1467,15 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="line">Line</UiSelectItem>
-              <UiSelectItem value="space">Space</UiSelectItem>
-              <UiSelectItem value="dots">Dots</UiSelectItem>
+              <UiSelectItem value="line">
+                Line
+              </UiSelectItem>
+              <UiSelectItem value="space">
+                Space
+              </UiSelectItem>
+              <UiSelectItem value="dots">
+                Dots
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1181,9 +1486,15 @@ function onMediaLibrarySelect(url: string) {
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="sm">Small</UiSelectItem>
-              <UiSelectItem value="md">Medium</UiSelectItem>
-              <UiSelectItem value="lg">Large</UiSelectItem>
+              <UiSelectItem value="sm">
+                Small
+              </UiSelectItem>
+              <UiSelectItem value="md">
+                Medium
+              </UiSelectItem>
+              <UiSelectItem value="lg">
+                Large
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1200,22 +1511,38 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Style</label>
           <UiSelect :model-value="section.style || 'default'" @update:model-value="update('style', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="default">Default (Cards)</UiSelectItem>
-              <UiSelectItem value="dark">Dark (Large Quote)</UiSelectItem>
-              <UiSelectItem value="minimal">Minimal</UiSelectItem>
+              <UiSelectItem value="default">
+                Default (Cards)
+              </UiSelectItem>
+              <UiSelectItem value="dark">
+                Dark (Large Quote)
+              </UiSelectItem>
+              <UiSelectItem value="minimal">
+                Minimal
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
           <UiSelect :model-value="section.layout || 'carousel'" @update:model-value="update('layout', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="carousel">Carousel</UiSelectItem>
-              <UiSelectItem value="grid">Grid</UiSelectItem>
-              <UiSelectItem value="stacked">Stacked</UiSelectItem>
+              <UiSelectItem value="carousel">
+                Carousel
+              </UiSelectItem>
+              <UiSelectItem value="grid">
+                Grid
+              </UiSelectItem>
+              <UiSelectItem value="stacked">
+                Stacked
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1240,12 +1567,14 @@ function onMediaLibrarySelect(url: string) {
               <UiInput type="number" min="1" max="5" :model-value="String(t.rating ?? 5)" class="h-7 text-xs w-16" @update:model-value="updateNested('testimonials', i, 'rating', Number($event))" />
             </div>
             <div v-if="t.avatar_url && !brokenImages.has(t.avatar_url)" class="relative rounded overflow-hidden bg-muted">
-              <img :src="t.avatar_url" alt="Avatar" class="size-10 rounded-full object-cover" @error="onImgError(t.avatar_url)" />
+              <img :src="t.avatar_url" alt="Avatar" class="size-10 rounded-full object-cover" @error="onImgError(t.avatar_url)">
             </div>
             <div class="flex gap-1">
               <UiInput :model-value="t.avatar_url || ''" class="h-7 text-xs" placeholder="Avatar URL" @update:model-value="updateNested('testimonials', i, 'avatar_url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('testimonials', i, 'avatar_url', $event)" />
-              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('testimonials', i, 'avatar_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('testimonials', i, 'avatar_url', url))">
+                <ImageIcon class="size-3.5" />
+              </UiButton>
             </div>
           </div>
         </div>
@@ -1316,10 +1645,16 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
           <UiSelect :model-value="section.layout || 'row'" @update:model-value="update('layout', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="row">Row</UiSelectItem>
-              <UiSelectItem value="grid">Grid</UiSelectItem>
+              <UiSelectItem value="row">
+                Row
+              </UiSelectItem>
+              <UiSelectItem value="grid">
+                Grid
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1378,12 +1713,14 @@ function onMediaLibrarySelect(url: string) {
               </button>
             </div>
             <div v-if="logo.image_url && !brokenImages.has(logo.image_url)" class="relative rounded overflow-hidden bg-muted">
-              <img :src="logo.image_url" :alt="logo.name" class="h-10 object-contain" @error="onImgError(logo.image_url)" />
+              <img :src="logo.image_url" :alt="logo.name" class="h-10 object-contain" @error="onImgError(logo.image_url)">
             </div>
             <div class="flex gap-1">
               <UiInput :model-value="logo.image_url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('logos', i, 'image_url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('logos', i, 'image_url', $event)" />
-              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('logos', i, 'image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('logos', i, 'image_url', url))">
+                <ImageIcon class="size-3.5" />
+              </UiButton>
             </div>
             <UiInput :model-value="logo.link_url || ''" class="h-7 text-xs" placeholder="Link URL (optional)" @update:model-value="updateNested('logos', i, 'link_url', $event)" />
           </div>
@@ -1405,22 +1742,38 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Embed Type</label>
           <UiSelect :model-value="section.embed_type || 'iframe'" @update:model-value="update('embed_type', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="iframe">iFrame</UiSelectItem>
-              <UiSelectItem value="script">Script Tag</UiSelectItem>
+              <UiSelectItem value="iframe">
+                iFrame
+              </UiSelectItem>
+              <UiSelectItem value="script">
+                Script Tag
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Aspect Ratio</label>
           <UiSelect :model-value="section.aspect_ratio || '16:9'" @update:model-value="update('aspect_ratio', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="16:9">16:9 (Widescreen)</UiSelectItem>
-              <UiSelectItem value="4:3">4:3 (Standard)</UiSelectItem>
-              <UiSelectItem value="1:1">1:1 (Square)</UiSelectItem>
-              <UiSelectItem value="auto">Auto</UiSelectItem>
+              <UiSelectItem value="16:9">
+                16:9 (Widescreen)
+              </UiSelectItem>
+              <UiSelectItem value="4:3">
+                4:3 (Standard)
+              </UiSelectItem>
+              <UiSelectItem value="1:1">
+                1:1 (Square)
+              </UiSelectItem>
+              <UiSelectItem value="auto">
+                Auto
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1492,10 +1845,16 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Position</label>
           <UiSelect :model-value="section.position || 'bottom'" @update:model-value="update('position', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="top">Top</UiSelectItem>
-              <UiSelectItem value="bottom">Bottom</UiSelectItem>
+              <UiSelectItem value="top">
+                Top
+              </UiSelectItem>
+              <UiSelectItem value="bottom">
+                Bottom
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1531,11 +1890,19 @@ function onMediaLibrarySelect(url: string) {
             </div>
             <UiInput :model-value="btn.url || ''" class="h-7 text-xs" placeholder="URL" @update:model-value="updateNested('buttons', i, 'url', $event)" />
             <UiSelect :model-value="btn.variant || 'primary'" @update:model-value="updateNested('buttons', i, 'variant', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="primary">Primary</UiSelectItem>
-                <UiSelectItem value="secondary">Secondary</UiSelectItem>
-                <UiSelectItem value="ghost">Ghost</UiSelectItem>
+                <UiSelectItem value="primary">
+                  Primary
+                </UiSelectItem>
+                <UiSelectItem value="secondary">
+                  Secondary
+                </UiSelectItem>
+                <UiSelectItem value="ghost">
+                  Ghost
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
@@ -1579,7 +1946,9 @@ function onMediaLibrarySelect(url: string) {
           <div class="flex gap-1">
             <UiInput :model-value="section.background_image_url || ''" class="h-8 text-xs" placeholder="Image URL" @update:model-value="update('background_image_url', $event)" />
             <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onMediaUploaded('background_image_url', $event)" />
-            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('background_image_url', url))"><ImageIcon class="size-3.5" /></UiButton>
+            <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => update('background_image_url', url))">
+              <ImageIcon class="size-3.5" />
+            </UiButton>
           </div>
         </div>
       </div>
@@ -1647,32 +2016,54 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
           <UiSelect :model-value="section.layout || 'stacked'" @update:model-value="update('layout', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="stacked">Stacked (full-width)</UiSelectItem>
-              <UiSelectItem value="fullscreen-scroll">Fullscreen Scroll</UiSelectItem>
+              <UiSelectItem value="stacked">
+                Stacked (full-width)
+              </UiSelectItem>
+              <UiSelectItem value="fullscreen-scroll">
+                Fullscreen Scroll
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Height</label>
           <UiSelect :model-value="section.height || 'large'" @update:model-value="update('height', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="screen">Full Screen (100vh)</UiSelectItem>
-              <UiSelectItem value="large">Large (500px)</UiSelectItem>
-              <UiSelectItem value="medium">Medium (320px)</UiSelectItem>
+              <UiSelectItem value="screen">
+                Full Screen (100vh)
+              </UiSelectItem>
+              <UiSelectItem value="large">
+                Large (500px)
+              </UiSelectItem>
+              <UiSelectItem value="medium">
+                Medium (320px)
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
         <div>
           <label class="text-xs text-muted-foreground mb-1 block">Overlay Style</label>
           <UiSelect :model-value="section.overlay_style || 'dark'" @update:model-value="update('overlay_style', $event)">
-            <UiSelectTrigger class="h-8 text-xs"><UiSelectValue /></UiSelectTrigger>
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="dark">Dark overlay</UiSelectItem>
-              <UiSelectItem value="light">Light overlay</UiSelectItem>
-              <UiSelectItem value="none">No overlay</UiSelectItem>
+              <UiSelectItem value="dark">
+                Dark overlay
+              </UiSelectItem>
+              <UiSelectItem value="light">
+                Light overlay
+              </UiSelectItem>
+              <UiSelectItem value="none">
+                No overlay
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -1686,13 +2077,15 @@ function onMediaLibrarySelect(url: string) {
           <div v-for="(img, i) in (section.images || [])" :key="i" class="border rounded p-2 mb-1.5 space-y-1.5">
             <div v-if="img.url && !brokenImages.has(img.url)" class="relative rounded overflow-hidden bg-muted">
               <a :href="img.url" target="_blank" class="block">
-                <img :src="img.url" :alt="img.alt || 'Showcase image'" class="w-full h-24 object-cover" @error="onImgError(img.url)" />
+                <img :src="img.url" :alt="img.alt || 'Showcase image'" class="w-full h-24 object-cover" @error="onImgError(img.url)">
               </a>
             </div>
             <div class="flex items-center gap-1">
               <UiInput :model-value="img.url || ''" class="h-7 text-xs" placeholder="Image URL" @update:model-value="updateNested('images', i, 'url', $event)" />
               <MediaUploadButton :oem-id="oemId" :model-slug="modelSlug" @uploaded="onNestedMediaUploaded('images', i, 'url', $event)" />
-              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('images', i, 'url', url))"><ImageIcon class="size-3.5" /></UiButton>
+              <UiButton type="button" size="icon" variant="ghost" class="size-7 shrink-0" title="Browse media library" @click="openMediaLibrary((url) => updateNested('images', i, 'url', url))">
+                <ImageIcon class="size-3.5" />
+              </UiButton>
               <button class="p-0.5 text-muted-foreground hover:text-destructive shrink-0" @click="removeArrayItem('images', i)">
                 <X class="size-3.5" />
               </button>
@@ -1700,13 +2093,25 @@ function onMediaLibrarySelect(url: string) {
             <UiInput :model-value="img.caption || ''" class="h-7 text-xs" placeholder="Caption / heading" @update:model-value="updateNested('images', i, 'caption', $event)" />
             <UiTextarea :model-value="img.description || ''" class="text-xs min-h-12" placeholder="Description text" @update:model-value="updateNested('images', i, 'description', $event)" />
             <UiSelect :model-value="img.overlay_position || 'bottom-left'" @update:model-value="updateNested('images', i, 'overlay_position', $event)">
-              <UiSelectTrigger class="h-7 text-xs"><UiSelectValue /></UiSelectTrigger>
+              <UiSelectTrigger class="h-7 text-xs">
+                <UiSelectValue />
+              </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem value="top-left">Top Left</UiSelectItem>
-                <UiSelectItem value="top-right">Top Right</UiSelectItem>
-                <UiSelectItem value="bottom-left">Bottom Left</UiSelectItem>
-                <UiSelectItem value="bottom-right">Bottom Right</UiSelectItem>
-                <UiSelectItem value="center">Center</UiSelectItem>
+                <UiSelectItem value="top-left">
+                  Top Left
+                </UiSelectItem>
+                <UiSelectItem value="top-right">
+                  Top Right
+                </UiSelectItem>
+                <UiSelectItem value="bottom-left">
+                  Bottom Left
+                </UiSelectItem>
+                <UiSelectItem value="bottom-right">
+                  Bottom Right
+                </UiSelectItem>
+                <UiSelectItem value="center">
+                  Center
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
           </div>
@@ -1716,7 +2121,9 @@ function onMediaLibrarySelect(url: string) {
 
     <!-- ===== FALLBACK ===== -->
     <template v-else>
-      <p class="text-xs text-muted-foreground">Unknown section type: {{ sectionType }}</p>
+      <p class="text-xs text-muted-foreground">
+        Unknown section type: {{ sectionType }}
+      </p>
     </template>
 
     <!-- Action buttons -->

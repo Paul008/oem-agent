@@ -1,24 +1,36 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import {
-  Loader2, Palette, AlertTriangle,
-  Sparkles, Check, X, Download, FileText, Wand2, Copy, ChevronDown, ScanSearch,
-} from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
 import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Copy,
+  Download,
+  FileText,
+  Loader2,
+  Palette,
+  ScanSearch,
+  Sparkles,
+  Wand2,
+  X,
+} from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
+
+import type { ExtractedRecipe, StyleGuideData } from '@/lib/worker-api'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchStyleGuide, extractRecipesFromUrl, saveRecipe, uploadRecipeThumbnail, generateRecipeComponent, crawlLiveTokens, applyCrawledTokens, type StyleGuideData, type ExtractedRecipe } from '@/lib/worker-api'
+import { applyCrawledTokens, crawlLiveTokens, extractRecipesFromUrl, fetchStyleGuide, generateRecipeComponent, saveRecipe, uploadRecipeThumbnail } from '@/lib/worker-api'
 
 import StyleGuideBrandHeader from './components/style-guide/StyleGuideBrandHeader.vue'
-import StyleGuideColors from './components/style-guide/StyleGuideColors.vue'
-import StyleGuideTypography from './components/style-guide/StyleGuideTypography.vue'
 import StyleGuideButtons from './components/style-guide/StyleGuideButtons.vue'
-import StyleGuideSpacing from './components/style-guide/StyleGuideSpacing.vue'
-import StyleGuideRecipes from './components/style-guide/StyleGuideRecipes.vue'
+import StyleGuideColors from './components/style-guide/StyleGuideColors.vue'
 import StyleGuideComponents from './components/style-guide/StyleGuideComponents.vue'
+import StyleGuideRecipes from './components/style-guide/StyleGuideRecipes.vue'
+import StyleGuideSpacing from './components/style-guide/StyleGuideSpacing.vue'
+import StyleGuideTypography from './components/style-guide/StyleGuideTypography.vue'
 
 const PATTERNS = [
   { key: 'hero', label: 'Hero' },
@@ -33,7 +45,7 @@ const PATTERNS = [
 
 const { fetchOems } = useOemData()
 
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const selectedOem = ref<string>('')
 const loading = ref(false)
 const loadError = ref<string | null>(null)
@@ -43,7 +55,7 @@ const styleGuideContent = ref<HTMLElement | null>(null)
 const exporting = ref<'png' | 'pdf' | null>(null)
 
 const crawling = ref(false)
-const crawlDiff = ref<Array<{ field: string; current: string; crawled: string; changed: boolean }> | null>(null)
+const crawlDiff = ref<Array<{ field: string, current: string, crawled: string, changed: boolean }> | null>(null)
 const crawledTokens = ref<any>(null)
 const showCrawlDialog = ref(false)
 const crawlUrl = ref('')
@@ -56,7 +68,7 @@ const extractProgress = ref('')
 const extractResults = ref<ExtractedRecipe[]>([])
 const extractScreenshot = ref<string | null>(null)
 const extractError = ref<string | null>(null)
-const batchResults = ref<Array<{ url: string; recipes: ExtractedRecipe[]; screenshot?: string }>>([])
+const batchResults = ref<Array<{ url: string, recipes: ExtractedRecipe[], screenshot?: string }>>([])
 const savingRecipeIdx = ref<number | null>(null)
 const savedRecipeIdxs = ref<Set<number>>(new Set())
 const generatingIdx = ref<number | null>(null)
@@ -71,21 +83,25 @@ onMounted(async () => {
       const toyota = o.find(x => x.id === 'toyota-au')
       selectedOem.value = toyota?.id ?? o[0].id
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = 'Failed to load OEMs'
   }
 })
 
 watch(selectedOem, async (oemId) => {
-  if (!oemId) return
+  if (!oemId)
+    return
   loading.value = true
   loadError.value = null
   data.value = null
   try {
     data.value = await fetchStyleGuide(oemId)
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load style guide'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }, { immediate: true })
@@ -101,10 +117,12 @@ const fontStyleId = 'oem-font-faces'
 watch(tokens, (t) => {
   // Remove previous font faces
   const existing = document.getElementById(fontStyleId)
-  if (existing) existing.remove()
+  if (existing)
+    existing.remove()
 
   const faces = t?.typography?.font_faces
-  if (!faces?.length) return
+  if (!faces?.length)
+    return
 
   const css = faces.map((f: any) => {
     const ext = f.url?.split('.').pop()?.toLowerCase()
@@ -120,8 +138,9 @@ watch(tokens, (t) => {
 const components = computed(() => tokens.value?.components ?? null)
 
 const recipesByPattern = computed(() => {
-  if (!data.value) return {}
-  const grouped: Record<string, Array<{ label: string; variant: string; resolves_to: string; defaults_json: any; source: 'brand' | 'default' }>> = {}
+  if (!data.value)
+    return {}
+  const grouped: Record<string, Array<{ label: string, variant: string, resolves_to: string, defaults_json: any, source: 'brand' | 'default' }>> = {}
   for (const p of PATTERNS) grouped[p.key] = []
 
   const brandKeys = new Set<string>()
@@ -154,7 +173,8 @@ const EXPORT_OPTS = {
 }
 
 async function exportPng() {
-  if (!styleGuideContent.value || exporting.value) return
+  if (!styleGuideContent.value || exporting.value)
+    return
   exporting.value = 'png'
   try {
     // Run twice — first pass warms font/image cache, second gets clean render
@@ -165,15 +185,18 @@ async function exportPng() {
     link.href = dataUrl
     link.click()
     toast.success('PNG exported')
-  } catch (err: any) {
-    toast.error('PNG export failed: ' + (err.message || 'Unknown error'))
-  } finally {
+  }
+  catch (err: any) {
+    toast.error(`PNG export failed: ${err.message || 'Unknown error'}`)
+  }
+  finally {
     exporting.value = null
   }
 }
 
 async function exportPdf() {
-  if (!styleGuideContent.value || exporting.value) return
+  if (!styleGuideContent.value || exporting.value)
+    return
   exporting.value = 'pdf'
   try {
     // Warm cache then capture
@@ -208,7 +231,8 @@ async function exportPdf() {
     const totalPages = Math.ceil(img.naturalHeight / pxPerPage)
 
     for (let p = 0; p < totalPages; p++) {
-      if (p > 0) pdf.addPage()
+      if (p > 0)
+        pdf.addPage()
 
       const srcY = p * pxPerPage
       const srcH = Math.min(pxPerPage, img.naturalHeight - srcY)
@@ -227,9 +251,11 @@ async function exportPdf() {
 
     pdf.save(`${oemDisplayName.value}-style-guide.pdf`)
     toast.success('PDF exported')
-  } catch (err: any) {
-    toast.error('PDF export failed: ' + (err.message || 'Unknown error'))
-  } finally {
+  }
+  catch (err: any) {
+    toast.error(`PDF export failed: ${err.message || 'Unknown error'}`)
+  }
+  finally {
     exporting.value = null
   }
 }
@@ -239,11 +265,12 @@ async function exportPdf() {
 const thumbnails = ref<Map<number, string>>(new Map())
 
 async function generateThumbnails() {
-  if (!extractScreenshot.value || !extractResults.value.length) return
+  if (!extractScreenshot.value || !extractResults.value.length)
+    return
   thumbnails.value = new Map()
 
   const img = new Image()
-  img.src = 'data:image/png;base64,' + extractScreenshot.value
+  img.src = `data:image/png;base64,${extractScreenshot.value}`
 
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve()
@@ -257,11 +284,13 @@ async function generateThumbnails() {
 
   for (let i = 0; i < extractResults.value.length; i++) {
     const bounds = extractResults.value[i].bounds
-    if (!bounds) continue
+    if (!bounds)
+      continue
 
     const srcY = Math.round((bounds.top_pct / 100) * img.naturalHeight)
     const srcH = Math.round((bounds.height_pct / 100) * img.naturalHeight)
-    if (srcH <= 0) continue
+    if (srcH <= 0)
+      continue
 
     const aspect = img.naturalWidth / srcH
     const drawH = Math.min(thumbMaxHeight, Math.round(thumbWidth / aspect))
@@ -277,9 +306,11 @@ async function generateThumbnails() {
 /* ---- Extract from URL ---- */
 
 async function handleExtract() {
-  if (!extractUrlText.value.trim() || !selectedOem.value) return
+  if (!extractUrlText.value.trim() || !selectedOem.value)
+    return
   const urls = extractUrlText.value.split('\n').map(u => u.trim()).filter(Boolean)
-  if (!urls.length) return
+  if (!urls.length)
+    return
 
   extracting.value = true
   extractError.value = null
@@ -304,19 +335,23 @@ async function handleExtract() {
 
     if (!extractResults.value.length) {
       extractError.value = 'No recipes extracted — try different URLs'
-    } else {
+    }
+    else {
       await generateThumbnails()
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     extractError.value = err.message || 'Extraction failed'
-  } finally {
+  }
+  finally {
     extracting.value = false
     extractProgress.value = ''
   }
 }
 
 async function saveExtractedRecipe(recipe: ExtractedRecipe, index: number) {
-  if (!selectedOem.value) return
+  if (!selectedOem.value)
+    return
   savingRecipeIdx.value = index
   try {
     const variantKey = `${recipe.variant}-extracted-${Date.now().toString(36)}`
@@ -330,7 +365,8 @@ async function saveExtractedRecipe(recipe: ExtractedRecipe, index: number) {
         try {
           const { url } = await uploadRecipeThumbnail(selectedOem.value, `${recipe.pattern}-${variantKey}`, base64)
           defaults.thumbnail_url = url
-        } catch {
+        }
+        catch {
           // Non-fatal — save recipe without thumbnail
         }
       }
@@ -346,9 +382,11 @@ async function saveExtractedRecipe(recipe: ExtractedRecipe, index: number) {
     })
     savedRecipeIdxs.value.add(index)
     toast.success(`Saved: ${recipe.label}`)
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Failed to save recipe')
-  } finally {
+  }
+  finally {
     savingRecipeIdx.value = null
   }
 }
@@ -366,7 +404,8 @@ async function saveAllExtracted() {
 }
 
 async function handleGenerate(recipe: ExtractedRecipe, index: number) {
-  if (!selectedOem.value || generatingIdx.value !== null) return
+  if (!selectedOem.value || generatingIdx.value !== null)
+    return
   generatingIdx.value = index
   try {
     const thumbDataUrl = thumbnails.value.get(index)
@@ -376,12 +415,15 @@ async function handleGenerate(recipe: ExtractedRecipe, index: number) {
       generatedComponents.value.set(index, result.template_html)
       expandedPreview.value.add(index)
       toast.success('Component generated')
-    } else {
+    }
+    else {
       toast.error(result.error || 'Generation failed')
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Generation failed')
-  } finally {
+  }
+  finally {
     generatingIdx.value = null
   }
 }
@@ -417,7 +459,8 @@ function copyHtml(index: number) {
 /* ---- Token Crawling ---- */
 
 async function handleCrawlTokens() {
-  if (!selectedOem.value || !crawlUrl.value || crawling.value) return
+  if (!selectedOem.value || !crawlUrl.value || crawling.value)
+    return
   crawling.value = true
   crawlDiff.value = null
   crawledTokens.value = null
@@ -425,19 +468,22 @@ async function handleCrawlTokens() {
     const result = await crawlLiveTokens(selectedOem.value, crawlUrl.value)
     crawlDiff.value = result.diff
     crawledTokens.value = result.crawled
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Crawl failed')
-  } finally {
+  }
+  finally {
     crawling.value = false
   }
 }
 
 const batchCrawling = ref(false)
 const batchProgress = ref('')
-const batchCrawlResults = ref<Array<{ oem_id: string; changes: number; error?: string }>>([])
+const batchCrawlResults = ref<Array<{ oem_id: string, changes: number, error?: string }>>([])
 
 async function handleBatchCrawl() {
-  if (batchCrawling.value) return
+  if (batchCrawling.value)
+    return
   batchCrawling.value = true
   batchCrawlResults.value = []
   try {
@@ -452,19 +498,22 @@ async function handleBatchCrawl() {
           await applyCrawledTokens(oem.id, result.crawled)
         }
         batchCrawlResults.value.push({ oem_id: oem.id, changes })
-      } catch (err: any) {
+      }
+      catch (err: any) {
         batchCrawlResults.value.push({ oem_id: oem.id, changes: 0, error: err.message })
       }
     }
     toast.success(`Batch crawl complete: ${oems.value.length} OEMs`)
-  } finally {
+  }
+  finally {
     batchCrawling.value = false
     batchProgress.value = ''
   }
 }
 
 async function handleApplyTokens() {
-  if (!selectedOem.value || !crawledTokens.value || applyingTokens.value) return
+  if (!selectedOem.value || !crawledTokens.value || applyingTokens.value)
+    return
   applyingTokens.value = true
   try {
     await applyCrawledTokens(selectedOem.value, crawledTokens.value)
@@ -474,9 +523,11 @@ async function handleApplyTokens() {
     crawledTokens.value = null
     // Reload style guide
     data.value = await fetchStyleGuide(selectedOem.value)
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Apply failed')
-  } finally {
+  }
+  finally {
     applyingTokens.value = false
   }
 }
@@ -496,7 +547,7 @@ async function handleApplyTokens() {
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
-      <UiButton variant="outline" size="sm" @click="showExtractDialog = true" data-export-ignore>
+      <UiButton variant="outline" size="sm" data-export-ignore @click="showExtractDialog = true">
         <Sparkles class="size-4 mr-1" /> Extract from URL
       </UiButton>
       <div class="ml-auto flex gap-2" data-export-ignore>
@@ -525,14 +576,20 @@ async function handleApplyTokens() {
     <!-- Error -->
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <!-- No tokens -->
     <div v-else-if="!tokens" class="flex flex-col items-center justify-center h-64 gap-3">
       <Palette class="size-10 text-muted-foreground/30" />
-      <p class="text-sm text-muted-foreground">No brand tokens seeded for this OEM</p>
-      <p class="text-xs text-muted-foreground/60">Run the design capture job to populate brand tokens.</p>
+      <p class="text-sm text-muted-foreground">
+        No brand tokens seeded for this OEM
+      </p>
+      <p class="text-xs text-muted-foreground/60">
+        Run the design capture job to populate brand tokens.
+      </p>
     </div>
 
     <!-- Style Guide Content -->
@@ -563,7 +620,9 @@ async function handleApplyTokens() {
     >
       <div class="bg-background border rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
         <div class="flex items-center justify-between px-6 py-4 border-b">
-          <h2 class="text-lg font-semibold">Extract Recipes from URL</h2>
+          <h2 class="text-lg font-semibold">
+            Extract Recipes from URL
+          </h2>
           <button class="text-muted-foreground hover:text-foreground" @click="showExtractDialog = false">
             <X class="size-5" />
           </button>
@@ -611,7 +670,9 @@ async function handleApplyTokens() {
             <!-- Batch URL headers -->
             <template v-if="batchResults.length > 1">
               <div v-for="batch in batchResults" :key="batch.url" class="space-y-2">
-                <p class="text-xs font-medium text-muted-foreground border-b pb-1">{{ batch.url }} ({{ batch.recipes.length }})</p>
+                <p class="text-xs font-medium text-muted-foreground border-b pb-1">
+                  {{ batch.url }} ({{ batch.recipes.length }})
+                </p>
               </div>
             </template>
 
@@ -629,7 +690,7 @@ async function handleApplyTokens() {
                 <img
                   :src="thumbnails.get(idx)"
                   class="w-full h-full object-cover object-top"
-                />
+                >
               </div>
 
               <!-- Recipe info -->
@@ -637,8 +698,12 @@ async function handleApplyTokens() {
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-semibold">{{ recipe.label }}</span>
-                    <UiBadge variant="outline" class="text-[10px]">{{ recipe.pattern }}</UiBadge>
-                    <UiBadge variant="secondary" class="text-[10px]">{{ recipe.variant }}</UiBadge>
+                    <UiBadge variant="outline" class="text-[10px]">
+                      {{ recipe.pattern }}
+                    </UiBadge>
+                    <UiBadge variant="secondary" class="text-[10px]">
+                      {{ recipe.variant }}
+                    </UiBadge>
                   </div>
                   <div class="flex items-center gap-2 flex-shrink-0">
                     <span class="text-[10px] text-muted-foreground">
@@ -711,7 +776,9 @@ async function handleApplyTokens() {
     >
       <div class="bg-background border rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
         <div class="flex items-center justify-between px-6 py-4 border-b">
-          <h2 class="text-lg font-semibold">Crawl Live Tokens</h2>
+          <h2 class="text-lg font-semibold">
+            Crawl Live Tokens
+          </h2>
           <button class="text-muted-foreground hover:text-foreground" @click="showCrawlDialog = false">
             <X class="size-5" />
           </button>
@@ -721,7 +788,7 @@ async function handleApplyTokens() {
           <div class="flex gap-2">
             <UiInput
               v-model="crawlUrl"
-              :placeholder="`https://www.${selectedOem?.replace('-au','')}.com.au`"
+              :placeholder="`https://www.${selectedOem?.replace('-au', '')}.com.au`"
               class="flex-1"
               @keydown.enter="handleCrawlTokens"
             />
@@ -744,11 +811,25 @@ async function handleApplyTokens() {
           <!-- Batch crawl results -->
           <div v-if="batchCrawlResults.length" class="border rounded-lg overflow-hidden">
             <table class="w-full text-xs">
-              <thead><tr class="bg-muted/50"><th class="px-3 py-1.5 text-left">OEM</th><th class="px-3 py-1.5 text-center">Changes</th><th class="px-3 py-1.5 text-center">Status</th></tr></thead>
+              <thead>
+                <tr class="bg-muted/50">
+                  <th class="px-3 py-1.5 text-left">
+                    OEM
+                  </th><th class="px-3 py-1.5 text-center">
+                    Changes
+                  </th><th class="px-3 py-1.5 text-center">
+                    Status
+                  </th>
+                </tr>
+              </thead>
               <tbody class="divide-y">
                 <tr v-for="r in batchCrawlResults" :key="r.oem_id">
-                  <td class="px-3 py-1.5">{{ r.oem_id.replace('-au','') }}</td>
-                  <td class="px-3 py-1.5 text-center" :class="r.changes > 0 ? 'font-semibold text-amber-600' : ''">{{ r.changes }}</td>
+                  <td class="px-3 py-1.5">
+                    {{ r.oem_id.replace('-au', '') }}
+                  </td>
+                  <td class="px-3 py-1.5 text-center" :class="r.changes > 0 ? 'font-semibold text-amber-600' : ''">
+                    {{ r.changes }}
+                  </td>
                   <td class="px-3 py-1.5 text-center">
                     <span v-if="r.error" class="text-destructive">{{ r.error.slice(0, 30) }}</span>
                     <span v-else class="text-green-600">{{ r.changes > 0 ? 'Updated' : 'No changes' }}</span>
@@ -765,7 +846,9 @@ async function handleApplyTokens() {
           <!-- Diff table -->
           <div v-if="crawlDiff" class="space-y-3">
             <div class="flex items-center justify-between">
-              <p class="text-sm font-medium">{{ crawlDiff.filter(d => d.changed).length }} values changed</p>
+              <p class="text-sm font-medium">
+                {{ crawlDiff.filter(d => d.changed).length }} values changed
+              </p>
               <UiButton
                 v-if="crawlDiff.some(d => d.changed)"
                 size="sm"
@@ -782,9 +865,15 @@ async function handleApplyTokens() {
               <table class="w-full text-sm">
                 <thead>
                   <tr class="bg-muted/50 text-left">
-                    <th class="px-3 py-2 font-medium">Token</th>
-                    <th class="px-3 py-2 font-medium">Current</th>
-                    <th class="px-3 py-2 font-medium">Crawled</th>
+                    <th class="px-3 py-2 font-medium">
+                      Token
+                    </th>
+                    <th class="px-3 py-2 font-medium">
+                      Current
+                    </th>
+                    <th class="px-3 py-2 font-medium">
+                      Crawled
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y">
@@ -793,7 +882,9 @@ async function handleApplyTokens() {
                     :key="row.field"
                     :class="row.changed ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''"
                   >
-                    <td class="px-3 py-2 font-mono text-xs">{{ row.field }}</td>
+                    <td class="px-3 py-2 font-mono text-xs">
+                      {{ row.field }}
+                    </td>
                     <td class="px-3 py-2">
                       <div class="flex items-center gap-1.5">
                         <div

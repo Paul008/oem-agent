@@ -1,4 +1,6 @@
-import { SECTION_DEFAULTS, type PageSectionType } from './section-templates'
+import type { PageSectionType } from './section-templates'
+
+import { SECTION_DEFAULTS } from './section-templates'
 
 /**
  * Section Converter — converts a section from one type to another,
@@ -12,33 +14,33 @@ type ConversionMap = Partial<Record<PageSectionType, ConversionFn>>
 const CONVERSIONS: Record<string, ConversionMap> = {
   // ---- HERO ----
   'hero': {
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.heading || '',
       body: s.sub_heading || '',
       cta_text: s.cta_text || '',
       cta_url: s.cta_url || '',
       background_color: '',
     }),
-    'intro': (s) => ({
+    'intro': s => ({
       title: s.heading || '',
       body_html: s.sub_heading ? `<p>${s.sub_heading}</p>` : '',
       image_url: s.desktop_image_url || '',
       image_position: 'right',
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.heading || '',
       content_html: s.sub_heading ? `<p>${s.sub_heading}</p>` : '',
       layout: 'full-width',
       image_url: s.desktop_image_url || '',
       background: '',
     }),
-    'video': (s) => ({
+    'video': s => ({
       title: s.heading || '',
       video_url: s.video_url || '',
       poster_url: s.desktop_image_url || '',
       autoplay: false,
     }),
-    'image': (s) => ({
+    'image': s => ({
       desktop_image_url: s.desktop_image_url || '',
       mobile_image_url: s.mobile_image_url || '',
       alt: s.heading || '',
@@ -52,7 +54,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- IMAGE ----
   'image': {
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.alt || s.caption || '',
       sub_heading: s.caption || '',
       cta_text: '',
@@ -60,26 +62,26 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       desktop_image_url: s.desktop_image_url || '',
       mobile_image_url: s.mobile_image_url || '',
     }),
-    'gallery': (s) => ({
+    'gallery': s => ({
       title: s.caption || '',
       images: [{ url: s.desktop_image_url || '', alt: s.alt || '', caption: s.caption || '' }],
       layout: 'grid',
     }),
-    'image-showcase': (s) => ({
+    'image-showcase': s => ({
       title: s.caption || '',
       images: [{ url: s.desktop_image_url || '', alt: s.alt || '', caption: s.caption || '', description: '', overlay_position: 'bottom-left' }],
       layout: 'stacked',
       height: 'large',
       overlay_style: 'dark',
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.caption || '',
       content_html: '',
       layout: s.layout === 'full-width' ? 'full-width' : 'contained',
       image_url: s.desktop_image_url || '',
       background: '',
     }),
-    'intro': (s) => ({
+    'intro': s => ({
       title: s.caption || '',
       body_html: '',
       image_url: s.desktop_image_url || '',
@@ -89,7 +91,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- INTRO ----
   'intro': {
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.title || '',
       sub_heading: stripHtml(s.body_html),
       cta_text: '',
@@ -97,14 +99,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       desktop_image_url: s.image_url || '',
       mobile_image_url: '',
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.title || '',
       content_html: s.body_html || '',
       layout: s.image_url ? 'two-column' : 'contained',
       image_url: s.image_url || '',
       background: '',
     }),
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.title || '',
       body: stripHtml(s.body_html),
       cta_text: '',
@@ -115,7 +117,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- GALLERY ----
   'gallery': {
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.images || []).map((img: any) => ({
         title: img.caption || img.alt || '',
@@ -124,7 +126,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       columns: Math.min((s.images || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'tabs': (s) => ({
+    'tabs': s => ({
       title: s.title || '',
       variant: 'default',
       theme: 'light',
@@ -138,7 +140,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       default_tab: 0,
     }),
-    'testimonial': (s) => ({
+    'testimonial': s => ({
       title: s.title || '',
       layout: s.layout === 'grid' ? 'grid' : 'carousel',
       testimonials: (s.images || []).map((img: any) => ({
@@ -149,7 +151,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         rating: 5,
       })),
     }),
-    'logo-strip': (s) => ({
+    'logo-strip': s => ({
       title: s.title || '',
       logos: (s.images || []).map((img: any) => ({
         name: img.alt || img.caption || '',
@@ -158,7 +160,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       grayscale: true,
     }),
-    'image-showcase': (s) => ({
+    'image-showcase': s => ({
       title: s.title || '',
       images: (s.images || []).map((img: any) => ({
         url: img.url || '',
@@ -171,7 +173,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       height: 'large',
       overlay_style: 'dark',
     }),
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.title || '',
       sub_heading: '',
       cta_text: '',
@@ -179,14 +181,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       desktop_image_url: (s.images || [])[0]?.url || '',
       mobile_image_url: '',
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.title || '',
       content_html: (s.images || []).map((img: any) => img.caption || img.alt || '').filter(Boolean).join('<br>'),
       layout: 'full-width',
       image_url: (s.images || [])[0]?.url || '',
       background: '',
     }),
-    'image': (s) => ({
+    'image': s => ({
       desktop_image_url: (s.images || [])[0]?.url || '',
       mobile_image_url: '',
       alt: (s.images || [])[0]?.alt || '',
@@ -198,7 +200,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- IMAGE SHOWCASE ----
   'image-showcase': {
-    'gallery': (s) => ({
+    'gallery': s => ({
       title: s.title || '',
       images: (s.images || []).map((img: any) => ({
         url: img.url || '',
@@ -208,7 +210,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       layout: 'grid',
     }),
-    'hero': (s) => ({
+    'hero': s => ({
       heading: (s.images || [])[0]?.caption || s.title || '',
       sub_heading: (s.images || [])[0]?.description || '',
       cta_text: '',
@@ -216,7 +218,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       desktop_image_url: (s.images || [])[0]?.url || '',
       mobile_image_url: '',
     }),
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.images || []).map((img: any) => ({
         title: img.caption || img.alt || '',
@@ -225,14 +227,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       columns: Math.min((s.images || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.title || '',
       content_html: '',
       layout: 'full-width',
       image_url: (s.images || [])[0]?.url || '',
       background: '',
     }),
-    'image': (s) => ({
+    'image': s => ({
       desktop_image_url: (s.images || [])[0]?.url || '',
       mobile_image_url: '',
       alt: (s.images || [])[0]?.alt || '',
@@ -244,7 +246,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- FEATURE CARDS ----
   'feature-cards': {
-    'gallery': (s) => ({
+    'gallery': s => ({
       title: s.title || '',
       images: (s.cards || []).filter((c: any) => c.image_url).map((c: any) => ({
         url: c.image_url || '',
@@ -254,7 +256,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       layout: 'grid',
     }),
-    'tabs': (s) => ({
+    'tabs': s => ({
       title: s.title || '',
       variant: 'default',
       theme: 'light',
@@ -268,7 +270,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       default_tab: 0,
     }),
-    'accordion': (s) => ({
+    'accordion': s => ({
       title: s.title || '',
       items: (s.cards || []).map((c: any) => ({
         question: c.title || '',
@@ -276,7 +278,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       section_id: '',
     }),
-    'stats': (s) => ({
+    'stats': s => ({
       title: s.title || '',
       stats: (s.cards || []).map((c: any) => ({
         value: '',
@@ -287,7 +289,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       layout: 'grid',
       background: '',
     }),
-    'testimonial': (s) => ({
+    'testimonial': s => ({
       title: s.title || '',
       layout: 'grid',
       testimonials: (s.cards || []).map((c: any) => ({
@@ -298,7 +300,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         rating: 5,
       })),
     }),
-    'logo-strip': (s) => ({
+    'logo-strip': s => ({
       title: s.title || '',
       logos: (s.cards || []).filter((c: any) => c.image_url).map((c: any) => ({
         name: c.title || '',
@@ -311,7 +313,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- TABS ----
   'tabs': {
-    'accordion': (s) => ({
+    'accordion': s => ({
       title: s.title || '',
       items: (s.tabs || []).map((t: any) => ({
         question: t.label || '',
@@ -319,7 +321,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       section_id: '',
     }),
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.tabs || []).map((t: any) => ({
         title: t.label || '',
@@ -328,7 +330,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       columns: Math.min((s.tabs || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'gallery': (s) => ({
+    'gallery': s => ({
       title: s.title || '',
       images: (s.tabs || []).filter((t: any) => t.image_url).map((t: any) => ({
         url: t.image_url || '',
@@ -342,7 +344,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- ACCORDION ----
   'accordion': {
-    'tabs': (s) => ({
+    'tabs': s => ({
       title: s.title || '',
       variant: 'default',
       theme: 'light',
@@ -356,7 +358,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       default_tab: 0,
     }),
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.items || []).map((item: any) => ({
         title: item.question || '',
@@ -365,10 +367,10 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       columns: Math.min((s.items || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.title || '',
       content_html: (s.items || []).map((item: any) =>
-        `<h3>${item.question || ''}</h3>\n<p>${item.answer || ''}</p>`
+        `<h3>${item.question || ''}</h3>\n<p>${item.answer || ''}</p>`,
       ).join('\n'),
       layout: 'contained',
       background: '',
@@ -378,7 +380,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- CTA BANNER ----
   'cta-banner': {
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.heading || '',
       sub_heading: s.body || '',
       cta_text: s.cta_text || '',
@@ -386,13 +388,13 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       desktop_image_url: '',
       mobile_image_url: '',
     }),
-    'alert': (s) => ({
+    'alert': s => ({
       title: s.heading || '',
       message: s.body || '',
       variant: 'info',
       dismissible: true,
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.heading || '',
       content_html: s.body ? `<p>${s.body}</p>` : '',
       layout: 'contained',
@@ -403,13 +405,13 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- CONTENT BLOCK ----
   'content-block': {
-    'intro': (s) => ({
+    'intro': s => ({
       title: s.title || '',
       body_html: s.content_html || '',
       image_url: s.image_url || '',
       image_position: 'right',
     }),
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.title || '',
       sub_heading: stripHtml(s.content_html),
       cta_text: '',
@@ -417,7 +419,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       desktop_image_url: s.image_url || '',
       mobile_image_url: '',
     }),
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.title || '',
       body: stripHtml(s.content_html),
       cta_text: '',
@@ -428,14 +430,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- ALERT ----
   'alert': {
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.title || '',
       body: s.message || '',
       cta_text: '',
       cta_url: '',
       background_color: '',
     }),
-    'content-block': (s) => ({
+    'content-block': s => ({
       title: s.title || '',
       content_html: s.message ? `<p>${s.message}</p>` : '',
       layout: 'contained',
@@ -446,7 +448,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- VIDEO ----
   'video': {
-    'hero': (s) => ({
+    hero: s => ({
       heading: s.title || '',
       sub_heading: '',
       cta_text: '',
@@ -455,7 +457,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       mobile_image_url: '',
       video_url: s.video_url || '',
     }),
-    'embed': (s) => ({
+    embed: s => ({
       title: s.title || '',
       embed_url: s.video_url || '',
       embed_type: 'iframe',
@@ -466,7 +468,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- MAP ----
   'map': {
-    'embed': (s) => ({
+    embed: s => ({
       title: s.title || '',
       embed_url: s.embed_url || '',
       embed_type: 'iframe',
@@ -477,7 +479,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- TESTIMONIAL ----
   'testimonial': {
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.testimonials || []).map((t: any) => ({
         title: t.author || '',
@@ -486,7 +488,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       columns: Math.min((s.testimonials || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'gallery': (s) => ({
+    'gallery': s => ({
       title: s.title || '',
       images: (s.testimonials || []).filter((t: any) => t.avatar_url).map((t: any) => ({
         url: t.avatar_url || '',
@@ -496,7 +498,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       layout: s.layout === 'grid' ? 'grid' : 'carousel',
     }),
-    'accordion': (s) => ({
+    'accordion': s => ({
       title: s.title || '',
       items: (s.testimonials || []).map((t: any) => ({
         question: `${t.author || 'Customer'}${t.role ? ` — ${t.role}` : ''}`,
@@ -508,7 +510,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- COMPARISON TABLE ----
   'comparison-table': {
-    'pricing-table': (s) => ({
+    'pricing-table': s => ({
       title: s.title || '',
       subtitle: '',
       tiers: (s.columns || []).slice(1).map((col: any, colIdx: number) => ({
@@ -523,7 +525,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       disclaimer: '',
     }),
-    'specs-grid': (s) => ({
+    'specs-grid': s => ({
       title: s.title || '',
       categories: [{
         name: 'Comparison',
@@ -533,17 +535,17 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         })),
       }],
     }),
-    'accordion': (s) => ({
+    'accordion': s => ({
       title: s.title || '',
       items: (s.rows || []).map((r: any) => ({
         question: r.feature || '',
         answer: (s.columns || []).slice(1).map((col: any, i: number) =>
-          `${col.label}: ${(r.values || [])[i] || '-'}`
+          `${col.label}: ${(r.values || [])[i] || '-'}`,
         ).join('\n'),
       })),
       section_id: '',
     }),
-    'tabs': (s) => ({
+    'tabs': s => ({
       title: s.title || '',
       variant: 'default',
       theme: 'light',
@@ -551,7 +553,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       tabs: (s.columns || []).slice(1).map((col: any, colIdx: number) => ({
         label: col.label || `Column ${colIdx + 1}`,
         content_html: (s.rows || []).map((r: any) =>
-          `<p><strong>${r.feature}:</strong> ${(r.values || [])[colIdx] || '-'}</p>`
+          `<p><strong>${r.feature}:</strong> ${(r.values || [])[colIdx] || '-'}</p>`,
         ).join('\n'),
         image_url: '',
         image_disclaimer: '',
@@ -574,12 +576,12 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         })),
       }
     },
-    'accordion': (s) => ({
+    'accordion': s => ({
       title: s.title || '',
       items: (s.categories || []).map((cat: any) => ({
         question: cat.name || '',
         answer: (cat.specs || []).map((spec: any) =>
-          `${spec.label}: ${spec.value}${spec.unit ? ' ' + spec.unit : ''}`
+          `${spec.label}: ${spec.value}${spec.unit ? ` ${spec.unit}` : ''}`,
         ).join('\n'),
       })),
       section_id: '',
@@ -588,16 +590,16 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- STATS ----
   'stats': {
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.stats || []).map((stat: any) => ({
-        title: `${stat.value}${stat.unit ? ' ' + stat.unit : ''}`,
+        title: `${stat.value}${stat.unit ? ` ${stat.unit}` : ''}`,
         description: stat.label || '',
         image_url: stat.icon_url || '',
       })),
       columns: Math.min((s.stats || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'specs-grid': (s) => ({
+    'specs-grid': s => ({
       title: s.title || '',
       categories: [{
         name: 'Key Stats',
@@ -608,7 +610,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         })),
       }],
     }),
-    'comparison-table': (s) => ({
+    'comparison-table': s => ({
       title: s.title || '',
       columns: [{ label: 'Stat' }, { label: 'Value' }],
       rows: (s.stats || []).map((stat: any) => ({
@@ -620,7 +622,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- LOGO STRIP ----
   'logo-strip': {
-    'gallery': (s) => ({
+    'gallery': s => ({
       title: s.title || '',
       images: (s.logos || []).map((logo: any) => ({
         url: logo.image_url || '',
@@ -629,7 +631,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       layout: 'grid',
     }),
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.logos || []).map((logo: any) => ({
         title: logo.name || '',
@@ -642,12 +644,12 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- EMBED ----
   'embed': {
-    'map': (s) => ({
+    map: s => ({
       title: s.title || '',
       sub_heading: '',
       embed_url: s.embed_url || '',
     }),
-    'video': (s) => ({
+    video: s => ({
       title: s.title || '',
       video_url: s.embed_url || '',
       poster_url: '',
@@ -657,7 +659,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- ENQUIRY FORM ----
   'enquiry-form': {
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.heading || '',
       body: s.sub_heading || '',
       cta_text: s.form_type === 'test-drive' ? 'Book a Test Drive' : 'Enquire Now',
@@ -675,7 +677,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         title: s.title || '',
         columns: [{ label: 'Feature' }, ...tiers.map((t: any) => ({ label: t.name || '', highlighted: !!t.highlighted }))],
         rows: [
-          { feature: 'Price', values: tiers.map((t: any) => `${t.price}${t.price_suffix ? ' ' + t.price_suffix : ''}`) },
+          { feature: 'Price', values: tiers.map((t: any) => `${t.price}${t.price_suffix ? ` ${t.price_suffix}` : ''}`) },
           ...allFeatures.map((f: string) => ({
             feature: f,
             values: tiers.map((t: any) => (t.features || []).includes(f) ? '\u2713' : '\u2717'),
@@ -683,7 +685,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         ],
       }
     },
-    'feature-cards': (s) => ({
+    'feature-cards': s => ({
       title: s.title || '',
       cards: (s.tiers || []).map((t: any) => ({
         title: `${t.name} — ${t.price}`,
@@ -692,7 +694,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       })),
       columns: Math.min((s.tiers || []).length, 4) as 2 | 3 | 4 || 3,
     }),
-    'accordion': (s) => ({
+    'accordion': s => ({
       title: s.title || '',
       items: (s.tiers || []).map((t: any) => ({
         question: `${t.name} — ${t.price}`,
@@ -704,14 +706,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- STICKY BAR ----
   'sticky-bar': {
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.model_name || '',
       body: s.price_text || '',
       cta_text: (s.buttons || [])[0]?.text || '',
       cta_url: (s.buttons || [])[0]?.url || '#',
       background_color: s.background_color || '',
     }),
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.model_name || '',
       sub_heading: s.price_text || '',
       cta_text: (s.buttons || [])[0]?.text || '',
@@ -723,20 +725,20 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- COUNTDOWN ----
   'countdown': {
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.title || '',
       body: s.subtitle || '',
       cta_text: s.cta_text || '',
       cta_url: s.cta_url || '#',
       background_color: s.background_color || '',
     }),
-    'alert': (s) => ({
+    'alert': s => ({
       title: s.title || '',
       message: s.subtitle || '',
       variant: 'info',
       dismissible: true,
     }),
-    'hero': (s) => ({
+    'hero': s => ({
       heading: s.title || '',
       sub_heading: s.subtitle || '',
       cta_text: s.cta_text || '',
@@ -748,14 +750,14 @@ const CONVERSIONS: Record<string, ConversionMap> = {
 
   // ---- FINANCE CALCULATOR ----
   'finance-calculator': {
-    'cta-banner': (s) => ({
+    'cta-banner': s => ({
       heading: s.title || 'Finance Available',
       body: s.subtitle || '',
       cta_text: s.cta_text || 'Get Quote',
       cta_url: s.cta_url || '#',
       background_color: '',
     }),
-    'stats': (s) => ({
+    'stats': s => ({
       title: s.title || '',
       stats: [
         { value: `$${(s.default_price || 0).toLocaleString()}`, label: 'From', unit: '' },
@@ -765,7 +767,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       layout: 'row',
       background: '',
     }),
-    'pricing-table': (s) => ({
+    'pricing-table': s => ({
       title: s.title || '',
       subtitle: s.subtitle || '',
       tiers: [{
@@ -795,7 +797,8 @@ const CONVERSIONS: Record<string, ConversionMap> = {
  */
 export function getConvertibleTypes(sourceType: PageSectionType): PageSectionType[] {
   const map = CONVERSIONS[sourceType]
-  if (!map) return []
+  if (!map)
+    return []
   return Object.keys(map) as PageSectionType[]
 }
 
@@ -808,7 +811,8 @@ export function convertSectionData(
   targetType: PageSectionType,
 ): Record<string, any> | null {
   const sourceType = source.type as PageSectionType
-  if (sourceType === targetType) return null
+  if (sourceType === targetType)
+    return null
 
   const conversionFn = CONVERSIONS[sourceType]?.[targetType]
 
@@ -835,14 +839,17 @@ export function convertSectionData(
     order: source.order,
   }
   // Try to carry over title/heading
-  if ('title' in result && title) result.title = title
-  if ('heading' in result && title) result.heading = title
+  if ('title' in result && title)
+    result.title = title
+  if ('heading' in result && title)
+    result.heading = title
 
   return result
 }
 
 /** Strip HTML tags for plain text conversion */
 function stripHtml(html: string | undefined | null): string {
-  if (!html) return ''
+  if (!html)
+    return ''
   return html.replace(/<[^>]*>/g, '').trim()
 }

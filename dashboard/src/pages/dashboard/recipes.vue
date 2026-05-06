@@ -1,17 +1,31 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
 import {
-  Loader2, Plus, Pencil, Trash2, Copy, BookmarkPlus,
-  ChevronDown, ChevronRight, AlertTriangle,
-  Image, Grid3x3, SplitSquareHorizontal, Play,
-  Columns3, Database, Megaphone, Layers,
+  AlertTriangle,
+  BookmarkPlus,
+  ChevronDown,
+  ChevronRight,
+  Columns3,
+  Copy,
+  Database,
+  Grid3x3,
+  Image,
+  Layers,
+  Loader2,
+  Megaphone,
+  Pencil,
+  Play,
+  Plus,
+  SplitSquareHorizontal,
+  Trash2,
 } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
-import RecipeVisualEditor from './components/page-builder/RecipeVisualEditor.vue'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchAllRecipes, saveRecipe as apiSaveRecipe, deleteRecipe as apiDeleteRecipe, fetchBrandTokens } from '@/lib/worker-api'
+import { deleteRecipe as apiDeleteRecipe, saveRecipe as apiSaveRecipe, fetchAllRecipes, fetchBrandTokens } from '@/lib/worker-api'
+
+import RecipeVisualEditor from './components/page-builder/RecipeVisualEditor.vue'
 
 interface BrandRecipe {
   id: string
@@ -59,18 +73,40 @@ const PATTERNS = [
 ] as const
 
 const SECTION_TYPES = [
-  'hero', 'heading', 'intro', 'tabs', 'color-picker', 'specs-grid', 'gallery',
-  'feature-cards', 'video', 'cta-banner', 'content-block', 'accordion',
-  'enquiry-form', 'map', 'alert', 'divider', 'testimonial', 'comparison-table',
-  'stats', 'logo-strip', 'embed', 'pricing-table', 'sticky-bar', 'countdown',
-  'finance-calculator', 'image', 'image-showcase',
+  'hero',
+  'heading',
+  'intro',
+  'tabs',
+  'color-picker',
+  'specs-grid',
+  'gallery',
+  'feature-cards',
+  'video',
+  'cta-banner',
+  'content-block',
+  'accordion',
+  'enquiry-form',
+  'map',
+  'alert',
+  'divider',
+  'testimonial',
+  'comparison-table',
+  'stats',
+  'logo-strip',
+  'embed',
+  'pricing-table',
+  'sticky-bar',
+  'countdown',
+  'finance-calculator',
+  'image',
+  'image-showcase',
 ]
 
 const { fetchOems } = useOemData()
 
 const brandRecipes = ref<BrandRecipe[]>([])
 const defaultRecipes = ref<DefaultRecipe[]>([])
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const filterOem = ref('all')
@@ -92,10 +128,12 @@ async function loadData() {
     oems.value = o
     brandRecipes.value = (allRecipes.brand_recipes ?? []) as BrandRecipe[]
     defaultRecipes.value = (allRecipes.default_recipes ?? []) as DefaultRecipe[]
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load recipes'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -110,9 +148,11 @@ watch(filterOem, async (oemId) => {
   loadingTokens.value = true
   try {
     brandTokens.value = await fetchBrandTokens(oemId)
-  } catch {
+  }
+  catch {
     brandTokens.value = null
-  } finally {
+  }
+  finally {
     loadingTokens.value = false
   }
 })
@@ -162,7 +202,8 @@ const recipesByPattern = computed(() => {
   const grouped: Record<string, MergedRecipe[]> = {}
   for (const p of PATTERNS) grouped[p.key] = []
   for (const r of filteredRecipes.value) {
-    if (grouped[r.pattern]) grouped[r.pattern].push(r)
+    if (grouped[r.pattern])
+      grouped[r.pattern].push(r)
   }
   return grouped
 })
@@ -211,14 +252,16 @@ function openDuplicate(recipe: MergedRecipe) {
 const parsedDefaults = computed(() => {
   try {
     return JSON.parse(defaultsJsonText.value)
-  } catch {
+  }
+  catch {
     return null
   }
 })
 
 const previewColumns = computed(() => {
   const d = parsedDefaults.value
-  if (!d) return 3
+  if (!d)
+    return 3
   return d.columns ?? d.card_grid?.columns ?? d.grid?.columns ?? 3
 })
 
@@ -228,7 +271,8 @@ const editDefaults = computed({
 })
 
 async function handleSaveRecipe() {
-  if (!editingRecipe.value) return
+  if (!editingRecipe.value)
+    return
   const r = editingRecipe.value
   if (!r.oem_id || !r.pattern || !r.variant || !r.label || !r.resolves_to) {
     toast.error('All fields are required')
@@ -238,7 +282,8 @@ async function handleSaveRecipe() {
   let parsedJson: Record<string, any> = {}
   try {
     parsedJson = JSON.parse(defaultsJsonText.value)
-  } catch {
+  }
+  catch {
     toast.error('Invalid JSON in defaults')
     return
   }
@@ -260,9 +305,11 @@ async function handleSaveRecipe() {
 
     editingRecipe.value = null
     await loadData()
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Failed to save recipe')
-  } finally {
+  }
+  finally {
     saving.value = false
   }
 }
@@ -272,7 +319,8 @@ async function deleteRecipe(id: string) {
     await apiDeleteRecipe(id)
     toast.success('Recipe deleted')
     await loadData()
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Failed to delete recipe')
   }
 }
@@ -287,7 +335,9 @@ async function deleteRecipe(id: string) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -328,7 +378,7 @@ async function deleteRecipe(id: string) {
           v-if="brandTokens.colors?.surface"
           class="size-5 rounded-full border"
           :style="{ backgroundColor: brandTokens.colors?.surface }"
-          :title="'Surface: ' + brandTokens.colors?.surface"
+          :title="`Surface: ${brandTokens.colors?.surface}`"
         />
       </div>
       <span class="text-muted-foreground">|</span>
@@ -354,7 +404,9 @@ async function deleteRecipe(id: string) {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <div v-else class="space-y-2">
@@ -384,7 +436,9 @@ async function deleteRecipe(id: string) {
                   <UiTableHead>Variant</UiTableHead>
                   <UiTableHead>Resolves To</UiTableHead>
                   <UiTableHead>Source</UiTableHead>
-                  <UiTableHead class="text-right">Actions</UiTableHead>
+                  <UiTableHead class="text-right">
+                    Actions
+                  </UiTableHead>
                 </UiTableRow>
               </UiTableHeader>
               <UiTableBody>
@@ -403,7 +457,9 @@ async function deleteRecipe(id: string) {
                     {{ recipe.variant }}
                   </UiTableCell>
                   <UiTableCell>
-                    <UiBadge variant="outline" class="text-xs">{{ recipe.resolves_to }}</UiBadge>
+                    <UiBadge variant="outline" class="text-xs">
+                      {{ recipe.resolves_to }}
+                    </UiBadge>
                   </UiTableCell>
                   <UiTableCell>
                     <UiBadge
@@ -453,14 +509,18 @@ async function deleteRecipe(id: string) {
           v-else-if="expandedPattern === pattern.key"
           class="border-t px-4 py-6 text-center"
         >
-          <p class="text-sm text-muted-foreground">No recipes for this pattern</p>
+          <p class="text-sm text-muted-foreground">
+            No recipes for this pattern
+          </p>
         </div>
       </UiCard>
     </div>
 
     <div v-if="filteredRecipes.length === 0 && !loading && !loadError" class="text-center py-16">
       <BookmarkPlus class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-      <p class="text-sm text-muted-foreground">No recipes found matching your filters</p>
+      <p class="text-sm text-muted-foreground">
+        No recipes found matching your filters
+      </p>
     </div>
 
     <!-- Edit/Create Dialog -->
@@ -526,7 +586,6 @@ async function deleteRecipe(id: string) {
               </UiSelectContent>
             </UiSelect>
           </div>
-
         </div>
 
         <!-- Visual Recipe Editor -->
@@ -537,7 +596,9 @@ async function deleteRecipe(id: string) {
         />
 
         <div class="flex justify-end gap-2 pt-2">
-          <UiButton variant="outline" @click="editingRecipe = null">Cancel</UiButton>
+          <UiButton variant="outline" @click="editingRecipe = null">
+            Cancel
+          </UiButton>
           <UiButton :disabled="saving" @click="handleSaveRecipe">
             <Loader2 v-if="saving" class="size-4 mr-1 animate-spin" />
             Save

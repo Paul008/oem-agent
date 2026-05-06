@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js'
+
 import { defineStore } from 'pinia'
 
 import { supabase } from '@/lib/supabase'
@@ -9,7 +10,8 @@ export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false)
 
   async function init() {
-    if (initialized.value) return
+    if (initialized.value)
+      return
 
     try {
       const { data } = await supabase.auth.getSession()

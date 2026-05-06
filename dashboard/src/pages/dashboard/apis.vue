@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, Globe, Zap, AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle, Globe, Loader2, Zap } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
-import { supabase } from '@/lib/supabase'
 import { useOemData } from '@/composables/use-oem-data'
+import { supabase } from '@/lib/supabase'
 
 interface DiscoveredApi {
   id: string
@@ -40,18 +40,22 @@ onMounted(async () => {
     ])
     oems.value = o
     apis.value = (data ?? []) as DiscoveredApi[]
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load discovered APIs'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
 
 const filtered = computed(() => {
-  return apis.value.filter(a => {
-    if (filterOem.value !== 'all' && a.oem_id !== filterOem.value) return false
-    if (filterDataType.value !== 'all' && a.data_type !== filterDataType.value) return false
+  return apis.value.filter((a) => {
+    if (filterOem.value !== 'all' && a.oem_id !== filterOem.value)
+      return false
+    if (filterDataType.value !== 'all' && a.data_type !== filterDataType.value)
+      return false
     return true
   })
 })
@@ -72,15 +76,20 @@ function oemName(id: string) {
 }
 
 function reliabilityColor(score: number) {
-  if (score >= 0.8) return 'text-green-500'
-  if (score >= 0.5) return 'text-yellow-500'
+  if (score >= 0.8)
+    return 'text-green-500'
+  if (score >= 0.5)
+    return 'text-yellow-500'
   return 'text-red-500'
 }
 
 function statusBadge(status: string) {
-  if (status === 'verified') return 'bg-green-500/10 text-green-500 border-green-500/20'
-  if (status === 'discovered') return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-  if (status === 'stale') return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+  if (status === 'verified')
+    return 'bg-green-500/10 text-green-500 border-green-500/20'
+  if (status === 'discovered')
+    return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+  if (status === 'stale')
+    return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
   return 'bg-red-500/10 text-red-500 border-red-500/20'
 }
 
@@ -101,39 +110,57 @@ function shortenUrl(url: string) {
     <div class="grid gap-4 sm:grid-cols-4 mb-4">
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Total APIs</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Total APIs
+          </UiCardTitle>
           <Globe class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.total }}</div>
+          <div class="text-2xl font-bold">
+            {{ stats.total }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">High Value</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            High Value
+          </UiCardTitle>
           <Zap class="size-4 text-green-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-green-500">{{ stats.highValue }}</div>
-          <p class="text-xs text-muted-foreground">reliability >= 0.7</p>
+          <div class="text-2xl font-bold text-green-500">
+            {{ stats.highValue }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            reliability >= 0.7
+          </p>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Verified</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Verified
+          </UiCardTitle>
           <Zap class="size-4 text-blue-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.verified }}</div>
+          <div class="text-2xl font-bold">
+            {{ stats.verified }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">OEMs Covered</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            OEMs Covered
+          </UiCardTitle>
           <Globe class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ stats.oemsWithApis }} / {{ oems.length }}</div>
+          <div class="text-2xl font-bold">
+            {{ stats.oemsWithApis }} / {{ oems.length }}
+          </div>
         </UiCardContent>
       </UiCard>
     </div>
@@ -145,7 +172,9 @@ function shortenUrl(url: string) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -156,8 +185,12 @@ function shortenUrl(url: string) {
           <UiSelectValue placeholder="Data Type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Types</UiSelectItem>
-          <UiSelectItem v-for="dt in dataTypes" :key="dt" :value="dt">{{ dt }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Types
+          </UiSelectItem>
+          <UiSelectItem v-for="dt in dataTypes" :key="dt" :value="dt">
+            {{ dt }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <span class="text-sm text-muted-foreground">{{ filtered.length }} APIs</span>
@@ -169,7 +202,9 @@ function shortenUrl(url: string) {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <UiCard v-else-if="filtered.length > 0">
@@ -182,22 +217,34 @@ function shortenUrl(url: string) {
               <UiTableHead>Method</UiTableHead>
               <UiTableHead>Data Type</UiTableHead>
               <UiTableHead>Status</UiTableHead>
-              <UiTableHead class="text-right">Reliability</UiTableHead>
-              <UiTableHead class="text-right">Calls</UiTableHead>
-              <UiTableHead class="text-right">Errors</UiTableHead>
+              <UiTableHead class="text-right">
+                Reliability
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Calls
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Errors
+              </UiTableHead>
             </UiTableRow>
           </UiTableHeader>
           <UiTableBody>
             <UiTableRow v-for="api in filtered" :key="api.id">
-              <UiTableCell class="font-medium text-sm">{{ oemName(api.oem_id) }}</UiTableCell>
+              <UiTableCell class="font-medium text-sm">
+                {{ oemName(api.oem_id) }}
+              </UiTableCell>
               <UiTableCell class="text-xs text-muted-foreground max-w-[350px] truncate font-mono">
                 {{ shortenUrl(api.url) }}
               </UiTableCell>
               <UiTableCell>
-                <UiBadge variant="outline" class="text-xs">{{ api.method }}</UiBadge>
+                <UiBadge variant="outline" class="text-xs">
+                  {{ api.method }}
+                </UiBadge>
               </UiTableCell>
               <UiTableCell>
-                <UiBadge v-if="api.data_type" variant="secondary" class="text-xs">{{ api.data_type }}</UiBadge>
+                <UiBadge v-if="api.data_type" variant="secondary" class="text-xs">
+                  {{ api.data_type }}
+                </UiBadge>
                 <span v-else class="text-muted-foreground">-</span>
               </UiTableCell>
               <UiTableCell>
@@ -210,7 +257,9 @@ function shortenUrl(url: string) {
                   {{ (api.reliability_score * 100).toFixed(0) }}%
                 </span>
               </UiTableCell>
-              <UiTableCell class="text-right text-sm">{{ api.call_count }}</UiTableCell>
+              <UiTableCell class="text-right text-sm">
+                {{ api.call_count }}
+              </UiTableCell>
               <UiTableCell class="text-right text-sm">
                 <span :class="api.error_count > 0 ? 'text-red-500' : 'text-muted-foreground'">
                   {{ api.error_count }}
@@ -224,7 +273,9 @@ function shortenUrl(url: string) {
 
     <div v-else class="text-center py-16">
       <Globe class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-      <p class="text-sm text-muted-foreground">No APIs found matching your filters</p>
+      <p class="text-sm text-muted-foreground">
+        No APIs found matching your filters
+      </p>
     </div>
   </BasicPage>
 </template>

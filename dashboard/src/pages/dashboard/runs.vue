@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
+import { CheckCircle, Clock, Loader2, XCircle } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { ImportRun } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
-import type { ImportRun } from '@/composables/use-oem-data'
 
 const { fetchImportRuns, fetchOems } = useOemData()
 
@@ -41,8 +42,10 @@ const runTypes = computed(() => {
 
 const filteredRuns = computed(() => {
   let list = runs.value
-  if (filterOem.value !== 'all') list = list.filter(r => r.oem_id === filterOem.value)
-  if (filterType.value !== 'all') list = list.filter(r => r.run_type === filterType.value)
+  if (filterOem.value !== 'all')
+    list = list.filter(r => r.oem_id === filterOem.value)
+  if (filterType.value !== 'all')
+    list = list.filter(r => r.run_type === filterType.value)
   return list
 })
 
@@ -52,15 +55,20 @@ function oemName(id: string) {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString('en-AU', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
 function duration(run: ImportRun) {
-  if (!run.started_at || !run.finished_at) return '-'
+  if (!run.started_at || !run.finished_at)
+    return '-'
   const ms = new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()
   const secs = Math.round(ms / 1000)
-  if (secs < 60) return `${secs}s`
+  if (secs < 60)
+    return `${secs}s`
   return `${Math.floor(secs / 60)}m ${secs % 60}s`
 }
 </script>
@@ -73,7 +81,9 @@ function duration(run: ImportRun) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -84,8 +94,12 @@ function duration(run: ImportRun) {
           <UiSelectValue placeholder="Filter by type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Types</UiSelectItem>
-          <UiSelectItem v-for="t in runTypes" :key="t" :value="t">{{ t }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Types
+          </UiSelectItem>
+          <UiSelectItem v-for="t in runTypes" :key="t" :value="t">
+            {{ t }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <span class="text-sm text-muted-foreground">{{ filteredRuns.length }} runs</span>
@@ -104,19 +118,35 @@ function duration(run: ImportRun) {
             <UiTableHead>Status</UiTableHead>
             <UiTableHead>Started</UiTableHead>
             <UiTableHead>Duration</UiTableHead>
-            <UiTableHead class="text-right">Pages</UiTableHead>
-            <UiTableHead class="text-right">Products</UiTableHead>
-            <UiTableHead class="text-right">Offers</UiTableHead>
-            <UiTableHead class="text-right">Banners</UiTableHead>
-            <UiTableHead class="text-right">Brochures</UiTableHead>
-            <UiTableHead class="text-right">Changes</UiTableHead>
+            <UiTableHead class="text-right">
+              Pages
+            </UiTableHead>
+            <UiTableHead class="text-right">
+              Products
+            </UiTableHead>
+            <UiTableHead class="text-right">
+              Offers
+            </UiTableHead>
+            <UiTableHead class="text-right">
+              Banners
+            </UiTableHead>
+            <UiTableHead class="text-right">
+              Brochures
+            </UiTableHead>
+            <UiTableHead class="text-right">
+              Changes
+            </UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
           <UiTableRow v-for="run in filteredRuns" :key="run.id">
-            <UiTableCell class="font-medium">{{ oemName(run.oem_id) }}</UiTableCell>
+            <UiTableCell class="font-medium">
+              {{ oemName(run.oem_id) }}
+            </UiTableCell>
             <UiTableCell>
-              <UiBadge variant="outline" class="text-xs">{{ run.run_type }}</UiBadge>
+              <UiBadge variant="outline" class="text-xs">
+                {{ run.run_type }}
+              </UiBadge>
             </UiTableCell>
             <UiTableCell>
               <div class="flex items-center gap-1.5">
@@ -127,9 +157,15 @@ function duration(run: ImportRun) {
                 <span class="text-sm">{{ run.status }}</span>
               </div>
             </UiTableCell>
-            <UiTableCell class="text-sm text-muted-foreground">{{ formatDate(run.created_at) }}</UiTableCell>
-            <UiTableCell class="text-sm">{{ duration(run) }}</UiTableCell>
-            <UiTableCell class="text-right text-muted-foreground">{{ run.pages_checked ?? '-' }}</UiTableCell>
+            <UiTableCell class="text-sm text-muted-foreground">
+              {{ formatDate(run.created_at) }}
+            </UiTableCell>
+            <UiTableCell class="text-sm">
+              {{ duration(run) }}
+            </UiTableCell>
+            <UiTableCell class="text-right text-muted-foreground">
+              {{ run.pages_checked ?? '-' }}
+            </UiTableCell>
             <UiTableCell class="text-right">
               <span :class="run.products_upserted ? 'text-green-600 font-medium' : 'text-muted-foreground'">
                 {{ run.products_upserted ?? 0 }}

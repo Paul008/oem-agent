@@ -1,6 +1,9 @@
-import { ref, onUnmounted, type Ref } from 'vue'
-import { supabase } from '@/lib/supabase'
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import type { Ref } from 'vue'
+
+import { onUnmounted, ref } from 'vue'
+
+import { supabase } from '@/lib/supabase'
 
 type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*'
 
@@ -54,13 +57,15 @@ export function useRealtimeSubscription<T extends Record<string, any>>(options: 
           const newRow = payload.new as T
           if (insertPosition === 'prepend') {
             dataRef.value = [newRow, ...dataRef.value].slice(0, maxItems)
-          } else {
+          }
+          else {
             dataRef.value = [...dataRef.value, newRow].slice(-maxItems)
           }
-        } else if (eventType === 'UPDATE') {
+        }
+        else if (eventType === 'UPDATE') {
           const updated = payload.new as T
           const idx = dataRef.value.findIndex(
-            (item) => item[primaryKey] === updated[primaryKey],
+            item => item[primaryKey] === updated[primaryKey],
           )
           if (idx !== -1) {
             dataRef.value = [
@@ -69,10 +74,11 @@ export function useRealtimeSubscription<T extends Record<string, any>>(options: 
               ...dataRef.value.slice(idx + 1),
             ]
           }
-        } else if (eventType === 'DELETE') {
+        }
+        else if (eventType === 'DELETE') {
           const deleted = payload.old as T
           dataRef.value = dataRef.value.filter(
-            (item) => item[primaryKey] !== deleted[primaryKey],
+            item => item[primaryKey] !== deleted[primaryKey],
           )
         }
 
@@ -83,11 +89,13 @@ export function useRealtimeSubscription<T extends Record<string, any>>(options: 
       if (status === 'SUBSCRIBED') {
         isSubscribed.value = true
         subscriptionError.value = null
-      } else if (status === 'CHANNEL_ERROR') {
+      }
+      else if (status === 'CHANNEL_ERROR') {
         isSubscribed.value = false
         subscriptionError.value = `Realtime channel "${channelName}" error`
         console.error(`[Realtime] Channel "${channelName}" error`)
-      } else if (status === 'TIMED_OUT') {
+      }
+      else if (status === 'TIMED_OUT') {
         isSubscribed.value = false
         subscriptionError.value = `Realtime channel "${channelName}" timed out`
         console.error(`[Realtime] Channel "${channelName}" timed out`)

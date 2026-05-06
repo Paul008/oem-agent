@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
@@ -18,7 +19,7 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -30,11 +31,13 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
 const embedUrl = computed(() => {
   const url = props.section.video_url || ''
   // YouTube
-  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
-  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0${props.section.autoplay ? '&autoplay=1&mute=1' : ''}`
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/)
+  if (ytMatch)
+    return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0${props.section.autoplay ? '&autoplay=1&mute=1' : ''}`
   // Vimeo
   const vmMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
-  if (vmMatch) return `https://player.vimeo.com/video/${vmMatch[1]}?${props.section.autoplay ? 'autoplay=1&muted=1' : ''}`
+  if (vmMatch)
+    return `https://player.vimeo.com/video/${vmMatch[1]}?${props.section.autoplay ? 'autoplay=1&muted=1' : ''}`
   return null
 })
 
@@ -107,7 +110,7 @@ const isFull = computed(() => layout.value === 'full-width')
             :src="section.poster_url"
             :alt="section.title || 'Video poster'"
             class="absolute inset-0 w-full h-full object-cover"
-          />
+          >
           <div class="absolute inset-0 flex items-center justify-center">
             <div class="size-16 rounded-full bg-black/60 flex items-center justify-center">
               <svg class="size-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">

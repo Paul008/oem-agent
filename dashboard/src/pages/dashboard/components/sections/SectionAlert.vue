@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
@@ -17,8 +18,8 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
-const msgEdit = useInlineEdit((v) => emit('update-text', 'message', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
+const msgEdit = useInlineEdit(v => emit('update-text', 'message', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -27,7 +28,7 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
 }
 
 const variantStyles = computed(() => {
-  const styles: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+  const styles: Record<string, { bg: string, border: string, text: string, icon: string }> = {
     info: { bg: 'bg-blue-50 dark:bg-blue-950/30', border: 'border-blue-200 dark:border-blue-800', text: 'text-blue-800 dark:text-blue-200', icon: 'i' },
     warning: { bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800', text: 'text-amber-800 dark:text-amber-200', icon: '!' },
     success: { bg: 'bg-green-50 dark:bg-green-950/30', border: 'border-green-200 dark:border-green-800', text: 'text-green-800 dark:text-green-200', icon: '\u2713' },
@@ -51,14 +52,18 @@ const variantStyles = computed(() => {
           @blur="titleEdit.stopEdit()"
           @keydown="titleEdit.onKeydown"
           @paste="titleEdit.onPaste"
-        >{{ section.title || 'Double-click to add title' }}</p>
+        >
+          {{ section.title || 'Double-click to add title' }}
+        </p>
         <p
           class="text-sm cursor-text outline-none"
           @dblclick="startEditing('message', msgEdit, $event)"
           @blur="msgEdit.stopEdit()"
           @keydown="msgEdit.onKeydown"
           @paste="msgEdit.onPaste"
-        >{{ section.message || 'Double-click to add message' }}</p>
+        >
+          {{ section.message || 'Double-click to add message' }}
+        </p>
       </div>
       <span v-if="section.dismissible" class="shrink-0 text-sm opacity-50 cursor-pointer" :class="variantStyles.text">&times;</span>
     </div>

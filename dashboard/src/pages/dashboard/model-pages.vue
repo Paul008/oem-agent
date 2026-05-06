@@ -1,12 +1,14 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Clock, DollarSign, ExternalLink, Factory, FilePlus2, FileText, ImageOff, Layers, LayoutGrid, List, Loader2, Play, Plus, RefreshCw, Search, Square, Trash2, Zap } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, Search, ChevronLeft, ChevronRight, ImageOff, ExternalLink, FileText, Factory, Clock, DollarSign, AlertCircle, LayoutGrid, List, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Layers, FilePlus2, Plus, Trash2, Zap, Square, RefreshCw } from 'lucide-vue-next'
 
-import { BasicPage } from '@/components/global-layout'
-import { useOemData, type VehicleModel } from '@/composables/use-oem-data'
-import { fetchGeneratedPages, fetchGeneratedPage, adaptivePipeline, createCustomPage, deleteCustomPage, createSubpage, deleteSubpage } from '@/lib/worker-api'
+import type { VehicleModel } from '@/composables/use-oem-data'
+
 import ConfirmDialog from '@/components/confirm-dialog.vue'
+import { BasicPage } from '@/components/global-layout'
+import { useOemData } from '@/composables/use-oem-data'
+import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
 import env from '@/utils/env'
 
 const router = useRouter()
@@ -24,7 +26,7 @@ interface VehicleModelPage {
       button: string
       desktop: string
       mobile: string
-      bottom_strip: Array<{ heading: string; sub_heading: string }>
+      bottom_strip: Array<{ heading: string, sub_heading: string }>
     }>
   }
   content: {
@@ -44,7 +46,7 @@ interface VehicleModelPage {
   subpage_name?: string
 }
 
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const allModels = ref<VehicleModel[]>([])
 const loading = ref(true)
 const filterOem = ref('all')
@@ -54,7 +56,7 @@ const perPage = ref(24)
 const viewMode = ref<'grid' | 'coverage'>('coverage')
 
 // Page data: slug list per OEM, and cached full page objects
-const allSlugs = ref<{ oem_id: string; slug: string }[]>([])
+const allSlugs = ref<{ oem_id: string, slug: string }[]>([])
 const pageCache = ref<Map<string, VehicleModelPage>>(new Map())
 
 // Inline generation tracking
@@ -68,11 +70,14 @@ const creatingCustomPage = ref<Record<string, boolean>>({})
 const showCustomPageForm = ref<Record<string, boolean>>({})
 
 // Custom page deletion state
-const deletingPage = ref<{ oem_id: string; slug: string; name: string } | null>(null)
+const deletingPage = ref<{ oem_id: string, slug: string, name: string } | null>(null)
 const deleteLoading = ref(false)
 const showDeleteDialog = computed({
   get: () => !!deletingPage.value,
-  set: (v: boolean) => { if (!v) deletingPage.value = null },
+  set: (v: boolean) => {
+    if (!v)
+      deletingPage.value = null
+  },
 })
 
 // Subpage types
@@ -99,21 +104,25 @@ const customSubpageSlug = ref('')
 const creatingSubpage = ref(false)
 
 // Subpage deletion state
-const deletingSubpage = ref<{ oem_id: string; modelSlug: string; subpageSlug: string; name: string } | null>(null)
+const deletingSubpage = ref<{ oem_id: string, modelSlug: string, subpageSlug: string, name: string } | null>(null)
 const deleteSubpageLoading = ref(false)
 const showDeleteSubpageDialog = computed({
   get: () => !!deletingSubpage.value,
-  set: (v: boolean) => { if (!v) deletingSubpage.value = null },
+  set: (v: boolean) => {
+    if (!v)
+      deletingSubpage.value = null
+  },
 })
 
 // Group subpages by parent model from allSlugs
 const subpagesByModel = computed(() => {
-  const map: Record<string, { slug: string; subpageSlug: string; oem_id: string }[]> = {}
+  const map: Record<string, { slug: string, subpageSlug: string, oem_id: string }[]> = {}
   for (const s of allSlugs.value) {
     if (s.slug.includes('--')) {
       const [parentSlug, subSlug] = s.slug.split('--', 2)
       const key = `${s.oem_id}/${parentSlug}`
-      if (!map[key]) map[key] = []
+      if (!map[key])
+        map[key] = []
       map[key].push({ slug: s.slug, subpageSlug: subSlug, oem_id: s.oem_id })
     }
   }
@@ -126,7 +135,8 @@ function toggleModelExpand(oemId: string, modelSlug: string) {
     expandedModels.value.delete(key)
     showSubpageMenu.value = null
     showCustomSubpageForm.value = null
-  } else {
+  }
+  else {
     expandedModels.value.add(key)
   }
 }
@@ -141,7 +151,8 @@ function subpageCount(oemId: string, modelSlug: string): number {
 
 function getSubpageDisplayName(subpageSlug: string): string {
   const predefined = SUBPAGE_TYPES.find(t => t.slug === subpageSlug)
-  if (predefined) return predefined.name
+  if (predefined)
+    return predefined.name
   // Format custom slug to title case
   return subpageSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
@@ -161,9 +172,11 @@ async function handleCreateSubpage(oemId: string, modelSlug: string, subpageSlug
     customSubpageName.value = ''
     customSubpageSlug.value = ''
     router.push(`/dashboard/page-builder/${oemId}-${compositeSlug}`)
-  } catch (err: any) {
+  }
+  catch (err: any) {
     alert(`Failed to create subpage: ${err?.message || 'Unknown error'}`)
-  } finally {
+  }
+  finally {
     creatingSubpage.value = false
   }
 }
@@ -171,60 +184,65 @@ async function handleCreateSubpage(oemId: string, modelSlug: string, subpageSlug
 async function handleCreateCustomSubpage(oemId: string, modelSlug: string) {
   const name = customSubpageName.value.trim()
   const slug = customSubpageSlug.value.trim() || toKebabCase(name)
-  if (!name || !slug) return
+  if (!name || !slug)
+    return
   await handleCreateSubpage(oemId, modelSlug, slug, name, 'custom')
 }
 
 async function handleDeleteSubpage() {
   const sp = deletingSubpage.value
-  if (!sp) return
+  if (!sp)
+    return
   deleteSubpageLoading.value = true
   try {
     await deleteSubpage(sp.oem_id, sp.modelSlug, sp.subpageSlug)
     const compositeSlug = `${sp.modelSlug}--${sp.subpageSlug}`
     allSlugs.value = allSlugs.value.filter(
-      s => !(s.oem_id === sp.oem_id && s.slug === compositeSlug)
+      s => !(s.oem_id === sp.oem_id && s.slug === compositeSlug),
     )
     pageCache.value.delete(`${sp.oem_id}-${compositeSlug}`)
     deletingSubpage.value = null
-  } catch (err: any) {
+  }
+  catch (err: any) {
     alert(`Failed to delete subpage: ${err?.message || 'Unknown error'}`)
-  } finally {
+  }
+  finally {
     deleteSubpageLoading.value = false
   }
 }
 
 async function handleDeleteCustomPage() {
   const page = deletingPage.value
-  if (!page) return
+  if (!page)
+    return
   deleteLoading.value = true
   try {
     await deleteCustomPage(page.oem_id, page.slug)
     allSlugs.value = allSlugs.value.filter(
-      s => !(s.oem_id === page.oem_id && s.slug === page.slug)
+      s => !(s.oem_id === page.oem_id && s.slug === page.slug),
     )
     pageCache.value.delete(`${page.oem_id}-${page.slug}`)
     deletingPage.value = null
-  } catch (err: any) {
+  }
+  catch (err: any) {
     alert(`Failed to delete page: ${err?.message || 'Unknown error'}`)
-  } finally {
+  }
+  finally {
     deleteLoading.value = false
   }
 }
 
 function toKebabCase(str: string) {
-  if (!str?.trim()) return ''
-  return str.toLowerCase().trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 50)
+  if (!str?.trim())
+    return ''
+  return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').substring(0, 50)
 }
 
 function toggleCustomPageForm(oemId: string) {
   if (showCustomPageForm.value[oemId]) {
     showCustomPageForm.value[oemId] = false
-  } else {
+  }
+  else {
     showCustomPageForm.value[oemId] = true
   }
   // Always reset form fields when toggling
@@ -235,12 +253,14 @@ function toggleCustomPageForm(oemId: string) {
 // Custom pages: slugs that exist in R2 but don't match any vehicle_model and aren't subpages
 const customPagesByOem = computed(() => {
   const modelSlugs = new Set(allModels.value.map(m => `${m.oem_id}/${m.slug}`))
-  const result: Record<string, { slug: string; oem_id: string }[]> = {}
+  const result: Record<string, { slug: string, oem_id: string }[]> = {}
   for (const s of allSlugs.value) {
     // Skip subpages (contain --) and matching model pages
-    if (s.slug.includes('--')) continue
+    if (s.slug.includes('--'))
+      continue
     if (!modelSlugs.has(`${s.oem_id}/${s.slug}`)) {
-      if (!result[s.oem_id]) result[s.oem_id] = []
+      if (!result[s.oem_id])
+        result[s.oem_id] = []
       result[s.oem_id].push(s)
     }
   }
@@ -254,7 +274,8 @@ const totalCustomPages = computed(() => {
 async function handleCreateCustomPage(oemId: string) {
   const name = customPageName.value.trim()
   const slug = customPageSlug.value.trim() || toKebabCase(name)
-  if (!name || !slug) return
+  if (!name || !slug)
+    return
 
   // Check collision
   if (generatedSlugsSet.value.has(`${oemId}/${slug}`)) {
@@ -273,21 +294,38 @@ async function handleCreateCustomPage(oemId: string) {
     showCustomPageForm.value[oemId] = false
     // Navigate to page builder
     router.push(`/dashboard/page-builder/${oemId}-${slug}`)
-  } catch (err: any) {
+  }
+  catch (err: any) {
     alert(`Failed to create custom page: ${err?.message || 'Unknown error'}`)
-  } finally {
+  }
+  finally {
     creatingCustomPage.value[oemId] = false
   }
 }
 
-function getCustomPageData(item: { oem_id: string; slug: string }) {
+function getCustomPageData(item: { oem_id: string, slug: string }) {
   return pageCache.value.get(fullSlug(item)) ?? null
 }
 
 const OEM_IDS = [
-  'chery-au', 'ford-au', 'foton-au', 'gac-au', 'gmsv-au', 'gwm-au', 'hyundai-au',
-  'isuzu-au', 'kia-au', 'kgm-au', 'ldv-au', 'mazda-au', 'mitsubishi-au',
-  'nissan-au', 'subaru-au', 'suzuki-au', 'toyota-au', 'volkswagen-au',
+  'chery-au',
+  'ford-au',
+  'foton-au',
+  'gac-au',
+  'gmsv-au',
+  'gwm-au',
+  'hyundai-au',
+  'isuzu-au',
+  'kia-au',
+  'kgm-au',
+  'ldv-au',
+  'mazda-au',
+  'mitsubishi-au',
+  'nissan-au',
+  'subaru-au',
+  'suzuki-au',
+  'toyota-au',
+  'volkswagen-au',
 ]
 
 // Track collapsed OEM groups in coverage view
@@ -296,7 +334,8 @@ const collapsedOems = ref(new Set<string>())
 function toggleOemCollapse(oemId: string) {
   if (collapsedOems.value.has(oemId)) {
     collapsedOems.value.delete(oemId)
-  } else {
+  }
+  else {
     collapsedOems.value.add(oemId)
   }
 }
@@ -318,7 +357,7 @@ onMounted(async () => {
       }),
     )
 
-    const slugs: { oem_id: string; slug: string }[] = []
+    const slugs: { oem_id: string, slug: string }[] = []
     for (const r of results) {
       if (r.status === 'fulfilled' && r.value.pages?.length) {
         for (const s of r.value.pages) {
@@ -336,9 +375,10 @@ onMounted(async () => {
   }
 })
 
-async function prefetchPages(items: { oem_id: string; slug: string }[]) {
+async function prefetchPages(items: { oem_id: string, slug: string }[]) {
   const toFetch = items.filter(i => !pageCache.value.has(fullSlug(i)))
-  if (!toFetch.length) return
+  if (!toFetch.length)
+    return
   const results = await Promise.allSettled(
     toFetch.map(async (item) => {
       const data = await fetchGeneratedPage(fullSlug(item))
@@ -352,7 +392,7 @@ async function prefetchPages(items: { oem_id: string; slug: string }[]) {
   }
 }
 
-function fullSlug(item: { oem_id: string; slug: string }) {
+function fullSlug(item: { oem_id: string, slug: string }) {
   return `${item.oem_id}-${item.slug}`
 }
 
@@ -369,14 +409,16 @@ function isModelPageCreated(model: VehicleModel): boolean {
   return generatedSlugsSet.value.has(`${model.oem_id}/${model.slug}`)
 }
 
-function getModelPageSlug(model: VehicleModel): { oem_id: string; slug: string } | null {
-  if (!isModelPageCreated(model)) return null
+function getModelPageSlug(model: VehicleModel): { oem_id: string, slug: string } | null {
+  if (!isModelPageCreated(model))
+    return null
   return { oem_id: model.oem_id, slug: model.slug }
 }
 
 function getModelPageData(model: VehicleModel): VehicleModelPage | null {
   const item = getModelPageSlug(model)
-  if (!item) return null
+  if (!item)
+    return null
   return pageCache.value.get(fullSlug(item)) ?? null
 }
 
@@ -388,7 +430,8 @@ function modelKey(model: VehicleModel) {
 async function triggerGenerate(model: VehicleModel, event: Event) {
   event.stopPropagation()
   const key = modelKey(model)
-  if (generating.value.has(key)) return
+  if (generating.value.has(key))
+    return
 
   generating.value.add(key)
   generateErrors.value.delete(key)
@@ -401,9 +444,11 @@ async function triggerGenerate(model: VehicleModel, event: Event) {
     }
     // Fetch the new page data
     await prefetchPages([{ oem_id: model.oem_id, slug: model.slug }])
-  } catch (err: any) {
+  }
+  catch (err: any) {
     generateErrors.value.set(key, err?.message || 'Generation failed')
-  } finally {
+  }
+  finally {
     generating.value.delete(key)
   }
 }
@@ -417,7 +462,7 @@ function getGenerateError(model: VehicleModel): string | null {
 }
 
 // Bulk generation: generate all pending models for an OEM
-const bulkProgress = ref<Record<string, { done: number; total: number; errors: number; running: boolean }>>({})
+const bulkProgress = ref<Record<string, { done: number, total: number, errors: number, running: boolean }>>({})
 
 function isBulkRunning(oemId: string): boolean {
   return bulkProgress.value[oemId]?.running ?? false
@@ -432,17 +477,20 @@ const bulkAbort = ref<Record<string, AbortController>>({})
 
 async function triggerGenerateAll(oemId: string, event: Event) {
   event.stopPropagation()
-  if (isBulkRunning(oemId)) return
+  if (isBulkRunning(oemId))
+    return
 
   const pendingModels = allModels.value.filter(m => m.oem_id === oemId && !isModelPageCreated(m))
-  if (!pendingModels.length) return
+  if (!pendingModels.length)
+    return
 
   const controller = new AbortController()
   bulkAbort.value[oemId] = controller
   bulkProgress.value[oemId] = { done: 0, total: pendingModels.length, errors: 0, running: true }
 
   for (const model of pendingModels) {
-    if (controller.signal.aborted) break
+    if (controller.signal.aborted)
+      break
 
     const key = modelKey(model)
     generating.value.add(key)
@@ -454,13 +502,15 @@ async function triggerGenerateAll(oemId: string, event: Event) {
         allSlugs.value = [...allSlugs.value, { oem_id: model.oem_id, slug: model.slug }]
       }
       await prefetchPages([{ oem_id: model.oem_id, slug: model.slug }])
-    } catch (err: any) {
+    }
+    catch (err: any) {
       generateErrors.value.set(key, err?.message || 'Generation failed')
       bulkProgress.value[oemId] = {
         ...bulkProgress.value[oemId],
         errors: bulkProgress.value[oemId].errors + 1,
       }
-    } finally {
+    }
+    finally {
       generating.value.delete(key)
       bulkProgress.value[oemId] = {
         ...bulkProgress.value[oemId],
@@ -480,11 +530,12 @@ function stopBulkGenerate(oemId: string, event: Event) {
 
 // Coverage data grouped by OEM
 const coverageByOem = computed(() => {
-  const groups: { oemId: string; oemName: string; models: VehicleModel[]; created: number; total: number }[] = []
+  const groups: { oemId: string, oemName: string, models: VehicleModel[], created: number, total: number }[] = []
 
   for (const oemId of OEM_IDS) {
     const models = allModels.value.filter(m => m.oem_id === oemId)
-    if (!models.length) continue
+    if (!models.length)
+      continue
     const created = models.filter(m => isModelPageCreated(m)).length
     groups.push({
       oemId,
@@ -511,7 +562,7 @@ const filteredCoverage = computed(() => {
       models: g.models.filter(m =>
         m.name.toLowerCase().includes(q)
         || m.slug.toLowerCase().includes(q)
-        || (m.body_type?.toLowerCase().includes(q))
+        || (m.body_type?.toLowerCase().includes(q)),
       ),
     })).filter(g => g.models.length > 0)
     // Recalculate created count for filtered models
@@ -608,11 +659,11 @@ function oemName(id: string) {
   return oems.value.find(o => o.id === id)?.name?.replace(' Australia', '') ?? id
 }
 
-function getPageData(item: { oem_id: string; slug: string }) {
+function getPageData(item: { oem_id: string, slug: string }) {
   return pageCache.value.get(fullSlug(item))
 }
 
-function heroImage(item: { oem_id: string; slug: string }) {
+function heroImage(item: { oem_id: string, slug: string }) {
   const p = getPageData(item)
   let url = p?.header?.slides?.[0]?.desktop || null
 
@@ -625,12 +676,14 @@ function heroImage(item: { oem_id: string; slug: string }) {
 }
 
 function formatDate(iso: string | undefined) {
-  if (!iso) return '-'
+  if (!iso)
+    return '-'
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function formatCost(cost: number | undefined) {
-  if (!cost) return '-'
+  if (!cost)
+    return '-'
   return `$${cost.toFixed(4)}`
 }
 
@@ -639,32 +692,36 @@ function hasStructuredSections(p: VehicleModelPage | null): boolean {
 }
 
 function isClonedPage(p: VehicleModelPage | null): boolean {
-  if (!p?.content?.rendered) return false
+  if (!p?.content?.rendered)
+    return false
   return p.content.rendered.includes('tailwindcss.com') || p.content.rendered.includes('<link rel="stylesheet"')
 }
 
 type PageStatus = 'generated' | 'structured' | 'cloned'
 
 function getPageStatus(p: VehicleModelPage | null): PageStatus {
-  if (hasStructuredSections(p)) return 'structured'
-  if (isClonedPage(p)) return 'cloned'
+  if (hasStructuredSections(p))
+    return 'structured'
+  if (isClonedPage(p))
+    return 'cloned'
   return 'generated'
 }
 
-const statusConfig: Record<PageStatus, { label: string; color: string }> = {
+const statusConfig: Record<PageStatus, { label: string, color: string }> = {
   structured: { label: 'Structured', color: 'bg-emerald-600/80' },
   cloned: { label: 'Cloned', color: 'bg-amber-600/80' },
   generated: { label: 'Generated', color: 'bg-blue-600/80' },
 }
 
-function openPageBuilder(item: { oem_id: string; slug: string }) {
+function openPageBuilder(item: { oem_id: string, slug: string }) {
   router.push(`/dashboard/page-builder/${fullSlug(item)}`)
 }
 
 const refreshing = ref(false)
 
 async function handleRefresh() {
-  if (refreshing.value) return
+  if (refreshing.value)
+    return
   refreshing.value = true
   pageCache.value.clear()
   try {
@@ -674,7 +731,7 @@ async function handleRefresh() {
         return { oemId, pages: res.pages as string[] }
       }),
     )
-    const slugs: { oem_id: string; slug: string }[] = []
+    const slugs: { oem_id: string, slug: string }[] = []
     for (const r of results) {
       if (r.status === 'fulfilled' && r.value.pages?.length) {
         for (const s of r.value.pages) {
@@ -720,7 +777,9 @@ async function handleRefresh() {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
             <span v-if="oemCounts[oem.id]" class="text-muted-foreground ml-1">({{ oemCounts[oem.id] }})</span>
@@ -741,9 +800,15 @@ async function handleRefresh() {
           <UiSelectValue />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="12">12 per page</UiSelectItem>
-          <UiSelectItem value="24">24 per page</UiSelectItem>
-          <UiSelectItem value="48">48 per page</UiSelectItem>
+          <UiSelectItem value="12">
+            12 per page
+          </UiSelectItem>
+          <UiSelectItem value="24">
+            24 per page
+          </UiSelectItem>
+          <UiSelectItem value="48">
+            48 per page
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <button
@@ -774,62 +839,98 @@ async function handleRefresh() {
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Pages</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Pages
+            </UiCardTitle>
             <FileText class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total }}</div>
-            <p class="text-xs text-muted-foreground">{{ totalCustomPages > 0 ? `Incl. ${totalCustomPages} custom` : 'Generated pages' }}</p>
+            <div class="text-2xl font-bold">
+              {{ stats.total }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ totalCustomPages > 0 ? `Incl. ${totalCustomPages} custom` : 'Generated pages' }}
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Models</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Models
+            </UiCardTitle>
             <Factory class="size-4 text-blue-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-blue-500">{{ coverageStats.total }}</div>
-            <p class="text-xs text-muted-foreground">Across {{ oems.length }} OEMs</p>
+            <div class="text-2xl font-bold text-blue-500">
+              {{ coverageStats.total }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Across {{ oems.length }} OEMs
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Coverage</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Coverage
+            </UiCardTitle>
             <CheckCircle2 class="size-4 text-emerald-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-emerald-500">{{ coverageStats.percentage }}%</div>
-            <p class="text-xs text-muted-foreground">{{ coverageStats.created }} of {{ coverageStats.total }} models</p>
+            <div class="text-2xl font-bold text-emerald-500">
+              {{ coverageStats.percentage }}%
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ coverageStats.created }} of {{ coverageStats.total }} models
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Pending</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Pending
+            </UiCardTitle>
             <AlertCircle class="size-4 text-orange-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-orange-500">{{ coverageStats.pending }}</div>
-            <p class="text-xs text-muted-foreground">Models without pages</p>
+            <div class="text-2xl font-bold text-orange-500">
+              {{ coverageStats.pending }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Models without pages
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Latest</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Latest
+            </UiCardTitle>
             <Clock class="size-4 text-green-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-lg font-bold text-green-500">{{ formatDate(stats.latest) }}</div>
-            <p class="text-xs text-muted-foreground">Most recent generation</p>
+            <div class="text-lg font-bold text-green-500">
+              {{ formatDate(stats.latest) }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Most recent generation
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Avg Cost</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Avg Cost
+            </UiCardTitle>
             <DollarSign class="size-4 text-amber-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-amber-500">{{ formatCost(stats.avgCost) }}</div>
-            <p class="text-xs text-muted-foreground">Per page (USD)</p>
+            <div class="text-2xl font-bold text-amber-500">
+              {{ formatCost(stats.avgCost) }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Per page (USD)
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -1211,7 +1312,9 @@ async function handleRefresh() {
         <!-- Empty state -->
         <div v-if="filteredCoverage.length === 0" class="text-center py-16">
           <FileText class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p class="text-sm text-muted-foreground">No models found matching your search</p>
+          <p class="text-sm text-muted-foreground">
+            No models found matching your search
+          </p>
         </div>
       </template>
 
@@ -1234,7 +1337,7 @@ async function handleRefresh() {
                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
                 @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-              />
+              >
               <div v-if="!heroImage(item)" class="w-full h-full flex items-center justify-center">
                 <ImageOff class="size-8 text-muted-foreground/20" />
               </div>
@@ -1301,8 +1404,12 @@ async function handleRefresh() {
         <!-- Empty state -->
         <div v-if="filtered.length === 0" class="text-center py-16">
           <FileText class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p class="text-sm text-muted-foreground">No generated model pages found</p>
-          <p class="text-xs text-muted-foreground mt-1">Run the page generation pipeline to create model pages</p>
+          <p class="text-sm text-muted-foreground">
+            No generated model pages found
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            Run the page generation pipeline to create model pages
+          </p>
         </div>
 
         <!-- Pagination -->
@@ -1346,7 +1453,9 @@ async function handleRefresh() {
       :is-loading="deleteLoading"
       @confirm="handleDeleteCustomPage"
     >
-      <template #title>Delete Custom Page</template>
+      <template #title>
+        Delete Custom Page
+      </template>
       <template #description>
         <p>Are you sure you want to delete <strong>{{ deletingPage?.name }}</strong>? This action cannot be undone.</p>
       </template>
@@ -1360,7 +1469,9 @@ async function handleRefresh() {
       :is-loading="deleteSubpageLoading"
       @confirm="handleDeleteSubpage"
     >
-      <template #title>Delete Subpage</template>
+      <template #title>
+        Delete Subpage
+      </template>
       <template #description>
         <p>Are you sure you want to delete the <strong>{{ deletingSubpage?.name }}</strong> subpage? This action cannot be undone.</p>
       </template>

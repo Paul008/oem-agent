@@ -42,7 +42,8 @@ const onSubmit = handleSubmit(async (values) => {
       redirectTo: `${window.location.origin}/auth/confirm`,
     })
 
-    if (error) throw error
+    if (error)
+      throw error
 
     toast.success(`Invitation sent to ${values.email}`)
     resetForm()

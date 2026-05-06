@@ -5,7 +5,8 @@
  * Uses Supabase client directly (matching project pattern).
  */
 
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
 import { supabase } from '@/lib/supabase'
 
 export interface AgentAction {
@@ -109,20 +110,26 @@ export function useAgents() {
         .order('created_at', { ascending: false })
         .range(offset, offset + pageSize.value - 1)
 
-      if (filterWorkflow.value && filterWorkflow.value !== 'all') query = query.eq('workflow_id', filterWorkflow.value)
-      if (filterStatus.value && filterStatus.value !== 'all') query = query.eq('status', filterStatus.value)
-      if (filterOem.value && filterOem.value !== 'all') query = query.eq('oem_id', filterOem.value)
+      if (filterWorkflow.value && filterWorkflow.value !== 'all')
+        query = query.eq('workflow_id', filterWorkflow.value)
+      if (filterStatus.value && filterStatus.value !== 'all')
+        query = query.eq('status', filterStatus.value)
+      if (filterOem.value && filterOem.value !== 'all')
+        query = query.eq('oem_id', filterOem.value)
 
       const { data, error: queryError, count } = await query
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       actions.value = (data || []) as AgentAction[]
       totalCount.value = count || 0
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('[useAgents] Error fetching actions:', e)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -133,11 +140,13 @@ export function useAgents() {
         .from('agent_actions')
         .select('status, workflow_id, cost_usd, execution_time_ms, created_at')
 
-      if (filterOem.value && filterOem.value !== 'all') query = query.eq('oem_id', filterOem.value)
+      if (filterOem.value && filterOem.value !== 'all')
+        query = query.eq('oem_id', filterOem.value)
 
       const { data: allActions, error: queryError } = await query
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       const byStatus = { pending: 0, running: 0, completed: 0, failed: 0, requires_approval: 0 }
       const byWorkflow: Record<string, number> = {}
@@ -147,7 +156,8 @@ export function useAgents() {
 
       for (const a of allActions || []) {
         const s = a.status as keyof typeof byStatus
-        if (s in byStatus) byStatus[s]++
+        if (s in byStatus)
+          byStatus[s]++
         byWorkflow[a.workflow_id] = (byWorkflow[a.workflow_id] || 0) + 1
         if (a.cost_usd != null) {
           totalCost += a.cost_usd
@@ -168,7 +178,8 @@ export function useAgents() {
         total_cost_usd: totalCost,
         avg_execution_ms: costCount > 0 ? Math.round(totalTime / costCount) : 0,
       }
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgents] Error fetching stats:', e)
     }
   }
@@ -184,15 +195,18 @@ export function useAgents() {
         .eq('id', id)
         .single()
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       selectedAction.value = data as AgentAction
       return data
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('[useAgents] Error fetching action:', e)
       return null
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -208,12 +222,14 @@ export function useAgents() {
         })
         .eq('id', id)
 
-      if (updateError) throw new Error(updateError.message)
+      if (updateError)
+        throw new Error(updateError.message)
 
       await fetchActions()
       await fetchStats()
       return true
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('[useAgents] Error approving action:', e)
       return false
@@ -231,12 +247,14 @@ export function useAgents() {
         })
         .eq('id', id)
 
-      if (updateError) throw new Error(updateError.message)
+      if (updateError)
+        throw new Error(updateError.message)
 
       await fetchActions()
       await fetchStats()
       return true
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('[useAgents] Error rolling back action:', e)
       return false
@@ -253,7 +271,8 @@ export function useAgents() {
         .select('*')
         .order('priority', { ascending: false })
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       // Get action counts for each workflow
       const { data: actionCounts } = await supabase
@@ -280,10 +299,12 @@ export function useAgents() {
           },
         }
       })
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('[useAgents] Error fetching workflows:', e)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -296,10 +317,12 @@ export function useAgents() {
         .eq('id', id)
         .single()
 
-      if (queryError && queryError.code !== 'PGRST116') throw new Error(queryError.message)
+      if (queryError && queryError.code !== 'PGRST116')
+        throw new Error(queryError.message)
 
       return (data?.config as Record<string, unknown>) || {}
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgents] Error fetching workflow config:', e)
       return {}
     }
@@ -310,7 +333,8 @@ export function useAgents() {
       const allowedFields = ['enabled', 'priority', 'confidence_threshold', 'rate_limit_hourly', 'rate_limit_daily', 'config']
       const cleanUpdates: Record<string, unknown> = {}
       for (const field of allowedFields) {
-        if (field in updates) cleanUpdates[field] = (updates as any)[field]
+        if (field in updates)
+          cleanUpdates[field] = (updates as any)[field]
       }
       cleanUpdates.updated_at = new Date().toISOString()
 
@@ -319,11 +343,13 @@ export function useAgents() {
         .update(cleanUpdates)
         .eq('id', id)
 
-      if (updateError) throw new Error(updateError.message)
+      if (updateError)
+        throw new Error(updateError.message)
 
       await fetchWorkflows()
       return true
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('[useAgents] Error updating workflow:', e)
       return false

@@ -52,9 +52,11 @@ const colClass: Record<number, string> = {
       padding: section.section_style?.padding || undefined,
     }"
   >
-    <h3 v-if="section.title" class="text-xl font-bold mb-6">{{ section.title }}</h3>
+    <h3 v-if="section.title" class="text-xl font-bold mb-6">
+      {{ section.title }}
+    </h3>
 
-    <div :class="['grid', colClass[section.columns || 3] || colClass[3]]" :style="{ gap: section.card_style?.gap || '1rem' }">
+    <div class="grid" :class="[colClass[section.columns || 3] || colClass[3]]" :style="{ gap: section.card_style?.gap || '1rem' }">
       <div
         v-for="(card, idx) in section.cards"
         :key="idx"
@@ -62,7 +64,7 @@ const colClass: Record<number, string> = {
         :style="{
           backgroundColor: section.card_style?.background || '#ffffff',
           border: section.card_style?.border || '1px solid #e5e7eb',
-          borderRadius: (section.card_style?.border_radius ?? 8) + 'px',
+          borderRadius: `${section.card_style?.border_radius ?? 8}px`,
           boxShadow: section.card_style?.shadow ? '0 1px 3px 0 rgb(0 0 0 / 0.1)' : 'none',
           textAlign: (section.card_style?.text_align as any) || 'left',
           padding: section.card_style?.padding || '0',
@@ -77,7 +79,7 @@ const colClass: Record<number, string> = {
               :src="card.image_url"
               :alt="card.title || ''"
               class="w-full h-full object-cover"
-            />
+            >
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30 text-xs">
               No image
             </div>
@@ -90,7 +92,7 @@ const colClass: Record<number, string> = {
               :src="card.icon_url"
               :alt="card.title || ''"
               class="w-10 h-10 object-contain"
-            />
+            >
             <div v-else class="w-10 h-10 rounded-lg bg-muted" />
           </div>
 
@@ -101,23 +103,29 @@ const colClass: Record<number, string> = {
               :src="card.logo_url || card.image_url"
               :alt="card.title || ''"
               class="max-h-12 max-w-full object-contain"
-            />
+            >
             <div v-else class="h-12 w-24 rounded bg-muted" />
           </div>
 
           <!-- Stat (large value) -->
           <div v-else-if="slot === 'stat'" class="px-4 pt-4">
-            <p class="text-3xl font-bold tracking-tight">{{ card.stat || '—' }}</p>
+            <p class="text-3xl font-bold tracking-tight">
+              {{ card.stat || '—' }}
+            </p>
           </div>
 
           <!-- Title -->
           <div v-else-if="slot === 'title'" class="px-4 pt-3">
-            <h4 class="text-sm font-semibold leading-tight">{{ card.title || 'Untitled' }}</h4>
+            <h4 class="text-sm font-semibold leading-tight">
+              {{ card.title || 'Untitled' }}
+            </h4>
           </div>
 
           <!-- Subtitle -->
           <div v-else-if="slot === 'subtitle'" class="px-4 pt-1">
-            <p class="text-xs text-muted-foreground">{{ card.subtitle }}</p>
+            <p class="text-xs text-muted-foreground">
+              {{ card.subtitle }}
+            </p>
           </div>
 
           <!-- Body -->

@@ -24,8 +24,8 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const headingEdit = useInlineEdit((v) => emit('update-text', 'heading', v))
-const subEdit = useInlineEdit((v) => emit('update-text', 'sub_heading', v))
+const headingEdit = useInlineEdit(v => emit('update-text', 'heading', v))
+const subEdit = useInlineEdit(v => emit('update-text', 'sub_heading', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -34,20 +34,40 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
 }
 
 const sizeClasses: Record<string, string> = {
-  sm: 'text-sm', base: 'text-base', lg: 'text-lg', xl: 'text-xl',
-  '2xl': 'text-2xl', '3xl': 'text-3xl', '4xl': 'text-4xl',
-  '5xl': 'text-5xl', '6xl': 'text-6xl',
+  'sm': 'text-sm',
+  'base': 'text-base',
+  'lg': 'text-lg',
+  'xl': 'text-xl',
+  '2xl': 'text-2xl',
+  '3xl': 'text-3xl',
+  '4xl': 'text-4xl',
+  '5xl': 'text-5xl',
+  '6xl': 'text-6xl',
 }
 const weightClasses: Record<string, string> = {
-  light: 'font-light', normal: 'font-normal', medium: 'font-medium',
-  semibold: 'font-semibold', bold: 'font-bold', extrabold: 'font-extrabold',
+  light: 'font-light',
+  normal: 'font-normal',
+  medium: 'font-medium',
+  semibold: 'font-semibold',
+  bold: 'font-bold',
+  extrabold: 'font-extrabold',
 }
 const alignClasses: Record<string, string> = {
-  left: 'text-left', center: 'text-center', right: 'text-right',
+  left: 'text-left',
+  center: 'text-center',
+  right: 'text-right',
 }
 const gapClasses: Record<string, string> = {
-  '0': 'mt-0', '2': 'mt-0.5', '4': 'mt-1', '6': 'mt-1.5',
-  '8': 'mt-2', '12': 'mt-3', '16': 'mt-4', '20': 'mt-5', '24': 'mt-6', '32': 'mt-8',
+  0: 'mt-0',
+  2: 'mt-0.5',
+  4: 'mt-1',
+  6: 'mt-1.5',
+  8: 'mt-2',
+  12: 'mt-3',
+  16: 'mt-4',
+  20: 'mt-5',
+  24: 'mt-6',
+  32: 'mt-8',
 }
 
 function hSize() { return sizeClasses[props.section.heading_size || '3xl'] || 'text-3xl' }

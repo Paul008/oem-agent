@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
 import { Info, X } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
 const props = defineProps<{
@@ -22,8 +23,8 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement], 'update-text': [field: string, value: string] }>()
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 
 const activeIndex = ref(props.section.default_tab ?? 0)
@@ -107,7 +108,7 @@ function select(index: number) {
                 :src="activeTab.image_url"
                 :alt="activeTab.label"
                 class="w-full aspect-[4/3] object-cover transition-opacity duration-300"
-              />
+              >
               <span
                 v-if="activeTab.image_disclaimer"
                 class="absolute bottom-0 right-0 bg-black/50 text-white/80 text-[11px] px-2.5 py-1"
@@ -142,7 +143,9 @@ function select(index: number) {
               >
                 <div class="flex items-start justify-between gap-3">
                   <div>
-                    <p class="font-semibold text-sm mb-1">Disclaimers</p>
+                    <p class="font-semibold text-sm mb-1">
+                      Disclaimers
+                    </p>
                     <p class="text-sm" :class="isDark ? 'text-neutral-400' : 'text-neutral-500'">
                       {{ activeTab.disclaimer }}
                     </p>
@@ -206,7 +209,7 @@ function select(index: number) {
             :src="activeTab.image_url"
             :alt="activeTab.label"
             class="rounded-lg max-w-md w-full object-cover"
-          />
+          >
         </div>
       </div>
     </template>

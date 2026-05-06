@@ -60,13 +60,15 @@ const cards = computed<PinnedCard[]>(() => props.section.cards || [])
               :src="card.image"
               :alt="card.caption || ''"
               class="w-full h-full object-cover"
-            />
+            >
           </div>
           <div
             class="p-5"
             :style="card.content_bg ? { background: card.content_bg, color: '#fff' } : {}"
           >
-            <p class="text-base leading-snug">{{ card.caption || '—' }}</p>
+            <p class="text-base leading-snug">
+              {{ card.caption || '—' }}
+            </p>
           </div>
         </div>
       </div>

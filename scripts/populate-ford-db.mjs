@@ -1,8 +1,14 @@
 /**
- * Populate Ford database with all 23 vehicles from Ford AU API
- * 
- * This script populates the database with the complete list of Ford vehicles
- * from the Australian market, including all body styles and nameplates.
+ * @deprecated 2026-04-22 — superseded by scripts/sync-ford-models.ts
+ *
+ * HISTORICAL: Seeded the 23 Ford AU nameplates (hardcoded list of codes +
+ * categories) into vehicle_models. Useful once on 2026-02-14 to get the
+ * lineup in. Current lineup discovery now uses Ford's live menu feed:
+ *     pnpm tsx scripts/sync-ford-models.ts --apply
+ * which reads scripts/ford-vehiclesmenu.json (refreshed by
+ * scripts/fetch-ford-json.ts) and reconciles against the DB — handling
+ * additions (Ranger Super Duty, Transit Custom PHEV, etc.) and
+ * deactivations (Puma) automatically.
  */
 import { createClient } from '@supabase/supabase-js';
 

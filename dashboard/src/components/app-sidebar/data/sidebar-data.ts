@@ -1,7 +1,7 @@
 import { Car } from 'lucide-vue-next'
 
-import { useAuthStore } from '@/stores/auth'
 import { useSidebar } from '@/composables/use-sidebar'
+import { useAuthStore } from '@/stores/auth'
 
 import type { SidebarData, Team } from '../types'
 
@@ -48,21 +48,23 @@ function md5(s: string): string {
   const bytes: number[] = []
   for (let i = 0; i < n; i++) {
     const c = s.charCodeAt(i)
-    if (c < 0x80) bytes.push(c)
-    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)) }
-    else { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)) }
+    if (c < 0x80) {
+      bytes.push(c)
+    }
+    else if (c < 0x800) { bytes.push(0xC0 | (c >> 6)); bytes.push(0x80 | (c & 0x3F)) }
+    else { bytes.push(0xE0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3F)); bytes.push(0x80 | (c & 0x3F)) }
   }
   const len = bytes.length
   bytes.push(0x80)
   while (bytes.length % 64 !== 56) bytes.push(0)
   const bitLen = len * 8
-  bytes.push(bitLen & 0xff, (bitLen >> 8) & 0xff, (bitLen >> 16) & 0xff, (bitLen >> 24) & 0xff, 0, 0, 0, 0)
+  bytes.push(bitLen & 0xFF, (bitLen >> 8) & 0xFF, (bitLen >> 16) & 0xFF, (bitLen >> 24) & 0xFF, 0, 0, 0, 0)
 
-  let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476
+  let a0 = 0x67452301; let b0 = 0xEFCDAB89; let c0 = 0x98BADCFE; let d0 = 0x10325476
   for (let i = 0; i < bytes.length; i += 64) {
     const w: number[] = []
     for (let j = 0; j < 16; j++) w[j] = bytes[i + j * 4] | (bytes[i + j * 4 + 1] << 8) | (bytes[i + j * 4 + 2] << 16) | (bytes[i + j * 4 + 3] << 24)
-    let a = a0, b = b0, c = c0, d = d0
+    let a = a0; let b = b0; let c = c0; let d = d0
     a = ff(a, b, c, d, w[0], 7, -680876936); d = ff(d, a, b, c, w[1], 12, -389564586); c = ff(c, d, a, b, w[2], 17, 606105819); b = ff(b, c, d, a, w[3], 22, -1044525330)
     a = ff(a, b, c, d, w[4], 7, -176418897); d = ff(d, a, b, c, w[5], 12, 1200080426); c = ff(c, d, a, b, w[6], 17, -1473231341); b = ff(b, c, d, a, w[7], 22, -45705983)
     a = ff(a, b, c, d, w[8], 7, 1770035416); d = ff(d, a, b, c, w[9], 12, -1958414417); c = ff(c, d, a, b, w[10], 17, -42063); b = ff(b, c, d, a, w[11], 22, -1990404162)
@@ -81,7 +83,7 @@ function md5(s: string): string {
     a = ii(a, b, c, d, w[4], 6, -145523070); d = ii(d, a, b, c, w[11], 10, -1120210379); c = ii(c, d, a, b, w[2], 15, 718787259); b = ii(b, c, d, a, w[9], 21, -343485551)
     a0 = (a0 + a) | 0; b0 = (b0 + b) | 0; c0 = (c0 + c) | 0; d0 = (d0 + d) | 0
   }
-  const hex = (v: number) => Array.from({ length: 4 }, (_, i) => ((v >>> (i * 8)) & 0xff).toString(16).padStart(2, '0')).join('')
+  const hex = (v: number) => Array.from({ length: 4 }, (_, i) => ((v >>> (i * 8)) & 0xFF).toString(16).padStart(2, '0')).join('')
   return hex(a0) + hex(b0) + hex(c0) + hex(d0)
 }
 

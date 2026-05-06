@@ -1,20 +1,21 @@
 <script lang="ts" setup>
+import { AlertTriangle, Loader2, Play, RefreshCw, Server, Zap } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
-import { Play, RefreshCw, Loader2, Server, HardDrive, Zap, AlertTriangle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+
+import type { ImportRun } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
 import {
+  fetchCronJobs,
+  fetchWorkerHealth,
   triggerCrawl,
   triggerCrawlAll,
-  triggerForceCrawl,
-  fetchWorkerHealth,
-  fetchCronJobs,
   triggerCronJob,
+  triggerForceCrawl,
 } from '@/lib/worker-api'
-import type { ImportRun } from '@/composables/use-oem-data'
 
 const { fetchOems, fetchImportRuns } = useOemData()
 
@@ -59,9 +60,11 @@ function oemName(id: string) {
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 60)
+    return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24)
+    return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
@@ -87,7 +90,8 @@ async function cleanupZombieRuns() {
       .from('import_runs')
       .update({ status: 'failed', error_log: 'Manually cleaned up - stuck in running state' })
       .in('id', ids)
-    if (error) throw error
+    if (error)
+      throw error
     toast.success(`Cleaned up ${ids.length} zombie runs`)
     zombieRuns.value = []
   }
@@ -117,11 +121,15 @@ async function cleanupZombieRuns() {
         </UiCardHeader>
         <UiCardContent>
           <div v-if="workerHealth" class="flex items-center gap-4">
-            <UiBadge variant="default" class="bg-green-500">Online</UiBadge>
+            <UiBadge variant="default" class="bg-green-500">
+              Online
+            </UiBadge>
             <span class="text-sm text-muted-foreground">{{ workerHealth.version || 'unknown version' }}</span>
           </div>
           <div v-else class="flex items-center gap-2">
-            <UiBadge variant="destructive">Unreachable</UiBadge>
+            <UiBadge variant="destructive">
+              Unreachable
+            </UiBadge>
             <span class="text-sm text-muted-foreground">Worker may be down or CORS blocked</span>
           </div>
         </UiCardContent>
@@ -154,7 +162,9 @@ async function cleanupZombieRuns() {
               <span>{{ run.run_type }}</span>
               <span>started {{ timeAgo(run.created_at) }}</span>
             </div>
-            <p v-if="zombieRuns.length > 10" class="text-muted-foreground">...and {{ zombieRuns.length - 10 }} more</p>
+            <p v-if="zombieRuns.length > 10" class="text-muted-foreground">
+              ...and {{ zombieRuns.length - 10 }} more
+            </p>
           </div>
         </UiCardContent>
       </UiCard>
@@ -172,8 +182,12 @@ async function cleanupZombieRuns() {
           <UiCardContent class="space-y-3">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium">Crawl All OEMs</p>
-                <p class="text-xs text-muted-foreground">Trigger crawl for all active OEMs</p>
+                <p class="text-sm font-medium">
+                  Crawl All OEMs
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  Trigger crawl for all active OEMs
+                </p>
               </div>
               <UiButton
                 size="sm"
@@ -231,7 +245,9 @@ async function cleanupZombieRuns() {
       <!-- Cron Jobs -->
       <UiCard v-if="cronJobs">
         <UiCardHeader class="pb-2">
-          <UiCardTitle class="text-base">Cron Jobs</UiCardTitle>
+          <UiCardTitle class="text-base">
+            Cron Jobs
+          </UiCardTitle>
           <UiCardDescription>Scheduled crawl triggers</UiCardDescription>
         </UiCardHeader>
         <UiCardContent>
@@ -242,8 +258,12 @@ async function cleanupZombieRuns() {
               class="flex items-center justify-between border-b border-border pb-2 last:border-0"
             >
               <div>
-                <p class="text-sm font-medium">{{ job.name || job.id }}</p>
-                <p class="text-xs text-muted-foreground">{{ job.schedule }} · {{ job.description || '' }}</p>
+                <p class="text-sm font-medium">
+                  {{ job.name || job.id }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ job.schedule }} · {{ job.description || '' }}
+                </p>
               </div>
               <UiButton
                 size="sm"

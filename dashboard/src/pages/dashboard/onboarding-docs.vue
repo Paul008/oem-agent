@@ -36,7 +36,9 @@ import { BasicPage } from '@/components/global-layout'
           <div class="min-w-[600px]">
             <!-- Frontend Layer -->
             <div class="rounded-md border border-blue-500/30 bg-blue-500/5 p-4 mb-3">
-              <p class="text-blue-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">Dashboard (Vue 3)</p>
+              <p class="text-blue-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">
+                Dashboard (Vue 3)
+              </p>
               <div class="grid sm:grid-cols-2 gap-2 text-muted-foreground">
                 <div class="flex items-center gap-2">
                   <FileCode2 class="size-3.5 shrink-0" />
@@ -67,7 +69,9 @@ import { BasicPage } from '@/components/global-layout'
 
             <!-- Backend Layer -->
             <div class="rounded-md border border-orange-500/30 bg-orange-500/5 p-4 mb-3">
-              <p class="text-orange-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">Cloudflare Worker (Hono)</p>
+              <p class="text-orange-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">
+                Cloudflare Worker (Hono)
+              </p>
               <div class="grid sm:grid-cols-3 gap-2 text-muted-foreground">
                 <div class="flex items-center gap-2">
                   <Server class="size-3.5 shrink-0" />
@@ -94,12 +98,22 @@ import { BasicPage } from '@/components/global-layout'
 
             <!-- Database Layer -->
             <div class="rounded-md border border-green-500/30 bg-green-500/5 p-4">
-              <p class="text-green-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">Supabase (Postgres)</p>
+              <p class="text-green-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">
+                Supabase (Postgres)
+              </p>
               <div class="flex flex-wrap gap-1.5">
-                <UiBadge variant="outline" class="text-[10px]">oems</UiBadge>
-                <UiBadge variant="outline" class="text-[10px]">source_pages</UiBadge>
-                <UiBadge variant="outline" class="text-[10px]">discovered_apis</UiBadge>
-                <UiBadge variant="outline" class="text-[10px]">import_runs (realtime)</UiBadge>
+                <UiBadge variant="outline" class="text-[10px]">
+                  oems
+                </UiBadge>
+                <UiBadge variant="outline" class="text-[10px]">
+                  source_pages
+                </UiBadge>
+                <UiBadge variant="outline" class="text-[10px]">
+                  discovered_apis
+                </UiBadge>
+                <UiBadge variant="outline" class="text-[10px]">
+                  import_runs (realtime)
+                </UiBadge>
               </div>
             </div>
           </div>
@@ -118,49 +132,77 @@ import { BasicPage } from '@/components/global-layout'
       <UiCardContent>
         <div class="grid sm:grid-cols-7 gap-2 text-center text-xs">
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">1. Enter URL</p>
-            <p class="text-muted-foreground mt-1">Base URL, OEM name, auto-generated ID</p>
+            <p class="font-semibold text-foreground">
+              1. Enter URL
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Base URL, OEM name, auto-generated ID
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">2. Review Pages</p>
-            <p class="text-muted-foreground mt-1">Sitemap + homepage links, classify by type</p>
+            <p class="font-semibold text-foreground">
+              2. Review Pages
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Sitemap + homepage links, classify by type
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">3. Configure</p>
-            <p class="text-muted-foreground mt-1">Brand color, schedule, sub-brands, APIs</p>
+            <p class="font-semibold text-foreground">
+              3. Configure
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Brand color, schedule, sub-brands, APIs
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">4. Register</p>
-            <p class="text-muted-foreground mt-1">Insert OEM + pages + APIs into DB</p>
+            <p class="font-semibold text-foreground">
+              4. Register
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Insert OEM + pages + APIs into DB
+            </p>
           </div>
         </div>
         <div class="grid sm:grid-cols-7 gap-2 text-center text-xs mt-2">
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">5. First Crawl</p>
-            <p class="text-muted-foreground mt-1">Trigger crawl, live realtime progress</p>
+            <p class="font-semibold text-foreground">
+              5. First Crawl
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Trigger crawl, live realtime progress
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">6. Code Snippets</p>
-            <p class="text-muted-foreground mt-1">types.ts, registry.ts, agent.ts, migration</p>
+            <p class="font-semibold text-foreground">
+              6. Code Snippets
+            </p>
+            <p class="text-muted-foreground mt-1">
+              types.ts, registry.ts, agent.ts, migration
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3 border-green-500/30 bg-green-500/5">
-            <p class="font-semibold text-foreground">7. Report</p>
-            <p class="text-muted-foreground mt-1">Summary, cron setup, deploy checklist</p>
+            <p class="font-semibold text-foreground">
+              7. Report
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Summary, cron setup, deploy checklist
+            </p>
           </div>
           <div class="sm:col-span-2" />
         </div>
@@ -189,7 +231,9 @@ import { BasicPage } from '@/components/global-layout'
         <div class="space-y-3 text-sm">
           <div class="grid sm:grid-cols-3 gap-3">
             <div class="rounded-md border p-3">
-              <p class="font-medium text-xs mb-1">1. Parallel Fetch</p>
+              <p class="font-medium text-xs mb-1">
+                1. Parallel Fetch
+              </p>
               <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
                 <li>sitemap.xml (+ fallback: sitemap_index.xml, sitemaps.xml)</li>
                 <li>Homepage HTML (15s timeout)</li>
@@ -197,7 +241,9 @@ import { BasicPage } from '@/components/global-layout'
               </ul>
             </div>
             <div class="rounded-md border p-3">
-              <p class="font-medium text-xs mb-1">2. Fallback Chain</p>
+              <p class="font-medium text-xs mb-1">
+                2. Fallback Chain
+              </p>
               <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
                 <li>If no sitemap &rarr; try robots.txt sitemaps</li>
                 <li>If still empty &rarr; extract links from homepage HTML</li>
@@ -205,7 +251,9 @@ import { BasicPage } from '@/components/global-layout'
               </ul>
             </div>
             <div class="rounded-md border p-3">
-              <p class="font-medium text-xs mb-1">3. Analysis</p>
+              <p class="font-medium text-xs mb-1">
+                3. Analysis
+              </p>
               <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
                 <li>Framework detection (Next.js, Nuxt, AEM, WP, Shopify)</li>
                 <li>Brand color (meta theme-color, CSS variables)</li>
@@ -233,7 +281,9 @@ import { BasicPage } from '@/components/global-layout'
       <UiTable>
         <UiTableHeader>
           <UiTableRow>
-            <UiTableHead class="w-[200px]">Endpoint</UiTableHead>
+            <UiTableHead class="w-[200px]">
+              Endpoint
+            </UiTableHead>
             <UiTableHead>Input</UiTableHead>
             <UiTableHead>Output</UiTableHead>
           </UiTableRow>
@@ -290,56 +340,140 @@ import { BasicPage } from '@/components/global-layout'
       <UiTable>
         <UiTableHeader>
           <UiTableRow>
-            <UiTableHead class="w-[120px]">Type</UiTableHead>
+            <UiTableHead class="w-[120px]">
+              Type
+            </UiTableHead>
             <UiTableHead>Pattern</UiTableHead>
             <UiTableHead>Auto-included</UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="default" class="text-xs">homepage</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">/ or /index.html</UiTableCell>
-            <UiTableCell><UiBadge variant="outline" class="text-xs">Yes</UiBadge></UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="default" class="text-xs">
+                homepage
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              / or /index.html
+            </UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="outline" class="text-xs">
+                Yes
+              </UiBadge>
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="default" class="text-xs">vehicle</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">/vehicles/*, /models/*, /ute/*, /truck/*, /suv/*</UiTableCell>
-            <UiTableCell><UiBadge variant="outline" class="text-xs">Yes</UiBadge></UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="default" class="text-xs">
+                vehicle
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              /vehicles/*, /models/*, /ute/*, /truck/*, /suv/*
+            </UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="outline" class="text-xs">
+                Yes
+              </UiBadge>
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="default" class="text-xs">category</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">/vehicles/ (index), /series/*, /lineup/*</UiTableCell>
-            <UiTableCell><UiBadge variant="outline" class="text-xs">Yes</UiBadge></UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="default" class="text-xs">
+                category
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              /vehicles/ (index), /series/*, /lineup/*
+            </UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="outline" class="text-xs">
+                Yes
+              </UiBadge>
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="default" class="text-xs">offers</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">/offers*, /deals*, /specials*, /promotions*</UiTableCell>
-            <UiTableCell><UiBadge variant="outline" class="text-xs">Yes</UiBadge></UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="default" class="text-xs">
+                offers
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              /offers*, /deals*, /specials*, /promotions*
+            </UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="outline" class="text-xs">
+                Yes
+              </UiBadge>
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="default" class="text-xs">news</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">/news*, /blog*, /stories*, /media*, /press*</UiTableCell>
-            <UiTableCell><UiBadge variant="outline" class="text-xs">Yes</UiBadge></UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="default" class="text-xs">
+                news
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              /news*, /blog*, /stories*, /media*, /press*
+            </UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="outline" class="text-xs">
+                Yes
+              </UiBadge>
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="secondary" class="text-xs">build_price</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">/build*, /configure*, /customise*</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">No</UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="secondary" class="text-xs">
+                build_price
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              /build*, /configure*, /customise*
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              No
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="secondary" class="text-xs">sitemap</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">*sitemap*</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">No</UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="secondary" class="text-xs">
+                sitemap
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              *sitemap*
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              No
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="secondary" class="text-xs">price_guide</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">(manual assignment)</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">No</UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="secondary" class="text-xs">
+                price_guide
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              (manual assignment)
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              No
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
-            <UiTableCell><UiBadge variant="outline" class="text-xs">other</UiBadge></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">Everything else</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">No</UiTableCell>
+            <UiTableCell>
+              <UiBadge variant="outline" class="text-xs">
+                other
+              </UiBadge>
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              Everything else
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              No
+            </UiTableCell>
           </UiTableRow>
         </UiTableBody>
       </UiTable>
@@ -403,7 +537,9 @@ import { BasicPage } from '@/components/global-layout'
       <UiCardContent>
         <div class="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <p class="font-medium mb-1">Backend Validation</p>
+            <p class="font-medium mb-1">
+              Backend Validation
+            </p>
             <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
               <li>OEM ID format: <code class="rounded bg-muted px-1 py-0.5">/^[a-z0-9]+-au$/</code></li>
               <li>Duplicate check before INSERT (409 Conflict)</li>
@@ -413,7 +549,9 @@ import { BasicPage } from '@/components/global-layout'
             </ul>
           </div>
           <div>
-            <p class="font-medium mb-1">Frontend Validation</p>
+            <p class="font-medium mb-1">
+              Frontend Validation
+            </p>
             <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
               <li>Button disabled until required fields present</li>
               <li>Step 2 requires at least 1 included page</li>
@@ -423,7 +561,9 @@ import { BasicPage } from '@/components/global-layout'
             </ul>
           </div>
           <div>
-            <p class="font-medium mb-1">Discovery Resilience</p>
+            <p class="font-medium mb-1">
+              Discovery Resilience
+            </p>
             <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
               <li>All fetches use <code>Promise.allSettled</code> (no single failure blocks)</li>
               <li>Timeout: 10s sitemap, 15s homepage, 5s robots.txt</li>
@@ -432,7 +572,9 @@ import { BasicPage } from '@/components/global-layout'
             </ul>
           </div>
           <div>
-            <p class="font-medium mb-1">Realtime Integration</p>
+            <p class="font-medium mb-1">
+              Realtime Integration
+            </p>
             <ul class="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
               <li>Subscribes to <code>import_runs</code> filtered by oem_id</li>
               <li>Only starts after successful registration</li>
@@ -459,7 +601,9 @@ import { BasicPage } from '@/components/global-layout'
       <UiTable>
         <UiTableHeader>
           <UiTableRow>
-            <UiTableHead class="w-[180px]">Snippet</UiTableHead>
+            <UiTableHead class="w-[180px]">
+              Snippet
+            </UiTableHead>
             <UiTableHead>Target File</UiTableHead>
             <UiTableHead>What It Generates</UiTableHead>
           </UiTableRow>
@@ -467,23 +611,39 @@ import { BasicPage } from '@/components/global-layout'
         <UiTableBody>
           <UiTableRow>
             <UiTableCell><code class="rounded bg-muted px-1.5 py-0.5 text-xs">types</code></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">src/oem/types.ts</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">New line in OemId union type</UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              src/oem/types.ts
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              New line in OemId union type
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
             <UiTableCell><code class="rounded bg-muted px-1.5 py-0.5 text-xs">registry</code></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">src/oem/registry.ts</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">Full OemDefinition export + registry entry with config, selectors, flags</UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              src/oem/registry.ts
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              Full OemDefinition export + registry entry with config, selectors, flags
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
             <UiTableCell><code class="rounded bg-muted px-1.5 py-0.5 text-xs">agent</code></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">src/design/agent.ts</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">OEM_BRAND_NOTES entry with colors array and rendering notes</UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              src/design/agent.ts
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              OEM_BRAND_NOTES entry with colors array and rendering notes
+            </UiTableCell>
           </UiTableRow>
           <UiTableRow>
             <UiTableCell><code class="rounded bg-muted px-1.5 py-0.5 text-xs">migration</code></UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground font-mono">supabase/migrations/*.sql</UiTableCell>
-            <UiTableCell class="text-xs text-muted-foreground">INSERT INTO oems + INSERT INTO source_pages with ON CONFLICT handling</UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground font-mono">
+              supabase/migrations/*.sql
+            </UiTableCell>
+            <UiTableCell class="text-xs text-muted-foreground">
+              INSERT INTO oems + INSERT INTO source_pages with ON CONFLICT handling
+            </UiTableCell>
           </UiTableRow>
         </UiTableBody>
       </UiTable>
@@ -500,7 +660,9 @@ import { BasicPage } from '@/components/global-layout'
       <UiCardContent>
         <div class="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <p class="font-medium mb-1">OpenClaw Agents</p>
+            <p class="font-medium mb-1">
+              OpenClaw Agents
+            </p>
             <p class="text-xs text-muted-foreground">
               After registration, the new OEM's <code class="rounded bg-muted px-1 py-0.5">oem_id</code> can be added
               to <code class="rounded bg-muted px-1 py-0.5">config/openclaw/cron-jobs.json</code> <code>oem_ids</code> arrays
@@ -508,7 +670,9 @@ import { BasicPage } from '@/components/global-layout'
             </p>
           </div>
           <div>
-            <p class="font-medium mb-1">Claude /oem-onboard Agent</p>
+            <p class="font-medium mb-1">
+              Claude /oem-onboard Agent
+            </p>
             <p class="text-xs text-muted-foreground">
               The <code class="rounded bg-muted px-1 py-0.5">.claude/agents/oem-onboard.md</code> agent detects wizard usage
               and skips Steps 1, 5, 6, 8 (discovery, migration push, DB registration). It focuses on applying
@@ -516,7 +680,9 @@ import { BasicPage } from '@/components/global-layout'
             </p>
           </div>
           <div>
-            <p class="font-medium mb-1">Dual Cron Systems</p>
+            <p class="font-medium mb-1">
+              Dual Cron Systems
+            </p>
             <p class="text-xs text-muted-foreground">
               Both cron systems need the new OEM: <code class="rounded bg-muted px-1 py-0.5">wrangler.jsonc</code> (Cloudflare Workers Cron for page crawling)
               and <code class="rounded bg-muted px-1 py-0.5">config/openclaw/cron-jobs.json</code> (OpenClaw Cron for agent workflows).
@@ -524,7 +690,9 @@ import { BasicPage } from '@/components/global-layout'
             </p>
           </div>
           <div>
-            <p class="font-medium mb-1">Existing Crawl Pipeline</p>
+            <p class="font-medium mb-1">
+              Existing Crawl Pipeline
+            </p>
             <p class="text-xs text-muted-foreground">
               Step 5's "Trigger Crawl" calls the same <code class="rounded bg-muted px-1 py-0.5">POST /admin/crawl/:oemId</code>
               endpoint used by the Import Runs page. The crawl requires the TypeScript registry to include the OEM,

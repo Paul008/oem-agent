@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+
 import { useInlineEdit } from '@/composables/use-inline-edit'
+
 import ImageOverlay from '../page-builder/ImageOverlay.vue'
 
 const props = defineProps<{
@@ -64,15 +66,28 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
 const isFullImage = computed(() => props.section.full_width_image || props.section.full_width)
 
 const sizeClasses: Record<string, string> = {
-  sm: 'text-sm', base: 'text-base', lg: 'text-lg', xl: 'text-xl',
-  '2xl': 'text-2xl', '3xl': 'text-3xl', '4xl': 'text-4xl', '5xl': 'text-5xl', '6xl': 'text-6xl',
+  'sm': 'text-sm',
+  'base': 'text-base',
+  'lg': 'text-lg',
+  'xl': 'text-xl',
+  '2xl': 'text-2xl',
+  '3xl': 'text-3xl',
+  '4xl': 'text-4xl',
+  '5xl': 'text-5xl',
+  '6xl': 'text-6xl',
 }
 const weightClasses: Record<string, string> = {
-  light: 'font-light', normal: 'font-normal', medium: 'font-medium',
-  semibold: 'font-semibold', bold: 'font-bold', extrabold: 'font-extrabold',
+  light: 'font-light',
+  normal: 'font-normal',
+  medium: 'font-medium',
+  semibold: 'font-semibold',
+  bold: 'font-bold',
+  extrabold: 'font-extrabold',
 }
 const alignClasses: Record<string, string> = {
-  left: 'text-left items-start', center: 'text-center items-center', right: 'text-right items-end',
+  left: 'text-left items-start',
+  center: 'text-center items-center',
+  right: 'text-right items-end',
 }
 const positionClasses: Record<string, string> = {
   'bottom-left': 'bottom-0 left-0 p-8',
@@ -92,9 +107,11 @@ function textAlignClass() { return alignClasses[props.section.text_align || 'lef
 
 // ---- Countdown helpers ----
 const timeLeft = computed(() => {
-  if (!props.section.target_date) return null
+  if (!props.section.target_date)
+    return null
   const diff = new Date(props.section.target_date).getTime() - Date.now()
-  if (diff <= 0) return null
+  if (diff <= 0)
+    return null
   return {
     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
     hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
@@ -103,7 +120,8 @@ const timeLeft = computed(() => {
   }
 })
 const isExpired = computed(() => {
-  if (!props.section.target_date) return false
+  if (!props.section.target_date)
+    return false
   return new Date(props.section.target_date).getTime() <= Date.now()
 })
 </script>
@@ -122,7 +140,9 @@ const isExpired = computed(() => {
       @blur="headingEdit.stopEdit()"
       @keydown="headingEdit.onKeydown"
       @paste="headingEdit.onPaste"
-    >{{ section.heading || 'Double-click to edit' }}</h3>
+    >
+      {{ section.heading || 'Double-click to edit' }}
+    </h3>
     <p
       class="mb-4 cursor-text outline-none"
       :style="{ opacity: section.body ? 0.9 : 0.4 }"
@@ -130,7 +150,9 @@ const isExpired = computed(() => {
       @blur="bodyEdit.stopEdit()"
       @keydown="bodyEdit.onKeydown"
       @paste="bodyEdit.onPaste"
-    >{{ section.body || 'Double-click to add body text' }}</p>
+    >
+      {{ section.body || 'Double-click to add body text' }}
+    </p>
     <a
       v-if="section.cta_text"
       class="inline-block bg-white text-black text-sm font-semibold px-6 py-2.5 rounded hover:bg-white/90 transition-colors cursor-text outline-none"
@@ -155,8 +177,12 @@ const isExpired = computed(() => {
   >
     <div v-if="section.background_image_url" class="absolute inset-0 bg-black/50" />
     <div class="relative z-10">
-      <h2 v-if="section.title" class="text-2xl font-bold mb-2">{{ section.title }}</h2>
-      <p v-if="section.subtitle" class="text-sm opacity-80 mb-8">{{ section.subtitle }}</p>
+      <h2 v-if="section.title" class="text-2xl font-bold mb-2">
+        {{ section.title }}
+      </h2>
+      <p v-if="section.subtitle" class="text-sm opacity-80 mb-8">
+        {{ section.subtitle }}
+      </p>
 
       <template v-if="!isExpired && (timeLeft || !section.target_date)">
         <div class="flex items-center justify-center gap-4 mb-8">
@@ -164,13 +190,19 @@ const isExpired = computed(() => {
             <div class="text-4xl font-bold tabular-nums bg-white/10 rounded-lg px-4 py-3 min-w-[72px]">
               {{ String(unit).padStart(2, '0') }}
             </div>
-            <p class="text-[10px] uppercase tracking-wider opacity-60 mt-1.5">{{ key }}</p>
+            <p class="text-[10px] uppercase tracking-wider opacity-60 mt-1.5">
+              {{ key }}
+            </p>
           </div>
         </div>
-        <p v-if="!section.target_date" class="text-xs opacity-50 mb-4">Set a target date to start the countdown</p>
+        <p v-if="!section.target_date" class="text-xs opacity-50 mb-4">
+          Set a target date to start the countdown
+        </p>
       </template>
       <template v-else>
-        <p class="text-xl font-semibold mb-6">{{ section.expired_message }}</p>
+        <p class="text-xl font-semibold mb-6">
+          {{ section.expired_message }}
+        </p>
       </template>
 
       <a
@@ -204,7 +236,7 @@ const isExpired = computed(() => {
       :alt="section.heading || ''"
       class="absolute inset-0 w-full h-full object-cover"
       :class="isFullImage ? 'object-top' : ''"
-    />
+    >
     <ImageOverlay
       v-if="section.desktop_image_url"
       :current-url="section.desktop_image_url"

@@ -13,6 +13,7 @@ Nissan Australia uses a complex multi-API architecture for their vehicle configu
 ## Website Architecture
 
 ### Primary URLs
+
 ```
 Base: https://www.nissan.com.au/
 Model Pages: /vehicles/browse-range/{model}.html
@@ -21,6 +22,7 @@ Version Explorer: /vehicles/browse-range/{model}/version-explorer/
 ```
 
 ### Configurator Patterns
+
 ```
 Format 1: /configurator/cfg.shtml/{BASE64_CODE1}/{BASE64_CODE2}/exterior-colour
 Format 2: /configurator-v3/cfg.shtml/{BASE64_CODE1}/{BASE64_CODE2}/exterior-colour
@@ -30,6 +32,7 @@ Format 3: /ve.shtml/gradeSpec:{MODEL_CODE}-{VARIANT}
 ## API Infrastructure
 
 ### 1. PACE API Gateway (Public Access)
+
 ```
 Token Endpoint: https://apigateway-apn-prod.nissanpace.com/apn1nisprod/public-access-token
 Parameters:
@@ -48,6 +51,7 @@ Custom Claims: market=au, brand=nissan
 ```
 
 ### 2. Apigee Gateway
+
 ```
 Base URL: https://ap.nissan-api.net/
 Known Endpoints:
@@ -60,6 +64,7 @@ Headers:
 ```
 
 ### 3. CDN Resources
+
 ```
 Base: https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/
 
@@ -75,6 +80,7 @@ Side Profiles:
 ## Color Data Discovered
 
 ### Juke (MY24)
+
 ```
 Color Codes: NBV, RCF, QAB, KAD, GAT
 Swatch Images: ✅ Available
@@ -82,12 +88,14 @@ Format: 3-letter codes
 ```
 
 ### Pathfinder
+
 ```
 Color Codes: KAD (shared with Juke)
 Swatch Images: ✅ Available
 ```
 
 ### Other Models
+
 ```
 Status: Color swatches not found in initial HTML extraction
 Note: May require JavaScript execution or different URL patterns
@@ -96,11 +104,13 @@ Note: May require JavaScript execution or different URL patterns
 ## Color Code Patterns
 
 ### Code Format
+
 - 3-letter uppercase codes (e.g., NBV, GAT, KAD)
 - Appears to be Nissan's internal color coding system
 - Some codes shared across models (e.g., KAD appears on Juke and Pathfinder)
 
 ### CDN Structure
+
 ```
 Color Swatch Path Template:
 /content/dam/Nissan/AU/Images/vehicles/shared-content/colors/{MY_YEAR}-{MODEL_UPPER}/thumbs/{CODE}.png
@@ -113,16 +123,19 @@ NBV → Color code
 ## Data Extraction Challenges
 
 ### 1. Client-Side Rendering
+
 - Configurator pages load color data dynamically via JavaScript
 - No static JSON files containing complete color catalogs
 - Requires browser execution to extract full data
 
 ### 2. API Authentication
+
 - PACE API requires Cognito JWT token
 - Token obtained easily but correct API endpoints not documented
 - Configurator uses internal AWS ELB endpoints (not publicly accessible)
 
 ### 3. Variant Mapping
+
 - Color availability varies by variant/grade
 - gradeSpec codes required to map colors to specific products
 - Example: `30128-ST`, `29299-SL_DUAL_CAB`
@@ -130,6 +143,7 @@ NBV → Color code
 ## Recommended Extraction Approaches
 
 ### Option A: Playwright Browser Automation ⭐ RECOMMENDED
+
 ```javascript
 1. Load configurator page in headless browser
 2. Wait for color selector UI to render
@@ -146,6 +160,7 @@ NBV → Color code
 **Estimated Effort**: 2-4 hours
 
 ### Option B: Reverse Engineer API Calls
+
 ```javascript
 1. Inspect Network tab during color selection
 2. Capture XHR/fetch requests with payloads
@@ -159,6 +174,7 @@ NBV → Color code
 **Estimated Effort**: 4-8 hours (trial and error)
 
 ### Option C: CDN Swatch Enumeration
+
 ```javascript
 1. Discover color code patterns from HTML
 2. Build CDN URL templates
@@ -172,6 +188,7 @@ NBV → Color code
 **Estimated Effort**: 1-2 hours
 
 ### Option D: Manual Data Entry
+
 ```javascript
 1. Visit each model configurator page
 2. Screenshot color selectors
@@ -187,6 +204,7 @@ NBV → Color code
 ## Image Resources Available
 
 ### Color Swatches
+
 ```
 ✅ Small thumbnails (~50x50px)
 ✅ PNG format with transparency
@@ -198,6 +216,7 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/shared-con
 ```
 
 ### Side Profile Renders
+
 ```
 ✅ Full vehicle renders with color
 ✅ PNG format, high resolution
@@ -211,6 +230,7 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/{MODEL}/si
 ## Next Steps
 
 ### Immediate Actions
+
 1. ✅ Document current findings (this report)
 2. ⬜ Choose extraction approach (recommend Option A: Playwright)
 3. ⬜ Set up Playwright environment
@@ -220,6 +240,7 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/{MODEL}/si
 7. ⬜ Seed variant_colors table
 
 ### Database Schema Preparation
+
 ```sql
 -- Check variant_colors schema
 -- Required fields:
@@ -232,6 +253,7 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/{MODEL}/si
 ```
 
 ### Quality Validation
+
 1. Verify color count matches website
 2. Cross-check color names with official Nissan materials
 3. Validate swatch images load correctly
@@ -280,6 +302,7 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/{MODEL}/si
 ## Known Color Codes
 
 ### Discovered Codes
+
 ```
 NBV - (Unknown name) - Juke
 RCF - (Unknown name) - Juke
@@ -289,6 +312,7 @@ GAT - (Unknown name) - Juke
 ```
 
 ### Sample URLs
+
 ```
 https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/shared-content/colors/MY24-JUKE/thumbs/NBV.png
 https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/shared-content/colors/MY24-JUKE/thumbs/RCF.png
@@ -300,12 +324,14 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/shared-con
 ## Technical Notes
 
 ### Configurator Architecture
+
 - Built on AWS infrastructure (Cognito, ELB, API Gateway)
 - Uses React/Vue SPA framework
 - Color data loaded asynchronously after page render
 - gradeSpec codes used for variant identification
 
 ### Authentication Flow
+
 ```
 1. Client requests public access token
 2. API Gateway returns Cognito JWT
@@ -315,6 +341,7 @@ https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/vehicles/shared-con
 ```
 
 ### Model Year Patterns
+
 ```
 MY24 = Model Year 2024
 MY25 = Model Year 2025

@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, FileText, ChevronDown, ChevronRight, ClipboardList } from 'lucide-vue-next'
+import { ChevronDown, ChevronRight, ClipboardList, FileText, Loader2 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { Product, ProductSpecs, VehicleModel } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import type { VehicleModel, Product, ProductSpecs } from '@/composables/use-oem-data'
 
 const { fetchVehicleModels, fetchProducts, fetchOems } = useOemData()
 
@@ -29,7 +30,8 @@ onMounted(async () => {
 })
 
 const filteredModels = computed(() => {
-  if (filterOem.value === 'all') return models.value
+  if (filterOem.value === 'all')
+    return models.value
   return models.value.filter(m => m.oem_id === filterOem.value)
 })
 
@@ -42,7 +44,8 @@ function oemName(id: string) {
 }
 
 function formatPrice(amount: number | null) {
-  if (!amount) return '-'
+  if (!amount)
+    return '-'
   return `$${Math.round(amount).toLocaleString()}`
 }
 
@@ -53,7 +56,8 @@ function toggleModel(id: string) {
 function toggleSpecs(productId: string) {
   if (expandedSpecs.value.has(productId)) {
     expandedSpecs.value.delete(productId)
-  } else {
+  }
+  else {
     expandedSpecs.value.add(productId)
   }
 }
@@ -72,7 +76,8 @@ function specsCount(modelId: string): { withSpecs: number, total: number } {
 
 /** Extract key inline spec badges from specs_json */
 function inlineSpecBadges(specs: ProductSpecs | null): string[] {
-  if (!specs) return []
+  if (!specs)
+    return []
   const badges: string[] = []
 
   // Engine displacement/type (e.g. "2.0L Turbo")
@@ -84,17 +89,20 @@ function inlineSpecBadges(specs: ProductSpecs | null): string[] {
     let label = displacement
     if (induction && /turbo|supercharg/i.test(induction)) {
       label = label ? `${label} Turbo` : 'Turbo'
-    } else if (type && /turbo|supercharg/i.test(type)) {
+    }
+    else if (type && /turbo|supercharg/i.test(type)) {
       label = label ? `${label} Turbo` : 'Turbo'
     }
-    if (label) badges.push(label)
+    if (label)
+      badges.push(label)
   }
 
   // Drivetrain (e.g. "AWD", "4WD", "FWD", "RWD")
   if (specs.transmission) {
     const trans = specs.transmission
     const drive = trans.drivetrain || trans.drive_type || trans.Drivetrain || trans['Drive Type'] || trans.drive || ''
-    if (drive) badges.push(drive)
+    if (drive)
+      badges.push(drive)
   }
 
   // Transmission type (e.g. "8AT", "CVT", "6MT")
@@ -109,9 +117,11 @@ function inlineSpecBadges(specs: ProductSpecs | null): string[] {
       const isCVT = /cvt/i.test(gearbox)
       if (isCVT) {
         badges.push('CVT')
-      } else if (speedMatch) {
+      }
+      else if (speedMatch) {
         badges.push(`${speedMatch[1]}${isAuto ? 'AT' : isManual ? 'MT' : 'SP'}`)
-      } else if (gearbox.length <= 6) {
+      }
+      else if (gearbox.length <= 6) {
         badges.push(gearbox)
       }
     }
@@ -139,10 +149,12 @@ function orderedCategories(specs: ProductSpecs): { key: string, label: string, e
 
   for (const cat of SPEC_CATEGORY_ORDER) {
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     if (typeof section === 'string' || typeof section === 'number') {
       otherEntries.push([formatSpecKey(cat), String(section)])
-    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
+    }
+    else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({
         key: cat,
         label: CATEGORY_LABELS[cat] || cat.charAt(0).toUpperCase() + cat.slice(1),
@@ -151,12 +163,15 @@ function orderedCategories(specs: ProductSpecs): { key: string, label: string, e
     }
   }
   for (const cat of Object.keys(specs)) {
-    if (SPEC_CATEGORY_ORDER.includes(cat)) continue
+    if (SPEC_CATEGORY_ORDER.includes(cat))
+      continue
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     if (typeof section === 'string' || typeof section === 'number') {
       otherEntries.push([formatSpecKey(cat), String(section)])
-    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
+    }
+    else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({
         key: cat,
         label: cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' '),
@@ -199,7 +214,9 @@ const brochureCoverage = computed(() => {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -214,38 +231,52 @@ const brochureCoverage = computed(() => {
     <div v-if="!loading" class="grid gap-4 sm:grid-cols-3 mb-4">
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Specs Coverage</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Specs Coverage
+          </UiCardTitle>
           <ClipboardList class="size-4" :class="specsCoverage.pct >= 90 ? 'text-green-500' : 'text-yellow-500'" />
         </UiCardHeader>
         <UiCardContent>
           <div class="text-2xl font-bold" :class="specsCoverage.pct >= 90 ? 'text-green-500' : 'text-yellow-500'">
             {{ specsCoverage.pct }}%
           </div>
-          <p class="text-xs text-muted-foreground">{{ specsCoverage.withSpecs }}/{{ specsCoverage.total }} variants with specs_json</p>
+          <p class="text-xs text-muted-foreground">
+            {{ specsCoverage.withSpecs }}/{{ specsCoverage.total }} variants with specs_json
+          </p>
         </UiCardContent>
       </UiCard>
 
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Brochure Coverage</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Brochure Coverage
+          </UiCardTitle>
           <FileText class="size-4" :class="brochureCoverage.pct >= 70 ? 'text-green-500' : 'text-yellow-500'" />
         </UiCardHeader>
         <UiCardContent>
           <div class="text-2xl font-bold" :class="brochureCoverage.pct >= 70 ? 'text-green-500' : 'text-yellow-500'">
             {{ brochureCoverage.pct }}%
           </div>
-          <p class="text-xs text-muted-foreground">{{ brochureCoverage.withBrochure }}/{{ brochureCoverage.total }} models with brochure PDF</p>
+          <p class="text-xs text-muted-foreground">
+            {{ brochureCoverage.withBrochure }}/{{ brochureCoverage.total }} models with brochure PDF
+          </p>
         </UiCardContent>
       </UiCard>
 
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Total Variants</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Total Variants
+          </UiCardTitle>
           <Loader2 class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ products.length }}</div>
-          <p class="text-xs text-muted-foreground">Across {{ filteredModels.length }} models</p>
+          <div class="text-2xl font-bold">
+            {{ products.length }}
+          </div>
+          <p class="text-xs text-muted-foreground">
+            Across {{ filteredModels.length }} models
+          </p>
         </UiCardContent>
       </UiCard>
     </div>
@@ -262,7 +293,9 @@ const brochureCoverage = computed(() => {
         >
           <div class="flex items-center gap-3">
             <div>
-              <h3 class="text-sm font-semibold">{{ model.name }}</h3>
+              <h3 class="text-sm font-semibold">
+                {{ model.name }}
+              </h3>
               <p class="text-xs text-muted-foreground">
                 {{ oemName(model.oem_id) }} · {{ model.body_type }} · {{ model.category }}
                 <span v-if="model.model_year"> · {{ model.model_year }}</span>
@@ -291,7 +324,9 @@ const brochureCoverage = computed(() => {
             <UiBadge variant="secondary" class="text-xs">
               {{ productsForModel(model.id).length }} variants
             </UiBadge>
-            <UiBadge v-if="!model.is_active" variant="destructive" class="text-xs">Inactive</UiBadge>
+            <UiBadge v-if="!model.is_active" variant="destructive" class="text-xs">
+              Inactive
+            </UiBadge>
           </div>
         </div>
 
@@ -303,7 +338,9 @@ const brochureCoverage = computed(() => {
                 <UiTableHead>Code</UiTableHead>
                 <UiTableHead>Fuel</UiTableHead>
                 <UiTableHead>Body</UiTableHead>
-                <UiTableHead class="text-right">Price</UiTableHead>
+                <UiTableHead class="text-right">
+                  Price
+                </UiTableHead>
                 <UiTableHead>Availability</UiTableHead>
                 <UiTableHead>Last Seen</UiTableHead>
               </UiTableRow>
@@ -332,10 +369,18 @@ const brochureCoverage = computed(() => {
                       </template>
                     </div>
                   </UiTableCell>
-                  <UiTableCell class="text-xs text-muted-foreground">{{ product.variant_code ?? '-' }}</UiTableCell>
-                  <UiTableCell class="text-sm">{{ product.fuel_type ?? '-' }}</UiTableCell>
-                  <UiTableCell class="text-sm">{{ product.body_type ?? '-' }}</UiTableCell>
-                  <UiTableCell class="text-right font-medium">{{ formatPrice(product.price_amount) }}</UiTableCell>
+                  <UiTableCell class="text-xs text-muted-foreground">
+                    {{ product.variant_code ?? '-' }}
+                  </UiTableCell>
+                  <UiTableCell class="text-sm">
+                    {{ product.fuel_type ?? '-' }}
+                  </UiTableCell>
+                  <UiTableCell class="text-sm">
+                    {{ product.body_type ?? '-' }}
+                  </UiTableCell>
+                  <UiTableCell class="text-right font-medium">
+                    {{ formatPrice(product.price_amount) }}
+                  </UiTableCell>
                   <UiTableCell>
                     <UiBadge v-if="product.availability" variant="outline" class="text-xs">
                       {{ product.availability }}
@@ -365,8 +410,12 @@ const brochureCoverage = computed(() => {
                               :key="key"
                               class="flex justify-between gap-2 text-xs"
                             >
-                              <dt class="text-muted-foreground shrink-0">{{ formatSpecKey(key) }}</dt>
-                              <dd class="text-right font-medium truncate" :title="value">{{ value }}</dd>
+                              <dt class="text-muted-foreground shrink-0">
+                                {{ formatSpecKey(key) }}
+                              </dt>
+                              <dd class="text-right font-medium truncate" :title="value">
+                                {{ value }}
+                              </dd>
                             </div>
                           </dl>
                         </div>

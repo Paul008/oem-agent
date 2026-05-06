@@ -12,7 +12,7 @@ import {
 } from 'lucide-vue-next'
 
 import { BasicPage } from '@/components/global-layout'
-import { WORKFLOW_METADATA, TOOL_DESCRIPTIONS } from '@/composables/use-agent-profile'
+import { TOOL_DESCRIPTIONS, WORKFLOW_METADATA } from '@/composables/use-agent-profile'
 
 const tools = Object.entries(TOOL_DESCRIPTIONS).map(([name, description]) => ({ name, description }))
 const workflows = Object.values(WORKFLOW_METADATA)
@@ -39,11 +39,17 @@ const workflows = Object.values(WORKFLOW_METADATA)
           <div class="min-w-[500px]">
             <!-- Layer 1 -->
             <div class="rounded-md border border-blue-500/30 bg-blue-500/5 p-4 mb-3">
-              <p class="text-blue-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">Layer 1 — OpenClaw Agent Runtime</p>
+              <p class="text-blue-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">
+                Layer 1 — OpenClaw Agent Runtime
+              </p>
               <div class="flex flex-wrap gap-1.5">
-                <UiBadge v-for="t in tools" :key="t.name" variant="outline" class="text-[10px]">{{ t.name }}</UiBadge>
+                <UiBadge v-for="t in tools" :key="t.name" variant="outline" class="text-[10px]">
+                  {{ t.name }}
+                </UiBadge>
               </div>
-              <p class="text-muted-foreground mt-2">Agent sees these tools. Defined in workflow config. Access controlled by tool profiles.</p>
+              <p class="text-muted-foreground mt-2">
+                Agent sees these tools. Defined in workflow config. Access controlled by tool profiles.
+              </p>
             </div>
 
             <!-- Arrow -->
@@ -56,7 +62,9 @@ const workflows = Object.values(WORKFLOW_METADATA)
 
             <!-- Layer 2 -->
             <div class="rounded-md border border-orange-500/30 bg-orange-500/5 p-4">
-              <p class="text-orange-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">Layer 2 — Cloudflare Infrastructure</p>
+              <p class="text-orange-500 font-semibold mb-2 text-[11px] uppercase tracking-wider">
+                Layer 2 — Cloudflare Infrastructure
+              </p>
               <div class="grid sm:grid-cols-2 gap-2 text-muted-foreground">
                 <div class="flex items-center gap-2">
                   <Server class="size-3.5 shrink-0" />
@@ -99,29 +107,45 @@ const workflows = Object.values(WORKFLOW_METADATA)
       <UiCardContent>
         <div class="grid sm:grid-cols-7 gap-2 text-center text-xs">
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">Change Event</p>
-            <p class="text-muted-foreground mt-1">Price change, new product, broken link...</p>
+            <p class="font-semibold text-foreground">
+              Change Event
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Price change, new product, broken link...
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">Workflow Router</p>
-            <p class="text-muted-foreground mt-1">Match event to workflow by entity + type + severity</p>
+            <p class="font-semibold text-foreground">
+              Workflow Router
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Match event to workflow by entity + type + severity
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">Agent Spawner</p>
-            <p class="text-muted-foreground mt-1">Select AI model, build prompt, call provider</p>
+            <p class="font-semibold text-foreground">
+              Agent Spawner
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Select AI model, build prompt, call provider
+            </p>
           </div>
           <div class="flex items-center justify-center text-muted-foreground">
             <ArrowRight class="size-4" />
           </div>
           <div class="rounded-md border p-3">
-            <p class="font-semibold text-foreground">Execute / Approve</p>
-            <p class="text-muted-foreground mt-1">Auto-execute if confident, else queue for review</p>
+            <p class="font-semibold text-foreground">
+              Execute / Approve
+            </p>
+            <p class="text-muted-foreground mt-1">
+              Auto-execute if confident, else queue for review
+            </p>
           </div>
         </div>
 
@@ -151,7 +175,9 @@ const workflows = Object.values(WORKFLOW_METADATA)
       <UiTable>
         <UiTableHeader>
           <UiTableRow>
-            <UiTableHead class="w-[120px]">Tool</UiTableHead>
+            <UiTableHead class="w-[120px]">
+              Tool
+            </UiTableHead>
             <UiTableHead>Description</UiTableHead>
             <UiTableHead>Used By</UiTableHead>
           </UiTableRow>
@@ -196,8 +222,12 @@ const workflows = Object.values(WORKFLOW_METADATA)
             <UiTableHead>Workflow</UiTableHead>
             <UiTableHead>Agent Type</UiTableHead>
             <UiTableHead>Tools</UiTableHead>
-            <UiTableHead class="text-right">Confidence</UiTableHead>
-            <UiTableHead class="text-right">Priority</UiTableHead>
+            <UiTableHead class="text-right">
+              Confidence
+            </UiTableHead>
+            <UiTableHead class="text-right">
+              Priority
+            </UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -215,7 +245,9 @@ const workflows = Object.values(WORKFLOW_METADATA)
             </UiTableCell>
             <UiTableCell>
               <div class="flex flex-wrap gap-1">
-                <UiBadge v-for="t in w.tools" :key="t" variant="outline" class="text-[10px]">{{ t }}</UiBadge>
+                <UiBadge v-for="t in w.tools" :key="t" variant="outline" class="text-[10px]">
+                  {{ t }}
+                </UiBadge>
               </div>
             </UiTableCell>
             <UiTableCell class="text-right text-sm font-medium">
@@ -240,7 +272,9 @@ const workflows = Object.values(WORKFLOW_METADATA)
       <UiCardContent>
         <div class="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <p class="font-medium mb-1">Tool Profiles</p>
+            <p class="font-medium mb-1">
+              Tool Profiles
+            </p>
             <p class="text-xs text-muted-foreground">
               OpenClaw restricts tool access via profiles: <code class="rounded bg-muted px-1 py-0.5">minimal</code>,
               <code class="rounded bg-muted px-1 py-0.5">coding</code>,
@@ -251,15 +285,21 @@ const workflows = Object.values(WORKFLOW_METADATA)
             </p>
           </div>
           <div>
-            <p class="font-medium mb-1">Confidence Gating</p>
+            <p class="font-medium mb-1">
+              Confidence Gating
+            </p>
             <p class="text-xs text-muted-foreground">
               Each workflow has a confidence threshold. Actions only auto-execute when the agent's confidence meets
               or exceeds the threshold. Below threshold, actions queue for human approval on the
-              <RouterLink to="/dashboard/agents/" class="underline hover:text-foreground">Agents page</RouterLink>.
+              <RouterLink to="/dashboard/agents/" class="underline hover:text-foreground">
+                Agents page
+              </RouterLink>.
             </p>
           </div>
           <div>
-            <p class="font-medium mb-1">Rate Limiting</p>
+            <p class="font-medium mb-1">
+              Rate Limiting
+            </p>
             <p class="text-xs text-muted-foreground">
               Per-workflow hourly and daily limits prevent runaway agents. Circuit breaker auto-disables
               workflows when error rate exceeds 10%. Configurable in
@@ -267,7 +307,9 @@ const workflows = Object.values(WORKFLOW_METADATA)
             </p>
           </div>
           <div>
-            <p class="font-medium mb-1">Rollback</p>
+            <p class="font-medium mb-1">
+              Rollback
+            </p>
             <p class="text-xs text-muted-foreground">
               Every agent action stores a snapshot of the entity before modification.
               One-click rollback via the dashboard restores the previous state.

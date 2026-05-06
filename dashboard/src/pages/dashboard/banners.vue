@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
-import { Loader2, Search, ChevronLeft, ChevronRight, Image, ImageOff, ExternalLink, Monitor, Smartphone, X, Play } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ExternalLink, Image, ImageOff, Loader2, Monitor, Play, Search, Smartphone, X } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+
+import type { Banner } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
-import type { Banner } from '@/composables/use-oem-data'
 
 const { fetchBanners, fetchOems } = useOemData()
 
@@ -79,7 +80,8 @@ function onSearch() {
 
 function pageType(b: Banner) {
   const url = b.page_url?.toLowerCase() ?? ''
-  if (url.includes('offer') || url.includes('special') || url.includes('deal')) return 'offers'
+  if (url.includes('offer') || url.includes('special') || url.includes('deal'))
+    return 'offers'
   return 'homepage'
 }
 
@@ -90,12 +92,17 @@ function hasVideo(b: Banner) {
 const stats = computed(() => {
   const t = { total: banners.value.length, homepage: 0, offers: 0, withDesktop: 0, withMobile: 0, withCta: 0, withVideo: 0 }
   for (const b of banners.value) {
-    if (pageType(b) === 'homepage') t.homepage++
+    if (pageType(b) === 'homepage')
+      t.homepage++
     else t.offers++
-    if (b.image_url_desktop) t.withDesktop++
-    if (b.image_url_mobile) t.withMobile++
-    if (b.cta_url) t.withCta++
-    if (hasVideo(b)) t.withVideo++
+    if (b.image_url_desktop)
+      t.withDesktop++
+    if (b.image_url_mobile)
+      t.withMobile++
+    if (b.cta_url)
+      t.withCta++
+    if (hasVideo(b))
+      t.withVideo++
   }
   return t
 })
@@ -117,14 +124,18 @@ function displayImage(b: Banner) {
 }
 
 function formatDate(ts: string | null | undefined): string {
-  if (!ts) return '-'
+  if (!ts)
+    return '-'
   const d = new Date(ts)
   const now = Date.now()
   const diffH = Math.round((now - d.getTime()) / 3600000)
-  if (diffH < 1) return 'just now'
-  if (diffH < 24) return diffH + 'h ago'
+  if (diffH < 1)
+    return 'just now'
+  if (diffH < 24)
+    return `${diffH}h ago`
   const diffD = Math.round(diffH / 24)
-  if (diffD < 7) return diffD + 'd ago'
+  if (diffD < 7)
+    return `${diffD}d ago`
   return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: diffD > 365 ? 'numeric' : undefined })
 }
 
@@ -139,13 +150,15 @@ function closePreview() {
 }
 
 function previewImageUrl(b: Banner): string | null {
-  if (previewMode.value === 'mobile' && b.image_url_mobile) return b.image_url_mobile
+  if (previewMode.value === 'mobile' && b.image_url_mobile)
+    return b.image_url_mobile
   return b.image_url_desktop || b.image_url_mobile || null
 }
 
 // Navigate between banners in preview
 const previewIndex = computed(() => {
-  if (!previewBanner.value) return -1
+  if (!previewBanner.value)
+    return -1
   return filtered.value.findIndex(b => b.id === previewBanner.value!.id)
 })
 
@@ -163,10 +176,14 @@ function nextPreview() {
 
 // Global keyboard handler for preview
 function onKeydown(e: KeyboardEvent) {
-  if (!previewBanner.value) return
-  if (e.key === 'Escape') closePreview()
-  else if (e.key === 'ArrowLeft') prevPreview()
-  else if (e.key === 'ArrowRight') nextPreview()
+  if (!previewBanner.value)
+    return
+  if (e.key === 'Escape')
+    closePreview()
+  else if (e.key === 'ArrowLeft')
+    prevPreview()
+  else if (e.key === 'ArrowRight')
+    nextPreview()
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
@@ -182,7 +199,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
             <span v-if="oemCounts[oem.id]" class="text-muted-foreground ml-1">({{ oemCounts[oem.id] }})</span>
@@ -194,9 +213,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <UiSelectValue placeholder="Page type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Pages</UiSelectItem>
-          <UiSelectItem value="homepage">Homepage</UiSelectItem>
-          <UiSelectItem value="offers">Offers</UiSelectItem>
+          <UiSelectItem value="all">
+            All Pages
+          </UiSelectItem>
+          <UiSelectItem value="homepage">
+            Homepage
+          </UiSelectItem>
+          <UiSelectItem value="offers">
+            Offers
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <div class="relative">
@@ -213,9 +238,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <UiSelectValue />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="12">12 per page</UiSelectItem>
-          <UiSelectItem value="24">24 per page</UiSelectItem>
-          <UiSelectItem value="48">48 per page</UiSelectItem>
+          <UiSelectItem value="12">
+            12 per page
+          </UiSelectItem>
+          <UiSelectItem value="24">
+            24 per page
+          </UiSelectItem>
+          <UiSelectItem value="48">
+            48 per page
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <span class="text-sm text-muted-foreground ml-auto">
@@ -232,62 +263,98 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total
+            </UiCardTitle>
             <Image class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total }}</div>
-            <p class="text-xs text-muted-foreground">All banners</p>
+            <div class="text-2xl font-bold">
+              {{ stats.total }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              All banners
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Homepage</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Homepage
+            </UiCardTitle>
             <Monitor class="size-4 text-blue-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-blue-500">{{ stats.homepage }}</div>
-            <p class="text-xs text-muted-foreground">Hero banners</p>
+            <div class="text-2xl font-bold text-blue-500">
+              {{ stats.homepage }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Hero banners
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Offers</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Offers
+            </UiCardTitle>
             <Image class="size-4 text-green-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-green-500">{{ stats.offers }}</div>
-            <p class="text-xs text-muted-foreground">Offers page banners</p>
+            <div class="text-2xl font-bold text-green-500">
+              {{ stats.offers }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Offers page banners
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Desktop</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Desktop
+            </UiCardTitle>
             <Monitor class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.withDesktop }}</div>
-            <p class="text-xs text-muted-foreground">Have desktop image</p>
+            <div class="text-2xl font-bold">
+              {{ stats.withDesktop }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have desktop image
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Mobile</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Mobile
+            </UiCardTitle>
             <Smartphone class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.withMobile }}</div>
-            <p class="text-xs text-muted-foreground">Have mobile image</p>
+            <div class="text-2xl font-bold">
+              {{ stats.withMobile }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have mobile image
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Video</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Video
+            </UiCardTitle>
             <Play class="size-4 text-purple-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-purple-500">{{ stats.withVideo }}</div>
-            <p class="text-xs text-muted-foreground">Have video content</p>
+            <div class="text-2xl font-bold text-purple-500">
+              {{ stats.withVideo }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have video content
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -308,7 +375,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               :alt="banner.headline ?? 'Banner'"
               class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               loading="lazy"
-            />
+            >
             <div v-else class="w-full h-full flex items-center justify-center">
               <ImageOff class="size-8 text-muted-foreground/20" />
             </div>
@@ -448,8 +515,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                     playsinline
                     :poster="previewImageUrl(previewBanner) ?? undefined"
                   >
-                    <source v-if="previewMode === 'mobile' && previewBanner.video_url_mobile" :src="previewBanner.video_url_mobile" type="video/mp4" />
-                    <source v-else-if="previewBanner.video_url_desktop" :src="previewBanner.video_url_desktop" type="video/mp4" />
+                    <source v-if="previewMode === 'mobile' && previewBanner.video_url_mobile" :src="previewBanner.video_url_mobile" type="video/mp4">
+                    <source v-else-if="previewBanner.video_url_desktop" :src="previewBanner.video_url_desktop" type="video/mp4">
                   </video>
                   <img
                     v-else-if="previewImageUrl(previewBanner)"
@@ -457,7 +524,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                     :src="previewImageUrl(previewBanner)!"
                     :alt="previewBanner.headline ?? 'Banner'"
                     class="w-full h-full object-cover"
-                  />
+                  >
                   <div v-else class="w-full h-full flex items-center justify-center bg-muted">
                     <ImageOff class="size-16 text-muted-foreground/20" />
                   </div>
@@ -533,7 +600,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <!-- Empty state -->
       <div v-if="filtered.length === 0" class="text-center py-16">
         <Image class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p class="text-sm text-muted-foreground">No banners found matching your filters</p>
+        <p class="text-sm text-muted-foreground">
+          No banners found matching your filters
+        </p>
       </div>
 
       <!-- Pagination -->

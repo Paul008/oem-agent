@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useInlineEdit } from '@/composables/use-inline-edit'
+
 import ImageOverlay from '../page-builder/ImageOverlay.vue'
 
 defineProps<{
@@ -23,7 +24,7 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const captionEdit = useInlineEdit((v) => emit('update-text', 'caption', v))
+const captionEdit = useInlineEdit(v => emit('update-text', 'caption', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -48,14 +49,14 @@ function aspectClass(ratio?: string) {
     <template v-if="section.layout === 'full-width'">
       <div class="w-full overflow-hidden relative" :class="[aspectClass(section.aspect_ratio)]">
         <picture>
-          <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)" />
+          <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)">
           <img
             :src="section.desktop_image_url"
             :alt="section.alt || ''"
             class="block w-full"
             :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
             loading="lazy"
-          />
+          >
         </picture>
         <ImageOverlay :current-url="section.desktop_image_url" :oem-id="oemId" :model-slug="modelSlug" @replace="emit('update-text', 'desktop_image_url', $event)" />
       </div>
@@ -66,7 +67,9 @@ function aspectClass(ratio?: string) {
         @blur="captionEdit.stopEdit()"
         @keydown="captionEdit.onKeydown"
         @paste="captionEdit.onPaste"
-      >{{ section.caption || 'Double-click to add caption' }}</p>
+      >
+        {{ section.caption || 'Double-click to add caption' }}
+      </p>
     </template>
 
     <!-- Contained: max-width with optional rounding/shadow -->
@@ -81,17 +84,19 @@ function aspectClass(ratio?: string) {
           ]"
         >
           <picture>
-            <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)" />
+            <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)">
             <img
               :src="section.desktop_image_url"
               :alt="section.alt || ''"
               class="w-full"
               :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
               loading="lazy"
-            />
+            >
           </picture>
         </div>
-        <p v-if="section.caption" class="text-xs text-muted-foreground mt-2 text-center max-w-4xl mx-auto">{{ section.caption }}</p>
+        <p v-if="section.caption" class="text-xs text-muted-foreground mt-2 text-center max-w-4xl mx-auto">
+          {{ section.caption }}
+        </p>
       </div>
     </template>
 
@@ -107,17 +112,19 @@ function aspectClass(ratio?: string) {
           ]"
         >
           <picture>
-            <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)" />
+            <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)">
             <img
               :src="section.desktop_image_url"
               :alt="section.alt || ''"
               class="block max-w-full"
               :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
               loading="lazy"
-            />
+            >
           </picture>
         </div>
-        <p v-if="section.caption" class="text-xs text-muted-foreground mt-2">{{ section.caption }}</p>
+        <p v-if="section.caption" class="text-xs text-muted-foreground mt-2">
+          {{ section.caption }}
+        </p>
       </div>
     </template>
 
@@ -133,23 +140,27 @@ function aspectClass(ratio?: string) {
           ]"
         >
           <picture>
-            <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)" />
+            <source v-if="section.mobile_image_url" :srcset="section.mobile_image_url" media="(max-width: 768px)">
             <img
               :src="section.desktop_image_url"
               :alt="section.alt || ''"
               class="block max-w-full"
               :class="section.aspect_ratio && section.aspect_ratio !== 'auto' ? 'h-full object-cover' : 'h-auto'"
               loading="lazy"
-            />
+            >
           </picture>
         </div>
-        <p v-if="section.caption" class="text-xs text-muted-foreground mt-2">{{ section.caption }}</p>
+        <p v-if="section.caption" class="text-xs text-muted-foreground mt-2">
+          {{ section.caption }}
+        </p>
       </div>
     </template>
   </div>
 
   <!-- Empty state -->
   <div v-else class="px-8 py-12 text-center bg-muted/30">
-    <p class="text-sm text-muted-foreground">No image set</p>
+    <p class="text-sm text-muted-foreground">
+      No image set
+    </p>
   </div>
 </template>

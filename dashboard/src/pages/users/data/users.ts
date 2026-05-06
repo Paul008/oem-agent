@@ -5,7 +5,8 @@ import type { User } from './schema'
 export async function fetchUsers(): Promise<User[]> {
   const { data, error } = await supabase.auth.admin.listUsers()
 
-  if (error) throw error
+  if (error)
+    throw error
 
   return data.users.map((u) => {
     const meta = u.user_metadata ?? {}

@@ -5,20 +5,23 @@
  * and useAgentProfile(workflowId) for detailed per-workflow data.
  */
 
-import { ref, computed } from 'vue'
-import { supabase } from '@/lib/supabase'
-import type { AgentAction, WorkflowSetting } from '@/composables/use-agents'
-import {
-  DollarSign,
-  Package,
-  Link,
-  Clock,
-  ImageIcon,
-  FileText,
-  Shield,
-  GitBranch,
-} from 'lucide-vue-next'
 import type { Component } from 'vue'
+
+import {
+  Clock,
+  DollarSign,
+  FileText,
+  GitBranch,
+  ImageIcon,
+  Link,
+  Package,
+  Shield,
+} from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+
+import type { AgentAction, WorkflowSetting } from '@/composables/use-agents'
+
+import { supabase } from '@/lib/supabase'
 
 export interface WorkflowMeta {
   id: string
@@ -207,11 +210,13 @@ export function useAgentProfile(workflowId: string) {
 
       if (queryError) {
         // Workflow may not have a settings row yet — that's fine
-        if (queryError.code !== 'PGRST116') throw new Error(queryError.message)
+        if (queryError.code !== 'PGRST116')
+          throw new Error(queryError.message)
       }
 
       workflowSetting.value = data as WorkflowSetting | null
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgentProfile] Error fetching profile:', e)
     }
   }
@@ -223,7 +228,8 @@ export function useAgentProfile(workflowId: string) {
         .select('status, execution_time_ms, cost_usd, created_at')
         .eq('workflow_id', workflowId)
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       const rows = data || []
       const byStatus = { pending: 0, running: 0, completed: 0, failed: 0, requires_approval: 0 }
@@ -235,13 +241,16 @@ export function useAgentProfile(workflowId: string) {
 
       for (const r of rows) {
         const s = r.status as keyof typeof byStatus
-        if (s in byStatus) byStatus[s]++
-        if (r.cost_usd != null) totalCost += r.cost_usd
+        if (s in byStatus)
+          byStatus[s]++
+        if (r.cost_usd != null)
+          totalCost += r.cost_usd
         if (r.execution_time_ms != null) {
           totalTime += r.execution_time_ms
           timeCount++
         }
-        if (new Date(r.created_at).getTime() >= weekAgo) weekCount++
+        if (new Date(r.created_at).getTime() >= weekAgo)
+          weekCount++
       }
 
       const finished = byStatus.completed + byStatus.failed
@@ -255,7 +264,8 @@ export function useAgentProfile(workflowId: string) {
         avg_cost_usd: rows.length > 0 ? totalCost / rows.length : 0,
         this_week: weekCount,
       }
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgentProfile] Error fetching stats:', e)
     }
   }
@@ -270,10 +280,11 @@ export function useAgentProfile(workflowId: string) {
         .eq('workflow_id', workflowId)
         .gte('created_at', thirtyDaysAgo)
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       // Group by date
-      const byDate = new Map<string, { completed: number; failed: number; other: number }>()
+      const byDate = new Map<string, { completed: number, failed: number, other: number }>()
 
       // Initialize all 30 days
       for (let i = 29; i >= 0; i--) {
@@ -285,9 +296,12 @@ export function useAgentProfile(workflowId: string) {
       for (const r of data || []) {
         const key = r.created_at.slice(0, 10)
         const bucket = byDate.get(key)
-        if (!bucket) continue
-        if (r.status === 'completed') bucket.completed++
-        else if (r.status === 'failed') bucket.failed++
+        if (!bucket)
+          continue
+        if (r.status === 'completed')
+          bucket.completed++
+        else if (r.status === 'failed')
+          bucket.failed++
         else bucket.other++
       }
 
@@ -295,7 +309,8 @@ export function useAgentProfile(workflowId: string) {
         date,
         ...counts,
       }))
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgentProfile] Error fetching daily activity:', e)
     }
   }
@@ -316,11 +331,13 @@ export function useAgentProfile(workflowId: string) {
         .order('created_at', { ascending: false })
         .range(offset, offset + pageSize.value - 1)
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
       recentActions.value = (data || []) as AgentAction[]
       totalCount.value = count || 0
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgentProfile] Error fetching recent actions:', e)
     }
   }
@@ -335,18 +352,22 @@ export function useAgentProfile(workflowId: string) {
         .not('error_message', 'is', null)
         .order('created_at', { ascending: false })
 
-      if (queryError) throw new Error(queryError.message)
+      if (queryError)
+        throw new Error(queryError.message)
 
-      const groups = new Map<string, { count: number; first_seen: string; last_seen: string }>()
+      const groups = new Map<string, { count: number, first_seen: string, last_seen: string }>()
 
       for (const r of data || []) {
         const msg = r.error_message || 'Unknown error'
         const existing = groups.get(msg)
         if (existing) {
           existing.count++
-          if (r.created_at < existing.first_seen) existing.first_seen = r.created_at
-          if (r.created_at > existing.last_seen) existing.last_seen = r.created_at
-        } else {
+          if (r.created_at < existing.first_seen)
+            existing.first_seen = r.created_at
+          if (r.created_at > existing.last_seen)
+            existing.last_seen = r.created_at
+        }
+        else {
           groups.set(msg, { count: 1, first_seen: r.created_at, last_seen: r.created_at })
         }
       }
@@ -355,7 +376,8 @@ export function useAgentProfile(workflowId: string) {
         .map(([message, g]) => ({ message, ...g }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10) // Top 10 errors
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[useAgentProfile] Error fetching error groups:', e)
     }
   }
@@ -372,9 +394,11 @@ export function useAgentProfile(workflowId: string) {
         fetchRecentActions(),
         fetchErrorGroups(),
       ])
-    } catch (e) {
+    }
+    catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }

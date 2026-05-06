@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { AlertTriangle, CheckCircle, Loader2, XCircle, Ban, RefreshCw } from 'lucide-vue-next'
+import { AlertTriangle, Ban, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
+
+import type { SourcePage } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { triggerForceCrawl } from '@/lib/worker-api'
-import type { SourcePage } from '@/composables/use-oem-data'
 
 const { fetchSourcePages, fetchOems } = useOemData()
 
@@ -29,9 +30,11 @@ onMounted(async () => {
 })
 
 const filtered = computed(() => {
-  return pages.value.filter(p => {
-    if (filterOem.value !== 'all' && p.oem_id !== filterOem.value) return false
-    if (filterStatus.value !== 'all' && p.status !== filterStatus.value) return false
+  return pages.value.filter((p) => {
+    if (filterOem.value !== 'all' && p.oem_id !== filterOem.value)
+      return false
+    if (filterStatus.value !== 'all' && p.status !== filterStatus.value)
+      return false
     return true
   })
 })
@@ -46,10 +49,12 @@ const healthSummary = computed(() => {
 
 const brokenOems = computed(() => {
   const byOem: Record<string, { total: number, errored: number }> = {}
-  pages.value.forEach(p => {
-    if (!byOem[p.oem_id]) byOem[p.oem_id] = { total: 0, errored: 0 }
+  pages.value.forEach((p) => {
+    if (!byOem[p.oem_id])
+      byOem[p.oem_id] = { total: 0, errored: 0 }
     byOem[p.oem_id].total++
-    if (p.status === 'error') byOem[p.oem_id].errored++
+    if (p.status === 'error')
+      byOem[p.oem_id].errored++
   })
   return Object.entries(byOem)
     .filter(([_, v]) => v.errored > 0)
@@ -62,26 +67,35 @@ function oemName(id: string) {
 }
 
 function statusIcon(status: string) {
-  if (status === 'active') return CheckCircle
-  if (status === 'error') return XCircle
-  if (status === 'blocked') return Ban
+  if (status === 'active')
+    return CheckCircle
+  if (status === 'error')
+    return XCircle
+  if (status === 'blocked')
+    return Ban
   return AlertTriangle
 }
 
 function statusColor(status: string) {
-  if (status === 'active') return 'text-green-500'
-  if (status === 'error') return 'text-red-500'
-  if (status === 'blocked') return 'text-orange-500'
+  if (status === 'active')
+    return 'text-green-500'
+  if (status === 'error')
+    return 'text-red-500'
+  if (status === 'blocked')
+    return 'text-orange-500'
   return 'text-muted-foreground'
 }
 
 function timeAgo(dateStr: string | null) {
-  if (!dateStr) return 'never'
+  if (!dateStr)
+    return 'never'
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 60)
+    return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24)
+    return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
@@ -106,38 +120,54 @@ async function handleForceCrawl(oemId: string) {
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Active</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Active
+          </UiCardTitle>
           <CheckCircle class="size-4 text-green-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-green-500">{{ healthSummary.active }}</div>
+          <div class="text-2xl font-bold text-green-500">
+            {{ healthSummary.active }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Errored</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Errored
+          </UiCardTitle>
           <XCircle class="size-4 text-red-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-red-500">{{ healthSummary.errored }}</div>
+          <div class="text-2xl font-bold text-red-500">
+            {{ healthSummary.errored }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Blocked</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Blocked
+          </UiCardTitle>
           <Ban class="size-4 text-orange-500" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold text-orange-500">{{ healthSummary.blocked }}</div>
+          <div class="text-2xl font-bold text-orange-500">
+            {{ healthSummary.blocked }}
+          </div>
         </UiCardContent>
       </UiCard>
       <UiCard>
         <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-          <UiCardTitle class="text-sm font-medium">Total Pages</UiCardTitle>
+          <UiCardTitle class="text-sm font-medium">
+            Total Pages
+          </UiCardTitle>
           <AlertTriangle class="size-4 text-muted-foreground" />
         </UiCardHeader>
         <UiCardContent>
-          <div class="text-2xl font-bold">{{ healthSummary.total }}</div>
+          <div class="text-2xl font-bold">
+            {{ healthSummary.total }}
+          </div>
         </UiCardContent>
       </UiCard>
     </div>
@@ -179,7 +209,9 @@ async function handleForceCrawl(oemId: string) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -190,11 +222,21 @@ async function handleForceCrawl(oemId: string) {
           <UiSelectValue placeholder="Status" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Status</UiSelectItem>
-          <UiSelectItem value="active">Active</UiSelectItem>
-          <UiSelectItem value="error">Error</UiSelectItem>
-          <UiSelectItem value="blocked">Blocked</UiSelectItem>
-          <UiSelectItem value="removed">Removed</UiSelectItem>
+          <UiSelectItem value="all">
+            All Status
+          </UiSelectItem>
+          <UiSelectItem value="active">
+            Active
+          </UiSelectItem>
+          <UiSelectItem value="error">
+            Error
+          </UiSelectItem>
+          <UiSelectItem value="blocked">
+            Blocked
+          </UiSelectItem>
+          <UiSelectItem value="removed">
+            Removed
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <span class="text-sm text-muted-foreground">{{ filtered.length }} pages</span>
@@ -208,13 +250,17 @@ async function handleForceCrawl(oemId: string) {
       <UiTable>
         <UiTableHeader>
           <UiTableRow>
-            <UiTableHead class="w-[40px]">Status</UiTableHead>
+            <UiTableHead class="w-[40px]">
+              Status
+            </UiTableHead>
             <UiTableHead>OEM</UiTableHead>
             <UiTableHead>Type</UiTableHead>
             <UiTableHead>URL</UiTableHead>
             <UiTableHead>Last Checked</UiTableHead>
             <UiTableHead>Last Changed</UiTableHead>
-            <UiTableHead class="text-right">No-Change Streak</UiTableHead>
+            <UiTableHead class="text-right">
+              No-Change Streak
+            </UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -222,9 +268,13 @@ async function handleForceCrawl(oemId: string) {
             <UiTableCell>
               <component :is="statusIcon(page.status)" class="size-4" :class="statusColor(page.status)" />
             </UiTableCell>
-            <UiTableCell class="font-medium text-sm">{{ oemName(page.oem_id) }}</UiTableCell>
+            <UiTableCell class="font-medium text-sm">
+              {{ oemName(page.oem_id) }}
+            </UiTableCell>
             <UiTableCell>
-              <UiBadge variant="outline" class="text-xs">{{ page.page_type }}</UiBadge>
+              <UiBadge variant="outline" class="text-xs">
+                {{ page.page_type }}
+              </UiBadge>
             </UiTableCell>
             <UiTableCell class="text-xs text-muted-foreground max-w-[300px] truncate">
               <a :href="page.url" target="_blank" class="hover:underline">{{ page.url }}</a>

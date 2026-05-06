@@ -1,6 +1,9 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { useSectionAnimation, type AnimationType } from '@/composables/use-section-animation'
+
+import type { AnimationType } from '@/composables/use-section-animation'
+
+import { useSectionAnimation } from '@/composables/use-section-animation'
 
 const props = defineProps<{
   animation?: AnimationType

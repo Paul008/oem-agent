@@ -1,12 +1,13 @@
 <script lang="ts" setup>
+import { AlertTriangle, ExternalLink, Loader2, Play, RefreshCw } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
-import { ExternalLink, Loader2, Play, RefreshCw, AlertTriangle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+
+import type { ImportRun, Oem, SourcePage } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { triggerCrawl, triggerForceCrawl } from '@/lib/worker-api'
-import type { Oem, ImportRun, SourcePage } from '@/composables/use-oem-data'
 
 const { fetchOems, fetchImportRuns, fetchSourcePages } = useOemData()
 
@@ -23,10 +24,12 @@ onMounted(async () => {
     oems.value = o
     runs.value = r
     pages.value = p
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load OEM data'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -49,18 +52,22 @@ function pageCountForOem(oemId: string) {
 
 function successRate(oemId: string) {
   const oemRuns = runs.value.filter(r => r.oem_id === oemId)
-  if (!oemRuns.length) return '-'
+  if (!oemRuns.length)
+    return '-'
   const success = oemRuns.filter(r => r.status === 'success').length
   return `${Math.round((success / oemRuns.length) * 100)}%`
 }
 
 function timeAgo(dateStr: string | null) {
-  if (!dateStr) return 'never'
+  if (!dateStr)
+    return 'never'
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 60)
+    return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24)
+    return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
@@ -101,14 +108,18 @@ async function handleForceCrawl(oemId: string, oemName: string) {
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <UiCard v-for="oem in oems" :key="oem.id">
         <UiCardHeader class="pb-3">
           <div class="flex items-center justify-between">
-            <UiCardTitle class="text-base">{{ oem.name?.replace(' Australia', '') }}</UiCardTitle>
+            <UiCardTitle class="text-base">
+              {{ oem.name?.replace(' Australia', '') }}
+            </UiCardTitle>
             <div class="flex items-center gap-1">
               <UiBadge v-if="erroredPagesForOem(oem.id) > 0" variant="destructive" class="text-[10px]">
                 {{ erroredPagesForOem(oem.id) }} errors
@@ -129,19 +140,27 @@ async function handleForceCrawl(oemId: string, oemName: string) {
           <div class="grid grid-cols-2 gap-y-2 text-sm mb-3">
             <div>
               <span class="text-muted-foreground">Pages monitored</span>
-              <p class="font-medium">{{ pageCountForOem(oem.id) }}</p>
+              <p class="font-medium">
+                {{ pageCountForOem(oem.id) }}
+              </p>
             </div>
             <div>
               <span class="text-muted-foreground">Total runs</span>
-              <p class="font-medium">{{ runCountForOem(oem.id) }}</p>
+              <p class="font-medium">
+                {{ runCountForOem(oem.id) }}
+              </p>
             </div>
             <div>
               <span class="text-muted-foreground">Success rate</span>
-              <p class="font-medium">{{ successRate(oem.id) }}</p>
+              <p class="font-medium">
+                {{ successRate(oem.id) }}
+              </p>
             </div>
             <div>
               <span class="text-muted-foreground">Last run</span>
-              <p class="font-medium">{{ timeAgo(lastRunForOem(oem.id)?.created_at ?? null) }}</p>
+              <p class="font-medium">
+                {{ timeAgo(lastRunForOem(oem.id)?.created_at ?? null) }}
+              </p>
             </div>
           </div>
           <div class="flex gap-2 pt-2 border-t">

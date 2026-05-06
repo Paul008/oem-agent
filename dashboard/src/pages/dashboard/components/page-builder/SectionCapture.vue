@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
-import { X, Loader2, MousePointer2, Check, Trash2, Zap, Camera, Crop } from 'lucide-vue-next'
+import { Camera, Check, Crop, Loader2, MousePointer2, Trash2, X, Zap } from 'lucide-vue-next'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+
 import { buildCaptureInjection } from '@/composables/use-capture-injection'
 
 const props = defineProps<{
@@ -13,7 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   capture: [html: string]
-  smartCapture: [section: { type: string; data: Record<string, any> }]
+  smartCapture: [section: { type: string, data: Record<string, any> }]
 }>()
 
 const url = ref(props.defaultUrl || '')
@@ -30,7 +31,7 @@ const screenshotWidth = ref(0)
 const screenshotHeight = ref(0)
 const imgRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
-const sectionMap = ref<Array<{ tag: string; classes: string; top: number; height: number; html: string }>>([])
+const sectionMap = ref<Array<{ tag: string, classes: string, top: number, height: number, html: string }>>([])
 
 // Region selection on screenshot
 const selecting = ref(false)
@@ -59,7 +60,8 @@ const pageLoaded = ref(false)
 const useScreenshot = ref(false) // default to iframe mode (deterministic parser needs HTML)
 
 async function loadPage() {
-  if (!url.value) return
+  if (!url.value)
+    return
   loading.value = true
   error.value = ''
   screenshotUrl.value = ''
@@ -70,7 +72,8 @@ async function loadPage() {
 
   if (useScreenshot.value) {
     await loadScreenshot()
-  } else {
+  }
+  else {
     await loadIframe()
   }
 }
@@ -91,9 +94,11 @@ async function loadScreenshot() {
     screenshotWidth.value = data.width
     screenshotHeight.value = data.height
     sectionMap.value = data.section_map || []
-  } catch (e: any) {
+  }
+  catch (e: any) {
     error.value = e.message || 'Failed to capture screenshot'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -109,14 +114,17 @@ async function loadIframe() {
     const html = await resp.text()
     await nextTick()
     const iframe = iframeRef.value
-    if (!iframe) return
+    if (!iframe)
+      return
     const { earlyStub, lateInjection } = buildCaptureInjection()
     const patchedHtml = html.replace(/<head([^>]*)>/i, `<head$1>${earlyStub}`)
     iframe.srcdoc = patchedHtml + lateInjection
     pageLoaded.value = true
-  } catch (e: any) {
+  }
+  catch (e: any) {
     error.value = e.message || 'Failed to load page'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -125,7 +133,8 @@ async function loadIframe() {
 function getScaledCoords(e: MouseEvent) {
   const img = imgRef.value
   const container = containerRef.value
-  if (!img || !container) return { x: 0, y: 0 }
+  if (!img || !container)
+    return { x: 0, y: 0 }
   const imgRect = img.getBoundingClientRect()
   const scaleX = img.naturalWidth / imgRect.width
   const scaleY = img.naturalHeight / imgRect.height
@@ -136,7 +145,8 @@ function getScaledCoords(e: MouseEvent) {
 }
 
 function onMouseDown(e: MouseEvent) {
-  if (!screenshotUrl.value) return
+  if (!screenshotUrl.value)
+    return
   selecting.value = true
   hasSelection.value = false
   const coords = getScaledCoords(e)
@@ -145,13 +155,15 @@ function onMouseDown(e: MouseEvent) {
 }
 
 function onMouseMove(e: MouseEvent) {
-  if (!selecting.value) return
+  if (!selecting.value)
+    return
   selectionEnd.value = getScaledCoords(e)
   hasSelection.value = true
 }
 
 function onMouseUp() {
-  if (!selecting.value) return
+  if (!selecting.value)
+    return
   selecting.value = false
   // Minimum size check
   const w = Math.abs(selectionEnd.value.x - selectionStart.value.x)
@@ -163,7 +175,8 @@ function onMouseUp() {
 
 // Selection rect is positioned relative to the image (which is the first child of the container)
 const selectionStyle = computed(() => {
-  if (!hasSelection.value || !imgRef.value) return { display: 'none' }
+  if (!hasSelection.value || !imgRef.value)
+    return { display: 'none' }
   const img = imgRef.value
   const scaleX = img.clientWidth / img.naturalWidth
   const scaleY = img.clientHeight / img.naturalHeight
@@ -183,7 +196,8 @@ const selectionStyle = computed(() => {
 
 // Crop the selection from the screenshot and add to queue
 async function addSelectionToQueue() {
-  if (!hasSelection.value || !imgRef.value) return
+  if (!hasSelection.value || !imgRef.value)
+    return
 
   const img = imgRef.value
   const x = Math.min(selectionStart.value.x, selectionEnd.value.x)
@@ -224,7 +238,8 @@ async function addSelectionToQueue() {
       label: cls,
     })
     hasSelection.value = false
-  } else {
+  }
+  else {
     // No matching section — try canvas crop as fallback
     try {
       const canvas = document.createElement('canvas')
@@ -236,7 +251,8 @@ async function addSelectionToQueue() {
 
       error.value = 'No matching section found at this position. Try drawing closer to the section center.'
       hasSelection.value = false
-    } catch {
+    }
+    catch {
       error.value = 'Could not map selection to a page section.'
       hasSelection.value = false
     }
@@ -244,8 +260,11 @@ async function addSelectionToQueue() {
 }
 
 // Context menu state
-const contextMenu = ref<{ show: boolean; x: number; y: number; data: any }>({
-  show: false, x: 0, y: 0, data: null,
+const contextMenu = ref<{ show: boolean, x: number, y: number, data: any }>({
+  show: false,
+  x: 0,
+  y: 0,
+  data: null,
 })
 
 const SECTION_TYPE_OPTIONS = [
@@ -280,7 +299,7 @@ function onContextMenuSelect(type: string) {
   if (!contextMenu.value.data) { contextMenu.value.show = false; return }
 
   if (type === '_raw_html') {
-    // Add styled HTML to queue — will create content-block with _generated_html when captured
+    // Add Tailwind-class HTML to queue — will create content-block with _generated_html when captured
     const twHtml = contextMenu.value.data.styledHtml || contextMenu.value.data.html || ''
     completed.value = 0
     queue.value.push({
@@ -305,12 +324,14 @@ function closeContextMenu() {
 
 // Iframe message handler
 function onMessage(e: MessageEvent) {
-  if (!e.data?.html) return
+  if (!e.data?.html)
+    return
 
   if (e.data.type === 'section-capture') {
     // Left-click: auto-detect type
     addToQueue(e.data)
-  } else if (e.data.type === 'section-capture-menu') {
+  }
+  else if (e.data.type === 'section-capture-menu') {
     // Right-click: show context menu for type selection
     contextMenu.value = {
       show: true,
@@ -330,7 +351,8 @@ function clearQueue() {
 }
 
 async function captureAll() {
-  if (!queue.value.length) return
+  if (!queue.value.length)
+    return
   analyzing.value = true
   analyzeProgress.value = 0
   const total = queue.value.length
@@ -369,16 +391,20 @@ async function captureAll() {
         const result: any = await resp.json()
         emit('smartCapture', { type: result.type, data: result.data })
         completed.value++
-      } else {
+      }
+      else {
         const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
         const rawHint = errBody.raw ? ` — AI said: "${errBody.raw.slice(0, 150)}..."` : ''
         error.value = `Capture failed: ${errBody.error || resp.statusText}${rawHint}`
-        if (item.html) emit('capture', item.html)
+        if (item.html)
+          emit('capture', item.html)
         completed.value++
       }
-    } catch (e: any) {
+    }
+    catch (e: any) {
       error.value = `Capture error: ${e.message}`
-      if (item.html) emit('capture', item.html)
+      if (item.html)
+        emit('capture', item.html)
       completed.value++
     }
   }
@@ -391,7 +417,8 @@ async function captureAll() {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') closeContextMenu()
+  if (e.key === 'Escape')
+    closeContextMenu()
 }
 
 onMounted(() => {
@@ -419,7 +446,7 @@ onUnmounted(() => {
             placeholder="Paste OEM page URL..."
             class="flex-1 h-9 px-3 text-sm bg-muted rounded-md border-0 outline-none focus:ring-2 ring-primary"
             @keydown.enter="loadPage"
-          />
+          >
           <!-- Mode toggle -->
           <button
             class="h-9 px-3 text-xs font-medium rounded-md flex items-center gap-1.5 border transition-colors"
@@ -466,9 +493,11 @@ onUnmounted(() => {
                 :key="item.id"
                 class="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full"
               >
-                <img v-if="item.thumbUrl" :src="item.thumbUrl" class="w-6 h-4 object-cover rounded" />
+                <img v-if="item.thumbUrl" :src="item.thumbUrl" class="w-6 h-4 object-cover rounded">
                 <span class="truncate max-w-[120px]">{{ item.label }}</span>
-                <button class="hover:text-destructive" @click="removeFromQueue(item.id)"><X class="size-3" /></button>
+                <button class="hover:text-destructive" @click="removeFromQueue(item.id)">
+                  <X class="size-3" />
+                </button>
               </div>
             </div>
           </template>
@@ -503,17 +532,21 @@ onUnmounted(() => {
 
       <!-- Progress bar -->
       <div v-if="analyzing && analyzeProgress > 0" class="h-1 bg-muted shrink-0">
-        <div class="h-full bg-blue-600 transition-all duration-300" :style="{ width: analyzeProgress + '%' }" />
+        <div class="h-full bg-blue-600 transition-all duration-300" :style="{ width: `${analyzeProgress}%` }" />
       </div>
 
       <!-- Error -->
-      <div v-if="error" class="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b">{{ error }}</div>
+      <div v-if="error" class="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b">
+        {{ error }}
+      </div>
 
       <!-- Empty state -->
       <div v-if="!loading && !screenshotUrl && !pageLoaded" class="flex-1 flex items-center justify-center text-muted-foreground">
         <div class="text-center space-y-3 max-w-md">
           <Camera class="size-12 mx-auto opacity-30" />
-          <p class="text-sm font-medium">Enter a URL and click Load Page</p>
+          <p class="text-sm font-medium">
+            Enter a URL and click Load Page
+          </p>
           <p class="text-xs leading-relaxed">
             Click sections to add them to a capture queue. The parser instantly extracts text, images, and layout — no AI, no waiting.
             Toggle to <strong>Screenshot</strong> mode for visual reference on complex pages.
@@ -537,7 +570,7 @@ onUnmounted(() => {
             crossorigin="anonymous"
             class="w-full block"
             draggable="false"
-          />
+          >
           <!-- Selection rectangle (positioned relative to image wrapper) -->
           <div
             v-if="hasSelection"
@@ -552,7 +585,7 @@ onUnmounted(() => {
         v-if="!useScreenshot"
         ref="iframeRef"
         class="flex-1 w-full border-0"
-        :class="{ 'hidden': !pageLoaded && !loading }"
+        :class="{ hidden: !pageLoaded && !loading }"
         sandbox="allow-same-origin allow-scripts"
       />
 
@@ -560,7 +593,9 @@ onUnmounted(() => {
       <div v-if="loading" class="flex-1 flex items-center justify-center">
         <div class="text-center space-y-3">
           <Loader2 class="size-8 mx-auto animate-spin text-muted-foreground" />
-          <p class="text-sm text-muted-foreground">{{ useScreenshot ? 'Rendering page in browser...' : 'Loading page...' }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ useScreenshot ? 'Rendering page in browser...' : 'Loading page...' }}
+          </p>
         </div>
       </div>
       <!-- Right-click context menu -->
@@ -571,10 +606,12 @@ onUnmounted(() => {
       >
         <div
           class="absolute bg-popover border rounded-lg shadow-xl py-1 min-w-[180px] animate-in fade-in zoom-in-95 duration-100"
-          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+          :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
           @click.stop
         >
-          <div class="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Import as...</div>
+          <div class="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Import as...
+          </div>
           <template v-for="opt in SECTION_TYPE_OPTIONS" :key="opt.value">
             <div v-if="opt.divider" class="border-b my-1" />
             <button

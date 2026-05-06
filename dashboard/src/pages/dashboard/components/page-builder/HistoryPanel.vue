@@ -1,6 +1,7 @@
 <script lang="ts" setup>
+import { ChevronRight, Clock, Redo2, Undo2 } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { Undo2, Redo2, Clock, ChevronRight } from 'lucide-vue-next'
+
 import type { HistoryEntry } from '@/composables/use-page-builder'
 
 const props = defineProps<{
@@ -81,8 +82,12 @@ const reversedEntries = computed(() =>
           </div>
 
           <div class="flex-1 min-w-0">
-            <p class="truncate text-sm">{{ entry.label }}</p>
-            <p class="text-[10px] text-muted-foreground">{{ formatTime(entry.timestamp) }}</p>
+            <p class="truncate text-sm">
+              {{ entry.label }}
+            </p>
+            <p class="text-[10px] text-muted-foreground">
+              {{ formatTime(entry.timestamp) }}
+            </p>
           </div>
 
           <ChevronRight

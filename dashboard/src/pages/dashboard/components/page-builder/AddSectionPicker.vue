@@ -1,16 +1,31 @@
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import {
-  Plus, Image, Columns3, ChevronRight, ChevronDown, Library,
-  ClipboardPaste, BookmarkPlus, Layers, Grid3x3, SplitSquareHorizontal,
-  Play, Database, Megaphone,
+  BookmarkPlus,
+  ChevronDown,
+  ChevronRight,
+  ClipboardPaste,
+  Columns3,
+  Database,
+  Grid3x3,
+  Image,
+  Layers,
+  Library,
+  Megaphone,
+  Play,
+  Plus,
+  SplitSquareHorizontal,
 } from 'lucide-vue-next'
-import {
-  SECTION_TYPE_INFO,
-  type PageSectionType,
-} from './section-templates'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
 import type { Recipe } from '@/lib/worker-api'
+
+import type { PageSectionType } from './section-templates'
+
+import {
+
+  SECTION_TYPE_INFO,
+} from './section-templates'
 
 const props = defineProps<{
   recipes?: Recipe[]
@@ -41,14 +56,16 @@ const PATTERNS = [
 ]
 
 const recipesByPattern = computed(() => {
-  const grouped: Record<string, { brand: Recipe[]; defaults: Recipe[] }> = {}
+  const grouped: Record<string, { brand: Recipe[], defaults: Recipe[] }> = {}
   for (const p of PATTERNS) {
     grouped[p.key] = { brand: [], defaults: [] }
   }
   for (const r of (props.recipes ?? [])) {
     const group = grouped[r.pattern]
-    if (!group) continue
-    if (r.source === 'brand') group.brand.push(r)
+    if (!group)
+      continue
+    if (r.source === 'brand')
+      group.brand.push(r)
     else group.defaults.push(r)
   }
   return grouped

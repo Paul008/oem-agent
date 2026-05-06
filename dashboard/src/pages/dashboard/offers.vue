@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, Calendar, Search, ChevronLeft, ChevronRight, Tag, ImageOff, Clock, RefreshCw, Filter, ExternalLink, FileText, Info } from 'lucide-vue-next'
+import { Calendar, ChevronLeft, ChevronRight, Clock, ExternalLink, FileText, Filter, ImageOff, Info, Loader2, RefreshCw, Search, Tag } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+
+import type { Offer } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
-import type { Offer } from '@/composables/use-oem-data'
 
 const { fetchOffers, fetchOems } = useOemData()
 
@@ -45,7 +46,8 @@ const filtered = computed(() => {
   }
   if (filterStatus.value === 'active') {
     list = list.filter(o => !isExpired(o))
-  } else if (filterStatus.value === 'expired') {
+  }
+  else if (filterStatus.value === 'expired') {
     list = list.filter(o => isExpired(o))
   }
   if (searchQuery.value.trim()) {
@@ -60,7 +62,8 @@ const filtered = computed(() => {
   return [...list].sort((a, b) => {
     const aExpired = isExpired(a) ? 1 : 0
     const bExpired = isExpired(b) ? 1 : 0
-    if (aExpired !== bExpired) return aExpired - bExpired
+    if (aExpired !== bExpired)
+      return aExpired - bExpired
     return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   })
 })
@@ -82,10 +85,13 @@ function onSearch() {
 const stats = computed(() => {
   const t = { total: offers.value.length, active: 0, expired: 0, withSaving: 0, withAbnPrice: 0 }
   for (const o of offers.value) {
-    if (isExpired(o)) t.expired++
+    if (isExpired(o))
+      t.expired++
     else t.active++
-    if (o.saving_amount) t.withSaving++
-    if (o.abn_price_amount && o.abn_price_amount !== o.price_amount) t.withAbnPrice++
+    if (o.saving_amount)
+      t.withSaving++
+    if (o.abn_price_amount && o.abn_price_amount !== o.price_amount)
+      t.withAbnPrice++
   }
   return t
 })
@@ -95,28 +101,35 @@ function oemName(id: string) {
 }
 
 function formatPrice(amount: number | null) {
-  if (!amount) return '-'
+  if (!amount)
+    return '-'
   return `$${Math.round(amount).toLocaleString()}`
 }
 
 function isExpired(offer: Offer) {
-  if (!offer.validity_end) return false
+  if (!offer.validity_end)
+    return false
   return new Date(offer.validity_end) < new Date()
 }
 
 function formatDate(dateStr: string | null) {
-  if (!dateStr) return '-'
+  if (!dateStr)
+    return '-'
   return new Date(dateStr).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function timeAgo(dateStr: string | null) {
-  if (!dateStr) return 'never'
+  if (!dateStr)
+    return 'never'
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (seconds < 60) return 'just now'
+  if (seconds < 60)
+    return 'just now'
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60)
+    return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24)
+    return `${hours}h ago`
   const days = Math.floor(hours / 24)
   return `${days}d ago`
 }
@@ -131,7 +144,9 @@ function timeAgo(dateStr: string | null) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -143,9 +158,15 @@ function timeAgo(dateStr: string | null) {
           <UiSelectValue />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Offers</UiSelectItem>
-          <UiSelectItem value="active">Current Only</UiSelectItem>
-          <UiSelectItem value="expired">Expired Only</UiSelectItem>
+          <UiSelectItem value="all">
+            All Offers
+          </UiSelectItem>
+          <UiSelectItem value="active">
+            Current Only
+          </UiSelectItem>
+          <UiSelectItem value="expired">
+            Expired Only
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <div class="relative">
@@ -162,9 +183,15 @@ function timeAgo(dateStr: string | null) {
           <UiSelectValue />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="12">12 per page</UiSelectItem>
-          <UiSelectItem value="24">24 per page</UiSelectItem>
-          <UiSelectItem value="48">48 per page</UiSelectItem>
+          <UiSelectItem value="12">
+            12 per page
+          </UiSelectItem>
+          <UiSelectItem value="24">
+            24 per page
+          </UiSelectItem>
+          <UiSelectItem value="48">
+            48 per page
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <span class="text-sm text-muted-foreground ml-auto">
@@ -181,52 +208,82 @@ function timeAgo(dateStr: string | null) {
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total
+            </UiCardTitle>
             <Tag class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total }}</div>
-            <p class="text-xs text-muted-foreground">All offers</p>
+            <div class="text-2xl font-bold">
+              {{ stats.total }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              All offers
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Active</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Active
+            </UiCardTitle>
             <Tag class="size-4 text-green-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-green-500">{{ stats.active }}</div>
-            <p class="text-xs text-muted-foreground">Currently valid</p>
+            <div class="text-2xl font-bold text-green-500">
+              {{ stats.active }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Currently valid
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Expired</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Expired
+            </UiCardTitle>
             <Tag class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold" :class="stats.expired > 0 ? 'text-yellow-500' : ''">{{ stats.expired }}</div>
-            <p class="text-xs text-muted-foreground">Past end date</p>
+            <div class="text-2xl font-bold" :class="stats.expired > 0 ? 'text-yellow-500' : ''">
+              {{ stats.expired }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Past end date
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">With Savings</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              With Savings
+            </UiCardTitle>
             <Tag class="size-4 text-blue-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.withSaving }}</div>
-            <p class="text-xs text-muted-foreground">Have saving amount</p>
+            <div class="text-2xl font-bold">
+              {{ stats.withSaving }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Have saving amount
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard v-if="stats.withAbnPrice > 0">
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">ABN Pricing</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              ABN Pricing
+            </UiCardTitle>
             <Tag class="size-4 text-blue-500" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-blue-500">{{ stats.withAbnPrice }}</div>
-            <p class="text-xs text-muted-foreground">Different ABN price</p>
+            <div class="text-2xl font-bold text-blue-500">
+              {{ stats.withAbnPrice }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Different ABN price
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -248,7 +305,7 @@ function timeAgo(dateStr: string | null) {
               :alt="offer.title"
               class="w-full h-full object-contain transition-opacity duration-200"
               loading="lazy"
-            />
+            >
             <div v-else class="w-full h-full flex items-center justify-center">
               <ImageOff class="size-8 text-muted-foreground/20" />
             </div>
@@ -285,7 +342,9 @@ function timeAgo(dateStr: string | null) {
           <div class="p-3 flex flex-col gap-2 flex-1">
             <!-- Title + type -->
             <div class="flex items-start justify-between gap-2">
-              <h3 class="text-sm font-semibold leading-tight line-clamp-2 min-w-0 flex-1">{{ offer.title }}</h3>
+              <h3 class="text-sm font-semibold leading-tight line-clamp-2 min-w-0 flex-1">
+                {{ offer.title }}
+              </h3>
               <UiBadge v-if="offer.offer_type" variant="secondary" class="text-[10px] shrink-0">
                 {{ offer.offer_type }}
               </UiBadge>
@@ -326,7 +385,9 @@ function timeAgo(dateStr: string | null) {
       <!-- Empty state -->
       <div v-if="filtered.length === 0" class="text-center py-16">
         <Tag class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p class="text-sm text-muted-foreground">No offers found matching your filters</p>
+        <p class="text-sm text-muted-foreground">
+          No offers found matching your filters
+        </p>
       </div>
 
       <!-- Pagination -->
@@ -366,13 +427,17 @@ function timeAgo(dateStr: string | null) {
       <UiDialogContent v-if="selectedOffer" class="max-w-2xl max-h-[85vh] overflow-y-auto">
         <!-- Hero -->
         <div v-if="selectedOffer.hero_image_r2_key" class="aspect-[16/9] -mx-6 -mt-6 mb-4 bg-muted overflow-hidden rounded-t-lg">
-          <img :src="selectedOffer.hero_image_r2_key" :alt="selectedOffer.title" class="w-full h-full object-contain" />
+          <img :src="selectedOffer.hero_image_r2_key" :alt="selectedOffer.title" class="w-full h-full object-contain">
         </div>
 
         <UiDialogHeader>
           <div class="flex items-start justify-between gap-2">
-            <UiDialogTitle class="text-lg">{{ selectedOffer.title }}</UiDialogTitle>
-            <UiBadge v-if="selectedOffer.offer_type" variant="secondary" class="shrink-0">{{ selectedOffer.offer_type }}</UiBadge>
+            <UiDialogTitle class="text-lg">
+              {{ selectedOffer.title }}
+            </UiDialogTitle>
+            <UiBadge v-if="selectedOffer.offer_type" variant="secondary" class="shrink-0">
+              {{ selectedOffer.offer_type }}
+            </UiBadge>
           </div>
           <UiDialogDescription v-if="selectedOffer.description" class="mt-1">
             {{ selectedOffer.description }}
@@ -382,7 +447,9 @@ function timeAgo(dateStr: string | null) {
         <div class="space-y-4 mt-4">
           <!-- Pricing -->
           <div v-if="selectedOffer.price_amount || selectedOffer.price_raw_string" class="bg-muted/50 rounded-lg p-4">
-            <h4 class="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Pricing</h4>
+            <h4 class="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+              Pricing
+            </h4>
             <div class="space-y-1.5">
               <div v-if="selectedOffer.price_amount" class="flex justify-between">
                 <span class="text-sm text-muted-foreground">Driveaway</span>
@@ -404,12 +471,16 @@ function timeAgo(dateStr: string | null) {
 
           <!-- Validity + Eligibility -->
           <div v-if="selectedOffer.validity_start || selectedOffer.validity_end || selectedOffer.eligibility" class="bg-muted/50 rounded-lg p-4">
-            <h4 class="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Validity</h4>
+            <h4 class="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+              Validity
+            </h4>
             <div class="space-y-1.5 text-sm">
               <div v-if="selectedOffer.validity_start || selectedOffer.validity_end" class="flex items-center gap-2">
                 <Calendar class="size-3.5 text-muted-foreground shrink-0" />
                 <span>{{ formatDate(selectedOffer.validity_start) }} — {{ formatDate(selectedOffer.validity_end) }}</span>
-                <UiBadge v-if="isExpired(selectedOffer)" variant="destructive" class="text-[10px]">Expired</UiBadge>
+                <UiBadge v-if="isExpired(selectedOffer)" variant="destructive" class="text-[10px]">
+                  Expired
+                </UiBadge>
               </div>
               <div v-if="selectedOffer.eligibility" class="flex items-center gap-2 text-muted-foreground">
                 <Info class="size-3.5 shrink-0" />

@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { useInlineEdit } from '@/composables/use-inline-edit'
+
 import ImageOverlay from '../page-builder/ImageOverlay.vue'
 
 const props = defineProps<{
   section: {
     type: 'feature-cards'
     title?: string
-    cards: Array<{ title: string; description: string; image_url?: string; cta_text?: string; cta_url?: string }>
+    cards: Array<{ title: string, description: string, image_url?: string, cta_text?: string, cta_url?: string }>
     columns: 2 | 3 | 4
     card_style?: 'default' | 'overlay'
   }
@@ -19,7 +20,7 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -34,7 +35,7 @@ function updateCardField(index: number, field: string, value: string) {
 }
 
 function makeCardEdit(index: number, field: string) {
-  return useInlineEdit((v) => updateCardField(index, field, v))
+  return useInlineEdit(v => updateCardField(index, field, v))
 }
 
 const colClass: Record<number, string> = {
@@ -55,9 +56,11 @@ const isOverlay = computed(() => props.section.card_style === 'overlay')
       @blur="titleEdit.stopEdit()"
       @keydown="titleEdit.onKeydown"
       @paste="titleEdit.onPaste"
-    >{{ section.title || 'Double-click to add section title' }}</h3>
+    >
+      {{ section.title || 'Double-click to add section title' }}
+    </h3>
 
-    <div :class="['grid gap-4', colClass[section.columns] || colClass[3]]">
+    <div class="grid gap-4" :class="[colClass[section.columns] || colClass[3]]">
       <!-- Overlay style: image as full background with text on top -->
       <template v-if="isOverlay">
         <div
@@ -71,7 +74,7 @@ const isOverlay = computed(() => props.section.card_style === 'overlay')
             :src="card.image_url"
             :alt="card.title"
             class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+          >
           <div v-else class="absolute inset-0 bg-muted" />
           <ImageOverlay
             v-if="card.image_url"
@@ -88,15 +91,19 @@ const isOverlay = computed(() => props.section.card_style === 'overlay')
               <p
                 class="text-sm font-medium opacity-90 mb-1 cursor-text outline-none"
                 @dblclick="(e: MouseEvent) => { const edit = makeCardEdit(i, 'description'); edit.startEdit(e.target as HTMLElement); emit('inline-edit', `cards[${i}].description`, card.description, e.target as HTMLElement) }"
-              >{{ card.description }}</p>
+              >
+                {{ card.description }}
+              </p>
               <h4
                 class="text-xl font-semibold cursor-text outline-none"
                 @dblclick="(e: MouseEvent) => { const edit = makeCardEdit(i, 'title'); edit.startEdit(e.target as HTMLElement); emit('inline-edit', `cards[${i}].title`, card.title, e.target as HTMLElement) }"
-              >{{ card.title }}</h4>
+              >
+                {{ card.title }}
+              </h4>
             </div>
             <a v-if="card.cta_text" :href="card.cta_url || '#'" class="flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity" @click.prevent>
               <span>{{ card.cta_text }}</span>
-              <svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.6 12.5a.9.9 0 0 1 .9-.9h12.765l-4.989-4.751a.9.9 0 1 1 1.248-1.298l6.6 6.3a.9.9 0 0 1 0 1.298l-6.6 6.3a.9.9 0 1 1-1.248-1.298l4.989-4.751H4.5a.9.9 0 0 1-.9-.9Z" fill="currentColor"/></svg>
+              <svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.6 12.5a.9.9 0 0 1 .9-.9h12.765l-4.989-4.751a.9.9 0 1 1 1.248-1.298l6.6 6.3a.9.9 0 0 1 0 1.298l-6.6 6.3a.9.9 0 1 1-1.248-1.298l4.989-4.751H4.5a.9.9 0 0 1-.9-.9Z" fill="currentColor" /></svg>
             </a>
           </div>
         </div>
@@ -110,7 +117,7 @@ const isOverlay = computed(() => props.section.card_style === 'overlay')
               :src="card.image_url"
               :alt="card.title"
               class="w-full h-full object-cover"
-            />
+            >
             <ImageOverlay
               :current-url="card.image_url"
               :oem-id="oemId"
@@ -125,7 +132,9 @@ const isOverlay = computed(() => props.section.card_style === 'overlay')
               @blur="makeCardEdit(i, 'title').stopEdit()"
               @keydown="makeCardEdit(i, 'title').onKeydown"
               @paste="makeCardEdit(i, 'title').onPaste"
-            >{{ card.title || 'Double-click to edit' }}</UiCardTitle>
+            >
+              {{ card.title || 'Double-click to edit' }}
+            </UiCardTitle>
           </UiCardHeader>
           <UiCardContent>
             <div class="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none" v-html="card.description" />

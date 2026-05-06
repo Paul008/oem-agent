@@ -1,10 +1,12 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
 import { Clock, DollarSign, Hash, Layers } from 'lucide-vue-next'
-import SectionListItem from './SectionListItem.vue'
-import AddSectionPicker from './AddSectionPicker.vue'
-import TemplateGalleryDrawer from './TemplateGalleryDrawer.vue'
+import { ref } from 'vue'
+
 import type { PageSectionType } from './section-templates'
+
+import AddSectionPicker from './AddSectionPicker.vue'
+import SectionListItem from './SectionListItem.vue'
+import TemplateGalleryDrawer from './TemplateGalleryDrawer.vue'
 
 const props = defineProps<{
   page: any
@@ -46,9 +48,11 @@ function onDragStart(e: DragEvent, index: number) {
   }
 }
 function onDragOver(e: DragEvent, index: number) {
-  if (dragIndex.value === null) return
+  if (dragIndex.value === null)
+    return
   e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  if (e.dataTransfer)
+    e.dataTransfer.dropEffect = 'move'
   dropIndex.value = index
 }
 function onDragLeave() {
@@ -68,12 +72,14 @@ function onDragEnd() {
 }
 
 function formatDate(iso: string | undefined) {
-  if (!iso) return '-'
+  if (!iso)
+    return '-'
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function formatCost(cost: number | undefined) {
-  if (!cost) return '-'
+  if (!cost)
+    return '-'
   return `$${cost.toFixed(4)}`
 }
 </script>
@@ -82,7 +88,9 @@ function formatCost(cost: number | undefined) {
   <div class="flex flex-col h-full overflow-hidden">
     <!-- Metadata -->
     <div class="px-4 py-3 border-b space-y-1.5 shrink-0">
-      <h2 class="text-sm font-semibold">Page Metadata</h2>
+      <h2 class="text-sm font-semibold">
+        Page Metadata
+      </h2>
       <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
         <div class="flex items-center gap-1.5 text-muted-foreground">
           <Layers class="size-3" />
@@ -147,8 +155,12 @@ function formatCost(cost: number | undefined) {
         </div>
 
         <div v-if="sections.length === 0" class="text-center py-8">
-          <p class="text-sm text-muted-foreground">No structured sections</p>
-          <p class="text-xs text-muted-foreground mt-1">Click "Structure" to extract sections, or add manually</p>
+          <p class="text-sm text-muted-foreground">
+            No structured sections
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            Click "Structure" to extract sections, or add manually
+          </p>
         </div>
 
         <!-- Add Section picker -->

@@ -1,7 +1,19 @@
 <script lang="ts" setup>
 import {
-  Image, Type, Columns3, Palette, TableProperties, Images,
-  LayoutGrid, Video, Megaphone, FileText, ImageIcon, Film, MousePointerClick, Plus,
+  Columns3,
+  FileText,
+  Film,
+  Image,
+  ImageIcon,
+  Images,
+  LayoutGrid,
+  Megaphone,
+  MousePointerClick,
+  Palette,
+  Plus,
+  TableProperties,
+  Type,
+  Video,
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -38,13 +50,20 @@ function sectionSubtitle(s: any): string {
 
 function countImages(s: any): number {
   let count = 0
-  if (s.desktop_image_url) count++
-  if (s.mobile_image_url) count++
-  if (s.image_url) count++
-  if (Array.isArray(s.images)) count += s.images.length
-  if (Array.isArray(s.tabs)) count += s.tabs.filter((t: any) => t.image_url).length
-  if (Array.isArray(s.cards)) count += s.cards.filter((c: any) => c.image_url).length
-  if (Array.isArray(s.colors)) count += s.colors.length
+  if (s.desktop_image_url)
+    count++
+  if (s.mobile_image_url)
+    count++
+  if (s.image_url)
+    count++
+  if (Array.isArray(s.images))
+    count += s.images.length
+  if (Array.isArray(s.tabs))
+    count += s.tabs.filter((t: any) => t.image_url).length
+  if (Array.isArray(s.cards))
+    count += s.cards.filter((c: any) => c.image_url).length
+  if (Array.isArray(s.colors))
+    count += s.colors.length
   return count
 }
 

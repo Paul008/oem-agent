@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed, watch } from 'vue'
-import { Loader2, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, FileText, ImageOff, LayoutGrid, LayoutList, AlertTriangle, Tag } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronUp, FileText, ImageOff, LayoutGrid, LayoutList, Loader2, Search, Tag } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+
+import type { Offer, Product, ProductSpecs, VehicleModel } from '@/composables/use-oem-data'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
-import type { Product, VehicleModel, ProductSpecs, Offer } from '@/composables/use-oem-data'
 
 const { fetchProducts, fetchVehicleModels, fetchOems, fetchOffersByProducts } = useOemData()
 
@@ -44,13 +45,15 @@ async function fetchHeroImages() {
       .not('hero_image_url', 'is', null)
       .order('product_id')
       .range(from, from + PAGE - 1)
-    if (error || !data || data.length === 0) break
+    if (error || !data || data.length === 0)
+      break
     for (const row of data) {
       if (!map.has(row.product_id)) {
         map.set(row.product_id, row.hero_image_url)
       }
     }
-    if (data.length < PAGE) break
+    if (data.length < PAGE)
+      break
     from += PAGE
   }
   return map
@@ -65,10 +68,12 @@ onMounted(async () => {
     heroMap.value = heroes
     // Load offers after products so we know which ids to query.
     offersByProduct.value = await fetchOffersByProducts(p.map(x => x.id))
-  } catch (err: any) {
+  }
+  catch (err: any) {
     loadError.value = err.message || 'Failed to load variant data'
     toast.error(loadError.value!)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -84,19 +89,26 @@ const modelMap = computed(() => {
 // ── Filter options ───────────────────────────────────────────────────────────
 
 const modelsForOem = computed(() => {
-  if (filterOem.value === 'all') return models.value
+  if (filterOem.value === 'all')
+    return models.value
   return models.value.filter(m => m.oem_id === filterOem.value)
 })
 
 const fuelTypes = computed(() => {
   const types = new Set<string>()
-  products.value.forEach(p => { if (p.fuel_type) types.add(p.fuel_type) })
+  products.value.forEach((p) => {
+    if (p.fuel_type)
+      types.add(p.fuel_type)
+  })
   return [...types].sort()
 })
 
 const bodyTypes = computed(() => {
   const types = new Set<string>()
-  products.value.forEach(p => { if (p.body_type) types.add(p.body_type) })
+  products.value.forEach((p) => {
+    if (p.body_type)
+      types.add(p.body_type)
+  })
   return [...types].sort()
 })
 
@@ -120,24 +132,28 @@ const filtered = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(p =>
-      p.title.toLowerCase().includes(q) ||
-      p.variant_name?.toLowerCase().includes(q) ||
-      p.subtitle?.toLowerCase().includes(q) ||
-      p.variant_code?.toLowerCase().includes(q),
+      p.title.toLowerCase().includes(q)
+      || p.variant_name?.toLowerCase().includes(q)
+      || p.subtitle?.toLowerCase().includes(q)
+      || p.variant_code?.toLowerCase().includes(q),
     )
   }
 
   if (sortBy.value === 'price-asc') {
     list = [...list].sort((a, b) => (a.price_amount ?? 99999999) - (b.price_amount ?? 99999999))
-  } else if (sortBy.value === 'price-desc') {
+  }
+  else if (sortBy.value === 'price-desc') {
     list = [...list].sort((a, b) => (b.price_amount ?? 0) - (a.price_amount ?? 0))
-  } else if (sortBy.value === 'title') {
+  }
+  else if (sortBy.value === 'title') {
     list = [...list].sort((a, b) => a.title.localeCompare(b.title))
-  } else {
+  }
+  else {
     // default: oem → model → title
     list = [...list].sort((a, b) => {
       const oemCmp = a.oem_id.localeCompare(b.oem_id)
-      if (oemCmp !== 0) return oemCmp
+      if (oemCmp !== 0)
+        return oemCmp
       const modelA = modelMap.value.get(a.model_id ?? '')?.name ?? ''
       const modelB = modelMap.value.get(b.model_id ?? '')?.name ?? ''
       const modelCmp = modelA.localeCompare(modelB)
@@ -168,12 +184,14 @@ function oemName(id: string) {
 }
 
 function modelName(id: string | null) {
-  if (!id) return '-'
+  if (!id)
+    return '-'
   return modelMap.value.get(id)?.name ?? '-'
 }
 
 function formatPrice(amount: number | null) {
-  if (!amount) return '-'
+  if (!amount)
+    return '-'
   return `$${Math.round(amount).toLocaleString()}`
 }
 
@@ -184,7 +202,8 @@ function hasSpecs(product: Product): boolean {
 function toggleSpecs(id: string) {
   if (expandedSpecs.value.has(id)) {
     expandedSpecs.value.delete(id)
-  } else {
+  }
+  else {
     expandedSpecs.value.add(id)
   }
 }
@@ -192,9 +211,14 @@ function toggleSpecs(id: string) {
 const SPEC_CATEGORY_ORDER = ['engine', 'transmission', 'dimensions', 'performance', 'towing', 'capacity', 'safety', 'wheels']
 
 const CATEGORY_LABELS: Record<string, string> = {
-  engine: 'Engine', transmission: 'Transmission', dimensions: 'Dimensions',
-  performance: 'Performance', towing: 'Towing', capacity: 'Capacity',
-  safety: 'Safety', wheels: 'Wheels',
+  engine: 'Engine',
+  transmission: 'Transmission',
+  dimensions: 'Dimensions',
+  performance: 'Performance',
+  towing: 'Towing',
+  capacity: 'Capacity',
+  safety: 'Safety',
+  wheels: 'Wheels',
 }
 
 // Keys in specs_json that aren't regular spec categories — rendered separately
@@ -207,22 +231,28 @@ function orderedCategories(specs: ProductSpecs): { key: string, label: string, e
 
   for (const cat of SPEC_CATEGORY_ORDER) {
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     if (typeof section === 'string' || typeof section === 'number') {
       // Top-level scalar — collect for "other" category
       otherEntries.push([formatSpecKey(cat), String(section)])
-    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
+    }
+    else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({ key: cat, label: CATEGORY_LABELS[cat] || cat.charAt(0).toUpperCase() + cat.slice(1), entries: Object.entries(section).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]) })
     }
   }
   for (const cat of Object.keys(specs)) {
-    if (SPEC_CATEGORY_ORDER.includes(cat)) continue
-    if (SPEC_META_KEYS.has(cat)) continue // Rendered as its own section
+    if (SPEC_CATEGORY_ORDER.includes(cat))
+      continue
+    if (SPEC_META_KEYS.has(cat))
+      continue // Rendered as its own section
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     if (typeof section === 'string' || typeof section === 'number') {
       otherEntries.push([formatSpecKey(cat), String(section)])
-    } else if (typeof section === 'object' && Object.keys(section).length > 0) {
+    }
+    else if (typeof section === 'object' && Object.keys(section).length > 0) {
       result.push({ key: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' '), entries: Object.entries(section).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]) })
     }
   }
@@ -251,15 +281,18 @@ interface PdfVariantSpecs {
 }
 
 function isSpecUnavailable(v: unknown): boolean {
-  if (v == null) return true
+  if (v == null)
+    return true
   const s = String(v).trim().toLowerCase()
   return s === '' || s === '—' || s === '-' || s === 'unavailable' || s === 'n/a' || s === 'na' || s === 'not available'
 }
 
 function pdfVariantSpecs(specs: ProductSpecs | null): PdfVariantSpecs | null {
-  if (!specs) return null
+  if (!specs)
+    return null
   const raw = (specs as any)._pdf_variant_specs as PdfVariantSpecs | undefined
-  if (!raw?.categories?.length) return null
+  if (!raw?.categories?.length)
+    return null
   // Filter out unavailable specs and empty categories
   const cats = raw.categories
     .map(cat => ({
@@ -267,7 +300,8 @@ function pdfVariantSpecs(specs: ProductSpecs | null): PdfVariantSpecs | null {
       specs: (cat.specs ?? []).filter(s => !isSpecUnavailable(s.value)),
     }))
     .filter(cat => cat.specs.length > 0)
-  if (cats.length === 0) return null
+  if (cats.length === 0)
+    return null
   return {
     variant_name: raw.variant_name,
     match_confidence: raw.match_confidence,
@@ -282,7 +316,8 @@ function formatSpecKey(key: string): string {
 
 /** Extract inline spec badges */
 function inlineSpecBadges(specs: ProductSpecs | null): string[] {
-  if (!specs) return []
+  if (!specs)
+    return []
   const badges: string[] = []
   if (specs.engine) {
     const eng = specs.engine
@@ -293,49 +328,60 @@ function inlineSpecBadges(specs: ProductSpecs | null): string[] {
     if (/turbo|supercharg/i.test(induction) || /turbo|supercharg/i.test(type)) {
       label = label ? `${label} Turbo` : 'Turbo'
     }
-    if (label) badges.push(label)
+    if (label)
+      badges.push(label)
   }
   if (specs.transmission) {
     const drive = specs.transmission.drivetrain || specs.transmission.drive_type || specs.transmission.drive || ''
-    if (drive) badges.push(drive)
+    if (drive)
+      badges.push(drive)
     const gearbox = specs.transmission.type || specs.transmission.transmission_type || specs.transmission.gearbox || ''
     if (gearbox) {
       const speedMatch = gearbox.match(/(\d+)[- ]?speed/i)
       const isCVT = /cvt/i.test(gearbox)
       const isAuto = /auto|cvt|dct|dsg/i.test(gearbox)
       const isManual = /manual/i.test(gearbox)
-      if (isCVT) badges.push('CVT')
-      else if (speedMatch) badges.push(`${speedMatch[1]}${isAuto ? 'AT' : isManual ? 'MT' : 'SP'}`)
-      else if (gearbox.length <= 6) badges.push(gearbox)
+      if (isCVT)
+        badges.push('CVT')
+      else if (speedMatch)
+        badges.push(`${speedMatch[1]}${isAuto ? 'AT' : isManual ? 'MT' : 'SP'}`)
+      else if (gearbox.length <= 6)
+        badges.push(gearbox)
     }
   }
   return badges
 }
 
 function brochureUrl(product: Product): string | null {
-  if (!product.model_id) return null
+  if (!product.model_id)
+    return null
   return modelMap.value.get(product.model_id)?.brochure_url ?? null
 }
 
 /** Quick specs summary for card view */
 function specsSummary(specs: ProductSpecs | null): string[] {
-  if (!specs) return []
+  if (!specs)
+    return []
   const items: string[] = []
   if (specs.engine) {
     const power = specs.engine.power || specs.engine.max_power || ''
-    if (power) items.push(power)
+    if (power)
+      items.push(power)
   }
   if (specs.capacity) {
     const seats = specs.capacity.seats || specs.capacity.seating || ''
-    if (seats) items.push(`${seats} seats`)
+    if (seats)
+      items.push(`${seats} seats`)
   }
   if (specs.performance) {
     const fuel = specs.performance.fuel_combined || specs.performance.fuel_consumption || ''
-    if (fuel) items.push(fuel)
+    if (fuel)
+      items.push(fuel)
   }
   if (specs.towing) {
     const braked = specs.towing.braked || specs.towing.braked_towing || ''
-    if (braked) items.push(`Tow ${braked}`)
+    if (braked)
+      items.push(`Tow ${braked}`)
   }
   return items.slice(0, 4)
 }
@@ -346,21 +392,26 @@ function cardSpecs(specs: ProductSpecs): { label: string, value: string }[] {
   const allCats = [...SPEC_CATEGORY_ORDER, ...Object.keys(specs).filter(k => !SPEC_CATEGORY_ORDER.includes(k))]
   for (const cat of allCats) {
     const section = specs[cat]
-    if (!section) continue
+    if (!section)
+      continue
     // Handle top-level scalar values (strings like "4-Wheel Antilock Disc")
     if (typeof section === 'string' || typeof section === 'number') {
       items.push({ label: formatSpecKey(cat), value: String(section) })
       continue
     }
-    if (typeof section !== 'object') continue
+    if (typeof section !== 'object')
+      continue
     for (const [key, value] of Object.entries(section)) {
-      if (value == null) continue
+      if (value == null)
+        continue
       // Handle nested objects (e.g. wheels: { front: "19-inch", rear: "20-inch" })
       if (typeof value === 'object') {
         for (const [subKey, subVal] of Object.entries(value as Record<string, string>)) {
-          if (subVal) items.push({ label: `${formatSpecKey(key)} ${formatSpecKey(subKey)}`, value: String(subVal) })
+          if (subVal)
+            items.push({ label: `${formatSpecKey(key)} ${formatSpecKey(subKey)}`, value: String(subVal) })
         }
-      } else {
+      }
+      else {
         items.push({ label: formatSpecKey(key), value: String(value) })
       }
     }
@@ -381,7 +432,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
           <UiSelectValue placeholder="All OEMs" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -393,7 +446,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
           <UiSelectValue placeholder="All Models" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Models</UiSelectItem>
+          <UiSelectItem value="all">
+            All Models
+          </UiSelectItem>
           <UiSelectItem v-for="m in modelsForOem" :key="m.id" :value="m.id">
             {{ m.name }}
           </UiSelectItem>
@@ -405,8 +460,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
           <UiSelectValue placeholder="All Fuels" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Fuels</UiSelectItem>
-          <UiSelectItem v-for="ft in fuelTypes" :key="ft" :value="ft">{{ ft }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Fuels
+          </UiSelectItem>
+          <UiSelectItem v-for="ft in fuelTypes" :key="ft" :value="ft">
+            {{ ft }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -415,8 +474,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
           <UiSelectValue placeholder="All Body Types" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Body Types</UiSelectItem>
-          <UiSelectItem v-for="bt in bodyTypes" :key="bt" :value="bt">{{ bt }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Body Types
+          </UiSelectItem>
+          <UiSelectItem v-for="bt in bodyTypes" :key="bt" :value="bt">
+            {{ bt }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -434,10 +497,18 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
           <UiSelectValue placeholder="Sort by" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="oem">OEM / Model</UiSelectItem>
-          <UiSelectItem value="title">Name A-Z</UiSelectItem>
-          <UiSelectItem value="price-asc">Price Low-High</UiSelectItem>
-          <UiSelectItem value="price-desc">Price High-Low</UiSelectItem>
+          <UiSelectItem value="oem">
+            OEM / Model
+          </UiSelectItem>
+          <UiSelectItem value="title">
+            Name A-Z
+          </UiSelectItem>
+          <UiSelectItem value="price-asc">
+            Price Low-High
+          </UiSelectItem>
+          <UiSelectItem value="price-desc">
+            Price High-Low
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
 
@@ -474,7 +545,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
 
     <div v-else-if="loadError" class="flex flex-col items-center justify-center h-64 gap-2">
       <AlertTriangle class="size-8 text-destructive" />
-      <p class="text-sm text-muted-foreground">{{ loadError }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ loadError }}
+      </p>
     </div>
 
     <!-- Card View -->
@@ -493,7 +566,7 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               :alt="product.title"
               class="w-full h-full object-contain transition-opacity duration-200"
               loading="lazy"
-            />
+            >
             <div v-else class="w-full h-full flex items-center justify-center">
               <ImageOff class="size-8 text-muted-foreground/20" />
             </div>
@@ -528,8 +601,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
             <!-- Title row -->
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <h3 class="text-sm font-semibold leading-snug line-clamp-2">{{ product.title }}</h3>
-                <p v-if="product.variant_name && product.variant_name !== product.title" class="text-xs text-muted-foreground leading-tight">{{ product.variant_name }}</p>
+                <h3 class="text-sm font-semibold leading-snug line-clamp-2">
+                  {{ product.title }}
+                </h3>
+                <p v-if="product.variant_name && product.variant_name !== product.title" class="text-xs text-muted-foreground leading-tight">
+                  {{ product.variant_name }}
+                </p>
               </div>
               <a
                 v-if="brochureUrl(product)"
@@ -560,8 +637,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
             <!-- Specs grid -->
             <dl v-if="hasSpecs(product)" class="grid grid-cols-2 gap-x-3 gap-y-px mt-1">
               <template v-for="item in cardSpecs(product.specs_json!)" :key="item.label">
-                <dt class="text-[10px] text-muted-foreground truncate">{{ item.label }}</dt>
-                <dd class="text-[10px] font-medium text-right truncate" :title="item.value">{{ item.value }}</dd>
+                <dt class="text-[10px] text-muted-foreground truncate">
+                  {{ item.label }}
+                </dt>
+                <dd class="text-[10px] font-medium text-right truncate" :title="item.value">
+                  {{ item.value }}
+                </dd>
               </template>
             </dl>
           </div>
@@ -570,7 +651,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
 
       <!-- Empty state -->
       <div v-if="paginatedItems.length === 0" class="text-center py-16">
-        <p class="text-sm text-muted-foreground">No variants found matching your filters</p>
+        <p class="text-sm text-muted-foreground">
+          No variants found matching your filters
+        </p>
       </div>
 
       <!-- Card Pagination -->
@@ -582,7 +665,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem v-for="size in PAGE_SIZES" :key="size" :value="size">{{ size }}</UiSelectItem>
+              <UiSelectItem v-for="size in PAGE_SIZES" :key="size" :value="size">
+                {{ size }}
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
           <span>{{ (page - 1) * pageSize + 1 }}-{{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }}</span>
@@ -615,7 +700,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
             <UiTableHead>Variant</UiTableHead>
             <UiTableHead>Fuel</UiTableHead>
             <UiTableHead>Body</UiTableHead>
-            <UiTableHead class="text-right">Price</UiTableHead>
+            <UiTableHead class="text-right">
+              Price
+            </UiTableHead>
             <UiTableHead>Specs</UiTableHead>
             <UiTableHead>Last Seen</UiTableHead>
           </UiTableRow>
@@ -623,8 +710,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
         <UiTableBody>
           <template v-for="product in paginatedItems" :key="product.id">
             <UiTableRow class="group">
-              <UiTableCell class="text-sm">{{ oemName(product.oem_id) }}</UiTableCell>
-              <UiTableCell class="text-sm font-medium">{{ modelName(product.model_id) }}</UiTableCell>
+              <UiTableCell class="text-sm">
+                {{ oemName(product.oem_id) }}
+              </UiTableCell>
+              <UiTableCell class="text-sm font-medium">
+                {{ modelName(product.model_id) }}
+              </UiTableCell>
               <UiTableCell>
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-medium">{{ product.variant_name || product.subtitle || product.title }}</span>
@@ -638,10 +729,16 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                     </span>
                   </template>
                 </div>
-                <p v-if="product.variant_code" class="text-xs text-muted-foreground mt-0.5">{{ product.variant_code }}</p>
+                <p v-if="product.variant_code" class="text-xs text-muted-foreground mt-0.5">
+                  {{ product.variant_code }}
+                </p>
               </UiTableCell>
-              <UiTableCell class="text-sm">{{ product.fuel_type ?? '-' }}</UiTableCell>
-              <UiTableCell class="text-sm">{{ product.body_type ?? '-' }}</UiTableCell>
+              <UiTableCell class="text-sm">
+                {{ product.fuel_type ?? '-' }}
+              </UiTableCell>
+              <UiTableCell class="text-sm">
+                {{ product.body_type ?? '-' }}
+              </UiTableCell>
               <UiTableCell class="text-right font-medium text-sm">
                 <div>{{ formatPrice(product.price_amount) }}</div>
                 <div
@@ -659,7 +756,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                   @click="toggleSpecs(product.id)"
                 >
                   <component :is="expandedSpecs.has(product.id) ? ChevronUp : ChevronDown" class="size-3" />
-                  <template v-if="hasSpecs(product)">{{ orderedCategories(product.specs_json!).length }} cats</template>
+                  <template v-if="hasSpecs(product)">
+                    {{ orderedCategories(product.specs_json!).length }} cats
+                  </template>
                   <span
                     v-if="pdfVariantSpecs(product.specs_json)"
                     class="ml-0.5 inline-flex items-center rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[9px] font-semibold px-1 py-px"
@@ -697,7 +796,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                         class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3"
                       >
                         <div class="flex items-start justify-between gap-2 mb-1">
-                          <h4 class="text-xs font-semibold">{{ offer.title }}</h4>
+                          <h4 class="text-xs font-semibold">
+                            {{ offer.title }}
+                          </h4>
                           <span
                             v-if="offer.validity_end"
                             class="text-[10px] text-muted-foreground whitespace-nowrap"
@@ -736,8 +837,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                             :key="key"
                             class="flex justify-between gap-2 text-xs"
                           >
-                            <dt class="text-muted-foreground shrink-0">{{ formatSpecKey(key) }}</dt>
-                            <dd class="text-right font-medium truncate" :title="value">{{ value }}</dd>
+                            <dt class="text-muted-foreground shrink-0">
+                              {{ formatSpecKey(key) }}
+                            </dt>
+                            <dd class="text-right font-medium truncate" :title="value">
+                              {{ value }}
+                            </dd>
                           </div>
                         </dl>
                       </div>
@@ -775,7 +880,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                             :key="spec.key"
                             class="flex justify-between gap-2 text-xs"
                           >
-                            <dt class="text-muted-foreground shrink-0">{{ spec.label }}</dt>
+                            <dt class="text-muted-foreground shrink-0">
+                              {{ spec.label }}
+                            </dt>
                             <dd class="text-right font-medium truncate" :title="spec.value">
                               {{ spec.value }}<span v-if="spec.unit" class="text-muted-foreground ml-0.5">{{ spec.unit }}</span>
                             </dd>
@@ -805,7 +912,9 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               <UiSelectValue />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem v-for="size in PAGE_SIZES" :key="size" :value="size">{{ size }}</UiSelectItem>
+              <UiSelectItem v-for="size in PAGE_SIZES" :key="size" :value="size">
+                {{ size }}
+              </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
           <span>{{ (page - 1) * pageSize + 1 }}-{{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }}</span>

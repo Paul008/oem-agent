@@ -7,7 +7,7 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // Safe for single-tab internal dashboards — the lock only prevents multi-tab token
 // refresh races, which don't apply here.
 // See: https://github.com/supabase/supabase-js/issues/1594
-const noOpLock = async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => {
+async function noOpLock(_name: string, _acquireTimeout: number, fn: () => Promise<any>) {
   return await fn()
 }
 

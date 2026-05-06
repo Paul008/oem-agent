@@ -1,9 +1,15 @@
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue'
 import {
-  ChevronUp, ChevronDown, Trash2, Copy, Check, AlertCircle,
-  ChevronRight, ChevronsUpDown, Pencil,
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Copy,
+  Pencil,
+  Trash2,
 } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   sections: any[]
@@ -60,7 +66,8 @@ function applyEdit(sectionId: string) {
     emit('updateSection', sectionId, parsed)
     editingId.value = null
     editError.value = null
-  } catch (e: any) {
+  }
+  catch (e: any) {
     editError.value = e.message || 'Invalid JSON'
   }
 }
@@ -75,14 +82,16 @@ function applyBulk() {
     emit('replaceSections', parsed)
     bulkError.value = null
     bulkMode.value = false
-  } catch (e: any) {
+  }
+  catch (e: any) {
     bulkError.value = e.message || 'Invalid JSON'
   }
 }
 
 function toggleCollapse(id: string) {
   const s = new Set(collapsedIds.value)
-  if (s.has(id)) s.delete(id)
+  if (s.has(id))
+    s.delete(id)
   else s.add(id)
   collapsedIds.value = s
 }
@@ -90,7 +99,10 @@ function toggleCollapse(id: string) {
 async function handleCopy(id: string) {
   emit('copySection', id)
   copiedId.value = id
-  setTimeout(() => { if (copiedId.value === id) copiedId.value = null }, 1500)
+  setTimeout(() => {
+    if (copiedId.value === id)
+      copiedId.value = null
+  }, 1500)
 }
 
 function collapseAll() {

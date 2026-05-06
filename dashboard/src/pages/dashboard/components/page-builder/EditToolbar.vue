@@ -1,9 +1,12 @@
 <script lang="ts" setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import {
-  AlignLeft, AlignCenter, AlignRight,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Pipette,
 } from 'lucide-vue-next'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+
 import FontPicker from './FontPicker.vue'
 
 const props = defineProps<{
@@ -28,7 +31,8 @@ const pos = ref({ top: 0, left: 0 })
 
 // Position toolbar above the target element
 function reposition() {
-  if (!props.target || !toolbarRef.value) return
+  if (!props.target || !toolbarRef.value)
+    return
   const rect = props.target.getBoundingClientRect()
   const toolbar = toolbarRef.value.getBoundingClientRect()
   pos.value = {
@@ -62,19 +66,24 @@ function cycleSize(direction: 1 | -1) {
   const current = props.fontSize || 'base'
   const idx = SIZES.indexOf(current)
   const next = SIZES[Math.max(0, Math.min(SIZES.length - 1, idx + direction))]
-  if (next !== current) emit('updateField', props.sectionId, fontSizeField.value, next)
+  if (next !== current)
+    emit('updateField', props.sectionId, fontSizeField.value, next)
 }
 
 // Map field names to their size/weight/align counterparts
 const fontSizeField = computed(() => {
-  if (props.field === 'heading') return 'heading_size'
-  if (props.field === 'sub_heading') return 'sub_heading_size'
+  if (props.field === 'heading')
+    return 'heading_size'
+  if (props.field === 'sub_heading')
+    return 'sub_heading_size'
   return 'heading_size'
 })
 
 const fontWeightField = computed(() => {
-  if (props.field === 'heading') return 'heading_weight'
-  if (props.field === 'sub_heading') return 'sub_heading_weight'
+  if (props.field === 'heading')
+    return 'heading_weight'
+  if (props.field === 'sub_heading')
+    return 'sub_heading_weight'
   return 'heading_weight'
 })
 
@@ -95,12 +104,15 @@ function setFontFamily(family: string) {
 }
 
 async function eyedrop() {
-  if (!('EyeDropper' in window)) return
+  if (!('EyeDropper' in window))
+    return
   try {
     const dropper = new (window as any).EyeDropper()
     const result = await dropper.open()
-    if (result?.sRGBHex) setColor(result.sRGBHex)
-  } catch { /* user cancelled */ }
+    if (result?.sRGBHex)
+      setColor(result.sRGBHex)
+  }
+  catch { /* user cancelled */ }
 }
 </script>
 
@@ -110,7 +122,7 @@ async function eyedrop() {
       v-if="target"
       ref="toolbarRef"
       class="fixed z-[60] flex items-center gap-1 px-2 py-1.5 bg-card border rounded-lg shadow-xl"
-      :style="{ top: pos.top + 'px', left: pos.left + 'px' }"
+      :style="{ top: `${pos.top}px`, left: `${pos.left}px` }"
       @mousedown.prevent
     >
       <!-- Font family -->
@@ -147,7 +159,9 @@ async function eyedrop() {
         title="Font weight"
         @change="setWeight(($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="w in WEIGHTS" :key="w.value" :value="w.value">{{ w.label }}</option>
+        <option v-for="w in WEIGHTS" :key="w.value" :value="w.value">
+          {{ w.label }}
+        </option>
       </select>
 
       <div class="w-px h-4 bg-border mx-0.5" />
@@ -195,13 +209,13 @@ async function eyedrop() {
             :value="textColor || '#000000'"
             class="size-7 rounded cursor-pointer border-0 p-0"
             @input="setColor(($event.target as HTMLInputElement).value)"
-          />
+          >
           <input
             type="text"
             :value="textColor || '#000000'"
             class="h-7 w-20 text-xs font-mono px-1.5 border rounded"
             @change="setColor(($event.target as HTMLInputElement).value)"
-          />
+          >
           <button
             v-if="'EyeDropper' in window"
             class="p-1 rounded hover:bg-muted"

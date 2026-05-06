@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import { supabase } from '@/lib/supabase'
 
 export interface Oem {
@@ -223,7 +224,8 @@ export function useOemData() {
       .from('oems')
       .select('*')
       .order('name')
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as Oem[]
   }
 
@@ -233,7 +235,8 @@ export function useOemData() {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit)
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as ImportRun[]
   }
 
@@ -243,7 +246,8 @@ export function useOemData() {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit)
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as ChangeEvent[]
   }
 
@@ -252,7 +256,8 @@ export function useOemData() {
       .from('vehicle_models')
       .select('*')
       .order('oem_id, name')
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as VehicleModel[]
   }
 
@@ -261,7 +266,8 @@ export function useOemData() {
       .from('products')
       .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, availability, specs_json, meta_json, last_seen_at')
       .order('oem_id, title')
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as Product[]
   }
 
@@ -270,7 +276,8 @@ export function useOemData() {
       .from('offers')
       .select('*')
       .order('updated_at', { ascending: false })
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as Offer[]
   }
 
@@ -293,10 +300,13 @@ export function useOemData() {
     const { data, error: err } = await supabase
       .from('offer_products')
       .select('product_id, offers(*)')
-    if (err) throw err
-    for (const row of (data ?? []) as { product_id: string; offers: Offer | null }[]) {
-      if (!row.offers) continue
-      if (wanted && !wanted.has(row.product_id)) continue
+    if (err)
+      throw err
+    for (const row of (data ?? []) as { product_id: string, offers: Offer | null }[]) {
+      if (!row.offers)
+        continue
+      if (wanted && !wanted.has(row.product_id))
+        continue
       const list = map.get(row.product_id) ?? []
       list.push(row.offers)
       map.set(row.product_id, list)
@@ -310,13 +320,14 @@ export function useOemData() {
       query = query.in('product_id', productIds)
     }
     const { data, error: err } = await query
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as VariantColor[]
   }
 
   async function fetchVariantColorsWithProducts() {
     const PAGE = 1000
-    const rows: (VariantColor & { products: { oem_id: string; title: string; price_amount: number | null } })[] = []
+    const rows: (VariantColor & { products: { oem_id: string, title: string, price_amount: number | null } })[] = []
     let from = 0
     while (true) {
       const { data, error: err } = await supabase
@@ -324,10 +335,13 @@ export function useOemData() {
         .select('*, products!inner(oem_id, title, price_amount)')
         .order('product_id')
         .range(from, from + PAGE - 1)
-      if (err) throw err
-      if (!data || data.length === 0) break
+      if (err)
+        throw err
+      if (!data || data.length === 0)
+        break
       rows.push(...(data as typeof rows))
-      if (data.length < PAGE) break
+      if (data.length < PAGE)
+        break
       from += PAGE
     }
     return rows
@@ -339,7 +353,8 @@ export function useOemData() {
       query = query.in('product_id', productIds)
     }
     const { data, error: err } = await query
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as VariantPricing[]
   }
 
@@ -348,7 +363,8 @@ export function useOemData() {
       .from('source_pages')
       .select('*')
       .order('oem_id, page_type')
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as SourcePage[]
   }
 
@@ -359,13 +375,18 @@ export function useOemData() {
     let from = 0
     while (true) {
       let query = supabase.from(table).select(select).range(from, from + PAGE - 1)
-      if (order) query = query.order(order)
-      if (filter) query = query.eq(filter.column, filter.value)
+      if (order)
+        query = query.order(order)
+      if (filter)
+        query = query.eq(filter.column, filter.value)
       const { data, error: err } = await query
-      if (err) throw err
-      if (!data || data.length === 0) break
+      if (err)
+        throw err
+      if (!data || data.length === 0)
+        break
       rows.push(...(data as T[]))
-      if (data.length < PAGE) break
+      if (data.length < PAGE)
+        break
       from += PAGE
       if (rows.length >= MAX_ROWS) {
         console.warn(`[use-oem-data] fetchAllRows('${table}') hit ${MAX_ROWS} row limit`)
@@ -380,7 +401,8 @@ export function useOemData() {
       .from('oem_portals')
       .select('*')
       .order('oem_id, portal_name')
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as OemPortal[]
   }
 
@@ -389,13 +411,16 @@ export function useOemData() {
       .from('banners')
       .select('*')
       .order('oem_id, position')
-    if (err) throw err
+    if (err)
+      throw err
     return (data ?? []) as Banner[]
   }
 
   async function fetchAccessories(oemId?: string) {
     return fetchAllRows<Accessory>(
-      'accessories', '*', 'oem_id, category, name',
+      'accessories',
+      '*',
+      'oem_id, category, name',
       oemId ? { column: 'oem_id', value: oemId } : undefined,
     )
   }
@@ -455,16 +480,20 @@ export function useOemData() {
       .select('id')
       .eq('oem_id', oemId)
       .like('slug', `${modelSlug}%`)
-    if (mErr) throw mErr
-    if (!models?.length) return []
+    if (mErr)
+      throw mErr
+    if (!models?.length)
+      return []
 
     // 2. Get product IDs for those models
     const { data: products, error: pErr } = await supabase
       .from('products')
       .select('id')
       .in('model_id', models.map(m => m.id))
-    if (pErr) throw pErr
-    if (!products?.length) return []
+    if (pErr)
+      throw pErr
+    if (!products?.length)
+      return []
 
     // 3. Get all colors for those products
     const { data: colors, error: cErr } = await supabase
@@ -472,8 +501,10 @@ export function useOemData() {
       .select('*')
       .in('product_id', products.map(p => p.id))
       .order('sort_order')
-    if (cErr) throw cErr
-    if (!colors?.length) return []
+    if (cErr)
+      throw cErr
+    if (!colors?.length)
+      return []
 
     // 4. Deduplicate by color_code — keep entry with best imagery
     const byCode = new Map<string, VariantColor>()
@@ -481,7 +512,8 @@ export function useOemData() {
       const existing = byCode.get(c.color_code)
       if (!existing) {
         byCode.set(c.color_code, c)
-      } else {
+      }
+      else {
         const score = (x: VariantColor) =>
           (x.hero_image_url ? 2 : 0) + (x.swatch_url ? 1 : 0) + (x.gallery_urls?.length ?? 0)
         if (score(c) > score(existing)) {

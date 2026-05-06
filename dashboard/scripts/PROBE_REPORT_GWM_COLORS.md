@@ -24,9 +24,7 @@ GWM Australia vehicle color data is **available and scrapeable** from server-ren
 Each model page contains color selector UI with this structure:
 
 ```html
-<button class="model-range-select-colour__colour"
-        style="background:linear-gradient(...), #bcbcbc">
-</button>
+<button class="model-range-select-colour__colour" style="background: linear-gradient(...), #bcbcbc"></button>
 ```
 
 - **Selector**: `button.model-range-select-colour__colour`
@@ -46,17 +44,17 @@ Each model page contains color selector UI with this structure:
 
 Pattern: `https://www.gwmanz.com/au/models/{category}/{model-slug}/`
 
-| Model | Category | URL |
-|-------|----------|-----|
-| Cannon | ute | `/au/models/ute/cannon/` |
-| Cannon Alpha | ute | `/au/models/ute/cannon-alpha/` |
-| Tank 300 | suv | `/au/models/suv/tank-300/` |
-| Tank 500 | suv | `/au/models/suv/tank-500/` |
-| Haval H6 | suv | `/au/models/suv/haval-h6/` |
-| Haval Jolion | suv | `/au/models/suv/haval-jolion/` |
-| Haval H6 GT | suv | `/au/models/suv/haval-h6gt/` |
-| Haval H7 | suv | `/au/models/suv/haval-h7/` |
-| Ora | hatchback | `/au/models/hatchback/ora/` |
+| Model        | Category  | URL                            |
+| ------------ | --------- | ------------------------------ |
+| Cannon       | ute       | `/au/models/ute/cannon/`       |
+| Cannon Alpha | ute       | `/au/models/ute/cannon-alpha/` |
+| Tank 300     | suv       | `/au/models/suv/tank-300/`     |
+| Tank 500     | suv       | `/au/models/suv/tank-500/`     |
+| Haval H6     | suv       | `/au/models/suv/haval-h6/`     |
+| Haval Jolion | suv       | `/au/models/suv/haval-jolion/` |
+| Haval H6 GT  | suv       | `/au/models/suv/haval-h6gt/`   |
+| Haval H7     | suv       | `/au/models/suv/haval-h7/`     |
+| Ora          | hatchback | `/au/models/hatchback/ora/`    |
 
 ---
 
@@ -64,14 +62,14 @@ Pattern: `https://www.gwmanz.com/au/models/{category}/{model-slug}/`
 
 ### Tank 300 (6 colors found)
 
-| Color Name | Hex Code | Sample |
-|------------|----------|--------|
-| Fossil Grey | #bcbcbc | ![](https://via.placeholder.com/30/bcbcbc/bcbcbc) |
-| Dusk Orange | #ea6b51 | ![](https://via.placeholder.com/30/ea6b51/ea6b51) |
-| Crystal Black | #0a0b10 | ![](https://via.placeholder.com/30/0a0b10/0a0b10) |
-| Lunar Red | (hex not extracted) | |
-| Pearl White | (hex not extracted) | |
-| Sundrift Sand | (hex not extracted) | |
+| Color Name    | Hex Code            | Sample                                            |
+| ------------- | ------------------- | ------------------------------------------------- |
+| Fossil Grey   | #bcbcbc             | ![](https://via.placeholder.com/30/bcbcbc/bcbcbc) |
+| Dusk Orange   | #ea6b51             | ![](https://via.placeholder.com/30/ea6b51/ea6b51) |
+| Crystal Black | #0a0b10             | ![](https://via.placeholder.com/30/0a0b10/0a0b10) |
+| Lunar Red     | (hex not extracted) |                                                   |
+| Pearl White   | (hex not extracted) |                                                   |
+| Sundrift Sand | (hex not extracted) |                                                   |
 
 **Note**: Some hex codes may need JavaScript execution or variant selection to appear.
 
@@ -79,12 +77,12 @@ Pattern: `https://www.gwmanz.com/au/models/{category}/{model-slug}/`
 
 ## Element Counts
 
-| Model | Color Elements Found |
-|-------|---------------------|
-| Cannon | 42 |
-| Tank 300 | 42 |
-| Tank 500 | 15 |
-| Haval H6 | 48 |
+| Model    | Color Elements Found |
+| -------- | -------------------- |
+| Cannon   | 42                   |
+| Tank 300 | 42                   |
+| Tank 500 | 15                   |
+| Haval H6 | 48                   |
 
 ---
 
@@ -92,25 +90,25 @@ Pattern: `https://www.gwmanz.com/au/models/{category}/{model-slug}/`
 
 ```javascript
 // Pseudocode for color extraction
-const modelPage = fetch(modelUrl);
-const dom = new JSDOM(modelPage);
+const modelPage = fetch(modelUrl)
+const dom = new JSDOM(modelPage)
 
 // Get color swatches
-const swatches = dom.querySelectorAll('button.model-range-select-colour__colour');
+const swatches = dom.querySelectorAll('button.model-range-select-colour__colour')
 
-const colors = [];
+const colors = []
 for (const swatch of swatches) {
   // Extract hex from background CSS
-  const style = swatch.getAttribute('style');
-  const hexMatch = style.match(/background:[^,]+,\s*#([0-9a-f]{6})/i);
-  const hex = hexMatch ? hexMatch[1] : null;
+  const style = swatch.getAttribute('style')
+  const hexMatch = style.match(/background:[^,]+,\s*#([0-9a-f]{6})/i)
+  const hex = hexMatch ? hexMatch[1] : null
 
   // Find corresponding color name
-  const caption = swatch.closest('.model-range').querySelector('.model-range__caption-colour');
-  const name = caption?.textContent.trim();
+  const caption = swatch.closest('.model-range').querySelector('.model-range__caption-colour')
+  const name = caption?.textContent.trim()
 
   if (name && hex) {
-    colors.push({ name, hex_code: `#${hex}` });
+    colors.push({ name, hex_code: `#${hex}` })
   }
 }
 ```
@@ -122,12 +120,14 @@ for (const swatch of swatches) {
 **Challenge**: Color data is grouped by model, not by individual variant/grade. The page structure suggests colors are available across multiple variants.
 
 **Approach**:
+
 1. Extract all colors from model page
 2. For each variant (product) in that model family, create a `variant_colors` record
 3. Use `is_standard: true` assumption (no pricing differentiation observed)
 4. Include all colors for all variants unless variant-specific restrictions are found
 
 **Data Assumptions**:
+
 - All variants within a model family share the same color palette
 - No color upcharge pricing (not displayed on page)
 - Colors are standard options (no premium/metallic pricing tiers visible)
@@ -139,6 +139,7 @@ for (const swatch of swatches) {
 **URL Pattern**: `/au/config/{model-slug}/`
 
 **Findings**:
+
 - Configurator appears to be JavaScript-rendered (client-side)
 - Initial HTML contains no color swatch elements
 - Likely loads data via JavaScript after page load
@@ -155,6 +156,7 @@ for (const swatch of swatches) {
 **Token Found**: ✅ `rII785g9nG3hemzhYNQvQwtt` (extracted from page HTML)
 
 **Endpoints Tested**:
+
 - `https://api.storyblok.com/v2/cdn/stories?content_type=AUModel&token=...` → 301 redirect
 - `https://api.storyblok.com/v2/cdn/stories?starts_with=au/vehicles&token=...` → 301 redirect
 - `https://api.storyblok.com/v2/cdn/stories?token=...` → 301 redirect
@@ -180,6 +182,7 @@ for (const swatch of swatches) {
 **HIGH** — Implement HTML scraping for GWM colors
 
 **Rationale**:
+
 - Data is readily available and structured
 - Stable CSS selectors
 - Server-rendered (no JavaScript required)
@@ -241,6 +244,7 @@ CREATE TABLE variant_colors (
 ---
 
 **Probe Scripts Used**:
+
 - `probe-gwm-vehicle-colors.mjs` — Model page discovery
 - `probe-gwm-configurator.mjs` — Configurator analysis
 - `probe-gwm-model-page.mjs` — Detailed swatch structure

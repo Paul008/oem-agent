@@ -1,9 +1,18 @@
 <script lang="ts" setup>
-import { ref, watch, onUnmounted } from 'vue'
 import {
-  ArrowLeft, ArrowRight, Check, ClipboardCopy,
-  Loader2, Plus, Play, Rocket, Search, Trash2, X,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ClipboardCopy,
+  Loader2,
+  Play,
+  Plus,
+  Rocket,
+  Search,
+  Trash2,
+  X,
 } from 'lucide-vue-next'
+import { onUnmounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
@@ -11,17 +20,40 @@ import { useOnboarding } from '@/composables/use-onboarding'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
 
 const {
-  currentStep, loading, error,
-  baseUrl, oemName, oemId,
-  pages, sitemapUrlCount, includedPages,
-  brandColor, framework, requiresBrowserRendering, subBrands, schedule, discoveredApis,
-  config, flags, registration,
-  crawlTriggered, crawlJobId, importRuns,
+  currentStep,
+  loading,
+  error,
+  baseUrl,
+  oemName,
+  oemId,
+  pages,
+  sitemapUrlCount,
+  includedPages,
+  brandColor,
+  framework,
+  requiresBrowserRendering,
+  subBrands,
+  schedule,
+  discoveredApis,
+  config,
+  flags,
+  registration,
+  crawlTriggered,
+  crawlJobId,
+  importRuns,
   snippets,
-  generateOemId, runDiscovery, doRegister, triggerFirstCrawl, doGenerateSnippets,
+  generateOemId,
+  runDiscovery,
+  doRegister,
+  triggerFirstCrawl,
+  doGenerateSnippets,
   resetState,
-  togglePage, updatePageType, addPage, removePage,
-  addApi, removeApi,
+  togglePage,
+  updatePageType,
+  addPage,
+  removePage,
+  addApi,
+  removeApi,
 } = useOnboarding()
 
 // Subscribe to import_runs for live crawl progress once OEM is registered.
@@ -51,7 +83,8 @@ watch(() => registration.value, (reg) => {
 
 // Auto-generate oem_id from name
 watch(oemName, (name) => {
-  if (name) oemId.value = generateOemId(name)
+  if (name)
+    oemId.value = generateOemId(name)
 })
 
 // Clear error on step navigation
@@ -76,7 +109,8 @@ const newPageUrl = ref('')
 const newPageType = ref('vehicle')
 
 function handleAddPage() {
-  if (!newPageUrl.value) return
+  if (!newPageUrl.value)
+    return
   addPage(newPageUrl.value, newPageType.value)
   newPageUrl.value = ''
   newPageType.value = 'vehicle'
@@ -88,7 +122,8 @@ const newApiMethod = ref('GET')
 const newApiDataType = ref('other')
 
 function handleAddApi() {
-  if (!newApiUrl.value) return
+  if (!newApiUrl.value)
+    return
   addApi({ url: newApiUrl.value, method: newApiMethod.value, data_type: newApiDataType.value })
   newApiUrl.value = ''
   newApiMethod.value = 'GET'
@@ -98,7 +133,8 @@ function handleAddApi() {
 // Sub-brand input
 const newSubBrand = ref('')
 function handleAddSubBrand() {
-  if (!newSubBrand.value) return
+  if (!newSubBrand.value)
+    return
   subBrands.value.push(newSubBrand.value.toLowerCase())
   newSubBrand.value = ''
 }
@@ -177,7 +213,9 @@ async function copyToClipboard(text: string) {
             <div>
               <label class="text-sm font-medium block mb-1.5">OEM ID</label>
               <UiInput v-model="oemId" placeholder="e.g. foton-au" class="font-mono" />
-              <p class="text-xs text-muted-foreground mt-1">Format: brand-au (auto-generated from name)</p>
+              <p class="text-xs text-muted-foreground mt-1">
+                Format: brand-au (auto-generated from name)
+              </p>
             </div>
           </div>
           <UiButton :disabled="loading || !baseUrl" @click="runDiscovery">
@@ -203,7 +241,9 @@ async function copyToClipboard(text: string) {
                 Toggle which pages to monitor.
               </UiCardDescription>
             </div>
-            <UiBadge v-if="framework" variant="outline">{{ framework }}</UiBadge>
+            <UiBadge v-if="framework" variant="outline">
+              {{ framework }}
+            </UiBadge>
           </div>
         </UiCardHeader>
         <UiCardContent>
@@ -220,9 +260,15 @@ async function copyToClipboard(text: string) {
             <table class="w-full text-sm">
               <thead class="bg-muted/50">
                 <tr>
-                  <th class="px-3 py-2 text-left w-10">Include</th>
-                  <th class="px-3 py-2 text-left">URL</th>
-                  <th class="px-3 py-2 text-left w-32">Type</th>
+                  <th class="px-3 py-2 text-left w-10">
+                    Include
+                  </th>
+                  <th class="px-3 py-2 text-left">
+                    URL
+                  </th>
+                  <th class="px-3 py-2 text-left w-32">
+                    Type
+                  </th>
                   <th class="px-3 py-2 text-left w-10" />
                 </tr>
               </thead>
@@ -245,7 +291,9 @@ async function copyToClipboard(text: string) {
                         <UiSelectValue />
                       </UiSelectTrigger>
                       <UiSelectContent>
-                        <UiSelectItem v-for="pt in PAGE_TYPES" :key="pt" :value="pt">{{ pt }}</UiSelectItem>
+                        <UiSelectItem v-for="pt in PAGE_TYPES" :key="pt" :value="pt">
+                          {{ pt }}
+                        </UiSelectItem>
                       </UiSelectContent>
                     </UiSelect>
                   </td>
@@ -272,7 +320,9 @@ async function copyToClipboard(text: string) {
                 <UiSelectValue />
               </UiSelectTrigger>
               <UiSelectContent>
-                <UiSelectItem v-for="pt in PAGE_TYPES" :key="pt" :value="pt">{{ pt }}</UiSelectItem>
+                <UiSelectItem v-for="pt in PAGE_TYPES" :key="pt" :value="pt">
+                  {{ pt }}
+                </UiSelectItem>
               </UiSelectContent>
             </UiSelect>
             <UiButton variant="outline" size="sm" @click="handleAddPage">
@@ -317,7 +367,7 @@ async function copyToClipboard(text: string) {
                     v-model="brandColor"
                     type="color"
                     class="h-9 w-14 rounded border cursor-pointer"
-                  />
+                  >
                   <UiInput v-model="brandColor" class="font-mono w-28" />
                 </div>
               </div>
@@ -404,9 +454,13 @@ async function copyToClipboard(text: string) {
                 :key="i"
                 class="flex items-center gap-2 text-sm font-mono bg-muted/50 rounded px-3 py-2"
               >
-                <UiBadge variant="outline" class="text-xs shrink-0">{{ api.method }}</UiBadge>
+                <UiBadge variant="outline" class="text-xs shrink-0">
+                  {{ api.method }}
+                </UiBadge>
                 <span class="truncate">{{ api.url }}</span>
-                <UiBadge variant="secondary" class="text-xs shrink-0">{{ api.data_type }}</UiBadge>
+                <UiBadge variant="secondary" class="text-xs shrink-0">
+                  {{ api.data_type }}
+                </UiBadge>
                 <UiButton variant="ghost" size="sm" class="size-6 p-0 shrink-0 ml-auto" @click="removeApi(i)">
                   <Trash2 class="size-3" />
                 </UiButton>
@@ -419,9 +473,15 @@ async function copyToClipboard(text: string) {
                   <UiSelectValue />
                 </UiSelectTrigger>
                 <UiSelectContent>
-                  <UiSelectItem value="GET">GET</UiSelectItem>
-                  <UiSelectItem value="POST">POST</UiSelectItem>
-                  <UiSelectItem value="PUT">PUT</UiSelectItem>
+                  <UiSelectItem value="GET">
+                    GET
+                  </UiSelectItem>
+                  <UiSelectItem value="POST">
+                    POST
+                  </UiSelectItem>
+                  <UiSelectItem value="PUT">
+                    PUT
+                  </UiSelectItem>
                 </UiSelectContent>
               </UiSelect>
               <UiSelect v-model="newApiDataType">
@@ -429,15 +489,33 @@ async function copyToClipboard(text: string) {
                   <UiSelectValue />
                 </UiSelectTrigger>
                 <UiSelectContent>
-                  <UiSelectItem value="products">products</UiSelectItem>
-                  <UiSelectItem value="colors">colors</UiSelectItem>
-                  <UiSelectItem value="offers">offers</UiSelectItem>
-                  <UiSelectItem value="pricing">pricing</UiSelectItem>
-                  <UiSelectItem value="inventory">inventory</UiSelectItem>
-                  <UiSelectItem value="accessories">accessories</UiSelectItem>
-                  <UiSelectItem value="brochures">brochures</UiSelectItem>
-                  <UiSelectItem value="config">config</UiSelectItem>
-                  <UiSelectItem value="other">other</UiSelectItem>
+                  <UiSelectItem value="products">
+                    products
+                  </UiSelectItem>
+                  <UiSelectItem value="colors">
+                    colors
+                  </UiSelectItem>
+                  <UiSelectItem value="offers">
+                    offers
+                  </UiSelectItem>
+                  <UiSelectItem value="pricing">
+                    pricing
+                  </UiSelectItem>
+                  <UiSelectItem value="inventory">
+                    inventory
+                  </UiSelectItem>
+                  <UiSelectItem value="accessories">
+                    accessories
+                  </UiSelectItem>
+                  <UiSelectItem value="brochures">
+                    brochures
+                  </UiSelectItem>
+                  <UiSelectItem value="config">
+                    config
+                  </UiSelectItem>
+                  <UiSelectItem value="other">
+                    other
+                  </UiSelectItem>
                 </UiSelectContent>
               </UiSelect>
               <UiButton variant="outline" size="sm" @click="handleAddApi">
@@ -581,11 +659,21 @@ async function copyToClipboard(text: string) {
               <table class="w-full text-sm">
                 <thead class="bg-muted/50">
                   <tr>
-                    <th class="px-3 py-2 text-left">Status</th>
-                    <th class="px-3 py-2 text-left">Products</th>
-                    <th class="px-3 py-2 text-left">Offers</th>
-                    <th class="px-3 py-2 text-left">Changes</th>
-                    <th class="px-3 py-2 text-left">Started</th>
+                    <th class="px-3 py-2 text-left">
+                      Status
+                    </th>
+                    <th class="px-3 py-2 text-left">
+                      Products
+                    </th>
+                    <th class="px-3 py-2 text-left">
+                      Offers
+                    </th>
+                    <th class="px-3 py-2 text-left">
+                      Changes
+                    </th>
+                    <th class="px-3 py-2 text-left">
+                      Started
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -598,9 +686,15 @@ async function copyToClipboard(text: string) {
                         {{ run.status }}
                       </UiBadge>
                     </td>
-                    <td class="px-3 py-2">{{ run.products_upserted || 0 }}</td>
-                    <td class="px-3 py-2">{{ run.offers_upserted || 0 }}</td>
-                    <td class="px-3 py-2">{{ run.changes_found || 0 }}</td>
+                    <td class="px-3 py-2">
+                      {{ run.products_upserted || 0 }}
+                    </td>
+                    <td class="px-3 py-2">
+                      {{ run.offers_upserted || 0 }}
+                    </td>
+                    <td class="px-3 py-2">
+                      {{ run.changes_found || 0 }}
+                    </td>
                     <td class="px-3 py-2 text-xs text-muted-foreground">
                       {{ run.started_at ? new Date(run.started_at).toLocaleTimeString() : '-' }}
                     </td>
@@ -648,59 +742,65 @@ async function copyToClipboard(text: string) {
 
         <!-- Snippets generated -->
         <template v-else>
-        <UiAlert>
-          <UiAlertTitle>Code Changes Required</UiAlertTitle>
-          <UiAlertDescription>
-            The OEM is registered in the database, but the TypeScript registry requires a code deploy.
-            Copy these snippets and apply them, or run the <code>/oem-onboard</code> Claude agent which can apply them automatically.
-          </UiAlertDescription>
-        </UiAlert>
+          <UiAlert>
+            <UiAlertTitle>Code Changes Required</UiAlertTitle>
+            <UiAlertDescription>
+              The OEM is registered in the database, but the TypeScript registry requires a code deploy.
+              Copy these snippets and apply them, or run the <code>/oem-onboard</code> Claude agent which can apply them automatically.
+            </UiAlertDescription>
+          </UiAlert>
 
-        <UiCard v-for="(snippet, key) in snippets" :key="key">
-          <UiCardHeader class="pb-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <UiCardTitle class="text-sm">{{ snippet.description }}</UiCardTitle>
-                <UiCardDescription class="font-mono text-xs">{{ snippet.file }}</UiCardDescription>
+          <UiCard v-for="(snippet, key) in snippets" :key="key">
+            <UiCardHeader class="pb-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <UiCardTitle class="text-sm">
+                    {{ snippet.description }}
+                  </UiCardTitle>
+                  <UiCardDescription class="font-mono text-xs">
+                    {{ snippet.file }}
+                  </UiCardDescription>
+                </div>
+                <UiButton variant="outline" size="sm" @click="copyToClipboard(snippet.code)">
+                  <ClipboardCopy class="size-3 mr-1" />
+                  Copy
+                </UiButton>
               </div>
-              <UiButton variant="outline" size="sm" @click="copyToClipboard(snippet.code)">
-                <ClipboardCopy class="size-3 mr-1" />
-                Copy
-              </UiButton>
-            </div>
-          </UiCardHeader>
-          <UiCardContent>
-            <pre class="bg-muted rounded-md p-4 overflow-x-auto text-xs leading-relaxed"><code>{{ snippet.code }}</code></pre>
-          </UiCardContent>
-        </UiCard>
+            </UiCardHeader>
+            <UiCardContent>
+              <pre class="bg-muted rounded-md p-4 overflow-x-auto text-xs leading-relaxed"><code>{{ snippet.code }}</code></pre>
+            </UiCardContent>
+          </UiCard>
 
-        <UiCard>
-          <UiCardHeader>
-            <UiCardTitle class="text-sm">Next Steps</UiCardTitle>
-          </UiCardHeader>
-          <UiCardContent class="text-sm space-y-2">
-            <ol class="list-decimal list-inside space-y-1">
-              <li>Apply the code snippets above to the respective files</li>
-              <li>Update OEM count references (run <code>grep -rn "18 OEM" --include="*.md" --include="*.ts"</code>)</li>
-              <li>Deploy: <code>npm run deploy</code></li>
-              <li>Trigger first crawl from the Import Runs page</li>
-            </ol>
-            <p class="text-muted-foreground pt-2">
-              Or use the <code>/oem-onboard</code> Claude agent — if the wizard was used, it will skip discovery and DB steps, and focus on applying these snippets + updating counts.
-            </p>
-          </UiCardContent>
-        </UiCard>
+          <UiCard>
+            <UiCardHeader>
+              <UiCardTitle class="text-sm">
+                Next Steps
+              </UiCardTitle>
+            </UiCardHeader>
+            <UiCardContent class="text-sm space-y-2">
+              <ol class="list-decimal list-inside space-y-1">
+                <li>Apply the code snippets above to the respective files</li>
+                <li>Update OEM count references (run <code>grep -rn "18 OEM" --include="*.md" --include="*.ts"</code>)</li>
+                <li>Deploy: <code>npm run deploy</code></li>
+                <li>Trigger first crawl from the Import Runs page</li>
+              </ol>
+              <p class="text-muted-foreground pt-2">
+                Or use the <code>/oem-onboard</code> Claude agent — if the wizard was used, it will skip discovery and DB steps, and focus on applying these snippets + updating counts.
+              </p>
+            </UiCardContent>
+          </UiCard>
 
-        <div class="flex justify-between">
-          <UiButton variant="outline" @click="currentStep = 5">
-            <ArrowLeft class="size-4 mr-2" />
-            Back
-          </UiButton>
-          <UiButton @click="currentStep = 7">
-            Continue to Report
-            <ArrowRight class="size-4 ml-2" />
-          </UiButton>
-        </div>
+          <div class="flex justify-between">
+            <UiButton variant="outline" @click="currentStep = 5">
+              <ArrowLeft class="size-4 mr-2" />
+              Back
+            </UiButton>
+            <UiButton @click="currentStep = 7">
+              Continue to Report
+              <ArrowRight class="size-4 ml-2" />
+            </UiButton>
+          </div>
         </template>
       </div>
     </div>
@@ -727,7 +827,9 @@ async function copyToClipboard(text: string) {
             <div class="grid sm:grid-cols-2 gap-6">
               <!-- Discovery -->
               <div class="space-y-3">
-                <h4 class="text-sm font-semibold">Discovery</h4>
+                <h4 class="text-sm font-semibold">
+                  Discovery
+                </h4>
                 <div class="space-y-1 text-sm">
                   <div class="flex justify-between">
                     <span class="text-muted-foreground">Sitemap URLs found</span>
@@ -754,7 +856,9 @@ async function copyToClipboard(text: string) {
 
               <!-- Registration -->
               <div class="space-y-3">
-                <h4 class="text-sm font-semibold">Registration</h4>
+                <h4 class="text-sm font-semibold">
+                  Registration
+                </h4>
                 <div class="space-y-1 text-sm">
                   <div class="flex justify-between">
                     <span class="text-muted-foreground">OEM ID</span>
@@ -787,7 +891,9 @@ async function copyToClipboard(text: string) {
 
             <!-- Crawl status -->
             <div class="mt-6 pt-4 border-t space-y-1">
-              <h4 class="text-sm font-semibold">First Crawl</h4>
+              <h4 class="text-sm font-semibold">
+                First Crawl
+              </h4>
               <div class="text-sm">
                 <template v-if="importRuns.length">
                   <div v-for="run in importRuns" :key="run.id" class="flex items-center gap-3 py-1">
@@ -831,8 +937,12 @@ async function copyToClipboard(text: string) {
                   <Check class="size-3 text-primary" />
                 </div>
                 <div>
-                  <p class="font-medium">Daily Color + Pricing Sync (3am AEST)</p>
-                  <p class="text-muted-foreground text-xs">variant_colors and variant_pricing auto-populated from OEM APIs. Driveaway pricing across all 8 AU states where available.</p>
+                  <p class="font-medium">
+                    Daily Color + Pricing Sync (3am AEST)
+                  </p>
+                  <p class="text-muted-foreground text-xs">
+                    variant_colors and variant_pricing auto-populated from OEM APIs. Driveaway pricing across all 8 AU states where available.
+                  </p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
@@ -840,8 +950,12 @@ async function copyToClipboard(text: string) {
                   <Check class="size-3 text-primary" />
                 </div>
                 <div>
-                  <p class="font-medium">Daily Homepage + Offers Crawl (4-5am AEST)</p>
-                  <p class="text-muted-foreground text-xs">Monitors OEM homepage and offers pages for changes. Products auto-sync specs_json and variant_colors on every upsert.</p>
+                  <p class="font-medium">
+                    Daily Homepage + Offers Crawl (4-5am AEST)
+                  </p>
+                  <p class="text-muted-foreground text-xs">
+                    Monitors OEM homepage and offers pages for changes. Products auto-sync specs_json and variant_colors on every upsert.
+                  </p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
@@ -849,8 +963,12 @@ async function copyToClipboard(text: string) {
                   <Check class="size-3 text-primary" />
                 </div>
                 <div>
-                  <p class="font-medium">Vehicle Crawl (every 12h)</p>
-                  <p class="text-muted-foreground text-xs">Crawls vehicle model pages. syncVariantColors() and buildSpecsJson() run automatically on every product upsert.</p>
+                  <p class="font-medium">
+                    Vehicle Crawl (every 12h)
+                  </p>
+                  <p class="text-muted-foreground text-xs">
+                    Crawls vehicle model pages. syncVariantColors() and buildSpecsJson() run automatically on every product upsert.
+                  </p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
@@ -858,8 +976,12 @@ async function copyToClipboard(text: string) {
                   <Check class="size-3 text-primary" />
                 </div>
                 <div>
-                  <p class="font-medium">Brand Ambassador (weekly, Tuesdays 4am)</p>
-                  <p class="text-muted-foreground text-xs">AI-generated dealer model pages. Pages edited in the Page Builder are protected from overwrite.</p>
+                  <p class="font-medium">
+                    Brand Ambassador (weekly, Tuesdays 4am)
+                  </p>
+                  <p class="text-muted-foreground text-xs">
+                    AI-generated dealer model pages. Pages edited in the Page Builder are protected from overwrite.
+                  </p>
                 </div>
               </div>
             </div>
@@ -869,18 +991,30 @@ async function copyToClipboard(text: string) {
         <!-- Code snippets status -->
         <UiCard>
           <UiCardHeader>
-            <UiCardTitle class="text-sm">Code Deploy Checklist</UiCardTitle>
+            <UiCardTitle class="text-sm">
+              Code Deploy Checklist
+            </UiCardTitle>
           </UiCardHeader>
           <UiCardContent class="text-sm">
             <ol class="list-decimal list-inside space-y-1.5">
               <li :class="snippets ? 'text-foreground' : 'text-muted-foreground'">
                 <span>Apply code snippets (types.ts, registry.ts, agent.ts, migration)</span>
-                <UiBadge v-if="snippets" variant="outline" class="ml-2 text-xs">Generated</UiBadge>
+                <UiBadge v-if="snippets" variant="outline" class="ml-2 text-xs">
+                  Generated
+                </UiBadge>
               </li>
-              <li class="text-muted-foreground">Update OEM count references across docs</li>
-              <li class="text-muted-foreground">Deploy: <code>npx wrangler deploy</code></li>
-              <li v-if="!crawlTriggered" class="text-muted-foreground">Trigger first crawl from Import Runs page</li>
-              <li class="text-muted-foreground">Run color/pricing seed scripts if OEM has dedicated APIs</li>
+              <li class="text-muted-foreground">
+                Update OEM count references across docs
+              </li>
+              <li class="text-muted-foreground">
+                Deploy: <code>npx wrangler deploy</code>
+              </li>
+              <li v-if="!crawlTriggered" class="text-muted-foreground">
+                Trigger first crawl from Import Runs page
+              </li>
+              <li class="text-muted-foreground">
+                Run color/pricing seed scripts if OEM has dedicated APIs
+              </li>
             </ol>
             <p class="text-xs text-muted-foreground mt-3">
               No cron configuration needed — all OEMs are crawled automatically by the Cloudflare cron triggers.

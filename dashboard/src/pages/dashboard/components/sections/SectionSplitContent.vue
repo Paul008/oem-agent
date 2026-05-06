@@ -29,7 +29,9 @@ const isContained = computed(() => props.section.layout === 'contained')
   >
     <div class="absolute inset-0 bg-black/50" />
     <div class="relative z-10 px-8 py-10 w-full">
-      <h3 v-if="section.title" class="text-xl font-bold mb-4 text-white">{{ section.title }}</h3>
+      <h3 v-if="section.title" class="text-xl font-bold mb-4 text-white">
+        {{ section.title }}
+      </h3>
       <div class="prose prose-sm prose-invert max-w-none" v-html="html" />
     </div>
   </div>
@@ -41,13 +43,14 @@ const isContained = computed(() => props.section.layout === 'contained')
     :style="section.background ? { backgroundColor: section.background } : {}"
   >
     <div :class="isContained ? 'px-8 max-w-5xl mx-auto' : 'px-8'">
-      <h3 v-if="section.title" class="text-xl font-bold mb-4">{{ section.title }}</h3>
+      <h3 v-if="section.title" class="text-xl font-bold mb-4">
+        {{ section.title }}
+      </h3>
 
       <!-- Split layout (image left or right) -->
       <div
         v-if="section.image_url && imgPos"
-        :class="[
-          'flex flex-col md:flex-row gap-8 items-center',
+        class="flex flex-col md:flex-row gap-8 items-center" :class="[
           imgPos === 'left' ? 'md:flex-row-reverse' : '',
         ]"
       >
@@ -56,7 +59,7 @@ const isContained = computed(() => props.section.layout === 'contained')
           :src="section.image_url"
           :alt="section.title || ''"
           class="rounded-lg max-w-sm w-full object-cover"
-        />
+        >
       </div>
 
       <!-- Single column (no image or no position) -->
@@ -67,7 +70,7 @@ const isContained = computed(() => props.section.layout === 'contained')
           :src="section.image_url"
           :alt="section.title || ''"
           class="rounded-lg mt-4 max-w-2xl w-full object-cover"
-        />
+        >
       </div>
     </div>
   </div>

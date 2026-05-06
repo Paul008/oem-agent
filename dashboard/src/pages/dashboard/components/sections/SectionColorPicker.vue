@@ -1,26 +1,12 @@
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { Loader2, Database } from 'lucide-vue-next'
-import { useInlineEdit } from '@/composables/use-inline-edit'
-import { useOemData, type VariantColor } from '@/composables/use-oem-data'
+import { Database, Loader2 } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+
+import type { VariantColor } from '@/composables/use-oem-data'
+
 import Vehicle360Viewer from '@/components/Vehicle360Viewer.vue'
-
-const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
-
-/** Proxy an external OEM URL through /media/{oemId}/{base64url} to avoid hotlinking */
-function proxiedUrl(url: string | null, oemId: string | undefined): string | null {
-  if (!url) return null
-  // Already a relative /media/ path — resolve to worker
-  if (url.startsWith('/media/')) return `${WORKER_BASE}${url}`
-  // Already pointing at our worker — leave as-is
-  if (url.includes('oem-agent') || url.includes('workers.dev')) return url
-  // Hex color swatch (not a URL) — leave as-is
-  if (!url.startsWith('http')) return url
-  if (!oemId) return url
-  // Encode the source URL as base64url
-  const encoded = btoa(url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-  return `${WORKER_BASE}/media/${oemId}/${encoded}`
-}
+import { useInlineEdit } from '@/composables/use-inline-edit'
+import { useOemData } from '@/composables/use-oem-data'
 
 const props = defineProps<{
   section: {
@@ -39,10 +25,33 @@ const props = defineProps<{
   modelSlug?: string
 }>()
 
+const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement], 'update-text': [field: string, value: string] }>()
+
+const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+
+/** Proxy an external OEM URL through /media/{oemId}/{base64url} to avoid hotlinking */
+function proxiedUrl(url: string | null, oemId: string | undefined): string | null {
+  if (!url)
+    return null
+  // Already a relative /media/ path — resolve to worker
+  if (url.startsWith('/media/'))
+    return `${WORKER_BASE}${url}`
+  // Already pointing at our worker — leave as-is
+  if (url.includes('oem-agent') || url.includes('workers.dev'))
+    return url
+  // Hex color swatch (not a URL) — leave as-is
+  if (!url.startsWith('http'))
+    return url
+  if (!oemId)
+    return url
+  // Encode the source URL as base64url
+  const encoded = btoa(url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  return `${WORKER_BASE}/media/${oemId}/${encoded}`
+}
+
 const { fetchColorsForModel } = useOemData()
 
-const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTMLElement]; 'update-text': [field: string, value: string] }>()
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 
 const dbColors = ref<VariantColor[]>([])
@@ -80,10 +89,14 @@ const selectedColor = computed(() => colors.value[selectedIndex.value])
 // Detect 360-capable URLs (Kia _00000 pattern, Nissan Helios, or multi-angle gallery)
 const is360 = computed(() => {
   const c = selectedColor.value
-  if (!c) return false
-  if (c.hero_image_url && /_\d{5}\./.test(c.hero_image_url)) return true
-  if (c.hero_image_url && /pov=E\d{2}/.test(c.hero_image_url)) return true
-  if (c.gallery_urls.length > 1) return true
+  if (!c)
+    return false
+  if (c.hero_image_url && /_\d{5}\./.test(c.hero_image_url))
+    return true
+  if (c.hero_image_url && /pov=E\d{2}/.test(c.hero_image_url))
+    return true
+  if (c.gallery_urls.length > 1)
+    return true
   return false
 })
 
@@ -92,14 +105,17 @@ function selectColor(index: number) {
 }
 
 async function loadDbColors() {
-  if (!props.oemId || !props.modelSlug) return
+  if (!props.oemId || !props.modelSlug)
+    return
   loadingColors.value = true
   try {
     dbColors.value = await fetchColorsForModel(props.oemId, props.modelSlug)
     selectedIndex.value = 0
-  } catch (e) {
+  }
+  catch (e) {
     console.warn('Failed to load DB colors:', e)
-  } finally {
+  }
+  finally {
     loadingColors.value = false
   }
 }
@@ -119,7 +135,9 @@ watch(() => [props.oemId, props.modelSlug], loadDbColors)
     <template v-else-if="colors.length">
       <!-- Header -->
       <div class="flex items-center gap-2 mb-6">
-        <h3 class="text-xl font-bold cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">{{ section.title || 'Double-click to add title' }}</h3>
+        <h3 class="text-xl font-bold cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">
+          {{ section.title || 'Double-click to add title' }}
+        </h3>
         <span v-if="dbColors.length" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
           <Database class="size-2.5" />
           {{ colors.length }} colours from database
@@ -142,7 +160,7 @@ watch(() => [props.oemId, props.modelSlug], loadDbColors)
           :src="selectedColor.hero_image_url"
           :alt="selectedColor.name"
           class="w-full max-h-[400px] object-contain mx-auto transition-all duration-300"
-        />
+        >
       </div>
 
       <!-- Color info -->
@@ -182,7 +200,7 @@ watch(() => [props.oemId, props.modelSlug], loadDbColors)
             :src="color.swatch_url"
             :alt="color.name"
             class="w-full h-full object-cover"
-          />
+          >
           <div
             v-else-if="color.hex"
             class="w-full h-full"

@@ -1,15 +1,17 @@
 <script lang="ts" setup>
+import { Library, Loader2, Search } from 'lucide-vue-next'
 import { onMounted, ref, watch } from 'vue'
-import { Search, Loader2, Library } from 'lucide-vue-next'
+
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from '@/components/ui/sheet'
-import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
 import { useTemplateGallery } from '@/composables/use-template-gallery'
+
+import { SECTION_TYPE_INFO } from './section-templates'
 import SectionTemplateCard from './SectionTemplateCard.vue'
 
 const props = defineProps<{
@@ -19,13 +21,23 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  insertSection: [section: any]
+  'insertSection': [section: any]
 }>()
 
 const {
-  indexLoaded, indexLoading, filterOem, filterSectionType, searchQuery,
-  loadingSections, oemGroups, filteredSlugs, filteredCuratedTemplates,
-  loadIndex, loadPageSections, getPageMeta, getCachedSections,
+  indexLoaded,
+  indexLoading,
+  filterOem,
+  filterSectionType,
+  searchQuery,
+  loadingSections,
+  oemGroups,
+  filteredSlugs,
+  filteredCuratedTemplates,
+  loadIndex,
+  loadPageSections,
+  getPageMeta,
+  getCachedSections,
 } = useTemplateGallery()
 
 const activeTab = ref<'pages' | 'curated'>('pages')
@@ -82,7 +94,9 @@ function oemLabel(id: string): string {
             <UiSelectValue placeholder="OEM" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="all">All OEMs</UiSelectItem>
+            <UiSelectItem value="all">
+              All OEMs
+            </UiSelectItem>
             <UiSelectItem v-for="g in oemGroups" :key="g.oem_id" :value="g.oem_id">
               {{ oemLabel(g.oem_id) }} ({{ g.count }})
             </UiSelectItem>
@@ -93,7 +107,9 @@ function oemLabel(id: string): string {
             <UiSelectValue placeholder="Type" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="all">All Types</UiSelectItem>
+            <UiSelectItem value="all">
+              All Types
+            </UiSelectItem>
             <UiSelectItem
               v-for="(info, type) in SECTION_TYPE_INFO"
               :key="type"
@@ -145,7 +161,9 @@ function oemLabel(id: string): string {
         <!-- From Pages tab -->
         <template v-else-if="activeTab === 'pages'">
           <div v-if="filteredSlugs.length === 0" class="text-center py-8">
-            <p class="text-sm text-muted-foreground">No pages found</p>
+            <p class="text-sm text-muted-foreground">
+              No pages found
+            </p>
           </div>
           <div v-else class="space-y-1 py-2">
             <div v-for="item in filteredSlugs" :key="`${item.oem_id}-${item.slug}`">
@@ -179,7 +197,7 @@ function oemLabel(id: string): string {
               >
                 <SectionTemplateCard
                   v-for="(section, idx) in getCachedSections(item.oem_id, item.slug)!.filter(
-                    s => filterSectionType === 'all' || s.type === filterSectionType
+                    s => filterSectionType === 'all' || s.type === filterSectionType,
                   )"
                   :key="idx"
                   :section="section"
@@ -196,7 +214,9 @@ function oemLabel(id: string): string {
         <!-- Curated tab -->
         <template v-else>
           <div v-if="filteredCuratedTemplates.length === 0" class="text-center py-8">
-            <p class="text-sm text-muted-foreground">No curated templates match filters</p>
+            <p class="text-sm text-muted-foreground">
+              No curated templates match filters
+            </p>
           </div>
           <div v-else class="grid grid-cols-2 gap-2 p-3">
             <SectionTemplateCard

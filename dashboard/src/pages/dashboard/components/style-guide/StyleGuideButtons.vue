@@ -12,9 +12,13 @@ defineProps<{
     <div class="px-6 pt-6 pb-2">
       <div class="flex items-center gap-2 mb-1">
         <MousePointerClick class="size-5 text-muted-foreground" />
-        <h2 class="text-2xl font-bold">Buttons</h2>
+        <h2 class="text-2xl font-bold">
+          Buttons
+        </h2>
       </div>
-      <p class="text-sm text-muted-foreground">All button variants with their computed styles</p>
+      <p class="text-sm text-muted-foreground">
+        All button variants with their computed styles
+      </p>
     </div>
 
     <div class="px-6 pb-6">
@@ -25,7 +29,9 @@ defineProps<{
         >
           <template v-if="buttons[variant]">
             <div class="space-y-3">
-              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{{ variant }}</h3>
+              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {{ variant }}
+              </h3>
 
               <!-- Rendered button -->
               <div class="flex items-center gap-4">

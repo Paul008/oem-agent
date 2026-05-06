@@ -1,14 +1,41 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
 import {
-  ChevronUp, ChevronDown, Trash2, Copy, Clipboard, Image, Type, Columns3,
-  Palette, TableProperties, Images, LayoutGrid, Video, Megaphone,
-  ArrowRightLeft, Quote, BarChart3, Award, Code2, Table2,
-  DollarSign, PanelBottom, Timer, Calculator, Maximize, Split,
-  Settings, GripVertical, BookmarkPlus,
+  ArrowRightLeft,
+  Award,
+  BarChart3,
+  BookmarkPlus,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Clipboard,
+  Code2,
+  Columns3,
+  Copy,
+  DollarSign,
+  GripVertical,
+  Image,
+  Images,
+  LayoutGrid,
+  Maximize,
+  Megaphone,
+  Palette,
+  PanelBottom,
+  Quote,
+  Settings,
+  Split,
+  Table2,
+  TableProperties,
+  Timer,
+  Trash2,
+  Type,
+  Video,
 } from 'lucide-vue-next'
+import { computed } from 'vue'
+
+import type { PageSectionType } from './section-templates'
+
 import { getConvertibleTypes } from './section-converter'
-import { SECTION_TYPE_INFO, type PageSectionType } from './section-templates'
+import { SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
   section: any
@@ -63,15 +90,22 @@ const convertibleTypes = computed(() => {
 })
 
 const SPLITTABLE_FIELDS: Record<string, string> = {
-  'gallery': 'images', 'image-showcase': 'images', 'feature-cards': 'cards',
-  'tabs': 'tabs', 'accordion': 'items', 'testimonial': 'testimonials',
-  'logo-strip': 'logos', 'stats': 'stats', 'pricing-table': 'tiers',
+  'gallery': 'images',
+  'image-showcase': 'images',
+  'feature-cards': 'cards',
+  'tabs': 'tabs',
+  'accordion': 'items',
+  'testimonial': 'testimonials',
+  'logo-strip': 'logos',
+  'stats': 'stats',
+  'pricing-table': 'tiers',
   'comparison-table': 'rows',
 }
 
 const canSplit = computed(() => {
   const field = SPLITTABLE_FIELDS[props.section.type]
-  if (!field) return false
+  if (!field)
+    return false
   const arr = props.section[field]
   return Array.isArray(arr) && arr.length >= 2
 })
@@ -113,7 +147,9 @@ function sectionLabel(s: any): string {
         <component :is="typeIcons[section.type] || Type" class="size-3.5" />
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium truncate leading-tight">{{ sectionLabel(section) }}</p>
+        <p class="text-sm font-medium truncate leading-tight">
+          {{ sectionLabel(section) }}
+        </p>
         <UiBadge variant="secondary" class="text-[9px] px-1.5 py-0 mt-0.5 font-normal">
           {{ section.type }}
         </UiBadge>

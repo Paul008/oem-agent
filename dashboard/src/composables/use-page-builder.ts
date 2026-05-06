@@ -1,34 +1,53 @@
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
+import type { Recipe } from '@/lib/worker-api'
+import type { PageSectionType } from '@/pages/dashboard/components/page-builder/section-templates'
+
 import {
-  fetchGeneratedPage,
+  adaptivePipeline as apiAdaptivePipeline,
+  regenerateSection as apiRegenerateSection,
   clonePage,
+  fetchGeneratedPage,
+  fetchRecipes,
+
+  saveRecipe,
   structurePage,
   updatePageSections,
-  regenerateSection as apiRegenerateSection,
-  adaptivePipeline as apiAdaptivePipeline,
-  fetchRecipes,
-  saveRecipe,
-  type Recipe,
 } from '@/lib/worker-api'
-import {
-  SECTION_DEFAULTS,
-  SECTION_TEMPLATES,
-  type PageSectionType,
-} from '@/pages/dashboard/components/page-builder/section-templates'
 import {
   convertSectionData,
   getConvertibleTypes,
 } from '@/pages/dashboard/components/page-builder/section-converter'
+import {
+
+  SECTION_DEFAULTS,
+  SECTION_TEMPLATES,
+} from '@/pages/dashboard/components/page-builder/section-templates'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const OEM_IDS = [
-  'chery-au', 'ford-au', 'foton-au', 'gac-au', 'gmsv-au', 'gwm-au', 'hyundai-au', 'isuzu-au', 'kia-au', 'ldv-au',
-  'mazda-au', 'mitsubishi-au', 'nissan-au', 'subaru-au', 'suzuki-au',
-  'toyota-au', 'volkswagen-au', 'kgm-au',
+  'chery-au',
+  'ford-au',
+  'foton-au',
+  'gac-au',
+  'gmsv-au',
+  'gwm-au',
+  'hyundai-au',
+  'isuzu-au',
+  'kia-au',
+  'ldv-au',
+  'mazda-au',
+  'mitsubishi-au',
+  'nissan-au',
+  'subaru-au',
+  'suzuki-au',
+  'toyota-au',
+  'volkswagen-au',
+  'kgm-au',
 ]
 
-function parseSlug(slug: string): { oemId: string; modelSlug: string; subpageSlug?: string; parentModelSlug?: string } | null {
+function parseSlug(slug: string): { oemId: string, modelSlug: string, subpageSlug?: string, parentModelSlug?: string } | null {
   for (const oemId of OEM_IDS) {
     if (slug.startsWith(`${oemId}-`)) {
       const rest = slug.slice(oemId.length + 1) // e.g. "sportage--performance"
@@ -47,8 +66,10 @@ function parseSlug(slug: string): { oemId: string; modelSlug: string; subpageSlu
  * /media/pages/kia-au/sportage/hero.jpg → https://worker.dev/media/pages/kia-au/sportage/hero.jpg
  */
 function resolveMediaUrl(url: string | null | undefined): string | null {
-  if (!url || typeof url !== 'string') return null
-  if (url.startsWith('/media/')) return `${WORKER_BASE}${url}`
+  if (!url || typeof url !== 'string')
+    return null
+  if (url.startsWith('/media/'))
+    return `${WORKER_BASE}${url}`
   return url
 }
 
@@ -156,7 +177,8 @@ export function usePageBuilder() {
   async function loadRecipes(oemIdStr: string) {
     try {
       recipes.value = await fetchRecipes(oemIdStr)
-    } catch {
+    }
+    catch {
       recipes.value = []
     }
   }
@@ -174,7 +196,8 @@ export function usePageBuilder() {
   let _restoringHistory = false
 
   function pushHistory(label: string) {
-    if (_restoringHistory) return
+    if (_restoringHistory)
+      return
     // Truncate any future entries when a new edit happens
     if (historyIndex.value < history.value.length - 1) {
       history.value = history.value.slice(0, historyIndex.value + 1)
@@ -193,7 +216,8 @@ export function usePageBuilder() {
   }
 
   function _restoreSections(index: number) {
-    if (index < 0 || index >= history.value.length) return
+    if (index < 0 || index >= history.value.length)
+      return
     _restoringHistory = true
     historyIndex.value = index
     const restored = JSON.parse(JSON.stringify(history.value[index].sections))
@@ -205,12 +229,14 @@ export function usePageBuilder() {
   }
 
   function undo() {
-    if (!canUndo.value) return
+    if (!canUndo.value)
+      return
     _restoreSections(historyIndex.value - 1)
   }
 
   function redo() {
-    if (!canRedo.value) return
+    if (!canRedo.value)
+      return
     _restoreSections(historyIndex.value + 1)
   }
 
@@ -261,11 +287,16 @@ export function usePageBuilder() {
       const heroSec = page.value?.content?.sections?.find((s: any) => s.type === 'hero')
       const slide = page.value?.header?.slides?.[0]
       if (heroSec && slide) {
-        if (!heroSec.desktop_image_url && slide.desktop) heroSec.desktop_image_url = slide.desktop
-        if (!heroSec.mobile_image_url && slide.mobile) heroSec.mobile_image_url = slide.mobile
-        if (!heroSec.heading && slide.heading) heroSec.heading = slide.heading
-        if (!heroSec.sub_heading && slide.sub_heading) heroSec.sub_heading = slide.sub_heading
-        if (!heroSec.cta_text && slide.button) heroSec.cta_text = slide.button
+        if (!heroSec.desktop_image_url && slide.desktop)
+          heroSec.desktop_image_url = slide.desktop
+        if (!heroSec.mobile_image_url && slide.mobile)
+          heroSec.mobile_image_url = slide.mobile
+        if (!heroSec.heading && slide.heading)
+          heroSec.heading = slide.heading
+        if (!heroSec.sub_heading && slide.sub_heading)
+          heroSec.sub_heading = slide.sub_heading
+        if (!heroSec.cta_text && slide.button)
+          heroSec.cta_text = slide.button
       }
       // Reset history with initial entry
       history.value = [{
@@ -275,22 +306,27 @@ export function usePageBuilder() {
         timestamp: new Date().toISOString(),
       }]
       historyIndex.value = 0
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Failed to load page'
       page.value = null
       history.value = []
       historyIndex.value = -1
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
 
   async function refreshPage() {
-    if (!slug.value) return
+    if (!slug.value)
+      return
+    error.value = null
     try {
       page.value = await fetchGeneratedPage(slug.value)
       isDirty.value = false
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Failed to refresh'
     }
   }
@@ -301,7 +337,8 @@ export function usePageBuilder() {
 
   function deleteSection(id: string) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
-    if (idx === -1) return
+    if (idx === -1)
+      return
     pushHistory(`Deleted ${sections.value[idx].type} section`)
     const updated = [...sections.value]
     updated.splice(idx, 1)
@@ -315,7 +352,8 @@ export function usePageBuilder() {
   }
 
   function moveSection(fromIndex: number, toIndex: number) {
-    if (toIndex < 0 || toIndex >= sections.value.length) return
+    if (toIndex < 0 || toIndex >= sections.value.length)
+      return
     pushHistory(`Moved ${sections.value[fromIndex].type} section`)
     const updated = [...sections.value]
     const [moved] = updated.splice(fromIndex, 1)
@@ -360,7 +398,8 @@ export function usePageBuilder() {
   function addSectionFromTemplate(templateId: string, afterIndex?: number) {
     ensureContentExists()
     const template = SECTION_TEMPLATES.find(t => t.id === templateId)
-    if (!template) return
+    if (!template)
+      return
     pushHistory(`Added ${template.name}`)
     const defaults = SECTION_DEFAULTS[template.type]?.() ?? {}
     const newSection = { ...defaults, ...template.data, type: template.type, id: genId(), order: 0 }
@@ -413,7 +452,8 @@ export function usePageBuilder() {
 
   function duplicateSection(id: string) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
-    if (idx === -1) return
+    if (idx === -1)
+      return
     pushHistory(`Duplicated ${sections.value[idx].type} section`)
     const source = sections.value[idx]
     const clone = JSON.parse(JSON.stringify(source))
@@ -428,7 +468,8 @@ export function usePageBuilder() {
 
   function updateSection(id: string, updates: Record<string, any>) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
-    if (idx === -1) return
+    if (idx === -1)
+      return
     pushHistory(`Edited ${sections.value[idx].type} section`)
     const updated = [...sections.value]
     updated[idx] = { ...updated[idx], ...updates }
@@ -438,7 +479,8 @@ export function usePageBuilder() {
 
   function convertSection(id: string, targetType: PageSectionType) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
-    if (idx === -1) return
+    if (idx === -1)
+      return
     const source = sections.value[idx]
 
     // Check if source has multiple items — if so, split & convert each
@@ -468,7 +510,8 @@ export function usePageBuilder() {
 
     // Standard 1:1 conversion
     const converted = convertSectionData(source, targetType)
-    if (!converted) return
+    if (!converted)
+      return
     pushHistory(`Converted ${source.type} → ${targetType}`)
     const updated = [...sections.value]
     updated[idx] = converted
@@ -498,12 +541,15 @@ export function usePageBuilder() {
 
   function splitSection(id: string) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
-    if (idx === -1) return
+    if (idx === -1)
+      return
     const source = sections.value[idx]
     const field = SPLITTABLE_FIELDS[source.type]
-    if (!field) return
+    if (!field)
+      return
     const items = source[field]
-    if (!Array.isArray(items) || items.length < 2) return
+    if (!Array.isArray(items) || items.length < 2)
+      return
 
     pushHistory(`Split ${source.type} into ${items.length} sections`)
     const updated = [...sections.value]
@@ -524,16 +570,20 @@ export function usePageBuilder() {
   }
 
   async function saveSections() {
-    if (!oemId.value || !modelSlug.value) return
+    if (!oemId.value || !modelSlug.value)
+      return
     saving.value = true
     try {
       await updatePageSections(oemId.value, modelSlug.value, sections.value)
       isDirty.value = false
       // Bump version locally
-      if (page.value) page.value.version = (page.value.version || 0) + 1
-    } catch (err: any) {
+      if (page.value)
+        page.value.version = (page.value.version || 0) + 1
+    }
+    catch (err: any) {
       error.value = err.message || 'Save failed'
-    } finally {
+    }
+    finally {
       saving.value = false
     }
   }
@@ -542,7 +592,8 @@ export function usePageBuilder() {
 
   async function regenerateSectionById(id: string) {
     const section = sections.value.find((s: any) => s.id === id)
-    if (!section || !oemId.value || !modelSlug.value) return
+    if (!section || !oemId.value || !modelSlug.value)
+      return
     regenerating.value = true
     try {
       const result = await apiRegenerateSection(oemId.value, modelSlug.value, id, section.type)
@@ -558,40 +609,48 @@ export function usePageBuilder() {
       if (page.value) {
         page.value.version = result.version ?? page.value.version
       }
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Regenerate failed'
-    } finally {
+    }
+    finally {
       regenerating.value = false
     }
   }
 
   const cloning = ref(false)
 
-  async function handleClone(modelOverride?: { provider: string; model: string }) {
-    if (!oemId.value || !modelSlug.value) return
+  async function handleClone(modelOverride?: { provider: string, model: string }) {
+    if (!oemId.value || !modelSlug.value)
+      return
     cloning.value = true
     try {
       const overrideUrl = sourceUrlOverride.value?.trim() || undefined
       await clonePage(oemId.value, modelSlug.value, overrideUrl, modelOverride)
       await refreshPage()
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Clone failed'
-    } finally {
+    }
+    finally {
       cloning.value = false
     }
   }
 
   const structuring = ref(false)
 
-  async function handleStructure(modelOverride?: { provider: string; model: string }) {
-    if (!oemId.value || !modelSlug.value) return
+  async function handleStructure(modelOverride?: { provider: string, model: string }) {
+    if (!oemId.value || !modelSlug.value)
+      return
     structuring.value = true
     try {
       await structurePage(oemId.value, modelSlug.value, modelOverride)
       await refreshPage()
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Structuring failed'
-    } finally {
+    }
+    finally {
       structuring.value = false
     }
   }
@@ -599,8 +658,9 @@ export function usePageBuilder() {
   const pipelining = ref(false)
   const pipelineResult = ref<any>(null)
 
-  async function handleAdaptivePipeline(modelOverride?: { provider: string; model: string }) {
-    if (!oemId.value || !modelSlug.value) return
+  async function handleAdaptivePipeline(modelOverride?: { provider: string, model: string }) {
+    if (!oemId.value || !modelSlug.value)
+      return
     pipelining.value = true
     pipelineResult.value = null
     try {
@@ -608,9 +668,11 @@ export function usePageBuilder() {
       const result = await apiAdaptivePipeline(oemId.value, modelSlug.value, overrideUrl, modelOverride)
       pipelineResult.value = result
       await refreshPage()
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Pipeline failed'
-    } finally {
+    }
+    finally {
       pipelining.value = false
     }
   }
@@ -635,11 +697,13 @@ export function usePageBuilder() {
 
   async function copySectionToClipboard(id: string): Promise<boolean> {
     const section = sections.value.find((s: any) => s.id === id)
-    if (!section) return false
+    if (!section)
+      return false
     try {
       await navigator.clipboard.writeText(JSON.stringify(section, null, 2))
       return true
-    } catch {
+    }
+    catch {
       return false
     }
   }
@@ -650,20 +714,23 @@ export function usePageBuilder() {
       const parsed = JSON.parse(text)
       const arr = Array.isArray(parsed) ? parsed : [parsed]
       // Basic validation: each entry must have a type
-      if (!arr.every((s: any) => s && typeof s.type === 'string')) return false
+      if (!arr.every((s: any) => s && typeof s.type === 'string'))
+        return false
       pasteSections(arr, afterIndex)
       return true
-    } catch {
+    }
+    catch {
       return false
     }
   }
 
   async function saveCurrentAsRecipe(sectionId: string) {
     const section = sections.value.find((s: any) => s.id === sectionId)
-    if (!section || !oemId.value) return
+    if (!section || !oemId.value)
+      return
 
     // Map section type to pattern
-    const SECTION_TO_PATTERN: Record<string, { pattern: string; variant: string }> = {
+    const SECTION_TO_PATTERN: Record<string, { pattern: string, variant: string }> = {
       'hero': { pattern: 'hero', variant: 'image-overlay' },
       'feature-cards': { pattern: 'card-grid', variant: 'image-title-body' },
       'stats': { pattern: 'card-grid', variant: 'stat' },
@@ -697,13 +764,38 @@ export function usePageBuilder() {
 
     // Extract non-content properties (strip content-specific fields)
     const CONTENT_FIELDS = new Set([
-      'id', 'order', 'type', '_recipe',
-      'heading', 'sub_heading', 'title', 'body', 'body_html', 'content_html',
-      'cta_text', 'cta_url', 'message',
-      'cards', 'tabs', 'images', 'colors', 'categories', 'testimonials',
-      'logos', 'stats', 'tiers', 'columns_data', 'rows', 'items',
-      'video_url', 'poster_url', 'embed_url', 'desktop_image_url', 'mobile_image_url',
-      'image_url', 'background_image_url',
+      'id',
+      'order',
+      'type',
+      '_recipe',
+      'heading',
+      'sub_heading',
+      'title',
+      'body',
+      'body_html',
+      'content_html',
+      'cta_text',
+      'cta_url',
+      'message',
+      'cards',
+      'tabs',
+      'images',
+      'colors',
+      'categories',
+      'testimonials',
+      'logos',
+      'stats',
+      'tiers',
+      'columns_data',
+      'rows',
+      'items',
+      'video_url',
+      'poster_url',
+      'embed_url',
+      'desktop_image_url',
+      'mobile_image_url',
+      'image_url',
+      'background_image_url',
     ])
 
     const defaults_json: Record<string, any> = {}
@@ -717,12 +809,18 @@ export function usePageBuilder() {
     if (section.cards?.length) {
       const card = section.cards[0]
       const composition: string[] = []
-      if (card.image_url) composition.push('image')
-      if (card.icon_url || card.icon) composition.push('icon')
-      if (card.title) composition.push('title')
-      if (card.description) composition.push('body')
-      if (card.cta_text || card.cta_url) composition.push('cta')
-      if (composition.length) defaults_json.card_composition = composition
+      if (card.image_url)
+        composition.push('image')
+      if (card.icon_url || card.icon)
+        composition.push('icon')
+      if (card.title)
+        composition.push('title')
+      if (card.description)
+        composition.push('body')
+      if (card.cta_text || card.cta_url)
+        composition.push('cta')
+      if (composition.length)
+        defaults_json.card_composition = composition
     }
 
     const oemName = oemId.value.replace('-au', '').replace(/^\w/, c => c.toUpperCase())
@@ -739,7 +837,8 @@ export function usePageBuilder() {
       })
       // Reload recipes to include the new one
       await loadRecipes(oemId.value)
-    } catch (err: any) {
+    }
+    catch (err: any) {
       error.value = err.message || 'Failed to save recipe'
     }
   }
@@ -754,9 +853,12 @@ export function usePageBuilder() {
 
   // Workflow stage: determines what the user should do next
   const workflowStage = computed<'empty' | 'cloned' | 'structured'>(() => {
-    if (!page.value) return 'empty'
-    if (isStructured.value) return 'structured'
-    if (isCloned.value) return 'cloned'
+    if (!page.value)
+      return 'empty'
+    if (isStructured.value)
+      return 'structured'
+    if (isCloned.value)
+      return 'cloned'
     return 'empty'
   })
 

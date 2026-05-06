@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { GripVertical, X, Minimize2, Maximize2 } from 'lucide-vue-next'
+import { GripVertical, Maximize2, Minimize2, X } from 'lucide-vue-next'
+import { ref, watch } from 'vue'
+
 import SectionProperties from './SectionProperties.vue'
 
 const props = defineProps<{
@@ -11,10 +12,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: []
-  regenerate: []
-  delete: []
-  convert: [targetType: string]
+  'close': []
+  'regenerate': []
+  'delete': []
+  'convert': [targetType: string]
   'update:section': [updates: Record<string, any>]
 }>()
 
@@ -39,7 +40,8 @@ watch(() => props.section, (s) => {
 }, { immediate: true })
 
 function onPointerDown(e: PointerEvent) {
-  if (!panelRef.value) return
+  if (!panelRef.value)
+    return
   dragging.value = true
   dragOffset.value = {
     x: e.clientX - pos.value.x,
@@ -49,7 +51,8 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return
+  if (!dragging.value)
+    return
   const newX = e.clientX - dragOffset.value.x
   const newY = e.clientY - dragOffset.value.y
   // Clamp to viewport
@@ -75,7 +78,7 @@ function sectionLabel(s: any): string {
       ref="panelRef"
       class="fixed z-50 flex flex-col bg-card border rounded-lg shadow-xl"
       :class="collapsed ? 'w-72' : 'w-80'"
-      :style="{ left: pos.x + 'px', top: pos.y + 'px' }"
+      :style="{ left: `${pos.x}px`, top: `${pos.y}px` }"
     >
       <!-- Drag handle / title bar -->
       <div

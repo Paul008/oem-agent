@@ -3,12 +3,12 @@ import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 
+import type { User } from './data/schema'
+
 import { columns } from './components/columns'
 import DataTable from './components/data-table.vue'
 import UserInvite from './components/user-invite.vue'
 import { fetchUsers } from './data/users'
-
-import type { User } from './data/schema'
 
 const users = ref<User[]>([])
 const loading = ref(false)

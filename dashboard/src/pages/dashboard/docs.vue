@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
 import { BookOpen, ChevronRight, Factory, Loader2 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 
 import { BasicPage } from '@/components/global-layout'
-import { supabase } from '@/lib/supabase'
 import { renderMarkdown } from '@/lib/markdown'
+import { supabase } from '@/lib/supabase'
 
 interface OemDoc {
   id: string
@@ -29,7 +29,8 @@ onMounted(async () => {
     }))
     // Auto-select first OEM with docs
     const first = oems.value.find(o => o.api_docs)
-    if (first) selectedOem.value = first.id
+    if (first)
+      selectedOem.value = first.id
   }
   finally {
     loading.value = false
@@ -41,7 +42,8 @@ const oemsWithoutDocs = computed(() => oems.value.filter(o => !o.api_docs))
 
 const currentDoc = computed(() => {
   const oem = oems.value.find(o => o.id === selectedOem.value)
-  if (!oem?.api_docs) return null
+  if (!oem?.api_docs)
+    return null
   return {
     name: oem.name,
     html: renderMarkdown(oem.api_docs),

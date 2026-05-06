@@ -1,4 +1,6 @@
-import { onMounted, onUnmounted, ref, type Ref } from 'vue'
+import type { Ref } from 'vue'
+
+import { onMounted, onUnmounted } from 'vue'
 
 /**
  * GSAP-powered section animations.
@@ -6,23 +8,24 @@ import { onMounted, onUnmounted, ref, type Ref } from 'vue'
  * Returns a ref to bind to the section's root element.
  */
 
-export type AnimationType =
-  | 'none'
-  | 'fade-up'
-  | 'fade-in'
-  | 'slide-left'
-  | 'slide-right'
-  | 'scale-in'
-  | 'parallax'
-  | 'stagger-children'
-  | 'count-up'
+export type AnimationType
+  = | 'none'
+    | 'fade-up'
+    | 'fade-in'
+    | 'slide-left'
+    | 'slide-right'
+    | 'scale-in'
+    | 'parallax'
+    | 'stagger-children'
+    | 'count-up'
 
 let gsapLoaded = false
 let gsap: any = null
 let ScrollTrigger: any = null
 
 async function ensureGsap() {
-  if (gsapLoaded) return { gsap, ScrollTrigger }
+  if (gsapLoaded)
+    return { gsap, ScrollTrigger }
   const mod = await import('gsap')
   const stMod = await import('gsap/ScrollTrigger')
   gsap = mod.gsap || mod.default
@@ -32,7 +35,7 @@ async function ensureGsap() {
   return { gsap, ScrollTrigger }
 }
 
-const ANIMATION_PRESETS: Record<string, { from: Record<string, any>; to?: Record<string, any> }> = {
+const ANIMATION_PRESETS: Record<string, { from: Record<string, any>, to?: Record<string, any> }> = {
   'fade-up': { from: { opacity: 0, y: 40 } },
   'fade-in': { from: { opacity: 0 } },
   'slide-left': { from: { opacity: 0, x: -60 } },
@@ -42,29 +45,32 @@ const ANIMATION_PRESETS: Record<string, { from: Record<string, any>; to?: Record
 
 export interface AnimationConfig {
   animation?: AnimationType
-  animation_duration?: number  // seconds, default 0.7
-  animation_delay?: number     // seconds, default 0
+  animation_duration?: number // seconds, default 0.7
+  animation_delay?: number // seconds, default 0
 }
 
 export function useSectionAnimation(
   animation: AnimationType | undefined,
   elementRef: Ref<HTMLElement | null>,
-  config?: { duration?: number; delay?: number },
+  config?: { duration?: number, delay?: number },
 ) {
   const duration = config?.duration ?? 0.7
   const delay = config?.delay ?? 0
   const triggers: any[] = []
 
   onMounted(async () => {
-    if (!animation || animation === 'none' || !elementRef.value) return
+    if (!animation || animation === 'none' || !elementRef.value)
+      return
 
     // Respect prefers-reduced-motion accessibility setting
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+      return
 
     let gsapMod: Awaited<ReturnType<typeof ensureGsap>>
     try {
       gsapMod = await ensureGsap()
-    } catch {
+    }
+    catch {
       // GSAP failed to load — skip animations silently
       return
     }
@@ -74,7 +80,8 @@ export function useSectionAnimation(
     if (animation === 'stagger-children') {
       // Animate direct children with staggered entrance
       const children = el.children
-      if (children.length === 0) return
+      if (children.length === 0)
+        return
       gsap.set(children, { opacity: 0, y: 30 })
       const trigger = ScrollTrigger.create({
         trigger: el,
@@ -98,14 +105,15 @@ export function useSectionAnimation(
     if (animation === 'count-up') {
       // Find elements with numeric text and animate the count
       const nums = el.querySelectorAll('[data-count-target]') as NodeListOf<HTMLElement>
-      if (nums.length === 0) return
+      if (nums.length === 0)
+        return
       const trigger = ScrollTrigger.create({
         trigger: el,
         start: 'top 85%',
         once: true,
         onEnter: () => {
           nums.forEach((numEl: HTMLElement) => {
-            const target = parseFloat(numEl.dataset.countTarget || numEl.textContent || '0')
+            const target = Number.parseFloat(numEl.dataset.countTarget || numEl.textContent || '0')
             const obj = { val: 0 }
             gsap.to(obj, {
               val: target,
@@ -145,7 +153,8 @@ export function useSectionAnimation(
 
     // Standard preset animations
     const preset = ANIMATION_PRESETS[animation]
-    if (!preset) return
+    if (!preset)
+      return
 
     gsap.set(el, preset.from)
     const trigger = ScrollTrigger.create({
@@ -174,7 +183,7 @@ export function useSectionAnimation(
 }
 
 /** All available animation options for the editor UI */
-export const ANIMATION_OPTIONS: { value: AnimationType; label: string }[] = [
+export const ANIMATION_OPTIONS: { value: AnimationType, label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'fade-up', label: 'Fade Up' },
   { value: 'fade-in', label: 'Fade In' },

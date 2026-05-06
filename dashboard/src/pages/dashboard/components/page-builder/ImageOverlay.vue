@@ -1,6 +1,7 @@
 <script lang="ts" setup>
+import { Link } from 'lucide-vue-next'
 import { ref } from 'vue'
-import { Upload, Link, Image as ImageIcon } from 'lucide-vue-next'
+
 import MediaUploadButton from './MediaUploadButton.vue'
 
 const props = defineProps<{
@@ -57,7 +58,7 @@ function onUrlSubmit() {
         placeholder="Paste image URL..."
         class="flex-1 h-8 px-2 text-xs bg-muted rounded border-0 outline-none"
         @keydown.enter="onUrlSubmit"
-      />
+      >
       <button
         class="h-8 px-3 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
         @click="onUrlSubmit"

@@ -5,8 +5,8 @@ const props = defineProps<{
   section: {
     type: 'comparison-table'
     title?: string
-    columns: Array<{ label: string; highlighted?: boolean }>
-    rows: Array<{ feature: string; values: string[] }>
+    columns: Array<{ label: string, highlighted?: boolean }>
+    rows: Array<{ feature: string, values: string[] }>
   }
 }>()
 
@@ -15,7 +15,7 @@ const emit = defineEmits<{
   'update-text': [field: string, value: string]
 }>()
 
-const titleEdit = useInlineEdit((v) => emit('update-text', 'title', v))
+const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement
@@ -33,7 +33,9 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
       @blur="titleEdit.stopEdit()"
       @keydown="titleEdit.onKeydown"
       @paste="titleEdit.onPaste"
-    >{{ section.title || 'Double-click to add title' }}</h2>
+    >
+      {{ section.title || 'Double-click to add title' }}
+    </h2>
     <div class="overflow-x-auto">
       <table class="w-full text-sm border-collapse">
         <thead>
@@ -56,7 +58,9 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
             :key="ri"
             class="border-b border-border hover:bg-muted/30"
           >
-            <td class="px-4 py-2.5 font-medium">{{ row.feature || '—' }}</td>
+            <td class="px-4 py-2.5 font-medium">
+              {{ row.feature || '—' }}
+            </td>
             <td
               v-for="(val, vi) in row.values"
               :key="vi"

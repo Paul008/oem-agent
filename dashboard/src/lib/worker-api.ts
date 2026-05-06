@@ -89,7 +89,7 @@ export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
   return result.recipes ?? []
 }
 
-export async function fetchAllRecipes(): Promise<{ brand_recipes: any[]; default_recipes: any[] }> {
+export async function fetchAllRecipes(): Promise<{ brand_recipes: any[], default_recipes: any[] }> {
   return workerFetch('/api/v1/oem-agent/admin/recipes')
 }
 
@@ -112,10 +112,10 @@ export interface ExtractedRecipe {
   resolves_to: string
   defaults_json: Record<string, any>
   confidence: number
-  bounds?: { top_pct: number; height_pct: number }
+  bounds?: { top_pct: number, height_pct: number }
 }
 
-export async function extractRecipesFromUrl(url: string, oemId: string): Promise<{ suggestions: ExtractedRecipe[]; screenshot_base64: string }> {
+export async function extractRecipesFromUrl(url: string, oemId: string): Promise<{ suggestions: ExtractedRecipe[], screenshot_base64: string }> {
   return workerFetch('/api/v1/oem-agent/admin/recipes/extract', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -131,11 +131,11 @@ export async function uploadRecipeThumbnail(oemId: string, recipeKey: string, im
   })
 }
 
-export async function fetchWebhooks(): Promise<{ webhooks: Array<{ id: string; url: string; events: string[]; created_at: string }> }> {
+export async function fetchWebhooks(): Promise<{ webhooks: Array<{ id: string, url: string, events: string[], created_at: string }> }> {
   return workerFetch('/api/v1/oem-agent/admin/webhooks')
 }
 
-export async function addWebhook(url: string, events: string[]): Promise<{ success: boolean; webhook: any }> {
+export async function addWebhook(url: string, events: string[]): Promise<{ success: boolean, webhook: any }> {
   return workerFetch('/api/v1/oem-agent/admin/webhooks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -147,7 +147,7 @@ export async function deleteWebhook(id: string): Promise<{ success: boolean }> {
   return workerFetch(`/api/v1/oem-agent/admin/webhooks/${id}`, { method: 'DELETE' })
 }
 
-export async function scoreQuality(oemId: string, thumbnailBase64: string): Promise<{ score: number; feedback: string; scored_at: string }> {
+export async function scoreQuality(oemId: string, thumbnailBase64: string): Promise<{ score: number, feedback: string, scored_at: string }> {
   return workerFetch('/api/v1/oem-agent/admin/quality/score', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -155,11 +155,11 @@ export async function scoreQuality(oemId: string, thumbnailBase64: string): Prom
   })
 }
 
-export async function fetchDesignHealth(): Promise<{ oems: Array<{ oem_id: string; last_crawled: string | null; token_count: number; has_fonts: boolean }> }> {
+export async function fetchDesignHealth(): Promise<{ oems: Array<{ oem_id: string, last_crawled: string | null, token_count: number, has_fonts: boolean }> }> {
   return workerFetch('/api/v1/oem-agent/admin/design-health')
 }
 
-export async function checkDrift(oemId: string): Promise<{ oem_id: string; severity: string; changes: Array<{ field: string; current: string; crawled: string; changed: boolean }>; change_count: number; crawled_at: string }> {
+export async function checkDrift(oemId: string): Promise<{ oem_id: string, severity: string, changes: Array<{ field: string, current: string, crawled: string, changed: boolean }>, change_count: number, crawled_at: string }> {
   return workerFetch('/api/v1/oem-agent/admin/design-health/check-drift', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -167,11 +167,11 @@ export async function checkDrift(oemId: string): Promise<{ oem_id: string; sever
   })
 }
 
-export async function fetchPageTemplates(): Promise<{ templates: Array<{ id: string; name: string; category: string; description: string; sections: Array<{ type: string; defaults: any }> }> }> {
+export async function fetchPageTemplates(): Promise<{ templates: Array<{ id: string, name: string, category: string, description: string, sections: Array<{ type: string, defaults: any }> }> }> {
   return workerFetch('/api/v1/oem-agent/admin/page-templates')
 }
 
-export async function saveAsTemplate(name: string, category: string, description: string, oemId: string, modelSlug: string): Promise<{ success: boolean; template_id: string }> {
+export async function saveAsTemplate(name: string, category: string, description: string, oemId: string, modelSlug: string): Promise<{ success: boolean, template_id: string }> {
   return workerFetch('/api/v1/oem-agent/admin/page-templates/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -191,7 +191,7 @@ export async function getDealerOverrides(oemId: string, modelSlug: string): Prom
   return workerFetch(`/api/v1/oem-agent/admin/dealer-overrides/${oemId}/${modelSlug}`)
 }
 
-export async function applyPageTemplate(templateId: string, oemId: string, modelSlug: string): Promise<{ success: boolean; slug: string; sections: number }> {
+export async function applyPageTemplate(templateId: string, oemId: string, modelSlug: string): Promise<{ success: boolean, slug: string, sections: number }> {
   return workerFetch('/api/v1/oem-agent/admin/page-templates/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -199,11 +199,11 @@ export async function applyPageTemplate(templateId: string, oemId: string, model
   })
 }
 
-export async function fetchRecipeAnalytics(): Promise<{ total_brand: number; total_default: number; by_oem: Record<string, Record<string, number>>; by_pattern: Record<string, number>; gaps: Array<{ oem_id: string; missing_patterns: string[] }>; patterns: string[] }> {
+export async function fetchRecipeAnalytics(): Promise<{ total_brand: number, total_default: number, by_oem: Record<string, Record<string, number>>, by_pattern: Record<string, number>, gaps: Array<{ oem_id: string, missing_patterns: string[] }>, patterns: string[] }> {
   return workerFetch('/api/v1/oem-agent/admin/recipe-analytics')
 }
 
-export async function crawlLiveTokens(oemId: string, url: string): Promise<{ crawled: any; existing: any; diff: Array<{ field: string; current: string; crawled: string; changed: boolean }> }> {
+export async function crawlLiveTokens(oemId: string, url: string): Promise<{ crawled: any, existing: any, diff: Array<{ field: string, current: string, crawled: string, changed: boolean }> }> {
   return workerFetch('/api/v1/oem-agent/admin/tokens/crawl', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -219,7 +219,7 @@ export async function applyCrawledTokens(oemId: string, crawled: any): Promise<{
   })
 }
 
-export async function generateRecipeComponent(oemId: string, recipe: ExtractedRecipe, thumbnailBase64?: string): Promise<{ success: boolean; template_html?: string; r2_key?: string; config_schema?: Record<string, any>; error?: string }> {
+export async function generateRecipeComponent(oemId: string, recipe: ExtractedRecipe, thumbnailBase64?: string): Promise<{ success: boolean, template_html?: string, r2_key?: string, config_schema?: Record<string, any>, error?: string }> {
   return workerFetch('/api/v1/oem-agent/admin/recipes/generate-component', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -227,37 +227,45 @@ export async function generateRecipeComponent(oemId: string, recipe: ExtractedRe
   })
 }
 
-export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
+export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string, model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
-    ...(modelOverride ? {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ modelOverride }),
-    } : {}),
+    ...(modelOverride
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modelOverride }),
+        }
+      : {}),
   })
 }
 
-export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string; model: string }) {
+export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string, model: string }) {
   const bodyData: Record<string, unknown> = {}
-  if (sourceUrl) bodyData.source_url = sourceUrl
-  if (modelOverride) bodyData.modelOverride = modelOverride
+  if (sourceUrl)
+    bodyData.source_url = sourceUrl
+  if (modelOverride)
+    bodyData.modelOverride = modelOverride
   const hasBody = Object.keys(bodyData).length > 0
   return workerFetch(`/api/v1/oem-agent/admin/clone-page/${oemId}/${modelSlug}`, {
     method: 'POST',
-    ...(hasBody ? {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyData),
-    } : {}),
+    ...(hasBody
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData),
+        }
+      : {}),
   })
 }
 
-export async function structurePage(oemId: string, modelSlug: string, modelOverride?: { provider: string; model: string }) {
+export async function structurePage(oemId: string, modelSlug: string, modelOverride?: { provider: string, model: string }) {
   return workerFetch(`/api/v1/oem-agent/admin/structure-page/${oemId}/${modelSlug}`, {
     method: 'POST',
-    ...(modelOverride ? {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ modelOverride }),
-    } : {}),
+    ...(modelOverride
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modelOverride }),
+        }
+      : {}),
   })
 }
 
@@ -278,8 +286,10 @@ export async function regenerateSection(oemId: string, modelSlug: string, sectio
 }
 
 export async function createCustomPage(oemId: string, slug: string, name: string) {
-  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error('Invalid slug format')
-  if (!name?.trim()) throw new Error('Name is required')
+  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug))
+    throw new Error('Invalid slug format')
+  if (!name?.trim())
+    throw new Error('Name is required')
   return workerFetch(`/api/v1/oem-agent/admin/create-custom-page/${encodeURIComponent(oemId)}/${encodeURIComponent(slug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -307,17 +317,21 @@ export async function deleteSubpage(oemId: string, modelSlug: string, subpageSlu
   })
 }
 
-export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string; model: string }) {
+export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string, model: string }) {
   const bodyData: Record<string, unknown> = {}
-  if (sourceUrl) bodyData.source_url = sourceUrl
-  if (modelOverride) bodyData.modelOverride = modelOverride
+  if (sourceUrl)
+    bodyData.source_url = sourceUrl
+  if (modelOverride)
+    bodyData.modelOverride = modelOverride
   const hasBody = Object.keys(bodyData).length > 0
   return workerFetch(`/api/v1/oem-agent/admin/adaptive-pipeline/${oemId}/${modelSlug}`, {
     method: 'POST',
-    ...(hasBody ? {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyData),
-    } : {}),
+    ...(hasBody
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData),
+        }
+      : {}),
   })
 }
 
@@ -333,7 +347,7 @@ export async function uploadMedia(oemId: string, modelSlug: string, file: File) 
     const text = await res.text()
     throw new Error(`Upload failed ${res.status}: ${text}`)
   }
-  return res.json() as Promise<{ success: boolean; url: string; filename: string; size: number; type: string }>
+  return res.json() as Promise<{ success: boolean, url: string, filename: string, size: number, type: string }>
 }
 
 export interface MediaItem {
@@ -352,10 +366,12 @@ export interface ListMediaResponse {
   cursor: string | null
 }
 
-export async function listMedia(oemId: string, options?: { modelSlug?: string; cursor?: string }): Promise<ListMediaResponse> {
+export async function listMedia(oemId: string, options?: { modelSlug?: string, cursor?: string }): Promise<ListMediaResponse> {
   const params = new URLSearchParams()
-  if (options?.modelSlug) params.set('modelSlug', options.modelSlug)
-  if (options?.cursor) params.set('cursor', options.cursor)
+  if (options?.modelSlug)
+    params.set('modelSlug', options.modelSlug)
+  if (options?.cursor)
+    params.set('cursor', options.cursor)
   const qs = params.toString()
   const data: ListMediaResponse = await workerFetch(`/api/v1/oem-agent/admin/list-media/${oemId}${qs ? `?${qs}` : ''}`)
   for (const item of data.items) {
@@ -370,7 +386,7 @@ export async function fetchAiModelConfig() {
   return workerFetch('/api/v1/oem-agent/admin/ai-model-config')
 }
 
-export async function saveAiModelConfig(overrides: Record<string, { provider?: string; model?: string; fallbackProvider?: string; fallbackModel?: string }>) {
+export async function saveAiModelConfig(overrides: Record<string, { provider?: string, model?: string, fallbackProvider?: string, fallbackModel?: string }>) {
   return workerFetch('/api/v1/oem-agent/admin/ai-model-config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -400,7 +416,8 @@ export async function fetchDesignMemory(oemId: string) {
 
 export async function fetchExtractionRuns(oemId?: string, limit = 20) {
   const params = new URLSearchParams()
-  if (oemId) params.set('oemId', oemId)
+  if (oemId)
+    params.set('oemId', oemId)
   params.set('limit', String(limit))
   return workerFetch(`/api/v1/oem-agent/extraction-runs?${params}`)
 }
@@ -422,10 +439,10 @@ export async function registerOem(payload: {
   oem_name: string
   base_url: string
   brand_color?: string
-  source_pages: Array<{ url: string; page_type: string }>
+  source_pages: Array<{ url: string, page_type: string }>
   config: Record<string, unknown>
   flags: Record<string, unknown>
-  discovered_apis?: Array<{ url: string; method: string; data_type: string; content_type?: string; notes?: string }>
+  discovered_apis?: Array<{ url: string, method: string, data_type: string, content_type?: string, notes?: string }>
 }) {
   return workerFetch('/api/v1/oem-agent/admin/onboarding/register', {
     method: 'POST',
@@ -441,7 +458,7 @@ export async function generateOnboardingSnippets(payload: {
   brand_color?: string
   config: Record<string, unknown>
   flags: Record<string, unknown>
-  source_pages: Array<{ url: string; page_type: string }>
+  source_pages: Array<{ url: string, page_type: string }>
   notes?: string
 }) {
   return workerFetch('/api/v1/oem-agent/admin/onboarding/generate-snippets', {

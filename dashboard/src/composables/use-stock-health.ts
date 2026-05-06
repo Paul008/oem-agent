@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import { supabase } from '@/lib/supabase'
 
 export interface OemStockHealth {
@@ -49,42 +50,55 @@ export interface StockSummary {
 }
 
 function daysBetween(dateStr: string | null): number {
-  if (!dateStr) return 999
+  if (!dateStr)
+    return 999
   const d = new Date(dateStr)
   const now = new Date()
   return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-function computeHealthScore(h: Omit<OemStockHealth, 'health_score' | 'health_status'>): { score: number; status: OemStockHealth['health_status'] } {
+function computeHealthScore(h: Omit<OemStockHealth, 'health_score' | 'health_status'>): { score: number, status: OemStockHealth['health_status'] } {
   let score = 100
 
   // Product freshness (max -30 points)
-  if (h.product_age_days > 30) score -= 30
-  else if (h.product_age_days > 14) score -= 20
-  else if (h.product_age_days > 7) score -= 10
+  if (h.product_age_days > 30)
+    score -= 30
+  else if (h.product_age_days > 14)
+    score -= 20
+  else if (h.product_age_days > 7)
+    score -= 10
 
   // Offer freshness (max -20 points)
   if (h.offer_count > 0) {
-    if (h.offer_age_days > 30) score -= 20
-    else if (h.offer_age_days > 14) score -= 10
+    if (h.offer_age_days > 30)
+      score -= 20
+    else if (h.offer_age_days > 14)
+      score -= 10
   }
 
   // Pricing coverage (max -20 points)
-  if (h.pricing_coverage_pct < 50) score -= 20
-  else if (h.pricing_coverage_pct < 80) score -= 10
+  if (h.pricing_coverage_pct < 50)
+    score -= 20
+  else if (h.pricing_coverage_pct < 80)
+    score -= 10
 
   // Crawl health (max -20 points)
-  if (h.last_run_age_days > 3) score -= 20
-  else if (h.last_run_age_days > 1) score -= 10
+  if (h.last_run_age_days > 3)
+    score -= 20
+  else if (h.last_run_age_days > 1)
+    score -= 10
 
   // Source page errors (max -10 points)
-  if (h.errored_pages > 0) score -= Math.min(10, h.errored_pages * 2)
+  if (h.errored_pages > 0)
+    score -= Math.min(10, h.errored_pages * 2)
 
   score = Math.max(0, score)
-  const status: OemStockHealth['health_status'] =
-    score >= 80 ? 'healthy' :
-    score >= 60 ? 'warning' :
-    score >= 30 ? 'critical' : 'stale'
+  const status: OemStockHealth['health_status']
+    = score >= 80
+      ? 'healthy'
+      : score >= 60
+        ? 'warning'
+        : score >= 30 ? 'critical' : 'stale'
 
   return { score, status }
 }
@@ -145,13 +159,15 @@ export function useStockHealth() {
         const oemPricingCount = pricing.filter(p => prodMap.get(p.product_id) === oem.id).length
 
         // Offers expiring
-        const expiringOffers = oemOffers.filter(o => {
-          if (!o.validity_end) return false
+        const expiringOffers = oemOffers.filter((o) => {
+          if (!o.validity_end)
+            return false
           const end = new Date(o.validity_end)
           return end > now && end <= sevenDaysFromNow
         })
-        const expiredOffers = oemOffers.filter(o => {
-          if (!o.validity_end) return false
+        const expiredOffers = oemOffers.filter((o) => {
+          if (!o.validity_end)
+            return false
           return new Date(o.validity_end) < now
         })
 
@@ -208,9 +224,11 @@ export function useStockHealth() {
           ? Math.round(results.reduce((s, r) => s + r.product_age_days, 0) / results.length)
           : 0,
       }
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err instanceof Error ? err.message : String(err)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }

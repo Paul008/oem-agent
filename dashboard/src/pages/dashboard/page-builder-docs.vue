@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
-import { ChevronRight, Cpu, Brain, Layers, Eye, Sparkles, BarChart3, Workflow, Database, Image, Zap, BookOpen, Puzzle, Cog } from 'lucide-vue-next'
+import { BarChart3, BookOpen, Brain, ChevronRight, Cog, Cpu, Database, Layers, Puzzle, Sparkles, Workflow } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 
 import { BasicPage } from '@/components/global-layout'
 import { renderMarkdown } from '@/lib/markdown'
@@ -802,7 +802,7 @@ This data is visible on the **Design Memory** dashboard page.`,
 | \`GOOGLE_API_KEY\` | Google AI | Gemini extraction + text-embedding-004 |
 | \`GROQ_API_KEY\` | Groq | Quick scan + quality validation |
 | \`ANTHROPIC_API_KEY\` | Anthropic | Bespoke component generation |
-| \`TOGETHER_API_KEY\` | Together AI | Kimi K2.5 screenshot-to-code |
+| \`TOGETHER_API_KEY\` | Together AI | Kimi K2.6 screenshot-to-code |
 | \`SUPABASE_URL\` | Supabase | Database access |
 | \`SUPABASE_SERVICE_ROLE_KEY\` | Supabase | Service role for writes |
 

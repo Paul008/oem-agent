@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, watch, computed } from 'vue'
-import { Loader2, Search, Image, Camera, Palette, Car, X, ChevronLeft, ChevronRight, Download, Package } from 'lucide-vue-next'
+import { Camera, Car, ChevronLeft, ChevronRight, Download, Image, Loader2, Package, Palette, Search, X } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+
+import type { PortalAsset, PortalAssetCampaign, PortalAssetCoverage } from '@/composables/use-portal-assets'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePortalAssets } from '@/composables/use-portal-assets'
-import type { PortalAsset, PortalAssetCoverage, PortalAssetCampaign } from '@/composables/use-portal-assets'
 
 const { fetchOems } = useOemData()
 const {
@@ -35,10 +36,10 @@ const filterExcludeExpired = ref(false)
 const searchQuery = ref('')
 
 // Data state
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const coverage = ref<PortalAssetCoverage[]>([])
 const campaigns = ref<PortalAssetCampaign[]>([])
-const facets = ref<Record<string, { value: string; n: number }[]>>({})
+const facets = ref<Record<string, { value: string, n: number }[]>>({})
 const stats = ref({ total: 0, images: 0, renders: 0, models: 0 })
 const models = ref<string[]>([])
 const pageRows = ref<PortalAsset[]>([])
@@ -127,7 +128,8 @@ watch(
 // Load related assets whenever the preview opens.
 watch(previewAsset, async (a) => {
   relatedAssets.value = []
-  if (!a) return
+  if (!a)
+    return
   loadingRelated.value = true
   try {
     relatedAssets.value = await fetchRelatedAssets(a, 24)
@@ -143,7 +145,8 @@ watch(previewAsset, async (a) => {
 // Debounced search — wait 300ms after the last keystroke.
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(searchQuery, () => {
-  if (searchTimer) clearTimeout(searchTimer)
+  if (searchTimer)
+    clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
     page.value = 1
     loadPage()
@@ -180,9 +183,12 @@ function oemName(id: string) {
 }
 
 function formatBytes(bytes: number | null) {
-  if (!bytes) return '-'
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`
+  if (!bytes)
+    return '-'
+  if (bytes < 1024)
+    return `${bytes}B`
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(0)}KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
@@ -200,9 +206,11 @@ const hasFilters = computed(() =>
 )
 
 function fmtDate(s: string | null | undefined) {
-  if (!s) return null
+  if (!s)
+    return null
   const d = new Date(s)
-  if (isNaN(d.getTime())) return null
+  if (isNaN(d.getTime()))
+    return null
   return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
@@ -211,8 +219,9 @@ function assetFilename(a: PortalAsset): string {
   // matches original_format (cdn_url is always a PNG preview).
   const base = a.name || a.record_name || `asset-${a.external_id}`
   const ext = (a.original_format || 'png').toLowerCase()
-  if (base.toLowerCase().endsWith('.' + ext)) return base
-  return base.replace(/\.[^.]+$/, '') + '.' + ext
+  if (base.toLowerCase().endsWith(`.${ext}`))
+    return base
+  return `${base.replace(/\.[^.]+$/, '')}.${ext}`
 }
 
 function downloadSingle(a: PortalAsset) {
@@ -222,7 +231,8 @@ function downloadSingle(a: PortalAsset) {
 
 const packInFlight = ref(false)
 async function downloadPack() {
-  if (packInFlight.value) return
+  if (packInFlight.value)
+    return
   packInFlight.value = true
   try {
     // Zip whatever the current filters match, capped at 500.
@@ -241,7 +251,8 @@ async function downloadPack() {
         page: next,
         pageSize: 200,
       })
-      if (!rows.length) break
+      if (!rows.length)
+        break
       all.push(...rows)
       next++
     }
@@ -277,7 +288,8 @@ async function downloadPack() {
 }
 
 function isExpired(a: PortalAsset) {
-  if (!a.expiry_date) return false
+  if (!a.expiry_date)
+    return false
   return new Date(a.expiry_date).getTime() < Date.now()
 }
 </script>
@@ -291,7 +303,9 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="Filter by OEM" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All OEMs</UiSelectItem>
+          <UiSelectItem value="all">
+            All OEMs
+          </UiSelectItem>
           <UiSelectItem v-for="oem in oems" :key="oem.id" :value="oem.id">
             {{ oem.name?.replace(' Australia', '') }}
           </UiSelectItem>
@@ -302,8 +316,12 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="Asset type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Types</UiSelectItem>
-          <UiSelectItem v-for="t in ASSET_TYPES" :key="t" :value="t">{{ t }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Types
+          </UiSelectItem>
+          <UiSelectItem v-for="t in ASSET_TYPES" :key="t" :value="t">
+            {{ t }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <UiSelect v-model="filterModel">
@@ -311,8 +329,12 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="Filter by model" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Models</UiSelectItem>
-          <UiSelectItem v-for="m in models" :key="m" :value="m">{{ m }}</UiSelectItem>
+          <UiSelectItem value="all">
+            All Models
+          </UiSelectItem>
+          <UiSelectItem v-for="m in models" :key="m" :value="m">
+            {{ m }}
+          </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
       <UiSelect v-if="campaigns.length" v-model="filterNameplate">
@@ -320,7 +342,9 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="Filter by campaign" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All Campaigns ({{ campaigns.length }})</UiSelectItem>
+          <UiSelectItem value="all">
+            All Campaigns ({{ campaigns.length }})
+          </UiSelectItem>
           <UiSelectItem v-for="c in campaigns" :key="`${c.oem_id}-${c.nameplate}`" :value="c.nameplate">
             {{ c.nameplate }} &middot; {{ c.asset_count }}
           </UiSelectItem>
@@ -331,7 +355,9 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="DAM category" />
         </UiSelectTrigger>
         <UiSelectContent class="max-h-[400px]">
-          <UiSelectItem value="all">All DAM categories ({{ facets.category_leaf.length }})</UiSelectItem>
+          <UiSelectItem value="all">
+            All DAM categories ({{ facets.category_leaf.length }})
+          </UiSelectItem>
           <UiSelectItem v-for="f in facets.category_leaf" :key="f.value" :value="f.value">
             {{ f.value }} &middot; {{ f.n }}
           </UiSelectItem>
@@ -342,7 +368,9 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="DAM type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All DAM types</UiSelectItem>
+          <UiSelectItem value="all">
+            All DAM types
+          </UiSelectItem>
           <UiSelectItem v-for="f in facets.asset_type_label" :key="f.value" :value="f.value">
             {{ f.value }} &middot; {{ f.n }}
           </UiSelectItem>
@@ -353,7 +381,9 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="Media type" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">All media types</UiSelectItem>
+          <UiSelectItem value="all">
+            All media types
+          </UiSelectItem>
           <UiSelectItem v-for="f in facets.media_type" :key="f.value" :value="f.value">
             {{ f.value }} &middot; {{ f.n }}
           </UiSelectItem>
@@ -364,7 +394,9 @@ function isExpired(a: PortalAsset) {
           <UiSelectValue placeholder="Usage rights" />
         </UiSelectTrigger>
         <UiSelectContent>
-          <UiSelectItem value="all">Any rights</UiSelectItem>
+          <UiSelectItem value="all">
+            Any rights
+          </UiSelectItem>
           <UiSelectItem v-for="f in facets.usage_rights" :key="f.value" :value="f.value">
             {{ f.value }} &middot; {{ f.n }}
           </UiSelectItem>
@@ -418,11 +450,15 @@ function isExpired(a: PortalAsset) {
       <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Total Assets</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Total Assets
+            </UiCardTitle>
             <Image class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.total.toLocaleString() }}</div>
+            <div class="text-2xl font-bold">
+              {{ stats.total.toLocaleString() }}
+            </div>
             <p class="text-xs text-muted-foreground">
               {{ filterOem === 'all' ? 'Across all portals' : oemName(filterOem) }}
             </p>
@@ -430,34 +466,50 @@ function isExpired(a: PortalAsset) {
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Images</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Images
+            </UiCardTitle>
             <Camera class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold text-blue-500">{{ stats.images.toLocaleString() }}</div>
-            <p class="text-xs text-muted-foreground">{{ stats.renders.toLocaleString() }} 3D renders</p>
+            <div class="text-2xl font-bold text-blue-500">
+              {{ stats.images.toLocaleString() }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ stats.renders.toLocaleString() }} 3D renders
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Models</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Models
+            </UiCardTitle>
             <Car class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
-            <div class="text-2xl font-bold">{{ stats.models }}</div>
-            <p class="text-xs text-muted-foreground">With parsed assets</p>
+            <div class="text-2xl font-bold">
+              {{ stats.models }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              With parsed assets
+            </p>
           </UiCardContent>
         </UiCard>
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-            <UiCardTitle class="text-sm font-medium">Coverage</UiCardTitle>
+            <UiCardTitle class="text-sm font-medium">
+              Coverage
+            </UiCardTitle>
             <Palette class="size-4 text-muted-foreground" />
           </UiCardHeader>
           <UiCardContent>
             <div class="text-2xl font-bold text-green-500">
               {{ coverage.reduce((s, c) => s + (c.unique_colors ?? 0), 0) }}
             </div>
-            <p class="text-xs text-muted-foreground">Unique colors across models</p>
+            <p class="text-xs text-muted-foreground">
+              Unique colors across models
+            </p>
           </UiCardContent>
         </UiCard>
       </div>
@@ -465,7 +517,9 @@ function isExpired(a: PortalAsset) {
       <!-- Coverage Table -->
       <UiCard class="mb-6">
         <UiCardHeader class="flex flex-row items-center justify-between">
-          <UiCardTitle class="text-base">Per-Model Coverage</UiCardTitle>
+          <UiCardTitle class="text-base">
+            Per-Model Coverage
+          </UiCardTitle>
           <span class="text-xs text-muted-foreground">
             {{ coverage.length }} model{{ coverage.length === 1 ? '' : 's' }}
           </span>
@@ -475,10 +529,18 @@ function isExpired(a: PortalAsset) {
             <UiTableRow>
               <UiTableHead>OEM</UiTableHead>
               <UiTableHead>Model</UiTableHead>
-              <UiTableHead class="text-right">Total</UiTableHead>
-              <UiTableHead class="text-right">Images</UiTableHead>
-              <UiTableHead class="text-right">Renders</UiTableHead>
-              <UiTableHead class="text-right">Colors</UiTableHead>
+              <UiTableHead class="text-right">
+                Total
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Images
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Renders
+              </UiTableHead>
+              <UiTableHead class="text-right">
+                Colors
+              </UiTableHead>
               <UiTableHead>Angles</UiTableHead>
               <UiTableHead />
             </UiTableRow>
@@ -490,12 +552,24 @@ function isExpired(a: PortalAsset) {
               class="cursor-pointer"
               @click="filterOem = c.oem_id; filterModel = c.parsed_model || 'all'"
             >
-              <UiTableCell class="text-xs text-muted-foreground">{{ oemName(c.oem_id) }}</UiTableCell>
-              <UiTableCell class="font-medium capitalize">{{ c.parsed_model || '(unparsed)' }}</UiTableCell>
-              <UiTableCell class="text-right">{{ c.total_assets.toLocaleString() }}</UiTableCell>
-              <UiTableCell class="text-right">{{ c.image_count.toLocaleString() }}</UiTableCell>
-              <UiTableCell class="text-right">{{ c.render_count.toLocaleString() }}</UiTableCell>
-              <UiTableCell class="text-right">{{ c.unique_colors }}</UiTableCell>
+              <UiTableCell class="text-xs text-muted-foreground">
+                {{ oemName(c.oem_id) }}
+              </UiTableCell>
+              <UiTableCell class="font-medium capitalize">
+                {{ c.parsed_model || '(unparsed)' }}
+              </UiTableCell>
+              <UiTableCell class="text-right">
+                {{ c.total_assets.toLocaleString() }}
+              </UiTableCell>
+              <UiTableCell class="text-right">
+                {{ c.image_count.toLocaleString() }}
+              </UiTableCell>
+              <UiTableCell class="text-right">
+                {{ c.render_count.toLocaleString() }}
+              </UiTableCell>
+              <UiTableCell class="text-right">
+                {{ c.unique_colors }}
+              </UiTableCell>
               <UiTableCell>
                 <div class="flex gap-1 flex-wrap">
                   <UiBadge v-for="angle in c.angles_available" :key="angle" variant="secondary" class="text-xs">
@@ -503,7 +577,9 @@ function isExpired(a: PortalAsset) {
                   </UiBadge>
                 </div>
               </UiTableCell>
-              <UiTableCell class="text-right text-xs text-muted-foreground">Click to filter</UiTableCell>
+              <UiTableCell class="text-right text-xs text-muted-foreground">
+                Click to filter
+              </UiTableCell>
             </UiTableRow>
           </UiTableBody>
         </UiTable>
@@ -516,7 +592,9 @@ function isExpired(a: PortalAsset) {
 
       <div v-else-if="pageRows.length === 0" class="text-center py-16">
         <Image class="size-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p class="text-sm text-muted-foreground">No assets match these filters</p>
+        <p class="text-sm text-muted-foreground">
+          No assets match these filters
+        </p>
         <UiButton v-if="hasFilters" size="sm" variant="outline" class="mt-3" @click="resetFilters">
           Reset filters
         </UiButton>
@@ -539,7 +617,7 @@ function isExpired(a: PortalAsset) {
               :alt="asset.name"
               class="w-full h-full object-contain"
               loading="lazy"
-            />
+            >
             <Image v-else class="size-8 text-muted-foreground/30" />
           </div>
           <div class="p-2">
@@ -595,7 +673,9 @@ function isExpired(a: PortalAsset) {
     <UiDialog :open="!!previewAsset" @update:open="v => { if (!v) previewAsset = null }">
       <UiDialogContent v-if="previewAsset" class="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <UiDialogHeader>
-          <UiDialogTitle class="text-sm">{{ previewAsset.record_name || previewAsset.name }}</UiDialogTitle>
+          <UiDialogTitle class="text-sm">
+            {{ previewAsset.record_name || previewAsset.name }}
+          </UiDialogTitle>
           <UiDialogDescription>
             {{ oemName(previewAsset.oem_id) }} &middot;
             {{ previewAsset.width || '?' }}×{{ previewAsset.height || '?' }} {{ previewAsset.original_format }} &middot;
@@ -610,20 +690,38 @@ function isExpired(a: PortalAsset) {
               : previewAsset.cdn_url"
             :alt="previewAsset.name"
             class="w-full object-contain max-h-[500px]"
-          />
+          >
         </div>
 
         <!-- Quick chips -->
         <div class="flex flex-wrap gap-1.5 mt-3">
-          <UiBadge v-if="previewAsset.asset_type_label" variant="secondary">{{ previewAsset.asset_type_label }}</UiBadge>
-          <UiBadge v-if="previewAsset.media_type" variant="outline">{{ previewAsset.media_type }}</UiBadge>
-          <UiBadge v-if="previewAsset.usage_rights" variant="outline">{{ previewAsset.usage_rights }}</UiBadge>
-          <UiBadge v-if="previewAsset.parsed_model" variant="secondary">{{ previewAsset.parsed_model }}</UiBadge>
-          <UiBadge v-if="previewAsset.parsed_trim" variant="secondary">{{ previewAsset.parsed_trim }}</UiBadge>
-          <UiBadge v-if="previewAsset.parsed_angle" variant="outline">{{ previewAsset.parsed_angle }}</UiBadge>
-          <UiBadge v-if="previewAsset.parsed_color" variant="outline">{{ previewAsset.parsed_color }}</UiBadge>
-          <UiBadge v-if="isExpired(previewAsset)" variant="destructive">Expired</UiBadge>
-          <UiBadge v-if="previewAsset.discontinued" variant="destructive">Discontinued</UiBadge>
+          <UiBadge v-if="previewAsset.asset_type_label" variant="secondary">
+            {{ previewAsset.asset_type_label }}
+          </UiBadge>
+          <UiBadge v-if="previewAsset.media_type" variant="outline">
+            {{ previewAsset.media_type }}
+          </UiBadge>
+          <UiBadge v-if="previewAsset.usage_rights" variant="outline">
+            {{ previewAsset.usage_rights }}
+          </UiBadge>
+          <UiBadge v-if="previewAsset.parsed_model" variant="secondary">
+            {{ previewAsset.parsed_model }}
+          </UiBadge>
+          <UiBadge v-if="previewAsset.parsed_trim" variant="secondary">
+            {{ previewAsset.parsed_trim }}
+          </UiBadge>
+          <UiBadge v-if="previewAsset.parsed_angle" variant="outline">
+            {{ previewAsset.parsed_angle }}
+          </UiBadge>
+          <UiBadge v-if="previewAsset.parsed_color" variant="outline">
+            {{ previewAsset.parsed_color }}
+          </UiBadge>
+          <UiBadge v-if="isExpired(previewAsset)" variant="destructive">
+            Expired
+          </UiBadge>
+          <UiBadge v-if="previewAsset.discontinued" variant="destructive">
+            Discontinued
+          </UiBadge>
         </div>
 
         <!-- Metadata grid -->
@@ -675,9 +773,13 @@ function isExpired(a: PortalAsset) {
 
         <!-- Keywords -->
         <div v-if="previewAsset.keywords?.length" class="mt-3">
-          <p class="text-xs text-muted-foreground mb-1">Keywords</p>
+          <p class="text-xs text-muted-foreground mb-1">
+            Keywords
+          </p>
           <div class="flex flex-wrap gap-1">
-            <UiBadge v-for="kw in previewAsset.keywords" :key="kw" variant="outline" class="text-xs">{{ kw }}</UiBadge>
+            <UiBadge v-for="kw in previewAsset.keywords" :key="kw" variant="outline" class="text-xs">
+              {{ kw }}
+            </UiBadge>
           </div>
         </div>
 
@@ -707,7 +809,7 @@ function isExpired(a: PortalAsset) {
                 :alt="r.name"
                 class="w-full h-full object-contain"
                 loading="lazy"
-              />
+              >
               <Image v-else class="size-6 text-muted-foreground/30 m-auto" />
             </div>
           </div>

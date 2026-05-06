@@ -1,5 +1,6 @@
-import { ref, computed } from 'vue'
-import { discoverOem, registerOem, generateOnboardingSnippets, triggerCrawl } from '@/lib/worker-api'
+import { computed, ref } from 'vue'
+
+import { discoverOem, generateOnboardingSnippets, registerOem, triggerCrawl } from '@/lib/worker-api'
 
 // ============================================================================
 // Types
@@ -115,12 +116,12 @@ export function useOnboarding() {
   // ============================================================================
 
   function generateOemId(name: string): string {
-    return name
+    return `${name
       .toLowerCase()
       .replace(/\s+australia$/i, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-      + '-au'
+    }-au`
   }
 
   async function runDiscovery() {
@@ -137,12 +138,14 @@ export function useOnboarding() {
 
       // Populate state from discovery result
       oemId.value = result.oem_id
-      if (!oemName.value) oemName.value = result.oem_name
+      if (!oemName.value)
+        oemName.value = result.oem_name
       baseUrl.value = result.base_url
 
       sitemapUrlCount.value = result.discovery.sitemap_urls?.length || 0
       framework.value = result.discovery.framework
-      if (result.discovery.brand_color) brandColor.value = result.discovery.brand_color
+      if (result.discovery.brand_color)
+        brandColor.value = result.discovery.brand_color
       subBrands.value = result.discovery.sub_brands || []
 
       // Auto-detect rendering requirement
@@ -150,12 +153,13 @@ export function useOnboarding() {
       const ssrFrameworks = ['gatsby', 'aem', 'magento', 'wordpress', 'sitecore']
       if (framework.value && spaFrameworks.includes(framework.value)) {
         requiresBrowserRendering.value = true
-      } else if (framework.value && ssrFrameworks.includes(framework.value)) {
+      }
+      else if (framework.value && ssrFrameworks.includes(framework.value)) {
         requiresBrowserRendering.value = false
       }
 
       // Map classified pages with include toggle
-      pages.value = (result.discovery.classified_pages || []).map((p: { url: string; page_type: string; label: string }) => ({
+      pages.value = (result.discovery.classified_pages || []).map((p: { url: string, page_type: string, label: string }) => ({
         ...p,
         included: ['homepage', 'vehicle', 'category', 'offers', 'news'].includes(p.page_type),
       }))

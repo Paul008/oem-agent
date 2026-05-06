@@ -1,19 +1,19 @@
 <script lang="ts" setup>
-import { onMounted, ref, computed } from 'vue'
-import { Loader2, LayoutTemplate, Layers, Check, X } from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
+import { Check, LayoutTemplate, Loader2, X } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { fetchPageTemplates, applyPageTemplate } from '@/lib/worker-api'
+import { applyPageTemplate, fetchPageTemplates } from '@/lib/worker-api'
 
 const router = useRouter()
 const { fetchOems } = useOemData()
 
 const loading = ref(true)
 const templates = ref<any[]>([])
-const oems = ref<{ id: string; name: string }[]>([])
+const oems = ref<{ id: string, name: string }[]>([])
 const selectedCategory = ref('')
 
 const showApplyDialog = ref(false)
@@ -27,9 +27,11 @@ onMounted(async () => {
     const [tpl, oemList] = await Promise.all([fetchPageTemplates(), fetchOems()])
     templates.value = tpl.templates
     oems.value = oemList
-  } catch {
+  }
+  catch {
     toast.error('Failed to load templates')
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 })
@@ -40,7 +42,8 @@ const categories = computed(() => {
 })
 
 const filtered = computed(() => {
-  if (!selectedCategory.value) return templates.value
+  if (!selectedCategory.value)
+    return templates.value
   return templates.value.filter(t => t.category === selectedCategory.value)
 })
 
@@ -52,7 +55,8 @@ function openApply(template: any) {
 }
 
 async function handleApply() {
-  if (!selectedTemplate.value || !applyOemId.value || !applyModelSlug.value) return
+  if (!selectedTemplate.value || !applyOemId.value || !applyModelSlug.value)
+    return
   applying.value = true
   try {
     const slug = applyModelSlug.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')
@@ -62,17 +66,27 @@ async function handleApply() {
       showApplyDialog.value = false
       router.push(`/dashboard/model-pages`)
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     toast.error(err.message || 'Failed to create page')
-  } finally {
+  }
+  finally {
     applying.value = false
   }
 }
 
 const sectionIcons: Record<string, string> = {
-  'hero': '🖼️', 'feature-cards': '🃏', 'tabs': '📑', 'specs-grid': '📊',
-  'gallery': '🖼️', 'cta-banner': '📢', 'intro': '📝', 'content-block': '📄',
-  'countdown': '⏱️', 'enquiry-form': '📋', 'video': '🎬',
+  'hero': '🖼️',
+  'feature-cards': '🃏',
+  'tabs': '📑',
+  'specs-grid': '📊',
+  'gallery': '🖼️',
+  'cta-banner': '📢',
+  'intro': '📝',
+  'content-block': '📄',
+  'countdown': '⏱️',
+  'enquiry-form': '📋',
+  'video': '🎬',
 }
 </script>
 
@@ -113,15 +127,21 @@ const sectionIcons: Record<string, string> = {
           <div class="p-5 space-y-3">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="font-semibold">{{ tpl.name }}</h3>
-                <p class="text-xs text-muted-foreground mt-0.5">{{ tpl.description }}</p>
+                <h3 class="font-semibold">
+                  {{ tpl.name }}
+                </h3>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                  {{ tpl.description }}
+                </p>
               </div>
               <span class="text-[10px] px-2 py-0.5 rounded-full bg-muted font-medium capitalize">{{ tpl.category }}</span>
             </div>
 
             <!-- Section outline -->
             <div class="space-y-1">
-              <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{{ tpl.sections.length }} sections</p>
+              <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                {{ tpl.sections.length }} sections
+              </p>
               <div class="flex flex-col gap-0.5">
                 <div
                   v-for="(sec, i) in tpl.sections"
@@ -151,7 +171,9 @@ const sectionIcons: Record<string, string> = {
     >
       <div class="bg-background border rounded-lg shadow-lg w-full max-w-md mx-4 p-6 space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Create Page from Template</h2>
+          <h2 class="text-lg font-semibold">
+            Create Page from Template
+          </h2>
           <button class="text-muted-foreground hover:text-foreground" @click="showApplyDialog = false">
             <X class="size-5" />
           </button>
@@ -166,7 +188,9 @@ const sectionIcons: Record<string, string> = {
           <div>
             <label class="text-xs font-medium">OEM</label>
             <select v-model="applyOemId" class="w-full mt-1 rounded-md border bg-background px-3 py-2 text-sm">
-              <option value="">Select OEM...</option>
+              <option value="">
+                Select OEM...
+              </option>
               <option v-for="oem in oems" :key="oem.id" :value="oem.id">
                 {{ oem.name?.replace(' Australia', '') }}
               </option>

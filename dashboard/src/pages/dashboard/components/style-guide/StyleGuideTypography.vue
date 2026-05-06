@@ -1,21 +1,33 @@
 <script lang="ts" setup>
-import { Type, Download } from 'lucide-vue-next'
+import { Download, Type } from 'lucide-vue-next'
 
 defineProps<{
   typography: any
 }>()
 
 const TYPO_SCALES = [
-  'display', 'h1', 'h2', 'h3', 'h4',
-  'body_large', 'body', 'body_small', 'caption',
-  'price', 'disclaimer', 'cta', 'nav',
+  'display',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'body_large',
+  'body',
+  'body_small',
+  'caption',
+  'price',
+  'disclaimer',
+  'cta',
+  'nav',
 ] as const
 
 function capFontSize(size: string | number | undefined, max = 48): string {
-  if (!size) return '16px'
-  const n = typeof size === 'number' ? size : parseInt(String(size), 10)
-  if (isNaN(n)) return String(size)
-  return Math.min(n, max) + 'px'
+  if (!size)
+    return '16px'
+  const n = typeof size === 'number' ? size : Number.parseInt(String(size), 10)
+  if (isNaN(n))
+    return String(size)
+  return `${Math.min(n, max)}px`
 }
 </script>
 
@@ -24,7 +36,9 @@ function capFontSize(size: string | number | undefined, max = 48): string {
     <div class="px-6 pt-6 pb-2">
       <div class="flex items-center gap-2 mb-1">
         <Type class="size-5 text-muted-foreground" />
-        <h2 class="text-2xl font-bold">Typography</h2>
+        <h2 class="text-2xl font-bold">
+          Typography
+        </h2>
       </div>
       <p class="text-sm text-muted-foreground">
         Primary font: <span class="font-semibold">{{ typography.font_primary?.split(',')[0] || 'System' }}</span>
@@ -42,7 +56,9 @@ function capFontSize(size: string | number | undefined, max = 48): string {
             class="py-4 flex items-baseline gap-6"
           >
             <div class="w-24 shrink-0">
-              <p class="text-xs font-medium text-muted-foreground">{{ scale.replace(/_/g, ' ') }}</p>
+              <p class="text-xs font-medium text-muted-foreground">
+                {{ scale.replace(/_/g, ' ') }}
+              </p>
             </div>
             <div class="flex-1 min-w-0">
               <p
@@ -74,12 +90,16 @@ function capFontSize(size: string | number | undefined, max = 48): string {
         v-if="!typography.scale || !Object.keys(typography.scale).length"
         class="py-8 text-center"
       >
-        <p class="text-sm text-muted-foreground">No type scale defined. Font family is available but no scale entries.</p>
+        <p class="text-sm text-muted-foreground">
+          No type scale defined. Font family is available but no scale entries.
+        </p>
       </div>
 
       <!-- Font files -->
       <div v-if="typography.font_faces?.length" class="mt-4 pt-4 border-t">
-        <p class="text-xs font-medium text-muted-foreground mb-3">Font Files</p>
+        <p class="text-xs font-medium text-muted-foreground mb-3">
+          Font Files
+        </p>
         <div class="flex flex-wrap gap-2">
           <a
             v-for="face in typography.font_faces"

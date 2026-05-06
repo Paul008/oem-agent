@@ -3,7 +3,7 @@
  * Separated from the Vue SFC to avoid parser issues with
  * literal </style> and </script> tags inside template literals.
  */
-export function buildCaptureInjection(): { earlyStub: string; lateInjection: string } {
+export function buildCaptureInjection(): { earlyStub: string, lateInjection: string } {
   const css = `
     /* Force collapsed JS-dependent containers to be visible */
     .swiper, .swiper-wrapper, .swiper-slide,
@@ -433,9 +433,8 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
     return result;
   }
 
-  // Convert element to clean HTML with inline styles from computed values
-  // Strips OEM class names, keeps layout/visual styles as inline CSS
-  // This renders correctly in v-html without needing Tailwind compilation
+  // Convert element to clean HTML with Tailwind utility classes
+  // Strips OEM class names and inline styles, maps computed CSS → Tailwind classes
   var STYLE_PROPS = ['display','flex-direction','flex-wrap','align-items','justify-content',
     'grid-template-columns','grid-template-rows','gap','column-gap','row-gap',
     'width','max-width','min-width','height','min-height',
@@ -463,31 +462,36 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
 
     function convert(src, cln) {
       var computed = window.getComputedStyle(src);
-      var styles = [];
+      var twClasses = [];
+
+      // Map existing framework classes (Bootstrap etc.) → Tailwind
+      if (src.className) {
+        var mapped = mapClasses(src.className);
+        twClasses.push.apply(twClasses, mapped);
+      }
+
+      // Convert computed styles → Tailwind classes
       for (var i = 0; i < STYLE_PROPS.length; i++) {
         var prop = STYLE_PROPS[i];
         var val = computed.getPropertyValue(prop);
-        // Skip defaults/noise
-        if (!val || val === 'none' || val === 'normal' || val === 'auto' ||
-            val === '0px' || val === 'rgba(0, 0, 0, 0)' || val === 'static' ||
-            val === 'visible' || val === 'row' || val === 'nowrap' ||
-            val === 'stretch' || val === 'baseline' || val === 'start' ||
-            val === 'border-box' || val === 'repeat' || val === 'scroll' ||
-            val === 'inline' || val === 'block') continue;
-        // Keep display:flex/grid, skip display:block (default)
-        if (prop === 'display' && val === 'block') continue;
-        // Skip font-family for body text (inherited)
-        if (prop === 'font-family' && src.tagName !== 'H1' && src.tagName !== 'H2' && src.tagName !== 'H3') continue;
-        // Skip color:black (default)
-        if (prop === 'color' && (val === 'rgb(0, 0, 0)' || val === 'rgb(33, 37, 41)')) continue;
-        // Skip bg:white/transparent
-        if (prop === 'background-color' && (val === 'rgb(255, 255, 255)' || val === 'rgba(0, 0, 0, 0)')) continue;
-        styles.push(prop + ':' + val);
+        var converted = cssTw(prop, val);
+        twClasses.push.apply(twClasses, converted);
       }
-      // Strip OEM class names, keep clean
+
+      // Remove original classes and inline styles
       cln.removeAttribute('class');
-      if (styles.length > 0) cln.setAttribute('style', styles.join(';'));
-      else cln.removeAttribute('style');
+      cln.removeAttribute('style');
+
+      // Set deduplicated Tailwind classes
+      if (twClasses.length > 0) {
+        var unique = [];
+        var seen = {};
+        for (var j = 0; j < twClasses.length; j++) {
+          var c = twClasses[j];
+          if (!seen[c]) { seen[c] = true; unique.push(c); }
+        }
+        cln.setAttribute('class', unique.join(' '));
+      }
 
       var srcCh = src.children, clnCh = cln.children;
       for (var k = 0; k < srcCh.length && k < clnCh.length; k++) {
@@ -594,9 +598,9 @@ export function buildCaptureInjection(): { earlyStub: string; lateInjection: str
   }, true);
 })();`
 
-  const historyStubTag = '<' + 'script>' + historyStub + '</' + 'script>'
-  const styleTag = '<' + 'style>' + css + '</' + 'style>'
-  const scriptTag = '<' + 'script>' + js + '</' + 'script>'
+  const historyStubTag = `<` + `script>${historyStub}</` + `script>`
+  const styleTag = `<` + `style>${css}</` + `style>`
+  const scriptTag = `<` + `script>${js}</` + `script>`
   return {
     earlyStub: historyStubTag,
     lateInjection: styleTag + scriptTag,

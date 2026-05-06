@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { defineAsyncComponent } from 'vue'
+
 import AnimatedSection from './AnimatedSection.vue'
 
 interface PageSection {
@@ -59,8 +60,8 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
     <template v-for="section in sections" :key="section.id">
       <AnimatedSection :animation="section.animation as any" :animation-duration="section.animation_duration" :animation-delay="section.animation_delay">
         <component
-          v-if="resolveComponent(section)"
           :is="resolveComponent(section)"
+          v-if="resolveComponent(section)"
           :section="section"
         />
         <div
