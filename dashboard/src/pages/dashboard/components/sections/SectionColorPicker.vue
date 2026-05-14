@@ -29,6 +29,14 @@ const emit = defineEmits<{ 'inline-edit': [field: string, value: string, el: HTM
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
+function encodeUrl(url: string): string {
+  const bytes = new TextEncoder().encode(url)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
 /** Proxy an external OEM URL through /media/{oemId}/{base64url} to avoid hotlinking */
 function proxiedUrl(url: string | null, oemId: string | undefined): string | null {
   if (!url)
@@ -45,7 +53,7 @@ function proxiedUrl(url: string | null, oemId: string | undefined): string | nul
   if (!oemId)
     return url
   // Encode the source URL as base64url
-  const encoded = btoa(url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  const encoded = encodeUrl(url)
   return `${WORKER_BASE}/media/${oemId}/${encoded}`
 }
 
@@ -66,7 +74,7 @@ const colors = computed(() => {
       code: c.color_code,
       swatch_url: proxiedUrl(c.swatch_url, props.oemId),
       hero_image_url: proxiedUrl(c.hero_image_url, props.oemId),
-      gallery_urls: c.gallery_urls ?? [],
+      gallery_urls: (c.gallery_urls ?? []).map(url => proxiedUrl(url, props.oemId)).filter((url): url is string => Boolean(url)),
       color_type: c.color_type,
       price_delta: c.price_delta,
       is_standard: c.is_standard,

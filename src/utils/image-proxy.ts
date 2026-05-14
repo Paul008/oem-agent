@@ -22,7 +22,12 @@ export interface ProxyImageOptions {
  * base64url-encode a string (URL-safe, no padding).
  */
 export function encodeUrl(url: string): string {
-  return btoa(url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const bytes = new TextEncoder().encode(url);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**

@@ -62,6 +62,11 @@ const OEM_HEADERS: Record<string, Record<string, string>> = {
     Referer: 'https://www.fotonaustralia.com.au/',
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
   },
+  'gac-au': {
+    Origin: 'https://www.gacgroup.com',
+    Referer: 'https://www.gacgroup.com/en-au/',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+  },
 };
 
 // ── Base URLs for resolving relative paths ──────────────────────────────────
@@ -105,6 +110,8 @@ const ALLOWED_HOSTS = new Set([
   'cdn.cms-uploads.i-motor.me',
   'www.renault.com.au',
   'www.fotonaustralia.com.au',
+  'eu-www-resouce-cdn.gacgroup.com',
+  'eu-www-resource-cdn.gacgroup.com',
 ]);
 
 /**
@@ -115,7 +122,9 @@ function decodeUrl(encoded: string): string {
   const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
   // Pad if needed
   const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-  return atob(padded);
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 // Re-export encodeUrl from utils for existing consumers.

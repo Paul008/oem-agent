@@ -9,7 +9,9 @@ const HYUNDAI = 'https://www.hyundai.com/content/dam/hyundai/au/en/images/vehicl
 function decodeBase64Url(s: string): string {
   const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
   const pad = (4 - (b64.length % 4)) % 4;
-  return atob(b64 + '='.repeat(pad));
+  const binary = atob(b64 + '='.repeat(pad));
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 /** Extract the base64url payload from a proxied URL. */
@@ -122,5 +124,11 @@ describe('encodeUrl', () => {
   it('round-trips through atob with base64 padding', () => {
     const encoded = encodeUrl(HYUNDAI);
     expect(decodeBase64Url(encoded)).toBe(HYUNDAI);
+  });
+
+  it('round-trips URLs with non-ASCII characters', () => {
+    const url = 'https://cdn.example.com/colours/雪-white.webp';
+    const encoded = encodeUrl(url);
+    expect(decodeBase64Url(encoded)).toBe(url);
   });
 });
