@@ -74,6 +74,11 @@ function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
   return map;
 }
 
+function getMediaOrigin(c: { env: AppEnv['Bindings']; req: { url: string } }): string {
+  const configured = c.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '');
+  return configured || new URL(c.req.url).origin;
+}
+
 /**
  * Compute Excluding Government Charges (EGC) price from an OEM pricing
  * breakdown. EGC = MSRP (incl GST) + dealer delivery + reservation fee, i.e.
@@ -382,6 +387,7 @@ function transformProduct(
   oemId: string,
   workerOrigin: string,
   offers: OfferSummary[] = [],
+  brochureUrl: string | null = null,
 ): WpVariant {
   const stdPricing = pricingRows.find((p: any) => p.price_type === 'standard');
   const rrpPricing = pricingRows.find((p: any) => p.price_type === 'rrp');
@@ -487,7 +493,7 @@ function transformProduct(
       || pricing?.price_qualifier
       || '',
     offers: applicableOffers,
-    brochure: null,
+    brochure: brochureUrl,
     specifications: specs.engine || specs.dimensions || specs.performance ? specs : null,
     pdf_specs: extractPdfVariantSpecs(specs),
   };
@@ -558,7 +564,7 @@ dealerApi.get('/variants', async (c) => {
   try {
     const { data: model, error: modelErr } = await supabase
       .from('vehicle_models')
-      .select('id, name, slug, body_type, category')
+      .select('id, name, slug, body_type, category, brochure_url')
       .eq('oem_id', oemId)
       .eq('slug', variantCategory)
       .maybeSingle();
@@ -633,7 +639,7 @@ dealerApi.get('/variants', async (c) => {
       (rawOffersByProduct[link.product_id] ??= []).push(link.offers);
     }
 
-    const workerOrigin = new URL(c.req.url).origin;
+    const workerOrigin = getMediaOrigin(c);
     const result = products.map((product: any) => {
       const productOffers = transformOffers(
         rawOffersByProduct[product.id] || [],
@@ -649,6 +655,7 @@ dealerApi.get('/variants', async (c) => {
         oemId,
         workerOrigin,
         productOffers,
+        model.brochure_url || null,
       );
     });
 
@@ -684,7 +691,7 @@ dealerApi.get('/models', async (c) => {
     if (error) return c.json({ code: 'internal_error', message: error.message }, 500);
 
     const allModels = models || [];
-    const workerOrigin = new URL(c.req.url).origin;
+    const workerOrigin = getMediaOrigin(c);
 
     // Hero fallback: vehicle_models.hero_image_url is currently empty for
     // every OEM. Derive hero from the first variant color of any product
@@ -863,7 +870,7 @@ dealerApi.get('/catalog', async (c) => {
       if (targetModelId) (productsByModel[targetModelId] ||= []).push(p);
     }
 
-    const workerOrigin = new URL(c.req.url).origin;
+    const workerOrigin = getMediaOrigin(c);
     const catalog = models.map((model: any) => {
       const modelProducts = (productsByModel[model.id] || []) as any[];
       const variants = modelProducts.map((product: any) => {
@@ -981,7 +988,7 @@ dealerApi.get('/variants-import', async (c) => {
     for (const p of (paletteSettled.status === 'fulfilled' ? paletteSettled.value.data || [] : [])) hexByCode[p.color_code] = p.hex_approx || '';
 
     // Transform to flat oem-variants schema for WP All Import
-    const workerOrigin = new URL(c.req.url).origin;
+    const workerOrigin = getMediaOrigin(c);
     const result = allProducts.map((product: any) => {
       const model = modelMap.get(product.model_id);
       const modelName = model?.name || '';

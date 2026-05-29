@@ -18,6 +18,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { syncMitsubishiGraphql, type MitsubishiSyncResult } from './mitsubishi-sync';
 
 const STATES = ['nsw', 'vic', 'qld', 'wa', 'sa', 'tas', 'act', 'nt'] as const;
 
@@ -40,7 +41,7 @@ function slugify(str: string): string {
 export interface AllOemSyncResult {
   hyundai: { colors: number; pricing: number; errors: string[] };
   mazda: { colors: number; pricing: number; errors: string[] };
-  mitsubishi: { colors: number; pricing: number; errors: string[] };
+  mitsubishi: MitsubishiSyncResult;
   volkswagen: { products: number; colors: number; pricing: number; offers: number; errors: string[] };
   foton: { products: number; colors: number; pricing: number; errors: string[] };
   generic_pricing: { oems: number; products: number };
@@ -322,90 +323,7 @@ async function syncMazda(supabase: SupabaseClient): Promise<AllOemSyncResult['ma
 // ============================================================================
 
 async function syncMitsubishi(supabase: SupabaseClient): Promise<AllOemSyncResult['mitsubishi']> {
-  const result = { colors: 0, pricing: 0, errors: [] as string[] };
-  const GQL = 'https://store.mitsubishi-motors.com.au/graphql';
-  const OEM_ID = 'mitsubishi-au';
-
-  try {
-    const res = await fetch(GQL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `{
-          products(filter: { category_id: { eq: "31" } }, pageSize: 60) {
-            items {
-              sku name
-              price_range { minimum_price { final_price { value } } }
-              ... on ConfigurableProduct {
-                configurable_options {
-                  attribute_code
-                  values { label value_index swatch_data { value ... on ImageSwatchData { thumbnail } } }
-                }
-                variants {
-                  product { sku price_range { minimum_price { final_price { value } } } }
-                  attributes { code label value_index }
-                }
-              }
-            }
-          }
-        }`,
-      }),
-    });
-
-    const data = await res.json() as { data?: { products: { items: any[] } }; errors?: any[] };
-    if (data.errors || !data.data) {
-      result.errors.push('GraphQL error');
-      return result;
-    }
-
-    const items = data.data.products.items;
-    const { data: dbProducts } = await supabase
-      .from('products').select('id, meta_json').eq('oem_id', OEM_ID);
-
-    const productBySku = Object.fromEntries(
-      (dbProducts ?? []).map(p => [(p.meta_json as any)?.sku, p])
-    );
-
-    for (const item of items) {
-      const basePrice = item.price_range?.minimum_price?.final_price?.value;
-      if (!basePrice || basePrice >= 99990) continue;
-
-      const product = productBySku[item.sku];
-      if (!product) continue;
-
-      // Extract colors
-      for (const opt of item.configurable_options ?? []) {
-        if (opt.attribute_code !== 'exterior_code') continue;
-        for (const v of opt.values ?? []) {
-          const swatchUrl = v.swatch_data?.thumbnail
-            ? `https://store.mitsubishi-motors.com.au${v.swatch_data.thumbnail}`
-            : null;
-          await supabase.from('variant_colors').upsert({
-            product_id: product.id,
-            color_code: slugify(v.label),
-            color_name: v.label,
-            color_type: v.label.includes('Diamond') || v.label.includes('Mica') ? 'premium' : 'standard',
-            swatch_url: swatchUrl,
-          }, { onConflict: 'product_id,color_code' });
-          result.colors++;
-        }
-      }
-
-      // Update pricing
-      await supabase.from('variant_pricing').upsert({
-        product_id: product.id, price_type: 'standard',
-        rrp: basePrice, ...allStates(basePrice),
-      }, { onConflict: 'product_id,price_type' });
-      await supabase.from('products').update({
-        price_amount: basePrice, price_type: 'driveaway', price_qualifier: 'Drive away estimate',
-      }).eq('id', product.id);
-      result.pricing++;
-    }
-  } catch (e) {
-    result.errors.push(e instanceof Error ? e.message : String(e));
-  }
-
-  return result;
+  return syncMitsubishiGraphql(supabase);
 }
 
 // ============================================================================
@@ -963,7 +881,7 @@ export async function executeAllOemSync(
   const [hyundai, mazda, mitsubishi, volkswagen, foton, generic_pricing] = await Promise.all([
     syncHyundai(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
     syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
-    syncMitsubishi(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
+    syncMitsubishi(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, accessories: 0, interiors: 0, brochures: 0, discoveredApis: 0, errors: [String(e)] })),
     syncVolkswagen(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, errors: [String(e)] })),
     syncFoton(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, errors: [String(e)] })),
     syncGenericPricing(supabase).catch(() => ({ oems: 0, products: 0 })),
@@ -975,7 +893,7 @@ export async function executeAllOemSync(
   console.log(
     `[AllOemSync] Done — Hyundai: ${hyundai.colors}c/${hyundai.pricing}p, ` +
     `Mazda: ${mazda.colors}c/${mazda.pricing}p, ` +
-    `Mitsubishi: ${mitsubishi.colors}c/${mitsubishi.pricing}p, ` +
+    `Mitsubishi: ${mitsubishi.products}v/${mitsubishi.colors}c/${mitsubishi.pricing}p/${mitsubishi.offers}o/${mitsubishi.accessories}a, ` +
     `VW: ${volkswagen.products}p/${volkswagen.colors}c/${volkswagen.offers}o, ` +
     `Foton: ${foton.products}p/${foton.colors}c/${foton.pricing} pricing, ` +
     `Generic: ${generic_pricing.oems} OEMs/${generic_pricing.products} products, ` +
