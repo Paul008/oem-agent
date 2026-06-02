@@ -447,13 +447,7 @@ export function useOemData() {
   }
 
   async function fetchBanners() {
-    const { data, error: err } = await supabase
-      .from('banners')
-      .select('*')
-      .order('oem_id, position')
-    if (err)
-      throw err
-    return (data ?? []) as Banner[]
+    return fetchAllRows<Banner>('banners', '*', 'oem_id, position')
   }
 
   async function fetchAccessories(oemId?: string) {

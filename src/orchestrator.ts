@@ -27,6 +27,7 @@ import type {
   NetworkResponse,
   ApiCandidate,
   DiscoveredApi,
+  ExtractedBannerSlide,
 } from './oem/types';
 import type { PageExtractionResult } from './extract/engine';
 
@@ -3737,10 +3738,24 @@ ${html.substring(0, 50000)}
       }
     }
 
-    // Process banners
-    if (extractionResult.bannerSlides?.data) {
-      console.log(`[Orchestrator] Processing ${extractionResult.bannerSlides.data.length} banners for ${page.url}`);
-      for (const slide of extractionResult.bannerSlides.data) {
+    // Process banners only from page types that are expected to contain hero banners.
+    // Vehicle/news pages often expose generic hero or banner-like sections that are
+    // not homepage/offer carousel slides.
+    const bannerSlides = extractionResult.bannerSlides?.data ?? [];
+    const shouldProcessBanners = this.shouldProcessBannersForPage(page);
+    if (bannerSlides.length > 0 && !shouldProcessBanners) {
+      console.log(`[Orchestrator] Skipping ${bannerSlides.length} banner candidates from ${page.page_type} page ${page.url}`);
+    }
+
+    if (bannerSlides.length > 0 && shouldProcessBanners) {
+      const validBannerSlides = bannerSlides.filter(slide => this.isValidBannerSlide(slide));
+      const skipped = bannerSlides.length - validBannerSlides.length;
+      if (skipped > 0) {
+        console.log(`[Orchestrator] Skipping ${skipped} empty banner candidates for ${page.url}`);
+      }
+
+      console.log(`[Orchestrator] Processing ${validBannerSlides.length} banners for ${page.url}`);
+      for (const slide of validBannerSlides) {
         try {
           const result = await this.upsertBanner(oemId, page.url, slide);
           if (result.created || result.updated) {
@@ -3759,7 +3774,7 @@ ${html.substring(0, 50000)}
       // Guards against zombie rows from prior bad extractions (e.g. LLM-hallucinated
       // nav tiles). Only runs when we actually got banner data, so a transient
       // extraction failure doesn't wipe the table.
-      const currentPositions = extractionResult.bannerSlides.data
+      const currentPositions = validBannerSlides
         .map((s: any) => s.position)
         .filter((p: unknown) => typeof p === 'number');
       if (currentPositions.length > 0) {
@@ -3827,6 +3842,20 @@ ${html.substring(0, 50000)}
     // Infrastructure ready for when model extraction is implemented
 
     return { productsUpserted, offersUpserted, bannersUpserted, brochuresUpserted, changesFound };
+  }
+
+  private shouldProcessBannersForPage(page: SourcePage): boolean {
+    return page.page_type === 'homepage' || page.page_type === 'offers';
+  }
+
+  private isValidBannerSlide(slide: ExtractedBannerSlide): boolean {
+    return Boolean(
+      slide.image_url_desktop
+      || slide.image_url_mobile
+      || slide.headline
+      || slide.cta_text
+      || slide.cta_url,
+    );
   }
 
   private async upsertProduct(

@@ -617,7 +617,7 @@ const cheryAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href*="/models/"]',
-    heroSlides: '.hero, [class*="hero"], [class*="banner"]',
+    heroSlides: '.block--hero-carousel .block--hero',
     offerTiles: '[class*="offer"], [class*="promo"], [class*="card"]',
   },
   flags: {
