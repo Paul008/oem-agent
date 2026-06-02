@@ -17,6 +17,7 @@ import {
   convertSectionData,
   getConvertibleTypes,
 } from '@/pages/dashboard/components/page-builder/section-converter'
+import { resolveSectionMediaPaths } from '@/pages/dashboard/components/page-builder/section-media'
 import {
   getSectionRecipeDefaults,
   getSectionRecipePattern,
@@ -106,86 +107,6 @@ export function normalizeStoredMediaUrls<T>(value: T): T {
   }
 
   return value
-}
-
-/**
- * Walk all image/video URL fields in a section and resolve /media/ paths.
- */
-function resolveSectionMediaUrls(section: any): any {
-  const s = { ...section }
-  switch (s.type) {
-    case 'hero':
-      s.desktop_image_url = resolveMediaUrl(s.desktop_image_url) ?? s.desktop_image_url
-      s.mobile_image_url = resolveMediaUrl(s.mobile_image_url) ?? s.mobile_image_url
-      s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
-      s.video_url = resolveMediaUrl(s.video_url) ?? s.video_url
-      break
-    case 'intro':
-      s.image_url = resolveMediaUrl(s.image_url) ?? s.image_url
-      break
-    case 'tabs':
-      if (Array.isArray(s.tabs)) {
-        s.tabs = s.tabs.map((t: any) => ({ ...t, image_url: resolveMediaUrl(t.image_url) ?? t.image_url }))
-      }
-      break
-    case 'color-picker':
-      if (Array.isArray(s.colors)) {
-        s.colors = s.colors.map((c: any) => ({
-          ...c,
-          swatch_url: resolveMediaUrl(c.swatch_url) ?? c.swatch_url,
-          hero_image_url: resolveMediaUrl(c.hero_image_url) ?? c.hero_image_url,
-        }))
-      }
-      break
-    case 'gallery':
-      if (Array.isArray(s.images)) {
-        s.images = s.images.map((img: any) => ({ ...img, url: resolveMediaUrl(img.url) ?? img.url }))
-      }
-      break
-    case 'feature-cards':
-      if (Array.isArray(s.cards)) {
-        s.cards = s.cards.map((c: any) => ({ ...c, image_url: resolveMediaUrl(c.image_url) ?? c.image_url }))
-      }
-      break
-    case 'video':
-      s.video_url = resolveMediaUrl(s.video_url) ?? s.video_url
-      s.poster_url = resolveMediaUrl(s.poster_url) ?? s.poster_url
-      break
-    case 'image':
-      s.desktop_image_url = resolveMediaUrl(s.desktop_image_url) ?? s.desktop_image_url
-      s.mobile_image_url = resolveMediaUrl(s.mobile_image_url) ?? s.mobile_image_url
-      break
-    case 'image-showcase':
-      if (Array.isArray(s.images)) {
-        s.images = s.images.map((img: any) => ({ ...img, url: resolveMediaUrl(img.url) ?? img.url }))
-      }
-      break
-    case 'cta-banner':
-      s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
-      break
-    case 'content-block':
-      s.image_url = resolveMediaUrl(s.image_url) ?? s.image_url
-      break
-    case 'testimonial':
-      if (Array.isArray(s.testimonials)) {
-        s.testimonials = s.testimonials.map((t: any) => ({ ...t, avatar_url: resolveMediaUrl(t.avatar_url) ?? t.avatar_url }))
-      }
-      break
-    case 'stats':
-      if (Array.isArray(s.stats)) {
-        s.stats = s.stats.map((st: any) => ({ ...st, icon_url: resolveMediaUrl(st.icon_url) ?? st.icon_url }))
-      }
-      break
-    case 'logo-strip':
-      if (Array.isArray(s.logos)) {
-        s.logos = s.logos.map((l: any) => ({ ...l, image_url: resolveMediaUrl(l.image_url) ?? l.image_url }))
-      }
-      break
-    case 'countdown':
-      s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
-      break
-  }
-  return s
 }
 
 export interface HistoryEntry {
@@ -283,7 +204,7 @@ export function usePageBuilder() {
   const parentFullSlug = computed(() => parentModelSlug.value && oemId.value ? `${oemId.value}-${parentModelSlug.value}` : null)
 
   const sections = computed({
-    get: () => (page.value?.content?.sections ?? []).map(resolveSectionMediaUrls),
+    get: () => (page.value?.content?.sections ?? []).map((section: any) => resolveSectionMediaPaths(section, resolveMediaUrl)),
     set: (val: any[]) => {
       if (page.value?.content) {
         page.value.content.sections = normalizeStoredMediaUrls(val)

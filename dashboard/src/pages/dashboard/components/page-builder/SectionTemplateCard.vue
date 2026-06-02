@@ -6,6 +6,7 @@ import {
   Plus,
 } from 'lucide-vue-next'
 
+import { countSectionImages } from './section-media'
 import { getSectionTypeIcon } from './section-icons'
 
 const props = defineProps<{
@@ -25,25 +26,6 @@ function sectionLabel(s: any): string {
 
 function sectionSubtitle(s: any): string {
   return s.sub_heading || s.description || s.body || ''
-}
-
-function countImages(s: any): number {
-  let count = 0
-  if (s.desktop_image_url)
-    count++
-  if (s.mobile_image_url)
-    count++
-  if (s.image_url)
-    count++
-  if (Array.isArray(s.images))
-    count += s.images.length
-  if (Array.isArray(s.tabs))
-    count += s.tabs.filter((t: any) => t.image_url).length
-  if (Array.isArray(s.cards))
-    count += s.cards.filter((c: any) => c.image_url).length
-  if (Array.isArray(s.colors))
-    count += s.colors.length
-  return count
 }
 
 function oemLabel(id: string): string {
@@ -87,8 +69,8 @@ function oemLabel(id: string): string {
 
       <!-- Metadata chips -->
       <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
-        <span v-if="countImages(section) > 0" class="flex items-center gap-0.5">
-          <ImageIcon class="size-2.5" /> {{ countImages(section) }}
+        <span v-if="countSectionImages(section) > 0" class="flex items-center gap-0.5">
+          <ImageIcon class="size-2.5" /> {{ countSectionImages(section) }}
         </span>
         <span v-if="section.video_url" class="flex items-center gap-0.5">
           <Film class="size-2.5" /> video
