@@ -246,13 +246,27 @@ export function extractWithSelectors(
     $(selectors.heroSlides).each((index, el) => {
       const $slide = $(el);
       const headlineText = $slide.find('h1, h2, .headline, .big_title .title').first().text().trim();
-      const ctaHref = $slide.find('.kv_btn, a.cta, a').first().attr('href') || null;
+      const imageAltText = (
+        ($slide.is('img') ? $slide.attr('alt') : null) ||
+        $slide.find('img[alt]').first().attr('alt')
+      )?.trim();
+      const ctaHref =
+        $slide.attr('data-link') ||
+        $slide.find('.kv_btn, a.cta, a[href]').first().attr('href') ||
+        $slide.closest('a[href]').attr('href') ||
+        null;
+      const ctaText =
+        $slide.attr('data-caption-link-label') ||
+        $slide.attr('data-caption-link-title') ||
+        $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() ||
+        $slide.closest('a[href]').attr('title') ||
+        null;
       const imageUrlDesktop = absolutise(extractImageUrl($slide, $)) || '';
       const slide: ExtractedBannerSlide = {
         position: index,
-        headline: headlineText || $slide.find('img[alt]').first().attr('alt')?.trim() || deriveHeadlineFromImageUrl(imageUrlDesktop),
+        headline: headlineText || $slide.attr('data-caption-title') || imageAltText || deriveHeadlineFromImageUrl(imageUrlDesktop),
         sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span').first().text().trim() || null,
-        cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
+        cta_text: ctaText,
         cta_url: absolutise(ctaHref),
         image_url_desktop: imageUrlDesktop,
         image_url_mobile: absolutise(extractMobileImageUrl($slide, $)),
@@ -668,6 +682,14 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
     const media = $(src).attr('media') || '';
     const srcset = $(src).attr('srcset') || '';
     if (srcset && (media.includes('max-width') || media.includes('mobile'))) {
+      return srcset.split(',')[0].trim().split(' ')[0];
+    }
+  }
+
+  // Some AEM/GM sites use min-width sources but encode mobile in the filename.
+  for (const src of mobileSources) {
+    const srcset = $(src).attr('srcset') || '';
+    if (srcset && /mobile|mob|420x|375x|small/i.test(srcset)) {
       return srcset.split(',')[0].trim().split(' ')[0];
     }
   }

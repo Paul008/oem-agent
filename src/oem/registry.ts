@@ -486,7 +486,7 @@ export const gmsvAu: OemDefinition = {
   config: {
     homepage: '/au-en',
     vehicles_index: '/au-en/chevrolet/trucks',
-    offers: '/au-en', // No dedicated offers page — homepage features promos
+    offers: '/au-en/current/offers',
     schedule: {
       homepage_minutes: 120,
       offers_minutes: 240,
@@ -497,7 +497,7 @@ export const gmsvAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href*="/trucks/silverado"], a[href*="/corvette/"], a[href*="/gmc/"]',
-    heroSlides: '[role="tabpanel"] a, .hero-carousel',
+    heroSlides: '.q-slider[data-dtm-options*="masthead"] .q-mod-slide, .q-responsive-image-container:has(img[src*="/current/offers/01-images/"])',
     offerTiles: '[class*="offer"], [class*="promo"]',
   },
   flags: {
