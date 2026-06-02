@@ -10,6 +10,16 @@ import { SECTION_DEFAULTS } from './section-templates'
 /** Map of which types each source type can convert to, with data transfer logic */
 type ConversionFn = (source: Record<string, any>) => Record<string, any>
 type ConversionMap = Partial<Record<PageSectionType, ConversionFn>>
+export type ConversionGridColumns = 2 | 3 | 4
+
+export function getConversionGridColumns(items: unknown[] | null | undefined): ConversionGridColumns {
+  const count = Array.isArray(items) ? items.length : 0
+  if (count >= 4)
+    return 4
+  if (count === 2)
+    return 2
+  return 3
+}
 
 const CONVERSIONS: Record<string, ConversionMap> = {
   // ---- HERO ----
@@ -124,7 +134,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: img.description || '',
         image_url: img.url || '',
       })),
-      columns: Math.min((s.images || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.images),
     }),
     'tabs': s => ({
       title: s.title || '',
@@ -225,7 +235,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: img.description || '',
         image_url: img.url || '',
       })),
-      columns: Math.min((s.images || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.images),
     }),
     'content-block': s => ({
       title: s.title || '',
@@ -328,7 +338,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: stripHtml(t.content_html),
         image_url: t.image_url || '',
       })),
-      columns: Math.min((s.tabs || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.tabs),
     }),
     'gallery': s => ({
       title: s.title || '',
@@ -365,7 +375,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: stripHtml(item.answer),
         image_url: '',
       })),
-      columns: Math.min((s.items || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.items),
     }),
     'content-block': s => ({
       title: s.title || '',
@@ -486,7 +496,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: t.quote || '',
         image_url: t.avatar_url || '',
       })),
-      columns: Math.min((s.testimonials || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.testimonials),
     }),
     'gallery': s => ({
       title: s.title || '',
@@ -597,7 +607,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: stat.label || '',
         image_url: stat.icon_url || '',
       })),
-      columns: Math.min((s.stats || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.stats),
     }),
     'specs-grid': s => ({
       title: s.title || '',
@@ -638,7 +648,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: '',
         image_url: logo.image_url || '',
       })),
-      columns: Math.min((s.logos || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.logos),
     }),
   },
 
@@ -692,7 +702,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
         description: (t.features || []).join(', '),
         image_url: '',
       })),
-      columns: Math.min((s.tiers || []).length, 4) as 2 | 3 | 4 || 3,
+      columns: getConversionGridColumns(s.tiers),
     }),
     'accordion': s => ({
       title: s.title || '',

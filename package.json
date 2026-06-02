@@ -12,6 +12,7 @@
     "db:reset": "supabase db reset",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:dashboard": "CI=1 vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1",
     "test:skill": "vitest --reporter=verbose",
     "sandbox:build": "docker build -t oem-agent-sandbox .",
     "sandbox:dev": "docker run -it --rm -p 8080:8080 --env-file .env oem-agent-sandbox"
