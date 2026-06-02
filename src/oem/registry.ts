@@ -89,7 +89,7 @@ export const nissanAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: '.vehicle-list a, [class*="vehicle-card"] a',
-    heroSlides: '.hero-slideshow .slide, [class*="hero"] img[src*="hero"]',
+    heroSlides: '.homepage-hero.hero-carousel .carousel-slide:has(figure.main-image picture source[srcset*="/Images/homepage/"])',
     offerTiles: '.offer-tile, [class*="offer"]',
     priceDisplay: '.price, [class*="price"]',
   },

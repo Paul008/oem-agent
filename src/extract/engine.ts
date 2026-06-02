@@ -708,14 +708,19 @@ function deriveHeadlineFromImageUrl(url: string | null): string | null {
 
   const cleaned = decoded
     .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\.(?:avif|gif|jpe?g|png|webp)\.ximg\..*$/i, '')
     .replace(/\.(?:avif|gif|jpe?g|png|webp)$/i, '')
     .replace(/[_-]+/g, ' ')
     .replace(/\beofy\s*(\d{4})\b/gi, 'EOFY $1')
     .replace(/\b(?:MIT|MMA|MMC|SUZ)\d+\b/gi, ' ')
+    .replace(/\b(?:AU\d+|P\d+|MY\d+)\b/gi, ' ')
+    .replace(/\b\d{1,2}\s+(?=nissan\b)/gi, ' ')
     .replace(/\b\d{3,4}\s*x\s*\d{3,4}(?:px)?\b/gi, ' ')
     .replace(/\bopt\s*\d+\b/gi, ' ')
+    .replace(/\br\d+\b/gi, ' ')
     .replace(/\bv\d+(?:\.\d+)*\b/gi, ' ')
-    .replace(/\b(?:banner|copy|desktop|final|generic|hero|homepage|image|mobile|website|web)\b/gi, ' ')
+    .replace(/\b(?:banner|copy|desktop|final|generic|hero|homepage|hp|image|mobile|novignette|rgb|rich\s*media|vlp|website|web)\b/gi, ' ')
+    .replace(/\b[dtm]\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -951,7 +956,7 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   // Some AEM/GM sites use min-width sources but encode mobile in the filename.
   for (const src of mobileSources) {
     const srcset = $(src).attr('srcset') || '';
-    if (srcset && /mobile|mob|420x|375x|small/i.test(srcset)) {
+    if (srcset && /mobile|mob|420x|375x|small|\.c1[hm]\.|(?:hp|hero|banner)[_-]m(?:[_\-.]|$)/i.test(srcset)) {
       return srcset.split(',')[0].trim().split(' ')[0];
     }
   }

@@ -307,4 +307,55 @@ describe('extractWithSelectors', () => {
       image_url_mobile: 'https://assets.volkswagen.com/is/image/volkswagenag/Amarok_Mobile?mobile=320',
     });
   });
+
+  it('extracts Nissan homepage carousel slides with min-width mobile sources', () => {
+    const html = `
+      <div class="c_007_v2 height-legacy-desktop hero-carousel homepage-hero hero edge">
+        <div class="carousel-slide text-light">
+          <figure class="main-image">
+            <picture>
+              <source media="(min-width: 62.5em)" srcset="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-d-r3.jpg.ximg.full.hero.jpg" />
+              <source media="(min-width: 60.0em)" srcset="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-d-r3.jpg.ximg.c4.hero.jpg" />
+              <source media="(min-width: 36.3125em)" srcset="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-t-r3.jpg.ximg.c2m.hero.jpg" />
+              <source media="(min-width: 1.0em)" srcset="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-m-r3.jpg.ximg.c1m.hero.jpg, //www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-m-r3.jpg.ximg.c1h.hero.jpg 2x" />
+              <img src="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-d-r3.jpg.ximg.full.hero.jpg" />
+            </picture>
+          </figure>
+          <a class="cta cta-link cta-primary" href="/offers.html">View Offers</a>
+        </div>
+        <div class="carousel-slide hidden text-light">
+          <figure class="main-image">
+            <picture>
+              <source media="(min-width: 62.5em)" srcset="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/AU21-P00002570-09_Navara_HorseFloat_V13_NoVignette_RGB-hp-d-r9.jpg.ximg.full.hero.jpg" />
+              <source media="(min-width: 1.0em)" srcset="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/AU21-P00002570-09_Navara_HorseFloat_V13_NoVignette_RGB-hp-m-r8.jpg.ximg.c1m.hero.jpg" />
+              <img src="//www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/AU21-P00002570-09_Navara_HorseFloat_V13_NoVignette_RGB-hp-d-r9.jpg.ximg.full.hero.jpg" />
+            </picture>
+          </figure>
+          <h2 class="title">All-new Navara</h2>
+          <a class="cta cta-link cta-primary" href="/vehicles/browse-range/all-new-navara.html">Explore</a>
+          <a class="cta cta-link cta-secondary" href="/vehicles/browse-range/all-new-navara/version-explorer/ve.shtml">Build Your Navara</a>
+        </div>
+      </div>
+    `;
+
+    const result = extractWithSelectors(html, 'nissan-au', 'homepage', {
+      heroSlides: '.homepage-hero.hero-carousel .carousel-slide',
+    });
+
+    expect(result.bannerSlides).toHaveLength(2);
+    expect(result.bannerSlides[0]).toMatchObject({
+      headline: 'X Trail June Offer',
+      cta_text: 'View Offers',
+      cta_url: 'https://www.nissan.com.au/offers.html',
+      image_url_desktop: 'https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-d-r3.jpg.ximg.full.hero.jpg',
+      image_url_mobile: 'https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/x-trail-june-offer-hp-m-r3.jpg.ximg.c1m.hero.jpg',
+    });
+    expect(result.bannerSlides[1]).toMatchObject({
+      headline: 'All-new Navara',
+      cta_text: 'Explore',
+      cta_url: 'https://www.nissan.com.au/vehicles/browse-range/all-new-navara.html',
+      image_url_desktop: 'https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/AU21-P00002570-09_Navara_HorseFloat_V13_NoVignette_RGB-hp-d-r9.jpg.ximg.full.hero.jpg',
+      image_url_mobile: 'https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/AU21-P00002570-09_Navara_HorseFloat_V13_NoVignette_RGB-hp-m-r8.jpg.ximg.c1m.hero.jpg',
+    });
+  });
 });
