@@ -1,6 +1,6 @@
 import type { PageSectionType } from './section-templates'
 
-import { createSectionFeatureCardItem, createSectionShowcaseImageItem, createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
+import { createSectionAccordionItem, createSectionFeatureCardItem, createSectionShowcaseImageItem, createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
 
 /**
  * Section Converter — converts a section from one type to another,
@@ -281,7 +281,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'accordion': s => ({
       title: s.title || '',
-      items: (s.cards || []).map((c: any) => ({
+      items: (s.cards || []).map((c: any) => createSectionAccordionItem({
         question: c.title || '',
         answer: c.description || '',
       })),
@@ -324,7 +324,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
   'tabs': {
     'accordion': s => ({
       title: s.title || '',
-      items: (s.tabs || []).map((t: any) => ({
+      items: (s.tabs || []).map((t: any) => createSectionAccordionItem({
         question: t.label || '',
         answer: t.content_html || '',
       })),
@@ -507,7 +507,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'accordion': s => ({
       title: s.title || '',
-      items: (s.testimonials || []).map((t: any) => ({
+      items: (s.testimonials || []).map((t: any) => createSectionAccordionItem({
         question: `${t.author || 'Customer'}${t.role ? ` — ${t.role}` : ''}`,
         answer: t.quote || '',
       })),
@@ -544,7 +544,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'accordion': s => ({
       title: s.title || '',
-      items: (s.rows || []).map((r: any) => ({
+      items: (s.rows || []).map((r: any) => createSectionAccordionItem({
         question: r.feature || '',
         answer: (s.columns || []).slice(1).map((col: any, i: number) =>
           `${col.label}: ${(r.values || [])[i] || '-'}`,
@@ -583,7 +583,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     },
     'accordion': s => ({
       title: s.title || '',
-      items: (s.categories || []).map((cat: any) => ({
+      items: (s.categories || []).map((cat: any) => createSectionAccordionItem({
         question: cat.name || '',
         answer: (cat.specs || []).map((spec: any) =>
           `${spec.label}: ${spec.value}${spec.unit ? ` ${spec.unit}` : ''}`,
@@ -701,7 +701,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'accordion': s => ({
       title: s.title || '',
-      items: (s.tiers || []).map((t: any) => ({
+      items: (s.tiers || []).map((t: any) => createSectionAccordionItem({
         question: `${t.name} — ${t.price}`,
         answer: (t.features || []).map((f: string) => `• ${f}`).join('\n'),
       })),

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  createSectionAccordionItem,
   createSectionFeatureCardItem,
   createSectionShowcaseImageItem,
   createSectionTabItem,
@@ -150,6 +151,37 @@ describe('section nested item defaults', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
     expect(source).not.toContain("addArrayItem('cards', { title: '', description: '', image_url: '' })")
+  })
+
+  it('creates fresh accordion items with the base accordion schema', () => {
+    const first = createSectionAccordionItem()
+    const second = createSectionAccordionItem({
+      question: 'What is covered?',
+      answer: 'Warranty details',
+    })
+
+    expect(first).toEqual({
+      question: '',
+      answer: '',
+    })
+    expect(second).toEqual({
+      question: 'What is covered?',
+      answer: 'Warranty details',
+    })
+    expect(first).not.toBe(second)
+  })
+
+  it('uses shared accordion item defaults for blank accordion sections', () => {
+    const section = SECTION_DEFAULTS.accordion()
+
+    expect(section.items).toEqual([createSectionAccordionItem()])
+    expect(section.items[0]).not.toBe(createSectionAccordionItem())
+  })
+
+  it('keeps accordion item literals out of the editor add action', () => {
+    const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
+
+    expect(source).not.toContain("addArrayItem('items', { question: '', answer: '' })")
   })
 })
 

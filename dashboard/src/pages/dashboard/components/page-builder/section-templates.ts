@@ -68,6 +68,19 @@ export function createSectionFeatureCardItem(overrides: Partial<SectionFeatureCa
   }
 }
 
+export interface SectionAccordionItem {
+  question: string
+  answer: string
+}
+
+export function createSectionAccordionItem(overrides: Partial<SectionAccordionItem> = {}): SectionAccordionItem {
+  return {
+    question: '',
+    answer: '',
+    ...overrides,
+  }
+}
+
 export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>> = {
   'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left', show_overlay: true, full_width_image: false, animation: 'none' }),
   'heading': () => ({ heading: '', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: '', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', text_color: '', line_gap: '8', background_color: '', animation: 'fade-up' }),
@@ -82,7 +95,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'video': () => ({ title: '', video_url: '', poster_url: '', autoplay: false, layout: 'contained', animation: 'fade-in' }),
   'cta-banner': () => ({ heading: '', body: '', cta_text: '', cta_url: '', background_color: '', animation: 'fade-up' }),
   'content-block': () => ({ title: '', content_html: '', layout: 'contained', background: '', image_url: '', animation: 'fade-up' }),
-  'accordion': () => ({ title: '', items: [{ question: '', answer: '' }], section_id: '' }),
+  'accordion': () => ({ title: '', items: [createSectionAccordionItem()], section_id: '' }),
   'enquiry-form': () => ({ heading: 'Enquire Now', sub_heading: '', form_type: 'contact', vehicle_context: true }),
   'map': () => ({ title: '', sub_heading: '', embed_url: '' }),
   'alert': () => ({ title: '', message: '', variant: 'info', dismissible: false }),
@@ -148,8 +161,8 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { id: 'video-standard', name: 'Standard Video', description: 'Click-to-play video', type: 'video', data: { autoplay: false, video_url: '' } },
 
   // Accordion
-  { id: 'accordion-faq', name: 'FAQ Section', description: 'Expandable question & answer panels', type: 'accordion', data: { title: 'Frequently Asked Questions', items: [{ question: 'What is the warranty?', answer: '' }, { question: 'What finance options are available?', answer: '' }] } },
-  { id: 'accordion-disclaimers', name: 'Warranty & Disclaimers', description: 'Collapsible legal and warranty information', type: 'accordion', data: { title: 'Warranty & Disclaimers', items: [{ question: 'Warranty Coverage', answer: '' }], section_id: 'disclaimers' } },
+  { id: 'accordion-faq', name: 'FAQ Section', description: 'Expandable question & answer panels', type: 'accordion', data: { title: 'Frequently Asked Questions', items: [createSectionAccordionItem({ question: 'What is the warranty?' }), createSectionAccordionItem({ question: 'What finance options are available?' })] } },
+  { id: 'accordion-disclaimers', name: 'Warranty & Disclaimers', description: 'Collapsible legal and warranty information', type: 'accordion', data: { title: 'Warranty & Disclaimers', items: [createSectionAccordionItem({ question: 'Warranty Coverage' })], section_id: 'disclaimers' } },
 
   // Enquiry Form
   { id: 'enquiry-contact', name: 'General Enquiry', description: 'Contact form placeholder for dealer enquiries', type: 'enquiry-form', data: { heading: 'Get in Touch', sub_heading: 'Fill out the form below and our team will be in touch.', form_type: 'contact', vehicle_context: true } },

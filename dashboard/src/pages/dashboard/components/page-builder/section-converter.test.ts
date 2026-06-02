@@ -141,4 +141,37 @@ describe('section conversion nested item defaults', () => {
     expect(source).not.toContain('cards: (s.logos || []).map((logo: any) => ({')
     expect(source).not.toContain('cards: (s.tiers || []).map((t: any) => ({')
   })
+
+  it('uses the shared accordion item shape when converting feature cards into accordion items', () => {
+    const converted = convertSectionData({
+      id: 'features-1',
+      order: 5,
+      type: 'feature-cards',
+      title: 'Highlights',
+      cards: [{ title: 'Towing', description: 'Up to 3500kg', image_url: '/media/tow.jpg' }],
+    }, 'accordion')
+
+    expect(converted).toMatchObject({
+      id: 'features-1',
+      order: 5,
+      type: 'accordion',
+      title: 'Highlights',
+      items: [{
+        question: 'Towing',
+        answer: 'Up to 3500kg',
+      }],
+      section_id: '',
+    })
+  })
+
+  it('keeps accordion item literals centralized in conversions', () => {
+    const source = readFileSync(new URL('./section-converter.ts', import.meta.url), 'utf8')
+
+    expect(source).not.toContain('items: (s.cards || []).map((c: any) => ({')
+    expect(source).not.toContain('items: (s.tabs || []).map((t: any) => ({')
+    expect(source).not.toContain('items: (s.testimonials || []).map((t: any) => ({')
+    expect(source).not.toContain('items: (s.rows || []).map((r: any) => ({')
+    expect(source).not.toContain('items: (s.categories || []).map((cat: any) => ({')
+    expect(source).not.toContain('items: (s.tiers || []).map((t: any) => ({')
+  })
 })
