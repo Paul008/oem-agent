@@ -13,62 +13,66 @@ import VueRouter from 'vue-router/vite'
 
 const RouteGenerateExclude = ['**/components/**', '**/layouts/**', '**/data/**', '**/types/**']
 
-export default defineConfig({
-  plugins: [
-    VueRouter({
-      exclude: RouteGenerateExclude,
-      dts: 'src/types/route-map.d.ts',
-    }),
-    vue(),
-    vueJsx(),
-    vueDevTools(),
-    tailwindcss(),
-    visualizer({ gzipSize: true, brotliSize: true }),
-    Layouts({
-      defaultLayout: 'default',
-    }),
-    AutoImport({
-      include: [
-        /\.[tj]sx?$/,
-        /\.vue$/,
-      ],
-      imports: [
-        'vue',
-        VueRouterAutoImports,
-      ],
-      dirs: [
-        'src/composables/**/*.ts',
-        'src/constants/**/*.ts',
-        'src/stores/**/*.ts',
-      ],
-      defaultExportByFilename: true,
-      dts: 'src/types/auto-import.d.ts',
-    }),
-    Component({
-      dirs: [
-        'src/components',
-      ],
-      collapseSamePrefixes: true,
-      directoryAsNamespace: true,
-      dts: 'src/types/auto-import-components.d.ts',
-    }),
-  ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+export default defineConfig(({ mode }) => {
+  const isProduction = mode === 'production'
+
+  return {
+    plugins: [
+      VueRouter({
+        exclude: RouteGenerateExclude,
+        dts: 'src/types/route-map.d.ts',
+      }),
+      vue(),
+      vueJsx(),
+      !isProduction && vueDevTools(),
+      tailwindcss(),
+      visualizer({ gzipSize: true, brotliSize: true }),
+      Layouts({
+        defaultLayout: 'default',
+      }),
+      AutoImport({
+        include: [
+          /\.[tj]sx?$/,
+          /\.vue$/,
+        ],
+        imports: [
+          'vue',
+          VueRouterAutoImports,
+        ],
+        dirs: [
+          'src/composables/**/*.ts',
+          'src/constants/**/*.ts',
+          'src/stores/**/*.ts',
+        ],
+        defaultExportByFilename: true,
+        dts: 'src/types/auto-import.d.ts',
+      }),
+      Component({
+        dirs: [
+          'src/components',
+        ],
+        collapseSamePrefixes: true,
+        directoryAsNamespace: true,
+        dts: 'src/types/auto-import-components.d.ts',
+      }),
+    ].filter(Boolean),
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          gsap: ['gsap', 'gsap/ScrollTrigger'],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            gsap: ['gsap', 'gsap/ScrollTrigger'],
+          },
         },
       },
     },
-  },
-  esbuild: {
-    drop: ['debugger'],
-    pure: ['console.log'],
-  },
+    esbuild: {
+      drop: ['debugger'],
+      pure: ['console.log'],
+    },
+  }
 })
