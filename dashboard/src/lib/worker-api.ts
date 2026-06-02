@@ -262,12 +262,10 @@ export async function generatePage(oemId: string, modelSlug: string, modelOverri
   })
 }
 
-export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string, model: string }) {
+export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string) {
   const bodyData: Record<string, unknown> = {}
   if (sourceUrl)
     bodyData.source_url = sourceUrl
-  if (modelOverride)
-    bodyData.modelOverride = modelOverride
   const hasBody = Object.keys(bodyData).length > 0
   return workerFetch(`/api/v1/oem-agent/admin/clone-page/${oemId}/${modelSlug}`, {
     method: 'POST',

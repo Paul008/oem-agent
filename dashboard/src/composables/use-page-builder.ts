@@ -652,13 +652,13 @@ export function usePageBuilder() {
 
   const cloning = ref(false)
 
-  async function handleClone(modelOverride?: { provider: string, model: string }) {
+  async function handleClone() {
     if (!oemId.value || !modelSlug.value)
       return
     cloning.value = true
     try {
       const overrideUrl = sourceUrlOverride.value?.trim() || undefined
-      await clonePage(oemId.value, modelSlug.value, overrideUrl, modelOverride)
+      await clonePage(oemId.value, modelSlug.value, overrideUrl)
       await refreshPage()
     }
     catch (err: any) {

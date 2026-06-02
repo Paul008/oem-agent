@@ -449,7 +449,7 @@ const workflowSteps = computed(() => {
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
           class="hidden xl:inline-flex"
-          @click="handleClone(selectedModelOverride)"
+          @click="handleClone()"
         >
           <Copy v-if="!cloning" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -566,7 +566,7 @@ const workflowSteps = computed(() => {
               </UiDropdownMenuLabel>
               <UiDropdownMenuItem
                 :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
-                @select="handleClone(selectedModelOverride)"
+                @select="handleClone()"
               >
                 <Copy class="size-3.5 mr-2" />
                 Clone{{ needsSourceUrl && !sourceUrlOverride?.trim() ? ' (enter URL first)' : '' }}

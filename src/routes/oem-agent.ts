@@ -2390,12 +2390,11 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
 
-  // Accept optional source_url override and modelOverride in body
+  // Accept optional source_url override in body
   let bodySourceUrl: string | undefined;
   try {
     const body = await c.req.json();
     bodySourceUrl = body?.source_url;
-    // Note: clone-page doesn't use AI, but we accept modelOverride for API consistency
   } catch { /* no body is fine */ }
 
   const supabase = createSupabaseClient({
