@@ -12,15 +12,21 @@ import { VueRouterAutoImports } from 'vue-router/unplugin'
 import VueRouter from 'vue-router/vite'
 
 const RouteGenerateExclude = ['**/components/**', '**/layouts/**', '**/data/**', '**/types/**']
+const dashboardRoot = fileURLToPath(new URL('./', import.meta.url))
+const routeMapDtsPath = fileURLToPath(new URL('./src/types/route-map.d.ts', import.meta.url))
+const autoImportDtsPath = fileURLToPath(new URL('./src/types/auto-import.d.ts', import.meta.url))
+const autoImportComponentsDtsPath = fileURLToPath(new URL('./src/types/auto-import-components.d.ts', import.meta.url))
+const shouldWriteGeneratedTypes = process.env.VITEST !== 'true'
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production'
 
   return {
+    root: dashboardRoot,
     plugins: [
       VueRouter({
         exclude: RouteGenerateExclude,
-        dts: 'src/types/route-map.d.ts',
+        ...(shouldWriteGeneratedTypes ? { dts: routeMapDtsPath } : { dts: false }),
       }),
       vue(),
       vueJsx(),
@@ -45,7 +51,7 @@ export default defineConfig(({ mode }) => {
           'src/stores/**/*.ts',
         ],
         defaultExportByFilename: true,
-        dts: 'src/types/auto-import.d.ts',
+        ...(shouldWriteGeneratedTypes ? { dts: autoImportDtsPath } : { dts: false }),
       }),
       Component({
         dirs: [
@@ -53,7 +59,7 @@ export default defineConfig(({ mode }) => {
         ],
         collapseSamePrefixes: true,
         directoryAsNamespace: true,
-        dts: 'src/types/auto-import-components.d.ts',
+        ...(shouldWriteGeneratedTypes ? { dts: autoImportComponentsDtsPath } : { dts: false }),
       }),
     ].filter(Boolean),
     resolve: {
