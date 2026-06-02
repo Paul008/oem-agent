@@ -21,7 +21,7 @@ import type { SmartPromptBuilder } from './prompt-builder';
 
 const R2_PREFIX = 'pages/definitions';
 
-const VALID_SECTION_TYPES: PageSectionType[] = [
+const EXTRACTABLE_SECTION_TYPES: PageSectionType[] = [
   'hero', 'intro', 'tabs', 'color-picker', 'specs-grid',
   'gallery', 'feature-cards', 'video', 'cta-banner', 'content-block',
 ];
@@ -605,7 +605,7 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
       if (!s || typeof s !== 'object') continue;
 
       // Validate type
-      if (!VALID_SECTION_TYPES.includes(s.type)) continue;
+      if (!EXTRACTABLE_SECTION_TYPES.includes(s.type)) continue;
 
       // Ensure unique ID
       let id = s.id || `section-${s.type}-${i}`;
