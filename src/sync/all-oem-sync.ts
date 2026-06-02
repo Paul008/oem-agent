@@ -2,13 +2,13 @@
  * All-OEM Data Sync
  *
  * Runs inside the Cloudflare Worker on the daily oem-data-sync cron.
- * Fetches colors, pricing, and variant data from OEM APIs that provide
+ * Fetches colors, pricing, specs, and variant data from OEM APIs that provide
  * structured data (not just HTML crawl).
  *
  * OEM-specific syncs:
  *   - Kia:        BYO pages → colors + 8-state driveaway pricing (separate kia-colors.ts)
- *   - Hyundai:    CGI configurator → colors + national pricing
- *   - Mazda:      /build/ BuildMyMazda payload → colors + state driveaway pricing + accessories
+ *   - Hyundai:    CGI configurator + v3 specifications API → specs, colors + national pricing
+ *   - Mazda:      /build/ BuildMyMazda payload → specs, colors + state driveaway pricing + accessories
  *   - Mitsubishi: Magento GraphQL → colors + pricing + state driveaway
  *   - VW:         OneHub API → products, colors (4-angle), pricing, offers, brochures
  *   - GWM:        Storyblok CDN → pricing, colors/gallery, accessories
@@ -40,9 +40,108 @@ function slugify(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+type SpecsSection = Record<string, string | number>;
+type SpecsJson = Record<string, SpecsSection>;
+
+function parseSpecNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const match = String(value).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const parsed = Number.parseFloat(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseSpecWithUnit(value: unknown, unit: RegExp): number | null {
+  if (value === null || value === undefined) return null;
+  const match = String(value).replace(/,/g, '').match(unit);
+  if (!match) return null;
+  const parsed = Number.parseFloat(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseDisplacementCc(value: unknown): number | null {
+  const cc = parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*cc/i);
+  if (cc !== null) return Math.round(cc);
+
+  const litres = parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*(?:l|litre|litres)\b/i);
+  return litres !== null ? Math.round(litres * 1000) : null;
+}
+
+function parsePowerKw(value: unknown): number | null {
+  return parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*kW/i);
+}
+
+function parseTorqueNm(value: unknown): number | null {
+  return parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*Nm/i);
+}
+
+function parseKg(value: unknown): number | null {
+  return parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*kg/i);
+}
+
+function parseMm(value: unknown): number | null {
+  return parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*mm/i);
+}
+
+function parseLitres(value: unknown): number | null {
+  return parseSpecWithUnit(value, /(\d+(?:\.\d+)?)\s*(?:l|litre|litres)\b/i);
+}
+
+function parseGears(value: unknown): number | null {
+  const match = String(value ?? '').match(/(\d+)\s*(?:-\s*)?speed/i);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+function compactSection(values: Record<string, unknown>): SpecsSection | null {
+  const entries = Object.entries(values).filter(([, value]) => {
+    if (value === null || value === undefined || value === '') return false;
+    if (typeof value === 'number' && Number.isNaN(value)) return false;
+    return typeof value === 'string' || typeof value === 'number';
+  }) as Array<[string, string | number]>;
+  return entries.length ? Object.fromEntries(entries) : null;
+}
+
+function addSpecsSection(specs: SpecsJson, key: string, values: Record<string, unknown>): void {
+  const section = compactSection(values);
+  if (section) specs[key] = section;
+}
+
+function numericSpecValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return parseSpecNumber(value);
+}
+
+function productPatchFromSpecs(specsJson: SpecsJson): Record<string, unknown> {
+  const patch: Record<string, unknown> = { specs_json: specsJson };
+  const engine = specsJson.engine ?? {};
+  const transmission = specsJson.transmission ?? {};
+  const capacity = specsJson.capacity ?? {};
+
+  const displacementCc = numericSpecValue(engine.displacement_cc);
+  if (displacementCc) patch.engine_size = `${(displacementCc / 1000).toFixed(1)}L`;
+
+  const cylinders = numericSpecValue(engine.cylinders);
+  if (cylinders !== null) patch.cylinders = cylinders;
+
+  if (typeof transmission.type === 'string' && transmission.type) patch.transmission = transmission.type;
+
+  const gears = numericSpecValue(transmission.gears);
+  if (gears !== null) patch.gears = gears;
+
+  if (typeof transmission.drive === 'string' && transmission.drive) patch.drive = transmission.drive;
+
+  const doors = numericSpecValue(capacity.doors);
+  if (doors !== null) patch.doors = doors;
+
+  const seats = numericSpecValue(capacity.seats);
+  if (seats !== null) patch.seats = seats;
+
+  return patch;
+}
+
 export interface AllOemSyncResult {
-  hyundai: { colors: number; pricing: number; errors: string[] };
-  mazda: { colors: number; pricing: number; accessories: number; errors: string[] };
+  hyundai: { colors: number; pricing: number; specs: number; errors: string[] };
+  mazda: { colors: number; pricing: number; specs: number; accessories: number; errors: string[] };
   mitsubishi: MitsubishiSyncResult;
   volkswagen: { products: number; colors: number; pricing: number; offers: number; errors: string[] };
   foton: { products: number; colors: number; pricing: number; errors: string[] };
@@ -97,6 +196,24 @@ interface HyundaiCgiData {
     }>;
   }>;
 }
+
+interface HyundaiSpecApiResponse {
+  specVersion?: Array<{
+    category?: Array<{
+      subCategory?: Array<{
+        name?: string;
+        specification?: Array<{
+          name?: string;
+          values?: Array<{ value?: string | null }>;
+        }>;
+      }>;
+    }>;
+  }>;
+}
+
+type HyundaiSpecMap = Record<string, Record<string, string>>;
+
+const HYUNDAI_SPEC_API = 'https://www.hyundai.com/content/api/au/hyundai/v3/specifications';
 
 const HYUNDAI_MODELS = [
   { slug: 'venue', aliases: ['venue'], url: '/au/en/cars/suvs/venue' },
@@ -196,8 +313,158 @@ function hyundaiGalleryUrls(
   return [...new Set(urls)];
 }
 
+function flattenHyundaiSpecs(data: HyundaiSpecApiResponse): HyundaiSpecMap {
+  const map: HyundaiSpecMap = {};
+  const specVersion = data.specVersion?.[0];
+  if (!specVersion?.category) return map;
+
+  for (const category of specVersion.category) {
+    for (const subCategory of category.subCategory ?? []) {
+      const section = subCategory.name || 'Other';
+      if (!map[section]) map[section] = {};
+      for (const spec of subCategory.specification ?? []) {
+        const name = spec.name?.trim();
+        const value = spec.values?.[0]?.value?.trim();
+        if (name && value && value !== 'N/A') map[section][name] = value;
+      }
+    }
+  }
+
+  return map;
+}
+
+function countHyundaiAirbags(specMap: HyundaiSpecMap): number | null {
+  let count = 0;
+  for (const [key, value] of Object.entries(specMap.Airbags || {})) {
+    if (value !== 'TRUE') continue;
+    if (key.includes('Front airbags')) count += 2;
+    else if (key.includes('Side (thorax)')) count += 2;
+    else if (key.includes('Side Curtain Front')) count += 2;
+    else if (key.includes('Side curtain airbag - 2nd Row')) count += 2;
+    else count += 1;
+  }
+  return count || null;
+}
+
+function deriveHyundaiFuelType(variantLabel: string, fuelTypeSpec?: string, isElectric?: boolean): string | null {
+  const text = `${variantLabel || ''} ${fuelTypeSpec || ''}`.toLowerCase();
+  if (text.includes('plug-in') || text.includes('phev')) return 'PHEV';
+  if (text.includes('hybrid') || text.includes('hev')) return 'Hybrid';
+  if (isElectric || text.includes('electric') || /\bev\b/.test(text) || text.includes('bev')) return 'Electric';
+  if (text.includes('diesel')) return 'Diesel';
+  if (text.includes('petrol') || text.includes('mpi') || text.includes('gdi') || text.includes('ron')) return 'Petrol';
+  return null;
+}
+
+function deriveDriveFromText(value: string): string | null {
+  if (/\bAWD\b/i.test(value)) return 'AWD';
+  if (/\b4WD\b/i.test(value)) return '4WD';
+  if (/\bFWD\b/i.test(value)) return 'FWD';
+  if (/\bRWD\b/i.test(value)) return 'RWD';
+  return null;
+}
+
+function deriveHyundaiTransmissionType(value: string): string | null {
+  const lowerValue = value.toLowerCase();
+  if (lowerValue.includes('manual')) return 'Manual';
+  if (
+    lowerValue.includes('automatic')
+    || lowerValue.includes('dct')
+    || lowerValue.includes('ivt')
+    || lowerValue.includes('cvt')
+    || lowerValue.includes('single-speed')
+    || /\b\d+\s*(?:-\s*)?speed\b/i.test(value)
+  ) return 'Automatic';
+  return null;
+}
+
+function parseWheelSize(value: unknown): string | null {
+  const match = String(value ?? '').match(/(\d+)\s*x/);
+  return match ? `${match[1]}"` : null;
+}
+
+function buildHyundaiSpecsJson(data: HyundaiSpecApiResponse, variantLabel: string, isElectric?: boolean): SpecsJson | null {
+  const specMap = flattenHyundaiSpecs(data);
+  if (Object.keys(specMap).length === 0) return null;
+
+  const engine = specMap.Engine || {};
+  const transmission = specMap.Transmission || {};
+  const weight = specMap.Weight || {};
+  const towing = specMap['Towing capacity'] || {};
+  const fuel = specMap['Fuel consumption'] || {};
+  const exterior = specMap.Exterior || {};
+  const interior = specMap.Interior || {};
+  const wheels = specMap['Wheels & tyres'] || specMap['Wheels & Tyres'] || {};
+
+  const specs: SpecsJson = {};
+  addSpecsSection(specs, 'engine', {
+    type: deriveHyundaiFuelType(variantLabel, engine['Fuel Type'], isElectric),
+    displacement_cc: parseDisplacementCc(engine['Cylinder capacity']),
+    cylinders: parseSpecNumber(engine['Number of cylinders']),
+    power_kw: parsePowerKw(engine['Maximum Power']),
+    torque_nm: parseTorqueNm(engine['Maximum Torque']),
+  });
+  addSpecsSection(specs, 'transmission', {
+    type: deriveHyundaiTransmissionType(`${variantLabel} ${transmission.Automatic || transmission.Manual || ''}`),
+    gears: parseGears(transmission.Automatic || transmission.Manual),
+    drive: deriveDriveFromText(variantLabel),
+  });
+  addSpecsSection(specs, 'dimensions', {
+    length_mm: parseMm(exterior.Length),
+    width_mm: parseMm(exterior.Width),
+    height_mm: parseMm(exterior.Height || exterior['Height (with roof rails)'] || exterior['Height (without roof rails)']),
+    wheelbase_mm: parseMm(exterior.Wheelbase),
+    kerb_weight_kg: parseKg(weight['Kerb weight - lightest']),
+  });
+  addSpecsSection(specs, 'performance', {
+    fuel_combined_l100km: parseSpecNumber(fuel['Combined (L/100km)']),
+    co2_gkm: parseSpecNumber(fuel['CO2 - combined (g/km)']),
+  });
+  addSpecsSection(specs, 'towing', {
+    braked_kg: parseKg(towing.Braked),
+    unbraked_kg: parseKg(towing.Unbraked),
+  });
+  addSpecsSection(specs, 'capacity', {
+    boot_litres: parseLitres(interior['Cargo area - VDA'] || interior['Boot volume - VDA']),
+    fuel_tank_litres: parseLitres(fuel['Fuel tank volume']),
+  });
+  addSpecsSection(specs, 'safety', {
+    airbags: countHyundaiAirbags(specMap),
+  });
+  addSpecsSection(specs, 'wheels', {
+    size: parseWheelSize(wheels['Wheel dimensions']),
+    type: wheels['Wheel type'] || null,
+  });
+
+  return Object.keys(specs).length ? specs : null;
+}
+
+async function fetchHyundaiSpecsJson(
+  variantId: string | undefined,
+  variantLabel: string,
+  isElectric: boolean | undefined,
+  cache: Map<string, SpecsJson | null>,
+): Promise<SpecsJson | null> {
+  if (!variantId) return null;
+  const cacheKey = variantId.trim();
+  if (cache.has(cacheKey)) return cache.get(cacheKey) ?? null;
+
+  const response = await fetch(`${HYUNDAI_SPEC_API}?variantId=${encodeURIComponent(cacheKey)}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      Accept: 'application/json',
+    },
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const json = await response.json() as HyundaiSpecApiResponse;
+  const specs = buildHyundaiSpecsJson(json, variantLabel, isElectric);
+  cache.set(cacheKey, specs);
+  return specs;
+}
+
 async function syncHyundai(supabase: SupabaseClient): Promise<AllOemSyncResult['hyundai']> {
-  const result = { colors: 0, pricing: 0, errors: [] as string[] };
+  const result = { colors: 0, pricing: 0, specs: 0, errors: [] as string[] };
   const BASE = 'https://www.hyundai.com';
   const OEM_ID = 'hyundai-au';
 
@@ -211,6 +478,7 @@ async function syncHyundai(supabase: SupabaseClient): Promise<AllOemSyncResult['
 
   const modelMap = Object.fromEntries((dbModels ?? []).map(m => [m.slug, m]));
   const products = existingProducts ?? [];
+  const specsCache = new Map<string, SpecsJson | null>();
 
   for (const mp of HYUNDAI_MODELS) {
     const model = mp.aliases.map(alias => modelMap[alias]).find(Boolean);
@@ -289,6 +557,13 @@ async function syncHyundai(supabase: SupabaseClient): Promise<AllOemSyncResult['
               continue;
             }
             matchedProducts++;
+            const specLabel = [gradeName, variant.variantDescription, variant.engineNTrans].filter(Boolean).join(' ');
+            let specsJson: SpecsJson | null = null;
+            try {
+              specsJson = await fetchHyundaiSpecsJson(variant.variantId, specLabel, variant.isElectric, specsCache);
+            } catch (e) {
+              result.errors.push(`Hyundai specs ${variant.variantId || fallbackExternalKey}: ${e instanceof Error ? e.message : String(e)}`);
+            }
 
             // Upsert colors
             const seenCodes = new Set<string>();
@@ -336,6 +611,17 @@ async function syncHyundai(supabase: SupabaseClient): Promise<AllOemSyncResult['
                     result.errors.push(`Hyundai product price ${fallbackExternalKey}: ${productUpdateErr.message}`);
                   }
                 }
+              }
+            }
+
+            if (specsJson) {
+              const { error: specUpdateErr } = await supabase.from('products')
+                .update(productPatchFromSpecs(specsJson))
+                .eq('id', existing.id);
+              if (specUpdateErr) {
+                result.errors.push(`Hyundai specs update ${fallbackExternalKey}: ${specUpdateErr.message}`);
+              } else {
+                result.specs++;
               }
             }
           }
@@ -438,7 +724,11 @@ interface MazdaBuildVariant {
   children?: Array<{
     grade?: string;
     gradePrefix?: string;
+    drivetrain?: string;
+    fuelTankCapacity?: string;
+    fuelType?: string;
     transmissionDescription?: string;
+    transmissionType?: string;
     engineName?: string;
     engineSize?: string;
     maximumPower?: string;
@@ -522,6 +812,152 @@ function mazdaStateDriveaways(prices?: MazdaBuildPrice[]): Record<string, number
   return row;
 }
 
+type MazdaBuildVariantDetails = NonNullable<MazdaBuildVariant['children']>[number];
+
+interface MazdaModelKnownSpecs {
+  length_mm: number;
+  width_mm: number;
+  height_mm: number;
+  wheelbase_mm: number;
+  kerb_weight_kg: number;
+  doors: number;
+  seats: number;
+  ancap_stars: number | null;
+  airbags: number;
+  towing_braked: number;
+  towing_unbraked: number;
+}
+
+const MAZDA_MODEL_SPECS: Record<string, MazdaModelKnownSpecs> = {
+  'mazda2': { length_mm: 4065, width_mm: 1695, height_mm: 1500, wheelbase_mm: 2570, kerb_weight_kg: 1050, doors: 5, seats: 5, ancap_stars: 5, airbags: 6, towing_braked: 0, towing_unbraked: 0 },
+  'mazda3': { length_mm: 4460, width_mm: 1795, height_mm: 1435, wheelbase_mm: 2725, kerb_weight_kg: 1354, doors: 5, seats: 5, ancap_stars: 5, airbags: 7, towing_braked: 0, towing_unbraked: 0 },
+  'cx-3': { length_mm: 4275, width_mm: 1765, height_mm: 1550, wheelbase_mm: 2570, kerb_weight_kg: 1230, doors: 5, seats: 5, ancap_stars: 5, airbags: 6, towing_braked: 0, towing_unbraked: 0 },
+  'cx-5': { length_mm: 4575, width_mm: 1845, height_mm: 1680, wheelbase_mm: 2700, kerb_weight_kg: 1560, doors: 5, seats: 5, ancap_stars: 5, airbags: 6, towing_braked: 1800, towing_unbraked: 750 },
+  'cx-60': { length_mm: 4745, width_mm: 1890, height_mm: 1680, wheelbase_mm: 2870, kerb_weight_kg: 1770, doors: 5, seats: 5, ancap_stars: 5, airbags: 6, towing_braked: 2000, towing_unbraked: 750 },
+  'cx-70': { length_mm: 4860, width_mm: 1930, height_mm: 1690, wheelbase_mm: 2870, kerb_weight_kg: 1870, doors: 5, seats: 5, ancap_stars: 5, airbags: 6, towing_braked: 2000, towing_unbraked: 750 },
+  'cx-80': { length_mm: 4990, width_mm: 1890, height_mm: 1710, wheelbase_mm: 3120, kerb_weight_kg: 1930, doors: 5, seats: 7, ancap_stars: 5, airbags: 6, towing_braked: 2500, towing_unbraked: 750 },
+  'cx-90': { length_mm: 5100, width_mm: 1930, height_mm: 1745, wheelbase_mm: 3120, kerb_weight_kg: 2066, doors: 5, seats: 7, ancap_stars: 5, airbags: 6, towing_braked: 2500, towing_unbraked: 750 },
+  'mx-5': { length_mm: 3915, width_mm: 1735, height_mm: 1235, wheelbase_mm: 2310, kerb_weight_kg: 1075, doors: 2, seats: 2, ancap_stars: 5, airbags: 6, towing_braked: 0, towing_unbraked: 0 },
+  'bt-50': { length_mm: 5280, width_mm: 1870, height_mm: 1790, wheelbase_mm: 3125, kerb_weight_kg: 1910, doors: 4, seats: 5, ancap_stars: 5, airbags: 6, towing_braked: 3500, towing_unbraked: 750 },
+};
+
+const MAZDA_ENGINE_DETAILS: Record<string, { displacement_cc: number; cylinders: number }> = {
+  'skyactiv-g-1.5': { displacement_cc: 1496, cylinders: 4 },
+  'skyactiv-g-2.0': { displacement_cc: 1998, cylinders: 4 },
+  'skyactiv-g-2.5': { displacement_cc: 2488, cylinders: 4 },
+  'skyactiv-g-2.5t': { displacement_cc: 2488, cylinders: 4 },
+  'skyactiv-d-1.8': { displacement_cc: 1759, cylinders: 4 },
+  'skyactiv-d-3.3': { displacement_cc: 3283, cylinders: 6 },
+  'e-skyactiv-phev-2.5': { displacement_cc: 2488, cylinders: 4 },
+  'e-skyactiv-x-2.0': { displacement_cc: 1998, cylinders: 4 },
+  'bt50-3.0d': { displacement_cc: 2999, cylinders: 4 },
+  'bt50-2.2d': { displacement_cc: 2184, cylinders: 4 },
+  'skyactiv-g-3.3t': { displacement_cc: 3283, cylinders: 6 },
+};
+
+function deriveMazdaFuelType(fuelType: unknown, engineName: unknown): string {
+  const text = `${fuelType || ''} ${engineName || ''}`.toLowerCase();
+  if (text.includes('phev') || text.includes('plug-in')) return 'PHEV';
+  if (text.includes('hybrid') || text.includes('mhev') || text.includes('e-skyactiv')) return 'Hybrid';
+  if (text.includes('diesel') || text.includes('skyactiv-d') || text.includes('skyactiv d')) return 'Diesel';
+  if (text.includes('electric')) return 'Electric';
+  return 'Petrol';
+}
+
+function findMazdaEngineDetails(engineName: unknown, engineSize: unknown): { displacement_cc: number; cylinders: number } | null {
+  const name = String(engineName || '').toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '');
+  const size = String(engineSize || '').toLowerCase().replace(/\s+/g, '');
+  const sizeNum = size.replace(/l.*/, '');
+  const isDiesel = name.includes('skyactiv-d') || name.includes('skyactiv-diesel') || name.includes('diesel');
+
+  if (name.includes('bt-50') || name.includes('isuzu') || (size.startsWith('3.0') && isDiesel)) return MAZDA_ENGINE_DETAILS['bt50-3.0d'];
+  if (size.startsWith('2.2') && isDiesel) return MAZDA_ENGINE_DETAILS['bt50-2.2d'];
+
+  const isTurbo = name.includes('turbo') || name.includes('-t');
+  const isPhev = name.includes('phev') || name.includes('e-skyactiv-phev');
+  const isX = name.includes('skyactiv-x') || name.includes('skyactivx');
+  const candidates = [
+    isPhev ? `e-skyactiv-phev-${sizeNum}` : null,
+    isX ? `e-skyactiv-x-${sizeNum}` : null,
+    isDiesel ? `skyactiv-d-${sizeNum}` : null,
+    isTurbo ? `skyactiv-g-${sizeNum}t` : null,
+    `skyactiv-g-${sizeNum}`,
+  ].filter((key): key is string => Boolean(key));
+
+  for (const key of candidates) {
+    if (MAZDA_ENGINE_DETAILS[key]) return MAZDA_ENGINE_DETAILS[key];
+  }
+
+  const displacementCc = parseDisplacementCc(engineSize);
+  return displacementCc ? { displacement_cc: displacementCc, cylinders: displacementCc > 3000 ? 6 : 4 } : null;
+}
+
+function estimateMazdaCo2(fuelL100km: number | null, fuelType: string): number | null {
+  if (fuelL100km === null) return null;
+  const factor = fuelType === 'Diesel' ? 26.2 : 23.2;
+  return Math.round((fuelL100km * factor) / 10) * 10;
+}
+
+function mazdaDrive(details: MazdaBuildVariantDetails, modelSlug: string): string {
+  const raw = String(details.drivetrain || '').toUpperCase();
+  if (raw === 'AWD' || raw === '4WD' || raw === 'RWD' || raw === 'FWD') return raw;
+  if (['cx-60', 'cx-70', 'cx-80', 'cx-90'].includes(modelSlug)) return 'RWD';
+  if (modelSlug === 'bt-50') return '4WD';
+  return 'FWD';
+}
+
+function buildMazdaSpecsJson(details: MazdaBuildVariantDetails, modelSlug: string): SpecsJson | null {
+  const known = MAZDA_MODEL_SPECS[modelSlug];
+  const fuelType = deriveMazdaFuelType(details.fuelType, details.engineName);
+  const fuelCombined = parseSpecWithUnit(details.fuelConsumption, /(\d+(?:\.\d+)?)\s*l\/100/i);
+  const engineDetails = findMazdaEngineDetails(details.engineName, details.engineSize);
+  const displacementCc = engineDetails?.displacement_cc ?? parseDisplacementCc(details.engineSize);
+  const cylinders = engineDetails?.cylinders ?? null;
+  const transmissionText = `${details.transmissionType || ''} ${details.transmissionDescription || ''}`;
+  const specs: SpecsJson = {};
+
+  addSpecsSection(specs, 'engine', {
+    type: fuelType,
+    displacement_cc: displacementCc,
+    cylinders,
+    power_kw: parsePowerKw(details.maximumPower),
+    torque_nm: parseTorqueNm(details.maximumTorque),
+  });
+  addSpecsSection(specs, 'transmission', {
+    type: /manual/i.test(transmissionText) ? 'Manual' : 'Automatic',
+    gears: parseGears(transmissionText),
+    drive: mazdaDrive(details, modelSlug),
+  });
+  if (known) {
+    addSpecsSection(specs, 'dimensions', {
+      length_mm: known.length_mm,
+      width_mm: known.width_mm,
+      height_mm: known.height_mm,
+      wheelbase_mm: known.wheelbase_mm,
+      kerb_weight_kg: known.kerb_weight_kg,
+    });
+    addSpecsSection(specs, 'towing', {
+      braked_kg: known.towing_braked || null,
+      unbraked_kg: known.towing_unbraked || null,
+    });
+    addSpecsSection(specs, 'capacity', {
+      doors: known.doors,
+      seats: known.seats,
+      fuel_tank_litres: parseLitres(details.fuelTankCapacity),
+    });
+    addSpecsSection(specs, 'safety', {
+      ancap_stars: known.ancap_stars,
+      airbags: known.airbags,
+    });
+  }
+  addSpecsSection(specs, 'performance', {
+    fuel_combined_l100km: fuelCombined,
+    co2_gkm: estimateMazdaCo2(fuelCombined, fuelType),
+  });
+
+  return Object.keys(specs).length ? specs : null;
+}
+
 function mazdaAccessoryImage(accessory: MazdaBuildAccessory): string | null {
   const raw = accessory.imageSrc
     ?? accessory.media?.find(item => item.imageSrc)?.imageSrc
@@ -531,7 +967,7 @@ function mazdaAccessoryImage(accessory: MazdaBuildAccessory): string | null {
 }
 
 async function syncMazda(supabase: SupabaseClient): Promise<AllOemSyncResult['mazda']> {
-  const result = { colors: 0, pricing: 0, accessories: 0, errors: [] as string[] };
+  const result = { colors: 0, pricing: 0, specs: 0, accessories: 0, errors: [] as string[] };
   const BASE_URL = 'https://www.mazda.com.au';
   const OEM_ID = 'mazda-au';
 
@@ -632,7 +1068,7 @@ async function syncMazda(supabase: SupabaseClient): Promise<AllOemSyncResult['ma
       for (const bodyStyle of bodyStyles) {
         const bodyName = bodyStyle.name ?? '';
         for (const variant of bodyStyle.children ?? []) {
-          const details = variant.children?.[0] ?? {};
+          const details = (variant.children?.[0] ?? {}) as MazdaBuildVariantDetails;
           const modelCode = variant.modelCode ?? '';
           const gradeName = details.grade ?? [details.gradePrefix, variant.name].filter(Boolean).join(' ');
           const shortGradeName = variant.name ?? gradeName;
@@ -662,6 +1098,18 @@ async function syncMazda(supabase: SupabaseClient): Promise<AllOemSyncResult['ma
           });
           if (!product) continue;
           matchedProducts++;
+
+          const specsJson = buildMazdaSpecsJson(details, slug);
+          if (specsJson) {
+            const { error: specsErr } = await supabase.from('products')
+              .update(productPatchFromSpecs(specsJson))
+              .eq('id', product.id);
+            if (specsErr) {
+              result.errors.push(`Mazda specs ${slug}/${modelCode || gradeName}: ${specsErr.message}`);
+            } else {
+              result.specs++;
+            }
+          }
 
           // Update pricing
           const driveaways = mazdaStateDriveaways(variant.price);
@@ -2173,8 +2621,8 @@ export async function executeAllOemSync(
   console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi, VW, Foton, GWM, GAC + generic pricing');
 
   const [hyundai, mazda, mitsubishi, volkswagen, foton, gwm, gac, generic_pricing] = await Promise.all([
-    syncHyundai(supabase).catch(e => ({ colors: 0, pricing: 0, errors: [String(e)] })),
-    syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, accessories: 0, errors: [String(e)] })),
+    syncHyundai(supabase).catch(e => ({ colors: 0, pricing: 0, specs: 0, errors: [String(e)] })),
+    syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, specs: 0, accessories: 0, errors: [String(e)] })),
     syncMitsubishi(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, accessories: 0, interiors: 0, brochures: 0, discoveredApis: 0, errors: [String(e)] })),
     syncVolkswagen(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, errors: [String(e)] })),
     syncFoton(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, errors: [String(e)] })),
@@ -2187,8 +2635,8 @@ export async function executeAllOemSync(
   const offer_images_fixed = await fixOfferImages(supabase).catch(() => 0);
 
   console.log(
-    `[AllOemSync] Done — Hyundai: ${hyundai.colors}c/${hyundai.pricing}p, ` +
-    `Mazda: ${mazda.colors}c/${mazda.pricing}p/${mazda.accessories}a, ` +
+    `[AllOemSync] Done — Hyundai: ${hyundai.colors}c/${hyundai.pricing}p/${hyundai.specs}s, ` +
+    `Mazda: ${mazda.colors}c/${mazda.pricing}p/${mazda.specs}s/${mazda.accessories}a, ` +
     `Mitsubishi: ${mitsubishi.products}v/${mitsubishi.colors}c/${mitsubishi.pricing}p/${mitsubishi.offers}o/${mitsubishi.accessories}a, ` +
     `VW: ${volkswagen.products}p/${volkswagen.colors}c/${volkswagen.offers}o, ` +
     `Foton: ${foton.products}p/${foton.colors}c/${foton.pricing} pricing, ` +

@@ -1049,7 +1049,7 @@ async function executeOemDataSync(
   // Suzuki: API-first via finance-calculator-data.json (products + colors + pricing)
   const suzukiResult = await executeSuzukiSync(supabase);
 
-  // All other OEMs: colors + pricing from their respective APIs
+  // All other OEMs: specs, colors + pricing from their respective APIs
   const allOemResult = await executeAllOemSync(supabase);
 
   return {

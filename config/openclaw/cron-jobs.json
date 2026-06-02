@@ -112,8 +112,8 @@
     },
     {
       "id": "oem-data-sync-daily",
-      "name": "Daily All-OEM Color + Pricing Sync",
-      "description": "Sync variant colors, pricing, brochures, accessories, and driveaway estimates for all 19 OEMs. Kia BYO (8-state driveaway), official Hyundai CGI, official Mazda /build BuildMyMazda payload, Mitsubishi GraphQL, Foton (Tunland 8-color scrape + Aumark S White + brochure PDFs + pricing API), VW configurator, plus generic pricing refresh for all other OEMs.",
+      "name": "Daily All-OEM Specs, Color + Pricing Sync",
+      "description": "Sync variant specs, colors, pricing, brochures, accessories, and driveaway estimates for all 19 OEMs. Kia BYO (8-state driveaway), official Hyundai CGI + v3 specifications API, official Mazda /build BuildMyMazda payload, Mitsubishi GraphQL, Foton (Tunland 8-color scrape + Aumark S White + brochure PDFs + pricing API), VW configurator, plus generic pricing refresh for all other OEMs.",
       "schedule": "0 3 * * *",
       "timezone": "Australia/Sydney",
       "skill": "oem-data-sync",
