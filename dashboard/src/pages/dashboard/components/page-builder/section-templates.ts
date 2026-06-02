@@ -217,3 +217,44 @@ export function getSectionSplittableField(type: string | null | undefined): stri
     return undefined
   return SECTION_SPLITTABLE_FIELDS[type as PageSectionType]
 }
+
+export interface SectionRecipePattern {
+  pattern: string
+  variant: string
+}
+
+export const SECTION_RECIPE_PATTERNS: Partial<Record<PageSectionType, SectionRecipePattern>> = {
+  'hero': { pattern: 'hero', variant: 'image-overlay' },
+  'feature-cards': { pattern: 'card-grid', variant: 'image-title-body' },
+  'stats': { pattern: 'card-grid', variant: 'stat' },
+  'logo-strip': { pattern: 'card-grid', variant: 'logo' },
+  'testimonial': { pattern: 'card-grid', variant: 'testimonial' },
+  'pricing-table': { pattern: 'card-grid', variant: 'pricing-tier' },
+  'intro': { pattern: 'split-content', variant: 'text-left-image-right' },
+  'content-block': { pattern: 'split-content', variant: 'full-width-text' },
+  'gallery': { pattern: 'media', variant: 'carousel' },
+  'video': { pattern: 'media', variant: 'video' },
+  'embed': { pattern: 'media', variant: 'embed' },
+  'image': { pattern: 'media', variant: 'single-image' },
+  'image-showcase': { pattern: 'media', variant: 'showcase' },
+  'tabs': { pattern: 'tabs', variant: 'horizontal' },
+  'specs-grid': { pattern: 'data-display', variant: 'specs-accordion' },
+  'comparison-table': { pattern: 'data-display', variant: 'comparison' },
+  'color-picker': { pattern: 'data-display', variant: 'color-picker' },
+  'cta-banner': { pattern: 'action-bar', variant: 'banner' },
+  'sticky-bar': { pattern: 'action-bar', variant: 'sticky' },
+  'enquiry-form': { pattern: 'action-bar', variant: 'form' },
+  'heading': { pattern: 'utility', variant: 'heading' },
+  'alert': { pattern: 'utility', variant: 'alert' },
+  'divider': { pattern: 'utility', variant: 'divider' },
+  'countdown': { pattern: 'hero', variant: 'countdown' },
+  'finance-calculator': { pattern: 'utility', variant: 'calculator' },
+  'accordion': { pattern: 'utility', variant: 'accordion' },
+  'map': { pattern: 'utility', variant: 'map' },
+}
+
+export function getSectionRecipePattern(type: string | null | undefined): SectionRecipePattern {
+  if (!type)
+    return { pattern: 'utility', variant: 'section' }
+  return SECTION_RECIPE_PATTERNS[type as PageSectionType] ?? { pattern: 'utility', variant: type }
+}

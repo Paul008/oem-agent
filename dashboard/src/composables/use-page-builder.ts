@@ -18,6 +18,7 @@ import {
   getConvertibleTypes,
 } from '@/pages/dashboard/components/page-builder/section-converter'
 import {
+  getSectionRecipePattern,
   getSectionSplittableField,
   SECTION_DEFAULTS,
   SECTION_TEMPLATES,
@@ -746,38 +747,7 @@ export function usePageBuilder() {
     if (!section || !oemId.value)
       return
 
-    // Map section type to pattern
-    const SECTION_TO_PATTERN: Record<string, { pattern: string, variant: string }> = {
-      'hero': { pattern: 'hero', variant: 'image-overlay' },
-      'feature-cards': { pattern: 'card-grid', variant: 'image-title-body' },
-      'stats': { pattern: 'card-grid', variant: 'stat' },
-      'logo-strip': { pattern: 'card-grid', variant: 'logo' },
-      'testimonial': { pattern: 'card-grid', variant: 'testimonial' },
-      'pricing-table': { pattern: 'card-grid', variant: 'pricing-tier' },
-      'intro': { pattern: 'split-content', variant: 'text-left-image-right' },
-      'content-block': { pattern: 'split-content', variant: 'full-width-text' },
-      'gallery': { pattern: 'media', variant: 'carousel' },
-      'video': { pattern: 'media', variant: 'video' },
-      'embed': { pattern: 'media', variant: 'embed' },
-      'image': { pattern: 'media', variant: 'single-image' },
-      'image-showcase': { pattern: 'media', variant: 'showcase' },
-      'tabs': { pattern: 'tabs', variant: 'horizontal' },
-      'specs-grid': { pattern: 'data-display', variant: 'specs-accordion' },
-      'comparison-table': { pattern: 'data-display', variant: 'comparison' },
-      'color-picker': { pattern: 'data-display', variant: 'color-picker' },
-      'cta-banner': { pattern: 'action-bar', variant: 'banner' },
-      'sticky-bar': { pattern: 'action-bar', variant: 'sticky' },
-      'enquiry-form': { pattern: 'action-bar', variant: 'form' },
-      'heading': { pattern: 'utility', variant: 'heading' },
-      'alert': { pattern: 'utility', variant: 'alert' },
-      'divider': { pattern: 'utility', variant: 'divider' },
-      'countdown': { pattern: 'hero', variant: 'countdown' },
-      'finance-calculator': { pattern: 'utility', variant: 'calculator' },
-      'accordion': { pattern: 'utility', variant: 'accordion' },
-      'map': { pattern: 'utility', variant: 'map' },
-    }
-
-    const mapping = SECTION_TO_PATTERN[section.type] || { pattern: 'utility', variant: section.type }
+    const mapping = getSectionRecipePattern(section.type)
 
     // Extract non-content properties (strip content-specific fields)
     const CONTENT_FIELDS = new Set([
