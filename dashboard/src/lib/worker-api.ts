@@ -1,4 +1,8 @@
 import { supabase } from '@/lib/supabase'
+import { normalizeRecipesResponse } from '@/lib/recipes'
+import type { Recipe } from '@/lib/recipes'
+
+export type { Recipe } from '@/lib/recipes'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
@@ -103,20 +107,9 @@ export async function fetchGeneratedPage(slug: string) {
   return workerFetch(`/api/v1/oem-agent/pages/${slug}`)
 }
 
-export interface Recipe {
-  id: string
-  oem_id: string | null
-  pattern: string
-  variant: string
-  label: string
-  resolves_to: string
-  defaults_json: Record<string, any>
-  source: 'brand' | 'default'
-}
-
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
   const result = await workerFetch(`/api/v1/oem-agent/recipes/${oemId}`)
-  return result.recipes ?? []
+  return normalizeRecipesResponse(result)
 }
 
 export async function fetchAllRecipes(): Promise<{ brand_recipes: any[], default_recipes: any[] }> {
