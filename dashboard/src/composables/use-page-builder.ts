@@ -73,6 +73,40 @@ function resolveMediaUrl(url: string | null | undefined): string | null {
   return url
 }
 
+function normalizeStoredMediaUrl(url: string): string {
+  if (!url.startsWith('http'))
+    return url
+
+  try {
+    const parsed = new URL(url)
+    const workerUrl = new URL(WORKER_BASE)
+    if (parsed.origin === workerUrl.origin && parsed.pathname.startsWith('/media/')) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+  }
+  catch {
+    return url
+  }
+
+  return url
+}
+
+export function normalizeStoredMediaUrls<T>(value: T): T {
+  if (typeof value === 'string')
+    return normalizeStoredMediaUrl(value) as T
+
+  if (Array.isArray(value))
+    return value.map(item => normalizeStoredMediaUrls(item)) as T
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, normalizeStoredMediaUrls(entry)]),
+    ) as T
+  }
+
+  return value
+}
+
 /**
  * Walk all image/video URL fields in a section and resolve /media/ paths.
  */
@@ -251,7 +285,7 @@ export function usePageBuilder() {
     get: () => (page.value?.content?.sections ?? []).map(resolveSectionMediaUrls),
     set: (val: any[]) => {
       if (page.value?.content) {
-        page.value.content.sections = val
+        page.value.content.sections = normalizeStoredMediaUrls(val)
       }
     },
   })
@@ -569,7 +603,10 @@ export function usePageBuilder() {
       return
     saving.value = true
     try {
-      await updatePageSections(oemId.value, modelSlug.value, sections.value)
+      const storedSections = normalizeStoredMediaUrls(sections.value)
+      await updatePageSections(oemId.value, modelSlug.value, storedSections)
+      if (page.value?.content)
+        page.value.content.sections = storedSections
       isDirty.value = false
       // Bump version locally
       if (page.value)

@@ -39,6 +39,7 @@ declare global {
   const logout: typeof import('../composables/use-auth')['logout']
   const markRaw: typeof import('vue').markRaw
   const nextTick: typeof import('vue').nextTick
+  const normalizeStoredMediaUrls: typeof import('../composables/use-page-builder').normalizeStoredMediaUrls
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
   const onBeforeRouteLeave: typeof import('vue-router').onBeforeRouteLeave
