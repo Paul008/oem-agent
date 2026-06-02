@@ -1,40 +1,22 @@
 <script lang="ts" setup>
 import {
   ArrowRightLeft,
-  Award,
-  BarChart3,
   BookmarkPlus,
-  Calculator,
   ChevronDown,
   ChevronUp,
   Clipboard,
-  Code2,
-  Columns3,
   Copy,
-  DollarSign,
   GripVertical,
-  Image,
-  Images,
-  LayoutGrid,
-  Maximize,
-  Megaphone,
-  Palette,
-  PanelBottom,
-  Quote,
   Settings,
   Split,
-  Table2,
-  TableProperties,
-  Timer,
   Trash2,
-  Type,
-  Video,
 } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import type { PageSectionType } from './section-templates'
 
 import { getConvertibleTypes } from './section-converter'
+import { getSectionTypeIcon } from './section-icons'
 import { getSectionSplittableField, SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
@@ -61,29 +43,6 @@ const emit = defineEmits<{
   drop: [e: DragEvent]
   dragend: []
 }>()
-
-const typeIcons: Record<string, any> = {
-  'hero': Image,
-  'intro': Type,
-  'tabs': Columns3,
-  'color-picker': Palette,
-  'specs-grid': TableProperties,
-  'gallery': Images,
-  'feature-cards': LayoutGrid,
-  'image': Image,
-  'video': Video,
-  'cta-banner': Megaphone,
-  'testimonial': Quote,
-  'comparison-table': Table2,
-  'stats': BarChart3,
-  'logo-strip': Award,
-  'embed': Code2,
-  'pricing-table': DollarSign,
-  'sticky-bar': PanelBottom,
-  'countdown': Timer,
-  'finance-calculator': Calculator,
-  'image-showcase': Maximize,
-}
 
 const convertibleTypes = computed(() => {
   return getConvertibleTypes(props.section.type as PageSectionType)
@@ -131,7 +90,7 @@ function sectionLabel(s: any): string {
         class="flex items-center justify-center size-7 rounded-md shrink-0"
         :class="selected ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
       >
-        <component :is="typeIcons[section.type] || Type" class="size-3.5" />
+        <component :is="getSectionTypeIcon(section.type)" class="size-3.5" />
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium truncate leading-tight">
@@ -218,7 +177,7 @@ function sectionLabel(s: any): string {
               :key="targetType"
               @select="emit('convert', targetType)"
             >
-              <component :is="typeIcons[targetType] || Type" class="size-3.5 mr-2" />
+              <component :is="getSectionTypeIcon(targetType)" class="size-3.5 mr-2" />
               {{ SECTION_TYPE_INFO[targetType]?.label || targetType }}
             </UiDropdownMenuItem>
           </UiDropdownMenuContent>

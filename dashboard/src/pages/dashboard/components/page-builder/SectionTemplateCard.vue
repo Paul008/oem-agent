@@ -1,20 +1,12 @@
 <script lang="ts" setup>
 import {
-  Columns3,
-  FileText,
   Film,
-  Image,
   ImageIcon,
-  Images,
-  LayoutGrid,
-  Megaphone,
   MousePointerClick,
-  Palette,
   Plus,
-  TableProperties,
-  Type,
-  Video,
 } from 'lucide-vue-next'
+
+import { getSectionTypeIcon } from './section-icons'
 
 const props = defineProps<{
   section: any
@@ -26,19 +18,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   insertSection: [section: any]
 }>()
-
-const typeIcons: Record<string, any> = {
-  'hero': Image,
-  'intro': Type,
-  'tabs': Columns3,
-  'color-picker': Palette,
-  'specs-grid': TableProperties,
-  'gallery': Images,
-  'feature-cards': LayoutGrid,
-  'video': Video,
-  'cta-banner': Megaphone,
-  'content-block': FileText,
-}
 
 function sectionLabel(s: any): string {
   return s.heading || s.title || s.name || s.type
@@ -78,7 +57,7 @@ function oemLabel(id: string): string {
       <!-- Header row -->
       <div class="flex items-center gap-2">
         <div class="flex items-center justify-center size-7 rounded-md bg-muted text-muted-foreground shrink-0">
-          <component :is="typeIcons[section.type] || Type" class="size-3.5" />
+          <component :is="getSectionTypeIcon(section.type)" class="size-3.5" />
         </div>
         <div class="flex-1 min-w-0">
           <UiBadge variant="secondary" class="text-[9px] px-1.5 py-0 font-normal">
