@@ -196,4 +196,5 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string, descrip
   'card-grid': { label: 'Card Grid', description: 'Composition-driven card layout from recipes' },
   'split-content': { label: 'Split Content', description: 'Text with optional image — left, right, or background' },
   'media': { label: 'Media', description: 'Images, gallery, video, or embed' },
+  'pinned-scroll': { label: 'Pinned Scroll', description: 'Pinned image sequence with scrolling content cards' },
 }

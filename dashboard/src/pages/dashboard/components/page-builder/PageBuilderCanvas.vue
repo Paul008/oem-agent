@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { AlertCircle, Copy, GripVertical, Monitor, Palette, Pipette, Play, Settings, Smartphone, Tablet, Trash2 } from 'lucide-vue-next'
-import { defineAsyncComponent, ref } from 'vue'
+import { ref } from 'vue'
 
 import EditToolbar from './EditToolbar.vue'
+import { resolveSectionComponent } from './section-registry'
 
 const props = defineProps<{
   page: any
@@ -57,6 +58,7 @@ async function previewAnimation(sectionId: string, animation: string) {
 // Context menu state
 const contextMenu = ref<{ x: number, y: number, sectionId: string, sectionIndex: number } | null>(null)
 const bgColorInput = ref(false)
+const hasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window
 
 function onContextMenu(e: MouseEvent, sectionId: string, index: number) {
   e.preventDefault()
@@ -193,48 +195,6 @@ function onDrop(e: DragEvent, index: number) {
 function onDragEnd() {
   dragIndex.value = null
   dropIndex.value = null
-}
-
-const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
-  // Use standalone components with inline editing support (not consolidated renderers)
-  'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'cta-banner': defineAsyncComponent(() => import('../sections/SectionCta.vue')),
-  'countdown': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'intro': defineAsyncComponent(() => import('../sections/SectionIntro.vue')),
-  'content-block': defineAsyncComponent(() => import('../sections/SectionContentBlock.vue')),
-  'split-content': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'gallery': defineAsyncComponent(() => import('../sections/SectionGallery.vue')),
-  'video': defineAsyncComponent(() => import('../sections/SectionVideo.vue')),
-  'image': defineAsyncComponent(() => import('../sections/SectionImageBlock.vue')),
-  'image-showcase': defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue')),
-  'embed': defineAsyncComponent(() => import('../sections/SectionEmbed.vue')),
-  'media': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'card-grid': defineAsyncComponent(() => import('../sections/SectionCardGrid.vue')),
-  'heading': defineAsyncComponent(() => import('../sections/SectionHeading.vue')),
-  'tabs': defineAsyncComponent(() => import('../sections/SectionTabs.vue')),
-  'color-picker': defineAsyncComponent(() => import('../sections/SectionColorPicker.vue')),
-  'specs-grid': defineAsyncComponent(() => import('../sections/SectionSpecs.vue')),
-  'feature-cards': defineAsyncComponent(() => import('../sections/SectionFeatureCards.vue')),
-  'accordion': defineAsyncComponent(() => import('../sections/SectionAccordion.vue')),
-  'enquiry-form': defineAsyncComponent(() => import('../sections/SectionEnquiryForm.vue')),
-  'map': defineAsyncComponent(() => import('../sections/SectionMap.vue')),
-  'alert': defineAsyncComponent(() => import('../sections/SectionAlert.vue')),
-  'divider': defineAsyncComponent(() => import('../sections/SectionDivider.vue')),
-  'testimonial': defineAsyncComponent(() => import('../sections/SectionTestimonial.vue')),
-  'comparison-table': defineAsyncComponent(() => import('../sections/SectionComparisonTable.vue')),
-  'stats': defineAsyncComponent(() => import('../sections/SectionStats.vue')),
-  'logo-strip': defineAsyncComponent(() => import('../sections/SectionLogoStrip.vue')),
-  'pricing-table': defineAsyncComponent(() => import('../sections/SectionPricingTable.vue')),
-  'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
-  'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
-  'pinned-scroll': defineAsyncComponent(() => import('../sections/SectionPinnedScroll.vue')),
-}
-
-function resolveComponent(section: any) {
-  if (Array.isArray(section.card_composition) && section.card_composition.length > 0) {
-    return componentMap['card-grid']
-  }
-  return componentMap[section.type]
 }
 
 function sectionStyle(section: any): Record<string, string> {
@@ -413,12 +373,12 @@ ${rendered}
             />
             <!-- Otherwise render the standard section component -->
             <component
-              :is="resolveComponent(section)"
-              v-else-if="resolveComponent(section)"
+              :is="resolveSectionComponent(section)"
+              v-else-if="resolveSectionComponent(section)"
               :section="section"
               :oem-id="props.oemId"
               :model-slug="props.modelSlug"
-              @inline-edit="(field: string, value: string, el: HTMLElement) => {
+              @inline-edit="(field: string, _value: string, el: HTMLElement) => {
                 editingTarget = el
                 editingSectionId = section.id
                 editingField = field
@@ -490,7 +450,7 @@ ${rendered}
             <div v-if="bgColorInput" class="px-3 py-2 flex items-center gap-1.5">
               <input type="color" value="#ffffff" class="size-7 rounded cursor-pointer border-0 p-0" @input="onBgColorInput">
               <input type="text" placeholder="#000000" class="h-7 w-20 text-xs font-mono px-1.5 border rounded" @change="onBgColorInput">
-              <button v-if="'EyeDropper' in window" class="p-1 rounded hover:bg-muted" title="Pick from screen" @click="eyedropBg(contextMenu.sectionId)">
+              <button v-if="hasEyeDropper" class="p-1 rounded hover:bg-muted" title="Pick from screen" @click="eyedropBg(contextMenu.sectionId)">
                 <Pipette class="size-3.5" />
               </button>
             </div>
