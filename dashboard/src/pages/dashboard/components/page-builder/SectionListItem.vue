@@ -35,7 +35,7 @@ import { computed } from 'vue'
 import type { PageSectionType } from './section-templates'
 
 import { getConvertibleTypes } from './section-converter'
-import { SECTION_TYPE_INFO } from './section-templates'
+import { getSectionSplittableField, SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
   section: any
@@ -89,21 +89,8 @@ const convertibleTypes = computed(() => {
   return getConvertibleTypes(props.section.type as PageSectionType)
 })
 
-const SPLITTABLE_FIELDS: Record<string, string> = {
-  'gallery': 'images',
-  'image-showcase': 'images',
-  'feature-cards': 'cards',
-  'tabs': 'tabs',
-  'accordion': 'items',
-  'testimonial': 'testimonials',
-  'logo-strip': 'logos',
-  'stats': 'stats',
-  'pricing-table': 'tiers',
-  'comparison-table': 'rows',
-}
-
 const canSplit = computed(() => {
-  const field = SPLITTABLE_FIELDS[props.section.type]
+  const field = getSectionSplittableField(props.section.type)
   if (!field)
     return false
   const arr = props.section[field]

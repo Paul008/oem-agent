@@ -198,3 +198,22 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string, descrip
   'media': { label: 'Media', description: 'Images, gallery, video, or embed' },
   'pinned-scroll': { label: 'Pinned Scroll', description: 'Pinned image sequence with scrolling content cards' },
 }
+
+export const SECTION_SPLITTABLE_FIELDS: Partial<Record<PageSectionType, string>> = {
+  'gallery': 'images',
+  'image-showcase': 'images',
+  'feature-cards': 'cards',
+  'tabs': 'tabs',
+  'accordion': 'items',
+  'testimonial': 'testimonials',
+  'logo-strip': 'logos',
+  'stats': 'stats',
+  'pricing-table': 'tiers',
+  'comparison-table': 'rows',
+}
+
+export function getSectionSplittableField(type: string | null | undefined): string | undefined {
+  if (!type)
+    return undefined
+  return SECTION_SPLITTABLE_FIELDS[type as PageSectionType]
+}

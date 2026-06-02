@@ -9,7 +9,6 @@ import {
   clonePage,
   fetchGeneratedPage,
   fetchRecipes,
-
   saveRecipe,
   structurePage,
   updatePageSections,
@@ -19,7 +18,7 @@ import {
   getConvertibleTypes,
 } from '@/pages/dashboard/components/page-builder/section-converter'
 import {
-
+  getSectionSplittableField,
   SECTION_DEFAULTS,
   SECTION_TEMPLATES,
 } from '@/pages/dashboard/components/page-builder/section-templates'
@@ -513,9 +512,9 @@ export function usePageBuilder() {
     const source = sections.value[idx]
 
     // Check if source has multiple items — if so, split & convert each
-    const field = SPLITTABLE_FIELDS[source.type]
+    const field = getSectionSplittableField(source.type)
     const items = field ? source[field] : null
-    if (Array.isArray(items) && items.length >= 2) {
+    if (field && Array.isArray(items) && items.length >= 2) {
       // Split into individual sections, then convert each
       const singles = items.map((item: any) => {
         const single = JSON.parse(JSON.stringify(source))
@@ -549,22 +548,8 @@ export function usePageBuilder() {
     selectedSectionId.value = id
   }
 
-  /** Which array field holds the splittable items for a given section type */
-  const SPLITTABLE_FIELDS: Record<string, string> = {
-    'gallery': 'images',
-    'image-showcase': 'images',
-    'feature-cards': 'cards',
-    'tabs': 'tabs',
-    'accordion': 'items',
-    'testimonial': 'testimonials',
-    'logo-strip': 'logos',
-    'stats': 'stats',
-    'pricing-table': 'tiers',
-    'comparison-table': 'rows',
-  }
-
   function canSplitSection(type: string): boolean {
-    const field = SPLITTABLE_FIELDS[type]
+    const field = getSectionSplittableField(type)
     return !!field
   }
 
@@ -573,7 +558,7 @@ export function usePageBuilder() {
     if (idx === -1)
       return
     const source = sections.value[idx]
-    const field = SPLITTABLE_FIELDS[source.type]
+    const field = getSectionSplittableField(source.type)
     if (!field)
       return
     const items = source[field]
