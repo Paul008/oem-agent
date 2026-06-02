@@ -78,6 +78,17 @@ function withAbortableTimeout<T>(
   });
 }
 
+export function isOfferLikeSourceUrl(sourceUrl: string): boolean {
+  let path = sourceUrl.toLowerCase();
+  try {
+    path = new URL(sourceUrl).pathname.toLowerCase();
+  } catch {
+    // Keep the raw string for relative or malformed URLs from tests/extractors.
+  }
+
+  return /(^|\/)(buying\/offers|offers?|special-offers?|specials|promotions?)(\/|$)/.test(path);
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -3955,6 +3966,11 @@ ${html.substring(0, 50000)}
     // the failure mode that produced 7 orphan Ford rows on 2026-04-02.
     if (!existing) {
       const hasPrice = product.price_amount != null && product.price_amount > 0;
+      if (isOfferLikeSourceUrl(sourceUrl) && !hasExternalKey && !hasPrice) {
+        console.warn(`[UpsertProduct] Refusing to create offer-page placeholder "${productData.title}" (oem=${oemId}, source=${sourceUrl}) — no external_key or price`);
+        return { created: false, updated: false, changeDetected: false };
+      }
+
       const hasSpecs = product.specs_json && Object.keys(product.specs_json).length > 0;
       const hasFeatures = Array.isArray(product.key_features) && product.key_features.length > 0;
       const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
