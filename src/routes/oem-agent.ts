@@ -23,6 +23,7 @@ import { SalesRepAgent } from '../ai/sales-rep';
 import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/registry';
 import type { OemId } from '../oem/types';
+import { normalizeRecipeRows } from '../design/recipe-response';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
@@ -2223,25 +2224,6 @@ app.get('/pages/:slug', async (c) => {
 });
 
 /**
- * GET /api/v1/oem-agent/recipes/:oemId
- * Public endpoint — returns brand + default recipes for an OEM
- */
-app.get('/recipes/:oemId', async (c) => {
-  const oemId = c.req.param('oemId');
-  const supabase = createSupabaseClient({
-    url: c.env.SUPABASE_URL,
-    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
-  });
-
-  const [{ data: brand }, { data: defaults }] = await Promise.all([
-    supabase.from('brand_recipes').select('*').eq('oem_id', oemId).eq('is_active', true).order('pattern'),
-    supabase.from('default_recipes').select('*').order('pattern'),
-  ]);
-
-  return c.json({ oem_id: oemId, brand_recipes: brand ?? [], default_recipes: defaults ?? [] });
-});
-
-/**
  * GET /api/v1/oem-agent/pages
  * List generated pages for an OEM
  */
@@ -3224,16 +3206,12 @@ app.get('/recipes/:oemId', async (c) => {
     .select('id, pattern, variant, label, resolves_to, defaults_json')
     .order('pattern');
 
-  // Merge: OEM recipes override defaults for matching pattern+variant
-  const oemKeys = new Set((brandRecipes ?? []).map(r => `${r.pattern}:${r.variant}`));
-  const merged = [
-    ...(brandRecipes ?? []).map(r => ({ ...r, source: 'brand' as const })),
-    ...(defaultRecipes ?? [])
-      .filter(r => !oemKeys.has(`${r.pattern}:${r.variant}`))
-      .map(r => ({ ...r, oem_id: null, source: 'default' as const })),
-  ];
+  const recipes = normalizeRecipeRows({
+    brandRecipes: brandRecipes ?? [],
+    defaultRecipes: defaultRecipes ?? [],
+  });
 
-  return c.json({ recipes: merged, oem_id: oemId });
+  return c.json({ recipes, oem_id: oemId });
 });
 
 app.get('/admin/brand-tokens/:oemId', async (c) => {
