@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ImageOff, Loader2, Search } from 'lucide-vue-next'
+import type { AcceptableValue } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import type { Accessory, AccessoryModel, VehicleModel } from '@/composables/use-oem-data'
@@ -207,6 +208,13 @@ function fittingLabel(val: string | null) {
   if (val === 'excludes')
     return 'Parts only'
   return null
+}
+
+function setPageSize(value: AcceptableValue) {
+  const next = Number(value)
+  if (!Number.isFinite(next))
+    return
+  pageSize.value = next
 }
 </script>
 
@@ -425,7 +433,7 @@ function fittingLabel(val: string | null) {
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium hidden md:block">Rows per page</span>
-            <UiSelect :model-value="`${pageSize}`" @update:model-value="(v: string) => pageSize = Number(v)">
+            <UiSelect :model-value="`${pageSize}`" @update:model-value="setPageSize">
               <UiSelectTrigger class="h-8 w-[70px]">
                 <UiSelectValue :placeholder="`${pageSize}`" />
               </UiSelectTrigger>
@@ -510,7 +518,7 @@ function fittingLabel(val: string | null) {
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium hidden md:block">Per page</span>
-            <UiSelect :model-value="`${pageSize}`" @update:model-value="(v: string) => pageSize = Number(v)">
+            <UiSelect :model-value="`${pageSize}`" @update:model-value="setPageSize">
               <UiSelectTrigger class="h-8 w-[70px]">
                 <UiSelectValue :placeholder="`${pageSize}`" />
               </UiSelectTrigger>

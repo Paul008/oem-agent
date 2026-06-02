@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { Eye, Loader2, Monitor, Save, Smartphone, Tablet, Wand2 } from 'lucide-vue-next'
+import type { AcceptableValue } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
@@ -26,8 +27,6 @@ const PATTERNS = [
   { key: 'action-bar', label: 'Action Bar' },
   { key: 'utility', label: 'Utility' },
 ]
-
-const SLOTS = ['image', 'icon', 'logo', 'stat', 'title', 'subtitle', 'body', 'badge', 'rating', 'cta']
 
 // Selected recipe for refinement
 const selectedRecipe = ref<any>(null)
@@ -225,18 +224,9 @@ async function handleSave() {
   }
 }
 
-// Composition helpers
-function addSlot(slot: string) {
-  if (!editDefaults.value.card_composition)
-    editDefaults.value.card_composition = []
-  editDefaults.value.card_composition.push(slot)
-}
-
-function removeSlot(index: number) {
-  editDefaults.value.card_composition?.splice(index, 1)
-}
-
-function updateConfigSelect(key: string, value: string) {
+function updateConfigSelect(key: string, value: AcceptableValue) {
+  if (value === null)
+    return
   configValues.value[key] = value
 }
 </script>

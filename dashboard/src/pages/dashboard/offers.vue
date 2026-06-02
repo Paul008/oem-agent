@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { Calendar, ChevronLeft, ChevronRight, Clock, ExternalLink, FileText, Filter, ImageOff, Info, Loader2, RefreshCw, Search, Tag } from 'lucide-vue-next'
+import type { AcceptableValue } from 'reka-ui'
 import { computed, onMounted, ref } from 'vue'
 
 import type { Offer } from '@/composables/use-oem-data'
@@ -10,15 +11,24 @@ import { useRealtimeSubscription } from '@/composables/use-realtime'
 
 const { fetchOffers, fetchOems } = useOemData()
 
-const offers = ref<Offer[]>([])
+type OfferStatusFilter = 'all' | 'active' | 'expired'
+
+type DashboardOffer = Offer & {
+  price_raw_string?: string | null
+  eligibility?: string | null
+  cta_url?: string | null
+  cta_text?: string | null
+}
+
+const offers = ref<DashboardOffer[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
 const filterOem = ref('all')
-const filterStatus = ref<'all' | 'active' | 'expired'>('active')
+const filterStatus = ref<OfferStatusFilter>('active')
 const searchQuery = ref('')
 const page = ref(1)
 const perPage = ref(24)
-const selectedOffer = ref<Offer | null>(null)
+const selectedOffer = ref<DashboardOffer | null>(null)
 
 onMounted(async () => {
   try {
@@ -31,7 +41,7 @@ onMounted(async () => {
   }
 })
 
-useRealtimeSubscription<Offer>({
+useRealtimeSubscription<DashboardOffer>({
   channelName: 'offers-live',
   table: 'offers',
   event: '*',
@@ -74,10 +84,38 @@ const paginated = computed(() => {
   return filtered.value.slice(start, start + perPage.value)
 })
 
-function setFilter(oem: string) {
+function selectValueToString(value: AcceptableValue): string | null {
+  if (typeof value === 'string')
+    return value
+  if (typeof value === 'number')
+    return String(value)
+  return null
+}
+
+function setFilter(value: AcceptableValue) {
+  const oem = selectValueToString(value)
+  if (!oem)
+    return
   filterOem.value = oem
   page.value = 1
 }
+
+function setStatusFilter(value: AcceptableValue) {
+  const status = selectValueToString(value)
+  if (status !== 'all' && status !== 'active' && status !== 'expired')
+    return
+  filterStatus.value = status
+  page.value = 1
+}
+
+function setPerPage(value: AcceptableValue) {
+  const next = Number(value)
+  if (!Number.isFinite(next))
+    return
+  perPage.value = next
+  page.value = 1
+}
+
 function onSearch() {
   page.value = 1
 }
@@ -152,7 +190,7 @@ function timeAgo(dateStr: string | null) {
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
-      <UiSelect :model-value="filterStatus" @update:model-value="v => { filterStatus = v as any; page = 1 }">
+      <UiSelect :model-value="filterStatus" @update:model-value="setStatusFilter">
         <UiSelectTrigger class="w-[150px]">
           <Filter class="size-3.5 mr-1.5 text-muted-foreground" />
           <UiSelectValue />
@@ -178,7 +216,7 @@ function timeAgo(dateStr: string | null) {
           @input="onSearch"
         />
       </div>
-      <UiSelect :model-value="String(perPage)" @update:model-value="v => { perPage = Number(v); page = 1 }">
+      <UiSelect :model-value="String(perPage)" @update:model-value="setPerPage">
         <UiSelectTrigger class="w-[120px]">
           <UiSelectValue />
         </UiSelectTrigger>

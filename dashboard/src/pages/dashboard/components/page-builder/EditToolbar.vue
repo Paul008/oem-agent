@@ -28,6 +28,7 @@ const emit = defineEmits<{
 const toolbarRef = ref<HTMLElement | null>(null)
 const showColorInput = ref(false)
 const pos = ref({ top: 0, left: 0 })
+const hasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window
 
 // Position toolbar above the target element
 function reposition() {
@@ -217,7 +218,7 @@ async function eyedrop() {
             @change="setColor(($event.target as HTMLInputElement).value)"
           >
           <button
-            v-if="'EyeDropper' in window"
+            v-if="hasEyeDropper"
             class="p-1 rounded hover:bg-muted"
             title="Pick color from screen"
             @click="eyedrop"

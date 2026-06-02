@@ -35,8 +35,6 @@ const {
   subBrands,
   schedule,
   discoveredApis,
-  config,
-  flags,
   registration,
   crawlTriggered,
   crawlJobId,

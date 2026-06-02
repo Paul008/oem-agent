@@ -258,13 +258,6 @@ const parsedDefaults = computed(() => {
   }
 })
 
-const previewColumns = computed(() => {
-  const d = parsedDefaults.value
-  if (!d)
-    return 3
-  return d.columns ?? d.card_grid?.columns ?? d.grid?.columns ?? 3
-})
-
 const editDefaults = computed({
   get: () => parsedDefaults.value ?? {},
   set: (val) => { defaultsJsonText.value = JSON.stringify(val, null, 2) },

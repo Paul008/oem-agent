@@ -1,20 +1,12 @@
 <script lang="ts" setup>
 import {
   ChevronRight,
-  Columns3,
   FileText,
-  Image,
-  Images,
   Layers,
   LayoutGrid,
   Loader2,
-  Megaphone,
-  Palette,
   Search,
   Sparkles,
-  TableProperties,
-  Type,
-  Video,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -31,7 +23,6 @@ const { fetchOems } = useOemData()
 
 const {
   allSlugs,
-  indexLoaded,
   indexLoading,
   filterOem,
   filterSectionType,
@@ -79,38 +70,19 @@ function slugsForOem(oemId: string) {
   return filteredSlugs.value.filter(s => s.oem_id === oemId)
 }
 
-function handleUseTemplate(section: any) {
+function handleUseTemplate() {
   // Navigate to a page builder (pick the first structured page or just go to model-pages)
   router.push('/dashboard/model-pages')
 }
 
 // Stats
 const stats = computed(() => {
-  let totalSections = 0
-  for (const [, sections] of Object.entries(Object.fromEntries(
-    Array.from({ length: 0 }), // placeholder
-  ))) {
-    totalSections += (sections as any[]).length
-  }
   return {
     totalPages: allSlugs.value.length,
     oemsCovered: oemGroups.value.length,
     curatedCount: filteredCuratedTemplates.value.length,
   }
 })
-
-const typeIcons: Record<string, any> = {
-  'hero': Image,
-  'intro': Type,
-  'tabs': Columns3,
-  'color-picker': Palette,
-  'specs-grid': TableProperties,
-  'gallery': Images,
-  'feature-cards': LayoutGrid,
-  'video': Video,
-  'cta-banner': Megaphone,
-  'content-block': FileText,
-}
 </script>
 
 <template>

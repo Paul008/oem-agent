@@ -13,7 +13,6 @@ const selectedOem = ref('kia-au')
 const loading = ref(true)
 const profile = ref<any>(null)
 const runs = ref<any[]>([])
-const runsLoading = ref(false)
 
 onMounted(async () => {
   oems.value = await fetchOems()
@@ -76,7 +75,7 @@ function scoreColor(score: number | null) {
 </script>
 
 <template>
-  <BasicPage title="Design Memory" subtitle="Per-OEM accumulated design knowledge from extraction runs">
+  <BasicPage title="Design Memory" description="Per-OEM accumulated design knowledge from extraction runs">
     <!-- OEM Selector -->
     <div class="flex items-center gap-4 mb-6">
       <select

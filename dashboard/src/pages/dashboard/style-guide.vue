@@ -43,6 +43,11 @@ const PATTERNS = [
   { key: 'utility', label: 'Utility' },
 ] as const
 
+const recipePatterns: Array<{ key: string, label: string, icon: null }> = PATTERNS.map(pattern => ({
+  ...pattern,
+  icon: null,
+}))
+
 const { fetchOems } = useOemData()
 
 const oems = ref<{ id: string, name: string }[]>([])
@@ -607,7 +612,7 @@ async function handleApplyTokens() {
       <StyleGuideRecipes
         :recipes-by-pattern="recipesByPattern"
         :colors="colors"
-        :patterns="PATTERNS"
+        :patterns="recipePatterns"
       />
       <StyleGuideComponents :components="components" />
     </div>
