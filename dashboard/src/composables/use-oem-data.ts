@@ -99,8 +99,12 @@ export interface Product {
   fuel_type: string | null
   price_amount: number | null
   price_type: string | null
+  price_qualifier: string | null
+  price_raw_string: string | null
   availability: string | null
   specs_json: ProductSpecs | null
+  created_at: string
+  updated_at: string
   last_seen_at: string
 }
 
@@ -251,6 +255,42 @@ export function useOemData() {
     return (data ?? []) as ChangeEvent[]
   }
 
+  /**
+   * Fetch the most recent price change date per product from change_events.
+   * Returns a Map of product_id -> ISO date string (created_at of latest
+   * 'price_changed' event). Only looks back 90 days to keep the query fast.
+   */
+  async function fetchPriceChangeDates(): Promise<Map<string, string>> {
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const map = new Map<string, string>()
+    const PAGE = 1000
+    let from = 0
+    while (true) {
+      const { data, error: err } = await supabase
+        .from('change_events')
+        .select('entity_id, created_at')
+        .eq('entity_type', 'product')
+        .eq('event_type', 'price_changed')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1)
+      if (err) {
+        console.warn('[useOemData] fetchPriceChangeDates error:', err.message)
+        break
+      }
+      if (!data || data.length === 0)
+        break
+      for (const row of data as { entity_id: string; created_at: string }[]) {
+        if (!map.has(row.entity_id))
+          map.set(row.entity_id, row.created_at)
+      }
+      if (data.length < PAGE)
+        break
+      from += PAGE
+    }
+    return map
+  }
+
   async function fetchVehicleModels() {
     const { data, error: err } = await supabase
       .from('vehicle_models')
@@ -264,7 +304,7 @@ export function useOemData() {
   async function fetchProducts() {
     const { data, error: err } = await supabase
       .from('products')
-      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, availability, specs_json, meta_json, last_seen_at')
+      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, price_qualifier, price_raw_string, availability, specs_json, meta_json, created_at, updated_at, last_seen_at')
       .order('oem_id, title')
     if (err)
       throw err
@@ -302,7 +342,7 @@ export function useOemData() {
       .select('product_id, offers(*)')
     if (err)
       throw err
-    for (const row of (data ?? []) as { product_id: string, offers: Offer | null }[]) {
+    for (const row of (data ?? []) as unknown as { product_id: string, offers: Offer | null }[]) {
       if (!row.offers)
         continue
       if (wanted && !wanted.has(row.product_id))
@@ -327,12 +367,12 @@ export function useOemData() {
 
   async function fetchVariantColorsWithProducts() {
     const PAGE = 1000
-    const rows: (VariantColor & { products: { oem_id: string, title: string, price_amount: number | null } })[] = []
+    const rows: (VariantColor & { products: { oem_id: string, title: string, price_amount: number | null, price_type: string | null, price_qualifier: string | null } })[] = []
     let from = 0
     while (true) {
       const { data, error: err } = await supabase
         .from('variant_colors')
-        .select('*, products!inner(oem_id, title, price_amount)')
+        .select('*, products!inner(oem_id, title, price_amount, price_type, price_qualifier)')
         .order('product_id')
         .range(from, from + PAGE - 1)
       if (err)
@@ -531,6 +571,7 @@ export function useOemData() {
     fetchOems,
     fetchImportRuns,
     fetchChangeEvents,
+    fetchPriceChangeDates,
     fetchVehicleModels,
     fetchProducts,
     fetchOffers,

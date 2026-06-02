@@ -9,13 +9,15 @@ import { BasicPage } from '@/components/global-layout'
 import Vehicle360Viewer from '@/components/Vehicle360Viewer.vue'
 import { useOemData } from '@/composables/use-oem-data'
 
-type ColorWithOem = VariantColor & { products: { oem_id: string, title: string, price_amount: number | null } }
+type ColorWithOem = VariantColor & { products: { oem_id: string, title: string, price_amount: number | null, price_type: string | null, price_qualifier: string | null } }
 
 interface VariantCard {
   productId: string
   productTitle: string
   oemId: string
   priceAmount: number | null
+  priceType: string | null
+  priceQualifier: string | null
   colors: ColorWithOem[]
   heroCount: number
   swatchCount: number
@@ -94,6 +96,8 @@ const variantCards = computed((): VariantCard[] => {
         productTitle: c.products.title,
         oemId: c.products.oem_id,
         priceAmount: c.products.price_amount,
+        priceType: c.products.price_type,
+        priceQualifier: c.products.price_qualifier,
         colors: [],
         heroCount: 0,
         swatchCount: 0,
@@ -138,8 +142,8 @@ const paginatedCards = computed(() => {
   return filteredCards.value.slice(start, start + perPage.value)
 })
 
-function setFilter(oem: string) {
-  filterOem.value = oem
+function setFilter(oem: unknown) {
+  filterOem.value = String(oem ?? 'all')
   page.value = 1
 }
 function onSearch() {
@@ -198,6 +202,18 @@ function formatPrice(amount: number | null) {
   if (!amount)
     return null
   return `$${Math.round(amount).toLocaleString()}`
+}
+
+function priceTypeLabel(card: VariantCard): string {
+  if (card.priceType === 'driveaway' || card.priceQualifier?.toLowerCase().includes('drive away'))
+    return 'Drive away'
+  if (card.priceType === 'RRP' || card.priceType === 'rrp')
+    return 'RRP'
+  if (card.priceType === 'MSRP' || card.priceType === 'msrp')
+    return 'MSRP'
+  if (card.priceType)
+    return card.priceType
+  return ''
 }
 
 function fallbackHex(name: string) {
@@ -444,9 +460,15 @@ function closePreview() {
               </span>
             </div>
             <!-- Price badge -->
-            <div v-if="card.priceAmount" class="absolute bottom-2 left-2">
-              <span class="bg-black/60 text-white text-xs font-medium px-1.5 py-0.5 rounded">
+            <div v-if="card.priceAmount" class="absolute bottom-2 left-2 flex flex-col gap-0.5 items-start">
+              <span class="bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded">
                 {{ formatPrice(card.priceAmount) }}
+              </span>
+              <span
+                v-if="priceTypeLabel(card)"
+                class="bg-black/40 text-white text-[9px] font-medium px-1.5 py-px rounded"
+              >
+                {{ priceTypeLabel(card) }}
               </span>
             </div>
             <!-- Gallery/360 badge -->

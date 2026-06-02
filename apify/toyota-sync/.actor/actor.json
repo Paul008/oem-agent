@@ -1,0 +1,11 @@
+{
+  "actorSpecification": 1,
+  "name": "toyota-sync",
+  "title": "Toyota Australia Vehicle Sync",
+  "description": "Extracts vehicle variants, specs, pricing, and colours from toyota.com.au using stealth browser automation",
+  "version": "1.0",
+  "buildTag": "latest",
+  "environmentVariables": {},
+  "input": "./input_schema.json",
+  "dockerfile": "./Dockerfile"
+}

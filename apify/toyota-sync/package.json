@@ -1,0 +1,18 @@
+{
+  "name": "toyota-sync",
+  "version": "1.0.0",
+  "description": "Sync Toyota Australia vehicle data via browser automation",
+  "type": "module",
+  "scripts": {
+    "start": "tsx main.ts"
+  },
+  "dependencies": {
+    "apify": "^3.2.0",
+    "crawlee": "^3.11.0",
+    "puppeteer": "^24.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

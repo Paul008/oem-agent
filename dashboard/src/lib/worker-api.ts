@@ -467,3 +467,23 @@ export async function generateOnboardingSnippets(payload: {
     body: JSON.stringify(payload),
   })
 }
+
+// ============================================================================
+// Legacy UIkit Importer
+// ============================================================================
+
+export async function previewLegacyImport(url?: string, json?: any) {
+  return workerFetch('/api/v1/oem-agent/admin/preview-legacy-import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(url ? { url } : { json }),
+  })
+}
+
+export async function importLegacyPage(oemId: string, modelSlug: string, url?: string, json?: any) {
+  return workerFetch(`/api/v1/oem-agent/admin/import-legacy/${encodeURIComponent(oemId)}/${encodeURIComponent(modelSlug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(url ? { url } : { json }),
+  })
+}

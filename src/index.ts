@@ -119,6 +119,17 @@ function buildSandboxOptions(env: MoltbotEnv): SandboxOptions {
 // Main app
 const app = new Hono<AppEnv>();
 
+function isMediaHostRequest(requestUrl: string, mediaBaseUrl?: string): boolean {
+  const configured = mediaBaseUrl?.trim();
+  if (!configured) return false;
+
+  try {
+    return new URL(requestUrl).host === new URL(configured).host;
+  } catch {
+    return false;
+  }
+}
+
 // =============================================================================
 // MIDDLEWARE: Applied to ALL routes
 // =============================================================================
@@ -139,6 +150,17 @@ app.use('*', async (c, next) => {
   console.log(`[REQ] Has ANTHROPIC_API_KEY: ${!!c.env.ANTHROPIC_API_KEY}`);
   console.log(`[REQ] DEV_MODE: ${c.env.DEV_MODE}`);
   console.log(`[REQ] DEBUG_ROUTES: ${c.env.DEBUG_ROUTES}`);
+  await next();
+});
+
+// Dedicated media hostnames should only serve public media routes.
+app.use('*', async (c, next) => {
+  const url = new URL(c.req.url);
+  const isMediaPath = url.pathname === '/media' || url.pathname.startsWith('/media/');
+  if (isMediaHostRequest(c.req.url, c.env.MEDIA_BASE_URL) && !isMediaPath) {
+    return c.notFound();
+  }
+
   await next();
 });
 

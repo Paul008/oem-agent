@@ -9,13 +9,14 @@ import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
 
-const { fetchProducts, fetchVehicleModels, fetchOems, fetchOffersByProducts } = useOemData()
+const { fetchProducts, fetchVehicleModels, fetchOems, fetchOffersByProducts, fetchPriceChangeDates } = useOemData()
 
 const products = ref<Product[]>([])
 const models = ref<VehicleModel[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const heroMap = ref<Map<string, string>>(new Map())
 const offersByProduct = ref<Map<string, Offer[]>>(new Map())
+const priceChangeDates = ref<Map<string, string>>(new Map())
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 
@@ -68,6 +69,7 @@ onMounted(async () => {
     heroMap.value = heroes
     // Load offers after products so we know which ids to query.
     offersByProduct.value = await fetchOffersByProducts(p.map(x => x.id))
+    priceChangeDates.value = await fetchPriceChangeDates()
   }
   catch (err: any) {
     loadError.value = err.message || 'Failed to load variant data'
@@ -193,6 +195,18 @@ function formatPrice(amount: number | null) {
   if (!amount)
     return '-'
   return `$${Math.round(amount).toLocaleString()}`
+}
+
+function priceTypeLabel(product: Product): string {
+  if (product.price_type === 'driveaway' || product.price_qualifier?.toLowerCase().includes('drive away'))
+    return 'Drive away'
+  if (product.price_type === 'RRP' || product.price_type === 'rrp')
+    return 'RRP'
+  if (product.price_type === 'MSRP' || product.price_type === 'msrp')
+    return 'MSRP'
+  if (product.price_type)
+    return product.price_type
+  return ''
 }
 
 function hasSpecs(product: Product): boolean {
@@ -356,34 +370,6 @@ function brochureUrl(product: Product): string | null {
   if (!product.model_id)
     return null
   return modelMap.value.get(product.model_id)?.brochure_url ?? null
-}
-
-/** Quick specs summary for card view */
-function specsSummary(specs: ProductSpecs | null): string[] {
-  if (!specs)
-    return []
-  const items: string[] = []
-  if (specs.engine) {
-    const power = specs.engine.power || specs.engine.max_power || ''
-    if (power)
-      items.push(power)
-  }
-  if (specs.capacity) {
-    const seats = specs.capacity.seats || specs.capacity.seating || ''
-    if (seats)
-      items.push(`${seats} seats`)
-  }
-  if (specs.performance) {
-    const fuel = specs.performance.fuel_combined || specs.performance.fuel_consumption || ''
-    if (fuel)
-      items.push(fuel)
-  }
-  if (specs.towing) {
-    const braked = specs.towing.braked || specs.towing.braked_towing || ''
-    if (braked)
-      items.push(`Tow ${braked}`)
-  }
-  return items.slice(0, 4)
 }
 
 /** Extract all specs for card view, grouped by category */
@@ -576,10 +562,16 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                 {{ oemName(product.oem_id) }}
               </span>
             </div>
-            <!-- Price badge (retail driveaway + ABN ex-GST when available) -->
+            <!-- Price badge (final driveaway price + ABN ex-GST when available) -->
             <div v-if="product.price_amount" class="absolute bottom-2 left-2 flex flex-col gap-0.5 items-start">
               <span class="bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded">
                 {{ formatPrice(product.price_amount) }}
+              </span>
+              <span
+                v-if="priceTypeLabel(product)"
+                class="bg-black/40 text-white text-[9px] font-medium px-1.5 py-px rounded"
+              >
+                {{ priceTypeLabel(product) }}
               </span>
               <span
                 v-if="(product as any).meta_json?.rsc_price_breakdown?.net_retail_ex_gst"
@@ -705,6 +697,7 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
             </UiTableHead>
             <UiTableHead>Specs</UiTableHead>
             <UiTableHead>Last Seen</UiTableHead>
+            <UiTableHead>First Extracted</UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -741,6 +734,19 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               </UiTableCell>
               <UiTableCell class="text-right font-medium text-sm">
                 <div>{{ formatPrice(product.price_amount) }}</div>
+                <div
+                  v-if="priceTypeLabel(product)"
+                  class="text-[10px] text-muted-foreground font-normal"
+                >
+                  {{ priceTypeLabel(product) }}
+                </div>
+                <div
+                  v-if="priceChangeDates.get(product.id)"
+                  class="text-[10px] text-muted-foreground/70 font-normal"
+                  title="Price last changed"
+                >
+                  {{ new Date(priceChangeDates.get(product.id)!).toLocaleDateString('en-AU') }}
+                </div>
                 <div
                   v-if="(product as any).meta_json?.rsc_price_breakdown?.net_retail_ex_gst"
                   class="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal"
@@ -779,10 +785,13 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               <UiTableCell class="text-xs text-muted-foreground">
                 {{ product.last_seen_at ? new Date(product.last_seen_at).toLocaleDateString('en-AU') : '-' }}
               </UiTableCell>
+              <UiTableCell class="text-xs text-muted-foreground">
+                {{ product.created_at ? new Date(product.created_at).toLocaleDateString('en-AU') : '-' }}
+              </UiTableCell>
             </UiTableRow>
             <!-- Expandable Specs -->
             <UiTableRow v-if="expandedSpecs.has(product.id) && (hasSpecs(product) || offersByProduct.get(product.id)?.length)" class="bg-muted/30 hover:bg-muted/40">
-              <UiTableCell :colspan="8" class="p-0">
+              <UiTableCell :colspan="9" class="p-0">
                 <div class="px-6 py-4 space-y-5">
                   <!-- Offers attached to this variant -->
                   <div v-if="offersByProduct.get(product.id)?.length">
@@ -896,7 +905,7 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
             </UiTableRow>
           </template>
           <UiTableRow v-if="paginatedItems.length === 0">
-            <UiTableCell :colspan="8" class="text-center text-muted-foreground py-8">
+            <UiTableCell :colspan="9" class="text-center text-muted-foreground py-8">
               No variants found matching your filters
             </UiTableCell>
           </UiTableRow>

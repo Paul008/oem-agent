@@ -7,7 +7,7 @@ import type { Product, ProductSpecs, VehicleModel } from '@/composables/use-oem-
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 
-const { fetchVehicleModels, fetchProducts, fetchOems } = useOemData()
+const { fetchVehicleModels, fetchProducts, fetchOems, fetchPriceChangeDates } = useOemData()
 
 const models = ref<VehicleModel[]>([])
 const products = ref<Product[]>([])
@@ -16,13 +16,15 @@ const loading = ref(true)
 const filterOem = ref('all')
 const expandedModel = ref<string | null>(null)
 const expandedSpecs = ref<Set<string>>(new Set())
+const priceChangeDates = ref<Map<string, string>>(new Map())
 
 onMounted(async () => {
   try {
-    const [m, p, o] = await Promise.all([fetchVehicleModels(), fetchProducts(), fetchOems()])
+    const [m, p, o, priceChanges] = await Promise.all([fetchVehicleModels(), fetchProducts(), fetchOems(), fetchPriceChangeDates()])
     models.value = m
     products.value = p
     oems.value = o
+    priceChangeDates.value = priceChanges
   }
   finally {
     loading.value = false
@@ -47,6 +49,18 @@ function formatPrice(amount: number | null) {
   if (!amount)
     return '-'
   return `$${Math.round(amount).toLocaleString()}`
+}
+
+function priceTypeLabel(product: Product): string {
+  if (product.price_type === 'driveaway' || product.price_qualifier?.toLowerCase().includes('drive away'))
+    return 'Drive away'
+  if (product.price_type === 'RRP' || product.price_type === 'rrp')
+    return 'RRP'
+  if (product.price_type === 'MSRP' || product.price_type === 'msrp')
+    return 'MSRP'
+  if (product.price_type)
+    return product.price_type
+  return ''
 }
 
 function toggleModel(id: string) {
@@ -343,6 +357,7 @@ const brochureCoverage = computed(() => {
                 </UiTableHead>
                 <UiTableHead>Availability</UiTableHead>
                 <UiTableHead>Last Seen</UiTableHead>
+                <UiTableHead>First Extracted</UiTableHead>
               </UiTableRow>
             </UiTableHeader>
             <UiTableBody>
@@ -379,7 +394,20 @@ const brochureCoverage = computed(() => {
                     {{ product.body_type ?? '-' }}
                   </UiTableCell>
                   <UiTableCell class="text-right font-medium">
-                    {{ formatPrice(product.price_amount) }}
+                    <div>{{ formatPrice(product.price_amount) }}</div>
+                    <div
+                      v-if="priceTypeLabel(product)"
+                      class="text-[10px] text-muted-foreground font-normal"
+                    >
+                      {{ priceTypeLabel(product) }}
+                    </div>
+                    <div
+                      v-if="priceChangeDates.get(product.id)"
+                      class="text-[10px] text-muted-foreground/70 font-normal"
+                      title="Price last changed"
+                    >
+                      {{ new Date(priceChangeDates.get(product.id)!).toLocaleDateString('en-AU') }}
+                    </div>
                   </UiTableCell>
                   <UiTableCell>
                     <UiBadge v-if="product.availability" variant="outline" class="text-xs">
@@ -390,10 +418,13 @@ const brochureCoverage = computed(() => {
                   <UiTableCell class="text-xs text-muted-foreground">
                     {{ new Date(product.last_seen_at).toLocaleDateString('en-AU') }}
                   </UiTableCell>
+                  <UiTableCell class="text-xs text-muted-foreground">
+                    {{ product.created_at ? new Date(product.created_at).toLocaleDateString('en-AU') : '-' }}
+                  </UiTableCell>
                 </UiTableRow>
                 <!-- Expandable Specs Row -->
                 <UiTableRow v-if="expandedSpecs.has(product.id) && hasSpecs(product)" class="bg-muted/30 hover:bg-muted/40">
-                  <UiTableCell :colspan="7" class="p-0">
+                  <UiTableCell :colspan="8" class="p-0">
                     <div class="px-6 py-4">
                       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div

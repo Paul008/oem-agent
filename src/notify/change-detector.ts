@@ -434,12 +434,12 @@ export class ChangeDetector {
 
     const changeDescriptions = meaningfulChanges.map(c => {
       if (c.field.includes('price')) {
-        const oldPrice = c.oldValue ? `$${c.oldValue}` : 'N/A';
-        const newPrice = c.newValue ? `$${c.newValue}` : 'N/A';
+        const oldPrice = c.oldValue != null ? `$${c.oldValue}` : 'N/A';
+        const newPrice = c.newValue != null ? `$${c.newValue}` : 'N/A';
         return `price changed from ${oldPrice} to ${newPrice}`;
       }
       if (c.field === 'availability') {
-        return `availability changed from ${c.oldValue} to ${c.newValue}`;
+        return `availability changed from ${c.oldValue ?? 'N/A'} to ${c.newValue ?? 'N/A'}`;
       }
       return `${c.field} changed`;
     });

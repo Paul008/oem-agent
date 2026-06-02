@@ -389,12 +389,14 @@ async function main() {
         },
       };
 
+      const displayPrice = parseFloat(t.priceOfferVIC) || parseFloat(t.priceOfferNSW) || rrp || null;
       const updatedMeta = { ...(product.meta_json || {}), ...pricingMeta };
       const now = new Date().toISOString();
       const patchStatus = await supabasePatch(`/products?id=eq.${product.id}`, {
-        price_amount: rrp,
+        price_amount: displayPrice,
         price_currency: 'AUD',
-        price_type: 'RRP',
+        price_type: 'driveaway',
+        price_qualifier: 'Drive away estimate',
         meta_json: updatedMeta,
         updated_at: now,
         last_seen_at: now,

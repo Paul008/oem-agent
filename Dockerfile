@@ -20,9 +20,36 @@ RUN ARCH="$(dpkg --print-architecture)" \
 # Install pnpm globally
 RUN npm install -g pnpm
 
+# Install Chromium for OpenClaw browser tool
+# Ubuntu 22.04 doesn't have chromium in apt — download Google Chrome .deb instead
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget curl ca-certificates gnupg \
+    libxss1 libgbm1 libgtk-3-0 libnss3 \
+    fonts-liberation xdg-utils libu2f-udev libvulkan1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb \
+    && apt-get update \
+    && (apt-get install -y --no-install-recommends /tmp/chrome.deb \
+        || (apt-get install -y --no-install-recommends -f \
+            && apt-get install -y --no-install-recommends /tmp/chrome.deb)) \
+    && ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium \
+    && rm -f /tmp/chrome.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright for OpenClaw browser automation
+RUN npm install -g playwright \
+    && PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright \
+    playwright install chromium
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+# Google Chrome installs to /usr/bin/google-chrome-stable
+# Also create symlink for compatibility
+ENV BROWSER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+
 # Install OpenClaw (formerly clawdbot/moltbot)
 # Pin to specific version for reproducible builds
-RUN npm install -g openclaw@2026.4.5 \
+RUN npm install -g openclaw@2026.5.7 \
     && openclaw --version
 
 # Create OpenClaw directories
@@ -34,7 +61,7 @@ RUN mkdir -p /root/.openclaw \
 # Copy startup script
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
-ENV BUILD_REV=2026-04-07-gemini-switch-v2
+ENV BUILD_REV=2026-05-08-openclaw-2026.5.7-chromium
 
 # Copy custom skills, workspace files, and documentation
 COPY skills/ /root/clawd/skills/

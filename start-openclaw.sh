@@ -175,6 +175,17 @@ if (process.env.OPENCLAW_DEV_MODE === 'true') {
     config.gateway.controlUi.allowedOrigins = [workerUrl];
 }
 
+// Browser configuration (Chromium for web scraping)
+config.browser = config.browser || {};
+config.browser.enabled = true;
+config.browser.defaultProfile = 'openclaw';
+config.browser.headless = true;
+config.browser.noSandbox = true;
+config.browser.executablePath = '/usr/bin/chromium';
+config.browser.profiles = config.browser.profiles || {};
+config.browser.profiles.openclaw = { cdpPort: 18800, color: '#FF4500' };
+console.log('Browser config: Chromium at /usr/bin/chromium (headless)');
+
 // Multi-agent configuration
 config.agents = config.agents || {};
 config.agents.list = [

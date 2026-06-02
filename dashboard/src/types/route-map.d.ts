@@ -221,6 +221,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/import-legacy': RouteRecordInfo<
+      '/dashboard/import-legacy',
+      '/dashboard/import-legacy',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/media': RouteRecordInfo<
       '/dashboard/media',
       '/dashboard/media',
@@ -734,6 +741,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/docs.vue': {
       routes:
         | '/dashboard/docs'
+      views:
+        | never
+    }
+    'src/pages/dashboard/import-legacy.vue': {
+      routes:
+        | '/dashboard/import-legacy'
       views:
         | never
     }

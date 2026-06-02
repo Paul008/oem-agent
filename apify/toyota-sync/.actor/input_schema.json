@@ -1,0 +1,29 @@
+{
+  "title": "Toyota Sync Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "supabaseUrl": {
+      "title": "Supabase URL",
+      "type": "string",
+      "description": "Supabase project URL",
+      "editor": "textfield",
+      "isSecret": false
+    },
+    "supabaseServiceRoleKey": {
+      "title": "Supabase Service Role Key",
+      "type": "string",
+      "description": "Supabase service role key for database writes",
+      "editor": "textfield",
+      "isSecret": true
+    },
+    "maxVariants": {
+      "title": "Max Variants",
+      "type": "integer",
+      "description": "Limit the number of variants to sync (for testing)",
+      "default": 0,
+      "editor": "number"
+    }
+  },
+  "required": []
+}

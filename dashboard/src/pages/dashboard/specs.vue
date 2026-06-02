@@ -8,7 +8,7 @@ import type { Product, ProductSpecs, VehicleModel } from '@/composables/use-oem-
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 
-const { fetchProducts, fetchVehicleModels, fetchOems } = useOemData()
+const { fetchProducts, fetchVehicleModels, fetchOems, fetchPriceChangeDates } = useOemData()
 
 const products = ref<Product[]>([])
 const models = ref<VehicleModel[]>([])
@@ -29,13 +29,15 @@ const pageSize = ref(50)
 const PAGE_SIZES = [25, 50, 100, 200]
 
 const expandedSpecs = ref<Set<string>>(new Set())
+const priceChangeDates = ref<Map<string, string>>(new Map())
 
 onMounted(async () => {
   try {
-    const [p, m, o] = await Promise.all([fetchProducts(), fetchVehicleModels(), fetchOems()])
+    const [p, m, o, priceChanges] = await Promise.all([fetchProducts(), fetchVehicleModels(), fetchOems(), fetchPriceChangeDates()])
     products.value = p
     models.value = m
     oems.value = o
+    priceChangeDates.value = priceChanges
   }
   catch (err: any) {
     loadError.value = err.message || 'Failed to load specifications data'
@@ -275,6 +277,18 @@ function formatPrice(amount: number | null) {
   return `$${Math.round(amount).toLocaleString()}`
 }
 
+function priceTypeLabel(product: Product): string {
+  if (product.price_type === 'driveaway' || product.price_qualifier?.toLowerCase().includes('drive away'))
+    return 'Drive away'
+  if (product.price_type === 'RRP' || product.price_type === 'rrp')
+    return 'RRP'
+  if (product.price_type === 'MSRP' || product.price_type === 'msrp')
+    return 'MSRP'
+  if (product.price_type)
+    return product.price_type
+  return ''
+}
+
 function toggleSpecs(id: string) {
   if (expandedSpecs.value.has(id)) {
     expandedSpecs.value.delete(id)
@@ -447,6 +461,8 @@ const avgSpecsPerProduct = computed(() => {
             <UiTableHead class="text-center">
               Total Specs
             </UiTableHead>
+            <UiTableHead>Last Seen</UiTableHead>
+            <UiTableHead>First Extracted</UiTableHead>
           </UiTableRow>
         </UiTableHeader>
         <UiTableBody>
@@ -468,7 +484,20 @@ const avgSpecsPerProduct = computed(() => {
                 </p>
               </UiTableCell>
               <UiTableCell class="text-right font-medium text-sm">
-                {{ formatPrice(product.price_amount) }}
+                <div>{{ formatPrice(product.price_amount) }}</div>
+                <div
+                  v-if="priceTypeLabel(product)"
+                  class="text-[10px] text-muted-foreground font-normal"
+                >
+                  {{ priceTypeLabel(product) }}
+                </div>
+                <div
+                  v-if="priceChangeDates.get(product.id)"
+                  class="text-[10px] text-muted-foreground/70 font-normal"
+                  title="Price last changed"
+                >
+                  {{ new Date(priceChangeDates.get(product.id)!).toLocaleDateString('en-AU') }}
+                </div>
               </UiTableCell>
               <UiTableCell class="text-center">
                 <button
@@ -482,10 +511,16 @@ const avgSpecsPerProduct = computed(() => {
               <UiTableCell class="text-center text-sm">
                 {{ specCount(product.specs_json!) }}
               </UiTableCell>
+              <UiTableCell class="text-xs text-muted-foreground">
+                {{ product.last_seen_at ? new Date(product.last_seen_at).toLocaleDateString('en-AU') : '-' }}
+              </UiTableCell>
+              <UiTableCell class="text-xs text-muted-foreground">
+                {{ product.created_at ? new Date(product.created_at).toLocaleDateString('en-AU') : '-' }}
+              </UiTableCell>
             </UiTableRow>
             <!-- Expandable Specs -->
             <UiTableRow v-if="expandedSpecs.has(product.id)" class="bg-muted/30 hover:bg-muted/40">
-              <UiTableCell :colspan="6" class="p-0">
+              <UiTableCell :colspan="8" class="p-0">
                 <div class="px-6 py-4">
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div
@@ -517,7 +552,7 @@ const avgSpecsPerProduct = computed(() => {
             </UiTableRow>
           </template>
           <UiTableRow v-if="paginatedItems.length === 0">
-            <UiTableCell :colspan="6" class="text-center text-muted-foreground py-8">
+            <UiTableCell :colspan="8" class="text-center text-muted-foreground py-8">
               No products with specifications found matching your filters
             </UiTableCell>
           </UiTableRow>
