@@ -21,6 +21,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
 
@@ -116,6 +117,44 @@ function buildSandboxOptions(env: MoltbotEnv): SandboxOptions {
   return { sleepAfter };
 }
 
+async function authenticateSupabaseBearer(c: Context<AppEnv>): Promise<boolean> {
+  const authorization = c.req.header('Authorization');
+  if (!authorization?.startsWith('Bearer ')) return false;
+  if (!c.env.SUPABASE_URL || !c.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+
+  try {
+    const response = await fetch(`${c.env.SUPABASE_URL.replace(/\/+$/, '')}/auth/v1/user`, {
+      headers: {
+        Authorization: authorization,
+        apikey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+      },
+      signal: AbortSignal.timeout(8_000),
+    });
+
+    if (!response.ok) return false;
+
+    const user = await response.json() as {
+      email?: string;
+      user_metadata?: { name?: string; full_name?: string };
+    };
+
+    if (!user.email) return false;
+
+    c.set('accessUser', {
+      email: user.email,
+      name: user.user_metadata?.name || user.user_metadata?.full_name,
+    });
+    return true;
+  } catch (error) {
+    console.error('[AUTH] Supabase bearer verification failed:', error);
+    return false;
+  }
+}
+
+function canUseSupabaseDashboardAuth(pathname: string): boolean {
+  return pathname.startsWith('/api/') || pathname === '/cron' || pathname.startsWith('/cron/');
+}
+
 // Main app
 const app = new Hono<AppEnv>();
 
@@ -196,6 +235,17 @@ app.route('/oem-proxy', oemProxy);
 // PROTECTED ROUTES: Cloudflare Access authentication required
 // =============================================================================
 
+// Dashboard users are authenticated with Supabase. Accept that bearer token for
+// dashboard API calls, while keeping Cloudflare Access support for deployments
+// that configure CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD.
+app.use('*', async (c, next) => {
+  const pathname = new URL(c.req.url).pathname;
+  if (canUseSupabaseDashboardAuth(pathname)) {
+    await authenticateSupabaseBearer(c);
+  }
+  return next();
+});
+
 // Middleware: Validate required environment variables (skip in dev mode and for debug routes)
 app.use('*', async (c, next) => {
   const url = new URL(c.req.url);
@@ -210,7 +260,12 @@ app.use('*', async (c, next) => {
     return next();
   }
 
-  const missingVars = validateRequiredEnv(c.env);
+  let missingVars = validateRequiredEnv(c.env);
+  if (c.get('accessUser')) {
+    missingVars = missingVars.filter(variable =>
+      variable !== 'CF_ACCESS_TEAM_DOMAIN' && variable !== 'CF_ACCESS_AUD',
+    );
+  }
   if (missingVars.length > 0) {
     console.error('[CONFIG] Missing required environment variables:', missingVars.join(', '));
 

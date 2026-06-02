@@ -1,9 +1,13 @@
+import { supabase } from '@/lib/supabase'
+
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 export async function workerFetch(path: string, options?: RequestInit) {
+  const headers = await buildWorkerHeaders(options?.headers)
   const res = await fetch(`${WORKER_BASE}${path}`, {
     credentials: 'include',
     ...options,
+    headers,
   })
   if (!res.ok) {
     const text = await res.text().catch(() => 'No response body')
@@ -15,6 +19,17 @@ export async function workerFetch(path: string, options?: RequestInit) {
     throw new Error(`Expected JSON from ${path} but got ${contentType || 'unknown'}: ${text.slice(0, 200)}`)
   }
   return res.json()
+}
+
+async function buildWorkerHeaders(headers?: HeadersInit) {
+  const merged = new Headers(headers)
+  if (!merged.has('Authorization')) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (token)
+      merged.set('Authorization', `Bearer ${token}`)
+  }
+  return merged
 }
 
 export async function triggerCrawl(oemId: string) {

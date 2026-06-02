@@ -56,6 +56,12 @@ export function createAccessMiddleware(options: AccessMiddlewareOptions) {
       return next();
     }
 
+    // A route-specific middleware may have already authenticated the request
+    // through another trusted identity provider, e.g. Supabase dashboard auth.
+    if (typeof c.get === 'function' && c.get('accessUser')) {
+      return next();
+    }
+
     const teamDomain = c.env.CF_ACCESS_TEAM_DOMAIN;
     const expectedAud = c.env.CF_ACCESS_AUD;
 
