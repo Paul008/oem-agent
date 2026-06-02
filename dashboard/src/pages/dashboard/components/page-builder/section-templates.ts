@@ -15,11 +15,30 @@ export interface SectionTemplate {
   data: Record<string, any>
 }
 
+export interface SectionTabItem {
+  label: string
+  content_html: string
+  image_url: string
+  image_disclaimer: string
+  disclaimer: string
+}
+
+export function createSectionTabItem(overrides: Partial<SectionTabItem> = {}): SectionTabItem {
+  return {
+    label: 'Tab 1',
+    content_html: '',
+    image_url: '',
+    image_disclaimer: '',
+    disclaimer: '',
+    ...overrides,
+  }
+}
+
 export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>> = {
   'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left', show_overlay: true, full_width_image: false, animation: 'none' }),
   'heading': () => ({ heading: '', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: '', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', text_color: '', line_gap: '8', background_color: '', animation: 'fade-up' }),
   'intro': () => ({ title: '', body_html: '', image_url: '', image_position: 'right', animation: 'fade-up' }),
-  'tabs': () => ({ title: '', category: '', variant: 'default', theme: 'light', image_position: 'right', tabs: [{ label: 'Tab 1', content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' }], default_tab: 0 }),
+  'tabs': () => ({ title: '', category: '', variant: 'default', theme: 'light', image_position: 'right', tabs: [createSectionTabItem()], default_tab: 0 }),
   'color-picker': () => ({ title: 'Colours', colors: [] }),
   'specs-grid': () => ({ title: 'Specifications', categories: [] }),
   'gallery': () => ({ title: 'Gallery', images: [], layout: 'carousel', animation: 'stagger-children' }),
@@ -64,8 +83,8 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { id: 'intro-left', name: 'Intro (Image Left)', description: 'Introduction text with image on left', type: 'intro', data: { image_position: 'left', body_html: '' } },
 
   // Tabs
-  { id: 'tabs-default', name: 'Tab Bar', description: 'Horizontal tab strip with content panels', type: 'tabs', data: { variant: 'default', tabs: [{ label: 'Design', content_html: '', image_url: '' }, { label: 'Performance', content_html: '', image_url: '' }, { label: 'Technology', content_html: '', image_url: '' }], default_tab: 0 } },
-  { id: 'tabs-kia', name: 'Kia Feature Bullets', description: 'Kia-style split layout with red bullet list and side image', type: 'tabs', data: { variant: 'kia-feature-bullets', category: 'Features', title: 'Designed to impress.', tabs: [{ label: 'Design', content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' }, { label: 'Performance', content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' }, { label: 'Technology', content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' }], default_tab: 0 } },
+  { id: 'tabs-default', name: 'Tab Bar', description: 'Horizontal tab strip with content panels', type: 'tabs', data: { variant: 'default', tabs: [createSectionTabItem({ label: 'Design' }), createSectionTabItem({ label: 'Performance' }), createSectionTabItem({ label: 'Technology' })], default_tab: 0 } },
+  { id: 'tabs-kia', name: 'Kia Feature Bullets', description: 'Kia-style split layout with red bullet list and side image', type: 'tabs', data: { variant: 'kia-feature-bullets', category: 'Features', title: 'Designed to impress.', tabs: [createSectionTabItem({ label: 'Design' }), createSectionTabItem({ label: 'Performance' }), createSectionTabItem({ label: 'Technology' })], default_tab: 0 } },
 
   // Feature cards
   { id: 'features-3col', name: '3-Column Features', description: 'Three feature cards in a row', type: 'feature-cards', data: { columns: 3, cards: [{ title: 'Feature 1', description: '', image_url: '' }, { title: 'Feature 2', description: '', image_url: '' }, { title: 'Feature 3', description: '', image_url: '' }] } },

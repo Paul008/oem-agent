@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  createSectionTabItem,
   getSectionRecipeDefaults,
   getSectionRecipePattern,
   getSectionSplittableField,
+  SECTION_DEFAULTS,
   SECTION_RECIPE_CONTENT_FIELDS,
   SECTION_RECIPE_PATTERNS,
   SECTION_SPLITTABLE_FIELDS,
@@ -39,6 +41,42 @@ describe('section split metadata', () => {
     for (const source of consumerSources) {
       expect(source).not.toContain('const SPLITTABLE_FIELDS')
     }
+  })
+})
+
+describe('section nested item defaults', () => {
+  it('creates fresh tab items with the full tabs schema', () => {
+    const first = createSectionTabItem()
+    const second = createSectionTabItem({ label: 'Design', content_html: '<p>Design</p>' })
+
+    expect(first).toEqual({
+      label: 'Tab 1',
+      content_html: '',
+      image_url: '',
+      image_disclaimer: '',
+      disclaimer: '',
+    })
+    expect(second).toEqual({
+      label: 'Design',
+      content_html: '<p>Design</p>',
+      image_url: '',
+      image_disclaimer: '',
+      disclaimer: '',
+    })
+    expect(first).not.toBe(second)
+  })
+
+  it('uses shared tab item defaults for blank tab sections', () => {
+    const section = SECTION_DEFAULTS.tabs()
+
+    expect(section.tabs).toEqual([createSectionTabItem()])
+    expect(section.tabs[0]).not.toBe(createSectionTabItem())
+  })
+
+  it('keeps tab item literals out of the editor add action', () => {
+    const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
+
+    expect(source).not.toContain("addArrayItem('tabs', {")
   })
 })
 

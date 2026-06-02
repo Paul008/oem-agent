@@ -1,6 +1,6 @@
 import type { PageSectionType } from './section-templates'
 
-import { SECTION_DEFAULTS } from './section-templates'
+import { createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
 
 /**
  * Section Converter — converts a section from one type to another,
@@ -141,12 +141,10 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       variant: 'default',
       theme: 'light',
       image_position: 'right',
-      tabs: (s.images || []).map((img: any) => ({
+      tabs: (s.images || []).map((img: any) => createSectionTabItem({
         label: img.caption || img.alt || 'Image',
         content_html: img.description ? `<p>${img.description}</p>` : '',
         image_url: img.url || '',
-        image_disclaimer: '',
-        disclaimer: '',
       })),
       default_tab: 0,
     }),
@@ -271,12 +269,10 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       variant: 'default',
       theme: 'light',
       image_position: 'right',
-      tabs: (s.cards || []).map((c: any) => ({
+      tabs: (s.cards || []).map((c: any) => createSectionTabItem({
         label: c.title || 'Card',
         content_html: c.description ? `<p>${c.description}</p>` : '',
         image_url: c.image_url || '',
-        image_disclaimer: '',
-        disclaimer: '',
       })),
       default_tab: 0,
     }),
@@ -359,12 +355,10 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       variant: 'default',
       theme: 'light',
       image_position: 'right',
-      tabs: (s.items || []).map((item: any) => ({
+      tabs: (s.items || []).map((item: any) => createSectionTabItem({
         label: item.question || '',
         content_html: item.answer || '',
         image_url: '',
-        image_disclaimer: '',
-        disclaimer: '',
       })),
       default_tab: 0,
     }),
@@ -560,14 +554,12 @@ const CONVERSIONS: Record<string, ConversionMap> = {
       variant: 'default',
       theme: 'light',
       image_position: 'right',
-      tabs: (s.columns || []).slice(1).map((col: any, colIdx: number) => ({
+      tabs: (s.columns || []).slice(1).map((col: any, colIdx: number) => createSectionTabItem({
         label: col.label || `Column ${colIdx + 1}`,
         content_html: (s.rows || []).map((r: any) =>
           `<p><strong>${r.feature}:</strong> ${(r.values || [])[colIdx] || '-'}</p>`,
         ).join('\n'),
         image_url: '',
-        image_disclaimer: '',
-        disclaimer: '',
       })),
       default_tab: 0,
     }),

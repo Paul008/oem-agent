@@ -7,7 +7,7 @@ import type { PageSectionType } from './section-templates'
 import MediaLibraryDialog from './MediaLibraryDialog.vue'
 import MediaUploadButton from './MediaUploadButton.vue'
 import { getConvertibleTypes } from './section-converter'
-import { SECTION_TYPE_INFO } from './section-templates'
+import { createSectionTabItem, SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
   section: any
@@ -60,6 +60,13 @@ function updateNested(arrayKey: string, index: VueListIndex, field: string, valu
 function addArrayItem(arrayKey: string, template: Record<string, any>) {
   const arr = [...(props.section[arrayKey] || []), template]
   emit('update:section', { [arrayKey]: arr })
+}
+
+function createEditorTabItem() {
+  const nextIndex = (props.section.tabs?.length ?? 0) + 1
+  return createSectionTabItem({
+    label: props.section.variant === 'kia-feature-bullets' ? `Feature ${nextIndex}` : `Tab ${nextIndex}`,
+  })
 }
 
 function removeArrayItem(arrayKey: string, index: VueListIndex) {
@@ -850,7 +857,7 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="text-xs text-muted-foreground">{{ section.variant === 'kia-feature-bullets' ? 'Features' : 'Tabs' }} ({{ section.tabs?.length ?? 0 }})</label>
-            <button class="text-xs text-primary hover:underline" @click="addArrayItem('tabs', { label: section.variant === 'kia-feature-bullets' ? `Feature ${(section.tabs?.length ?? 0) + 1}` : `Tab ${(section.tabs?.length ?? 0) + 1}`, content_html: '', image_url: '', image_disclaimer: '', disclaimer: '' })">
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('tabs', createEditorTabItem())">
               <Plus class="size-3 inline mr-0.5" />Add
             </button>
           </div>

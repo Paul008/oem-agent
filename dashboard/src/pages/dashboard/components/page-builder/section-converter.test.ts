@@ -41,3 +41,36 @@ describe('section conversion grid columns', () => {
     expect(source).not.toContain('columns: Math.min(')
   })
 })
+
+describe('section conversion nested item defaults', () => {
+  it('uses the full shared tab item shape when converting galleries into tabs', () => {
+    const converted = convertSectionData({
+      id: 'gallery-tabs',
+      order: 2,
+      type: 'gallery',
+      title: 'Highlights',
+      images: [{ url: '/media/design.jpg', alt: 'Design', caption: 'Design', description: 'Sharp lines' }],
+    }, 'tabs')
+
+    expect(converted).toMatchObject({
+      id: 'gallery-tabs',
+      order: 2,
+      type: 'tabs',
+      title: 'Highlights',
+      tabs: [{
+        label: 'Design',
+        content_html: '<p>Sharp lines</p>',
+        image_url: '/media/design.jpg',
+        image_disclaimer: '',
+        disclaimer: '',
+      }],
+      default_tab: 0,
+    })
+  })
+
+  it('keeps tab item literals centralized in conversions', () => {
+    const source = readFileSync(new URL('./section-converter.ts', import.meta.url), 'utf8')
+
+    expect(source).not.toContain("image_disclaimer: '',\n        disclaimer: '',")
+  })
+})
