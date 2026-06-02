@@ -178,4 +178,54 @@ describe('extractWithSelectors', () => {
       image_url_mobile: 'https://assets.gwmanz.com/f/256395/780x1600/a3aaf573fd/h6-wbmsuv25-banner-mobile.jpg/m/3008x0/',
     });
   });
+
+  it('extracts Suzuki respim homepage and offers banners', () => {
+    const html = `
+      <div class="hb-2025-refresh__item">
+        <div class="bg-image bg-image-large-up" data-background-image data-respim='{
+          "src": "/wp-content/uploads/2026/05/Jimny-Rhino-Desktop-Banner-2-2280x1600.webp",
+          "webp": "/wp-content/uploads/2026/05/Jimny-Rhino-Desktop-Banner-2-2280x1600.webp"
+        }'></div>
+        <div class="bg-image bg-image-default" data-background-image data-respim='{
+          "src": "/wp-content/uploads/2026/05/Jimny-rhino-1280x1380.webp",
+          "webp": "/wp-content/uploads/2026/05/Jimny-rhino-1280x1380.webp"
+        }'></div>
+        <h1 class="hb-2025-refresh__title">Rhino Spotted</h1>
+        <a class="cta" href="/jimny-rhino-ryi-form/">Learn more</a>
+      </div>
+      <article class="retail-hero-banner hero-banner--separate-images">
+        <a href="/book-test-drive/">
+          <img
+            src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+            class="retail-hero-banner__bg"
+            data-respim='{
+              "default": { "src": "/wp-content/uploads/2026/04/SUZ969-WebsiteBanner-ForFundsSake-Mobile-1280x1380-v1.0-HLCTAOffer-1200x1294.webp" },
+              "xxlarge-only": { "src": "/wp-content/uploads/2024/09/Swift-Offers-Banner-Final-2560x1393.webp" }
+            }'
+          />
+          <noscript><img src="/wp-content/uploads/2026/04/SUZ969-WebsiteBanner-ForFundsSake-Mobile-1280x1380-v1.0-HLCTAOffer-1200x1294.webp"></noscript>
+        </a>
+      </article>
+    `;
+
+    const result = extractWithSelectors(html, 'suzuki-au', 'homepage', {
+      heroSlides: '.hb-2025-refresh__item, .hero-banner-slideshow .retail-hero-banner, .retail-hero-banner',
+    });
+
+    expect(result.bannerSlides).toHaveLength(2);
+    expect(result.bannerSlides[0]).toMatchObject({
+      headline: 'Rhino Spotted',
+      cta_text: 'Learn more',
+      cta_url: 'https://www.suzuki.com.au/jimny-rhino-ryi-form/',
+      image_url_desktop: 'https://www.suzuki.com.au/wp-content/uploads/2026/05/Jimny-Rhino-Desktop-Banner-2-2280x1600.webp',
+      image_url_mobile: 'https://www.suzuki.com.au/wp-content/uploads/2026/05/Jimny-rhino-1280x1380.webp',
+    });
+    expect(result.bannerSlides[1]).toMatchObject({
+      headline: 'Swift Offers',
+      cta_text: null,
+      cta_url: 'https://www.suzuki.com.au/book-test-drive/',
+      image_url_desktop: 'https://www.suzuki.com.au/wp-content/uploads/2024/09/Swift-Offers-Banner-Final-2560x1393.webp',
+      image_url_mobile: 'https://www.suzuki.com.au/wp-content/uploads/2026/04/SUZ969-WebsiteBanner-ForFundsSake-Mobile-1280x1380-v1.0-HLCTAOffer-1200x1294.webp',
+    });
+  });
 });

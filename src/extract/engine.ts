@@ -255,12 +255,13 @@ export function extractWithSelectors(
         $slide.find('.kv_btn, a.cta, a[href]').first().attr('href') ||
         $slide.closest('a[href]').attr('href') ||
         null;
-      const ctaText =
+      const ctaText = normalizeExtractedText(
         $slide.attr('data-caption-link-label') ||
         $slide.attr('data-caption-link-title') ||
         $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() ||
         $slide.closest('a[href]').attr('title') ||
-        null;
+        null
+      );
       const imageUrlDesktop = absolutise(extractImageUrl($slide, $)) || '';
       const slide: ExtractedBannerSlide = {
         position: index,
@@ -606,10 +607,11 @@ export class ExtractionEngine {
 
 function extractImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string | null {
   // Try various image sources
-  const src = $el.find('img').attr('src') ||
-              $el.find('img').attr('data-src') ||
+  const src = extractRespimImageUrl($el, $, 'desktop') ||
+              normalizeImageCandidate($el.find('img').attr('src')) ||
+              normalizeImageCandidate($el.find('img').attr('data-src')) ||
               extractBgImageUrl($el, '[style*="background-image"], [style*="--desktop-background-image"]') ||
-              $el.attr('src');
+              normalizeImageCandidate($el.attr('src'));
 
   return src || null;
 }
@@ -655,13 +657,15 @@ function deriveHeadlineFromImageUrl(url: string | null): string | null {
   }
 
   const cleaned = decoded
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/\.(?:avif|gif|jpe?g|png|webp)$/i, '')
     .replace(/[_-]+/g, ' ')
     .replace(/\beofy\s*(\d{4})\b/gi, 'EOFY $1')
-    .replace(/\b(?:MIT|MMA|MMC)\d+\b/gi, ' ')
+    .replace(/\b(?:MIT|MMA|MMC|SUZ)\d+\b/gi, ' ')
     .replace(/\b\d{3,4}\s*x\s*\d{3,4}(?:px)?\b/gi, ' ')
     .replace(/\bopt\s*\d+\b/gi, ' ')
-    .replace(/\b(?:banner|copy|desktop|generic|hero|homepage|image|mobile|website|web)\b/gi, ' ')
+    .replace(/\bv\d+(?:\.\d+)*\b/gi, ' ')
+    .replace(/\b(?:banner|copy|desktop|final|generic|hero|homepage|image|mobile|website|web)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -713,6 +717,89 @@ function formatHeadlineWord(word: string): string {
   return /^[A-Z0-9]+$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
 
+function normalizeExtractedText(text: string | null | undefined): string | null {
+  const trimmed = (text || '').replace(/\s+/g, ' ').trim();
+  if (!trimmed || /<\s*img\b/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+function normalizeImageCandidate(src: string | null | undefined): string | null {
+  const trimmed = (src || '').trim();
+  if (!trimmed || /^data:image\/gif;base64,R0lGODlhAQAB/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+function extractRespimImageUrl(
+  $container: ReturnType<cheerio.CheerioAPI>,
+  $: cheerio.CheerioAPI,
+  target: 'desktop' | 'mobile',
+): string | null {
+  const selectors = target === 'desktop'
+    ? [
+        '.bg-image-large-up[data-respim]',
+        '.bg-image-desktop[data-respim]',
+        '[class*="large-up"][data-respim]',
+        'img[data-respim]',
+        '[data-respim]',
+      ]
+    : [
+        '.bg-image-default[data-respim]',
+        '.bg-image-mobile[data-respim]',
+        '[class*="default"][data-respim]',
+        '[class*="mobile"][data-respim]',
+        'img[data-respim]',
+        '[data-respim]',
+      ];
+  const candidates: Array<ReturnType<cheerio.CheerioAPI>> = [];
+
+  if ($container.attr('data-respim')) {
+    candidates.push($container);
+  }
+
+  for (const selector of selectors) {
+    $container.find(selector).each((_, el) => {
+      candidates.push($(el));
+    });
+  }
+
+  for (const candidate of candidates) {
+    const respim = parseRespim(candidate.attr('data-respim'));
+    const src = pickRespimUrl(respim, target);
+    if (src) return src;
+  }
+
+  return null;
+}
+
+function parseRespim(raw: string | null | undefined): Record<string, any> | null {
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw.replace(/&quot;/g, '"'));
+  } catch {
+    return null;
+  }
+}
+
+function pickRespimUrl(data: Record<string, any> | null, target: 'desktop' | 'mobile'): string | null {
+  if (!data) return null;
+
+  const direct = normalizeImageCandidate(data.webp) || normalizeImageCandidate(data.src);
+  if (direct) return direct;
+
+  const keys = target === 'desktop'
+    ? ['xxlarge-only', 'xlarge-only', 'large-up', 'large-only', 'medium-up', 'medium-only', 'default']
+    : ['default', 'small-only', 'medium-only', 'mobile'];
+
+  for (const key of keys) {
+    const item = data[key];
+    const src = normalizeImageCandidate(item?.webp) || normalizeImageCandidate(item?.src);
+    if (src) return src;
+  }
+
+  return null;
+}
+
 /**
  * Extract mobile image URL from a slide element. Tries multiple patterns:
  * 1. <picture> <source> with max-width media query
@@ -761,6 +848,9 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
                      $slide.find('[data-mobile-src]').attr('data-mobile-src') ||
                      $slide.find('[data-bg-mobile]').attr('data-bg-mobile');
   if (dataMobile) return dataMobile;
+
+  const respimMobile = extractRespimImageUrl($slide, $, 'mobile');
+  if (respimMobile) return respimMobile;
 
   const cssVarMobile = extractCssUrl($slide.attr('style') || '', ['--mobile-background-image']);
   if (cssVarMobile) return cssVarMobile;

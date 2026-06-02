@@ -361,7 +361,7 @@ export const suzukiAu: OemDefinition = {
   config: {
     homepage: '/home/',
     vehicles_index: '/vehicles/',
-    offers: '/offers/',
+    offers: '/latest-offers/',
     schedule: {
       homepage_minutes: 120,
       offers_minutes: 240,
@@ -371,7 +371,7 @@ export const suzukiAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/vehicles/"]',
-    heroSlides: '.hb-2025-refresh__item',
+    heroSlides: '.hb-2025-refresh__item, .hero-banner-slideshow .retail-hero-banner',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
