@@ -626,7 +626,7 @@ function extractDesktopSourceImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: ch
   const desktopSources = sourceElements.filter((source) => {
     const media = ($(source).attr('media') || '').toLowerCase();
     const srcset = $(source).attr('srcset') || '';
-    if (!normalizeImageCandidate(srcset.split(',')[0]?.trim().split(/\s+/)[0])) return false;
+    if (!pickFirstSrcsetCandidate(srcset)) return false;
     return (
       media.includes('min-width') ||
       media.includes('min-aspect-ratio') ||
@@ -668,8 +668,7 @@ function extractDataBackgroundImageUrl(
 }
 
 function pickLargestSrcsetCandidate(srcset: string | null | undefined): string | null {
-  const candidates = (srcset || '')
-    .split(',')
+  const candidates = splitSrcsetEntries(srcset)
     .map((entry) => {
       const parts = entry.trim().split(/\s+/);
       const url = normalizeImageCandidate(parts[0]);
@@ -690,6 +689,15 @@ function pickLargestSrcsetCandidate(srcset: string | null | undefined): string |
   }
 
   return candidates[candidates.length - 1].url;
+}
+
+function pickFirstSrcsetCandidate(srcset: string | null | undefined): string | null {
+  const first = splitSrcsetEntries(srcset)[0];
+  return normalizeImageCandidate(first?.trim().split(/\s+/)[0]);
+}
+
+function splitSrcsetEntries(srcset: string | null | undefined): string[] {
+  return (srcset || '').split(/,\s+(?=\S)/).map((entry) => entry.trim()).filter(Boolean);
 }
 
 /** Extract background-image URL from inline style attribute within a container */
@@ -725,11 +733,35 @@ function deriveHeadlineFromImageUrl(url: string | null): string | null {
   }
   if (!filename) return null;
 
-  let decoded = filename;
+  const candidates = [filename];
+  if (isGenericImageFilename(filename) && pathParts.at(-1)) {
+    candidates.unshift(pathParts.at(-1) as string);
+  }
+
+  for (const candidate of candidates) {
+    const cleaned = cleanImageHeadlineCandidate(candidate);
+    if (!cleaned) continue;
+
+    return cleaned
+      .split(' ')
+      .map(formatHeadlineWord)
+      .join(' ');
+  }
+
+  return null;
+}
+
+function isGenericImageFilename(filename: string): boolean {
+  const cleaned = cleanImageHeadlineCandidate(filename) || '';
+  return /^(?:current\s+)?offers?(?:\s+header)?$/i.test(cleaned) || /^headers?$/i.test(cleaned);
+}
+
+function cleanImageHeadlineCandidate(candidate: string): string | null {
+  let decoded = candidate;
   try {
-    decoded = decodeURIComponent(filename);
+    decoded = decodeURIComponent(candidate);
   } catch {
-    // Keep the raw filename if it is not URI-encoded cleanly.
+    // Keep the raw candidate if it is not URI-encoded cleanly.
   }
 
   const cleaned = decoded
@@ -751,11 +783,7 @@ function deriveHeadlineFromImageUrl(url: string | null): string | null {
     .trim();
 
   if (cleaned.length < 3 || !/[a-z]/i.test(cleaned)) return null;
-
-  return cleaned
-    .split(' ')
-    .map(formatHeadlineWord)
-    .join(' ');
+  return cleaned;
 }
 
 function deriveHeadlineFromUrl(url: string | null): string | null {
@@ -822,10 +850,11 @@ function extractSubHeadline(
   headlineText: string,
   $: cheerio.CheerioAPI,
 ): string | null {
-  const explicit = readableElementText(
-    $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span, .hero-content-heading p').first(),
-    $,
-  );
+  const explicit = $slide
+    .find('.sub-headline, .subtitle, .sub_title span, .kv_desc span, .hero-content-heading p, .hero-carousel__description, .header-banner-block__description')
+    .toArray()
+    .map((el) => readableElementText($(el), $))
+    .find((text) => isLikelySubHeadline(text, headlineText));
   if (explicit) return explicit;
 
   const sibling = headlineEl.nextAll('p').toArray()
@@ -855,7 +884,7 @@ function extractCtaText($slide: ReturnType<cheerio.CheerioAPI>, $: cheerio.Cheer
   );
   if (explicit) return explicit;
 
-  for (const selector of ['.cta-container a, a.btn, .kv_btn span, a.cta', 'a[href]', 'button']) {
+  for (const selector of ['button.btn, button.cta, .hero-carousel__cta, .cta-container a, a.btn, .kv_btn span, a.cta', 'a[href]', 'button']) {
     const candidate = $slide.find(selector)
       .toArray()
       .map((el) => normalizeExtractedText(readableElementText($(el), $)))
@@ -979,7 +1008,7 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
     const media = $(src).attr('media') || '';
     const srcset = $(src).attr('srcset') || '';
     if (srcset && (media.includes('max-width') || media.includes('max-aspect-ratio') || media.includes('mobile'))) {
-      return srcset.split(',')[0].trim().split(' ')[0];
+      return pickFirstSrcsetCandidate(srcset);
     }
   }
 
@@ -987,14 +1016,14 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   for (const src of mobileSources) {
     const srcset = $(src).attr('srcset') || '';
     if (srcset && /mobile|mob|420x|375x|small|\.c1[hm]\.|(?:hp|hero|banner)[_-]m(?:[_\-.]|$)/i.test(srcset)) {
-      return srcset.split(',')[0].trim().split(' ')[0];
+      return pickFirstSrcsetCandidate(srcset);
     }
   }
 
   // 2. <img> srcset — pick the smallest
   const imgSrcset = ($slide.is('img') ? $slide.attr('srcset') : null) || $slide.find('img').attr('srcset');
   if (imgSrcset) {
-    const candidates = imgSrcset.split(',').map(s => s.trim());
+    const candidates = splitSrcsetEntries(imgSrcset);
     // Sort by width descriptor (e.g. "url 600w") — pick smallest
     const withWidth = candidates
       .map(c => { const m = c.match(/(\S+)\s+(\d+)w/); return m ? { url: m[1], w: parseInt(m[2]) } : null; })
@@ -1033,7 +1062,7 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   // 5. Second <picture> source (mobile often comes after desktop)
   if (mobileSources.length >= 2) {
     const secondSrcset = $(mobileSources[1]).attr('srcset');
-    if (secondSrcset) return secondSrcset.split(',')[0].trim().split(' ')[0];
+    if (secondSrcset) return pickFirstSrcsetCandidate(secondSrcset);
   }
 
   // 6. Look for image URLs with mobile hints in filename

@@ -418,4 +418,82 @@ describe('extractWithSelectors', () => {
       image_url_mobile: 'https://www.hyundai.com/content/dam/hyundai/au/en/offers-images/2026/EOFYS_Banner_767x975-EOFYS-Mobile.jpg',
     });
   });
+
+  it('extracts Isuzu UTE carousel banners without nested hero over-imports', () => {
+    const html = `
+      <div class="hero-banner-carousel hero-carousel">
+        <div class="carousel-item active header-banner-block--hide-on-desktop">
+          <a class="hero-carousel__anchor-container" href="/d-max/overview">
+            <picture class="hero-carousel__picture">
+              <source srcset="https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/d-max/d-max-header-banner_mobile_2x.jpg?rev=mobile" />
+              <source srcset="https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/d-max/d-max-header-banner_tablet_2x.jpg?rev=tablet" />
+              <source srcset="https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/d-max/d-max-header-banner_desktop_2x.jpg?rev=desktop" />
+              <img class="hero-carousel__image" src="https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/d-max/d-max-header-banner_desktop_2x.jpg?rev=desktop" />
+            </picture>
+            <div class="hero-carousel__title">
+              <h2 class="hero-carousel__heading">ADVENTURE IS EVERYWHERE</h2>
+              <h1 class="header-banner-block__title__bottom hero-carousel__description">ISUZU D-MAX</h1>
+            </div>
+            <button class="btn btn-primary btn-round cta hero-carousel__cta">Discover D-MAX</button>
+          </a>
+        </div>
+        <div class="carousel-item header-banner-block--hide-on-desktop">
+          <a class="hero-carousel__anchor-container" href="/offers/current-offers">
+            <picture class="hero-carousel__picture">
+              <source srcset="https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/eofy/eofy-homepage_mobile_2x.jpg?rev=mobile" />
+              <img class="hero-carousel__image" src="https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/eofy/eofy-homepage_desktop_2x.jpg?rev=desktop" />
+            </picture>
+            <h1 class="header-banner-block__title__bottom hero-carousel__heading">D-MAX</h1>
+            <h2 class="hero-carousel__description">EOFY SALE</h2>
+            <button class="btn btn-primary btn-round cta hero-carousel__cta">Current Offers</button>
+          </a>
+        </div>
+      </div>
+      <div class="hero-banner-carousel">
+        <div class="carousel-item active">
+          <div class="col-12 carousel-banner-block carousel-banner-block--single">
+            <div class="col-12 header-banner-block--height-500 carousel-banner-block hf--montserrat">
+              <div class="header-banner-block__media-container">
+                <img class="header-banner-block__image" src="https://cdn-iua.dataweavers.io/-/media/offers/currents-offers/header-banner/isuzu-offers---3-years-free-servicing/offers-header-banner.jpg?rev=desktop" />
+                <img class="header-banner-block__image header-banner-block__image--medium" src="https://cdn-iua.dataweavers.io/-/media/offers/currents-offers/header-banner/isuzu-offers---3-years-free-servicing/offers-header-banner_tablet.jpg?rev=tablet" />
+                <img class="header-banner-block__image header-banner-block__image--small" src="https://cdn-iua.dataweavers.io/-/media/offers/currents-offers/header-banner/isuzu-offers---3-years-free-servicing/offers-header-banner_mobile.jpg?rev=mobile" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section class="hero-content">
+        <h1>Not a banner</h1>
+      </section>
+    `;
+
+    const result = extractWithSelectors(html, 'isuzu-au', 'homepage', {
+      heroSlides: '.hero-banner-carousel .carousel-item:has(.hero-carousel__anchor-container .hero-carousel__picture img.hero-carousel__image), .carousel-banner-block--single .carousel-banner-block:has(img.header-banner-block__image)',
+    });
+
+    expect(result.bannerSlides).toHaveLength(3);
+    expect(result.bannerSlides[0]).toMatchObject({
+      headline: 'ADVENTURE IS EVERYWHERE',
+      sub_headline: 'ISUZU D-MAX',
+      cta_text: 'Discover D-MAX',
+      cta_url: 'https://www.isuzuute.com.au/d-max/overview',
+      image_url_desktop: 'https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/d-max/d-max-header-banner_desktop_2x.jpg?rev=desktop',
+      image_url_mobile: 'https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/d-max/d-max-header-banner_mobile_2x.jpg?rev=mobile',
+    });
+    expect(result.bannerSlides[1]).toMatchObject({
+      headline: 'D-MAX',
+      sub_headline: 'EOFY SALE',
+      cta_text: 'Current Offers',
+      cta_url: 'https://www.isuzuute.com.au/offers/current-offers',
+      image_url_desktop: 'https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/eofy/eofy-homepage_desktop_2x.jpg?rev=desktop',
+      image_url_mobile: 'https://cdn-iua.dataweavers.io/-/media/homepage/header-banner/eofy/eofy-homepage_mobile_2x.jpg?rev=mobile',
+    });
+    expect(result.bannerSlides[2]).toMatchObject({
+      headline: 'Isuzu Offers 3 Years Free Servicing',
+      cta_text: null,
+      cta_url: null,
+      image_url_desktop: 'https://cdn-iua.dataweavers.io/-/media/offers/currents-offers/header-banner/isuzu-offers---3-years-free-servicing/offers-header-banner.jpg?rev=desktop',
+      image_url_mobile: 'https://cdn-iua.dataweavers.io/-/media/offers/currents-offers/header-banner/isuzu-offers---3-years-free-servicing/offers-header-banner_mobile.jpg?rev=mobile',
+    });
+  });
 });

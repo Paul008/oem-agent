@@ -245,7 +245,7 @@ export const isuzuAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/d-max/"], a[href^="/mu-x/"]',
-    heroSlides: '.hero, [class*="hero"]',
+    heroSlides: '.hero-banner-carousel .carousel-item:has(.hero-carousel__anchor-container .hero-carousel__picture img.hero-carousel__image), .carousel-banner-block--single .carousel-banner-block:has(img.header-banner-block__image)',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
