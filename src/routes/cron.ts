@@ -378,7 +378,7 @@ async function executeJob(
         const { executeOrchestratorController } = await import('../sync/orchestrator-controller');
         const { createSupabaseClient } = await import('../utils/supabase');
         const sb = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
-        result = await executeOrchestratorController(sb, env.MOLTBOT_BUCKET, env.SLACK_WEBHOOK_URL);
+        result = await executeOrchestratorController(sb, env.MOLTBOT_BUCKET, env.SLACK_WEBHOOK_URL) as unknown as Record<string, unknown>;
         break;
       }
 
@@ -437,7 +437,13 @@ async function executeJob(
         const { createSupabaseClient: createSbSpec } = await import('../utils/supabase');
         const { AiRouter } = await import('../ai/router');
         const sbSpec = createSbSpec({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
-        const aiRouter = new AiRouter(env, sbSpec);
+        const aiRouter = new AiRouter({
+          groq: env.GROQ_API_KEY,
+          together: env.TOGETHER_API_KEY,
+          moonshot: env.MOONSHOT_API_KEY,
+          anthropic: env.ANTHROPIC_API_KEY,
+          google: env.GOOGLE_API_KEY,
+        }, sbSpec, env.AI);
         const maxModels = (job.config as any)?.max_models_per_run ?? 20;
         result = await executePdfSpecExtraction(sbSpec, aiRouter, { maxModels }) as unknown as Record<string, unknown>;
         break;
@@ -712,7 +718,13 @@ async function executeMemorySync(
   }
 
   // Backup offer counts per OEM (lightweight summary, not full data)
-  const { data: offerCounts } = await supabase.rpc('count_by_oem', undefined as never).catch(() => ({ data: null }));
+  let offerCounts: unknown = null;
+  try {
+    const { data } = await supabase.rpc('count_by_oem', undefined as never);
+    offerCounts = data;
+  } catch {
+    offerCounts = null;
+  }
   if (offerCounts) {
     await bucket.put(`memory/backups/${timestamp}/offer-counts.json`, JSON.stringify(offerCounts), {
       httpMetadata: { contentType: 'application/json' },

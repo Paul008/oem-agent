@@ -126,7 +126,11 @@ The template should use Alpine.js syntax:
       const tokensUsed = response.usage.total_tokens;
       const costUsd = tokensUsed * 0.000009; // ~$9/1M avg
 
-      let parsed: { template?: string; description?: string };
+      let parsed: {
+        template?: string;
+        description?: string;
+        config_schema?: Record<string, ConfigSchemaField>;
+      };
       try {
         parsed = JSON.parse(response.content);
       } catch {

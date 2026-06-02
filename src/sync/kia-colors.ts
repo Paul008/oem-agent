@@ -342,6 +342,8 @@ export async function executeKiaColorSync(
     errors: [],
   };
 
+  const touchedProductIds = new Set<string>();
+
   // 1. Load all kia-au products, index by external_key
   const { data: products, error: prodErr } = await supabase
     .from('products')
@@ -383,6 +385,7 @@ export async function executeKiaColorSync(
         for (const trim of trims) {
           const product = findProduct(productsByKey, model, trim.code);
           if (!product) continue;
+          touchedProductIds.add(product.id);
 
           let colors: ExtractedColor[];
           try {
@@ -471,8 +474,12 @@ export async function executeKiaColorSync(
   for (const carKey of carKeys) {
     try {
       const res = await fetch(
-        `${KIA_PRICING_API}?regionCode=NSW&modelCode=${carKey}`,
+        `${KIA_PRICING_API}?regionCode=NSW&modelCode=${encodeURIComponent(carKey)}`,
       );
+      if (!res.ok) {
+        result.errors.push(`Pricing ${carKey}: HTTP ${res.status}`);
+        continue;
+      }
       const data = (await res.json()) as {
         dataInfo?: Array<{ trimInfo: TrimPricing[] }>;
       };
@@ -487,6 +494,7 @@ export async function executeKiaColorSync(
             (p.meta_json as Record<string, unknown> | null)?.grade_code === t.trimCode,
         );
         if (!product) continue;
+        touchedProductIds.add(product.id);
 
         const rrp = pf(t.rrpprice);
 
@@ -530,13 +538,21 @@ export async function executeKiaColorSync(
           .from('variant_pricing')
           .upsert(premRow, { onConflict: 'product_id,price_type' });
 
-        if (!stdErr) result.pricing_rows_set = (result.pricing_rows_set ?? 0) + 1;
-        if (!premErr) result.pricing_rows_set = (result.pricing_rows_set ?? 0) + 1;
+        if (stdErr) {
+          result.errors.push(`Pricing ${carKey}/${t.trimCode} standard: ${stdErr.message}`);
+        } else {
+          result.pricing_rows_set = (result.pricing_rows_set ?? 0) + 1;
+        }
+        if (premErr) {
+          result.errors.push(`Pricing ${carKey}/${t.trimCode} premium: ${premErr.message}`);
+        } else {
+          result.pricing_rows_set = (result.pricing_rows_set ?? 0) + 1;
+        }
 
         // Update product.price_amount to VIC driveaway (or NSW fallback)
         const displayPrice = stdRow.driveaway_vic ?? stdRow.driveaway_nsw ?? rrp;
         if (displayPrice) {
-          await supabase
+          const { error: productPriceErr } = await supabase
             .from('products')
             .update({
               price_amount: displayPrice,
@@ -544,6 +560,9 @@ export async function executeKiaColorSync(
               price_qualifier: 'Drive away estimate',
             })
             .eq('id', product.id);
+          if (productPriceErr) {
+            result.errors.push(`Product price ${carKey}/${t.trimCode}: ${productPriceErr.message}`);
+          }
         }
 
         // Set color price_delta (premium - standard, per NSW as reference)
@@ -558,7 +577,11 @@ export async function executeKiaColorSync(
               .eq('product_id', product.id)
               .eq('is_standard', false);
 
-            if (!deltaErr) result.price_deltas_set++;
+            if (deltaErr) {
+              result.errors.push(`Color delta ${carKey}/${t.trimCode}: ${deltaErr.message}`);
+            } else {
+              result.price_deltas_set++;
+            }
           }
         }
       }
@@ -567,24 +590,46 @@ export async function executeKiaColorSync(
     }
   }
 
-  // 4. Clean up dead model entries
+  // 4. Update last_seen_at for all touched products
+  if (touchedProductIds.size > 0) {
+    const ids = Array.from(touchedProductIds);
+    const { error: lsErr } = await supabase
+      .from('products')
+      .update({ last_seen_at: new Date().toISOString() })
+      .in('id', ids);
+    if (lsErr) {
+      result.errors.push(`last_seen_at batch update failed: ${lsErr.message}`);
+    } else {
+      console.log(`[KiaColorSync] Updated last_seen_at for ${ids.length} products`);
+    }
+  }
+
+  // 5. Clean up dead model entries
   for (const slug of DEAD_MODELS) {
-    const { data: deadModels } = await supabase
+    const { data: deadModels, error: deadModelsErr } = await supabase
       .from('vehicle_models')
       .select('id')
       .eq('oem_id', 'kia-au')
       .eq('slug', slug);
 
+    if (deadModelsErr) {
+      result.errors.push(`Dead model lookup ${slug}: ${deadModelsErr.message}`);
+      continue;
+    }
     if (!deadModels?.length) continue;
 
     const modelIds = deadModels.map(m => m.id);
 
     // Find products belonging to dead models
-    const { data: deadProducts } = await supabase
+    const { data: deadProducts, error: deadProductsErr } = await supabase
       .from('products')
       .select('id')
       .in('model_id', modelIds);
 
+    if (deadProductsErr) {
+      result.errors.push(`Dead product lookup ${slug}: ${deadProductsErr.message}`);
+      continue;
+    }
     if (!deadProducts?.length) continue;
 
     const deadProductIds = deadProducts.map(p => p.id);

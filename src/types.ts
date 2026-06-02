@@ -47,6 +47,7 @@ export interface MoltbotEnv {
   BROWSER?: Fetcher;
   CDP_SECRET?: string; // Shared secret for CDP endpoint authentication
   WORKER_URL?: string; // Public URL of the worker (for CDP endpoint)
+  MEDIA_BASE_URL?: string; // Public media origin for proxied OEM/dealer images
   LIGHTPANDA_URL?: string; // Lightpanda CDP WebSocket endpoint e.g. "ws://127.0.0.1:9222"
   // OEM Agent configuration
   SUPABASE_URL: string;
@@ -63,6 +64,9 @@ export interface MoltbotEnv {
   // Additional AI Providers
   MOONSHOT_API_KEY?: string;    // Moonshot/Kimi API for vision models (direct)
   KIMI_API_KEY?: string;        // Kimi API for vision models (legacy)
+  // External scraping services
+  APIFY_TOKEN?: string;         // Apify API token for actor-based scraping
+  TOYOTA_DEALER_ID?: string;    // Toyota TDP/NavCategory dealer ID for model discovery (default: Werribee 36948)
 }
 
 /**

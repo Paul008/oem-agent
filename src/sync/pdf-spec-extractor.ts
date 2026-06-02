@@ -14,6 +14,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { InferenceRequest, InferenceResponse } from '../ai/router';
+import type { OemId } from '../oem/types';
 
 // ============================================================================
 // Types
@@ -353,13 +355,7 @@ ${truncated}`;
 // ============================================================================
 
 interface AiRouter {
-  route: (req: {
-    taskType: string;
-    prompt: string;
-    oemId?: string;
-    pdfBase64?: string;
-    maxTokens?: number;
-  }) => Promise<{ content: string }>;
+  route: (req: InferenceRequest) => Promise<InferenceResponse>;
 }
 
 // ============================================================================
@@ -496,7 +492,7 @@ export async function executePdfSpecExtraction(
       const response = await aiRouter.route({
         taskType: 'spec_extraction',
         prompt,
-        oemId,
+        oemId: oemId as OemId,
       });
 
       // ── 3e. Parse JSON (strip markdown code blocks) ────────────────────
@@ -684,7 +680,7 @@ export async function executePdfSpecExtractionVision(
       const response = await aiRouter.route({
         taskType: 'spec_extraction',
         prompt,
-        oemId,
+        oemId: oemId as OemId,
         pdfBase64,
         maxTokens: 32000,
       });
@@ -701,7 +697,7 @@ export async function executePdfSpecExtractionVision(
       }
 
       // Debug: log the top-level shape
-      const topKeys = Object.keys(parsed as Record<string, unknown>);
+      const topKeys = Object.keys(parsed as unknown as Record<string, unknown>);
       const catCount = parsed.categories?.length ?? 0;
       const varCount = parsed.variants?.length ?? 0;
       console.log(`[pdf-spec-extractor:vision] Response shape: keys=[${topKeys.join(',')}] categories=${catCount} variants=${varCount} responseLen=${rawContent.length}`);

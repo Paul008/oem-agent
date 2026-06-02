@@ -1110,6 +1110,27 @@ export class OemAgentOrchestrator {
 
     let skippedNoTitle = 0;
     for (const item of items) {
+      const priceAmount = this.extractPriceAmount(
+        item.price,
+        item.msrp,
+        item.driveaway_price,
+        item.driveAwayPrice,
+        item.priceAmount,
+        item.startingPrice,
+        item.fromPrice,
+        item.priceText,
+        item.priceDisplay
+      );
+      const priceRawString = this.extractPriceRawString(
+        item.priceDisplay,
+        item.price_raw,
+        item.priceText,
+        item.price,
+        item.msrp,
+        item.startingPrice,
+        item.fromPrice
+      );
+
       // Normalize to our product format
       const product = {
         title: item.name || item.title || item.modelName || item.model || item.vehicleName,
@@ -1120,11 +1141,10 @@ export class OemAgentOrchestrator {
         fuel_type: item.fuelType || item.fuel_type || item.fuel || item.powerTrain,
         availability: item.availability || item.status || 'available',
         price: {
-          amount: item.price || item.msrp || item.driveaway_price || item.priceAmount ||
-                  item.startingPrice || item.fromPrice || this.extractPriceFromString(item.priceText || item.priceDisplay),
+          amount: priceAmount,
           currency: item.currency || 'AUD',
           type: item.priceType || item.price_type || 'driveaway',
-          raw_string: item.priceDisplay || item.price_raw || item.priceText,
+          raw_string: priceRawString,
         },
         key_features: item.features || item.highlights || item.keyFeatures || [],
         variants: item.variants || item.trims || item.grades || [],
@@ -1368,16 +1388,114 @@ export class OemAgentOrchestrator {
   }
 
   /**
-   * Extract numeric price from string (e.g., "From $45,990" -> 45990)
+   * Extract the first usable numeric price from a list of CMS/API values.
    */
-  private extractPriceFromString(priceStr: string | undefined): number | undefined {
+  private extractPriceAmount(...priceValues: unknown[]): number | undefined {
+    for (const priceValue of priceValues) {
+      const amount = this.extractPriceFromString(priceValue);
+      if (amount !== undefined) return amount;
+    }
+    return undefined;
+  }
+
+  /**
+   * Extract numeric price from common CMS/API shapes.
+   * Handles strings (e.g. "From $45,990"), numbers, arrays, and structured
+   * price objects from Gatsby/i-Motor page-data.
+   */
+  private extractPriceFromString(priceValue: unknown): number | undefined {
+    if (priceValue === null || priceValue === undefined || priceValue === '') return undefined;
+
+    if (typeof priceValue === 'number') {
+      return Number.isFinite(priceValue) && priceValue > 0 ? priceValue : undefined;
+    }
+
+    if (typeof priceValue === 'bigint') {
+      const asNumber = Number(priceValue);
+      return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : undefined;
+    }
+
+    if (Array.isArray(priceValue)) {
+      return this.extractPriceAmount(...priceValue);
+    }
+
+    if (typeof priceValue === 'object') {
+      const record = priceValue as Record<string, unknown>;
+      const preferredKeys = [
+        'amount',
+        'price',
+        'value',
+        'fromPrice',
+        'startingPrice',
+        'driveawayPrice',
+        'driveAwayPrice',
+        'driveAway',
+        'driveaway_price',
+        'priceAmount',
+        'priceText',
+        'priceDisplay',
+        'formatted',
+        'display',
+        'label',
+        'text',
+      ];
+
+      for (const key of preferredKeys) {
+        if (Object.prototype.hasOwnProperty.call(record, key)) {
+          const amount = this.extractPriceFromString(record[key]);
+          if (amount !== undefined) return amount;
+        }
+      }
+
+      for (const value of Object.values(record)) {
+        const amount = this.extractPriceFromString(value);
+        if (amount !== undefined) return amount;
+      }
+
+      return undefined;
+    }
+
+    const priceStr = String(priceValue).trim();
     if (!priceStr) return undefined;
 
+    const lower = priceStr.toLowerCase();
+    if (lower.includes('poa') || lower.includes('tba') || lower.includes('coming soon')) {
+      return undefined;
+    }
+
     // Remove currency symbols, commas, and extract number
-    const match = priceStr.replace(/[,$]/g, '').match(/(\d+(?:\.\d{2})?)/);
+    const match = priceStr.replace(/[,$\s]/g, '').match(/(\d+(?:\.\d{1,2})?)/);
     if (match) {
       return parseFloat(match[1]);
     }
+    return undefined;
+  }
+
+  private extractPriceRawString(...priceValues: unknown[]): string | undefined {
+    for (const priceValue of priceValues) {
+      if (priceValue === null || priceValue === undefined || priceValue === '') continue;
+
+      if (typeof priceValue === 'string') return priceValue;
+      if (typeof priceValue === 'number' || typeof priceValue === 'bigint') return String(priceValue);
+
+      if (Array.isArray(priceValue)) {
+        const raw = this.extractPriceRawString(...priceValue);
+        if (raw) return raw;
+        continue;
+      }
+
+      if (typeof priceValue === 'object') {
+        const record = priceValue as Record<string, unknown>;
+        const preferredKeys = ['formatted', 'display', 'label', 'text', 'priceDisplay', 'priceText', 'price', 'amount', 'value'];
+        for (const key of preferredKeys) {
+          if (Object.prototype.hasOwnProperty.call(record, key)) {
+            const raw = this.extractPriceRawString(record[key]);
+            if (raw) return raw;
+          }
+        }
+      }
+    }
+
     return undefined;
   }
 
@@ -1402,15 +1520,36 @@ export class OemAgentOrchestrator {
     }
 
     for (const item of items) {
+      const priceAmount = this.extractPriceAmount(
+        item.price,
+        item.amount,
+        item.priceAmount,
+        item.priceDisplay,
+        item.priceText
+      );
+      const savingAmount = this.extractPriceAmount(
+        item.saving,
+        item.discount,
+        item.savings,
+        item.savingAmount,
+        item.discountAmount
+      );
+      const priceRawString = this.extractPriceRawString(
+        item.priceDisplay,
+        item.priceText,
+        item.price,
+        item.amount
+      );
+
       const offer = {
         title: item.name || item.title || item.headline,
         description: item.description || item.details,
         offer_type: item.type || item.offer_type,
         applicable_models: item.models || item.applicable_models || [],
         price: {
-          amount: item.price || item.amount,
-          saving_amount: item.saving || item.discount || item.savings,
-          raw_string: item.priceDisplay,
+          amount: priceAmount,
+          saving_amount: savingAmount,
+          raw_string: priceRawString,
         },
         validity: {
           start_date: item.startDate || item.start_date,
@@ -1454,30 +1593,50 @@ export class OemAgentOrchestrator {
 
   private async getDuePages(oemId: OemId, pageTypes?: PageType[]): Promise<SourcePage[]> {
     console.log(`[Orchestrator] Querying source_pages for ${oemId}${pageTypes ? ` (types: ${pageTypes.join(', ')})` : ''}...`);
-    let query = this.config.supabaseClient
+
+    // ── Query 1: active pages ──
+    let activeQuery = this.config.supabaseClient
       .from('source_pages')
       .select('*')
       .eq('oem_id', oemId)
       .eq('status', 'active');
-
-    // Filter by page types when a specific crawl type is targeted
     if (pageTypes && pageTypes.length > 0) {
-      query = query.in('page_type', pageTypes);
+      activeQuery = activeQuery.in('page_type', pageTypes);
     }
-
-    const { data, error } = await query
+    const { data: activeData, error: activeError } = await activeQuery
       .order('last_checked_at', { ascending: true, nullsFirst: true })
       .limit(100);
 
-    if (error) {
-      console.error(`[Orchestrator] Source pages query error:`, error);
-      throw new Error(`Failed to fetch source pages: ${error.message}`);
+    if (activeError) {
+      console.error(`[Orchestrator] Source pages query error:`, activeError);
+      throw new Error(`Failed to fetch source pages: ${activeError.message}`);
     }
 
-    console.log(`[Orchestrator] Found ${data?.length || 0} active pages for ${oemId}`);
+    // ── Query 2: error pages that haven't been retried in 24h ──
+    const retryErrorAfterHours = 24;
+    const errorRetryCutoff = new Date(Date.now() - retryErrorAfterHours * 60 * 60 * 1000).toISOString();
+    let errorQuery = this.config.supabaseClient
+      .from('source_pages')
+      .select('*')
+      .eq('oem_id', oemId)
+      .eq('status', 'error')
+      .lt('last_checked_at', errorRetryCutoff);
+    if (pageTypes && pageTypes.length > 0) {
+      errorQuery = errorQuery.in('page_type', pageTypes);
+    }
+    const { data: errorData, error: errorErr } = await errorQuery
+      .order('last_checked_at', { ascending: true, nullsFirst: true })
+      .limit(20);
+
+    if (errorErr) {
+      console.warn(`[Orchestrator] Error-page query failed (non-critical):`, errorErr);
+    }
+
+    const allPages = [...(activeData || []), ...(errorData || [])];
+    console.log(`[Orchestrator] Found ${activeData?.length || 0} active + ${errorData?.length || 0} retryable error pages for ${oemId}`);
 
     // Filter to only pages that are due
-    const duePages = (data || []).filter((page: SourcePage) => {
+    const duePages = allPages.filter((page: SourcePage) => {
       const check = this.scheduler.shouldCrawl(page);
       return check.shouldCrawl;
     });
@@ -3469,7 +3628,10 @@ Page Type: ${page.page_type}
 URL: ${page.url}
 
 Return JSON with:
-- products: Array of {title, price, availability, body_type, fuel_type}
+- products: Array of {title, price, availability, body_type, fuel_type, external_key, variant_name, variant_code}
+  - external_key: the OEM's model/variant code (SKU, model code, or grade code) if visible
+  - variant_name: the trim/grade name (e.g. "GX", "GLS", "SR5") if visible
+  - variant_code: the trim/grade code if visible
 - offers: Array of {title, description, validity}
 - banner_slides: Array of {position, headline, cta_text, image_url}
 
@@ -3674,18 +3836,20 @@ ${html.substring(0, 50000)}
   ): Promise<{ created: boolean, updated: boolean, changeDetected: boolean }> {
     console.log(`[UpsertProduct] Processing: ${productData.title}`);
 
-    // Skip products without external_key — these are bare model-level entries
-    // from listing pages that create orphan records with no model_id
-    if (!productData.external_key) {
-      console.log(`[UpsertProduct] Skipping "${productData.title}" — no external_key (likely a model listing entry)`);
-      return { created: false, updated: false, changeDetected: false };
-    }
+    // Guard: bare model-level entries from listing pages must not create orphans.
+    // If the product already exists in the DB we allow updates even without an
+    // external_key (LLM/CSS extraction often lacks it). Only block NEW rows
+    // that have no external_key AND no real data — the empty-row guard below
+    // handles that case. This fixes the regression that froze Toyota, Nissan
+    // and Isuzu products after 2026-02-27.
+    const hasExternalKey = !!productData.external_key;
 
     // Check for existing product
     // Match by oem_id + title (multiple products can come from same source_url)
+    // Fetch all columns used by change detection so we don't generate false events
     const { data: existing, error: queryError } = await this.config.supabaseClient
       .from('products')
-      .select('id, title')
+      .select('id, title, subtitle, body_type, fuel_type, availability, price_amount, price_type, price_raw_string, disclaimer_text, primary_image_r2_key, key_features, variants, cta_links')
       .eq('oem_id', oemId)
       .eq('title', productData.title)
       .maybeSingle();
@@ -3696,10 +3860,21 @@ ${html.substring(0, 50000)}
     }
 
     // Validate extracted price before upsert — reject obvious anomalies
-    let priceAmount = productData.price?.amount;
+    const rawPriceAmount = productData.price?.amount;
+    let priceAmount: number | null | undefined = this.extractPriceFromString(rawPriceAmount);
+    if (
+      priceAmount === undefined &&
+      rawPriceAmount !== null &&
+      rawPriceAmount !== undefined &&
+      rawPriceAmount !== ''
+    ) {
+      const rawPriceLabel = this.extractPriceRawString(rawPriceAmount) || Object.prototype.toString.call(rawPriceAmount);
+      console.warn(`[UpsertProduct] Invalid price ${rawPriceLabel} for "${productData.title}" — setting to null`);
+      priceAmount = existing ? undefined : null;
+    }
+
     if (priceAmount != null) {
       // Reject prices that are clearly wrong
-      if (typeof priceAmount !== 'number') priceAmount = parseFloat(priceAmount);
       if (isNaN(priceAmount) || priceAmount < 0) {
         console.warn(`[UpsertProduct] Invalid price ${productData.price?.amount} for "${productData.title}" — setting to null`);
         priceAmount = null;
@@ -3728,7 +3903,7 @@ ${html.substring(0, 50000)}
       price_amount: priceAmount,
       price_currency: productData.price?.currency || 'AUD',
       price_type: productData.price?.type,
-      price_raw_string: productData.price?.raw_string,
+      price_raw_string: this.extractPriceRawString(productData.price?.raw_string, rawPriceAmount),
       disclaimer_text: productData.disclaimer_text,
       key_features: productData.key_features || [],
       variants: productData.variants || [],
@@ -3753,8 +3928,8 @@ ${html.substring(0, 50000)}
       const hasSpecs = product.specs_json && Object.keys(product.specs_json).length > 0;
       const hasFeatures = Array.isArray(product.key_features) && product.key_features.length > 0;
       const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
-      if (!hasPrice && !hasSpecs && !hasFeatures && !hasVariants) {
-        console.warn(`[UpsertProduct] Refusing to create empty product "${productData.title}" (oem=${oemId}, source=${sourceUrl}) — no price, specs, features, or variants`);
+      if (!hasExternalKey && !hasPrice && !hasSpecs && !hasFeatures && !hasVariants) {
+        console.warn(`[UpsertProduct] Refusing to create empty product "${productData.title}" (oem=${oemId}, source=${sourceUrl}) — no external_key, price, specs, features, or variants`);
         return { created: false, updated: false, changeDetected: false };
       }
     }
@@ -3990,6 +4165,9 @@ ${html.substring(0, 50000)}
       return { created: false, updated: false, changeDetected: false };
     }
 
+    const priceAmount = this.extractPriceFromString(offerData.price?.amount) ?? null;
+    const savingAmount = this.extractPriceFromString(offerData.price?.saving_amount) ?? null;
+
     // Map extracted offer data to DB columns
     const offer: Record<string, any> = {
       oem_id: oemId,
@@ -3998,10 +4176,10 @@ ${html.substring(0, 50000)}
       description: offerData.description || null,
       offer_type: offerData.offer_type || null,
       applicable_models: offerData.applicable_models || null,
-      price_amount: offerData.price?.amount || null,
+      price_amount: priceAmount,
       price_type: offerData.price?.type || null,
-      price_raw_string: offerData.price?.raw_string || null,
-      saving_amount: offerData.price?.saving_amount || null,
+      price_raw_string: this.extractPriceRawString(offerData.price?.raw_string, offerData.price?.amount) || null,
+      saving_amount: savingAmount,
       validity_start: offerData.validity?.start_date || null,
       validity_end: offerData.validity?.end_date || null,
       validity_raw: offerData.validity?.raw_string || null,
@@ -4206,6 +4384,12 @@ ${html.substring(0, 50000)}
       undefined,
       htmlHash,
     );
+
+    // Reset previously errored pages back to active on successful crawl
+    if (page.status === 'error') {
+      updates.status = 'active';
+      updates.error_message = null;
+    }
 
     await this.config.supabaseClient
       .from('source_pages')

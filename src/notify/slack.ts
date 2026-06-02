@@ -518,6 +518,21 @@ export class MultiChannelNotifier {
     console.log(`[Email Alert] ${oemId}: ${analysis.summary}`);
   }
 
+  async send(text: string): Promise<{ success: boolean; error?: string }> {
+    return this.slack.send({
+      text,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text,
+          },
+        },
+      ],
+    });
+  }
+
   async sendDailyDigest(data: DailyDigestData): Promise<void> {
     await this.slack.sendDailyDigest(data);
   }

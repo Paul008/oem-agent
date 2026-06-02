@@ -98,6 +98,16 @@ export const CLOUDFLARE_TRIGGERS = [
     enabled: true,
     config: { crawl_type: 'portal-asset-health' },
   },
+  {
+    id: 'cf-toyota-browser-sync',
+    name: 'Toyota Browser Sync',
+    description: 'Daily sync of Toyota variants via Cloudflare Browser Rendering (2pm AEDT)',
+    schedule: '0 3 * * *',
+    timezone: 'Australia/Melbourne',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'toyota-browser-sync' },
+  },
 ] as const satisfies ReadonlyArray<{
   id: string;
   name: string;
@@ -173,12 +183,44 @@ export async function handleScheduled(
           return;
         }
 
-        // Design drift check — special handler
+        // Toyota browser sync — uses Apify actor with stealth browser
+        if (crawlType === 'toyota-browser-sync') {
+          const { runToyotaSyncViaApify } = await import('./sync/toyota-browser-sync');
+
+          if (!env.APIFY_TOKEN) {
+            throw new Error('APIFY_TOKEN not configured for Toyota sync');
+          }
+
+          const result = await runToyotaSyncViaApify({
+            token: env.APIFY_TOKEN,
+            supabaseUrl: env.SUPABASE_URL,
+            supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+            dealerId: env.TOYOTA_DEALER_ID,
+          });
+
+          run.status = 'success';
+          run.completedAt = new Date().toISOString();
+          run.result = { crawl_type: 'toyota-browser-sync', ...result };
+          await saveRun(bucket, run);
+
+          if (env.SLACK_WEBHOOK_URL) {
+            const notifier = new MultiChannelNotifier({ slackWebhookUrl: env.SLACK_WEBHOOK_URL });
+            await notifier.send(
+              `🚗 Toyota sync via Apify: ${result.variantsSynced}/${result.variantsDiscovered} variants synced. ` +
+              `Errors: ${result.errors.length}`
+            ).catch(() => {});
+          }
+          return;
+        }
+
+          // Design drift check — special handler
         if (crawlType === 'design-drift') {
           const { TokenCrawler } = await import('./design/token-crawler');
           const crawler = new TokenCrawler({ browser: env.BROWSER! });
           const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
-          const notifier = new MultiChannelNotifier(env.SLACK_WEBHOOK_URL);
+          const notifier = env.SLACK_WEBHOOK_URL
+            ? new MultiChannelNotifier({ slackWebhookUrl: env.SLACK_WEBHOOK_URL })
+            : null;
 
           const allOems = ['kia-au','nissan-au','ford-au','volkswagen-au','mitsubishi-au','ldv-au','isuzu-au','mazda-au','kgm-au','gwm-au','suzuki-au','hyundai-au','toyota-au','subaru-au','gmsv-au','foton-au','gac-au','chery-au','renault-au'];
           let driftCount = 0;
@@ -206,7 +248,7 @@ export async function handleScheduled(
             }
           }
 
-          if (driftCount > 0) {
+          if (driftCount > 0 && notifier) {
             await notifier.send(`🎨 Weekly drift check: ${driftCount} of ${allOems.length} OEMs have design changes`).catch(() => {});
           }
 

@@ -126,7 +126,7 @@ Provides:
 #### 4. `oem-data-sync`
 **Purpose**: Color + pricing sync for all OEMs
 **Schedule**: Daily 3am (`0 3 * * *`) + Monthly 1st 3am
-**Syncs**: Kia BYO (8-state driveaway), Suzuki finance-calculator JSON (15 variants × hex swatches × per-state driveaway × parsed feature specs), Hyundai CGI, Mazda /cars/, Mitsubishi GraphQL, VW OneHub + remaining OEMs via generic pricing + auto-fix offer images
+**Syncs**: Kia BYO (8-state driveaway), Suzuki finance-calculator JSON (15 variants × hex swatches × per-state driveaway × parsed feature specs), official Hyundai CGI, official Mazda `/build` BuildMyMazda payload (colors, pricing, accessories), Mitsubishi GraphQL, VW OneHub + remaining OEMs via generic pricing + auto-fix offer images
 **Dedicated sync modules**: `src/sync/kia-colors.ts`, `src/sync/suzuki-sync.ts`, `src/sync/all-oem-sync.ts` (everything else)
 
 #### 5. `oem-brand-ambassador`

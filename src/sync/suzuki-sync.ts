@@ -379,6 +379,11 @@ function deriveVariantName(base: string, model: string): string {
   return out || base;
 }
 
+function isUniqueViolation(error: unknown): boolean {
+  const err = error as { code?: string; message?: string } | null;
+  return err?.code === '23505' || /duplicate key|unique constraint/i.test(err?.message || '');
+}
+
 // ============================================================================
 // Main entry
 // ============================================================================
@@ -537,53 +542,78 @@ export async function executeSuzukiSync(supabase: SupabaseClient): Promise<Suzuk
           last_seen_at: now,
         };
 
-        // The products table has no (oem_id, external_key) unique constraint,
-        // so query first, then update or insert. We also fall back to matching
-        // on (oem_id, title) to catch variants whose IDs have drifted between
-        // model years (Suzuki re-IDs variants for new MY releases).
-        let existing: { id: string } | null = null;
-        const { data: byKey } = await supabase
+        // Normal path: match by stable external key. Suzuki sometimes re-IDs
+        // variants between MY releases, so title fallback is reserved for a
+        // uniqueness collision on insert and records the previous key.
+        const { data: byKey, error: byKeyErr } = await supabase
           .from('products')
           .select('id')
           .eq('oem_id', 'suzuki-au')
           .eq('external_key', externalKey)
           .maybeSingle();
-        if (byKey) {
-          existing = byKey as { id: string };
-        } else {
-          const { data: byTitle } = await supabase
-            .from('products')
-            .select('id')
-            .eq('oem_id', 'suzuki-au')
-            .eq('title', title)
-            .maybeSingle();
-          if (byTitle) existing = byTitle as { id: string };
+        if (byKeyErr) {
+          result.errors.push(`Find product ${externalKey}: ${byKeyErr.message}`);
+          continue;
         }
 
         let productId: string;
-        if (existing) {
+        if (byKey) {
           const { error: uErr } = await supabase
             .from('products')
             .update(productRow)
-            .eq('id', existing.id);
+            .eq('id', (byKey as { id: string }).id);
           if (uErr) {
             result.errors.push(`Update product ${externalKey}: ${uErr.message}`);
             continue;
           }
-          productId = existing.id;
+          productId = (byKey as { id: string }).id;
         } else {
           const { data: inserted, error: iErr } = await supabase
             .from('products')
             .insert(productRow)
             .select('id')
             .single();
-          if (iErr || !inserted) {
+          if (inserted) {
+            productId = (inserted as { id: string }).id;
+          } else if (iErr && isUniqueViolation(iErr)) {
+            const { data: byTitle, error: byTitleErr } = await supabase
+              .from('products')
+              .select('id, external_key')
+              .eq('oem_id', 'suzuki-au')
+              .eq('title', title)
+              .maybeSingle();
+            if (byTitleErr) {
+              result.errors.push(`Find drifted product ${externalKey}: ${byTitleErr.message}`);
+              continue;
+            }
+            if (!byTitle) {
+              result.errors.push(`Insert product ${externalKey}: ${iErr.message}`);
+              continue;
+            }
+
+            const driftRow = {
+              ...productRow,
+              meta_json: {
+                ...productRow.meta_json,
+                previous_external_key: (byTitle as { external_key?: string | null }).external_key ?? null,
+                external_key_drift_recovered_at: now,
+              },
+            };
+            const { error: driftErr } = await supabase
+              .from('products')
+              .update(driftRow)
+              .eq('id', (byTitle as { id: string }).id);
+            if (driftErr) {
+              result.errors.push(`Update drifted product ${externalKey}: ${driftErr.message}`);
+              continue;
+            }
+            productId = (byTitle as { id: string }).id;
+          } else {
             result.errors.push(
               `Insert product ${externalKey}: ${iErr?.message ?? 'no id returned'}`,
             );
             continue;
           }
-          productId = (inserted as { id: string }).id;
         }
         result.products_upserted++;
 

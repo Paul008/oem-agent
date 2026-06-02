@@ -438,6 +438,8 @@ The previous `AI_GATEWAY_API_KEY` + `AI_GATEWAY_BASE_URL` approach is still supp
 | `SLACK_APP_TOKEN` | No | Slack app token |
 | `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
 | `WORKER_URL` | No | Public URL of the worker (required for CDP) |
+| `MEDIA_BASE_URL` | No | Public media origin for dealer/inventory image URLs, e.g. `https://media.your-oem-domain.com` |
+| `TOYOTA_DEALER_ID` | No | Toyota TDP/NavCategory dealer ID for model discovery. Defaults to Werribee Toyota `36948` |
 | `SUPABASE_URL` | Yes | Supabase project URL for OEM data storage |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key |
 | `GROQ_API_KEY` | Yes | Groq API key for LLM inference |

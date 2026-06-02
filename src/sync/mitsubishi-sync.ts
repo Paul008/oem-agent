@@ -4,12 +4,28 @@ const OEM_ID = 'mitsubishi-au';
 const GRAPHQL_URL = 'https://store.mitsubishi-motors.com.au/graphql';
 const OEM_SITE = 'https://www.mitsubishi-motors.com.au';
 const STATES = ['nsw', 'vic', 'qld', 'wa', 'sa', 'tas', 'act', 'nt'] as const;
+const GRAPHQL_TIMEOUT_MS = 30_000;
+const ASSET_FOLDER_TIMEOUT_MS = 15_000;
+const ACCESSORY_ASSET_LIMIT = 10_000;
 
 const CATEGORY_IDS = {
   asx: 'NTMz',
+  'asx-25my': 'NTMz',
   outlander: 'NTUz',
+  'outlander-25my': 'NTUz',
+  'outlander-26my': 'NTUz',
+  'outlander-phev': 'NTUz',
+  'outlander-plug-in-hybrid-ev': 'NTUz',
+  'outlander-plug-in-hybrid-ev-24my': 'NTUz',
   'eclipse-cross': 'NDM2',
+  'eclipse-cross-24my': 'NDM2',
+  'eclipse-cross-phev': 'NDM2',
+  'eclipse-cross-plug-in-hybrid-ev': 'NDM2',
   triton: 'NTQx',
+  'triton-25my': 'NTQx',
+  'triton-26my': 'NTQx',
+  'all-new-triton': 'NTQx',
+  'all-new-triton-25my': 'NTQx',
   'pajero-sport': 'NTAz',
 } as const;
 
@@ -33,6 +49,18 @@ export interface MitsubishiSyncResult {
   errors: string[];
 }
 
+interface ModelSyncMeta {
+  id: string;
+  slug: string;
+  name?: string | null;
+  model_year?: number | null;
+}
+
+interface AccessoryImageFiles {
+  primaryAccessoryImages: string[];
+  secondaryAccessoryImages: string[];
+}
+
 function emptyResult(): MitsubishiSyncResult {
   return {
     products: 0,
@@ -47,6 +75,21 @@ function emptyResult(): MitsubishiSyncResult {
   };
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function pushSyncError(result: MitsubishiSyncResult, scope: string, error: unknown): void {
+  result.errors.push(`${scope}: ${errorMessage(error)}`);
+}
+
+function variantScope(category: any, parent: any, variant: any): string {
+  const model = modelSlugFromCategory(category) || 'unknown-model';
+  const sku = variant?.product?.sku || parent?.sku || 'unknown-sku';
+  const name = parent?.name || parent?.model_1 || variant?.product?.name || '';
+  return [model, sku, name].filter(Boolean).join(' / ');
+}
+
 function slugify(value: string | null | undefined): string {
   return String(value || '')
     .trim()
@@ -54,6 +97,24 @@ function slugify(value: string | null | undefined): string {
     .replace(/&/g, 'and')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function slugifyPathSegment(value: string | null | undefined): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\b\d{2}my\b/g, '')
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function modelYearSlug(value: unknown): string {
+  const year = String(value || '').trim().toLowerCase();
+  if (!year) return '';
+  if (year.endsWith('my')) return year;
+  const fourDigitYear = year.match(/\d{4}/)?.[0];
+  return fourDigitYear ? `${fourDigitYear.slice(-2)}my` : year;
 }
 
 function pf(value: unknown): number | null {
@@ -163,28 +224,170 @@ function offerType(offer: any, group: string): string {
   return 'driveaway';
 }
 
+function normaliseAccessoryCategoryLabel(category: unknown): string {
+  const label = stripHtml(String(category || '')).replace(/^\d+[\s._-]*/, '');
+  const labels: Record<string, string> = {
+    packs: 'Packs',
+    'accessory-packs': 'Packs',
+    exterior: 'Exterior',
+    'tow-cargo': 'Tow/Cargo',
+    'tow-cargo-and-load-carrying': 'Tow/Cargo',
+    'tow-and-cargo': 'Tow/Cargo',
+    interior: 'Interior',
+  };
+  return labels[slugify(label)] || label;
+}
+
 function accessoryCategory(item: any): string | null {
-  const group = String(item?.accessory_group || '').trim();
+  const group = normaliseAccessoryCategoryLabel(item?.accessory_group);
   if (group) return group;
-  const category = (item?.categories || [])
+
+  const preferred = ['packs', 'exterior', 'tow-cargo', 'interior'];
+  const categories = (item?.categories || [])
     .map((c: any) => c?.name)
-    .find((name: string) => /pack|exterior|interior|tow|cargo|accessor/i.test(name || ''));
-  return category || null;
+    .filter((name: string) => name && name.toLowerCase() !== 'accessories')
+    .map((name: string) => {
+      const label = normaliseAccessoryCategoryLabel(name);
+      return { label, key: slugify(label) };
+    });
+
+  const preferredMatch = categories.find((category: { key: string }) => preferred.includes(category.key));
+  return preferredMatch?.label || categories[0]?.label || null;
 }
 
 function accessoryPrice(item: any): number | null {
-  return pf(item?.price_range?.minimum_price?.final_price?.value)
+  const productPrice = pf(item?.price_range?.minimum_price?.final_price?.value)
     ?? pf(item?.price_range?.minimum_price?.regular_price?.value);
+  if (productPrice) return productPrice;
+
+  const variantPrices = (item?.variants || [])
+    .map((variant: any) => pf(variant?.product?.price_range?.minimum_price?.final_price?.value))
+    .filter((price: number | null): price is number => price != null);
+  return variantPrices.length ? Math.min(...variantPrices) : null;
 }
 
-function accessoryImage(item: any): string | null {
-  const gallery = Array.isArray(item?.media_gallery)
-    ? item.media_gallery.find((m: any) => !m.disabled && imageUrl(m))
+function isPlaceholderImage(url: string | null | undefined): boolean {
+  return !url || /placeholder|no_selection|missing/i.test(url);
+}
+
+function accessoryCatalogEntryImage(item: any): string | null {
+  const entry = Array.isArray(item?.media_gallery_entries)
+    ? item.media_gallery_entries
+      .filter((image: any) => !image.disabled && image.media_type !== 'external-video')
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+      .find((image: any) => image.file)
     : null;
-  return imageUrl(gallery) || imageUrl(item?.image) || imageUrl(item?.small_image) || imageUrl(item?.thumbnail);
+  return entry?.file ? `https://store.mitsubishi-motors.com.au/media/catalog/product${entry.file}` : null;
+}
+
+function accessoryGraphqlImage(item: any): string | null {
+  const gallery = Array.isArray(item?.media_gallery)
+    ? item.media_gallery
+      .filter((m: any) => !m.disabled)
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+      .map((m: any) => imageUrl(m))
+      .find((url: string | null) => !isPlaceholderImage(url))
+    : null;
+
+  const variantImage = (item?.variants || [])
+    .map((variant: any) => imageUrl(variant?.product?.image))
+    .find((url: string | null) => !isPlaceholderImage(url));
+
+  const candidates = [
+    gallery,
+    accessoryCatalogEntryImage(item),
+    imageUrl(item?.small_image),
+    imageUrl(item?.image),
+    imageUrl(item?.thumbnail),
+    variantImage,
+  ];
+  return candidates.find((url) => !isPlaceholderImage(url)) || null;
+}
+
+function sortAccessoryImages(a: string, b: string): number {
+  const aHasSuffix = /_[^/]+$/.test(a.replace(/\.[^.]+(?:\/renditions\/original)?$/i, ''));
+  const bHasSuffix = /_[^/]+$/.test(b.replace(/\.[^.]+(?:\/renditions\/original)?$/i, ''));
+  if (!aHasSuffix && !bHasSuffix) return 0;
+  if (aHasSuffix && bHasSuffix) return a.localeCompare(b);
+  return aHasSuffix ? 1 : -1;
+}
+
+function accessorySkuCandidates(item: any): string[] {
+  return [...new Set([
+    item?.sku,
+    item?.sku?.replace(/ZZ$/i, ''),
+    ...(item?.variants || []).flatMap((variant: any) => [
+      variant?.product?.sku,
+      variant?.product?.sku?.replace(/ZZ$/i, ''),
+    ]),
+  ].filter(Boolean))] as string[];
+}
+
+function findAemAccessoryImage(item: any, imageFiles: AccessoryImageFiles): string | null {
+  const skuCandidates = accessorySkuCandidates(item);
+  const findMatch = (images: string[]): string | null => {
+    for (const sku of skuCandidates) {
+      const match = images.filter((url) => url.includes(sku)).sort(sortAccessoryImages)[0];
+      if (match) return match;
+    }
+    return null;
+  };
+
+  return findMatch(imageFiles.primaryAccessoryImages) || findMatch(imageFiles.secondaryAccessoryImages);
+}
+
+function accessoryImage(item: any, imageFiles: AccessoryImageFiles): { url: string | null; source: string | null } {
+  const aemImage = findAemAccessoryImage(item, imageFiles);
+  if (aemImage) return { url: aemImage, source: 'aem' };
+  const graphqlImage = accessoryGraphqlImage(item);
+  return { url: graphqlImage, source: graphqlImage ? 'graphql' : null };
+}
+
+async function fetchAccessoryAssetFolder(path: string): Promise<string[]> {
+  const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
+  if (!cleanPath) return [];
+
+  const timeout = (AbortSignal as typeof AbortSignal & { timeout?: (ms: number) => AbortSignal }).timeout;
+  const url = `${OEM_SITE}/api/assets/mmal/accessories/${cleanPath}.json?limit=${ACCESSORY_ASSET_LIMIT}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'oem-agent/1.0 Mitsubishi accessory sync' },
+      signal: timeout ? timeout(ASSET_FOLDER_TIMEOUT_MS) : undefined,
+    });
+    if (!response.ok) return [];
+    const data = await response.json() as { entities?: Array<{ class?: string[]; properties?: { name?: string } }> };
+    return (data.entities || [])
+      .filter((entity) => entity.class?.includes('assets/asset'))
+      .map((entity) => entity.properties?.name ? `${OEM_SITE}/content/dam/mmal/accessories/${cleanPath}/${entity.properties.name}` : null)
+      .filter((url): url is string => Boolean(url));
+  } catch {
+    return [];
+  }
+}
+
+async function getAccessoryImageFiles(modelMetaBySlug: Map<string, ModelSyncMeta>): Promise<AccessoryImageFiles> {
+  const primaryPaths = [...new Set([...modelMetaBySlug.values()]
+    .map((model) => {
+      const modelSlug = slugifyPathSegment(model.slug || model.name || '');
+      const year = modelYearSlug(model.model_year);
+      return modelSlug && year ? `${modelSlug}/${year}` : null;
+    })
+    .filter((path): path is string => Boolean(path)))];
+
+  const [primaryGroups, secondaryGroups] = await Promise.all([
+    Promise.all(primaryPaths.map(fetchAccessoryAssetFolder)),
+    Promise.all(['general'].map(fetchAccessoryAssetFolder)),
+  ]);
+
+  return {
+    primaryAccessoryImages: primaryGroups.flat(),
+    secondaryAccessoryImages: secondaryGroups.flat(),
+  };
 }
 
 async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+  const timeout = (AbortSignal as typeof AbortSignal & { timeout?: (ms: number) => AbortSignal }).timeout;
   const response = await fetch(GRAPHQL_URL, {
     method: 'POST',
     headers: {
@@ -194,6 +397,7 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
       Referer: `${OEM_SITE}/`,
     },
     body: JSON.stringify({ query, variables }),
+    signal: timeout ? timeout(GRAPHQL_TIMEOUT_MS) : undefined,
   });
   const json = await response.json() as { data?: T; errors?: Array<{ message?: string }> };
   if (!response.ok || json.errors || !json.data) {
@@ -339,6 +543,28 @@ query GetProductsBySkuList($skus: [String]!) {
       categories { name url_key uid }
       short_description { html }
       description { html }
+      ... on ConfigurableProduct {
+        variants {
+          product {
+            sku
+            name
+            image { url label }
+            price_range {
+              minimum_price {
+                final_price { value currency }
+              }
+            }
+          }
+        }
+        configurable_options {
+          attribute_code
+          values {
+            label
+            value_index
+            swatch_data { value }
+          }
+        }
+      }
     }
   }
 }`;
@@ -366,18 +592,19 @@ async function upsertVehicleModel(supabase: SupabaseClient, category: any): Prom
   const { data, error } = await supabase
     .from('vehicle_models')
     .upsert(payload, { onConflict: 'oem_id,slug' })
-    .select('id, slug, name, brochure_url')
+    .select('id, slug, name, brochure_url, model_year')
     .single();
   if (error) throw error;
   return data;
 }
 
 async function upsertProduct(supabase: SupabaseClient, parent: any, variant: any, model: any, category: any): Promise<any> {
-  const product = variant.product || {};
+  const product = variant?.product || {};
   const offer = bestOffer(product);
   const price = offerStatePrice(offer, 'vic') || pf(product?.price_range?.minimum_price?.final_price?.value);
   const variantName = parent?.subrange?.label || parent?.model_1 || parent?.name || product?.name;
   const variantCode = product.sku || parent?.sku;
+  if (!variantCode) throw new Error('missing variant SKU');
   const title = [model.name, variantName].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
   const primaryImage = imageUrl(product.image) || imageUrl(product.small_image) || imageUrl(product.thumbnail);
 
@@ -414,7 +641,7 @@ async function upsertProduct(supabase: SupabaseClient, parent: any, variant: any
       exterior_code: product.exterior_code,
       interior_code: product.interior_code,
       option_pack: product.option_pack,
-      attributes: variant.attributes || [],
+      attributes: variant?.attributes || [],
       compatible_accessories: (product.compatible_accessories || []).map((a: any) => a.sku).filter(Boolean),
       mitsubishi_offer: offer || null,
     },
@@ -446,7 +673,7 @@ async function upsertColorsAndInteriors(
         const colorCode = String(value.value_index ?? value.option_slug ?? slugify(value.label));
         const swatch = value.swatch_data?.value || null;
         const priceDelta = optionPrice(value);
-        await supabase.from('variant_colors').upsert({
+        const { error: colorError } = await supabase.from('variant_colors').upsert({
           product_id: dbProduct.id,
           color_code: colorCode,
           color_name: value.store_label || value.label,
@@ -457,8 +684,9 @@ async function upsertColorsAndInteriors(
           sort_order: Number(value.value_index) || colors,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'product_id,color_code' });
+        if (colorError) throw new Error(`variant color ${colorCode}: ${colorError.message}`);
 
-        await supabase.from('oem_color_palette').upsert({
+        const { error: paletteError } = await supabase.from('oem_color_palette').upsert({
           oem_id: OEM_ID,
           color_code: colorCode,
           color_name: value.store_label || value.label,
@@ -468,6 +696,7 @@ async function upsertColorsAndInteriors(
           is_active: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'oem_id,color_code' });
+        if (paletteError) throw new Error(`color palette ${colorCode}: ${paletteError.message}`);
         colors++;
       }
     }
@@ -476,7 +705,7 @@ async function upsertColorsAndInteriors(
       for (const value of option.values || []) {
         const interiorCode = String(value.value_index ?? value.option_slug ?? slugify(value.label));
         const priceDelta = optionPrice(value);
-        await supabase.from('variant_interiors').upsert({
+        const { error: interiorError } = await supabase.from('variant_interiors').upsert({
           product_id: dbProduct.id,
           interior_code: interiorCode,
           interior_name: value.store_label || value.label,
@@ -486,6 +715,7 @@ async function upsertColorsAndInteriors(
           swatch_url: value.swatch_data?.value && !String(value.swatch_data.value).startsWith('#') ? imageUrl({ url: value.swatch_data.value }) : null,
           sort_order: Number(value.value_index) || interiors,
         }, { onConflict: 'product_id,interior_code' });
+        if (interiorError) throw new Error(`variant interior ${interiorCode}: ${interiorError.message}`);
         interiors++;
       }
     }
@@ -496,17 +726,19 @@ async function upsertColorsAndInteriors(
 async function upsertPricing(supabase: SupabaseClient, productId: string, offer: any): Promise<boolean> {
   const amount = offerStatePrice(offer, 'vic');
   if (!amount) return false;
-  await supabase.from('variant_pricing').upsert({
+  const { error } = await supabase.from('variant_pricing').upsert({
     product_id: productId,
     price_type: 'standard',
     ...pricingPayloadFromOffer(offer),
   }, { onConflict: 'product_id,price_type' });
+  if (error) throw new Error(`variant pricing ${productId}: ${error.message}`);
   return true;
 }
 
-async function upsertOffer(supabase: SupabaseClient, productId: string, modelId: string, sku: string, offer: any, group: string): Promise<boolean> {
+async function upsertOffer(supabase: SupabaseClient, productId: string, modelId: string, sku: string | null | undefined, offer: any, group: string): Promise<boolean> {
   if (!offer?.title && !offer?.short_description && !offer?.offer_id) return false;
-  const externalKey = `${group}:${offer.offer_id || sku}:${slugify(offer.title || offer.short_description || 'offer')}`;
+  const skuKey = sku || offer.offer_id || 'unknown-sku';
+  const externalKey = `${group}:${offer.offer_id || skuKey}:${slugify(offer.title || offer.short_description || 'offer')}`;
   const price = offerStatePrice(offer, 'vic');
   const row = {
     oem_id: OEM_ID,
@@ -516,7 +748,7 @@ async function upsertOffer(supabase: SupabaseClient, productId: string, modelId:
     title: offer.title || offer.short_description || 'Mitsubishi offer',
     description: offer.description || offer.short_description || null,
     offer_type: offerType(offer, group),
-    applicable_models: [sku],
+    applicable_models: sku ? [sku] : [],
     price_amount: price,
     price_currency: 'AUD',
     price_type: price ? 'driveaway' : null,
@@ -532,12 +764,13 @@ async function upsertOffer(supabase: SupabaseClient, productId: string, modelId:
     updated_at: new Date().toISOString(),
   };
 
-  const { data: existing } = await supabase
+  const { data: existing, error: findError } = await supabase
     .from('offers')
     .select('id')
     .eq('oem_id', OEM_ID)
     .eq('external_key', externalKey)
     .maybeSingle();
+  if (findError) throw new Error(`find offer ${externalKey}: ${findError.message}`);
 
   let offerId = existing?.id;
   if (offerId) {
@@ -549,18 +782,22 @@ async function upsertOffer(supabase: SupabaseClient, productId: string, modelId:
     offerId = data.id;
   }
 
-  await supabase.from('offer_products').upsert({ offer_id: offerId, product_id: productId });
+  const { error: linkError } = await supabase
+    .from('offer_products')
+    .upsert({ offer_id: offerId, product_id: productId }, { onConflict: 'offer_id,product_id' });
+  if (linkError) throw new Error(`link offer ${externalKey} to product ${productId}: ${linkError.message}`);
   return true;
 }
 
 async function upsertAccessories(
   supabase: SupabaseClient,
   accessorySkusByModel: Map<string, Set<string>>,
-  modelIdBySlug: Map<string, string>,
+  modelMetaBySlug: Map<string, ModelSyncMeta>,
 ): Promise<number> {
   const skus = [...new Set([...accessorySkusByModel.values()].flatMap(set => [...set]))].filter(Boolean);
   if (!skus.length) return 0;
 
+  const accessoryImageFiles = await getAccessoryImageFiles(modelMetaBySlug);
   let count = 0;
   for (let i = 0; i < skus.length; i += 25) {
     const batch = skus.slice(i, i + 25);
@@ -568,6 +805,7 @@ async function upsertAccessories(
     for (const item of data.products?.items || []) {
       if (!item?.sku) continue;
       const descriptionHtml = item.description?.html || item.short_description?.html || null;
+      const image = accessoryImage(item, accessoryImageFiles);
       const payload = {
         oem_id: OEM_ID,
         external_key: item.sku,
@@ -577,15 +815,24 @@ async function upsertAccessories(
         category: accessoryCategory(item),
         price: accessoryPrice(item),
         description_html: descriptionHtml,
-        image_url: accessoryImage(item),
+        image_url: image.url,
         inc_fitting: 'none',
         meta_json: {
           stock_status: item.stock_status,
           categories: item.categories || [],
           short_description: item.short_description?.html || null,
           disclaimer: stripHtml(descriptionHtml).match(/Disclaimer:?\s*(.*)$/i)?.[1] || null,
+          image_source: image.source,
+          aem_image_url: image.source === 'aem' ? image.url : null,
           media_gallery: item.media_gallery || [],
           media_gallery_entries: item.media_gallery_entries || [],
+          configurable_options: item.configurable_options || [],
+          variants: (item.variants || []).map((variant: any) => ({
+            sku: variant?.product?.sku,
+            name: variant?.product?.name,
+            price: pf(variant?.product?.price_range?.minimum_price?.final_price?.value),
+            image_url: imageUrl(variant?.product?.image),
+          })),
         },
         updated_at: new Date().toISOString(),
       };
@@ -599,12 +846,15 @@ async function upsertAccessories(
 
       for (const [modelSlug, modelSkus] of accessorySkusByModel) {
         if (!modelSkus.has(item.sku)) continue;
-        const modelId = modelIdBySlug.get(modelSlug);
+        const modelId = modelMetaBySlug.get(modelSlug)?.id;
         if (!modelId) continue;
-        await supabase.from('accessory_models').upsert({
+        const { error: linkError } = await supabase.from('accessory_models').upsert({
           accessory_id: accessory.id,
           model_id: modelId,
         }, { onConflict: 'accessory_id,model_id' });
+        if (linkError) {
+          throw new Error(`link accessory ${item.sku} to model ${modelSlug}: ${linkError.message}`);
+        }
       }
       count++;
     }
@@ -645,7 +895,7 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
       content_type: 'application/json',
       response_type: 'json',
       data_type: 'accessories',
-      schema_json: { capabilities: ['accessory_images'], template_params: ['model', 'year'] },
+      schema_json: { capabilities: ['accessory_images', 'model_year_image_fallback'], template_params: ['model', 'year'] },
       reliability_score: 0.85,
       status: 'verified',
       last_successful_call: new Date().toISOString(),
@@ -659,7 +909,7 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
       content_type: 'application/json',
       response_type: 'json',
       data_type: 'accessories',
-      schema_json: { capabilities: ['shared_accessory_images'] },
+      schema_json: { capabilities: ['shared_accessory_images', 'sku_image_fallback'] },
       reliability_score: 0.8,
       status: 'verified',
       last_successful_call: new Date().toISOString(),
@@ -689,19 +939,30 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
 
 export async function syncMitsubishiGraphql(supabase: SupabaseClient): Promise<MitsubishiSyncResult> {
   const result = emptyResult();
-  const modelIdBySlug = new Map<string, string>();
+  const modelMetaBySlug = new Map<string, ModelSyncMeta>();
   const accessorySkusByModel = new Map<string, Set<string>>();
 
   try {
-    result.discoveredApis = await seedDiscoveredApis(supabase);
+    try {
+      result.discoveredApis = await seedDiscoveredApis(supabase);
+    } catch (error) {
+      pushSyncError(result, 'discovered APIs', error);
+    }
 
     const ids = [...new Set(Object.values(CATEGORY_IDS))];
     const data = await gql<{ categories?: { items?: any[] } }>(RANGE_QUERY, { ids });
     const categories = data.categories?.items || [];
 
     for (const category of categories) {
-      const model = await upsertVehicleModel(supabase, category);
-      modelIdBySlug.set(model.slug, model.id);
+      let model: any;
+      try {
+        model = await upsertVehicleModel(supabase, category);
+      } catch (error) {
+        pushSyncError(result, `model ${modelSlugFromCategory(category) || category?.name || 'unknown'}`, error);
+        continue;
+      }
+
+      modelMetaBySlug.set(model.slug, model as ModelSyncMeta);
       if (model.brochure_url) result.brochures++;
 
       const modelAccessories = accessorySkusByModel.get(model.slug) || new Set<string>();
@@ -709,24 +970,44 @@ export async function syncMitsubishiGraphql(supabase: SupabaseClient): Promise<M
 
       for (const parent of category?.products?.items || []) {
         for (const variant of parent?.variants || []) {
-          const dbProduct = await upsertProduct(supabase, parent, variant, model, category);
-          result.products++;
+          const scope = variantScope(category, parent, variant);
+          let dbProduct: any;
+
+          try {
+            dbProduct = await upsertProduct(supabase, parent, variant, model, category);
+            result.products++;
+          } catch (error) {
+            pushSyncError(result, `product ${scope}`, error);
+            continue;
+          }
 
           const selected = {
             exterior: variant?.product?.exterior_code,
             interior: variant?.product?.interior_code,
           };
-          const optionCounts = await upsertColorsAndInteriors(supabase, dbProduct, parent, selected);
-          result.colors += optionCounts.colors;
-          result.interiors += optionCounts.interiors;
+          try {
+            const optionCounts = await upsertColorsAndInteriors(supabase, dbProduct, parent, selected);
+            result.colors += optionCounts.colors;
+            result.interiors += optionCounts.interiors;
+          } catch (error) {
+            pushSyncError(result, `options ${scope}`, error);
+          }
 
-          const offer = bestOffer(variant.product);
-          if (await upsertPricing(supabase, dbProduct.id, offer)) result.pricing++;
+          try {
+            const offer = bestOffer(variant?.product);
+            if (await upsertPricing(supabase, dbProduct.id, offer)) result.pricing++;
+          } catch (error) {
+            pushSyncError(result, `pricing ${scope}`, error);
+          }
 
           for (const group of ['private', 'business', 'mmba']) {
-            const groupOffer = variant?.product?.offer?.[group];
-            if (await upsertOffer(supabase, dbProduct.id, model.id, variant?.product?.sku || parent?.sku, groupOffer, group)) {
-              result.offers++;
+            try {
+              const groupOffer = variant?.product?.offer?.[group];
+              if (await upsertOffer(supabase, dbProduct.id, model.id, variant?.product?.sku || parent?.sku, groupOffer, group)) {
+                result.offers++;
+              }
+            } catch (error) {
+              pushSyncError(result, `offer ${group} ${scope}`, error);
             }
           }
 
@@ -737,9 +1018,13 @@ export async function syncMitsubishiGraphql(supabase: SupabaseClient): Promise<M
       }
     }
 
-    result.accessories = await upsertAccessories(supabase, accessorySkusByModel, modelIdBySlug);
+    try {
+      result.accessories = await upsertAccessories(supabase, accessorySkusByModel, modelMetaBySlug);
+    } catch (error) {
+      pushSyncError(result, 'accessories', error);
+    }
   } catch (error) {
-    result.errors.push(error instanceof Error ? error.message : String(error));
+    pushSyncError(result, 'Mitsubishi GraphQL sync', error);
   }
 
   return result;

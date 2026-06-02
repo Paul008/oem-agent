@@ -241,8 +241,9 @@ app.post('/admin/capture-screenshot', async (c) => {
         const seen = new Set<Element>();
 
         for (const el of elements) {
+          const element = el as HTMLElement;
           // Skip tiny elements and duplicates
-          if (el.offsetHeight < 50 || el.offsetWidth < 200) continue;
+          if (element.offsetHeight < 50 || element.offsetWidth < 200) continue;
           // Skip if a parent section is already captured
           let skip = false;
           for (const s of seen) { if (s.contains(el) && s !== el) { skip = true; break; } }
@@ -251,10 +252,10 @@ app.post('/admin/capture-screenshot', async (c) => {
 
           const html = el.outerHTML;
           results.push({
-            tag: el.tagName.toLowerCase(),
-            classes: el.className || '',
-            top: el.getBoundingClientRect().top + window.scrollY,
-            height: el.offsetHeight,
+            tag: element.tagName.toLowerCase(),
+            classes: element.className || '',
+            top: element.getBoundingClientRect().top + window.scrollY,
+            height: element.offsetHeight,
             html: html.length > 200_000 ? html.slice(0, 200_000) : html,
           });
         }
@@ -317,7 +318,7 @@ app.post('/admin/smart-capture', async (c) => {
         moonshot: c.env.MOONSHOT_API_KEY,
         anthropic: c.env.ANTHROPIC_API_KEY,
         google: c.env.GOOGLE_API_KEY,
-      }, null);
+      }, undefined);
 
       const tailwindPrompt = `Convert this HTML to clean Tailwind CSS. Keep ALL content, images, links, and text exactly as-is. Only replace the CSS styling with Tailwind utility classes.
 
@@ -1492,6 +1493,35 @@ app.post('/admin/test-crawl', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/toyota-browser-sync
+ * Trigger Toyota sync via Apify actor
+ */
+app.post('/admin/toyota-browser-sync', async (c) => {
+  try {
+    const { runToyotaSyncViaApify } = await import('../sync/toyota-browser-sync');
+
+    if (!c.env.APIFY_TOKEN) {
+      return c.json({ error: 'APIFY_TOKEN not configured' }, 503);
+    }
+
+    const result = await runToyotaSyncViaApify({
+      token: c.env.APIFY_TOKEN,
+      supabaseUrl: c.env.SUPABASE_URL,
+      supabaseServiceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+      dealerId: c.env.TOYOTA_DEALER_ID,
+    });
+
+    return c.json({ success: true, result });
+  } catch (err) {
+    console.error('[ToyotaSync] Error:', err);
+    return c.json({
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+});
+
+/**
  * GET /api/v1/oem-agent/admin/test-ford-api
  * Direct test of Ford API from worker
  */
@@ -1945,7 +1975,7 @@ app.get('/pages/:slug', async (c) => {
             .in('product_id', productIds)
             .limit(100);
 
-          const oemId = slug.replace(/-[^-]+$/, ''); // foton-au-tunland → foton-au
+          const oemId = pageOemId;
           const proxy = (url: string | null) => proxyImage(url, { oemId }) || null;
 
           // Group by product — only create variant_groups when >1 product has colors
@@ -2508,7 +2538,7 @@ app.post('/admin/preview-legacy-import', async (c) => {
 app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
-  const body = await c.req.json<{ url?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ url?: string }>().catch((): { url?: string } => ({}));
 
   const { scrapeOemModelPage, GWM_OEM_MODEL_URLS } = await import('../design/oem-scraper');
   const url = body.url || GWM_OEM_MODEL_URLS[modelSlug];
@@ -2596,7 +2626,7 @@ app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
 app.post('/admin/scrape-gac/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
-  const body = await c.req.json<{ path?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ path?: string }>().catch((): { path?: string } => ({}));
 
   const { scrapeGacModelPage, GAC_MODEL_PATHS } = await import('../design/gac-scraper');
   const path = body.path || GAC_MODEL_PATHS[modelSlug];
@@ -2677,7 +2707,7 @@ app.post('/admin/scrape-gac/:oemId/:modelSlug', async (c) => {
  * Body: { path?: string, model_slug?: string }
  */
 app.post('/admin/preview-gac-scrape', async (c) => {
-  const body = await c.req.json<{ path?: string; model_slug?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ path?: string; model_slug?: string }>().catch((): { path?: string; model_slug?: string } => ({}));
   const { scrapeGacModelPage, GAC_MODEL_PATHS } = await import('../design/gac-scraper');
   const path = body.path || (body.model_slug ? GAC_MODEL_PATHS[body.model_slug] : null);
 
@@ -2709,7 +2739,7 @@ app.post('/admin/preview-gac-scrape', async (c) => {
  * Body: { url?: string, model_slug?: string }
  */
 app.post('/admin/preview-oem-scrape', async (c) => {
-  const body = await c.req.json<{ url?: string; model_slug?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ url?: string; model_slug?: string }>().catch((): { url?: string; model_slug?: string } => ({}));
 
   const { scrapeOemModelPage, GWM_OEM_MODEL_URLS } = await import('../design/oem-scraper');
   const url = body.url || (body.model_slug ? GWM_OEM_MODEL_URLS[body.model_slug] : null);

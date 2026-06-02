@@ -966,6 +966,8 @@ export interface VehicleModelPage {
   subpage_name?: string;
   source_data_hash?: string;
   source_data_updated_at?: string;
+  manually_edited?: boolean;
+  manually_edited_at?: string;
 }
 
 export type PageGenerationStatus = 'pending' | 'capturing' | 'generating' | 'validating' | 'completed' | 'failed';

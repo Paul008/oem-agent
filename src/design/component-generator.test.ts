@@ -32,7 +32,14 @@ describe('ComponentGenerator', () => {
       bot_detection: 'none',
       wait_ms_after_load: 2000,
     },
-  } as OemDesignProfile);
+    quality_history: {
+      avg_quality_score: 0,
+      total_runs: 0,
+      last_run_at: '',
+      common_errors: [],
+    },
+    last_updated: '',
+  });
 
   const makeSection = (overrides: Partial<PageSection> = {}): PageSection => ({
     type: 'feature-cards',
