@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
+import type { CSSProperties } from 'vue'
 
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
@@ -11,6 +12,7 @@ const props = defineProps<{
     poster_url?: string
     autoplay: boolean
     layout?: 'full-width' | 'contained' | 'wide'
+    text_align?: CSSProperties['textAlign']
   }
 }>()
 
@@ -48,12 +50,15 @@ const isDirectVideo = computed(() => {
 
 const layout = computed(() => props.section.layout || 'contained')
 const isFull = computed(() => layout.value === 'full-width')
+const textAlignStyle = computed<CSSProperties | undefined>(() => {
+  return props.section.text_align ? { textAlign: props.section.text_align } : undefined
+})
 </script>
 
 <template>
   <div
     :class="isFull ? '' : 'py-6 px-8'"
-    :style="section.text_align ? { textAlign: section.text_align } : undefined"
+    :style="textAlignStyle"
   >
     <h3
       class="text-xl font-bold mb-4 cursor-text outline-none"

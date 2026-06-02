@@ -54,7 +54,6 @@ const headingEdit = makeEditable('heading')
 const subEdit = makeEditable('sub_heading')
 const ctaEdit = makeEditable('cta_text')
 const bodyEdit = makeEditable('body')
-const titleEdit = makeEditable('title')
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
   const el = e.target as HTMLElement

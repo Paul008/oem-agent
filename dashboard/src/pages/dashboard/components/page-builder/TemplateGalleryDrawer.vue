@@ -25,7 +25,6 @@ const emit = defineEmits<{
 }>()
 
 const {
-  indexLoaded,
   indexLoading,
   filterOem,
   filterSectionType,

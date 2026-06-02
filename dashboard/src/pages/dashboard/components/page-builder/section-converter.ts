@@ -672,7 +672,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
   'pricing-table': {
     'comparison-table': (s) => {
       const tiers = s.tiers || []
-      const allFeatures = [...new Set(tiers.flatMap((t: any) => t.features || []))]
+      const allFeatures = [...new Set<string>(tiers.flatMap((t: any) => t.features || []))]
       return {
         title: s.title || '',
         columns: [{ label: 'Feature' }, ...tiers.map((t: any) => ({ label: t.name || '', highlighted: !!t.highlighted }))],

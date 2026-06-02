@@ -24,11 +24,6 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
   emit('inline-edit', field, el.textContent || '', el)
 }
 
-function updateStat(index: number, field: string, value: string) {
-  const stats = [...props.section.stats]
-  stats[index] = { ...stats[index], [field]: value }
-  emit('update-text', 'stats', stats as any)
-}
 </script>
 
 <template>

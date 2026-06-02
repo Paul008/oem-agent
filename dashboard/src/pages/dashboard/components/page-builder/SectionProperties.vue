@@ -26,6 +26,22 @@ function onImgError(url: string) {
   brokenImages.value.add(url)
 }
 
+type UiUpdateValue = string | number | null | undefined
+type VueListIndex = string | number
+
+function stringValue(value: UiUpdateValue): string {
+  return value == null ? '' : String(value)
+}
+
+function numberValue(value: UiUpdateValue, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value ?? '')
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function listIndex(index: VueListIndex): number {
+  return typeof index === 'number' ? index : Number(index)
+}
+
 const convertibleTypes = computed(() => {
   return getConvertibleTypes(props.section?.type as PageSectionType)
 })
@@ -34,9 +50,10 @@ function update(key: string, value: any) {
   emit('update:section', { [key]: value })
 }
 
-function updateNested(arrayKey: string, index: number, field: string, value: any) {
+function updateNested(arrayKey: string, index: VueListIndex, field: string, value: any) {
   const arr = [...(props.section[arrayKey] || [])]
-  arr[index] = { ...arr[index], [field]: value }
+  const idx = listIndex(index)
+  arr[idx] = { ...arr[idx], [field]: value }
   emit('update:section', { [arrayKey]: arr })
 }
 
@@ -45,9 +62,9 @@ function addArrayItem(arrayKey: string, template: Record<string, any>) {
   emit('update:section', { [arrayKey]: arr })
 }
 
-function removeArrayItem(arrayKey: string, index: number) {
+function removeArrayItem(arrayKey: string, index: VueListIndex) {
   const arr = [...(props.section[arrayKey] || [])]
-  arr.splice(index, 1)
+  arr.splice(listIndex(index), 1)
   emit('update:section', { [arrayKey]: arr })
 }
 
@@ -55,7 +72,7 @@ function onMediaUploaded(key: string, url: string) {
   update(key, url)
 }
 
-function onNestedMediaUploaded(arrayKey: string, index: number, field: string, url: string) {
+function onNestedMediaUploaded(arrayKey: string, index: VueListIndex, field: string, url: string) {
   updateNested(arrayKey, index, field, url)
 }
 
@@ -152,11 +169,11 @@ function onMediaLibrarySelect(url: string) {
         <div v-if="section.animation && section.animation !== 'none'" class="grid grid-cols-2 gap-2">
           <div>
             <label class="text-[10px] text-muted-foreground mb-1 block">Duration (s)</label>
-            <UiInput type="number" :model-value="section.animation_duration ?? 0.7" class="h-8 text-xs" step="0.1" min="0.1" max="3" @update:model-value="update('animation_duration', parseFloat($event) || 0.7)" />
+            <UiInput type="number" :model-value="section.animation_duration ?? 0.7" class="h-8 text-xs" step="0.1" min="0.1" max="3" @update:model-value="update('animation_duration', numberValue($event, 0.7))" />
           </div>
           <div>
             <label class="text-[10px] text-muted-foreground mb-1 block">Delay (s)</label>
-            <UiInput type="number" :model-value="section.animation_delay ?? 0" class="h-8 text-xs" step="0.1" min="0" max="3" @update:model-value="update('animation_delay', parseFloat($event) || 0)" />
+            <UiInput type="number" :model-value="section.animation_delay ?? 0" class="h-8 text-xs" step="0.1" min="0" max="3" @update:model-value="update('animation_delay', numberValue($event, 0))" />
           </div>
         </div>
 
@@ -1619,13 +1636,14 @@ function onMediaLibrarySelect(url: string) {
               </button>
             </div>
             <div v-for="(val, vi) in (row.values || [])" :key="vi" class="flex items-center gap-1">
-              <span class="text-[9px] text-muted-foreground w-12 shrink-0 truncate">{{ (section.columns || [])[vi + 1]?.label || `Col ${vi + 1}` }}</span>
+              <span class="text-[9px] text-muted-foreground w-12 shrink-0 truncate">{{ (section.columns || [])[listIndex(vi) + 1]?.label || `Col ${listIndex(vi) + 1}` }}</span>
               <UiInput
                 :model-value="val || ''"
                 class="h-7 text-xs"
-                @update:model-value="(v: string) => {
+                @update:model-value="(v) => {
+                  const valueIndex = listIndex(vi)
                   const vals = [...(row.values || [])]
-                  vals[vi] = v
+                  vals[valueIndex] = stringValue(v)
                   updateNested('rows', i, 'values', vals)
                 }"
               />
@@ -1817,7 +1835,7 @@ function onMediaLibrarySelect(url: string) {
               :model-value="(tier.features || []).join('\n')"
               class="text-xs min-h-12"
               placeholder="One feature per line"
-              @update:model-value="(v: string) => updateNested('tiers', i, 'features', v.split('\n').filter(Boolean))"
+              @update:model-value="(v) => updateNested('tiers', i, 'features', stringValue(v).split('\n').filter(Boolean))"
             />
             <div class="flex gap-1">
               <UiInput :model-value="tier.cta_text || ''" class="h-7 text-xs" placeholder="CTA text" @update:model-value="updateNested('tiers', i, 'cta_text', $event)" />

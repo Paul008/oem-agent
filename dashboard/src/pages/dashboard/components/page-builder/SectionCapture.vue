@@ -247,7 +247,8 @@ async function addSelectionToQueue() {
       canvas.height = h
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, x, y, w, h, 0, 0, w, h)
-      const thumbUrl = canvas.toDataURL('image/jpeg', 0.3)
+      // Preserve the serialization check, which can fail for tainted canvases.
+      canvas.toDataURL('image/jpeg', 0.3)
 
       error.value = 'No matching section found at this position. Try drawing closer to the section center.'
       hasSelection.value = false
