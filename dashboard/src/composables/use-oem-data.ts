@@ -102,6 +102,7 @@ export interface Product {
   price_qualifier: string | null
   price_raw_string: string | null
   availability: string | null
+  key_features: string[] | null
   specs_json: ProductSpecs | null
   created_at: string
   updated_at: string
@@ -310,7 +311,7 @@ export function useOemData() {
   async function fetchProducts() {
     const { data, error: err } = await supabase
       .from('products')
-      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, price_qualifier, price_raw_string, availability, specs_json, meta_json, created_at, updated_at, last_seen_at')
+      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, price_qualifier, price_raw_string, availability, key_features, specs_json, meta_json, created_at, updated_at, last_seen_at')
       .order('oem_id, title')
     if (err)
       throw err

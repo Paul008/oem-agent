@@ -213,6 +213,10 @@ function hasSpecs(product: Product): boolean {
   return product.specs_json !== null && Object.keys(product.specs_json).length > 0
 }
 
+function hasFeatures(product: Product): boolean {
+  return Array.isArray(product.key_features) && product.key_features.length > 0
+}
+
 function toggleSpecs(id: string) {
   if (expandedSpecs.value.has(id)) {
     expandedSpecs.value.delete(id)
@@ -757,7 +761,7 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               </UiTableCell>
               <UiTableCell>
                 <button
-                  v-if="hasSpecs(product) || offersByProduct.get(product.id)?.length"
+                  v-if="hasSpecs(product) || hasFeatures(product) || offersByProduct.get(product.id)?.length"
                   class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 transition-colors"
                   @click="toggleSpecs(product.id)"
                 >
@@ -771,6 +775,13 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                     title="Includes per-variant specs from brochure PDF"
                   >
                     PDF
+                  </span>
+                  <span
+                    v-if="hasFeatures(product)"
+                    class="ml-0.5 inline-flex items-center rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[9px] font-semibold px-1 py-px"
+                    :title="`${product.key_features!.length} feature(s)`"
+                  >
+                    {{ product.key_features!.length }} feat{{ product.key_features!.length === 1 ? '' : 's' }}
                   </span>
                   <span
                     v-if="offersByProduct.get(product.id)?.length"
@@ -790,7 +801,7 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
               </UiTableCell>
             </UiTableRow>
             <!-- Expandable Specs -->
-            <UiTableRow v-if="expandedSpecs.has(product.id) && (hasSpecs(product) || offersByProduct.get(product.id)?.length)" class="bg-muted/30 hover:bg-muted/40">
+            <UiTableRow v-if="expandedSpecs.has(product.id) && (hasSpecs(product) || hasFeatures(product) || offersByProduct.get(product.id)?.length)" class="bg-muted/30 hover:bg-muted/40">
               <UiTableCell :colspan="9" class="p-0">
                 <div class="px-6 py-4 space-y-5">
                   <!-- Offers attached to this variant -->
@@ -822,6 +833,22 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
                         >
                           {{ offer.disclaimer_text }}
                         </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Marketing features attached to this variant -->
+                  <div v-if="hasFeatures(product)">
+                    <h3 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                      Features
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      <div
+                        v-for="feature in product.key_features"
+                        :key="feature"
+                        class="rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 text-xs leading-snug"
+                      >
+                        {{ feature }}
                       </div>
                     </div>
                   </div>

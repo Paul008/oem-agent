@@ -790,6 +790,28 @@ interface MazdaBuildProps {
   };
 }
 
+function cleanFeature(value: unknown): string | null {
+  const text = String(value ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text || null;
+}
+
+function normaliseMazdaFeatures(features?: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of features ?? []) {
+    const feature = cleanFeature(item);
+    if (!feature) continue;
+    const key = feature.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(feature);
+  }
+  return result;
+}
+
 function extractMazdaBuildProps(html: string): MazdaBuildProps | null {
   const start = html.indexOf('{"components":[{"name":"BuildMyMazda"');
   if (start < 0) return null;
@@ -958,6 +980,56 @@ function buildMazdaSpecsJson(details: MazdaBuildVariantDetails, modelSlug: strin
   return Object.keys(specs).length ? specs : null;
 }
 
+function scoreMazdaProductMatch(
+  product: {
+    model_id?: string | null;
+    title?: string | null;
+    external_key?: string | null;
+    variant_code?: string | null;
+    meta_json?: Record<string, unknown> | null;
+  },
+  options: {
+    modelId?: string | null;
+    modelCode?: string;
+    gradeName?: string;
+    shortGradeName?: string;
+    bodyName?: string;
+    titleNeedles: string[];
+  },
+): number {
+  const meta = product.meta_json ?? {};
+  const title = String(product.title ?? '').toLowerCase();
+  const externalKey = String(product.external_key ?? '').toLowerCase();
+  const variantCode = String(product.variant_code ?? '').toLowerCase();
+  const metaModelCode = String(meta.modelCode ?? meta.model_code ?? meta.variant_code ?? '').toLowerCase();
+  const modelCodeLower = String(options.modelCode ?? '').toLowerCase();
+  const grade = String(meta.grade ?? meta.grade_name ?? '').toLowerCase();
+  const body = String(meta.body ?? meta.body_style ?? meta.bodyStyle ?? '').toLowerCase();
+  const bodyName = String(options.bodyName ?? '').toLowerCase();
+
+  let score = 0;
+  if (modelCodeLower) {
+    if (variantCode === modelCodeLower || metaModelCode === modelCodeLower) score += 120;
+    else if (externalKey.includes(modelCodeLower)) score += 90;
+  }
+
+  const matchesModel = (options.modelId && product.model_id === options.modelId)
+    || options.titleNeedles.some(needle => title.includes(needle));
+  if (!matchesModel && score === 0) return -1;
+  if (matchesModel) score += 20;
+
+  if (bodyName) {
+    if (body === bodyName || title.includes(bodyName)) score += 35;
+    else score -= 25;
+  }
+
+  const gradeNames = [options.gradeName, options.shortGradeName].filter(Boolean).map(value => String(value).toLowerCase());
+  if (gradeNames.some(name => grade === name || title.includes(name))) score += 45;
+  else if (gradeNames.some(name => title.includes(name.replace(/^g\d+\s+/, '')))) score += 20;
+
+  return score;
+}
+
 function mazdaAccessoryImage(accessory: MazdaBuildAccessory): string | null {
   const raw = accessory.imageSrc
     ?? accessory.media?.find(item => item.imageSrc)?.imageSrc
@@ -973,7 +1045,7 @@ async function syncMazda(supabase: SupabaseClient): Promise<AllOemSyncResult['ma
 
   const { data: products, error: productLookupErr } = await supabase
     .from('products')
-    .select('id, title, external_key, variant_code, meta_json, price_amount')
+    .select('id, model_id, title, external_key, variant_code, meta_json, price_amount')
     .eq('oem_id', OEM_ID);
   if (productLookupErr) {
     result.errors.push(`Mazda product lookup: ${productLookupErr.message}`);
@@ -1074,40 +1146,35 @@ async function syncMazda(supabase: SupabaseClient): Promise<AllOemSyncResult['ma
           const shortGradeName = variant.name ?? gradeName;
           const titleNeedles = mazdaModelTitleNeedles(slug);
 
-          const product = products.find((p) => {
-            const meta = (p.meta_json ?? {}) as Record<string, unknown>;
-            const title = String(p.title ?? '').toLowerCase();
-            const externalKey = String(p.external_key ?? '').toLowerCase();
-            const variantCode = String(p.variant_code ?? '').toLowerCase();
-            const metaModelCode = String(meta.modelCode ?? meta.model_code ?? meta.variant_code ?? '').toLowerCase();
-            const modelCodeLower = modelCode.toLowerCase();
-            if (modelCodeLower && (
-              variantCode === modelCodeLower ||
-              metaModelCode === modelCodeLower ||
-              externalKey.includes(modelCodeLower)
-            )) return true;
-
-            const grade = String(meta.grade ?? meta.grade_name ?? '').toLowerCase();
-            const body = String(meta.body ?? meta.body_style ?? meta.bodyStyle ?? '').toLowerCase();
-            const matchesGrade = [gradeName, shortGradeName]
-              .filter(Boolean)
-              .some(name => grade === String(name).toLowerCase() || title.includes(String(name).toLowerCase()));
-            const matchesBody = !bodyName || body === bodyName.toLowerCase() || title.includes(bodyName.toLowerCase());
-            const matchesModel = titleNeedles.some(needle => title.includes(needle));
-            return matchesGrade && matchesBody && matchesModel;
-          });
+          const product = products
+            .map(product => ({
+              product,
+              score: scoreMazdaProductMatch(product as any, {
+                modelId: dbModel?.id,
+                modelCode,
+                gradeName,
+                shortGradeName,
+                bodyName,
+                titleNeedles,
+              }),
+            }))
+            .filter(match => match.score >= 40)
+            .sort((a, b) => b.score - a.score)[0]?.product;
           if (!product) continue;
           matchedProducts++;
 
           const specsJson = buildMazdaSpecsJson(details, slug);
-          if (specsJson) {
+          const productPatch = specsJson ? productPatchFromSpecs(specsJson) : {};
+          const keyFeatures = normaliseMazdaFeatures(details.features);
+          if (keyFeatures.length > 0) productPatch.key_features = keyFeatures;
+          if (Object.keys(productPatch).length > 0) {
             const { error: specsErr } = await supabase.from('products')
-              .update(productPatchFromSpecs(specsJson))
+              .update(productPatch)
               .eq('id', product.id);
             if (specsErr) {
               result.errors.push(`Mazda specs ${slug}/${modelCode || gradeName}: ${specsErr.message}`);
             } else {
-              result.specs++;
+              if (specsJson) result.specs++;
             }
           }
 
