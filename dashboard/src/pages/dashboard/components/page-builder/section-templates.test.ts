@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  createSectionFeatureCardItem,
   createSectionShowcaseImageItem,
   createSectionTabItem,
   getSectionRecipeDefaults,
@@ -116,6 +117,39 @@ describe('section nested item defaults', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
     expect(source).not.toContain("addArrayItem('images', { url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' })")
+  })
+
+  it('creates fresh feature card items with the base card schema', () => {
+    const first = createSectionFeatureCardItem()
+    const second = createSectionFeatureCardItem({
+      title: 'Safety',
+      image_url: '/media/safety.jpg',
+    })
+
+    expect(first).toEqual({
+      title: '',
+      description: '',
+      image_url: '',
+    })
+    expect(second).toEqual({
+      title: 'Safety',
+      description: '',
+      image_url: '/media/safety.jpg',
+    })
+    expect(first).not.toBe(second)
+  })
+
+  it('uses shared feature card defaults for blank feature-card sections', () => {
+    const section = SECTION_DEFAULTS['feature-cards']()
+
+    expect(section.cards).toEqual([createSectionFeatureCardItem()])
+    expect(section.cards[0]).not.toBe(createSectionFeatureCardItem())
+  })
+
+  it('keeps feature card item literals out of the editor add action', () => {
+    const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
+
+    expect(source).not.toContain("addArrayItem('cards', { title: '', description: '', image_url: '' })")
   })
 })
 

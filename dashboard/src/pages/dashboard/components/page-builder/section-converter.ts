@@ -1,6 +1,6 @@
 import type { PageSectionType } from './section-templates'
 
-import { createSectionShowcaseImageItem, createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
+import { createSectionFeatureCardItem, createSectionShowcaseImageItem, createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
 
 /**
  * Section Converter — converts a section from one type to another,
@@ -133,7 +133,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
   'gallery': {
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.images || []).map((img: any) => ({
+      cards: (s.images || []).map((img: any) => createSectionFeatureCardItem({
         title: img.caption || img.alt || '',
         description: img.description || '',
         image_url: img.url || '',
@@ -231,7 +231,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.images || []).map((img: any) => ({
+      cards: (s.images || []).map((img: any) => createSectionFeatureCardItem({
         title: img.caption || img.alt || '',
         description: img.description || '',
         image_url: img.url || '',
@@ -332,7 +332,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.tabs || []).map((t: any) => ({
+      cards: (s.tabs || []).map((t: any) => createSectionFeatureCardItem({
         title: t.label || '',
         description: stripHtml(t.content_html),
         image_url: t.image_url || '',
@@ -367,7 +367,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.items || []).map((item: any) => ({
+      cards: (s.items || []).map((item: any) => createSectionFeatureCardItem({
         title: item.question || '',
         description: stripHtml(item.answer),
         image_url: '',
@@ -488,7 +488,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
   'testimonial': {
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.testimonials || []).map((t: any) => ({
+      cards: (s.testimonials || []).map((t: any) => createSectionFeatureCardItem({
         title: t.author || '',
         description: t.quote || '',
         image_url: t.avatar_url || '',
@@ -597,7 +597,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
   'stats': {
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.stats || []).map((stat: any) => ({
+      cards: (s.stats || []).map((stat: any) => createSectionFeatureCardItem({
         title: `${stat.value}${stat.unit ? ` ${stat.unit}` : ''}`,
         description: stat.label || '',
         image_url: stat.icon_url || '',
@@ -638,7 +638,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.logos || []).map((logo: any) => ({
+      cards: (s.logos || []).map((logo: any) => createSectionFeatureCardItem({
         title: logo.name || '',
         description: '',
         image_url: logo.image_url || '',
@@ -692,7 +692,7 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     },
     'feature-cards': s => ({
       title: s.title || '',
-      cards: (s.tiers || []).map((t: any) => ({
+      cards: (s.tiers || []).map((t: any) => createSectionFeatureCardItem({
         title: `${t.name} — ${t.price}`,
         description: (t.features || []).join(', '),
         image_url: '',

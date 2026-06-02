@@ -53,6 +53,21 @@ export function createSectionShowcaseImageItem(overrides: Partial<SectionShowcas
   }
 }
 
+export interface SectionFeatureCardItem {
+  title: string
+  description: string
+  image_url: string
+}
+
+export function createSectionFeatureCardItem(overrides: Partial<SectionFeatureCardItem> = {}): SectionFeatureCardItem {
+  return {
+    title: '',
+    description: '',
+    image_url: '',
+    ...overrides,
+  }
+}
+
 export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>> = {
   'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left', show_overlay: true, full_width_image: false, animation: 'none' }),
   'heading': () => ({ heading: '', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: '', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', text_color: '', line_gap: '8', background_color: '', animation: 'fade-up' }),
@@ -63,7 +78,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'gallery': () => ({ title: 'Gallery', images: [], layout: 'carousel', animation: 'stagger-children' }),
   'image': () => ({ desktop_image_url: '', mobile_image_url: '', alt: '', caption: '', layout: 'full-width', aspect_ratio: 'auto', rounded: false, shadow: false }),
   'image-showcase': () => ({ title: '', images: [createSectionShowcaseImageItem()], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
-  'feature-cards': () => ({ title: '', cards: [{ title: '', description: '', image_url: '' }], columns: 3, animation: 'stagger-children' }),
+  'feature-cards': () => ({ title: '', cards: [createSectionFeatureCardItem()], columns: 3, animation: 'stagger-children' }),
   'video': () => ({ title: '', video_url: '', poster_url: '', autoplay: false, layout: 'contained', animation: 'fade-in' }),
   'cta-banner': () => ({ heading: '', body: '', cta_text: '', cta_url: '', background_color: '', animation: 'fade-up' }),
   'content-block': () => ({ title: '', content_html: '', layout: 'contained', background: '', image_url: '', animation: 'fade-up' }),
@@ -106,8 +121,8 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { id: 'tabs-kia', name: 'Kia Feature Bullets', description: 'Kia-style split layout with red bullet list and side image', type: 'tabs', data: { variant: 'kia-feature-bullets', category: 'Features', title: 'Designed to impress.', tabs: [createSectionTabItem({ label: 'Design' }), createSectionTabItem({ label: 'Performance' }), createSectionTabItem({ label: 'Technology' })], default_tab: 0 } },
 
   // Feature cards
-  { id: 'features-3col', name: '3-Column Features', description: 'Three feature cards in a row', type: 'feature-cards', data: { columns: 3, cards: [{ title: 'Feature 1', description: '', image_url: '' }, { title: 'Feature 2', description: '', image_url: '' }, { title: 'Feature 3', description: '', image_url: '' }] } },
-  { id: 'features-4col', name: '4-Column Features', description: 'Four feature cards in a grid', type: 'feature-cards', data: { columns: 4, cards: [{ title: 'Feature 1', description: '', image_url: '' }, { title: 'Feature 2', description: '', image_url: '' }, { title: 'Feature 3', description: '', image_url: '' }, { title: 'Feature 4', description: '', image_url: '' }] } },
+  { id: 'features-3col', name: '3-Column Features', description: 'Three feature cards in a row', type: 'feature-cards', data: { columns: 3, cards: [createSectionFeatureCardItem({ title: 'Feature 1' }), createSectionFeatureCardItem({ title: 'Feature 2' }), createSectionFeatureCardItem({ title: 'Feature 3' })] } },
+  { id: 'features-4col', name: '4-Column Features', description: 'Four feature cards in a grid', type: 'feature-cards', data: { columns: 4, cards: [createSectionFeatureCardItem({ title: 'Feature 1' }), createSectionFeatureCardItem({ title: 'Feature 2' }), createSectionFeatureCardItem({ title: 'Feature 3' }), createSectionFeatureCardItem({ title: 'Feature 4' })] } },
 
   // Gallery
   { id: 'gallery-carousel', name: 'Image Carousel', description: 'Swipeable image gallery', type: 'gallery', data: { layout: 'carousel', images: [] } },

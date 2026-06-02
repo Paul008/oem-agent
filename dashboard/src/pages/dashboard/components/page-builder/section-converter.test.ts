@@ -106,4 +106,39 @@ describe('section conversion nested item defaults', () => {
     expect(source).not.toContain("description: '', overlay_position: 'bottom-left'")
     expect(source).not.toContain("description: img.description || '',\n        overlay_position: 'bottom-left',")
   })
+
+  it('uses the shared feature card shape when converting stats into feature cards', () => {
+    const converted = convertSectionData({
+      id: 'stats-1',
+      order: 4,
+      type: 'stats',
+      title: 'Performance',
+      stats: [{ value: '350', unit: 'kW', label: 'Power', icon_url: '/media/power.svg' }],
+    }, 'feature-cards')
+
+    expect(converted).toMatchObject({
+      id: 'stats-1',
+      order: 4,
+      type: 'feature-cards',
+      title: 'Performance',
+      cards: [{
+        title: '350 kW',
+        description: 'Power',
+        image_url: '/media/power.svg',
+      }],
+      columns: 3,
+    })
+  })
+
+  it('keeps feature card item literals centralized in conversions', () => {
+    const source = readFileSync(new URL('./section-converter.ts', import.meta.url), 'utf8')
+
+    expect(source).not.toContain('cards: (s.images || []).map((img: any) => ({')
+    expect(source).not.toContain('cards: (s.tabs || []).map((t: any) => ({')
+    expect(source).not.toContain('cards: (s.items || []).map((item: any) => ({')
+    expect(source).not.toContain('cards: (s.testimonials || []).map((t: any) => ({')
+    expect(source).not.toContain('cards: (s.stats || []).map((stat: any) => ({')
+    expect(source).not.toContain('cards: (s.logos || []).map((logo: any) => ({')
+    expect(source).not.toContain('cards: (s.tiers || []).map((t: any) => ({')
+  })
 })
