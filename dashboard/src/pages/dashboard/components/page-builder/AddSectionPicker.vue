@@ -4,16 +4,8 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardPaste,
-  Columns3,
-  Database,
-  Grid3x3,
-  Image,
-  Layers,
   Library,
-  Megaphone,
-  Play,
   Plus,
-  SplitSquareHorizontal,
 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -22,10 +14,8 @@ import type { Recipe } from '@/lib/worker-api'
 
 import type { PageSectionType } from './section-templates'
 
-import {
-
-  SECTION_TYPE_INFO,
-} from './section-templates'
+import { RECIPE_PATTERN_GROUPS } from './recipe-patterns'
+import { SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
   recipes?: Recipe[]
@@ -44,20 +34,9 @@ const router = useRouter()
 const open = ref(false)
 const expandedPattern = ref<string | null>(null)
 
-const PATTERNS = [
-  { key: 'hero', label: 'Hero', icon: Image },
-  { key: 'card-grid', label: 'Card Grid', icon: Grid3x3 },
-  { key: 'split-content', label: 'Split Content', icon: SplitSquareHorizontal },
-  { key: 'media', label: 'Media', icon: Play },
-  { key: 'tabs', label: 'Tabs', icon: Columns3 },
-  { key: 'data-display', label: 'Data Display', icon: Database },
-  { key: 'action-bar', label: 'Action Bar', icon: Megaphone },
-  { key: 'utility', label: 'Utility', icon: Layers },
-]
-
 const recipesByPattern = computed(() => {
   const grouped: Record<string, { brand: Recipe[], defaults: Recipe[] }> = {}
-  for (const p of PATTERNS) {
+  for (const p of RECIPE_PATTERN_GROUPS) {
     grouped[p.key] = { brand: [], defaults: [] }
   }
   for (const r of (props.recipes ?? [])) {
@@ -106,7 +85,7 @@ function addBlankType(type: PageSectionType) {
     >
       <template v-if="hasRecipes">
         <div
-          v-for="pattern in PATTERNS"
+          v-for="pattern in RECIPE_PATTERN_GROUPS"
           :key="pattern.key"
           class="border-b border-border last:border-0"
         >
