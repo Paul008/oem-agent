@@ -2,8 +2,16 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { SECTION_DEFAULTS } from './section-templates'
 
+interface MockAsyncComponent {
+  loader: () => Promise<unknown>
+  loaderSource: string
+}
+
 vi.mock('vue', () => ({
-  defineAsyncComponent: (loader: () => Promise<unknown>) => ({ loader }),
+  defineAsyncComponent: (loader: () => Promise<unknown>) => ({
+    loader,
+    loaderSource: loader.toString(),
+  }),
 }))
 
 let registry: typeof import('./section-registry')
@@ -12,22 +20,55 @@ beforeAll(async () => {
   registry = await import('./section-registry')
 })
 
+function expectComponentPath(component: unknown, path: string) {
+  expect((component as MockAsyncComponent).loaderSource).toContain(path)
+}
+
 describe('section-registry', () => {
-  it('has one renderer for every known section type', () => {
+  it('has one canvas renderer for every known section type', () => {
+    expect(new Set(Object.keys(registry.canvasSectionComponentMap))).toEqual(new Set(Object.keys(SECTION_DEFAULTS)))
     expect(new Set(registry.registeredSectionTypes)).toEqual(new Set(Object.keys(SECTION_DEFAULTS)))
   })
 
-  it('routes composition-driven sections to card-grid', () => {
-    const component = registry.resolveSectionComponent({
+  it('has one display renderer for every known section type', () => {
+    expect(new Set(Object.keys(registry.displaySectionComponentMap))).toEqual(new Set(Object.keys(SECTION_DEFAULTS)))
+  })
+
+  it('keeps display-specific renderer mappings', () => {
+    const displayMappings: Array<[string, string]> = [
+      ['intro', 'SectionSplitContent.vue'],
+      ['content-block', 'SectionSplitContent.vue'],
+      ['gallery', 'SectionMedia.vue'],
+      ['image', 'SectionMedia.vue'],
+      ['image-showcase', 'SectionMedia.vue'],
+      ['video', 'SectionMedia.vue'],
+      ['embed', 'SectionMedia.vue'],
+      ['media', 'SectionMedia.vue'],
+      ['cta-banner', 'SectionHero.vue'],
+      ['countdown', 'SectionHero.vue'],
+    ]
+
+    for (const [type, expectedPath] of displayMappings) {
+      expectComponentPath(
+        registry.resolveSectionComponent({ id: `display-${type}`, type }, { context: 'display' }),
+        expectedPath,
+      )
+    }
+  })
+
+  it('routes composition-driven sections to card-grid in every context', () => {
+    const section = {
       id: 's1',
       type: 'feature-cards',
       card_composition: ['image', 'title'],
-    })
+    }
 
-    expect(component).toBe(registry.sectionComponentMap['card-grid'])
+    expect(registry.resolveSectionComponent(section)).toBe(registry.canvasSectionComponentMap['card-grid'])
+    expect(registry.resolveSectionComponent(section, { context: 'display' })).toBe(registry.displaySectionComponentMap['card-grid'])
   })
 
   it('returns undefined for unknown section types', () => {
     expect(registry.resolveSectionComponent({ id: 's1', type: 'unknown' })).toBeUndefined()
+    expect(registry.resolveSectionComponent({ id: 's1', type: 'unknown' }, { context: 'display' })).toBeUndefined()
   })
 })

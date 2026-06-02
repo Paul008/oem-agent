@@ -18,8 +18,8 @@ defineProps<{ sections: PageSection[] }>()
     <template v-for="section in sections" :key="section.id">
       <AnimatedSection :animation="section.animation as any" :animation-duration="section.animation_duration" :animation-delay="section.animation_delay">
         <component
-          :is="resolveSectionComponent(section)"
-          v-if="resolveSectionComponent(section)"
+          :is="resolveSectionComponent(section, { context: 'display' })"
+          v-if="resolveSectionComponent(section, { context: 'display' })"
           :section="section"
         />
         <div
