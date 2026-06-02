@@ -21,10 +21,14 @@ import type { SmartPromptBuilder } from './prompt-builder';
 
 const R2_PREFIX = 'pages/definitions';
 
-const EXTRACTABLE_SECTION_TYPES: PageSectionType[] = [
+export const EXTRACTABLE_SECTION_TYPES: readonly PageSectionType[] = [
   'hero', 'intro', 'tabs', 'color-picker', 'specs-grid',
   'gallery', 'feature-cards', 'video', 'cta-banner', 'content-block',
 ];
+
+export function isExtractablePageSectionType(type: unknown): type is PageSectionType {
+  return typeof type === 'string' && EXTRACTABLE_SECTION_TYPES.includes(type as PageSectionType);
+}
 
 /** Strip HTML tags from a string, keeping only text content. */
 function stripHtml(str: string | null | undefined): string {
@@ -605,7 +609,7 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
       if (!s || typeof s !== 'object') continue;
 
       // Validate type
-      if (!EXTRACTABLE_SECTION_TYPES.includes(s.type)) continue;
+      if (!isExtractablePageSectionType(s.type)) continue;
 
       // Ensure unique ID
       let id = s.id || `section-${s.type}-${i}`;

@@ -1,13 +1,37 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import {
+  EXTRACTABLE_SECTION_TYPES,
+  isExtractablePageSectionType,
+} from './page-structurer';
 
 describe('page section type guardrails', () => {
-  it('documents the extractable core type boundary', () => {
-    const source = readFileSync(new URL('./page-structurer.ts', import.meta.url), 'utf8');
+  it('exports the intended extractor-supported core types', () => {
+    expect(EXTRACTABLE_SECTION_TYPES).toEqual([
+      'hero',
+      'intro',
+      'tabs',
+      'color-picker',
+      'specs-grid',
+      'gallery',
+      'feature-cards',
+      'video',
+      'cta-banner',
+      'content-block',
+    ]);
+  });
 
-    expect(source).toContain('EXTRACTABLE_SECTION_TYPES');
-    expect(source).toContain('hero');
-    expect(source).toContain('content-block');
-    expect(source).not.toContain('const VALID_SECTION_TYPES');
+  it('accepts extractor-supported core types', () => {
+    expect(isExtractablePageSectionType('hero')).toBe(true);
+    expect(isExtractablePageSectionType('content-block')).toBe(true);
+  });
+
+  it('rejects dashboard-only and unknown inputs', () => {
+    expect(isExtractablePageSectionType('pinned-scroll')).toBe(false);
+    expect(isExtractablePageSectionType('media')).toBe(false);
+    expect(isExtractablePageSectionType('finance-calculator')).toBe(false);
+    expect(isExtractablePageSectionType(null)).toBe(false);
+    expect(isExtractablePageSectionType(undefined)).toBe(false);
+    expect(isExtractablePageSectionType(123)).toBe(false);
+    expect(isExtractablePageSectionType({ type: 'hero' })).toBe(false);
   });
 });
