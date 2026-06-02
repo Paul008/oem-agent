@@ -3207,8 +3207,8 @@ app.get('/recipes/:oemId', async (c) => {
     .order('pattern');
 
   const recipes = normalizeRecipeRows({
-    brandRecipes: brandRecipes ?? [],
-    defaultRecipes: defaultRecipes ?? [],
+    brandRecipes,
+    defaultRecipes,
   });
 
   return c.json({ recipes, oem_id: oemId });
