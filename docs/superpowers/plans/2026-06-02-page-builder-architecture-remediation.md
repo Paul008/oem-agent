@@ -38,6 +38,7 @@ Completed implementation:
 - Centralized tab item defaults across blank sections, tab templates, conversions into tabs, and the editor Add tab action.
 - Centralized image-showcase image item defaults across blank sections, showcase templates, conversions into showcases, and the editor Add image action.
 - Centralized feature-card item defaults across blank sections, feature templates, conversions into feature cards, and the editor Add card action.
+- Centralized accordion item defaults across blank sections, accordion templates, conversions into accordions, and the editor Add item action.
 
 Verification run after the latest remediation:
 - `pnpm run test:dashboard`
@@ -45,6 +46,7 @@ Verification run after the latest remediation:
 - `CI=1 pnpm --dir dashboard build`
 
 Latest implementation commits:
+- `93b236a refactor(dashboard): share accordion item defaults`
 - `f67d66c refactor(dashboard): share feature card item defaults`
 - `9cfaf86 refactor(dashboard): share image showcase item defaults`
 - `a5606c9 refactor(dashboard): share tab item defaults`
@@ -60,7 +62,7 @@ Latest implementation commits:
 
 Remaining phase-two candidates:
 - Split `SectionProperties.vue` into per-section editor modules.
-- Extract shared nested item default builders for remaining non-tab/non-showcase/non-feature-card item types.
+- Extract shared nested item default builders for remaining non-tab/non-showcase/non-feature-card/non-accordion item types.
 - Add Playwright coverage for missing-page, structured-page, clone, structure, and adaptive-pipeline flows.
 
 The original step-by-step plan below is retained for audit history. Some checkboxes may remain unchecked even though the current status above reflects the committed implementation.
