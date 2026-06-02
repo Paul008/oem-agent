@@ -228,4 +228,83 @@ describe('extractWithSelectors', () => {
       image_url_mobile: 'https://www.suzuki.com.au/wp-content/uploads/2026/04/SUZ969-WebsiteBanner-ForFundsSake-Mobile-1280x1380-v1.0-HLCTAOffer-1200x1294.webp',
     });
   });
+
+  it('extracts Volkswagen OneHub stage slides from picture sources and skips carousel clones', () => {
+    const html = `
+      <main>
+        <div id="stage-slide-panel-2" role="tabpanel">
+          <picture>
+            <source media="(max-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?mobile=320 320w" />
+            <source media="(min-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?desktop=320 320w, https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?desktop=1920 1920w" />
+            <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9' />" />
+          </picture>
+          <h1>The new Tiguan eHybrid</h1>
+          <p>Battery powered brilliance</p>
+          <a href="/en/models/tiguan-plug-in-hybrid.html">Explore more</a>
+        </div>
+        <div id="stage-slide-panel-0" role="tabpanel">
+          <button data-component="disclaimer-reference-badge">1</button>
+          <picture>
+            <source media="(max-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/EOFY-Hero-Mobile?mobile=320 320w" />
+            <source media="(min-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/EOFY-Hero-Desktop?desktop=320 320w, https://assets.volkswagen.com/is/image/volkswagenag/EOFY-Hero-Desktop?desktop=1920 1920w" />
+            <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9' />" />
+          </picture>
+          <h1>End of Financial Year offers are now unlocked</h1>
+          <p>Electric, plug-in hybrid and SUV offers and more across the Volkswagen range</p>
+          <a href="https://www.volkswagen.com.au/app/locals/offers-pricing">View offers</a>
+        </div>
+        <div id="stage-slide-panel-1" role="tabpanel">
+          <picture>
+            <source media="(max-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/Amarok_Mobile?mobile=320 320w" />
+            <source media="(min-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/Amarok_Desktop?desktop=320 320w, https://assets.volkswagen.com/is/image/volkswagenag/Amarok_Desktop?desktop=1920 1920w" />
+            <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9' />" />
+          </picture>
+          <h1>Tough feels better in an Amarok</h1>
+          <a href="/en/models/amarok.html">Explore more</a>
+        </div>
+        <div id="stage-slide-panel-2" role="tabpanel">
+          <picture>
+            <source media="(max-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?mobile=320 320w" />
+            <source media="(min-aspect-ratio: 1/1)" srcset="https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?desktop=320 320w, https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?desktop=1920 1920w" />
+            <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9' />" />
+          </picture>
+          <h1>The new Tiguan eHybrid</h1>
+          <p>Battery powered brilliance</p>
+          <a href="/en/models/tiguan-plug-in-hybrid.html">Explore more</a>
+        </div>
+      </main>
+    `;
+
+    const result = extractWithSelectors(html, 'volkswagen-au', 'homepage', {
+      heroSlides: 'div[id^="stage-slide-panel-"]',
+    });
+
+    expect(result.bannerSlides).toHaveLength(3);
+    expect(result.bannerSlides[0]).toMatchObject({
+      position: 0,
+      headline: 'The new Tiguan eHybrid',
+      sub_headline: 'Battery powered brilliance',
+      cta_text: 'Explore more',
+      cta_url: 'https://www.volkswagen.com.au/en/models/tiguan-plug-in-hybrid.html',
+      image_url_desktop: 'https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?desktop=1920',
+      image_url_mobile: 'https://assets.volkswagen.com/is/image/volkswagenag/PHEV_Tiguan_Hero_1?mobile=320',
+    });
+    expect(result.bannerSlides[1]).toMatchObject({
+      position: 1,
+      headline: 'End of Financial Year offers are now unlocked',
+      sub_headline: 'Electric, plug-in hybrid and SUV offers and more across the Volkswagen range',
+      cta_text: 'View offers',
+      cta_url: 'https://www.volkswagen.com.au/app/locals/offers-pricing',
+      image_url_desktop: 'https://assets.volkswagen.com/is/image/volkswagenag/EOFY-Hero-Desktop?desktop=1920',
+      image_url_mobile: 'https://assets.volkswagen.com/is/image/volkswagenag/EOFY-Hero-Mobile?mobile=320',
+    });
+    expect(result.bannerSlides[2]).toMatchObject({
+      position: 2,
+      headline: 'Tough feels better in an Amarok',
+      cta_text: 'Explore more',
+      cta_url: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      image_url_desktop: 'https://assets.volkswagen.com/is/image/volkswagenag/Amarok_Desktop?desktop=1920',
+      image_url_mobile: 'https://assets.volkswagen.com/is/image/volkswagenag/Amarok_Mobile?mobile=320',
+    });
+  });
 });

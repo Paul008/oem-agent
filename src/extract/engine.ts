@@ -243,9 +243,11 @@ export function extractWithSelectors(
       if (/^https?:\/\//i.test(u) || u.startsWith('data:')) return u;
       return resolveUrl(u, baseUrl);
     };
-    $(selectors.heroSlides).each((index, el) => {
+    const seenBannerKeys = new Set<string>();
+    $(selectors.heroSlides).each((_, el) => {
       const $slide = $(el);
-      const headlineText = $slide.find('h1, h2, .headline, .big_title .title').first().text().trim();
+      const headlineEl = $slide.find('h1, h2, .headline, .big_title .title').first();
+      const headlineText = readableElementText(headlineEl, $);
       const imageAltText = (
         ($slide.is('img') ? $slide.attr('alt') : null) ||
         $slide.find('img[alt]').first().attr('alt')
@@ -255,24 +257,22 @@ export function extractWithSelectors(
         $slide.find('.kv_btn, a.cta, a[href]').first().attr('href') ||
         $slide.closest('a[href]').attr('href') ||
         null;
-      const ctaText = normalizeExtractedText(
-        $slide.attr('data-caption-link-label') ||
-        $slide.attr('data-caption-link-title') ||
-        $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() ||
-        $slide.closest('a[href]').attr('title') ||
-        null
-      );
       const imageUrlDesktop = absolutise(extractImageUrl($slide, $)) || '';
       const slide: ExtractedBannerSlide = {
-        position: index,
+        position: bannerSlides.length,
         headline: headlineText || $slide.attr('data-caption-title') || imageAltText || deriveHeadlineFromImageUrl(imageUrlDesktop) || deriveHeadlineFromUrl(ctaHref),
-        sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span, .hero-content-heading p').first().text().trim() || null,
-        cta_text: ctaText,
+        sub_headline: extractSubHeadline($slide, headlineEl, headlineText, $),
+        cta_text: extractCtaText($slide, $),
         cta_url: absolutise(ctaHref),
         image_url_desktop: imageUrlDesktop,
         image_url_mobile: absolutise(extractMobileImageUrl($slide, $)),
         disclaimer_text: $slide.find('.disclaimer, small').first().text().trim() || null,
       };
+      const bannerKey = getBannerDedupeKey(slide);
+      if (bannerKey && seenBannerKeys.has(bannerKey)) {
+        return;
+      }
+      if (bannerKey) seenBannerKeys.add(bannerKey);
       bannerSlides.push(slide);
     });
   }
@@ -610,10 +610,60 @@ function extractImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.Cheerio
   const src = extractRespimImageUrl($el, $, 'desktop') ||
               normalizeImageCandidate($el.find('img').attr('src')) ||
               normalizeImageCandidate($el.find('img').attr('data-src')) ||
+              extractDesktopSourceImageUrl($el, $) ||
               extractBgImageUrl($el, '[style*="background-image"], [style*="--desktop-background-image"]') ||
               normalizeImageCandidate($el.attr('src'));
 
   return src || null;
+}
+
+function extractDesktopSourceImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string | null {
+  const sourceElements = $el.is('source')
+    ? $el.toArray()
+    : $el.find('picture source[srcset], source[srcset]').toArray();
+  const desktopSources = sourceElements.filter((source) => {
+    const media = ($(source).attr('media') || '').toLowerCase();
+    const srcset = $(source).attr('srcset') || '';
+    if (!normalizeImageCandidate(srcset.split(',')[0]?.trim().split(/\s+/)[0])) return false;
+    return (
+      media.includes('min-width') ||
+      media.includes('min-aspect-ratio') ||
+      (!media.includes('max-width') && !media.includes('max-aspect-ratio') && !/mobile|mob|small/i.test(srcset))
+    );
+  });
+  const candidates = desktopSources.length ? desktopSources : sourceElements;
+
+  for (const source of candidates) {
+    const src = pickLargestSrcsetCandidate($(source).attr('srcset'));
+    if (src) return src;
+  }
+
+  return null;
+}
+
+function pickLargestSrcsetCandidate(srcset: string | null | undefined): string | null {
+  const candidates = (srcset || '')
+    .split(',')
+    .map((entry) => {
+      const parts = entry.trim().split(/\s+/);
+      const url = normalizeImageCandidate(parts[0]);
+      if (!url) return null;
+      const width = parts
+        .map((part) => part.match(/^(\d+)w$/i)?.[1])
+        .find(Boolean);
+      return { url, width: width ? Number(width) : null };
+    })
+    .filter(Boolean) as Array<{ url: string; width: number | null }>;
+
+  if (candidates.length === 0) return null;
+
+  const withWidth = candidates.filter((candidate) => candidate.width !== null);
+  if (withWidth.length > 0) {
+    withWidth.sort((a, b) => (b.width ?? 0) - (a.width ?? 0));
+    return withWidth[0].url;
+  }
+
+  return candidates[candidates.length - 1].url;
 }
 
 /** Extract background-image URL from inline style attribute within a container */
@@ -723,10 +773,88 @@ function normalizeExtractedText(text: string | null | undefined): string | null 
   return trimmed;
 }
 
+function readableElementText($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string {
+  if ($el.length === 0) return '';
+
+  const parts = $el.contents().toArray().map((node) => {
+    if (node.type === 'text') return (node as any).data || '';
+    return readableElementText($(node), $);
+  });
+
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function extractSubHeadline(
+  $slide: ReturnType<cheerio.CheerioAPI>,
+  headlineEl: ReturnType<cheerio.CheerioAPI>,
+  headlineText: string,
+  $: cheerio.CheerioAPI,
+): string | null {
+  const explicit = readableElementText(
+    $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span, .hero-content-heading p').first(),
+    $,
+  );
+  if (explicit) return explicit;
+
+  const sibling = headlineEl.nextAll('p').toArray()
+    .map((el) => readableElementText($(el), $))
+    .find((text) => isLikelySubHeadline(text, headlineText));
+  if (sibling) return sibling;
+
+  return $slide.find('p').toArray()
+    .map((el) => readableElementText($(el), $))
+    .find((text) => isLikelySubHeadline(text, headlineText)) || null;
+}
+
+function isLikelySubHeadline(text: string, headlineText: string): boolean {
+  return Boolean(
+    text &&
+    text.length > 2 &&
+    /[a-z]/i.test(text) &&
+    text.toLowerCase() !== headlineText.toLowerCase()
+  );
+}
+
+function extractCtaText($slide: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string | null {
+  const explicit = normalizeExtractedText(
+    $slide.attr('data-caption-link-label') ||
+    $slide.attr('data-caption-link-title') ||
+    null
+  );
+  if (explicit) return explicit;
+
+  const candidates = $slide.find('.kv_btn span, a.cta, a[href], button')
+    .toArray()
+    .map((el) => normalizeExtractedText(readableElementText($(el), $)))
+    .filter((text): text is string => Boolean(text && isLikelyCtaText(text)));
+
+  return candidates[0] || normalizeExtractedText($slide.closest('a[href]').attr('title') || null);
+}
+
+function isLikelyCtaText(text: string): boolean {
+  return text.length > 1 && /[a-z]/i.test(text);
+}
+
 function normalizeImageCandidate(src: string | null | undefined): string | null {
   const trimmed = (src || '').trim();
-  if (!trimmed || /^data:image\/gif;base64,R0lGODlhAQAB/i.test(trimmed)) return null;
+  if (
+    !trimmed ||
+    /^data:image\/gif;base64,R0lGODlhAQAB/i.test(trimmed) ||
+    /^data:image\/svg\+xml/i.test(trimmed)
+  ) {
+    return null;
+  }
   return trimmed;
+}
+
+function getBannerDedupeKey(slide: ExtractedBannerSlide): string | null {
+  const imageKey = stripImageTransform(slide.image_url_desktop || slide.image_url_mobile || '');
+  const textKey = [slide.headline, slide.cta_url].filter(Boolean).join('|').toLowerCase();
+  return imageKey || textKey || null;
+}
+
+function stripImageTransform(url: string): string {
+  return url.split('?')[0]?.split('#')[0]?.trim().toLowerCase() || '';
 }
 
 function extractRespimImageUrl(
@@ -815,7 +943,7 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   for (const src of mobileSources) {
     const media = $(src).attr('media') || '';
     const srcset = $(src).attr('srcset') || '';
-    if (srcset && (media.includes('max-width') || media.includes('mobile'))) {
+    if (srcset && (media.includes('max-width') || media.includes('max-aspect-ratio') || media.includes('mobile'))) {
       return srcset.split(',')[0].trim().split(' ')[0];
     }
   }

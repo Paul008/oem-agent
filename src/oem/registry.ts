@@ -154,7 +154,7 @@ export const volkswagenAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/en/models/"]',
-    heroSlides: '.hero-slideshow, [class*="hero"]',
+    heroSlides: 'div[id^="stage-slide-panel-"]:has(picture source[srcset*="/is/image/volkswagenag/"])',
     offerTiles: '.offer-tile, [class*="offer"]',
   },
   flags: {
