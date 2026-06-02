@@ -529,7 +529,7 @@ export const fotonAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href*="/ute/"], a[href*="/trucks/series/"]',
-    heroSlides: '.hero, [class*="hero"]',
+    heroSlides: '.hero-banner__dynamic-view',
     offerTiles: '[class*="offer"], [class*="promo"]',
   },
   flags: {
