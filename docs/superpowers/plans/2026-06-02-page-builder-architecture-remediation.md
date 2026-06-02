@@ -36,6 +36,7 @@ Completed implementation:
 - Centralized conversion-generated grid column selection so list-to-card conversions only emit renderer-supported column counts.
 - Added a root `test:dashboard` script for the dashboard Vitest suite using the dashboard Vite config.
 - Centralized tab item defaults across blank sections, tab templates, conversions into tabs, and the editor Add tab action.
+- Centralized image-showcase image item defaults across blank sections, showcase templates, conversions into showcases, and the editor Add image action.
 
 Verification run after the latest remediation:
 - `pnpm run test:dashboard`
@@ -43,6 +44,7 @@ Verification run after the latest remediation:
 - `CI=1 pnpm --dir dashboard build`
 
 Latest implementation commits:
+- `9cfaf86 refactor(dashboard): share image showcase item defaults`
 - `a5606c9 refactor(dashboard): share tab item defaults`
 - `64fa83c refactor(dashboard): centralize conversion grid columns`
 - `e9c41c1 refactor(dashboard): associate model selector with AI actions`
@@ -56,7 +58,7 @@ Latest implementation commits:
 
 Remaining phase-two candidates:
 - Split `SectionProperties.vue` into per-section editor modules.
-- Extract shared nested item default builders for non-tab section item types.
+- Extract shared nested item default builders for remaining non-tab/non-showcase item types.
 - Add Playwright coverage for missing-page, structured-page, clone, structure, and adaptive-pipeline flows.
 
 The original step-by-step plan below is retained for audit history. Some checkboxes may remain unchecked even though the current status above reflects the committed implementation.
