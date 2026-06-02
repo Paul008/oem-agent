@@ -25,22 +25,26 @@ Completed implementation:
 - Kept generated dashboard type output under `dashboard/src/types`.
 - Added page-builder storage normalization so resolved Worker media URLs are saved as portable `/media/...` paths.
 - Removed the dead `modelOverride` contract from the non-AI Clone workflow.
+- Centralized section split-field metadata so split affordances and split actions use the same source of truth.
+- Centralized section-to-recipe pattern metadata used by custom recipe saving.
+- Centralized page-builder section icon metadata used by section list rows and template cards.
 
 Verification run after the latest remediation:
-- `CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/lib/worker-api.test.ts dashboard/src/composables/use-page-builder.test.ts dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts dashboard/src/lib/recipes.test.ts dashboard/build-chunking.test.ts`
+- `CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/components/page-builder/section-icons.test.ts dashboard/src/pages/dashboard/components/page-builder/section-templates.test.ts dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts dashboard/src/composables/use-page-builder.test.ts dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts dashboard/src/lib/worker-api.test.ts dashboard/src/lib/recipes.test.ts dashboard/build-chunking.test.ts`
 - `pnpm run typecheck`
 - `CI=1 pnpm --dir dashboard build`
 
 Latest implementation commits:
+- `6ba1cd3 refactor(dashboard): share page builder section icons`
+- `1eb0b4b refactor(dashboard): centralize section recipe metadata`
+- `4272f89 refactor(dashboard): centralize section split metadata`
 - `920321c fix(dashboard): remove clone model override dead path`
 - `a175e20 fix(dashboard): preserve media paths in page builder storage`
 - `f4a2b9c refactor(dashboard): compose section renderer registry`
-- `a7e789a fix(dashboard): keep generated types under dashboard root`
-- `bb0d2bb perf(dashboard): split shared vendor chunks`
 
 Remaining phase-two candidates:
 - Split `SectionProperties.vue` into per-section editor modules.
-- Move section defaults, labels, icons, split rules, converter rules, and recipe mappings into one dashboard registry.
+- Continue consolidating section defaults, labels, converter rules, and recipe content-field exclusions into dashboard metadata modules.
 - Add Playwright coverage for missing-page, structured-page, clone, structure, and adaptive-pipeline flows.
 - Revisit the model selector UI so it is visually associated only with AI-backed actions.
 
