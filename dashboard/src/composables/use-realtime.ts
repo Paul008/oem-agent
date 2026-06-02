@@ -1,13 +1,14 @@
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import type { Ref } from 'vue'
 
-import { onUnmounted, ref } from 'vue'
+import { onUnmounted, ref, shallowRef } from 'vue'
 
 import { supabase } from '@/lib/supabase'
 
 type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*'
+type RealtimeRow = { [key: string]: any }
 
-interface UseRealtimeOptions<T> {
+interface UseRealtimeOptions<T extends RealtimeRow> {
   channelName: string
   table: string
   event: RealtimeEvent
@@ -19,7 +20,7 @@ interface UseRealtimeOptions<T> {
   insertPosition?: 'prepend' | 'append'
 }
 
-export function useRealtimeSubscription<T extends Record<string, any>>(options: UseRealtimeOptions<T>) {
+export function useRealtimeSubscription<T extends RealtimeRow>(options: UseRealtimeOptions<T>) {
   const {
     channelName,
     table,
@@ -32,7 +33,7 @@ export function useRealtimeSubscription<T extends Record<string, any>>(options: 
     insertPosition = 'prepend',
   } = options
 
-  const channel = ref<RealtimeChannel | null>(null)
+  const channel = shallowRef<RealtimeChannel | null>(null)
   const isSubscribed = ref(false)
   const subscriptionError = ref<string | null>(null)
 

@@ -182,7 +182,6 @@ export interface ErrorGroup {
 
 export function useAgentProfile(workflowId: string) {
   const workflowSetting = ref<WorkflowSetting | null>(null)
-  const allActions = ref<AgentAction[]>([])
   const recentActions = ref<AgentAction[]>([])
   const stats = ref<ProfileStats | null>(null)
   const dailyActivity = ref<DailyActivity[]>([])

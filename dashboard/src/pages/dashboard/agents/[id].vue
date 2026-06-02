@@ -26,7 +26,19 @@ import { useRealtimeSubscription } from '@/composables/use-realtime'
 
 const route = useRoute()
 const router = useRouter()
-const workflowId = route.params.id as string
+
+function getWorkflowId(params: typeof route.params): string {
+  if (!('id' in params))
+    return ''
+
+  const id = params.id
+  if (Array.isArray(id))
+    return id[0] ?? ''
+
+  return typeof id === 'string' ? id : ''
+}
+
+const workflowId = getWorkflowId(route.params)
 
 // Validate workflow exists
 const meta = WORKFLOW_METADATA[workflowId]
@@ -48,7 +60,6 @@ const {
   hasNextPage,
   hasPrevPage,
   fetchAll,
-  fetchRecentActions,
   nextPage,
   prevPage,
 } = useAgentProfile(workflowId)
