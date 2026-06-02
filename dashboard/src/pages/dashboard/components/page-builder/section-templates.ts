@@ -258,3 +258,73 @@ export function getSectionRecipePattern(type: string | null | undefined): Sectio
     return { pattern: 'utility', variant: 'section' }
   return SECTION_RECIPE_PATTERNS[type as PageSectionType] ?? { pattern: 'utility', variant: type }
 }
+
+export const SECTION_RECIPE_CONTENT_FIELDS: ReadonlySet<string> = new Set([
+  'id',
+  'order',
+  'type',
+  '_recipe',
+  'heading',
+  'sub_heading',
+  'title',
+  'body',
+  'body_html',
+  'content_html',
+  'cta_text',
+  'cta_url',
+  'message',
+  'cards',
+  'tabs',
+  'images',
+  'colors',
+  'categories',
+  'testimonials',
+  'logos',
+  'stats',
+  'tiers',
+  'columns_data',
+  'rows',
+  'items',
+  'video_url',
+  'poster_url',
+  'embed_url',
+  'desktop_image_url',
+  'mobile_image_url',
+  'image_url',
+  'background_image_url',
+])
+
+function inferCardComposition(card: Record<string, any> | null | undefined): string[] {
+  if (!card)
+    return []
+
+  const composition: string[] = []
+  if (card.image_url)
+    composition.push('image')
+  if (card.icon_url || card.icon)
+    composition.push('icon')
+  if (card.title)
+    composition.push('title')
+  if (card.description || card.body)
+    composition.push('body')
+  if (card.cta_text || card.cta_url)
+    composition.push('cta')
+  return composition
+}
+
+export function getSectionRecipeDefaults(section: Record<string, any>): Record<string, any> {
+  const defaults: Record<string, any> = {}
+
+  for (const [key, value] of Object.entries(section)) {
+    if (!SECTION_RECIPE_CONTENT_FIELDS.has(key) && value !== undefined && value !== null && value !== '') {
+      defaults[key] = value
+    }
+  }
+
+  const firstCard = Array.isArray(section.cards) ? section.cards[0] : null
+  const cardComposition = inferCardComposition(firstCard)
+  if (cardComposition.length)
+    defaults.card_composition = cardComposition
+
+  return defaults
+}

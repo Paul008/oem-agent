@@ -2,8 +2,10 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  getSectionRecipeDefaults,
   getSectionRecipePattern,
   getSectionSplittableField,
+  SECTION_RECIPE_CONTENT_FIELDS,
   SECTION_RECIPE_PATTERNS,
   SECTION_SPLITTABLE_FIELDS,
 } from './section-templates'
@@ -80,5 +82,91 @@ describe('section recipe metadata', () => {
     const source = readFileSync(new URL('../../../../composables/use-page-builder.ts', import.meta.url), 'utf8')
 
     expect(source).not.toContain('const SECTION_TO_PATTERN')
+  })
+})
+
+describe('section recipe defaults', () => {
+  it('centralizes fields excluded from saved recipe defaults', () => {
+    expect([...SECTION_RECIPE_CONTENT_FIELDS]).toEqual([
+      'id',
+      'order',
+      'type',
+      '_recipe',
+      'heading',
+      'sub_heading',
+      'title',
+      'body',
+      'body_html',
+      'content_html',
+      'cta_text',
+      'cta_url',
+      'message',
+      'cards',
+      'tabs',
+      'images',
+      'colors',
+      'categories',
+      'testimonials',
+      'logos',
+      'stats',
+      'tiers',
+      'columns_data',
+      'rows',
+      'items',
+      'video_url',
+      'poster_url',
+      'embed_url',
+      'desktop_image_url',
+      'mobile_image_url',
+      'image_url',
+      'background_image_url',
+    ])
+  })
+
+  it('extracts reusable defaults while stripping content fields and empty values', () => {
+    const defaults = getSectionRecipeDefaults({
+      id: 'hero-1',
+      order: 0,
+      type: 'hero',
+      heading: 'Mustang',
+      desktop_image_url: '/media/hero.jpg',
+      overlay_position: 'center',
+      show_overlay: true,
+      empty_string: '',
+      null_value: null,
+      undefined_value: undefined,
+    })
+
+    expect(defaults).toEqual({
+      overlay_position: 'center',
+      show_overlay: true,
+    })
+  })
+
+  it('infers card composition from the first saved card', () => {
+    const defaults = getSectionRecipeDefaults({
+      type: 'card-grid',
+      cards: [
+        {
+          image_url: '/media/card.jpg',
+          icon: 'zap',
+          title: 'Fast',
+          description: 'Built for pace',
+          cta_text: 'Explore',
+        },
+      ],
+      columns: 3,
+    })
+
+    expect(defaults).toEqual({
+      columns: 3,
+      card_composition: ['image', 'icon', 'title', 'body', 'cta'],
+    })
+  })
+
+  it('keeps recipe default extraction out of page-builder consumers', () => {
+    const source = readFileSync(new URL('../../../../composables/use-page-builder.ts', import.meta.url), 'utf8')
+
+    expect(source).not.toContain('const CONTENT_FIELDS')
   })
 })

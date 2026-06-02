@@ -18,6 +18,7 @@ import {
   getConvertibleTypes,
 } from '@/pages/dashboard/components/page-builder/section-converter'
 import {
+  getSectionRecipeDefaults,
   getSectionRecipePattern,
   getSectionSplittableField,
   SECTION_DEFAULTS,
@@ -749,66 +750,7 @@ export function usePageBuilder() {
 
     const mapping = getSectionRecipePattern(section.type)
 
-    // Extract non-content properties (strip content-specific fields)
-    const CONTENT_FIELDS = new Set([
-      'id',
-      'order',
-      'type',
-      '_recipe',
-      'heading',
-      'sub_heading',
-      'title',
-      'body',
-      'body_html',
-      'content_html',
-      'cta_text',
-      'cta_url',
-      'message',
-      'cards',
-      'tabs',
-      'images',
-      'colors',
-      'categories',
-      'testimonials',
-      'logos',
-      'stats',
-      'tiers',
-      'columns_data',
-      'rows',
-      'items',
-      'video_url',
-      'poster_url',
-      'embed_url',
-      'desktop_image_url',
-      'mobile_image_url',
-      'image_url',
-      'background_image_url',
-    ])
-
-    const defaults_json: Record<string, any> = {}
-    for (const [key, value] of Object.entries(section)) {
-      if (!CONTENT_FIELDS.has(key) && value !== undefined && value !== null && value !== '') {
-        defaults_json[key] = value
-      }
-    }
-
-    // Add card_composition if it's a cards-based section
-    if (section.cards?.length) {
-      const card = section.cards[0]
-      const composition: string[] = []
-      if (card.image_url)
-        composition.push('image')
-      if (card.icon_url || card.icon)
-        composition.push('icon')
-      if (card.title)
-        composition.push('title')
-      if (card.description)
-        composition.push('body')
-      if (card.cta_text || card.cta_url)
-        composition.push('cta')
-      if (composition.length)
-        defaults_json.card_composition = composition
-    }
+    const defaults_json = getSectionRecipeDefaults(section)
 
     const oemName = oemId.value.replace('-au', '').replace(/^\w/, c => c.toUpperCase())
     const label = `${oemName} ${section.heading || section.title || mapping.variant} (custom)`
