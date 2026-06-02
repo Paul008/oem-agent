@@ -558,7 +558,7 @@ export const gacAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href*="/en-au/suv/"], a[href*="/en-au/mpv/"], a[href*="/en-au/hatchback/"]',
-    heroSlides: '.hero, [class*="hero"], [class*="banner"]',
+    heroSlides: '.template-box .big-image-wrap .swiper-slide',
     offerTiles: '[class*="offer"], [class*="promo"]',
   },
   flags: {
