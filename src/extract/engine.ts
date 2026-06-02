@@ -264,8 +264,8 @@ export function extractWithSelectors(
       const imageUrlDesktop = absolutise(extractImageUrl($slide, $)) || '';
       const slide: ExtractedBannerSlide = {
         position: index,
-        headline: headlineText || $slide.attr('data-caption-title') || imageAltText || deriveHeadlineFromImageUrl(imageUrlDesktop),
-        sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span').first().text().trim() || null,
+        headline: headlineText || $slide.attr('data-caption-title') || imageAltText || deriveHeadlineFromImageUrl(imageUrlDesktop) || deriveHeadlineFromUrl(ctaHref),
+        sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span, .hero-content-heading p').first().text().trim() || null,
         cta_text: ctaText,
         cta_url: absolutise(ctaHref),
         image_url_desktop: imageUrlDesktop,
@@ -639,7 +639,12 @@ function extractCssUrl(style: string, properties: string[]): string | null {
 function deriveHeadlineFromImageUrl(url: string | null): string | null {
   if (!url || url.startsWith('data:')) return null;
 
-  const filename = url.split('?')[0]?.split('#')[0]?.split('/').pop();
+  const pathParts = url.split('?')[0]?.split('#')[0]?.split('/').filter(Boolean) ?? [];
+  let filename = pathParts.pop();
+  if (filename && /^\d+x\d+/i.test(filename) && pathParts.at(-1) === 'm') {
+    pathParts.pop();
+    filename = pathParts.pop();
+  }
   if (!filename) return null;
 
   let decoded = filename;
@@ -652,8 +657,10 @@ function deriveHeadlineFromImageUrl(url: string | null): string | null {
   const cleaned = decoded
     .replace(/\.(?:avif|gif|jpe?g|png|webp)$/i, '')
     .replace(/[_-]+/g, ' ')
+    .replace(/\beofy\s*(\d{4})\b/gi, 'EOFY $1')
     .replace(/\b(?:MIT|MMA|MMC)\d+\b/gi, ' ')
     .replace(/\b\d{3,4}\s*x\s*\d{3,4}(?:px)?\b/gi, ' ')
+    .replace(/\bopt\s*\d+\b/gi, ' ')
     .replace(/\b(?:banner|copy|desktop|generic|hero|homepage|image|mobile|website|web)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -662,8 +669,48 @@ function deriveHeadlineFromImageUrl(url: string | null): string | null {
 
   return cleaned
     .split(' ')
-    .map(word => (/^[A-Z0-9]+$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .map(formatHeadlineWord)
     .join(' ');
+}
+
+function deriveHeadlineFromUrl(url: string | null): string | null {
+  if (!url) return null;
+
+  const path = url.split('?')[0]?.split('#')[0] || '';
+  const segment = path
+    .split('/')
+    .filter(Boolean)
+    .pop();
+  if (!segment) return null;
+
+  let decoded = segment;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    // Keep raw segment if it is not URI-encoded cleanly.
+  }
+
+  const cleaned = decoded
+    .replace(/\.(?:html?)$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b(?:au|current)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleaned.length < 3 || !/[a-z]/i.test(cleaned)) return null;
+
+  return cleaned
+    .split(' ')
+    .map(formatHeadlineWord)
+    .join(' ');
+}
+
+const HEADLINE_ACRONYMS = new Set(['abn', 'eofy', 'ev', 'gmsv', 'gwm', 'ldv', 'ora', 'phev', 'suv']);
+
+function formatHeadlineWord(word: string): string {
+  const lower = word.toLowerCase();
+  if (HEADLINE_ACRONYMS.has(lower)) return lower.toUpperCase();
+  return /^[A-Z0-9]+$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
 
 /**
@@ -695,7 +742,7 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   }
 
   // 2. <img> srcset — pick the smallest
-  const imgSrcset = $slide.find('img').attr('srcset');
+  const imgSrcset = ($slide.is('img') ? $slide.attr('srcset') : null) || $slide.find('img').attr('srcset');
   if (imgSrcset) {
     const candidates = imgSrcset.split(',').map(s => s.trim());
     // Sort by width descriptor (e.g. "url 600w") — pick smallest
@@ -733,7 +780,8 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   }
 
   // 6. Look for image URLs with mobile hints in filename
-  const allImgs = $slide.find('img').toArray();
+  const selfImg = $slide.is('img') ? $slide.toArray() : [];
+  const allImgs = [...selfImg, ...$slide.find('img').toArray()];
   for (const img of allImgs) {
     const src = $(img).attr('src') || $(img).attr('data-src') || '';
     if (/mobile|mob|600x|375x|414x|small/i.test(src)) return src;

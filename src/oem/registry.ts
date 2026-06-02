@@ -335,7 +335,7 @@ export const gwmAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/au/models/"]',
-    heroSlides: '.hero-carousel, [class*="hero"]',
+    heroSlides: 'section.hero .swiper-slide.swiper__item:has(.hero-image img)',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
@@ -423,7 +423,7 @@ export const toyotaAu: OemDefinition = {
   config: {
     homepage: '/',
     vehicles_index: '/all-vehicles',
-    offers: '/offers',
+    offers: '/current-offers',
     news: '/news',
     schedule: {
       homepage_minutes: 120,
@@ -435,7 +435,7 @@ export const toyotaAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/"]:not([href="/"])', // Top-level model paths
-    heroSlides: '.hero-carousel, [class*="hero"]',
+    heroSlides: 'img[src*="/homepage/homepage-banner/"]',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {
