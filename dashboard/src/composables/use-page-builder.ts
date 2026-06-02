@@ -149,11 +149,6 @@ function resolveSectionMediaUrls(section: any): any {
     case 'countdown':
       s.background_image_url = resolveMediaUrl(s.background_image_url) ?? s.background_image_url
       break
-    case 'image-showcase':
-      if (Array.isArray(s.images)) {
-        s.images = s.images.map((img: any) => ({ ...img, url: resolveMediaUrl(img.url) ?? img.url }))
-      }
-      break
   }
   return s
 }
