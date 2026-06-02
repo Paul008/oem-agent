@@ -13,6 +13,7 @@
  *   - VW:         OneHub API → products, colors (4-angle), pricing, offers, brochures
  *   - GWM:        Storyblok CDN → pricing, colors/gallery, accessories
  *   - GAC:        Signed official API → products, RRP pricing, colors
+ *   - Ford:       ADME variant API → products, colors/gallery, pricing, features/specs
  *
  * Generic sync:
  *   - All OEMs:   Refresh variant_pricing from products.price_amount
@@ -146,7 +147,8 @@ export interface AllOemSyncResult {
   volkswagen: { products: number; colors: number; pricing: number; offers: number; errors: string[] };
   foton: { products: number; colors: number; pricing: number; errors: string[] };
   gwm: { pricing: number; colors: number; accessories: number; accessoryLinks: number; unmatched: number; errors: string[] };
-  gac: { models: number; products: number; colors: number; pricing: number; errors: string[] };
+  gac: { models: number; products: number; colors: number; pricing: number; staleDeleted: number; errors: string[] };
+  ford: { models: number; products: number; colors: number; pricing: number; staleDeleted: number; errors: string[] };
   generic_pricing: { oems: number; products: number };
   offer_images_fixed: number;
 }
@@ -2220,14 +2222,28 @@ const GAC_MODELS = [
     vehStyleCode: '2025',
     vehStyleId: 13,
     name: 'AION UT',
-    body_type: 'Hatch',
+    body_type: 'Hatchback',
     category: 'hatch',
     fuel: 'electric',
     slug: 'aion-ut',
     source_url: 'https://www.gacgroup.com/en-au/hatchback/aion-ut',
-    is_active: false,
+    is_active: true,
   },
 ] as const;
+
+interface GacLineupResponse {
+  list?: Array<{
+    id?: string | number;
+    vehSeriesId?: string | number;
+    vehSeriesCode?: string;
+    vehStyleId?: string | number;
+    vehStyleCode?: string;
+    vehStyleName?: string;
+    bgImgPc?: string;
+    bgImgMobile?: string;
+    vehSeriesThumb0?: string;
+  }>;
+}
 
 interface GacApiResponse<T> {
   success?: boolean;
@@ -2238,9 +2254,14 @@ interface GacApiResponse<T> {
 
 interface GacConfigResponse {
   vehicleModels?: Array<{
+    id?: string | number;
     vehModelId?: string | number;
     vehModelName?: string;
+    name?: string;
+    vehModelCode?: string;
     salePrice?: string | number;
+    powerType?: string;
+    picUrlList?: string[];
   }>;
   configs?: Array<{
     name?: string;
@@ -2254,9 +2275,13 @@ interface GacConfigResponse {
 interface GacPriceResponse {
   vehicleModels?: Array<{
     id?: string | number;
+    vehModelId?: string | number;
+    vehModelCode?: string;
+    vehModelName?: string;
     name?: string;
     salePrice?: string | number;
     picUrlList?: string[];
+    powerType?: string;
   }>;
 }
 
@@ -2338,6 +2363,102 @@ function parseGacSpecs(configs: GacConfigResponse['configs'], variantIndex: numb
   return Object.keys(specs).length ? specs : null;
 }
 
+function gacImageUrl(value?: string | null): string | null {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (trimmed.startsWith('/')) return `https://eu-www-resouce-cdn.gacgroup.com${trimmed}`;
+  return null;
+}
+
+function gacLineupSlug(lineup: NonNullable<GacLineupResponse['list']>[number]): string {
+  return slugify(lineup.vehSeriesCode || lineup.vehStyleName || '');
+}
+
+function gacLineupHero(lineup?: NonNullable<GacLineupResponse['list']>[number]): string | null {
+  if (!lineup) return null;
+  return gacImageUrl(lineup.bgImgPc) || gacImageUrl(lineup.vehSeriesThumb0) || gacImageUrl(lineup.bgImgMobile);
+}
+
+function gacVariantId(variant: {
+  id?: string | number;
+  vehModelId?: string | number;
+  vehModelCode?: string;
+}): string | null {
+  const value = variant.vehModelId ?? variant.id ?? variant.vehModelCode;
+  return value === undefined || value === null || String(value).trim() === '' ? null : String(value);
+}
+
+function gacVariantName(variant: { vehModelName?: string; name?: string }): string | null {
+  const name = (variant.vehModelName || variant.name || '').trim();
+  return name || null;
+}
+
+function gacIncluded(value: unknown): boolean {
+  const text = String(value ?? '').trim();
+  if (!text || text === '-' || text === '—' || text === '——' || text === '━' || text === '○') return false;
+  return true;
+}
+
+function gacFindSpec(specs: SpecsJson | null, section: string, patterns: RegExp[]): string | number | null {
+  const values = specs?.[section];
+  if (!values) return null;
+  for (const [key, value] of Object.entries(values)) {
+    if (patterns.some(pattern => pattern.test(key))) return value;
+  }
+  return null;
+}
+
+function addGacFeature(features: string[], seen: Set<string>, value: string): void {
+  const cleaned = value.replace(/\s+/g, ' ').trim();
+  const key = cleaned.toLowerCase();
+  if (!cleaned || seen.has(key)) return;
+  seen.add(key);
+  features.push(cleaned);
+}
+
+function gacKeyFeatures(specs: SpecsJson | null): string[] {
+  const features: string[] = [];
+  const seen = new Set<string>();
+  const range = gacFindSpec(specs, 'battery', [/range/i]);
+  const battery = gacFindSpec(specs, 'battery', [/battery capacity/i]);
+  const power = gacFindSpec(specs, 'engine', [/power/i, /max output/i]);
+  const torque = gacFindSpec(specs, 'engine', [/torque/i]);
+  const seats = gacFindSpec(specs, 'capacity', [/seating/i]);
+  const cargo = gacFindSpec(specs, 'capacity', [/trunk|luggage|cargo/i]);
+
+  if (range) addGacFeature(features, seen, `${range} driving range`);
+  if (battery) addGacFeature(features, seen, `${battery} battery`);
+  if (power) addGacFeature(features, seen, `${power} max power`);
+  if (torque) addGacFeature(features, seen, `${torque} max torque`);
+  if (seats) addGacFeature(features, seen, `${seats} seating`);
+  if (cargo) addGacFeature(features, seen, `${cargo} cargo capacity`);
+
+  const prioritySpecs: Array<{ section: string; patterns: RegExp[] }> = [
+    { section: 'safety', patterns: [/360.*camera/i, /surround view/i, /adaptive cruise/i, /automatic emergency braking/i, /blind spot/i] },
+    { section: 'technology', patterns: [/apple carplay/i, /android auto/i, /touch.*screen/i, /wireless phone/i, /voice control/i] },
+    { section: 'interior', patterns: [/heated.*seat/i, /ventilated.*seat/i, /power liftgate/i, /panoramic/i, /ambient light/i] },
+    { section: 'exterior', patterns: [/panoramic/i, /led headlights/i, /alloy wheel/i, /hidden door/i] },
+  ];
+  for (const { section, patterns } of prioritySpecs) {
+    const values = specs?.[section];
+    if (!values) continue;
+    for (const [key, value] of Object.entries(values)) {
+      if (features.length >= 12) return features;
+      if (!gacIncluded(value)) continue;
+      if (patterns.some(pattern => pattern.test(key))) addGacFeature(features, seen, key);
+    }
+  }
+
+  return features.slice(0, 12);
+}
+
+function isSupersededGacExternalKey(externalKey: unknown): boolean {
+  const key = String(externalKey ?? '');
+  return key.startsWith('gac-') && !key.startsWith('gac-au-');
+}
+
 async function gacHmacSha256Upper(message: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -2392,6 +2513,30 @@ async function gacPost<T>(path: string, body: unknown): Promise<T> {
   return json.data;
 }
 
+async function gacGet<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+  const query = params
+    ? `?${new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)])).toString()}`
+    : '';
+  const res = await fetch(`${GAC_API_BASE}${path}${query}`, {
+    headers: await gacHeaders('get', undefined, params),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json() as GacApiResponse<T>;
+  if (json.success === false) throw new Error(`${json.msg || 'API error'} (${json.code ?? 'unknown'})`);
+  if (json.data === undefined) throw new Error('Missing data payload');
+  return json.data;
+}
+
+async function fetchGacLineup(): Promise<Map<string, NonNullable<GacLineupResponse['list']>[number]>> {
+  const data = await gacGet<GacLineupResponse>('/experience/config/show');
+  const lineup = new Map<string, NonNullable<GacLineupResponse['list']>[number]>();
+  for (const vehicle of data.list ?? []) {
+    const slug = gacLineupSlug(vehicle);
+    if (slug) lineup.set(slug, vehicle);
+  }
+  return lineup;
+}
+
 function classifyGacColorType(name: string): string {
   const lowerName = name.toLowerCase();
   if (lowerName.includes('pearl')) return 'pearl';
@@ -2400,8 +2545,8 @@ function classifyGacColorType(name: string): string {
   return 'solid';
 }
 
-async function fetchGacAionVColors(): Promise<GacColor[]> {
-  const data = await gacPost<GacOptionalResponse>('/showroom/vehicle/query/optional', { vehStyleId: 10, opCategoryType: 'color' });
+async function fetchGacOptionalColors(vehStyleId: number): Promise<GacColor[]> {
+  const data = await gacPost<GacOptionalResponse>('/showroom/vehicle/query/optional', { vehStyleId, opCategoryType: 'color' });
   const colors: GacColor[] = [];
   for (const color of data.list ?? []) {
     if (!color.name) continue;
@@ -2419,13 +2564,14 @@ async function fetchGacAionVColors(): Promise<GacColor[]> {
         heroUrl = null;
       }
     }
+    const priceDelta = color.name.toLowerCase() === 'arctic white' || color.name.toLowerCase() === 'white' ? 0 : 600;
     colors.push({
       name: color.name,
       swatchUrl: color.selectPicUrl ?? null,
       heroUrl,
       galleryUrls,
-      isStandard: color.name.toLowerCase() === 'arctic white',
-      priceDelta: color.name.toLowerCase() === 'arctic white' ? 0 : 600,
+      isStandard: priceDelta === 0,
+      priceDelta,
     });
   }
   return colors;
@@ -2454,27 +2600,46 @@ function gacStaticColors(modelSlug: string): GacColor[] {
   return [];
 }
 
-async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac']> {
-  const result = { models: 0, products: 0, colors: 0, pricing: 0, errors: [] as string[] };
+export async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac']> {
+  const result = { models: 0, products: 0, colors: 0, pricing: 0, staleDeleted: 0, errors: [] as string[] };
   const OEM_ID = 'gac-au';
 
+  let lineupBySlug = new Map<string, NonNullable<GacLineupResponse['list']>[number]>();
+  try {
+    lineupBySlug = await fetchGacLineup();
+  } catch (error) {
+    result.errors.push(`GAC lineup: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   const modelRows = GAC_MODELS.map(model => ({
-    oem_id: OEM_ID,
-    slug: model.slug,
-    name: model.name,
-    body_type: model.body_type,
-    category: model.category,
-    model_year: Number.parseInt(model.vehStyleCode, 10),
-    is_active: model.is_active,
-    source_url: model.source_url,
-    configurator_url: model.source_url,
-    meta_json: {
-      fuel_type: model.fuel,
-      source: 'gac_official_api',
-      veh_series_code: model.vehSeriesCode,
-      veh_style_code: model.vehStyleCode,
-      veh_style_id: model.vehStyleId,
-    },
+    ...(() => {
+      const lineup = lineupBySlug.get(model.slug);
+      const apiSeriesCode = lineup?.vehSeriesCode || model.vehSeriesCode;
+      const apiStyleCode = lineup?.vehStyleCode || model.vehStyleCode;
+      const apiStyleId = lineup?.vehStyleId || model.vehStyleId;
+      return {
+        oem_id: OEM_ID,
+        slug: model.slug,
+        name: lineup?.vehStyleName || model.name,
+        body_type: model.body_type,
+        category: model.category,
+        model_year: Number.parseInt(String(apiStyleCode), 10),
+        hero_image_url: gacLineupHero(lineup),
+        is_active: model.is_active,
+        source_url: model.source_url,
+        configurator_url: model.source_url,
+        meta_json: {
+          fuel_type: model.fuel,
+          source: 'gac_official_api',
+          veh_series_code: apiSeriesCode,
+          veh_style_code: apiStyleCode,
+          veh_style_id: apiStyleId,
+          lineup_hero: gacLineupHero(lineup),
+          lineup_mobile_hero: gacImageUrl(lineup?.bgImgMobile),
+          lineup_thumbnail: gacImageUrl(lineup?.vehSeriesThumb0),
+        },
+      };
+    })(),
   }));
 
   const { data: modelData, error: modelErr } = await supabase
@@ -2487,87 +2652,136 @@ async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac'
   }
   result.models = modelData?.length ?? 0;
   const modelIdBySlug = Object.fromEntries((modelData ?? []).map(model => [model.slug, model.id]));
-  const productsByModelSlug = new Map<string, Array<{ id: string; external_key: string; title: string }>>();
+  const productsByModelSlug = new Map<string, Array<{ id: string; external_key: string; title: string; hero_image_url?: string | null }>>();
 
   for (const model of GAC_MODELS) {
     const modelId = modelIdBySlug[model.slug];
     if (!modelId || !model.is_active) continue;
+    const lineup = lineupBySlug.get(model.slug);
+    const apiSeriesCode = lineup?.vehSeriesCode || model.vehSeriesCode;
+    const apiStyleCode = lineup?.vehStyleCode || model.vehStyleCode;
+    const modelHero = gacLineupHero(lineup);
 
-    try {
-      const configData = await gacPost<GacConfigResponse>('/showroom/vehicle/query/config-model', {
-        vehSeriesCode: model.vehSeriesCode,
-        vehStyleCode: model.vehStyleCode,
-      });
+    const [configResult, priceResult] = await Promise.allSettled([
+      gacPost<GacConfigResponse>('/showroom/vehicle/query/config-model', {
+        vehSeriesCode: apiSeriesCode,
+        vehStyleCode: apiStyleCode,
+      }),
+      gacPost<GacPriceResponse>('/showroom/veh-model/query/priceConfigModel', {
+        vehSeriesCode: apiSeriesCode,
+        vehStyleCode: apiStyleCode,
+      }),
+    ]);
 
-      for (let index = 0; index < (configData.vehicleModels ?? []).length; index++) {
-        const variant = configData.vehicleModels![index];
-        if (!variant.vehModelId || !variant.vehModelName) continue;
-        const externalKey = `${OEM_ID}-${model.vehSeriesCode}-${variant.vehModelId}`;
-        const price = pf(variant.salePrice);
-        const productRow = {
-          oem_id: OEM_ID,
-          external_key: externalKey,
-          source_url: model.source_url,
-          title: `${model.name} ${variant.vehModelName}`,
-          subtitle: variant.vehModelName,
-          body_type: model.body_type,
-          fuel_type: model.fuel,
-          availability: 'available',
-          price_amount: price,
-          price_currency: 'AUD',
-          price_type: 'rrp',
-          price_qualifier: 'Official GAC RRP',
-          variant_name: variant.vehModelName,
-          variant_code: String(variant.vehModelId),
-          model_id: modelId,
-          specs_json: parseGacSpecs(configData.configs, index),
-          meta_json: {
-            source: 'gac_official_api',
-            veh_model_id: variant.vehModelId,
-            veh_series_code: model.vehSeriesCode,
-            veh_style_code: model.vehStyleCode,
-            power_type: model.fuel,
-          },
-          last_seen_at: new Date().toISOString(),
-        };
-
-        const { data: product, error: productErr } = await supabase
-          .from('products')
-          .upsert(productRow, { onConflict: 'oem_id,external_key' })
-          .select('id, external_key, title')
-          .single();
-        if (productErr || !product) {
-          result.errors.push(`GAC product ${externalKey}: ${productErr?.message || 'no row returned'}`);
-          continue;
-        }
-        result.products++;
-        const products = productsByModelSlug.get(model.slug) ?? [];
-        products.push(product);
-        productsByModelSlug.set(model.slug, products);
-      }
-    } catch (error) {
-      result.errors.push(`GAC config ${model.slug}: ${error instanceof Error ? error.message : String(error)}`);
+    if (configResult.status === 'rejected') {
+      result.errors.push(`GAC config ${model.slug}: ${configResult.reason instanceof Error ? configResult.reason.message : String(configResult.reason)}`);
+      continue;
+    }
+    if (priceResult.status === 'rejected') {
+      result.errors.push(`GAC pricing ${model.slug}: ${priceResult.reason instanceof Error ? priceResult.reason.message : String(priceResult.reason)}`);
     }
 
-    try {
-      const priceData = await gacPost<GacPriceResponse>('/showroom/veh-model/query/priceConfigModel', {
-        vehSeriesCode: model.vehSeriesCode,
-        vehStyleCode: model.vehStyleCode,
-      });
-      const products = productsByModelSlug.get(model.slug) ?? [];
-      for (const variant of priceData.vehicleModels ?? []) {
-        if (!variant.id) continue;
-        const externalKey = `${OEM_ID}-${model.vehSeriesCode}-${variant.id}`;
-        const product = products.find(row => row.external_key === externalKey);
-        if (!product) continue;
-        const rrp = pf(variant.salePrice);
-        const galleryUrls = (variant.picUrlList ?? []).filter(Boolean);
-        const heroUrl = galleryUrls[0] ?? null;
+    const configData = configResult.value;
+    const priceData = priceResult.status === 'fulfilled' ? priceResult.value : null;
+    const priceVariants = priceData?.vehicleModels ?? [];
+    const priceById = new Map<string, NonNullable<GacPriceResponse['vehicleModels']>[number]>();
+    for (const priceVariant of priceVariants) {
+      const id = gacVariantId(priceVariant);
+      if (id) priceById.set(id, priceVariant);
+    }
 
+    for (let index = 0; index < (configData.vehicleModels ?? []).length; index++) {
+      const variant = configData.vehicleModels![index];
+      const variantId = gacVariantId(variant);
+      const variantName = gacVariantName(variant);
+      if (!variantId || !variantName) continue;
+
+      const priceVariant = priceById.get(variantId)
+        || priceVariants.find(row => gacVariantName(row)?.toLowerCase() === variantName.toLowerCase())
+        || priceVariants[index];
+      const externalKey = `${OEM_ID}-${model.slug}-${variantId}`;
+      const price = pf(variant.salePrice) ?? pf(priceVariant?.salePrice);
+      const galleryUrls = [...new Set((priceVariant?.picUrlList ?? variant.picUrlList ?? [])
+        .map(gacImageUrl)
+        .filter((url): url is string => Boolean(url)))];
+      const heroUrl = galleryUrls[0] ?? modelHero;
+      const specsJson = parseGacSpecs(configData.configs, index);
+      const productPatch = specsJson ? productPatchFromSpecs(specsJson) : {};
+      const powerType = priceVariant?.powerType || variant.powerType;
+      const fuelType = powerType === 'BEV'
+        ? 'electric'
+        : powerType === 'PHEV'
+          ? 'plug-in hybrid'
+          : model.fuel;
+      const productRow = {
+        oem_id: OEM_ID,
+        external_key: externalKey,
+        source_url: model.source_url,
+        title: `${lineup?.vehStyleName || model.name} ${variantName}`,
+        subtitle: variantName,
+        body_type: model.body_type,
+        fuel_type: fuelType,
+        availability: 'available',
+        price_amount: price,
+        price_currency: 'AUD',
+        price_type: price ? 'rrp' : null,
+        price_qualifier: price ? 'Official GAC RRP' : null,
+        primary_image_r2_key: heroUrl,
+        gallery_image_count: galleryUrls.length,
+        key_features: gacKeyFeatures(specsJson),
+        variant_name: variantName,
+        variant_code: variantId,
+        model_id: modelId,
+        specs_json: specsJson,
+        ...productPatch,
+        meta_json: {
+          source: 'gac_official_api',
+          veh_model_id: variantId,
+          veh_model_code: variant.vehModelCode || priceVariant?.vehModelCode,
+          veh_series_code: apiSeriesCode,
+          veh_style_code: apiStyleCode,
+          power_type: powerType || model.fuel,
+          gallery_urls: galleryUrls,
+          lineup_hero: modelHero,
+        },
+        last_seen_at: new Date().toISOString(),
+      };
+
+      const { data: existingProduct, error: lookupErr } = await supabase
+        .from('products')
+        .select('id')
+        .eq('oem_id', OEM_ID)
+        .eq('external_key', externalKey)
+        .maybeSingle();
+      if (lookupErr) {
+        result.errors.push(`GAC product lookup ${externalKey}: ${lookupErr.message}`);
+        continue;
+      }
+
+      const { data: product, error: productErr } = existingProduct
+        ? await supabase.from('products')
+          .update(productRow)
+          .eq('id', existingProduct.id)
+          .select('id, external_key, title')
+          .single()
+        : await supabase.from('products')
+          .insert(productRow)
+          .select('id, external_key, title')
+          .single();
+      if (productErr || !product) {
+        result.errors.push(`GAC product ${externalKey}: ${productErr?.message || 'no row returned'}`);
+        continue;
+      }
+      result.products++;
+      const products = productsByModelSlug.get(model.slug) ?? [];
+      products.push({ ...product, hero_image_url: heroUrl });
+      productsByModelSlug.set(model.slug, products);
+
+      if (price) {
         const { error: pricingErr } = await supabase.from('variant_pricing').upsert({
           product_id: product.id,
           price_type: 'rrp',
-          rrp,
+          rrp: price,
           price_qualifier: 'Official GAC RRP',
           fetched_at: new Date().toISOString(),
         }, { onConflict: 'product_id,price_type' });
@@ -2576,35 +2790,23 @@ async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac'
         } else {
           result.pricing++;
         }
-
-        if (heroUrl) {
-          const { error: imageErr } = await supabase.from('products').update({
-            primary_image_r2_key: heroUrl,
-            meta_json: {
-              source: 'gac_official_api',
-              veh_model_id: variant.id,
-              veh_series_code: model.vehSeriesCode,
-              veh_style_code: model.vehStyleCode,
-              gallery_urls: galleryUrls,
-            },
-          }).eq('id', product.id);
-          if (imageErr) result.errors.push(`GAC image ${externalKey}: ${imageErr.message}`);
-        }
       }
-    } catch (error) {
-      result.errors.push(`GAC pricing ${model.slug}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  const colorDataBySlug: Record<string, GacColor[]> = {
-    'm8-phev': gacStaticColors('m8-phev'),
-    emzoom: gacStaticColors('emzoom'),
-  };
-  try {
-    colorDataBySlug['aion-v'] = await fetchGacAionVColors();
-  } catch (error) {
-    result.errors.push(`GAC colors aion-v: ${error instanceof Error ? error.message : String(error)}`);
-    colorDataBySlug['aion-v'] = [];
+  const colorDataBySlug: Record<string, GacColor[]> = {};
+  for (const model of GAC_MODELS) {
+    if (!model.is_active) continue;
+    const staticColors = gacStaticColors(model.slug);
+    try {
+      const optionalColors = await fetchGacOptionalColors(model.vehStyleId);
+      colorDataBySlug[model.slug] = optionalColors.length ? optionalColors : staticColors;
+    } catch (error) {
+      colorDataBySlug[model.slug] = staticColors;
+      if (staticColors.length === 0) {
+        result.errors.push(`GAC colors ${model.slug}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
   }
 
   for (const [modelSlug, colors] of Object.entries(colorDataBySlug)) {
@@ -2612,6 +2814,10 @@ async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac'
     for (const product of products) {
       for (let index = 0; index < colors.length; index++) {
         const color = colors[index];
+        const colorHeroUrl = color.heroUrl || product.hero_image_url || null;
+        const colorGalleryUrls = color.galleryUrls?.length
+          ? color.galleryUrls
+          : (colorHeroUrl ? [colorHeroUrl] : []);
         const { error: colorErr } = await supabase.from('variant_colors').upsert({
           product_id: product.id,
           color_code: slugify(color.name),
@@ -2620,8 +2826,10 @@ async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac'
           is_standard: color.isStandard,
           price_delta: color.priceDelta,
           swatch_url: color.swatchUrl,
-          hero_image_url: color.heroUrl,
-          gallery_urls: color.galleryUrls ?? (color.heroUrl ? [color.heroUrl] : []),
+          hero_image_url: colorHeroUrl,
+          source_hero_url: colorHeroUrl,
+          gallery_urls: colorGalleryUrls,
+          source_gallery_urls: colorGalleryUrls,
           sort_order: index,
         }, { onConflict: 'product_id,color_code' });
         if (colorErr) {
@@ -2630,6 +2838,497 @@ async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResult['gac'
           result.colors++;
         }
       }
+    }
+  }
+
+  const { data: staleProducts, error: staleErr } = await supabase
+    .from('products')
+    .select('id, external_key, price_amount')
+    .eq('oem_id', OEM_ID);
+  if (staleErr) {
+    result.errors.push(`GAC stale lookup: ${staleErr.message}`);
+  } else {
+    const staleIds = (staleProducts ?? [])
+      .filter(product => (
+        (!product.external_key && (!product.price_amount || product.price_amount === 0))
+        || isSupersededGacExternalKey(product.external_key)
+      ))
+      .map(product => product.id);
+    if (staleIds.length > 0) {
+      await supabase.from('variant_colors').delete().in('product_id', staleIds);
+      await supabase.from('variant_pricing').delete().in('product_id', staleIds);
+      await supabase.from('offer_products').delete().in('product_id', staleIds);
+      const { error: deleteErr } = await supabase.from('products').delete().in('id', staleIds);
+      if (deleteErr) {
+        result.errors.push(`GAC stale delete: ${deleteErr.message}`);
+      } else {
+        result.staleDeleted = staleIds.length;
+      }
+    }
+  }
+
+  return result;
+}
+
+// ============================================================================
+// FORD — ADME variant feed with colors, imagery, features, and prices
+// ============================================================================
+
+const FORD_ADME_URL = 'https://ford-adme.adus.com.au/api/variants/all/v1/content/all';
+
+interface FordAdmeField {
+  displayValue?: string[];
+  value?: string[];
+  image?: string[];
+}
+
+interface FordAdmeColor {
+  images?: string | null;
+  paint_price?: string | number | null;
+  swatch_colour_?: string | null;
+  paint_code?: string | null;
+  colour_name?: string | null;
+  images_360?: string[] | false | null;
+  interior_images?: string[] | false | null;
+}
+
+interface FordAdmeVariant {
+  id?: string | number;
+  date?: string;
+  title?: string;
+  slug?: string;
+  offer_id?: string | number;
+  model?: FordAdmeField;
+  variant?: FordAdmeField;
+  fuel?: FordAdmeField;
+  transmission?: FordAdmeField;
+  body?: FordAdmeField;
+  seats?: FordAdmeField;
+  segment?: FordAdmeField;
+  drivetrain?: FordAdmeField;
+  engine?: FordAdmeField;
+  retail?: number | string | null;
+  price?: number | string | null;
+  colours?: FordAdmeColor[];
+  features?: string;
+  vehicle_image?: string | null;
+  disclaimer?: string | null;
+  offer_badge?: string | null;
+  offer_end_date?: string | null;
+}
+
+interface FordModelInfo {
+  slug: string;
+  name: string;
+}
+
+function fordFieldDisplay(field?: FordAdmeField): string | null {
+  const value = field?.displayValue?.[0] || field?.value?.[0] || null;
+  return value ? cleanFordText(value) : null;
+}
+
+function fordFieldValue(field?: FordAdmeField): string | null {
+  const value = field?.value?.[0] || field?.displayValue?.[0] || null;
+  return value ? cleanFordText(value) : null;
+}
+
+function cleanFordText(value: unknown): string {
+  return decodeHtmlEntities(String(value ?? ''))
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function fordAbsUrl(value?: string | null): string | null {
+  const trimmed = cleanFordText(value);
+  if (!trimmed) return null;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return null;
+}
+
+function fordArrayUrls(value: string[] | false | null | undefined): string[] {
+  return Array.isArray(value)
+    ? value.map(fordAbsUrl).filter((url): url is string => Boolean(url))
+    : [];
+}
+
+function fordModelInfo(variant: FordAdmeVariant): FordModelInfo | null {
+  const raw = fordFieldValue(variant.model) || fordFieldDisplay(variant.model) || '';
+  const display = fordFieldDisplay(variant.model) || raw;
+  if (!raw && !display) return null;
+
+  const slugAliases: Record<string, string> = {
+    'new-transit-custom': 'transit-custom',
+    'ranger-phev': 'ranger-hybrid',
+    'transit-cab-chassis': 'transit-cab-chassis',
+    'transit-van': 'transit-van',
+    'f-150': 'f-150',
+    'mustang-mach-e': 'mustang-mach-e',
+  };
+  const nameAliases: Record<string, string> = {
+    'ranger-hybrid': 'Ranger Hybrid',
+    'transit-custom': 'Transit Custom',
+    'transit-cab-chassis': 'Transit Cab Chassis',
+    'transit-van': 'Transit Van',
+  };
+  const rawSlug = slugify(raw || display);
+  const slug = slugAliases[rawSlug] || rawSlug;
+  const name = nameAliases[slug] || cleanFordText(display).replace(/\b[A-Z]{2,}\b/g, word => word.charAt(0) + word.slice(1).toLowerCase());
+
+  return slug ? { slug, name } : null;
+}
+
+function fordVariantTitle(variant: FordAdmeVariant, modelName: string): string {
+  const title = cleanFordText(variant.title);
+  if (!title) return [modelName, fordFieldDisplay(variant.variant)].filter(Boolean).join(' ');
+  return title.toLowerCase().includes(modelName.toLowerCase()) ? title : `${modelName} ${title}`;
+}
+
+function fordFeatureList(html?: string): string[] {
+  const seen = new Set<string>();
+  const features: string[] = [];
+  const source = String(html ?? '');
+  const matches = [...source.matchAll(/<li[^>]*>(.*?)<\/li>/gis)].map(match => match[1]);
+  const rawItems = matches.length ? matches : source.split(/(?:<br\s*\/?>|[•\n])/i);
+
+  for (const item of rawItems) {
+    const cleaned = cleanFeature(decodeHtmlEntities(item));
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    features.push(cleaned);
+    if (features.length >= 20) break;
+  }
+
+  return features;
+}
+
+function buildFordSpecsJson(variant: FordAdmeVariant): SpecsJson | null {
+  const specs: SpecsJson = {};
+  const engine = fordFieldDisplay(variant.engine);
+  const fuel = fordFieldDisplay(variant.fuel);
+  const transmission = fordFieldDisplay(variant.transmission);
+  const drive = fordFieldDisplay(variant.drivetrain);
+  const body = fordFieldDisplay(variant.body);
+  const segment = fordFieldDisplay(variant.segment);
+  const seats = fordFieldDisplay(variant.seats);
+
+  addSpecsSection(specs, 'engine', {
+    description: engine,
+    type: fuel,
+    displacement_cc: parseDisplacementCc(engine),
+    power_kw: parsePowerKw(engine),
+    torque_nm: parseTorqueNm(engine),
+  });
+  addSpecsSection(specs, 'transmission', {
+    type: transmission,
+    gears: parseGears(transmission),
+    drive,
+  });
+  addSpecsSection(specs, 'body', {
+    type: body,
+    segment,
+  });
+  addSpecsSection(specs, 'capacity', {
+    seats: numericSpecValue(seats),
+  });
+
+  return Object.keys(specs).length ? specs : null;
+}
+
+function fordPrimaryImage(variant: FordAdmeVariant): string | null {
+  return fordAbsUrl(variant.vehicle_image)
+    || fordAbsUrl(variant.model?.image?.[0])
+    || (variant.colours ?? []).map(color => fordAbsUrl(color.images)).find(Boolean)
+    || null;
+}
+
+function fordColorGallery(color: FordAdmeColor): string[] {
+  const urls = [
+    fordAbsUrl(color.images),
+    ...fordArrayUrls(color.images_360),
+    ...fordArrayUrls(color.interior_images),
+  ].filter((url): url is string => Boolean(url));
+  return [...new Set(urls)];
+}
+
+function fordColorCode(color: FordAdmeColor, index: number): string {
+  const code = cleanFordText(color.paint_code).toUpperCase();
+  if (code) return code;
+  const name = cleanFordText(color.colour_name);
+  return name ? slugify(name) : `color-${index + 1}`;
+}
+
+function fordSwatchUrl(color: FordAdmeColor): string | null {
+  const value = cleanFordText(color.swatch_colour_);
+  return /^https?:\/\//i.test(value) ? value : null;
+}
+
+function fordMoney(value: string | number | null | undefined): number | null {
+  if (typeof value === 'number') return pf(value);
+  const cleaned = String(value ?? '').replace(/[^0-9.]/g, '');
+  return cleaned ? pf(cleaned) : null;
+}
+
+function fordModelCategory(segment: string | null, body: string | null): string | null {
+  const text = `${segment ?? ''} ${body ?? ''}`.toLowerCase();
+  if (text.includes('pickup') || text.includes('cab chassis') || text.includes('van')) return 'commercial';
+  if (text.includes('suv')) return 'suv';
+  if (text.includes('coupe') || text.includes('fastback')) return 'performance';
+  if (text.includes('people mover') || text.includes('tourneo')) return 'people-mover';
+  return segment || body || null;
+}
+
+function isFordPlaceholderProduct(product: {
+  external_key?: string | null;
+  price_amount?: number | null;
+  key_features?: unknown;
+  specs_json?: unknown;
+}): boolean {
+  const externalKey = String(product.external_key ?? '');
+  if (externalKey.startsWith('ford-adme-')) return false;
+  const hasPrice = typeof product.price_amount === 'number' && product.price_amount > 0;
+  const hasFeatures = Array.isArray(product.key_features) && product.key_features.length > 0;
+  const hasSpecs = !!product.specs_json
+    && typeof product.specs_json === 'object'
+    && Object.keys(product.specs_json as Record<string, unknown>).length > 0;
+  return !hasPrice && !hasFeatures && !hasSpecs;
+}
+
+export async function syncFordAdme(supabase: SupabaseClient): Promise<AllOemSyncResult['ford']> {
+  const result = { models: 0, products: 0, colors: 0, pricing: 0, staleDeleted: 0, errors: [] as string[] };
+  const OEM_ID = 'ford-au';
+
+  let variants: FordAdmeVariant[] = [];
+  try {
+    const response = await fetch(FORD_ADME_URL, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const json = await response.json();
+    if (!Array.isArray(json)) throw new Error('Expected array payload');
+    variants = json as FordAdmeVariant[];
+  } catch (error) {
+    result.errors.push(`Ford ADME fetch: ${error instanceof Error ? error.message : String(error)}`);
+    return result;
+  }
+
+  const modelBySlug = new Map<string, { id: string; slug: string; name?: string | null }>();
+  for (const variant of variants) {
+    const model = fordModelInfo(variant);
+    if (!model || modelBySlug.has(model.slug)) continue;
+    const primaryImage = fordPrimaryImage(variant);
+    const body = fordFieldDisplay(variant.body);
+    const segment = fordFieldDisplay(variant.segment);
+
+    const { data: dbModel, error: modelErr } = await supabase
+      .from('vehicle_models')
+      .upsert({
+        oem_id: OEM_ID,
+        slug: model.slug,
+        name: model.name,
+        body_type: body,
+        category: fordModelCategory(segment, body),
+        is_active: true,
+        source_url: FORD_ADME_URL,
+        configurator_url: 'https://www.ford.com.au/',
+        hero_image_url: primaryImage,
+        meta_json: {
+          source: 'ford_adme',
+          adme_model: fordFieldValue(variant.model),
+          segment,
+        },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'oem_id,slug' })
+      .select('id, slug, name')
+      .single();
+    if (modelErr || !dbModel) {
+      result.errors.push(`Ford model ${model.slug}: ${modelErr?.message || 'no row returned'}`);
+      continue;
+    }
+    modelBySlug.set(model.slug, dbModel);
+    result.models++;
+  }
+
+  for (const variant of variants) {
+    const modelInfo = fordModelInfo(variant);
+    if (!modelInfo) continue;
+    const dbModel = modelBySlug.get(modelInfo.slug);
+    if (!dbModel) continue;
+
+    const variantName = fordFieldDisplay(variant.variant) || cleanFordText(variant.title) || modelInfo.name;
+    const title = fordVariantTitle(variant, modelInfo.name);
+    const body = fordFieldDisplay(variant.body);
+    const fuel = fordFieldDisplay(variant.fuel);
+    const transmission = fordFieldDisplay(variant.transmission);
+    const drive = fordFieldDisplay(variant.drivetrain);
+    const seats = numericSpecValue(fordFieldDisplay(variant.seats));
+    const price = fordMoney(variant.price) ?? fordMoney(variant.retail);
+    const primaryImage = fordPrimaryImage(variant);
+    const specsJson = buildFordSpecsJson(variant);
+    const features = fordFeatureList(variant.features);
+    const externalKey = `ford-adme-${variant.id ?? slugify(variant.slug || `${modelInfo.slug}-${variantName}`)}`;
+
+    const productPatch = specsJson ? productPatchFromSpecs(specsJson) : {};
+    const productRow = {
+      oem_id: OEM_ID,
+      external_key: externalKey,
+      source_url: FORD_ADME_URL,
+      title,
+      subtitle: variantName,
+      body_type: body,
+      fuel_type: fuel,
+      drivetrain: drive,
+      drive,
+      transmission,
+      seats,
+      availability: 'available',
+      price_amount: price,
+      price_currency: 'AUD',
+      price_type: price ? 'driveaway' : null,
+      price_raw_string: price ? `$${price.toLocaleString('en-AU')}` : null,
+      price_qualifier: price ? 'Ford ADME driveaway price' : null,
+      disclaimer_text: cleanFordText(variant.disclaimer) || null,
+      primary_image_r2_key: primaryImage,
+      gallery_image_count: (variant.colours ?? []).reduce((count, color) => count + fordColorGallery(color).length, 0),
+      key_features: features,
+      variant_name: variantName,
+      variant_code: variant.slug || String(variant.id ?? ''),
+      model_id: dbModel.id,
+      specs_json: specsJson,
+      ...productPatch,
+      meta_json: {
+        source: 'ford_adme',
+        adme_id: variant.id,
+        adme_slug: variant.slug,
+        offer_id: variant.offer_id,
+        offer_badge: variant.offer_badge,
+        offer_end_date: variant.offer_end_date,
+        retail: fordMoney(variant.retail),
+        model_value: fordFieldValue(variant.model),
+        segment: fordFieldDisplay(variant.segment),
+        source_image: primaryImage,
+      },
+      last_seen_at: new Date().toISOString(),
+    };
+
+    const { data: existingProduct, error: lookupErr } = await supabase
+      .from('products')
+      .select('id')
+      .eq('oem_id', OEM_ID)
+      .eq('external_key', externalKey)
+      .maybeSingle();
+    if (lookupErr) {
+      result.errors.push(`Ford product lookup ${externalKey}: ${lookupErr.message}`);
+      continue;
+    }
+
+    const { data: product, error: productErr } = existingProduct
+      ? await supabase.from('products')
+        .update(productRow)
+        .eq('id', existingProduct.id)
+        .select('id')
+        .single()
+      : await supabase.from('products')
+        .insert(productRow)
+        .select('id')
+        .single();
+    if (productErr || !product) {
+      result.errors.push(`Ford product ${externalKey}: ${productErr?.message || 'no row returned'}`);
+      continue;
+    }
+    result.products++;
+
+    const { error: clearColorErr } = await supabase
+      .from('variant_colors')
+      .delete()
+      .eq('product_id', product.id);
+    if (clearColorErr) {
+      result.errors.push(`Ford clear colors ${externalKey}: ${clearColorErr.message}`);
+      continue;
+    }
+
+    const colors = variant.colours ?? [];
+    const seenCodes = new Set<string>();
+    for (let index = 0; index < colors.length; index++) {
+      const color = colors[index];
+      const colorName = cleanFordText(color.colour_name) || `Color ${index + 1}`;
+      let colorCode = fordColorCode(color, index);
+      while (seenCodes.has(colorCode)) colorCode = `${colorCode}-${index + 1}`;
+      seenCodes.add(colorCode);
+      const galleryUrls = fordColorGallery(color);
+      const heroUrl = galleryUrls[0] ?? primaryImage;
+      const priceDelta = fordMoney(color.paint_price) ?? 0;
+
+      const { error: colorErr } = await supabase.from('variant_colors').upsert({
+        product_id: product.id,
+        color_code: colorCode,
+        color_name: colorName,
+        color_type: deriveColorType(colorName),
+        is_standard: priceDelta === 0,
+        price_delta: priceDelta,
+        swatch_url: fordSwatchUrl(color),
+        source_swatch_url: fordSwatchUrl(color),
+        hero_image_url: heroUrl,
+        source_hero_url: heroUrl,
+        gallery_urls: galleryUrls,
+        source_gallery_urls: galleryUrls,
+        sort_order: index,
+      }, { onConflict: 'product_id,color_code' });
+      if (colorErr) {
+        result.errors.push(`Ford color ${externalKey}/${colorName}: ${colorErr.message}`);
+      } else {
+        result.colors++;
+      }
+    }
+
+    if (price) {
+      const { error: pricingErr } = await supabase.from('variant_pricing').upsert({
+        product_id: product.id,
+        price_type: 'standard',
+        rrp: fordMoney(variant.retail),
+        ...allStates(price),
+        price_qualifier: 'Ford ADME driveaway price',
+        fetched_at: new Date().toISOString(),
+      }, { onConflict: 'product_id,price_type' });
+      if (pricingErr) {
+        result.errors.push(`Ford pricing ${externalKey}: ${pricingErr.message}`);
+      } else {
+        result.pricing++;
+      }
+    }
+  }
+
+  const { data: oldProducts, error: oldProductErr } = await supabase
+    .from('products')
+    .select('id, external_key, price_amount, key_features, specs_json, model_id')
+    .eq('oem_id', OEM_ID);
+  if (oldProductErr) {
+    result.errors.push(`Ford stale lookup: ${oldProductErr.message}`);
+    return result;
+  }
+
+  const admeModelIds = new Set([...modelBySlug.values()].map(model => model.id));
+  const staleIds = (oldProducts ?? [])
+    .filter(product => (
+      isFordPlaceholderProduct(product)
+      || (!String(product.external_key ?? '').startsWith('ford-adme-') && admeModelIds.has(product.model_id))
+    ))
+    .map(product => product.id);
+  if (staleIds.length > 0) {
+    await supabase.from('variant_colors').delete().in('product_id', staleIds);
+    await supabase.from('variant_pricing').delete().in('product_id', staleIds);
+    await supabase.from('offer_products').delete().in('product_id', staleIds);
+    const { error: deleteErr } = await supabase.from('products').delete().in('id', staleIds);
+    if (deleteErr) {
+      result.errors.push(`Ford stale delete: ${deleteErr.message}`);
+    } else {
+      result.staleDeleted = staleIds.length;
     }
   }
 
@@ -2645,7 +3344,7 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
 
   // OEMs without dedicated pricing sync — just ensure variant_pricing matches products
   const genericOems = [
-    'ford-au', 'nissan-au', 'isuzu-au', 'subaru-au',
+    'nissan-au', 'isuzu-au', 'subaru-au',
     'gmsv-au', 'ldv-au',
     'kgm-au', 'chery-au', 'renault-au',
   ];
@@ -2685,16 +3384,17 @@ async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncR
 export async function executeAllOemSync(
   supabase: SupabaseClient,
 ): Promise<AllOemSyncResult> {
-  console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi, VW, Foton, GWM, GAC + generic pricing');
+  console.log('[AllOemSync] Starting sync for Hyundai, Mazda, Mitsubishi, VW, Foton, GWM, GAC, Ford + generic pricing');
 
-  const [hyundai, mazda, mitsubishi, volkswagen, foton, gwm, gac, generic_pricing] = await Promise.all([
+  const [hyundai, mazda, mitsubishi, volkswagen, foton, gwm, gac, ford, generic_pricing] = await Promise.all([
     syncHyundai(supabase).catch(e => ({ colors: 0, pricing: 0, specs: 0, errors: [String(e)] })),
     syncMazda(supabase).catch(e => ({ colors: 0, pricing: 0, specs: 0, accessories: 0, errors: [String(e)] })),
     syncMitsubishi(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, accessories: 0, interiors: 0, brochures: 0, discoveredApis: 0, errors: [String(e)] })),
     syncVolkswagen(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, offers: 0, errors: [String(e)] })),
     syncFoton(supabase).catch(e => ({ products: 0, colors: 0, pricing: 0, errors: [String(e)] })),
     syncGwm(supabase).catch(e => ({ pricing: 0, colors: 0, accessories: 0, accessoryLinks: 0, unmatched: 0, errors: [String(e)] })),
-    syncGac(supabase).catch(e => ({ models: 0, products: 0, colors: 0, pricing: 0, errors: [String(e)] })),
+    syncGac(supabase).catch(e => ({ models: 0, products: 0, colors: 0, pricing: 0, staleDeleted: 0, errors: [String(e)] })),
+    syncFordAdme(supabase).catch(e => ({ models: 0, products: 0, colors: 0, pricing: 0, staleDeleted: 0, errors: [String(e)] })),
     syncGenericPricing(supabase).catch(() => ({ oems: 0, products: 0 })),
   ]);
 
@@ -2708,10 +3408,11 @@ export async function executeAllOemSync(
     `VW: ${volkswagen.products}p/${volkswagen.colors}c/${volkswagen.offers}o, ` +
     `Foton: ${foton.products}p/${foton.colors}c/${foton.pricing} pricing, ` +
     `GWM: ${gwm.pricing}p/${gwm.colors}c/${gwm.accessories}a/${gwm.accessoryLinks} links, ` +
-    `GAC: ${gac.products}p/${gac.colors}c/${gac.pricing} pricing, ` +
+    `GAC: ${gac.products}p/${gac.colors}c/${gac.pricing} pricing/${gac.staleDeleted} stale, ` +
+    `Ford: ${ford.products}p/${ford.colors}c/${ford.pricing} pricing/${ford.staleDeleted} stale, ` +
     `Generic: ${generic_pricing.oems} OEMs/${generic_pricing.products} products, ` +
     `Offer images fixed: ${offer_images_fixed}`,
   );
 
-  return { hyundai, mazda, mitsubishi, volkswagen, foton, gwm, gac, generic_pricing, offer_images_fixed };
+  return { hyundai, mazda, mitsubishi, volkswagen, foton, gwm, gac, ford, generic_pricing, offer_images_fixed };
 }
