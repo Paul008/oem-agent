@@ -35,6 +35,7 @@ import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vu
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
+import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
 import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled } from './page-workflow'
 
 const route = useRoute()
@@ -150,22 +151,8 @@ const oems = ref<{ id: string, name: string }[]>([])
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
-// Model selector for A/B testing
-const MODEL_OPTIONS = [
-  { value: 'default', label: 'Default (from settings)', provider: '', model: '' },
-  { value: 'google_gemini::gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', provider: 'google_gemini', model: 'gemini-3.1-pro-preview' },
-  { value: 'google_gemini::gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google_gemini', model: 'gemini-2.5-pro' },
-  { value: 'moonshot::kimi-k2.6', label: 'Kimi K2.6', provider: 'moonshot', model: 'kimi-k2.6' },
-  { value: 'moonshot::kimi-k2.5', label: 'Kimi K2.5', provider: 'moonshot', model: 'kimi-k2.5' },
-  { value: 'anthropic::claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5', provider: 'anthropic', model: 'claude-sonnet-4-5-20250929' },
-]
-const selectedModel = ref('default')
-const selectedModelOverride = computed(() => {
-  if (selectedModel.value === 'default')
-    return undefined
-  const opt = MODEL_OPTIONS.find(o => o.value === selectedModel.value)
-  return opt ? { provider: opt.provider, model: opt.model } : undefined
-})
+const selectedModel = ref(DEFAULT_AI_MODEL_VALUE)
+const selectedModelOverride = computed(() => getAiModelOverride(selectedModel.value))
 
 function handleKeyboard(e: KeyboardEvent) {
   const mod = e.metaKey || e.ctrlKey
@@ -427,21 +414,6 @@ const workflowSteps = computed(() => {
           >
         </div>
 
-        <!-- Model selector for A/B testing -->
-        <div v-if="canShowWorkflowActions" class="hidden xl:flex items-center gap-1.5">
-          <Cpu class="size-3.5 text-muted-foreground shrink-0" />
-          <UiSelect v-model="selectedModel">
-            <UiSelectTrigger class="h-7 w-44 text-xs">
-              <UiSelectValue placeholder="Default (from settings)" />
-            </UiSelectTrigger>
-            <UiSelectContent>
-              <UiSelectItem v-for="opt in MODEL_OPTIONS" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </UiSelectItem>
-            </UiSelectContent>
-          </UiSelect>
-        </div>
-
         <!-- Clone -->
         <UiButton
           v-if="canShowWorkflowActions"
@@ -455,6 +427,21 @@ const workflowSteps = computed(() => {
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
           Clone
         </UiButton>
+
+        <!-- AI model selector -->
+        <div v-if="canShowWorkflowActions" class="hidden xl:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
+          <Cpu class="size-3.5 text-violet-500 shrink-0" />
+          <UiSelect v-model="selectedModel">
+            <UiSelectTrigger class="h-7 w-44 text-xs bg-background">
+              <UiSelectValue placeholder="Default (from settings)" />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem v-for="opt in AI_MODEL_OPTIONS" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
 
         <!-- Structure -->
         <UiButton
@@ -571,6 +558,19 @@ const workflowSteps = computed(() => {
                 <Copy class="size-3.5 mr-2" />
                 Clone{{ needsSourceUrl && !sourceUrlOverride?.trim() ? ' (enter URL first)' : '' }}
               </UiDropdownMenuItem>
+              <UiDropdownMenuSub>
+                <UiDropdownMenuSubTrigger>
+                  <Cpu class="size-3.5 mr-2 text-violet-500" />
+                  AI Model
+                </UiDropdownMenuSubTrigger>
+                <UiDropdownMenuSubContent>
+                  <UiDropdownMenuRadioGroup v-model="selectedModel">
+                    <UiDropdownMenuRadioItem v-for="opt in AI_MODEL_OPTIONS" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </UiDropdownMenuRadioItem>
+                  </UiDropdownMenuRadioGroup>
+                </UiDropdownMenuSubContent>
+              </UiDropdownMenuSub>
               <UiDropdownMenuItem
                 v-if="pageWorkflowState === 'cloned' || pageWorkflowState === 'structured'"
                 :disabled="structuring || pipelining"
