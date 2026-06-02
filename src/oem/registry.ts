@@ -184,7 +184,7 @@ export const mitsubishiAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/vehicles/"]',
-    heroSlides: '.hero, [class*="hero"]',
+    heroSlides: '.article .backgroundcontainer .container-parent',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {

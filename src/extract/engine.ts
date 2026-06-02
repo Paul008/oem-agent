@@ -247,13 +247,14 @@ export function extractWithSelectors(
       const $slide = $(el);
       const headlineText = $slide.find('h1, h2, .headline, .big_title .title').first().text().trim();
       const ctaHref = $slide.find('.kv_btn, a.cta, a').first().attr('href') || null;
+      const imageUrlDesktop = absolutise(extractImageUrl($slide, $)) || '';
       const slide: ExtractedBannerSlide = {
         position: index,
-        headline: headlineText || $slide.find('img[alt]').first().attr('alt')?.trim() || null,
+        headline: headlineText || $slide.find('img[alt]').first().attr('alt')?.trim() || deriveHeadlineFromImageUrl(imageUrlDesktop),
         sub_headline: $slide.find('.sub-headline, .subtitle, .sub_title span, .kv_desc span').first().text().trim() || null,
         cta_text: $slide.find('.kv_btn span, a.cta, a, button').first().text().trim() || null,
         cta_url: absolutise(ctaHref),
-        image_url_desktop: absolutise(extractImageUrl($slide, $)) || '',
+        image_url_desktop: imageUrlDesktop,
         image_url_mobile: absolutise(extractMobileImageUrl($slide, $)),
         disclaimer_text: $slide.find('.disclaimer, small').first().text().trim() || null,
       };
@@ -593,18 +594,62 @@ function extractImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.Cheerio
   // Try various image sources
   const src = $el.find('img').attr('src') ||
               $el.find('img').attr('data-src') ||
-              extractBgImageUrl($el, '[style*="background-image"]') ||
+              extractBgImageUrl($el, '[style*="background-image"], [style*="--desktop-background-image"]') ||
               $el.attr('src');
 
   return src || null;
 }
 
 /** Extract background-image URL from inline style attribute within a container */
-function extractBgImageUrl($container: ReturnType<cheerio.CheerioAPI>, selector: string): string | null {
+function extractBgImageUrl(
+  $container: ReturnType<cheerio.CheerioAPI>,
+  selector: string,
+  properties: string[] = ['background-image', '--desktop-background-image', '--background-image'],
+): string | null {
+  const direct = extractCssUrl($container.attr('style') || '', properties);
+  if (direct) return direct;
+
   const el = $container.find(selector).first();
-  const style = el.attr('style') || '';
-  const match = style.match(/background-image:\s*url\(["']?([^"')]+)["']?\)/);
-  return match?.[1] || null;
+  return extractCssUrl(el.attr('style') || '', properties);
+}
+
+function extractCssUrl(style: string, properties: string[]): string | null {
+  for (const property of properties) {
+    const escapedProperty = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = style.match(new RegExp(`(?:^|;)\\s*${escapedProperty}\\s*:\\s*url\\((["']?)(.*?)\\1\\)`, 'i'));
+    if (match?.[2]) return match[2].trim();
+  }
+  return null;
+}
+
+function deriveHeadlineFromImageUrl(url: string | null): string | null {
+  if (!url || url.startsWith('data:')) return null;
+
+  const filename = url.split('?')[0]?.split('#')[0]?.split('/').pop();
+  if (!filename) return null;
+
+  let decoded = filename;
+  try {
+    decoded = decodeURIComponent(filename);
+  } catch {
+    // Keep the raw filename if it is not URI-encoded cleanly.
+  }
+
+  const cleaned = decoded
+    .replace(/\.(?:avif|gif|jpe?g|png|webp)$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b(?:MIT|MMA|MMC)\d+\b/gi, ' ')
+    .replace(/\b\d{3,4}\s*x\s*\d{3,4}(?:px)?\b/gi, ' ')
+    .replace(/\b(?:banner|copy|desktop|generic|hero|homepage|image|mobile|website|web)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleaned.length < 3 || !/[a-z]/i.test(cleaned)) return null;
+
+  return cleaned
+    .split(' ')
+    .map(word => (/^[A-Z0-9]+$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(' ');
 }
 
 /**
@@ -648,8 +693,15 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
                      $slide.find('[data-bg-mobile]').attr('data-bg-mobile');
   if (dataMobile) return dataMobile;
 
+  const cssVarMobile = extractCssUrl($slide.attr('style') || '', ['--mobile-background-image']);
+  if (cssVarMobile) return cssVarMobile;
+
   // 4. bg-image with mobile/default class (i-motor pattern)
-  const bgMobile = extractBgImageUrl($slide, '.bg-image-default, .bg-image-mobile, [class*="mobile"], .bg-image:last-child');
+  const bgMobile = extractBgImageUrl(
+    $slide,
+    '.bg-image-default, .bg-image-mobile, [class*="mobile"], .bg-image:last-child',
+    ['background-image', '--mobile-background-image'],
+  );
   if (bgMobile) return bgMobile;
 
   // 5. Second <picture> source (mobile often comes after desktop)
