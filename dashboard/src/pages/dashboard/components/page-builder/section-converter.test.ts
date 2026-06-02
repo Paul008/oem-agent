@@ -73,4 +73,37 @@ describe('section conversion nested item defaults', () => {
 
     expect(source).not.toContain("image_disclaimer: '',\n        disclaimer: '',")
   })
+
+  it('uses the full shared showcase image shape when converting a single image into an image showcase', () => {
+    const converted = convertSectionData({
+      id: 'image-1',
+      order: 3,
+      type: 'image',
+      desktop_image_url: '/media/detail.jpg',
+      alt: 'Detail',
+      caption: 'Cabin detail',
+    }, 'image-showcase')
+
+    expect(converted).toMatchObject({
+      id: 'image-1',
+      order: 3,
+      type: 'image-showcase',
+      title: 'Cabin detail',
+      images: [{
+        url: '/media/detail.jpg',
+        alt: 'Detail',
+        caption: 'Cabin detail',
+        description: '',
+        overlay_position: 'bottom-left',
+      }],
+      layout: 'stacked',
+    })
+  })
+
+  it('keeps image showcase item literals centralized in conversions', () => {
+    const source = readFileSync(new URL('./section-converter.ts', import.meta.url), 'utf8')
+
+    expect(source).not.toContain("description: '', overlay_position: 'bottom-left'")
+    expect(source).not.toContain("description: img.description || '',\n        overlay_position: 'bottom-left',")
+  })
 })

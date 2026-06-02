@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  createSectionShowcaseImageItem,
   createSectionTabItem,
   getSectionRecipeDefaults,
   getSectionRecipePattern,
@@ -77,6 +78,44 @@ describe('section nested item defaults', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
     expect(source).not.toContain("addArrayItem('tabs', {")
+  })
+
+  it('creates fresh image showcase items with overlay metadata', () => {
+    const first = createSectionShowcaseImageItem()
+    const second = createSectionShowcaseImageItem({
+      url: '/media/showcase.jpg',
+      caption: 'Interior',
+      overlay_position: 'center',
+    })
+
+    expect(first).toEqual({
+      url: '',
+      alt: '',
+      caption: '',
+      description: '',
+      overlay_position: 'bottom-left',
+    })
+    expect(second).toEqual({
+      url: '/media/showcase.jpg',
+      alt: '',
+      caption: 'Interior',
+      description: '',
+      overlay_position: 'center',
+    })
+    expect(first).not.toBe(second)
+  })
+
+  it('uses shared showcase image defaults for blank image showcase sections', () => {
+    const section = SECTION_DEFAULTS['image-showcase']()
+
+    expect(section.images).toEqual([createSectionShowcaseImageItem()])
+    expect(section.images[0]).not.toBe(createSectionShowcaseImageItem())
+  })
+
+  it('keeps image showcase item literals out of the editor add action', () => {
+    const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
+
+    expect(source).not.toContain("addArrayItem('images', { url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' })")
   })
 })
 

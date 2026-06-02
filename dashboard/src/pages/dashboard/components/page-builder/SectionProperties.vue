@@ -7,7 +7,7 @@ import type { PageSectionType } from './section-templates'
 import MediaLibraryDialog from './MediaLibraryDialog.vue'
 import MediaUploadButton from './MediaUploadButton.vue'
 import { getConvertibleTypes } from './section-converter'
-import { createSectionTabItem, SECTION_TYPE_INFO } from './section-templates'
+import { createSectionShowcaseImageItem, createSectionTabItem, SECTION_TYPE_INFO } from './section-templates'
 
 const props = defineProps<{
   section: any
@@ -2095,7 +2095,7 @@ function onMediaLibrarySelect(url: string) {
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="text-xs text-muted-foreground">Images ({{ section.images?.length ?? 0 }})</label>
-            <button class="text-xs text-primary hover:underline" @click="addArrayItem('images', { url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' })">
+            <button class="text-xs text-primary hover:underline" @click="addArrayItem('images', createSectionShowcaseImageItem())">
               <Plus class="size-3 inline mr-0.5" />Add
             </button>
           </div>

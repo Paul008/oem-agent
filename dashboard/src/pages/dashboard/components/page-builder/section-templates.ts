@@ -34,6 +34,25 @@ export function createSectionTabItem(overrides: Partial<SectionTabItem> = {}): S
   }
 }
 
+export interface SectionShowcaseImageItem {
+  url: string
+  alt: string
+  caption: string
+  description: string
+  overlay_position: string
+}
+
+export function createSectionShowcaseImageItem(overrides: Partial<SectionShowcaseImageItem> = {}): SectionShowcaseImageItem {
+  return {
+    url: '',
+    alt: '',
+    caption: '',
+    description: '',
+    overlay_position: 'bottom-left',
+    ...overrides,
+  }
+}
+
 export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>> = {
   'hero': () => ({ heading: '', sub_heading: '', cta_text: '', cta_url: '', desktop_image_url: '', mobile_image_url: '', heading_size: '3xl', heading_weight: 'bold', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_color: '#ffffff', text_align: 'left', overlay_position: 'bottom-left', show_overlay: true, full_width_image: false, animation: 'none' }),
   'heading': () => ({ heading: '', heading_tag: 'h2', heading_size: '3xl', heading_weight: 'bold', sub_heading: '', sub_heading_size: 'lg', sub_heading_weight: 'normal', text_align: 'left', text_color: '', line_gap: '8', background_color: '', animation: 'fade-up' }),
@@ -43,7 +62,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'specs-grid': () => ({ title: 'Specifications', categories: [] }),
   'gallery': () => ({ title: 'Gallery', images: [], layout: 'carousel', animation: 'stagger-children' }),
   'image': () => ({ desktop_image_url: '', mobile_image_url: '', alt: '', caption: '', layout: 'full-width', aspect_ratio: 'auto', rounded: false, shadow: false }),
-  'image-showcase': () => ({ title: '', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
+  'image-showcase': () => ({ title: '', images: [createSectionShowcaseImageItem()], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
   'feature-cards': () => ({ title: '', cards: [{ title: '', description: '', image_url: '' }], columns: 3, animation: 'stagger-children' }),
   'video': () => ({ title: '', video_url: '', poster_url: '', autoplay: false, layout: 'contained', animation: 'fade-in' }),
   'cta-banner': () => ({ heading: '', body: '', cta_text: '', cta_url: '', background_color: '', animation: 'fade-up' }),
@@ -170,8 +189,8 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { id: 'finance-compact', name: 'Compact Calculator', description: 'Simplified repayment calculator', type: 'finance-calculator', data: { title: 'Estimate Repayments', default_price: 35000, default_deposit: 3000, default_term_months: 48, default_rate: 7.0, min_deposit: 0, max_term: 60, cta_text: 'Get Finance Quote', cta_url: '#' } },
 
   // Image Showcase
-  { id: 'showcase-stacked', name: 'Full-Bleed Stacked', description: 'Full-width stacked images with text overlays', type: 'image-showcase', data: { layout: 'stacked', height: 'large', overlay_style: 'dark', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' }] } },
-  { id: 'showcase-fullscreen', name: 'Fullscreen Scroll', description: 'Each image fills the viewport on scroll', type: 'image-showcase', data: { layout: 'fullscreen-scroll', height: 'screen', overlay_style: 'dark', images: [{ url: '', alt: '', caption: '', description: '', overlay_position: 'center' }] } },
+  { id: 'showcase-stacked', name: 'Full-Bleed Stacked', description: 'Full-width stacked images with text overlays', type: 'image-showcase', data: { layout: 'stacked', height: 'large', overlay_style: 'dark', images: [createSectionShowcaseImageItem()] } },
+  { id: 'showcase-fullscreen', name: 'Fullscreen Scroll', description: 'Each image fills the viewport on scroll', type: 'image-showcase', data: { layout: 'fullscreen-scroll', height: 'screen', overlay_style: 'dark', images: [createSectionShowcaseImageItem({ overlay_position: 'center' })] } },
 
   // Split Content
   { id: 'split-content-right', name: 'Text + Image (Right)', description: 'Rich text with image on the right', type: 'split-content', data: { title: '', body_html: '', image_url: '', image_position: 'right' } },

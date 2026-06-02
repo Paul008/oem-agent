@@ -1,6 +1,6 @@
 import type { PageSectionType } from './section-templates'
 
-import { createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
+import { createSectionShowcaseImageItem, createSectionTabItem, SECTION_DEFAULTS } from './section-templates'
 
 /**
  * Section Converter — converts a section from one type to another,
@@ -79,7 +79,11 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'image-showcase': s => ({
       title: s.caption || '',
-      images: [{ url: s.desktop_image_url || '', alt: s.alt || '', caption: s.caption || '', description: '', overlay_position: 'bottom-left' }],
+      images: [createSectionShowcaseImageItem({
+        url: s.desktop_image_url || '',
+        alt: s.alt || '',
+        caption: s.caption || '',
+      })],
       layout: 'stacked',
       height: 'large',
       overlay_style: 'dark',
@@ -170,12 +174,11 @@ const CONVERSIONS: Record<string, ConversionMap> = {
     }),
     'image-showcase': s => ({
       title: s.title || '',
-      images: (s.images || []).map((img: any) => ({
+      images: (s.images || []).map((img: any) => createSectionShowcaseImageItem({
         url: img.url || '',
         alt: img.alt || '',
         caption: img.caption || '',
         description: img.description || '',
-        overlay_position: 'bottom-left',
       })),
       layout: 'stacked',
       height: 'large',
