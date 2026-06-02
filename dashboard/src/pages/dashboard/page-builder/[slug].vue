@@ -35,7 +35,7 @@ import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vu
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
-import { getPageWorkflowState, getPrimaryWorkflowAction } from './page-workflow'
+import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled } from './page-workflow'
 
 const route = useRoute()
 const router = useRouter()
@@ -231,6 +231,14 @@ const primaryWorkflowAction = computed(() => getPrimaryWorkflowAction(pageWorkfl
 const canShowEditorActions = computed(() => pageWorkflowState.value !== 'missing')
 const canShowWorkflowActions = computed(() => canShowEditorActions.value && pageWorkflowState.value !== 'custom')
 const canShowSectionActions = computed(() => canShowEditorActions.value && (isStructured.value || sections.value.length > 0))
+const canShowSourceUrlInput = computed(() => pageWorkflowState.value !== 'custom' && needsSourceUrl.value)
+const pipelineActionDisabled = computed(() => isPipelineActionDisabled({
+  needsSourceUrl: needsSourceUrl.value,
+  sourceUrlOverride: sourceUrlOverride.value,
+  pipelining: pipelining.value,
+  cloning: cloning.value,
+  structuring: structuring.value,
+}))
 
 const subpageDisplayName = computed(() => {
   if (!isSubpage.value || !subpageSlug.value)
@@ -328,17 +336,6 @@ const workflowSteps = computed(() => {
 
       <!-- Actions -->
       <div class="flex items-center gap-1.5 shrink-0">
-        <UiButton
-          v-if="pageWorkflowState === 'missing'"
-          size="sm"
-          :disabled="pipelining"
-          @click="handleAdaptivePipeline(selectedModelOverride)"
-        >
-          <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
-          <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
-          {{ pipelining ? 'Running...' : primaryWorkflowAction.label }}
-        </UiButton>
-
         <!-- Undo/Redo — always visible (icon-only, small) -->
         <UiButton
           v-if="canShowSectionActions"
@@ -420,7 +417,7 @@ const workflowSteps = computed(() => {
         <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden xl:block" />
 
         <!-- Source URL input for subpages -->
-        <div v-if="canShowWorkflowActions && needsSourceUrl" class="hidden xl:flex items-center gap-1.5">
+        <div v-if="canShowSourceUrlInput" class="hidden xl:flex items-center gap-1.5">
           <Globe class="size-3.5 text-muted-foreground shrink-0" />
           <input
             v-model="sourceUrlOverride"
@@ -478,7 +475,7 @@ const workflowSteps = computed(() => {
           v-if="canShowWorkflowActions"
           size="sm"
           :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
-          :disabled="pipelining || cloning || structuring || (needsSourceUrl && !sourceUrlOverride?.trim())"
+          :disabled="pipelineActionDisabled"
           class="hidden xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
           @click="handleAdaptivePipeline(selectedModelOverride)"
         >
@@ -583,7 +580,7 @@ const workflowSteps = computed(() => {
                 {{ primaryWorkflowAction.key === 'structure' ? primaryWorkflowAction.label : 'Structure' }}
               </UiDropdownMenuItem>
               <UiDropdownMenuItem
-                :disabled="pipelining || cloning || structuring || (needsSourceUrl && !sourceUrlOverride?.trim())"
+                :disabled="pipelineActionDisabled"
                 @select="handleAdaptivePipeline(selectedModelOverride)"
               >
                 <Zap class="size-3.5 mr-2 text-violet-500" />
@@ -680,9 +677,19 @@ const workflowSteps = computed(() => {
           No page exists for <span class="font-medium text-foreground">{{ oemId }} / {{ modelSlug }}</span>.
           Run the adaptive pipeline from the OEM source site.
         </p>
+        <div v-if="needsSourceUrl" class="space-y-1">
+          <label for="missing-source-url" class="sr-only">OEM source URL</label>
+          <input
+            id="missing-source-url"
+            v-model="sourceUrlOverride"
+            type="url"
+            placeholder="OEM page URL to clone..."
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+        </div>
         <button
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-          :disabled="pipelining"
+          :disabled="pipelineActionDisabled"
           @click="handleAdaptivePipeline(selectedModelOverride)"
         >
           <Loader2 v-if="pipelining" class="size-4 animate-spin" />

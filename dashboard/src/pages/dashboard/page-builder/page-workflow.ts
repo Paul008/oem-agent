@@ -7,6 +7,14 @@ export interface PrimaryWorkflowAction {
   label: string
 }
 
+export interface PipelineActionDisabledOptions {
+  needsSourceUrl: boolean
+  sourceUrlOverride?: string | null
+  pipelining?: boolean
+  cloning?: boolean
+  structuring?: boolean
+}
+
 interface PageWorkflowPage {
   page_type?: string | null
   content?: {
@@ -19,9 +27,6 @@ export function getPageWorkflowState(input: {
   page: PageWorkflowPage | null | undefined
   error: string | null | undefined
 }): PageWorkflowState {
-  if (input.error?.toLowerCase().includes('404'))
-    return 'missing'
-
   const page = input.page
   if (page?.page_type === 'custom')
     return 'custom'
@@ -41,6 +46,9 @@ export function getPageWorkflowState(input: {
     }
   }
 
+  if (input.error?.toLowerCase().includes('404'))
+    return 'missing'
+
   return 'empty'
 }
 
@@ -58,4 +66,13 @@ export function getPrimaryWorkflowAction(
     return { key: 'save', label: 'Save' }
 
   return { key: 'edit', label: 'Edit Sections' }
+}
+
+export function isPipelineActionDisabled(options: PipelineActionDisabledOptions): boolean {
+  return Boolean(
+    options.pipelining
+    || options.cloning
+    || options.structuring
+    || (options.needsSourceUrl && !options.sourceUrlOverride?.trim()),
+  )
 }

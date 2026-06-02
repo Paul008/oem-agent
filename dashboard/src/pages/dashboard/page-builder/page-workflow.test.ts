@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getPageWorkflowState, getPrimaryWorkflowAction } from './page-workflow'
+import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled } from './page-workflow'
 
 describe('getPageWorkflowState', () => {
   it('returns missing when the API error is a 404', () => {
@@ -31,6 +31,13 @@ describe('getPageWorkflowState', () => {
     })).toBe('structured')
   })
 
+  it('keeps structured pages editable when a stale 404 error is present', () => {
+    expect(getPageWorkflowState({
+      page: { content: { sections: [{ id: 's1', type: 'hero' }] } },
+      error: 'Worker API error 404: Page not found',
+    })).toBe('structured')
+  })
+
   it('returns cloned when rendered HTML exists but sections do not', () => {
     expect(getPageWorkflowState({
       page: { content: { rendered: '<link rel="stylesheet" href="/x.css">', sections: [] } },
@@ -45,11 +52,42 @@ describe('getPageWorkflowState', () => {
     })).toBe('cloned')
   })
 
+  it('keeps cloned pages available when a stale 404 error is present', () => {
+    expect(getPageWorkflowState({
+      page: { content: { rendered: '<link rel="stylesheet" href="/x.css">', sections: [] } },
+      error: 'Worker API error 404: Page not found',
+    })).toBe('cloned')
+  })
+
   it('returns custom for custom pages even with no sections', () => {
     expect(getPageWorkflowState({
       page: { page_type: 'custom', content: { rendered: '', sections: [] } },
       error: null,
     })).toBe('custom')
+  })
+})
+
+describe('isPipelineActionDisabled', () => {
+  it('requires a source URL when the workflow needs one', () => {
+    expect(isPipelineActionDisabled({
+      needsSourceUrl: true,
+      sourceUrlOverride: '',
+    })).toBe(true)
+  })
+
+  it('allows the pipeline when a required source URL is provided', () => {
+    expect(isPipelineActionDisabled({
+      needsSourceUrl: true,
+      sourceUrlOverride: 'https://example.com/model',
+    })).toBe(false)
+  })
+
+  it('disables the pipeline while another workflow operation is running', () => {
+    expect(isPipelineActionDisabled({
+      needsSourceUrl: false,
+      sourceUrlOverride: '',
+      pipelining: true,
+    })).toBe(true)
   })
 })
 
