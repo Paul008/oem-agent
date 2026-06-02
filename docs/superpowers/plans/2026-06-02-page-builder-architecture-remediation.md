@@ -10,6 +10,44 @@
 
 ---
 
+## Current Status
+
+First-pass remediation is complete on branch `page-builder-architecture-remediation`.
+
+Completed implementation:
+- Normalized the Worker `/recipes/:oemId` contract to return `{ recipes, oem_id }` and removed the duplicate public route.
+- Added dashboard recipe-response compatibility so deployments can tolerate old and new Worker response shapes.
+- Introduced pure page workflow state/actions for missing, cloned, structured, and custom pages.
+- Replaced split canvas/display renderer maps with a shared section registry and explicit display overrides.
+- Added extractable-section guardrails so AI structuring and manual editor section types no longer look like one shared catalog.
+- Fixed dashboard build/type issues discovered while verifying the page-builder changes.
+- Split large Vite vendor chunks so the dashboard build no longer emits the >500 kB chunk warning.
+- Kept generated dashboard type output under `dashboard/src/types`.
+- Added page-builder storage normalization so resolved Worker media URLs are saved as portable `/media/...` paths.
+- Removed the dead `modelOverride` contract from the non-AI Clone workflow.
+
+Verification run after the latest remediation:
+- `CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/lib/worker-api.test.ts dashboard/src/composables/use-page-builder.test.ts dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts dashboard/src/lib/recipes.test.ts dashboard/build-chunking.test.ts`
+- `pnpm run typecheck`
+- `CI=1 pnpm --dir dashboard build`
+
+Latest implementation commits:
+- `920321c fix(dashboard): remove clone model override dead path`
+- `a175e20 fix(dashboard): preserve media paths in page builder storage`
+- `f4a2b9c refactor(dashboard): compose section renderer registry`
+- `a7e789a fix(dashboard): keep generated types under dashboard root`
+- `bb0d2bb perf(dashboard): split shared vendor chunks`
+
+Remaining phase-two candidates:
+- Split `SectionProperties.vue` into per-section editor modules.
+- Move section defaults, labels, icons, split rules, converter rules, and recipe mappings into one dashboard registry.
+- Add Playwright coverage for missing-page, structured-page, clone, structure, and adaptive-pipeline flows.
+- Revisit the model selector UI so it is visually associated only with AI-backed actions.
+
+The original step-by-step plan below is retained for audit history. Some checkboxes may remain unchecked even though the current status above reflects the committed implementation.
+
+---
+
 ## Scope
 
 This plan handles:
