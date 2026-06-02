@@ -28,23 +28,28 @@ Completed implementation:
 - Centralized section split-field metadata so split affordances and split actions use the same source of truth.
 - Centralized section-to-recipe pattern metadata used by custom recipe saving.
 - Centralized page-builder section icon metadata used by section list rows and template cards.
+- Centralized saved-recipe default extraction, including content-field exclusions and card composition inference.
+- Centralized section media traversal so editor URL resolution and template-card image counting cover newer section shapes.
+- Centralized Add Section recipe pattern groups and icons.
+- Centralized Section Capture import-as options so labels derive from shared section metadata.
 
 Verification run after the latest remediation:
-- `CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/components/page-builder/section-icons.test.ts dashboard/src/pages/dashboard/components/page-builder/section-templates.test.ts dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts dashboard/src/composables/use-page-builder.test.ts dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts dashboard/src/lib/worker-api.test.ts dashboard/src/lib/recipes.test.ts dashboard/build-chunking.test.ts`
+- `CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/components/page-builder/section-capture-options.test.ts dashboard/src/pages/dashboard/components/page-builder/recipe-patterns.test.ts dashboard/src/pages/dashboard/components/page-builder/section-media.test.ts dashboard/src/pages/dashboard/components/page-builder/section-icons.test.ts dashboard/src/pages/dashboard/components/page-builder/section-templates.test.ts dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts dashboard/src/composables/use-page-builder.test.ts dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts dashboard/src/lib/worker-api.test.ts dashboard/src/lib/recipes.test.ts dashboard/build-chunking.test.ts`
 - `pnpm run typecheck`
 - `CI=1 pnpm --dir dashboard build`
 
 Latest implementation commits:
+- `ddcd398 refactor(dashboard): share section capture options`
+- `94c5167 refactor(dashboard): share recipe pattern metadata`
+- `6c27efc refactor(dashboard): share section media traversal`
+- `95ac0cf refactor(dashboard): centralize recipe default extraction`
 - `6ba1cd3 refactor(dashboard): share page builder section icons`
 - `1eb0b4b refactor(dashboard): centralize section recipe metadata`
 - `4272f89 refactor(dashboard): centralize section split metadata`
-- `920321c fix(dashboard): remove clone model override dead path`
-- `a175e20 fix(dashboard): preserve media paths in page builder storage`
-- `f4a2b9c refactor(dashboard): compose section renderer registry`
 
 Remaining phase-two candidates:
 - Split `SectionProperties.vue` into per-section editor modules.
-- Continue consolidating section defaults, labels, converter rules, and recipe content-field exclusions into dashboard metadata modules.
+- Continue consolidating section defaults and converter rules into dashboard metadata modules.
 - Add Playwright coverage for missing-page, structured-page, clone, structure, and adaptive-pipeline flows.
 - Revisit the model selector UI so it is visually associated only with AI-backed actions.
 
