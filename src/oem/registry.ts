@@ -122,7 +122,7 @@ export const fordAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/showroom/"]',
-    heroSlides: '.billboard-item',
+    heroSlides: '.cmp-billboardCarousel .cmp-carousel-slider__item',
     offerTiles: '.offer-card, [class*="offer"]',
   },
   flags: {

@@ -3751,7 +3751,7 @@ ${html.substring(0, 50000)}
       const validBannerSlides = bannerSlides.filter(slide => this.isValidBannerSlide(slide));
       const skipped = bannerSlides.length - validBannerSlides.length;
       if (skipped > 0) {
-        console.log(`[Orchestrator] Skipping ${skipped} empty banner candidates for ${page.url}`);
+        console.log(`[Orchestrator] Skipping ${skipped} banner candidates without media for ${page.url}`);
       }
 
       console.log(`[Orchestrator] Processing ${validBannerSlides.length} banners for ${page.url}`);
@@ -3849,12 +3849,13 @@ ${html.substring(0, 50000)}
   }
 
   private isValidBannerSlide(slide: ExtractedBannerSlide): boolean {
+    const extraFields = slide as unknown as Record<string, unknown>;
     return Boolean(
       slide.image_url_desktop
       || slide.image_url_mobile
-      || slide.headline
-      || slide.cta_text
-      || slide.cta_url,
+      || extraFields.image_url
+      || extraFields.video_url_desktop
+      || extraFields.video_url_mobile,
     );
   }
 
