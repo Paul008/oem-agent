@@ -26,7 +26,6 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
-import { generatePage } from '@/lib/worker-api'
 import { useThemeStore } from '@/stores/theme'
 
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
@@ -36,6 +35,7 @@ import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vu
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
+import { getPageWorkflowState, getPrimaryWorkflowAction } from './page-workflow'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,10 +49,8 @@ const {
   isDirty,
   sections,
   selectedSectionId,
-  selectedSection,
   isStructured,
   isCloned,
-  workflowStage,
   oemId,
   modelSlug,
   isSubpage,
@@ -93,9 +91,7 @@ const {
   pasteSectionFromClipboard,
   replaceSections,
   convertSection,
-  getConvertibleTypes,
   splitSection,
-  canSplitSection,
   saveCurrentAsRecipe,
 } = usePageBuilder()
 
@@ -110,32 +106,6 @@ const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
 )
 
-const is404 = computed(() => error.value?.includes('404'))
-const generatingPage = ref(false)
-const generateError = ref<string | null>(null)
-
-async function handleGeneratePage() {
-  if (!oemId.value || !modelSlug.value)
-    return
-  generatingPage.value = true
-  generateError.value = null
-  try {
-    const result = await generatePage(oemId.value, modelSlug.value)
-    if (result.success) {
-      await loadPage(route.params.slug as string)
-    }
-    else {
-      generateError.value = result.error || 'Generation failed'
-    }
-  }
-  catch (err: any) {
-    generateError.value = err.message || 'Generation failed'
-  }
-  finally {
-    generatingPage.value = false
-  }
-}
-
 function openEditor(id: string) {
   selectSection(id)
   editorSectionId.value = id
@@ -146,6 +116,12 @@ function closeEditor() {
 function updateEditorSection(updates: Record<string, any>) {
   if (editorSectionId.value)
     updateSection(editorSectionId.value, updates)
+}
+
+function openSourceUrl() {
+  const sourceUrl = page.value?.source_url
+  if (sourceUrl)
+    window.open(sourceUrl, '_blank', 'noopener,noreferrer')
 }
 
 function onCaptureHtml(html: string) {
@@ -244,8 +220,17 @@ const pageTitle = computed(() => {
   return `${page.value.name} (${oemName(page.value.oem_id)})`
 })
 
-const isCustomPage = computed(() => page.value?.page_type === 'custom')
 const needsSourceUrl = computed(() => isSubpage.value && !isCloned.value)
+const pageWorkflowState = computed(() => getPageWorkflowState({
+  page: page.value,
+  error: error.value,
+}))
+const primaryWorkflowAction = computed(() => getPrimaryWorkflowAction(pageWorkflowState.value, {
+  isDirty: isDirty.value,
+}))
+const canShowEditorActions = computed(() => pageWorkflowState.value !== 'missing')
+const canShowWorkflowActions = computed(() => canShowEditorActions.value && pageWorkflowState.value !== 'custom')
+const canShowSectionActions = computed(() => canShowEditorActions.value && (isStructured.value || sections.value.length > 0))
 
 const subpageDisplayName = computed(() => {
   if (!isSubpage.value || !subpageSlug.value)
@@ -261,7 +246,7 @@ const parentPageName = computed(() => {
 
 // Workflow steps for the stepper
 const workflowSteps = computed(() => {
-  if (isCustomPage.value) {
+  if (pageWorkflowState.value === 'custom') {
     return [{
       label: 'Refine',
       description: 'Add sections manually',
@@ -269,24 +254,25 @@ const workflowSteps = computed(() => {
       active: true,
     }]
   }
+  const workflowState = pageWorkflowState.value
   return [
     {
       label: 'Clone',
       description: 'Capture OEM page',
-      done: workflowStage.value === 'cloned' || workflowStage.value === 'structured',
-      active: !page.value || workflowStage.value === 'empty',
+      done: workflowState === 'cloned' || workflowState === 'structured',
+      active: workflowState === 'empty' || workflowState === 'missing',
     },
     {
       label: 'Structure',
       description: 'Extract sections via AI',
-      done: workflowStage.value === 'structured',
-      active: workflowStage.value === 'cloned',
+      done: workflowState === 'structured',
+      active: workflowState === 'cloned',
     },
     {
       label: 'Refine',
       description: 'Edit, reorder, regenerate',
       done: false,
-      active: workflowStage.value === 'structured',
+      active: workflowState === 'structured',
     },
   ]
 })
@@ -330,10 +316,10 @@ const workflowSteps = computed(() => {
         <UiBadge v-if="page.version" variant="secondary" class="text-[10px] shrink-0">
           v{{ page.version }}
         </UiBadge>
-        <UiBadge v-if="isStructured" variant="default" class="text-[10px] bg-emerald-600 shrink-0 hidden sm:inline-flex">
+        <UiBadge v-if="pageWorkflowState === 'structured'" variant="default" class="text-[10px] bg-emerald-600 shrink-0 hidden sm:inline-flex">
           Structured
         </UiBadge>
-        <UiBadge v-else-if="isCloned" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
+        <UiBadge v-else-if="pageWorkflowState === 'cloned'" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
           Cloned
         </UiBadge>
       </template>
@@ -342,9 +328,20 @@ const workflowSteps = computed(() => {
 
       <!-- Actions -->
       <div class="flex items-center gap-1.5 shrink-0">
+        <UiButton
+          v-if="pageWorkflowState === 'missing'"
+          size="sm"
+          :disabled="pipelining"
+          @click="handleAdaptivePipeline(selectedModelOverride)"
+        >
+          <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
+          <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
+          {{ pipelining ? 'Running...' : primaryWorkflowAction.label }}
+        </UiButton>
+
         <!-- Undo/Redo — always visible (icon-only, small) -->
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           variant="ghost"
           :disabled="!canUndo"
@@ -355,7 +352,7 @@ const workflowSteps = computed(() => {
           <Undo2 class="size-3.5" />
         </UiButton>
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           variant="ghost"
           :disabled="!canRedo"
@@ -370,7 +367,7 @@ const workflowSteps = computed(() => {
 
         <!-- Import -->
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           variant="outline"
           title="Import sections from another page"
@@ -383,7 +380,7 @@ const workflowSteps = computed(() => {
 
         <!-- Capture from URL -->
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           variant="outline"
           title="Capture sections from a live webpage"
@@ -396,7 +393,7 @@ const workflowSteps = computed(() => {
 
         <!-- Paste -->
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           variant="outline"
           title="Paste sections from clipboard (Ctrl+V)"
@@ -409,7 +406,7 @@ const workflowSteps = computed(() => {
 
         <!-- History -->
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           :variant="showHistory ? 'default' : 'outline'"
           title="History"
@@ -420,10 +417,10 @@ const workflowSteps = computed(() => {
           History
         </UiButton>
 
-        <UiSeparator v-if="isStructured || sections.length > 0" orientation="vertical" class="h-5 hidden xl:block" />
+        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden xl:block" />
 
         <!-- Source URL input for subpages -->
-        <div v-if="needsSourceUrl" class="hidden xl:flex items-center gap-1.5">
+        <div v-if="canShowWorkflowActions && needsSourceUrl" class="hidden xl:flex items-center gap-1.5">
           <Globe class="size-3.5 text-muted-foreground shrink-0" />
           <input
             v-model="sourceUrlOverride"
@@ -434,7 +431,7 @@ const workflowSteps = computed(() => {
         </div>
 
         <!-- Model selector for A/B testing -->
-        <div v-if="!isCustomPage" class="hidden xl:flex items-center gap-1.5">
+        <div v-if="canShowWorkflowActions" class="hidden xl:flex items-center gap-1.5">
           <Cpu class="size-3.5 text-muted-foreground shrink-0" />
           <UiSelect v-model="selectedModel">
             <UiSelectTrigger class="h-7 w-44 text-xs">
@@ -450,7 +447,7 @@ const workflowSteps = computed(() => {
 
         <!-- Clone -->
         <UiButton
-          v-if="!isCustomPage"
+          v-if="canShowWorkflowActions"
           size="sm"
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
@@ -464,37 +461,37 @@ const workflowSteps = computed(() => {
 
         <!-- Structure -->
         <UiButton
-          v-if="!isCustomPage && (isCloned || isStructured)"
+          v-if="canShowWorkflowActions && (pageWorkflowState === 'cloned' || pageWorkflowState === 'structured')"
           size="sm"
-          variant="outline"
+          :variant="primaryWorkflowAction.key === 'structure' ? 'default' : 'outline'"
           :disabled="structuring || pipelining"
           class="hidden xl:inline-flex"
           @click="handleStructure(selectedModelOverride)"
         >
           <Sparkles v-if="!structuring" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
-          Structure
+          {{ primaryWorkflowAction.key === 'structure' ? primaryWorkflowAction.label : 'Structure' }}
         </UiButton>
 
         <!-- Adaptive Pipeline -->
         <UiButton
-          v-if="!isCustomPage"
+          v-if="canShowWorkflowActions"
           size="sm"
-          :variant="pipelining ? 'default' : 'outline'"
+          :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
           :disabled="pipelining || cloning || structuring || (needsSourceUrl && !sourceUrlOverride?.trim())"
           class="hidden xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
           @click="handleAdaptivePipeline(selectedModelOverride)"
         >
           <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
-          {{ pipelining ? 'Running...' : 'Pipeline' }}
+          {{ pipelining ? 'Running...' : primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Pipeline' }}
         </UiButton>
 
-        <UiSeparator v-if="!isCustomPage" orientation="vertical" class="h-5 hidden xl:block" />
+        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden xl:block" />
 
         <!-- Save — always visible -->
         <UiButton
-          v-if="isStructured || sections.length > 0"
+          v-if="canShowSectionActions"
           size="sm"
           :variant="isDirty ? 'default' : 'outline'"
           :disabled="saving || !isDirty"
@@ -508,7 +505,7 @@ const workflowSteps = computed(() => {
 
         <!-- Source — inline on xl+ -->
         <a
-          v-if="page?.source_url"
+          v-if="canShowEditorActions && page?.source_url"
           :href="page.source_url"
           target="_blank"
           class="hidden xl:inline-flex"
@@ -521,6 +518,7 @@ const workflowSteps = computed(() => {
 
         <!-- JSON toggle — inline on xl+ -->
         <UiButton
+          v-if="canShowEditorActions"
           size="sm"
           :variant="showJson ? 'default' : 'outline'"
           class="hidden xl:inline-flex"
@@ -531,7 +529,7 @@ const workflowSteps = computed(() => {
         </UiButton>
 
         <!-- === OVERFLOW MENU (below xl) === -->
-        <UiDropdownMenu>
+        <UiDropdownMenu v-if="canShowEditorActions">
           <UiDropdownMenuTrigger as-child>
             <UiButton size="sm" variant="outline" class="xl:hidden size-8 p-0" title="More actions">
               <Menu class="size-4" />
@@ -542,14 +540,14 @@ const workflowSteps = computed(() => {
               Edit
             </UiDropdownMenuLabel>
             <UiDropdownMenuItem
-              v-if="isStructured || sections.length > 0"
+              v-if="canShowSectionActions"
               @select="showSectionBrowser = true"
             >
               <Import class="size-3.5 mr-2" />
               Import Sections
             </UiDropdownMenuItem>
             <UiDropdownMenuItem
-              v-if="isStructured || sections.length > 0"
+              v-if="canShowSectionActions"
               @select="pasteSectionFromClipboard()"
             >
               <ClipboardPaste class="size-3.5 mr-2" />
@@ -557,14 +555,14 @@ const workflowSteps = computed(() => {
               <UiDropdownMenuShortcut>Ctrl+V</UiDropdownMenuShortcut>
             </UiDropdownMenuItem>
             <UiDropdownMenuItem
-              v-if="isStructured || sections.length > 0"
+              v-if="canShowSectionActions"
               @select="showHistory = !showHistory"
             >
               <History class="size-3.5 mr-2" />
               History
             </UiDropdownMenuItem>
 
-            <template v-if="!isCustomPage">
+            <template v-if="canShowWorkflowActions">
               <UiDropdownMenuSeparator />
               <UiDropdownMenuLabel class="text-[10px] text-muted-foreground">
                 Pipeline
@@ -577,19 +575,19 @@ const workflowSteps = computed(() => {
                 Clone{{ needsSourceUrl && !sourceUrlOverride?.trim() ? ' (enter URL first)' : '' }}
               </UiDropdownMenuItem>
               <UiDropdownMenuItem
-                v-if="isCloned || isStructured"
+                v-if="pageWorkflowState === 'cloned' || pageWorkflowState === 'structured'"
                 :disabled="structuring || pipelining"
                 @select="handleStructure(selectedModelOverride)"
               >
                 <Sparkles class="size-3.5 mr-2" />
-                Structure
+                {{ primaryWorkflowAction.key === 'structure' ? primaryWorkflowAction.label : 'Structure' }}
               </UiDropdownMenuItem>
               <UiDropdownMenuItem
                 :disabled="pipelining || cloning || structuring || (needsSourceUrl && !sourceUrlOverride?.trim())"
                 @select="handleAdaptivePipeline(selectedModelOverride)"
               >
                 <Zap class="size-3.5 mr-2 text-violet-500" />
-                Adaptive Pipeline
+                {{ primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Adaptive Pipeline' }}
               </UiDropdownMenuItem>
             </template>
 
@@ -603,7 +601,7 @@ const workflowSteps = computed(() => {
             </UiDropdownMenuItem>
             <UiDropdownMenuItem
               v-if="page?.source_url"
-              @select="window.open(page.source_url, '_blank')"
+              @select="openSourceUrl"
             >
               <ExternalLink class="size-3.5 mr-2" />
               View Source
@@ -614,7 +612,7 @@ const workflowSteps = computed(() => {
     </div>
 
     <!-- Workflow Stepper -->
-    <div v-if="page && !loading" class="flex items-center gap-0 px-4 py-2 border-b bg-muted/30 shrink-0">
+    <div v-if="canShowEditorActions && page && !loading" class="flex items-center gap-0 px-4 py-2 border-b bg-muted/30 shrink-0">
       <template v-for="(step, i) in workflowSteps" :key="step.label">
         <div
           class="flex items-center gap-1.5 text-xs"
@@ -663,14 +661,14 @@ const workflowSteps = computed(() => {
 
     <!-- Error banner (non-404) -->
     <div
-      v-if="error && !is404"
+      v-if="error && pageWorkflowState !== 'missing'"
       class="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b shrink-0"
     >
       {{ error }}
     </div>
 
     <!-- 404 empty state — page not generated yet -->
-    <div v-if="is404 && !loading" class="flex-1 flex items-center justify-center">
+    <div v-if="pageWorkflowState === 'missing' && !loading" class="flex-1 flex items-center justify-center">
       <div class="text-center max-w-md space-y-4">
         <div class="mx-auto size-16 rounded-full bg-muted flex items-center justify-center">
           <Globe class="size-8 text-muted-foreground" />
@@ -680,22 +678,19 @@ const workflowSteps = computed(() => {
         </h2>
         <p class="text-sm text-muted-foreground">
           No page exists for <span class="font-medium text-foreground">{{ oemId }} / {{ modelSlug }}</span>.
-          Generate one from the OEM source site.
+          Run the adaptive pipeline from the OEM source site.
         </p>
-        <div v-if="generateError" class="text-sm text-destructive">
-          {{ generateError }}
-        </div>
         <button
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-          :disabled="generatingPage"
-          @click="handleGeneratePage"
+          :disabled="pipelining"
+          @click="handleAdaptivePipeline(selectedModelOverride)"
         >
-          <Loader2 v-if="generatingPage" class="size-4 animate-spin" />
-          <Sparkles v-else class="size-4" />
-          {{ generatingPage ? 'Generating...' : 'Generate Page' }}
+          <Loader2 v-if="pipelining" class="size-4 animate-spin" />
+          <Zap v-else class="size-4" />
+          {{ pipelining ? 'Running...' : primaryWorkflowAction.label }}
         </button>
-        <p v-if="generatingPage" class="text-xs text-muted-foreground">
-          This may take 1–2 minutes
+        <p v-if="pipelining" class="text-xs text-muted-foreground">
+          This may take 1-2 minutes
         </p>
         <div class="pt-2">
           <button class="text-sm text-muted-foreground hover:text-foreground" @click="router.push('/dashboard/model-pages')">
@@ -711,7 +706,7 @@ const workflowSteps = computed(() => {
     </div>
 
     <!-- JSON view -->
-    <div v-else-if="showJson" class="flex-1 overflow-hidden">
+    <div v-else-if="canShowEditorActions && showJson" class="flex-1 overflow-hidden">
       <JsonEditorView
         :sections="sections"
         @move-section="moveSection"
@@ -723,7 +718,7 @@ const workflowSteps = computed(() => {
     </div>
 
     <!-- Split panel layout -->
-    <template v-else-if="page">
+    <template v-else-if="canShowEditorActions && page">
       <UiResizablePanelGroup direction="horizontal" class="flex-1 min-h-0">
         <!-- Canvas (left) -->
         <UiResizablePanel :default-size="65" :min-size="40">
@@ -791,7 +786,7 @@ const workflowSteps = computed(() => {
 
     <!-- Section Capture (load page in iframe, click to capture) -->
     <SectionCapture
-      v-if="showCapture"
+      v-if="canShowEditorActions && showCapture"
       :worker-base="WORKER_BASE"
       :oem-id="oemId"
       :model-slug="modelSlug"
@@ -803,13 +798,14 @@ const workflowSteps = computed(() => {
 
     <!-- Section Browser Dialog (import from other pages) -->
     <SectionBrowserDialog
+      v-if="canShowEditorActions"
       :open="showSectionBrowser"
       @update:open="showSectionBrowser = $event"
       @paste="pasteSections"
     />
 
     <!-- History Sheet -->
-    <UiSheet v-model:open="showHistory">
+    <UiSheet v-if="canShowEditorActions" v-model:open="showHistory">
       <UiSheetContent side="right" class="w-80 sm:w-96 p-0">
         <UiSheetHeader class="sr-only">
           <UiSheetTitle>History</UiSheetTitle>
