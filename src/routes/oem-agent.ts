@@ -10,6 +10,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
@@ -17,6 +18,7 @@ import { encodeUrl } from './media';
 import { proxyImage } from '../utils/image-proxy';
 import { AiRouter, TASK_ROUTING, AVAILABLE_MODELS, TASK_TYPE_GROUPS, TASK_TYPE_LABELS } from '../ai/router';
 import type { RouteDecision } from '../ai/router';
+import { analyzeBannerGraphics, arrayBufferToBase64, inferImageMimeType } from '../ai/banner-graphics';
 import { SalesRepAgent } from '../ai/sales-rep';
 import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/registry';
@@ -80,6 +82,67 @@ async function downloadImagesToR2(
   return imageMap;
 }
 
+const MAX_BANNER_GRAPHICS_ANALYSIS = 25;
+const MAX_BANNER_IMAGE_BYTES = 6 * 1024 * 1024;
+
+interface BannerGraphicsRow {
+  id: string;
+  oem_id: string;
+  page_url: string | null;
+  position: number | null;
+  headline: string | null;
+  image_url_desktop: string | null;
+  image_url_mobile: string | null;
+  has_graphics?: boolean | null;
+  graphics_checked_at?: string | null;
+}
+
+interface BannerGraphicsAnalyzeBody {
+  banner_ids?: string[];
+  oem_id?: string;
+  force?: boolean;
+  limit?: number;
+}
+
+async function fetchBannerImageForAnalysis(imageUrl: string): Promise<{ imageBase64: string; imageMimeType: string }> {
+  const response = await fetch(imageUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OEM-Agent/1.0)' },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Image fetch failed: ${response.status}`);
+  }
+
+  const contentLength = Number(response.headers.get('content-length') || '0');
+  if (contentLength > MAX_BANNER_IMAGE_BYTES) {
+    throw new Error(`Image too large: ${Math.round(contentLength / 1024)}KB`);
+  }
+
+  const imageMimeType = inferImageMimeType(imageUrl, response.headers.get('content-type'));
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(imageMimeType)) {
+    throw new Error(`Unsupported image type: ${imageMimeType}`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength > MAX_BANNER_IMAGE_BYTES) {
+    throw new Error(`Image too large: ${Math.round(buffer.byteLength / 1024)}KB`);
+  }
+  if (buffer.byteLength < 500) {
+    throw new Error('Image response is too small');
+  }
+
+  return {
+    imageBase64: arrayBufferToBase64(buffer),
+    imageMimeType,
+  };
+}
+
+function resolveBannerImageUrl(imageUrl: string, requestOrigin: string): string {
+  if (imageUrl.startsWith('/')) return `${requestOrigin}${imageUrl}`;
+  return imageUrl;
+}
+
 // Extend AppEnv for OEM agent routes
 type OemAgentEnv = {
   Bindings: MoltbotEnv;
@@ -90,6 +153,119 @@ type OemAgentEnv = {
 };
 
 const app = new Hono<OemAgentEnv>();
+
+async function analyzeBannerGraphicsBatch(
+  c: Context<OemAgentEnv>,
+  body: BannerGraphicsAnalyzeBody,
+) {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const requestedIds = Array.isArray(body.banner_ids)
+    ? body.banner_ids.filter(id => typeof id === 'string' && id.length > 0).slice(0, MAX_BANNER_GRAPHICS_ANALYSIS)
+    : [];
+  const force = body.force === true;
+  const limit = Math.min(
+    Math.max(requestedIds.length || Number(body.limit) || 12, 1),
+    MAX_BANNER_GRAPHICS_ANALYSIS,
+  );
+
+  if (body.oem_id && !allOemIds.includes(body.oem_id as OemId)) {
+    return c.json({ error: `Unknown OEM: ${body.oem_id}` }, 400);
+  }
+
+  let query = supabase
+    .from('banners')
+    .select('id, oem_id, page_url, position, headline, image_url_desktop, image_url_mobile, has_graphics, graphics_checked_at')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+
+  if (requestedIds.length > 0) {
+    query = query.in('id', requestedIds);
+  } else {
+    if (body.oem_id) query = query.eq('oem_id', body.oem_id);
+    if (!force) query = query.is('graphics_checked_at', null);
+  }
+
+  const { data: rows, error } = await query;
+  if (error) return c.json({ error: error.message }, 500);
+
+  const candidates = (rows ?? []) as BannerGraphicsRow[];
+  const skipped: Array<{ id: string; reason: string }> = [];
+  const errors: Array<{ id: string; error: string }> = [];
+  const updatedBanners: unknown[] = [];
+
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase, c.env.AI);
+
+  for (const banner of candidates) {
+    if (!force && banner.graphics_checked_at) {
+      skipped.push({ id: banner.id, reason: 'already_analyzed' });
+      continue;
+    }
+
+    const rawImageUrl = banner.image_url_desktop || banner.image_url_mobile;
+    if (!rawImageUrl) {
+      skipped.push({ id: banner.id, reason: 'no_image_url' });
+      continue;
+    }
+
+    try {
+      const resolvedImageUrl = resolveBannerImageUrl(rawImageUrl, new URL(c.req.url).origin);
+      let fetchUrl = resolvedImageUrl;
+      if (!rawImageUrl.startsWith('/')) {
+        const validation = validateUrl(resolvedImageUrl);
+        if (!validation.valid) throw new Error(validation.error || 'Invalid image URL');
+        fetchUrl = validation.parsed!.toString();
+      }
+
+      const image = await fetchBannerImageForAnalysis(fetchUrl);
+      const analysis = await analyzeBannerGraphics({
+        aiRouter,
+        imageBase64: image.imageBase64,
+        imageMimeType: image.imageMimeType,
+        oemId: banner.oem_id,
+      });
+
+      const update = {
+        has_graphics: analysis.has_graphics,
+        graphics_tags: analysis.graphics_tags,
+        graphics_confidence: analysis.confidence,
+        graphics_summary: analysis.summary,
+        graphics_checked_at: new Date().toISOString(),
+        graphics_model: `${analysis.provider}/${analysis.model}`,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: updated, error: updateError } = await supabase
+        .from('banners')
+        .update(update)
+        .eq('id', banner.id)
+        .select('*')
+        .single();
+
+      if (updateError) throw new Error(updateError.message);
+      updatedBanners.push(updated);
+    } catch (err: any) {
+      errors.push({ id: banner.id, error: err?.message || 'Analysis failed' });
+    }
+  }
+
+  return c.json({
+    success: errors.length === 0,
+    requested: candidates.length,
+    analyzed: updatedBanners.length,
+    skipped,
+    errors,
+    updated_banners: updatedBanners,
+  });
+}
 
 // ============================================================================
 // Middleware
@@ -3337,6 +3513,31 @@ Respond with JSON: { "score": number, "feedback": "brief explanation of differen
   } catch (err: any) {
     return c.json({ error: err.message || 'Scoring failed' }, 500);
   }
+});
+
+// ============================================================================
+// Banner Graphics Analysis
+// ============================================================================
+
+/**
+ * POST /api/v1/oem-agent/admin/banners/analyze-graphics
+ * Runs a vision classifier over banner images and persists baked-in graphics tags.
+ */
+app.post('/admin/banners/analyze-graphics', async (c) => {
+  const body = await c.req.json<BannerGraphicsAnalyzeBody>().catch(() => ({}));
+  return analyzeBannerGraphicsBatch(c, body);
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/banners/:id/analyze-graphics
+ * Re-runs graphics analysis for a single banner.
+ */
+app.post('/admin/banners/:id/analyze-graphics', async (c) => {
+  return analyzeBannerGraphicsBatch(c, {
+    banner_ids: [c.req.param('id')],
+    force: true,
+    limit: 1,
+  });
 });
 
 // ============================================================================

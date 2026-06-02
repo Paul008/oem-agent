@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ChevronLeft, ChevronRight, ExternalLink, Image, ImageOff, Loader2, Monitor, Play, Search, Smartphone, X } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ExternalLink, Image, ImageOff, Loader2, Monitor, Play, RefreshCw, Search, Smartphone, Sparkles, X } from 'lucide-vue-next'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import type { Banner } from '@/composables/use-oem-data'
@@ -7,6 +7,7 @@ import type { Banner } from '@/composables/use-oem-data'
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { useRealtimeSubscription } from '@/composables/use-realtime'
+import { analyzeBannerGraphics } from '@/lib/worker-api'
 
 const { fetchBanners, fetchOems } = useOemData()
 
@@ -15,11 +16,15 @@ const oems = ref<{ id: string, name: string }[]>([])
 const loading = ref(true)
 const filterOem = ref('all')
 const filterPage = ref('all')
+const filterGraphics = ref('all')
 const searchQuery = ref('')
 const page = ref(1)
 const perPage = ref(24)
 const previewBanner = ref<Banner | null>(null)
 const previewMode = ref<'desktop' | 'mobile'>('desktop')
+const analyzingGraphics = ref(false)
+const graphicsError = ref<string | null>(null)
+const graphicsMessage = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -48,13 +53,24 @@ const filtered = computed(() => {
   if (filterPage.value !== 'all') {
     list = list.filter(b => pageType(b) === filterPage.value)
   }
+  if (filterGraphics.value === 'graphics') {
+    list = list.filter(b => b.has_graphics === true)
+  }
+  else if (filterGraphics.value === 'plain') {
+    list = list.filter(b => hasGraphicsAnalysis(b) && b.has_graphics === false)
+  }
+  else if (filterGraphics.value === 'unscanned') {
+    list = list.filter(b => !hasGraphicsAnalysis(b))
+  }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(b =>
       b.headline?.toLowerCase().includes(q)
       || b.sub_headline?.toLowerCase().includes(q)
       || b.cta_text?.toLowerCase().includes(q)
-      || b.page_url?.toLowerCase().includes(q),
+      || b.page_url?.toLowerCase().includes(q)
+      || b.graphics_summary?.toLowerCase().includes(q)
+      || graphicsTags(b).some(tag => tag.includes(q)),
     )
   }
   return list
@@ -74,6 +90,10 @@ function setFilterPage(p: any) {
   filterPage.value = String(p ?? 'all')
   page.value = 1
 }
+function setFilterGraphics(g: any) {
+  filterGraphics.value = String(g ?? 'all')
+  page.value = 1
+}
 function onSearch() {
   page.value = 1
 }
@@ -89,8 +109,29 @@ function hasVideo(b: Banner) {
   return !!(b.video_url_desktop || b.video_url_mobile)
 }
 
+function hasGraphicsAnalysis(b: Banner) {
+  return typeof b.has_graphics === 'boolean' || !!b.graphics_checked_at
+}
+
+function graphicsTags(b: Banner): string[] {
+  return Array.isArray(b.graphics_tags) ? b.graphics_tags : []
+}
+
+function formatTag(tag: string) {
+  return tag.replace(/_/g, ' ')
+}
+
+function graphicsBadgeTitle(b: Banner) {
+  if (!hasGraphicsAnalysis(b))
+    return 'Not analyzed yet'
+  const confidence = typeof b.graphics_confidence === 'number'
+    ? ` ${(b.graphics_confidence * 100).toFixed(0)}%`
+    : ''
+  return `${b.has_graphics ? 'Has baked-in graphics' : 'Plain image'}${confidence}${b.graphics_summary ? ` - ${b.graphics_summary}` : ''}`
+}
+
 const stats = computed(() => {
-  const t = { total: banners.value.length, homepage: 0, offers: 0, withDesktop: 0, withMobile: 0, withCta: 0, withVideo: 0 }
+  const t = { total: banners.value.length, homepage: 0, offers: 0, withDesktop: 0, withMobile: 0, withCta: 0, withVideo: 0, withGraphics: 0, plainImage: 0, unscannedGraphics: 0 }
   for (const b of banners.value) {
     if (pageType(b) === 'homepage')
       t.homepage++
@@ -103,9 +144,22 @@ const stats = computed(() => {
       t.withCta++
     if (hasVideo(b))
       t.withVideo++
+    if (hasGraphicsAnalysis(b)) {
+      if (b.has_graphics)
+        t.withGraphics++
+      else
+        t.plainImage++
+    }
+    else if (displayImage(b)) {
+      t.unscannedGraphics++
+    }
   }
   return t
 })
+
+const pendingGraphicsCount = computed(() =>
+  filtered.value.filter(b => displayImage(b) && !hasGraphicsAnalysis(b)).length,
+)
 
 const oemCounts = computed(() => {
   const counts: Record<string, number> = {}
@@ -153,6 +207,52 @@ function previewImageUrl(b: Banner): string | null {
   if (previewMode.value === 'mobile' && b.image_url_mobile)
     return b.image_url_mobile
   return b.image_url_desktop || b.image_url_mobile || null
+}
+
+function mergeUpdatedBanners(updated: Banner[]) {
+  const byId = new Map(updated.map(b => [b.id, b]))
+  banners.value = banners.value.map(b => byId.has(b.id) ? { ...b, ...byId.get(b.id)! } : b)
+  if (previewBanner.value && byId.has(previewBanner.value.id)) {
+    previewBanner.value = { ...previewBanner.value, ...byId.get(previewBanner.value.id)! }
+  }
+}
+
+async function analyzeGraphicsForIds(ids: string[], force = false) {
+  const targetIds = ids.slice(0, 12)
+  if (targetIds.length === 0)
+    return
+
+  analyzingGraphics.value = true
+  graphicsError.value = null
+  graphicsMessage.value = null
+  try {
+    const result = await analyzeBannerGraphics({ banner_ids: targetIds, force, limit: targetIds.length })
+    mergeUpdatedBanners((result.updated_banners ?? []) as Banner[])
+    const errorCount = Array.isArray(result.errors) ? result.errors.length : 0
+    graphicsMessage.value = `Analyzed ${result.analyzed ?? 0} banner${result.analyzed === 1 ? '' : 's'}${errorCount ? `, ${errorCount} failed` : ''}`
+    if (errorCount)
+      graphicsError.value = result.errors.map((e: any) => e.error).join('; ')
+  }
+  catch (err: any) {
+    graphicsError.value = err?.message || 'Graphics analysis failed'
+  }
+  finally {
+    analyzingGraphics.value = false
+  }
+}
+
+function analyzeCurrentGraphics() {
+  const ids = filtered.value
+    .filter(b => displayImage(b) && !hasGraphicsAnalysis(b))
+    .slice(0, 12)
+    .map(b => b.id)
+  return analyzeGraphicsForIds(ids, false)
+}
+
+function analyzePreviewGraphics() {
+  if (!previewBanner.value)
+    return
+  return analyzeGraphicsForIds([previewBanner.value.id], true)
 }
 
 // Navigate between banners in preview
@@ -224,6 +324,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
+      <UiSelect :model-value="filterGraphics" @update:model-value="setFilterGraphics">
+        <UiSelectTrigger class="w-[170px]">
+          <UiSelectValue placeholder="Graphics" />
+        </UiSelectTrigger>
+        <UiSelectContent>
+          <UiSelectItem value="all">
+            All Graphics
+          </UiSelectItem>
+          <UiSelectItem value="graphics">
+            Has Graphics
+          </UiSelectItem>
+          <UiSelectItem value="plain">
+            Plain Image
+          </UiSelectItem>
+          <UiSelectItem value="unscanned">
+            Unscanned
+          </UiSelectItem>
+        </UiSelectContent>
+      </UiSelect>
       <div class="relative">
         <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
         <UiInput
@@ -249,6 +368,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
+      <UiButton
+        size="sm"
+        variant="outline"
+        class="h-9 gap-1.5"
+        :disabled="analyzingGraphics || pendingGraphicsCount === 0"
+        @click="analyzeCurrentGraphics"
+      >
+        <RefreshCw class="size-3.5" :class="analyzingGraphics ? 'animate-spin' : ''" />
+        Analyze
+        <span v-if="pendingGraphicsCount" class="text-[10px] text-muted-foreground">
+          {{ Math.min(pendingGraphicsCount, 12) }}
+        </span>
+      </UiButton>
+      <span v-if="graphicsError" class="text-xs text-destructive max-w-[260px] truncate" :title="graphicsError">
+        {{ graphicsError }}
+      </span>
+      <span v-else-if="graphicsMessage" class="text-xs text-muted-foreground">
+        {{ graphicsMessage }}
+      </span>
       <span class="text-sm text-muted-foreground ml-auto">
         {{ filtered.length }} banners
       </span>
@@ -260,7 +398,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <template v-else>
       <!-- Summary Stats -->
-      <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 mb-6">
+      <div class="grid gap-4 grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
             <UiCardTitle class="text-sm font-medium">
@@ -357,6 +495,22 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             </p>
           </UiCardContent>
         </UiCard>
+        <UiCard>
+          <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+            <UiCardTitle class="text-sm font-medium">
+              Graphics
+            </UiCardTitle>
+            <Sparkles class="size-4 text-amber-500" />
+          </UiCardHeader>
+          <UiCardContent>
+            <div class="text-2xl font-bold text-amber-500">
+              {{ stats.withGraphics }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ stats.plainImage }} plain · {{ stats.unscannedGraphics }} unscanned
+            </p>
+          </UiCardContent>
+        </UiCard>
       </div>
 
       <!-- Banners Grid -->
@@ -386,7 +540,23 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               </span>
             </div>
             <!-- Page type badge + video badge -->
-            <div class="absolute top-2 right-2 flex items-center gap-1">
+            <div class="absolute top-2 right-2 left-20 flex flex-wrap items-center justify-end gap-1">
+              <span
+                v-if="hasGraphicsAnalysis(banner)"
+                class="text-white text-[10px] font-medium px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                :class="banner.has_graphics ? 'bg-amber-600/85' : 'bg-zinc-700/80'"
+                :title="graphicsBadgeTitle(banner)"
+              >
+                <Sparkles v-if="banner.has_graphics" class="size-2.5" />
+                {{ banner.has_graphics ? 'Graphics' : 'Plain' }}
+              </span>
+              <span
+                v-else
+                class="bg-black/45 text-white/80 text-[10px] font-medium px-1.5 py-0.5 rounded"
+                title="Not analyzed yet"
+              >
+                Unscanned
+              </span>
               <span
                 v-if="hasVideo(banner)"
                 class="bg-purple-600/80 text-white text-[10px] font-medium px-1.5 py-0.5 rounded flex items-center gap-0.5"
@@ -553,8 +723,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                 </div>
 
                 <!-- Preview metadata bar -->
-                <div class="bg-card px-6 py-3 flex items-center justify-between text-sm border-t">
-                  <div class="flex items-center gap-3">
+                <div class="bg-card px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-sm border-t">
+                  <div class="flex flex-wrap items-center gap-2 min-w-0">
                     <span class="font-medium">{{ oemName(previewBanner.oem_id) }}</span>
                     <span
                       class="text-white text-[10px] font-medium px-1.5 py-0.5 rounded"
@@ -565,6 +735,22 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                     <span v-if="hasVideo(previewBanner)" class="text-purple-500 flex items-center gap-1 text-xs font-medium">
                       <Play class="size-3 fill-current" /> Video
                     </span>
+                    <span
+                      v-if="hasGraphicsAnalysis(previewBanner)"
+                      class="flex items-center gap-1 text-xs font-medium"
+                      :class="previewBanner.has_graphics ? 'text-amber-500' : 'text-muted-foreground'"
+                      :title="graphicsBadgeTitle(previewBanner)"
+                    >
+                      <Sparkles class="size-3" />
+                      {{ previewBanner.has_graphics ? 'Graphics' : 'Plain' }}
+                    </span>
+                    <span
+                      v-for="tag in graphicsTags(previewBanner).slice(0, 3)"
+                      :key="tag"
+                      class="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {{ formatTag(tag) }}
+                    </span>
                     <span v-if="previewBanner.image_url_desktop" class="text-muted-foreground flex items-center gap-1 text-xs">
                       <Monitor class="size-3" /> Desktop
                     </span>
@@ -572,7 +758,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                       <Smartphone class="size-3" /> Mobile
                     </span>
                   </div>
-                  <div class="flex items-center gap-3">
+                  <div class="flex flex-wrap items-center justify-end gap-3">
                     <a
                       v-if="previewBanner.page_url"
                       :href="previewBanner.page_url"
@@ -589,6 +775,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                     <span class="text-xs text-muted-foreground">
                       {{ previewIndex + 1 }} / {{ filtered.length }}
                     </span>
+                    <UiButton
+                      size="sm"
+                      variant="ghost"
+                      class="h-7 gap-1 px-2 text-xs"
+                      :disabled="analyzingGraphics"
+                      @click.stop="analyzePreviewGraphics"
+                    >
+                      <RefreshCw class="size-3" :class="analyzingGraphics ? 'animate-spin' : ''" />
+                      Recheck
+                    </UiButton>
                   </div>
                 </div>
               </div>

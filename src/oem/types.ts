@@ -281,6 +281,12 @@ export interface Banner {
   image_r2_key: string;
   image_sha256: string;
   disclaimer_text: string | null;
+  has_graphics: boolean | null;
+  graphics_tags: string[];
+  graphics_confidence: number | null;
+  graphics_summary: string | null;
+  graphics_checked_at: string | null;
+  graphics_model: string | null;
   first_seen_at: string;
   last_seen_at: string;
   created_at: string;
@@ -675,6 +681,7 @@ export type AiTaskType =
   | 'page_screenshot_to_code'
   | 'page_structuring'
   | 'quick_scan'
+  | 'banner_graphics_classification'
   | 'extraction_quality_check'
   | 'section_deep_analysis'
   | 'bespoke_component'

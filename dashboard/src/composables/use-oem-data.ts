@@ -179,6 +179,12 @@ export interface Banner {
   disclaimer_text: string | null
   video_url_desktop: string | null
   video_url_mobile: string | null
+  has_graphics: boolean | null
+  graphics_tags: string[] | null
+  graphics_confidence: number | null
+  graphics_summary: string | null
+  graphics_checked_at: string | null
+  graphics_model: string | null
   last_seen_at: string
   created_at: string
   updated_at: string

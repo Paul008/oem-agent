@@ -200,6 +200,7 @@ export const TASK_TYPE_GROUPS: TaskTypeGroup[] = [
       { type: 'llm_extraction', label: 'LLM Extraction Fallback' },
       { type: 'diff_classification', label: 'Diff Classification' },
       { type: 'change_summary', label: 'Change Summary' },
+      { type: 'banner_graphics_classification', label: 'Banner Graphics Classification' },
     ],
   },
   {
@@ -380,6 +381,15 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     modelConfig: AI_ROUTER_CONFIG.groq.models.fast_classify,
     fallbackProvider: 'groq',
     fallbackModel: AI_ROUTER_CONFIG.groq.models.balanced.model,
+  },
+
+  // Crawl — Lightweight vision tag for baked-in banner graphics
+  banner_graphics_classification: {
+    provider: 'groq',
+    model: AI_ROUTER_CONFIG.groq.models.fast_classify.model,
+    modelConfig: AI_ROUTER_CONFIG.groq.models.fast_classify,
+    fallbackProvider: 'workers_ai',
+    fallbackModel: GEMMA4_CONFIG.model,
   },
 
   // Adaptive Pipeline — Extraction quality validation (fast, cheap)

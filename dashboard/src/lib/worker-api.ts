@@ -33,6 +33,21 @@ export async function triggerDesignCapture(oemId: string) {
   return workerFetch(`/api/v1/oem-agent/admin/design-capture/${oemId}`, { method: 'POST' })
 }
 
+export interface AnalyzeBannerGraphicsRequest {
+  banner_ids?: string[]
+  oem_id?: string
+  force?: boolean
+  limit?: number
+}
+
+export async function analyzeBannerGraphics(request: AnalyzeBannerGraphicsRequest) {
+  return workerFetch('/api/v1/oem-agent/admin/banners/analyze-graphics', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+}
+
 export async function fetchCronJobs() {
   return workerFetch('/cron')
 }
