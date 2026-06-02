@@ -159,22 +159,39 @@ async function upsertBanner(
   pageUrl: string,
   slide: ExtractedBannerSlide,
 ): Promise<void> {
-  await supabase.from('banners').upsert(
-    {
-      oem_id: oemId,
-      page_url: pageUrl,
-      position: slide.position,
-      headline: slide.headline ?? null,
-      sub_headline: slide.sub_headline ?? null,
-      cta_text: slide.cta_text ?? null,
-      cta_url: slide.cta_url ?? null,
-      image_url_desktop: slide.image_url_desktop,
-      image_url_mobile: slide.image_url_mobile ?? null,
-      disclaimer_text: slide.disclaimer_text ?? null,
-      last_seen_at: new Date().toISOString(),
-    },
-    { onConflict: 'oem_id,page_url,position' },
-  );
+  const now = new Date().toISOString();
+  const position = slide.position ?? 0;
+  const row = {
+    oem_id: oemId,
+    page_url: pageUrl,
+    position,
+    headline: slide.headline ?? null,
+    sub_headline: slide.sub_headline ?? null,
+    cta_text: slide.cta_text ?? null,
+    cta_url: slide.cta_url ?? null,
+    image_url_desktop: slide.image_url_desktop,
+    image_url_mobile: slide.image_url_mobile ?? null,
+    disclaimer_text: slide.disclaimer_text ?? null,
+    last_seen_at: now,
+    updated_at: now,
+  };
+
+  const { data: existing, error: lookupError } = await supabase
+    .from('banners')
+    .select('id')
+    .eq('oem_id', oemId)
+    .eq('page_url', pageUrl)
+    .eq('position', position)
+    .order('last_seen_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+
+  const query = existing?.id
+    ? supabase.from('banners').update(row).eq('id', existing.id)
+    : supabase.from('banners').insert(row);
+  const { error } = await query;
+  if (error) throw error;
 }
 
 // ============================================================================
