@@ -65,6 +65,8 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
+            'framework-vendor': ['vue', 'vue-router', 'pinia', 'pinia-plugin-persistedstate', 'vue-i18n'],
+            'data-vendor': ['@supabase/supabase-js', '@tanstack/vue-query', 'zod'],
             gsap: ['gsap', 'gsap/ScrollTrigger'],
           },
         },
