@@ -4,6 +4,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import { buildCaptureInjection } from '@/composables/use-capture-injection'
 
+import { RAW_HTML_CAPTURE_TYPE, SECTION_CAPTURE_TYPE_OPTIONS } from './section-capture-options'
+
 const props = defineProps<{
   workerBase: string
   oemId?: string
@@ -268,20 +270,6 @@ const contextMenu = ref<{ show: boolean, x: number, y: number, data: any }>({
   data: null,
 })
 
-const SECTION_TYPE_OPTIONS = [
-  { value: '_raw_html', label: 'HTML → Tailwind', divider: true },
-  { value: 'content-block', label: 'Content Block' },
-  { value: 'feature-cards', label: 'Feature Cards' },
-  { value: 'hero', label: 'Hero' },
-  { value: 'intro', label: 'Intro' },
-  { value: 'image', label: 'Image' },
-  { value: 'gallery', label: 'Gallery' },
-  { value: 'heading', label: 'Heading' },
-  { value: 'testimonial', label: 'Testimonial' },
-  { value: 'stats', label: 'Stats' },
-  { value: 'cta-banner', label: 'CTA Banner' },
-]
-
 function addToQueue(data: any, forcedType?: string) {
   completed.value = 0 // reset for next batch
   const cls = (data.classes || '').split(/\s+/).find((c: string) => c && !c.startsWith('d-') && !c.startsWith('test-')) || data.tag || 'section'
@@ -291,7 +279,7 @@ function addToQueue(data: any, forcedType?: string) {
     styledHtml: data.styledHtml || undefined,
     imageUrls: data.imageUrls || [],
     rootStyles: data.rootStyles || {},
-    label: forcedType === '_raw_html' ? 'HTML → Tailwind' : (forcedType || cls),
+    label: forcedType === RAW_HTML_CAPTURE_TYPE ? 'HTML → Tailwind' : (forcedType || cls),
     forcedType,
   })
 }
@@ -299,7 +287,7 @@ function addToQueue(data: any, forcedType?: string) {
 function onContextMenuSelect(type: string) {
   if (!contextMenu.value.data) { contextMenu.value.show = false; return }
 
-  if (type === '_raw_html') {
+  if (type === RAW_HTML_CAPTURE_TYPE) {
     // Add Tailwind-class HTML to queue — will create content-block with _generated_html when captured
     const twHtml = contextMenu.value.data.styledHtml || contextMenu.value.data.html || ''
     completed.value = 0
@@ -309,7 +297,7 @@ function onContextMenuSelect(type: string) {
       imageUrls: contextMenu.value.data.imageUrls || [],
       rootStyles: {},
       label: 'HTML clone',
-      forcedType: '_raw_html',
+      forcedType: RAW_HTML_CAPTURE_TYPE,
     })
     contextMenu.value.show = false
     return
@@ -365,7 +353,7 @@ async function captureAll() {
 
     try {
       // HTML clone: create content-block directly, no API call needed
-      if (item.forcedType === '_raw_html') {
+      if (item.forcedType === RAW_HTML_CAPTURE_TYPE) {
         emit('smartCapture', {
           type: 'content-block',
           data: { title: '', content_html: '', _generated_html: item.html, animation: 'fade-in' },
@@ -613,11 +601,11 @@ onUnmounted(() => {
           <div class="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Import as...
           </div>
-          <template v-for="opt in SECTION_TYPE_OPTIONS" :key="opt.value">
+          <template v-for="opt in SECTION_CAPTURE_TYPE_OPTIONS" :key="opt.value">
             <div v-if="opt.divider" class="border-b my-1" />
             <button
               class="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-              :class="opt.value === '_raw_html' ? 'font-medium' : ''"
+              :class="opt.value === RAW_HTML_CAPTURE_TYPE ? 'font-medium' : ''"
               @click="onContextMenuSelect(opt.value)"
             >
               {{ opt.label }}
