@@ -2372,13 +2372,30 @@ function gacImageUrl(value?: string | null): string | null {
   return null;
 }
 
+function isGacPromoImageUrl(value?: string | null): boolean {
+  const decoded = decodeURIComponent(String(value ?? '')).toLowerCase();
+  return decoded.includes('drivetest')
+    || decoded.includes('/driver/')
+    || decoded.includes('试驾')
+    || decoded.includes('lease')
+    || decoded.includes('offer');
+}
+
+function gacVehicleImageUrls(values?: Array<string | null | undefined>): string[] {
+  const urls = (values ?? [])
+    .map(gacImageUrl)
+    .filter((url): url is string => Boolean(url))
+    .filter(url => !isGacPromoImageUrl(url));
+  return [...new Set(urls)];
+}
+
 function gacLineupSlug(lineup: NonNullable<GacLineupResponse['list']>[number]): string {
   return slugify(lineup.vehSeriesCode || lineup.vehStyleName || '');
 }
 
 function gacLineupHero(lineup?: NonNullable<GacLineupResponse['list']>[number]): string | null {
   if (!lineup) return null;
-  return gacImageUrl(lineup.bgImgPc) || gacImageUrl(lineup.vehSeriesThumb0) || gacImageUrl(lineup.bgImgMobile);
+  return gacVehicleImageUrls([lineup.vehSeriesThumb0, lineup.bgImgPc, lineup.bgImgMobile])[0] ?? null;
 }
 
 function gacVariantId(variant: {
@@ -2545,7 +2562,24 @@ function classifyGacColorType(name: string): string {
   return 'solid';
 }
 
-async function fetchGacOptionalColors(vehStyleId: number): Promise<GacColor[]> {
+const GAC_AION_UT_COLOR_HEROES: Record<string, string> = {
+  'rococo-whites-emerald-green': `${GAC_CDN}/202604/1777013578051-GreenWhite.webp`,
+  'rococo-whites-classic-crimson': `${GAC_CDN}/202604/1777013654194-RedWhite.webp`,
+  'champs-elysees-beige': `${GAC_CDN}/202604/1777013698661-Cream-coloured.webp`,
+  'rococo-white': `${GAC_CDN}/202604/1777013736011-White.webp`,
+  'seine-silver': `${GAC_CDN}/202604/1777013764498-Silver.webp`,
+  'twilight-lavender': `${GAC_CDN}/202604/1777013783446-Purple.webp`,
+  'emerald-green': `${GAC_CDN}/202604/1777013799258-Green.webp`,
+  'classic-crimson': `${GAC_CDN}/202604/1777013833170-Red.webp`,
+  'cosmo-black': `${GAC_CDN}/202604/1777017311226-Black.webp`,
+};
+
+function gacColorHeroFallback(modelSlug: string | undefined, colorName: string): string | null {
+  if (modelSlug !== 'aion-ut') return null;
+  return GAC_AION_UT_COLOR_HEROES[slugify(colorName)] ?? null;
+}
+
+async function fetchGacOptionalColors(vehStyleId: number, modelSlug?: string): Promise<GacColor[]> {
   const data = await gacPost<GacOptionalResponse>('/showroom/vehicle/query/optional', { vehStyleId, opCategoryType: 'color' });
   const colors: GacColor[] = [];
   for (const color of data.list ?? []) {
@@ -2555,14 +2589,19 @@ async function fetchGacOptionalColors(vehStyleId: number): Promise<GacColor[]> {
     if (color.optionalId !== undefined && color.optionalId !== null) {
       try {
         const panorama = await gacPost<GacPanoramaResponse>('/showroom/vehicle/query/panorama', {
-          vehStyleId: 10,
+          vehStyleId,
           colorOptionalId: color.optionalId,
         });
-        galleryUrls = (panorama.list ?? []).map(image => image.picUrl).filter((url): url is string => Boolean(url));
+        galleryUrls = gacVehicleImageUrls((panorama.list ?? []).map(image => image.picUrl));
         heroUrl = galleryUrls[0] ?? null;
       } catch {
         heroUrl = null;
       }
+    }
+    const fallbackHeroUrl = gacColorHeroFallback(modelSlug, color.name);
+    if (!heroUrl && fallbackHeroUrl) {
+      heroUrl = fallbackHeroUrl;
+      galleryUrls = [fallbackHeroUrl];
     }
     const priceDelta = color.name.toLowerCase() === 'arctic white' || color.name.toLowerCase() === 'white' ? 0 : 600;
     colors.push({
@@ -2635,8 +2674,8 @@ export async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResul
           veh_style_code: apiStyleCode,
           veh_style_id: apiStyleId,
           lineup_hero: gacLineupHero(lineup),
-          lineup_mobile_hero: gacImageUrl(lineup?.bgImgMobile),
-          lineup_thumbnail: gacImageUrl(lineup?.vehSeriesThumb0),
+          lineup_mobile_hero: gacVehicleImageUrls([lineup?.bgImgMobile, lineup?.vehSeriesThumb0])[0] ?? null,
+          lineup_thumbnail: gacVehicleImageUrls([lineup?.vehSeriesThumb0])[0] ?? null,
         },
       };
     })(),
@@ -2701,9 +2740,7 @@ export async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResul
         || priceVariants[index];
       const externalKey = `${OEM_ID}-${model.slug}-${variantId}`;
       const price = pf(variant.salePrice) ?? pf(priceVariant?.salePrice);
-      const galleryUrls = [...new Set((priceVariant?.picUrlList ?? variant.picUrlList ?? [])
-        .map(gacImageUrl)
-        .filter((url): url is string => Boolean(url)))];
+      const galleryUrls = gacVehicleImageUrls(priceVariant?.picUrlList ?? variant.picUrlList);
       const heroUrl = galleryUrls[0] ?? modelHero;
       const specsJson = parseGacSpecs(configData.configs, index);
       const productPatch = specsJson ? productPatchFromSpecs(specsJson) : {};
@@ -2799,7 +2836,7 @@ export async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResul
     if (!model.is_active) continue;
     const staticColors = gacStaticColors(model.slug);
     try {
-      const optionalColors = await fetchGacOptionalColors(model.vehStyleId);
+      const optionalColors = await fetchGacOptionalColors(model.vehStyleId, model.slug);
       colorDataBySlug[model.slug] = optionalColors.length ? optionalColors : staticColors;
     } catch (error) {
       colorDataBySlug[model.slug] = staticColors;
