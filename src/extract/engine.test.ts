@@ -358,4 +358,64 @@ describe('extractWithSelectors', () => {
       image_url_mobile: 'https://www-asia.nissan-cdn.net/content/dam/Nissan/AU/Images/homepage/AU21-P00002570-09_Navara_HorseFloat_V13_NoVignette_RGB-hp-m-r8.jpg.ximg.c1m.hero.jpg',
     });
   });
+
+  it('extracts Hyundai multipurpose hero data-bg banners without duplicate CTA text', () => {
+    const html = `
+      <div
+        class="mp-hero-blade--background-image mp-hero-blade--background-image-full js-background-toggle"
+        data-bg-sm="/content/dam/hyundai/au/en/homepage/2026/elexio-campaignhero-mobile-767x975.png"
+        data-bg-lg="/content/dam/hyundai/au/en/homepage/2026/elexio-campaignhero-desktop-1920x720.png"
+      >
+        <div class="mp-hero-blade--content align-middle">
+          <div class="inner font-white" data-component-title="ALL-NEW ELEXIO.">
+            <a class="link-wrapper" href="https://www.hyundai.com/au/en/cars/eco/elexio">
+              <span>ALL-NEW ELEXIO.</span>
+            </a>
+            <h1 class="h1"><span class="headline">ALL-NEW ELEXIO.</span></h1>
+            <p class="text">Born from 35 years of EV innovation.</p>
+            <div class="cta-container">
+              <a class="btn" href="https://www.hyundai.com/au/en/cars/eco/elexio">
+                <span>Learn more</span><span class="sr-only">Learn more — ALL-NEW ELEXIO.</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="mp-hero-blade--background-image mp-hero-blade--background-image-full js-background-toggle"
+        data-bg-sm="/content/dam/hyundai/au/en/offers-images/2026/EOFYS_Banner_767x975-EOFYS-Mobile.jpg"
+        data-bg-lg="/content/dam/hyundai/au/en/offers-images/2026/EOFYS_Banner_1920x720-Desktop.jpg"
+      >
+        <h1 class="h1"><span class="headline">Hyundai EOFYS is on now!</span></h1>
+        <p class="text">Unlock offers on selected models across a wide range.</p>
+        <div class="cta-container">
+          <a role="button" class="btn hyu-trigger-pcm2-contact-dealer-modal">
+            <span>Contact a dealer</span><span class="sr-only">Contact a dealer — Hyundai EOFYS is on now!</span>
+          </a>
+        </div>
+      </div>
+    `;
+
+    const result = extractWithSelectors(html, 'hyundai-au', 'homepage', {
+      heroSlides: '.mp-hero-blade--background-image[data-bg-lg]',
+    });
+
+    expect(result.bannerSlides).toHaveLength(2);
+    expect(result.bannerSlides[0]).toMatchObject({
+      headline: 'ALL-NEW ELEXIO.',
+      sub_headline: 'Born from 35 years of EV innovation.',
+      cta_text: 'Learn more',
+      cta_url: 'https://www.hyundai.com/au/en/cars/eco/elexio',
+      image_url_desktop: 'https://www.hyundai.com/content/dam/hyundai/au/en/homepage/2026/elexio-campaignhero-desktop-1920x720.png',
+      image_url_mobile: 'https://www.hyundai.com/content/dam/hyundai/au/en/homepage/2026/elexio-campaignhero-mobile-767x975.png',
+    });
+    expect(result.bannerSlides[1]).toMatchObject({
+      headline: 'Hyundai EOFYS is on now!',
+      sub_headline: 'Unlock offers on selected models across a wide range.',
+      cta_text: 'Contact a dealer',
+      cta_url: null,
+      image_url_desktop: 'https://www.hyundai.com/content/dam/hyundai/au/en/offers-images/2026/EOFYS_Banner_1920x720-Desktop.jpg',
+      image_url_mobile: 'https://www.hyundai.com/content/dam/hyundai/au/en/offers-images/2026/EOFYS_Banner_767x975-EOFYS-Mobile.jpg',
+    });
+  });
 });

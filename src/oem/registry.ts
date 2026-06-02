@@ -402,7 +402,7 @@ export const hyundaiAu: OemDefinition = {
   },
   selectors: {
     vehicleLinks: 'a[href^="/au/en/cars/"]',
-    heroSlides: '.hero-carousel, [class*="hero"]',
+    heroSlides: '.mp-hero-blade--background-image[data-bg-lg]',
     offerTiles: '.offer, [class*="offer"]',
   },
   flags: {

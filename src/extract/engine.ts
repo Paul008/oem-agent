@@ -254,7 +254,8 @@ export function extractWithSelectors(
       )?.trim();
       const ctaHref =
         $slide.attr('data-link') ||
-        $slide.find('.kv_btn, a.cta, a[href]').first().attr('href') ||
+        $slide.find('.cta-container a[href], a.btn[href], .kv_btn[href], a.cta[href]').first().attr('href') ||
+        $slide.find('a[href]').first().attr('href') ||
         $slide.closest('a[href]').attr('href') ||
         null;
       const imageUrlDesktop = absolutise(extractImageUrl($slide, $)) || '';
@@ -608,6 +609,7 @@ export class ExtractionEngine {
 function extractImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string | null {
   // Try various image sources
   const src = extractRespimImageUrl($el, $, 'desktop') ||
+              extractDataBackgroundImageUrl($el, $, 'desktop') ||
               normalizeImageCandidate($el.find('img').attr('src')) ||
               normalizeImageCandidate($el.find('img').attr('data-src')) ||
               extractDesktopSourceImageUrl($el, $) ||
@@ -635,6 +637,30 @@ function extractDesktopSourceImageUrl($el: ReturnType<cheerio.CheerioAPI>, $: ch
 
   for (const source of candidates) {
     const src = pickLargestSrcsetCandidate($(source).attr('srcset'));
+    if (src) return src;
+  }
+
+  return null;
+}
+
+function extractDataBackgroundImageUrl(
+  $container: ReturnType<cheerio.CheerioAPI>,
+  $: cheerio.CheerioAPI,
+  target: 'desktop' | 'mobile',
+): string | null {
+  const attrs = target === 'desktop'
+    ? ['data-bg-lg', 'data-bg-desktop', 'data-desktop', 'data-desktop-src']
+    : ['data-bg-sm', 'data-bg-mobile', 'data-mobile', 'data-mobile-src', 'data-src-mobile'];
+
+  for (const attr of attrs) {
+    const direct = normalizeImageCandidate($container.attr(attr));
+    if (direct) return direct;
+  }
+
+  const selector = attrs.map((attr) => `[${attr}]`).join(', ');
+  const candidate = $container.find(selector).first();
+  for (const attr of attrs) {
+    const src = normalizeImageCandidate(candidate.attr(attr));
     if (src) return src;
   }
 
@@ -780,6 +806,7 @@ function normalizeExtractedText(text: string | null | undefined): string | null 
 
 function readableElementText($el: ReturnType<cheerio.CheerioAPI>, $: cheerio.CheerioAPI): string {
   if ($el.length === 0) return '';
+  if (($el.attr('class') || '').split(/\s+/).includes('sr-only')) return '';
 
   const parts = $el.contents().toArray().map((node) => {
     if (node.type === 'text') return (node as any).data || '';
@@ -828,12 +855,15 @@ function extractCtaText($slide: ReturnType<cheerio.CheerioAPI>, $: cheerio.Cheer
   );
   if (explicit) return explicit;
 
-  const candidates = $slide.find('.kv_btn span, a.cta, a[href], button')
-    .toArray()
-    .map((el) => normalizeExtractedText(readableElementText($(el), $)))
-    .filter((text): text is string => Boolean(text && isLikelyCtaText(text)));
+  for (const selector of ['.cta-container a, a.btn, .kv_btn span, a.cta', 'a[href]', 'button']) {
+    const candidate = $slide.find(selector)
+      .toArray()
+      .map((el) => normalizeExtractedText(readableElementText($(el), $)))
+      .find((text): text is string => Boolean(text && isLikelyCtaText(text)));
+    if (candidate) return candidate;
+  }
 
-  return candidates[0] || normalizeExtractedText($slide.closest('a[href]').attr('title') || null);
+  return normalizeExtractedText($slide.closest('a[href]').attr('title') || null);
 }
 
 function isLikelyCtaText(text: string): boolean {
@@ -979,11 +1009,15 @@ function extractMobileImageUrl($slide: ReturnType<cheerio.CheerioAPI>, $: cheeri
   const dataMobile = $slide.find('[data-mobile]').attr('data-mobile') ||
                      $slide.find('[data-src-mobile]').attr('data-src-mobile') ||
                      $slide.find('[data-mobile-src]').attr('data-mobile-src') ||
+                     $slide.find('[data-bg-sm]').attr('data-bg-sm') ||
                      $slide.find('[data-bg-mobile]').attr('data-bg-mobile');
   if (dataMobile) return dataMobile;
 
   const respimMobile = extractRespimImageUrl($slide, $, 'mobile');
   if (respimMobile) return respimMobile;
+
+  const dataBackgroundMobile = extractDataBackgroundImageUrl($slide, $, 'mobile');
+  if (dataBackgroundMobile) return dataBackgroundMobile;
 
   const cssVarMobile = extractCssUrl($slide.attr('style') || '', ['--mobile-background-image']);
   if (cssVarMobile) return cssVarMobile;
