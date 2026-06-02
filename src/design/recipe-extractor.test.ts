@@ -21,6 +21,13 @@ vi.mock('../ai/router', () => ({
       maxOutputTokens: 8192,
     },
   },
+  GEMMA4_CONFIG: {
+    model: '@cf/google/gemma-4-26b-it',
+    default_params: {
+      temperature: 0.2,
+      max_tokens: 8192,
+    },
+  },
 }));
 
 // We need to import after mocks are set up
@@ -80,7 +87,7 @@ describe('RecipeExtractor', () => {
     });
 
     it('filters out recipes with confidence <= 0.5', async () => {
-      // We test the filtering logic by mocking captureScreenshot + callVisionApi
+      // We test the filtering logic by mocking captureScreenshot + callGeminiVision
       const recipes: ExtractedRecipe[] = [
         { pattern: 'hero', variant: 'v1', label: 'Hero', resolves_to: 'hero', defaults_json: {}, confidence: 0.9 },
         { pattern: 'card-grid', variant: 'v2', label: 'Cards', resolves_to: 'feature-cards', defaults_json: {}, confidence: 0.3 },
@@ -91,8 +98,8 @@ describe('RecipeExtractor', () => {
       // Mock captureScreenshot to return a tiny PNG-like buffer
       (extractor as any).captureScreenshot = vi.fn().mockResolvedValue(new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
 
-      // Mock callVisionApi to return our test recipes
-      (extractor as any).callVisionApi = vi.fn().mockResolvedValue(recipes);
+      // Mock callGeminiVision to return our test recipes
+      (extractor as any).callGeminiVision = vi.fn().mockResolvedValue(recipes);
 
       const result: ExtractionResult = await extractor.extractRecipes('https://example.com', 'nissan-au');
 
@@ -110,7 +117,7 @@ describe('RecipeExtractor', () => {
       ];
 
       (extractor as any).captureScreenshot = vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]));
-      (extractor as any).callVisionApi = vi.fn().mockResolvedValue(recipes);
+      (extractor as any).callGeminiVision = vi.fn().mockResolvedValue(recipes);
 
       const result = await extractor.extractRecipes('https://example.com', 'kia-au');
 
@@ -126,7 +133,7 @@ describe('RecipeExtractor', () => {
       ];
 
       (extractor as any).captureScreenshot = vi.fn().mockResolvedValue(new Uint8Array([1]));
-      (extractor as any).callVisionApi = vi.fn().mockResolvedValue(recipes);
+      (extractor as any).callGeminiVision = vi.fn().mockResolvedValue(recipes);
 
       const result = await extractor.extractRecipes('https://example.com', 'ford-au');
 
@@ -135,7 +142,7 @@ describe('RecipeExtractor', () => {
 
     it('includes screenshot_base64 in the result', async () => {
       (extractor as any).captureScreenshot = vi.fn().mockResolvedValue(new Uint8Array([65, 66, 67])); // "ABC"
-      (extractor as any).callVisionApi = vi.fn().mockResolvedValue([]);
+      (extractor as any).callGeminiVision = vi.fn().mockResolvedValue([]);
 
       const result = await extractor.extractRecipes('https://example.com', 'nissan-au');
 
@@ -145,9 +152,9 @@ describe('RecipeExtractor', () => {
   });
 
   // -----------------------------------------------------------------------
-  // callVisionApi response parsing
+  // callGeminiVision response parsing
   // -----------------------------------------------------------------------
-  describe('callVisionApi error handling (private)', () => {
+  describe('callGeminiVision error handling (private)', () => {
     let extractor: InstanceType<typeof RecipeExtractor>;
 
     beforeEach(() => {
@@ -164,8 +171,8 @@ describe('RecipeExtractor', () => {
         text: () => Promise.resolve('Rate limited'),
       }));
 
-      const callVisionApi = (extractor as any).callVisionApi.bind(extractor);
-      await expect(callVisionApi('prompt', 'base64img', new AbortController().signal))
+      const callGeminiVision = (extractor as any).callGeminiVision.bind(extractor);
+      await expect(callGeminiVision('prompt', 'base64img', new AbortController().signal))
         .rejects.toThrow('Gemini 3.1 Pro API error: 429');
     });
 
@@ -175,8 +182,8 @@ describe('RecipeExtractor', () => {
         json: () => Promise.resolve({ candidates: [{ content: { parts: [{}] } }] }),
       }));
 
-      const callVisionApi = (extractor as any).callVisionApi.bind(extractor);
-      await expect(callVisionApi('prompt', 'base64img', new AbortController().signal))
+      const callGeminiVision = (extractor as any).callGeminiVision.bind(extractor);
+      await expect(callGeminiVision('prompt', 'base64img', new AbortController().signal))
         .rejects.toThrow('Empty response from Gemini 3.1 Pro');
     });
 
@@ -188,8 +195,8 @@ describe('RecipeExtractor', () => {
         }),
       }));
 
-      const callVisionApi = (extractor as any).callVisionApi.bind(extractor);
-      await expect(callVisionApi('prompt', 'base64img', new AbortController().signal))
+      const callGeminiVision = (extractor as any).callGeminiVision.bind(extractor);
+      await expect(callGeminiVision('prompt', 'base64img', new AbortController().signal))
         .rejects.toThrow('Invalid JSON from Gemini 3.1 Pro');
     });
 
@@ -201,9 +208,9 @@ describe('RecipeExtractor', () => {
         }),
       }));
 
-      const callVisionApi = (extractor as any).callVisionApi.bind(extractor);
-      await expect(callVisionApi('prompt', 'base64img', new AbortController().signal))
-        .rejects.toThrow('Response missing "recipes" array');
+      const callGeminiVision = (extractor as any).callGeminiVision.bind(extractor);
+      await expect(callGeminiVision('prompt', 'base64img', new AbortController().signal))
+        .rejects.toThrow('Response from Gemini 3.1 Pro missing "recipes" array');
     });
 
     it('returns parsed recipes on valid response', async () => {
@@ -218,8 +225,8 @@ describe('RecipeExtractor', () => {
         }),
       }));
 
-      const callVisionApi = (extractor as any).callVisionApi.bind(extractor);
-      const result = await callVisionApi('prompt', 'base64img', new AbortController().signal);
+      const callGeminiVision = (extractor as any).callGeminiVision.bind(extractor);
+      const result = await callGeminiVision('prompt', 'base64img', new AbortController().signal);
       expect(result).toEqual(recipes);
     });
   });
@@ -228,7 +235,7 @@ describe('RecipeExtractor', () => {
   // buildRecipeExtractionPrompt (module-level function, tested indirectly)
   // -----------------------------------------------------------------------
   describe('prompt building', () => {
-    it('extractRecipes calls callVisionApi with a prompt containing the oemId', async () => {
+    it('extractRecipes calls callGeminiVision with a prompt containing the oemId', async () => {
       const extractor = new RecipeExtractor({
         browser: {} as Fetcher,
         googleApiKey: 'test-key',
@@ -237,7 +244,7 @@ describe('RecipeExtractor', () => {
       (extractor as any).captureScreenshot = vi.fn().mockResolvedValue(new Uint8Array([1]));
 
       const callSpy = vi.fn().mockResolvedValue([]);
-      (extractor as any).callVisionApi = callSpy;
+      (extractor as any).callGeminiVision = callSpy;
 
       await extractor.extractRecipes('https://example.com', 'mazda-au');
 
