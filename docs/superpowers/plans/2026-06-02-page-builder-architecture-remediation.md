@@ -33,13 +33,16 @@ Completed implementation:
 - Centralized Add Section recipe pattern groups and icons.
 - Centralized Section Capture import-as options so labels derive from shared section metadata.
 - Centralized page-builder AI model options and grouped model selection with the AI-backed Structure/Pipeline actions across desktop and compact menus.
+- Centralized conversion-generated grid column selection so list-to-card conversions only emit renderer-supported column counts.
+- Added a root `test:dashboard` script for the dashboard Vitest suite using the dashboard Vite config.
 
 Verification run after the latest remediation:
-- `CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/page-builder/ai-model-options.test.ts dashboard/src/pages/dashboard/components/page-builder/section-capture-options.test.ts dashboard/src/pages/dashboard/components/page-builder/recipe-patterns.test.ts dashboard/src/pages/dashboard/components/page-builder/section-media.test.ts dashboard/src/pages/dashboard/components/page-builder/section-icons.test.ts dashboard/src/pages/dashboard/components/page-builder/section-templates.test.ts dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts dashboard/src/composables/use-page-builder.test.ts dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts dashboard/src/lib/worker-api.test.ts dashboard/src/lib/recipes.test.ts dashboard/build-chunking.test.ts`
+- `pnpm run test:dashboard`
 - `pnpm run typecheck`
 - `CI=1 pnpm --dir dashboard build`
 
 Latest implementation commits:
+- `64fa83c refactor(dashboard): centralize conversion grid columns`
 - `e9c41c1 refactor(dashboard): associate model selector with AI actions`
 - `ddcd398 refactor(dashboard): share section capture options`
 - `94c5167 refactor(dashboard): share recipe pattern metadata`
@@ -51,7 +54,7 @@ Latest implementation commits:
 
 Remaining phase-two candidates:
 - Split `SectionProperties.vue` into per-section editor modules.
-- Continue consolidating section defaults and converter rules into dashboard metadata modules.
+- Extract shared nested item default builders from section defaults, converters, and editor add-item actions.
 - Add Playwright coverage for missing-page, structured-page, clone, structure, and adaptive-pipeline flows.
 
 The original step-by-step plan below is retained for audit history. Some checkboxes may remain unchecked even though the current status above reflects the committed implementation.
