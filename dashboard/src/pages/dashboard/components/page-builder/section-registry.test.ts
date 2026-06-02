@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { SECTION_DEFAULTS } from './section-templates'
+import { SECTION_DEFAULTS, type PageSectionType } from './section-templates'
 
 interface MockAsyncComponent {
   loader: () => Promise<unknown>
@@ -53,6 +53,27 @@ describe('section-registry', () => {
         registry.resolveSectionComponent({ id: `display-${type}`, type }, { context: 'display' }),
         expectedPath,
       )
+    }
+  })
+
+  it('reuses renderer instances for display mappings that do not need overrides', () => {
+    const displayOverrideTypes = new Set<PageSectionType>([
+      'intro',
+      'content-block',
+      'gallery',
+      'image',
+      'image-showcase',
+      'video',
+      'embed',
+      'cta-banner',
+    ])
+
+    for (const type of Object.keys(SECTION_DEFAULTS) as PageSectionType[]) {
+      if (displayOverrideTypes.has(type)) {
+        expect(registry.displaySectionComponentMap[type]).not.toBe(registry.canvasSectionComponentMap[type])
+      } else {
+        expect(registry.displaySectionComponentMap[type]).toBe(registry.canvasSectionComponentMap[type])
+      }
     }
   })
 

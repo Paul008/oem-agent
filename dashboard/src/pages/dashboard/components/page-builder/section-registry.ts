@@ -6,72 +6,89 @@ type SectionComponent = Component
 
 export type SectionRenderContext = 'canvas' | 'display'
 
+const SectionHero = defineAsyncComponent(() => import('../sections/SectionHero.vue'))
+const SectionHeading = defineAsyncComponent(() => import('../sections/SectionHeading.vue'))
+const SectionIntro = defineAsyncComponent(() => import('../sections/SectionIntro.vue'))
+const SectionTabs = defineAsyncComponent(() => import('../sections/SectionTabs.vue'))
+const SectionColorPicker = defineAsyncComponent(() => import('../sections/SectionColorPicker.vue'))
+const SectionSpecs = defineAsyncComponent(() => import('../sections/SectionSpecs.vue'))
+const SectionGallery = defineAsyncComponent(() => import('../sections/SectionGallery.vue'))
+const SectionFeatureCards = defineAsyncComponent(() => import('../sections/SectionFeatureCards.vue'))
+const SectionVideo = defineAsyncComponent(() => import('../sections/SectionVideo.vue'))
+const SectionCta = defineAsyncComponent(() => import('../sections/SectionCta.vue'))
+const SectionContentBlock = defineAsyncComponent(() => import('../sections/SectionContentBlock.vue'))
+const SectionAccordion = defineAsyncComponent(() => import('../sections/SectionAccordion.vue'))
+const SectionEnquiryForm = defineAsyncComponent(() => import('../sections/SectionEnquiryForm.vue'))
+const SectionMap = defineAsyncComponent(() => import('../sections/SectionMap.vue'))
+const SectionAlert = defineAsyncComponent(() => import('../sections/SectionAlert.vue'))
+const SectionDivider = defineAsyncComponent(() => import('../sections/SectionDivider.vue'))
+const SectionTestimonial = defineAsyncComponent(() => import('../sections/SectionTestimonial.vue'))
+const SectionComparisonTable = defineAsyncComponent(() => import('../sections/SectionComparisonTable.vue'))
+const SectionStats = defineAsyncComponent(() => import('../sections/SectionStats.vue'))
+const SectionLogoStrip = defineAsyncComponent(() => import('../sections/SectionLogoStrip.vue'))
+const SectionEmbed = defineAsyncComponent(() => import('../sections/SectionEmbed.vue'))
+const SectionPricingTable = defineAsyncComponent(() => import('../sections/SectionPricingTable.vue'))
+const SectionStickyBar = defineAsyncComponent(() => import('../sections/SectionStickyBar.vue'))
+const SectionFinanceCalculator = defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue'))
+const SectionImageBlock = defineAsyncComponent(() => import('../sections/SectionImageBlock.vue'))
+const SectionImageShowcase = defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue'))
+const SectionCardGrid = defineAsyncComponent(() => import('../sections/SectionCardGrid.vue'))
+const SectionSplitContent = defineAsyncComponent(() => import('../sections/SectionSplitContent.vue'))
+const SectionMedia = defineAsyncComponent(() => import('../sections/SectionMedia.vue'))
+const SectionPinnedScroll = defineAsyncComponent(() => import('../sections/SectionPinnedScroll.vue'))
+
+const baseSectionComponentMap = {
+  'hero': SectionHero,
+  'heading': SectionHeading,
+  'intro': SectionIntro,
+  'tabs': SectionTabs,
+  'color-picker': SectionColorPicker,
+  'specs-grid': SectionSpecs,
+  'gallery': SectionGallery,
+  'feature-cards': SectionFeatureCards,
+  'video': SectionVideo,
+  'cta-banner': SectionCta,
+  'content-block': SectionContentBlock,
+  'accordion': SectionAccordion,
+  'enquiry-form': SectionEnquiryForm,
+  'map': SectionMap,
+  'alert': SectionAlert,
+  'divider': SectionDivider,
+  'testimonial': SectionTestimonial,
+  'comparison-table': SectionComparisonTable,
+  'stats': SectionStats,
+  'logo-strip': SectionLogoStrip,
+  'embed': SectionEmbed,
+  'pricing-table': SectionPricingTable,
+  'sticky-bar': SectionStickyBar,
+  'countdown': SectionHero,
+  'finance-calculator': SectionFinanceCalculator,
+  'image': SectionImageBlock,
+  'image-showcase': SectionImageShowcase,
+  'card-grid': SectionCardGrid,
+  'split-content': SectionSplitContent,
+  'media': SectionMedia,
+  'pinned-scroll': SectionPinnedScroll,
+} satisfies Record<PageSectionType, SectionComponent>
+
+const displaySectionComponentOverrides = {
+  'intro': SectionSplitContent,
+  'gallery': SectionMedia,
+  'video': SectionMedia,
+  'cta-banner': SectionHero,
+  'content-block': SectionSplitContent,
+  'embed': SectionMedia,
+  'image': SectionMedia,
+  'image-showcase': SectionMedia,
+} satisfies Partial<Record<PageSectionType, SectionComponent>>
+
 export const canvasSectionComponentMap: Record<PageSectionType, SectionComponent> = {
-  'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'heading': defineAsyncComponent(() => import('../sections/SectionHeading.vue')),
-  'intro': defineAsyncComponent(() => import('../sections/SectionIntro.vue')),
-  'tabs': defineAsyncComponent(() => import('../sections/SectionTabs.vue')),
-  'color-picker': defineAsyncComponent(() => import('../sections/SectionColorPicker.vue')),
-  'specs-grid': defineAsyncComponent(() => import('../sections/SectionSpecs.vue')),
-  'gallery': defineAsyncComponent(() => import('../sections/SectionGallery.vue')),
-  'feature-cards': defineAsyncComponent(() => import('../sections/SectionFeatureCards.vue')),
-  'video': defineAsyncComponent(() => import('../sections/SectionVideo.vue')),
-  'cta-banner': defineAsyncComponent(() => import('../sections/SectionCta.vue')),
-  'content-block': defineAsyncComponent(() => import('../sections/SectionContentBlock.vue')),
-  'accordion': defineAsyncComponent(() => import('../sections/SectionAccordion.vue')),
-  'enquiry-form': defineAsyncComponent(() => import('../sections/SectionEnquiryForm.vue')),
-  'map': defineAsyncComponent(() => import('../sections/SectionMap.vue')),
-  'alert': defineAsyncComponent(() => import('../sections/SectionAlert.vue')),
-  'divider': defineAsyncComponent(() => import('../sections/SectionDivider.vue')),
-  'testimonial': defineAsyncComponent(() => import('../sections/SectionTestimonial.vue')),
-  'comparison-table': defineAsyncComponent(() => import('../sections/SectionComparisonTable.vue')),
-  'stats': defineAsyncComponent(() => import('../sections/SectionStats.vue')),
-  'logo-strip': defineAsyncComponent(() => import('../sections/SectionLogoStrip.vue')),
-  'embed': defineAsyncComponent(() => import('../sections/SectionEmbed.vue')),
-  'pricing-table': defineAsyncComponent(() => import('../sections/SectionPricingTable.vue')),
-  'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
-  'countdown': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
-  'image': defineAsyncComponent(() => import('../sections/SectionImageBlock.vue')),
-  'image-showcase': defineAsyncComponent(() => import('../sections/SectionImageShowcase.vue')),
-  'card-grid': defineAsyncComponent(() => import('../sections/SectionCardGrid.vue')),
-  'split-content': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'media': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'pinned-scroll': defineAsyncComponent(() => import('../sections/SectionPinnedScroll.vue')),
+  ...baseSectionComponentMap,
 }
 
 export const displaySectionComponentMap: Record<PageSectionType, SectionComponent> = {
-  'hero': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'heading': defineAsyncComponent(() => import('../sections/SectionHeading.vue')),
-  'intro': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'tabs': defineAsyncComponent(() => import('../sections/SectionTabs.vue')),
-  'color-picker': defineAsyncComponent(() => import('../sections/SectionColorPicker.vue')),
-  'specs-grid': defineAsyncComponent(() => import('../sections/SectionSpecs.vue')),
-  'gallery': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'feature-cards': defineAsyncComponent(() => import('../sections/SectionFeatureCards.vue')),
-  'video': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'cta-banner': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'content-block': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'accordion': defineAsyncComponent(() => import('../sections/SectionAccordion.vue')),
-  'enquiry-form': defineAsyncComponent(() => import('../sections/SectionEnquiryForm.vue')),
-  'map': defineAsyncComponent(() => import('../sections/SectionMap.vue')),
-  'alert': defineAsyncComponent(() => import('../sections/SectionAlert.vue')),
-  'divider': defineAsyncComponent(() => import('../sections/SectionDivider.vue')),
-  'testimonial': defineAsyncComponent(() => import('../sections/SectionTestimonial.vue')),
-  'comparison-table': defineAsyncComponent(() => import('../sections/SectionComparisonTable.vue')),
-  'stats': defineAsyncComponent(() => import('../sections/SectionStats.vue')),
-  'logo-strip': defineAsyncComponent(() => import('../sections/SectionLogoStrip.vue')),
-  'embed': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'pricing-table': defineAsyncComponent(() => import('../sections/SectionPricingTable.vue')),
-  'sticky-bar': defineAsyncComponent(() => import('../sections/SectionStickyBar.vue')),
-  'countdown': defineAsyncComponent(() => import('../sections/SectionHero.vue')),
-  'finance-calculator': defineAsyncComponent(() => import('../sections/SectionFinanceCalculator.vue')),
-  'image': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'image-showcase': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'card-grid': defineAsyncComponent(() => import('../sections/SectionCardGrid.vue')),
-  'split-content': defineAsyncComponent(() => import('../sections/SectionSplitContent.vue')),
-  'media': defineAsyncComponent(() => import('../sections/SectionMedia.vue')),
-  'pinned-scroll': defineAsyncComponent(() => import('../sections/SectionPinnedScroll.vue')),
+  ...baseSectionComponentMap,
+  ...displaySectionComponentOverrides,
 }
 
 export const sectionComponentMap = canvasSectionComponentMap
