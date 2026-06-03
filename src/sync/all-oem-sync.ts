@@ -3042,6 +3042,22 @@ function fordFeatureList(html?: string): string[] {
   return features;
 }
 
+function fordFeatureListFromSpecs(specsJson: SpecsJson | null | undefined): string[] {
+  if (!specsJson) return [];
+  const features = [
+    specsJson.engine?.description,
+    specsJson.engine?.type,
+    specsJson.transmission?.type,
+    specsJson.transmission?.drive,
+    specsJson.body?.type,
+    typeof specsJson.capacity?.seats === 'number' ? `${specsJson.capacity.seats} seats` : null,
+  ]
+    .map(value => cleanFeature(String(value ?? '')))
+    .filter((value): value is string => Boolean(value));
+
+  return [...new Set(features)].slice(0, 8);
+}
+
 function buildFordSpecsJson(variant: FordAdmeVariant): SpecsJson | null {
   const specs: SpecsJson = {};
   const engine = fordFieldDisplay(variant.engine);
@@ -3233,7 +3249,7 @@ export async function syncFordAdme(supabase: SupabaseClient): Promise<AllOemSync
       disclaimer_text: cleanFordText(variant.disclaimer) || null,
       primary_image_r2_key: primaryImage,
       gallery_image_count: (variant.colours ?? []).reduce((count, color) => count + fordColorGallery(color).length, 0),
-      key_features: features,
+      key_features: features.length ? features : fordFeatureListFromSpecs(specsJson),
       variant_name: variantName,
       variant_code: variant.slug || String(variant.id ?? ''),
       model_id: dbModel.id,
@@ -3367,6 +3383,20 @@ export async function syncFordAdme(supabase: SupabaseClient): Promise<AllOemSync
     } else {
       result.staleDeleted = staleIds.length;
     }
+  }
+
+  const staleIdSet = new Set(staleIds);
+  for (const product of oldProducts ?? []) {
+    if (staleIdSet.has(product.id)) continue;
+    const hasFeatures = Array.isArray(product.key_features) && product.key_features.length > 0;
+    if (hasFeatures) continue;
+    const features = fordFeatureListFromSpecs(product.specs_json as SpecsJson | null);
+    if (!features.length) continue;
+    const { error: featureErr } = await supabase
+      .from('products')
+      .update({ key_features: features })
+      .eq('id', product.id);
+    if (featureErr) result.errors.push(`Ford feature backfill ${product.external_key ?? product.id}: ${featureErr.message}`);
   }
 
   return result;
