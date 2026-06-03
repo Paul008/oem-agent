@@ -36,7 +36,7 @@ import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialo
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
-import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled } from './page-workflow'
+import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, shouldShowSourceUrlInput } from './page-workflow'
 
 const route = useRoute()
 const router = useRouter()
@@ -218,7 +218,7 @@ const primaryWorkflowAction = computed(() => getPrimaryWorkflowAction(pageWorkfl
 const canShowEditorActions = computed(() => pageWorkflowState.value !== 'missing')
 const canShowWorkflowActions = computed(() => canShowEditorActions.value && pageWorkflowState.value !== 'custom')
 const canShowSectionActions = computed(() => canShowEditorActions.value && (isStructured.value || sections.value.length > 0))
-const canShowSourceUrlInput = computed(() => pageWorkflowState.value !== 'custom' && needsSourceUrl.value)
+const canShowSourceUrlInput = computed(() => shouldShowSourceUrlInput(pageWorkflowState.value))
 const pipelineActionDisabled = computed(() => isPipelineActionDisabled({
   needsSourceUrl: needsSourceUrl.value,
   sourceUrlOverride: sourceUrlOverride.value,
@@ -677,7 +677,7 @@ const workflowSteps = computed(() => {
           No page exists for <span class="font-medium text-foreground">{{ oemId }} / {{ modelSlug }}</span>.
           Run the adaptive pipeline from the OEM source site.
         </p>
-        <div v-if="needsSourceUrl" class="space-y-1">
+        <div v-if="canShowSourceUrlInput" class="space-y-1">
           <label for="missing-source-url" class="sr-only">OEM source URL</label>
           <input
             id="missing-source-url"

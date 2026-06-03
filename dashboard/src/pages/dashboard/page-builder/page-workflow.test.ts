@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled } from './page-workflow'
+import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, shouldShowSourceUrlInput } from './page-workflow'
 
 describe('getPageWorkflowState', () => {
   it('returns missing when the API error is a 404', () => {
@@ -88,6 +88,19 @@ describe('isPipelineActionDisabled', () => {
       sourceUrlOverride: '',
       pipelining: true,
     })).toBe(true)
+  })
+})
+
+describe('shouldShowSourceUrlInput', () => {
+  it('allows source overrides for existing model pages', () => {
+    expect(shouldShowSourceUrlInput('missing')).toBe(true)
+    expect(shouldShowSourceUrlInput('empty')).toBe(true)
+    expect(shouldShowSourceUrlInput('structured')).toBe(true)
+    expect(shouldShowSourceUrlInput('cloned')).toBe(true)
+  })
+
+  it('does not show source overrides for custom pages', () => {
+    expect(shouldShowSourceUrlInput('custom')).toBe(false)
   })
 })
 

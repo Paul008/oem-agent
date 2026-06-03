@@ -76,3 +76,7 @@ export function isPipelineActionDisabled(options: PipelineActionDisabledOptions)
     || (options.needsSourceUrl && !options.sourceUrlOverride?.trim()),
   )
 }
+
+export function shouldShowSourceUrlInput(state: PageWorkflowState): boolean {
+  return state !== 'custom'
+}
