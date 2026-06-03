@@ -5,6 +5,7 @@ export interface CloneStudioHtmlOptions {
   title: string
   baseHref: string
   selectedRegionId: string | null
+  bridgeToken?: string
 }
 
 const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
@@ -12,7 +13,8 @@ const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const { bodyHtml, headParts } = extractHeadParts(options.rendered)
   const rendered = disableClonePreviewNavigation(bodyHtml)
-  const selectedRegion = JSON.stringify(options.selectedRegionId).replace(/</g, '\\u003C')
+  const selectedRegion = safeJson(options.selectedRegionId)
+  const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -69,7 +71,9 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
 ${rendered}
 <script data-clone-studio-bridge="true">
 (function () {
+  var BRIDGE_TOKEN = ${bridgeToken}
   var MESSAGE_READY = 'clone-studio:ready'
+  var MESSAGE_SELECT = 'clone-studio:select'
   var MESSAGE_SELECT_REGION = 'clone-studio:select-region'
   var MESSAGE_DOM_UPDATED = 'clone-studio:dom-updated'
   var MESSAGE_PATCH_FIELD = 'clone-studio:patch-field'
@@ -78,11 +82,13 @@ ${rendered}
   var hoverRegion = null
 
   function post(type, extra) {
+    var bodyHtml = getBodyHtml()
     var message = {
       source: 'clone-studio',
       type: type,
-      html: getBodyHtml(),
-      bodyHtml: getBodyHtml(),
+      bridgeToken: BRIDGE_TOKEN,
+      html: bodyHtml,
+      bodyHtml: bodyHtml,
       selectedRegionId: selectedRegion ? selectedRegion.getAttribute('data-oem-region-id') : null
     }
 
@@ -107,7 +113,124 @@ ${rendered}
       markedRegions[j].removeAttribute('data-clone-studio-selected')
     }
 
-    return clone.innerHTML
+    return stripPreviewScaffolding(clone.innerHTML)
+  }
+
+  function stripPreviewScaffolding(html) {
+    return String(html || '').replace(/<a\\b[^>]*>/gi, restorePreviewAnchor)
+  }
+
+  function restorePreviewAnchor(tag) {
+    var originalHref = readHtmlAttribute(tag, 'data-oem-preview-href')
+    var originalOnclick = readHtmlAttribute(tag, 'data-oem-preview-onclick')
+    var nextTag = tag
+
+    nextTag = removeHtmlAttribute(nextTag, 'data-oem-preview-link')
+    nextTag = removeHtmlAttribute(nextTag, 'data-oem-preview-href')
+    nextTag = removeHtmlAttribute(nextTag, 'data-oem-preview-onclick')
+    nextTag = nextTag.replace(/\\sonclick\\s*=\\s*(["'])return false\\1/gi, '')
+
+    if (originalHref != null)
+      nextTag = setHtmlAttribute(nextTag, 'href', originalHref)
+    else
+      nextTag = nextTag.replace(/\\shref\\s*=\\s*(["'])#oem-preview-disabled\\1/gi, '')
+
+    if (originalOnclick != null)
+      nextTag = setHtmlAttribute(nextTag, 'onclick', originalOnclick)
+
+    return nextTag
+  }
+
+  function readHtmlAttribute(tag, name) {
+    var doubleMatch = String(tag).match(new RegExp('\\\\s' + escapeRegExp(name) + '\\\\s*=\\\\s*"([^"]*)"', 'i'))
+    if (doubleMatch)
+      return doubleMatch[1]
+
+    var singleMatch = String(tag).match(new RegExp("\\\\s" + escapeRegExp(name) + "\\\\s*=\\\\s*'([^']*)'", "i"))
+    return singleMatch ? singleMatch[1] : null
+  }
+
+  function removeHtmlAttribute(tag, name) {
+    var doublePattern = new RegExp('\\\\s' + escapeRegExp(name) + '\\\\s*=\\\\s*"[^"]*"', 'gi')
+    var singlePattern = new RegExp("\\\\s" + escapeRegExp(name) + "\\\\s*=\\\\s*'[^']*'", "gi")
+    return String(tag).replace(doublePattern, '').replace(singlePattern, '')
+  }
+
+  function setHtmlAttribute(tag, name, value) {
+    var escapedValue = String(value).replace(/"/g, '&quot;')
+    var doublePattern = new RegExp('\\\\s' + escapeRegExp(name) + '\\\\s*=\\\\s*"[^"]*"', 'i')
+    var singlePattern = new RegExp("\\\\s" + escapeRegExp(name) + "\\\\s*=\\\\s*'[^']*'", "i")
+
+    if (doublePattern.test(tag))
+      return String(tag).replace(doublePattern, ' ' + name + '="' + escapedValue + '"')
+
+    if (singlePattern.test(tag))
+      return String(tag).replace(singlePattern, ' ' + name + '="' + escapedValue + '"')
+
+    return String(tag).replace(/>$/, ' ' + name + '="' + escapedValue + '">')
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^$\\{\\}()|[\\]\\\\]/g, '\\\\$&')
+  }
+
+  function sanitizeUrl(value) {
+    var url = String(value == null ? '' : value).trim()
+    var lowerUrl = url.toLowerCase()
+
+    if (!url)
+      return ''
+
+    if (lowerUrl.indexOf('http://') === 0 || lowerUrl.indexOf('https://') === 0)
+      return url
+
+    if (url.charAt(0) === '#' || (url.charAt(0) === '/' && url.charAt(1) !== '/'))
+      return url
+
+    if (lowerUrl.indexOf('data:image/') === 0)
+      return url
+
+    return ''
+  }
+
+  function sanitizeSrcset(value) {
+    return String(value == null ? '' : value)
+      .split(',')
+      .map(function (candidate) {
+        var trimmed = candidate.trim()
+        var match = trimmed.match(/^(\\S+)(.*)$/)
+        if (!match)
+          return ''
+
+        var sanitizedUrl = sanitizeUrl(match[1])
+        return sanitizedUrl ? sanitizedUrl + match[2] : ''
+      })
+      .filter(Boolean)
+      .join(', ')
+  }
+
+  function sanitizeStyle(value) {
+    return String(value || '').replace(/url\\((["']?)(.*?)\\1\\)/gi, function (_match, _quote, url) {
+      var sanitizedUrl = sanitizeUrl(url)
+      return sanitizedUrl ? 'url("' + sanitizedUrl.replace(/"/g, '%22') + '")' : ''
+    })
+  }
+
+  function sanitizeHtml(value) {
+    var html = String(value == null ? '' : value)
+    html = html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, '')
+    html = html.replace(/<script\\b[^>]*\\/?\\s*>/gi, '')
+    html = html.replace(/\\son[a-z0-9:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+)/gi, '')
+    html = html.replace(/\\s(href|src|poster|action|xlink:href)\\s*=\\s*(["'])(.*?)\\2/gi, function (_match, name, quote, url) {
+      return ' ' + name + '=' + quote + sanitizeUrl(url) + quote
+    })
+    html = html.replace(/\\ssrcset\\s*=\\s*(["'])(.*?)\\1/gi, function (_match, quote, srcset) {
+      return ' srcset=' + quote + sanitizeSrcset(srcset) + quote
+    })
+    html = html.replace(/\\sstyle\\s*=\\s*(["'])(.*?)\\1/gi, function (_match, quote, style) {
+      return ' style=' + quote + sanitizeStyle(style) + quote
+    })
+    return html
   }
 
   function escapeAttributeSelectorValue(value) {
@@ -144,11 +267,11 @@ ${rendered}
     return target.closest(REGION_SELECTOR)
   }
 
-  function closestAnchor(target) {
+  function isNavigationElement(target) {
     if (!target || !target.closest)
-      return null
+      return false
 
-    return target.closest('a')
+    return !!target.closest('a, area, img[usemap], map, button, form, input[type="submit"], input[type="image"], input[type="button"], [role="button"], [onclick], [data-oem-preview-link]')
   }
 
   function setHoverRegion(region) {
@@ -257,19 +380,21 @@ ${rendered}
   }
 
   function patchImage(target, value) {
+    var sanitizedUrl = sanitizeUrl(value)
+
     if (target.tagName === 'SOURCE') {
-      target.setAttribute('srcset', String(value || ''))
+      target.setAttribute('srcset', sanitizeSrcset(value))
       return
     }
 
     if (target.tagName === 'IMG') {
-      target.setAttribute('src', String(value || ''))
+      target.setAttribute('src', sanitizedUrl)
       if (target.hasAttribute('srcset'))
-        target.setAttribute('srcset', String(value || ''))
+        target.setAttribute('srcset', sanitizeSrcset(value))
       return
     }
 
-    target.style.backgroundImage = value ? 'url("' + String(value).replace(/"/g, '%22') + '")' : ''
+    target.style.backgroundImage = sanitizedUrl ? 'url("' + sanitizedUrl.replace(/"/g, '%22') + '")' : ''
   }
 
   function patchLink(target, value, message) {
@@ -277,8 +402,9 @@ ${rendered}
     if (!anchor)
       anchor = target
 
-    anchor.setAttribute('href', String(value || ''))
-    anchor.setAttribute('data-oem-preview-href', String(value || ''))
+    var sanitizedUrl = sanitizeUrl(value)
+    anchor.setAttribute('href', sanitizedUrl)
+    anchor.setAttribute('data-oem-preview-href', sanitizedUrl)
 
     if (message.text != null)
       anchor.textContent = String(message.text)
@@ -316,11 +442,25 @@ ${rendered}
     else if (kind === 'visibility')
       patchVisibility(target, value)
     else if (kind === 'html')
-      target.innerHTML = String(value == null ? '' : value)
+      target.innerHTML = sanitizeHtml(value)
     else
       target.textContent = String(value == null ? '' : value)
 
     return true
+  }
+
+  function handleNavigationEvent(event) {
+    var target = event.target
+    var region = closestRegion(target)
+
+    if (event.type === 'click' || isNavigationElement(target))
+      event.preventDefault()
+
+    if (region) {
+      event.preventDefault()
+      event.stopPropagation()
+      selectRegion(region, true)
+    }
   }
 
   document.addEventListener('mousemove', function (event) {
@@ -331,25 +471,23 @@ ${rendered}
     setHoverRegion(null)
   }, true)
 
-  document.addEventListener('click', function (event) {
-    var target = event.target
-    var anchor = closestAnchor(target)
-    var region = closestRegion(target)
-
-    if (anchor)
-      event.preventDefault()
-
-    if (region) {
-      event.preventDefault()
-      event.stopPropagation()
-      selectRegion(region, true)
-    }
+  document.addEventListener('click', handleNavigationEvent, true)
+  document.addEventListener('auxclick', handleNavigationEvent, true)
+  document.addEventListener('dblclick', handleNavigationEvent, true)
+  document.addEventListener('submit', function (event) {
+    event.preventDefault()
+    event.stopPropagation()
   }, true)
 
   window.addEventListener('message', function (event) {
-    var message = event.data || {}
+    if (event.source !== window.parent)
+      return
 
-    if (message.type === MESSAGE_SELECT_REGION) {
+    var message = event.data || {}
+    if (message.bridgeToken !== BRIDGE_TOKEN)
+      return
+
+    if (message.type === MESSAGE_SELECT || message.type === MESSAGE_SELECT_REGION) {
       selectRegion(findRegionById(message.regionId || message.selectedRegionId || message.id), true)
       return
     }
@@ -368,6 +506,18 @@ ${rendered}
 </html>`
 }
 
+export function stripCloneStudioScaffoldingForTest(html: string): string {
+  return stripCloneStudioScaffolding(html)
+}
+
+export function sanitizeCloneStudioUrlForTest(value: unknown): string {
+  return sanitizeCloneStudioUrl(value)
+}
+
+export function sanitizeCloneStudioHtmlForTest(value: unknown): string {
+  return sanitizeCloneStudioHtml(value)
+}
+
 function extractHeadParts(rendered: string): { bodyHtml: string, headParts: string[] } {
   const headParts: string[] = []
   const bodyHtml = rendered.replace(HEAD_PART_PATTERN, (match: string) => {
@@ -376,6 +526,128 @@ function extractHeadParts(rendered: string): { bodyHtml: string, headParts: stri
   })
 
   return { bodyHtml, headParts }
+}
+
+function stripCloneStudioScaffolding(html: string): string {
+  return html.replace(/<a\b[^>]*>/gi, restorePreviewAnchor)
+}
+
+function restorePreviewAnchor(tag: string): string {
+  const originalHref = readHtmlAttribute(tag, 'data-oem-preview-href')
+  const originalOnclick = readHtmlAttribute(tag, 'data-oem-preview-onclick')
+  let nextTag = tag
+
+  nextTag = removeHtmlAttribute(nextTag, 'data-oem-preview-link')
+  nextTag = removeHtmlAttribute(nextTag, 'data-oem-preview-href')
+  nextTag = removeHtmlAttribute(nextTag, 'data-oem-preview-onclick')
+  nextTag = nextTag.replace(/\sonclick\s*=\s*(["'])return false\1/gi, '')
+
+  if (originalHref != null)
+    nextTag = setHtmlAttribute(nextTag, 'href', originalHref)
+  else
+    nextTag = nextTag.replace(/\shref\s*=\s*(["'])#oem-preview-disabled\1/gi, '')
+
+  if (originalOnclick != null)
+    nextTag = setHtmlAttribute(nextTag, 'onclick', originalOnclick)
+
+  return nextTag
+}
+
+function readHtmlAttribute(tag: string, name: string): string | null {
+  const pattern = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`, 'i')
+  const match = tag.match(pattern)
+  return match?.[2] ?? null
+}
+
+function removeHtmlAttribute(tag: string, name: string): string {
+  const pattern = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*(?:"[^"]*"|'[^']*')`, 'gi')
+  return tag.replace(pattern, '')
+}
+
+function setHtmlAttribute(tag: string, name: string, value: string): string {
+  const escapedValue = value.replace(/"/g, '&quot;')
+  const pattern = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`, 'i')
+
+  if (pattern.test(tag))
+    return tag.replace(pattern, ` ${name}="${escapedValue}"`)
+
+  return tag.replace(/>$/, ` ${name}="${escapedValue}">`)
+}
+
+function sanitizeCloneStudioUrl(value: unknown): string {
+  const url = String(value ?? '').trim()
+  const lowerUrl = url.toLowerCase()
+
+  if (!url)
+    return ''
+
+  if (lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://'))
+    return url
+
+  if (url.startsWith('#') || (url.startsWith('/') && !url.startsWith('//')))
+    return url
+
+  if (lowerUrl.startsWith('data:image/'))
+    return url
+
+  return ''
+}
+
+function sanitizeCloneStudioSrcset(value: unknown): string {
+  return String(value ?? '')
+    .split(',')
+    .map((candidate: string) => {
+      const trimmed = candidate.trim()
+      const match = trimmed.match(/^(\S+)(.*)$/)
+      if (!match)
+        return ''
+
+      const sanitizedUrl = sanitizeCloneStudioUrl(match[1])
+      return sanitizedUrl ? `${sanitizedUrl}${match[2]}` : ''
+    })
+    .filter(Boolean)
+    .join(', ')
+}
+
+function sanitizeCloneStudioStyle(value: string): string {
+  return value.replace(/url\((["']?)(.*?)\1\)/gi, (_match: string, _quote: string, url: string) => {
+    const sanitizedUrl = sanitizeCloneStudioUrl(url)
+    return sanitizedUrl ? `url("${sanitizedUrl.replace(/"/g, '%22')}")` : ''
+  })
+}
+
+function sanitizeCloneStudioHtml(value: unknown): string {
+  let html = String(value ?? '')
+  html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+  html = html.replace(/<script\b[^>]*\/?\s*>/gi, '')
+  html = html.replace(/\son[a-z0-9:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  html = html.replace(/\s(href|src|poster|action|xlink:href)\s*=\s*(["'])(.*?)\2/gi, (_match: string, name: string, quote: string, url: string) => {
+    return ` ${name}=${quote}${sanitizeCloneStudioUrl(url)}${quote}`
+  })
+  html = html.replace(/\ssrcset\s*=\s*(["'])(.*?)\1/gi, (_match: string, quote: string, srcset: string) => {
+    return ` srcset=${quote}${sanitizeCloneStudioSrcset(srcset)}${quote}`
+  })
+  html = html.replace(/\sstyle\s*=\s*(["'])(.*?)\1/gi, (_match: string, quote: string, style: string) => {
+    return ` style=${quote}${sanitizeCloneStudioStyle(style)}${quote}`
+  })
+
+  return html
+}
+
+function createCloneStudioBridgeToken(): string {
+  const cryptoApi = globalThis.crypto
+
+  if (cryptoApi?.getRandomValues) {
+    const values = new Uint32Array(4)
+    cryptoApi.getRandomValues(values)
+    return Array.from(values, (value: number) => value.toString(36)).join('')
+  }
+
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+}
+
+function safeJson(value: string | null): string {
+  return JSON.stringify(value).replace(/</g, '\\u003C')
 }
 
 function escapeHtmlAttribute(value: string): string {
@@ -392,4 +664,8 @@ function escapeHtmlText(value: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
