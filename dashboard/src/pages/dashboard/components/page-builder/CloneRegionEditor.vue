@@ -10,7 +10,7 @@ const emit = defineEmits<{
     regionId: string
     fieldId: string
     selector: string
-    kind: CloneEditableField['kind']
+    kind: Exclude<CloneEditableField['kind'], 'background'>
     value: string | boolean
     html?: string
     text?: string
@@ -28,7 +28,7 @@ function patchField(field: CloneEditableField, value: string | boolean) {
     regionId: string
     fieldId: string
     selector: string
-    kind: CloneEditableField['kind']
+    kind: Exclude<CloneEditableField['kind'], 'background'>
     value: string | boolean
     html?: string
     text?: string
@@ -36,8 +36,12 @@ function patchField(field: CloneEditableField, value: string | boolean) {
     regionId: region.id,
     fieldId: field.id,
     selector: field.selector,
-    kind: field.kind,
+    kind: field.kind as Exclude<CloneEditableField['kind'], 'background'>,
     value,
+  }
+
+  if (field.kind === 'background') {
+    return
   }
 
   if (field.kind === 'html')
@@ -93,12 +97,23 @@ function visibilityValue(value: unknown): string {
         />
 
         <UiInput
-          v-else-if="field.kind === 'image' || field.kind === 'link' || field.kind === 'button' || field.kind === 'background'"
+          v-else-if="field.kind === 'image' || field.kind === 'link' || field.kind === 'button'"
           :model-value="stringValue(field.value)"
           class="h-8 text-xs"
-          :placeholder="field.kind === 'background' ? '#ffffff or image URL' : undefined"
           @update:model-value="patchField(field, String($event))"
         />
+
+        <div v-else-if="field.kind === 'background'" class="space-y-1">
+          <UiInput
+            :model-value="stringValue(field.value)"
+            class="h-8 text-xs"
+            disabled
+            placeholder="Background editing requires bridge support"
+          />
+          <p class="text-[11px] text-muted-foreground">
+            Background edits are read-only until the iframe bridge supports style patching.
+          </p>
+        </div>
 
         <UiSelect
           v-else-if="field.kind === 'visibility'"

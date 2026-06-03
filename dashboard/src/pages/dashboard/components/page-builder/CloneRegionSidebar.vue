@@ -12,8 +12,8 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  selectRegion: [regionId: string]
-  editRegion: [regionId: string]
+  selectRegion: [region: CloneRegion]
+  editRegion: [region: CloneRegion]
 }>()
 
 const sortedRegions = computed(() => [...props.regions].sort((a, b) => a.top - b.top))
@@ -50,7 +50,7 @@ function fieldCount(region: CloneRegion): number {
           class="w-full rounded-md border p-3 text-left transition hover:bg-muted/60"
           :class="selectedRegionId === region.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border bg-background'"
           :aria-pressed="selectedRegionId === region.id"
-          @click="emit('selectRegion', region.id)"
+          @click="emit('selectRegion', region)"
         >
           <span class="flex items-start justify-between gap-3">
             <span class="min-w-0">
@@ -67,7 +67,7 @@ function fieldCount(region: CloneRegion): number {
               class="shrink-0 rounded border px-2 py-1 text-xs font-medium hover:bg-background"
               title="Edit clone region"
               aria-label="Edit clone region"
-              @click.stop="emit('editRegion', region.id)"
+              @click.stop="emit('editRegion', region)"
             >
               Edit
             </button>

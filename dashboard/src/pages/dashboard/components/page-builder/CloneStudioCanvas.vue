@@ -24,11 +24,15 @@ const emit = defineEmits<{
 const iframe = ref<HTMLIFrameElement | null>(null)
 const bridgeToken = createBridgeToken()
 
-const frameHtml = computed(() => buildCloneStudioHtml({
+const cloneDocument = computed(() => ({
   rendered: getCloneHtml(props.page),
   title: props.title,
   baseHref: props.baseHref || props.workerBase || '/',
-  selectedRegionId: props.selectedRegionId,
+}))
+
+const frameHtml = computed(() => buildCloneStudioHtml({
+  ...cloneDocument.value,
+  selectedRegionId: null,
   bridgeToken,
 }))
 
@@ -80,14 +84,22 @@ function patchField(payload: Record<string, unknown>) {
   })
 }
 
+function selectRegionInFrame(regionId: string | null) {
+  postToFrame({
+    type: 'clone-studio:select',
+    regionId,
+    bridgeToken,
+  })
+}
+
+function onFrameLoad() {
+  selectRegionInFrame(props.selectedRegionId)
+}
+
 watch(
   () => props.selectedRegionId,
   (regionId) => {
-    postToFrame({
-      type: 'clone-studio:select',
-      regionId,
-      bridgeToken,
-    })
+    selectRegionInFrame(regionId)
   },
 )
 
@@ -112,5 +124,6 @@ defineExpose({
     sandbox="allow-scripts"
     title="Clone Studio canvas"
     :srcdoc="frameHtml"
+    @load="onFrameLoad"
   />
 </template>
