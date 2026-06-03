@@ -160,6 +160,53 @@ describe('page mode helpers', () => {
     expect(updated.content.rendered).toContain('Clone')
   })
 
+  it('keeps active clone mode when sections are regenerated', () => {
+    const page: any = {
+      active_mode: 'clone',
+      version: 9,
+      content: {
+        rendered: '<main>Clone</main>',
+        sections: [{ id: 'old', type: 'intro' }],
+      },
+    }
+
+    const updated = applySectionsMode(page, [{ id: 'new', type: 'hero' }], {
+      mode: 'clone',
+      version: 9,
+      generated_at: '2026-06-03T02:00:00.000Z',
+    })
+
+    expect(updated.active_mode).toBe('clone')
+    expect(updated.content.sections).toEqual([{ id: 'new', type: 'hero' }])
+    expect(updated.content.rendered).toContain('Clone')
+  })
+
+  it('can refresh clone mode while preserving section mode', () => {
+    const page: any = {
+      active_mode: 'sections',
+      content: {
+        modes: {
+          sections: { items: [{ id: 's1', type: 'hero', heading: 'Manual' }] },
+        },
+        sections: [{ id: 's1', type: 'hero', heading: 'Manual' }],
+      },
+    }
+
+    const updated = applyCloneMode(page, {
+      rendered: '<main>New Clone</main>',
+      source_url: 'https://www.ford.com.au/showroom/cars/mustang/',
+      viewport: { width: 1440, height: 1080 },
+      asset_map: {},
+      stylesheet_urls: [],
+      section_index: [],
+      warnings: [],
+    })
+
+    expect(updated.active_mode).toBe('sections')
+    expect(updated.content.modes.clone.rendered).toContain('New Clone')
+    expect(updated.content.modes.sections.items[0].heading).toBe('Manual')
+  })
+
   it('activates sections when the original active mode was invalid despite existing generated content', () => {
     const page: any = {
       id: 'ford-au-mustang',

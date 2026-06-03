@@ -18,6 +18,7 @@ import type {
 } from '../oem/types';
 import type { AiRouter } from '../ai/router';
 import type { SmartPromptBuilder } from './prompt-builder';
+import { applySectionsMode } from './page-modes';
 
 const R2_PREFIX = 'pages/definitions';
 
@@ -266,9 +267,14 @@ export class PageStructurer {
       const costUsd = promptM * 2.00 + completionM * 12.00;
 
       // 6. Update page with sections, bump version
-      pageData.content.sections = sections;
+      const generatedAt = new Date().toISOString();
+      applySectionsMode(pageData, sections, {
+        mode: 'clone',
+        version: pageData.version || 0,
+        generated_at: generatedAt,
+      });
       pageData.version = (pageData.version || 0) + 1;
-      pageData.generated_at = new Date().toISOString();
+      pageData.generated_at = generatedAt;
 
       // 7. Store back to R2
       const jsonStr = JSON.stringify(pageData);

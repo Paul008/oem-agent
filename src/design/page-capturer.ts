@@ -14,6 +14,7 @@
  */
 
 import type { OemId, VehicleModelPage } from '../oem/types';
+import { applyCloneMode, type ModeAwarePage } from './page-modes';
 
 // ============================================================================
 // Types
@@ -40,12 +41,20 @@ interface DomCaptureResult {
   elementCount: number;
 }
 
+type StoredVehicleModelPage = VehicleModelPage & ModeAwarePage;
+
 const R2_PREFIX = 'pages/definitions';
 const R2_ASSETS_PREFIX = 'pages/assets';
 const R2_SCREENSHOTS_PREFIX = 'screenshots';
 const MAX_IMAGE_DOWNLOADS = 50;
 const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
+
+function extractStylesheetHref(linkTag: string): string | null {
+  const match = linkTag.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i);
+
+  return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
+}
 
 // ============================================================================
 // PageCapturer Class
@@ -110,31 +119,64 @@ export class PageCapturer {
 
       // Build VehicleModelPage and store in R2
       const name = modelName || capture.title;
+      const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+      const existingObj = await this.r2Bucket.get(latestKey);
+      let existingPage: StoredVehicleModelPage | undefined;
 
-      const pageData: VehicleModelPage = {
+      if (existingObj) {
+        try {
+          existingPage = (await existingObj.json()) as StoredVehicleModelPage;
+        } catch (err) {
+          console.warn(`[PageCapturer] Failed to parse existing page at ${latestKey}; refreshing clone from scratch`, err);
+        }
+      }
+
+      const fallbackSlides = heroUrl ? [{
+        heading: capture.title || name,
+        sub_heading: '',
+        button: '',
+        desktop: heroUrl,
+        mobile: heroUrl,
+        bottom_strip: [],
+      }] : [];
+      const existingContent = existingPage?.content;
+      const basePage: StoredVehicleModelPage = {
+        ...(existingPage ?? {}),
         id: `${oemId}-${modelSlug}`,
         slug: modelSlug,
         name,
         oem_id: oemId,
         header: {
-          slides: heroUrl ? [{
-            heading: capture.title || name,
-            sub_heading: '',
-            button: '',
-            desktop: heroUrl,
-            mobile: heroUrl,
-            bottom_strip: [],
-          }] : [],
+          ...(existingPage?.header ?? {}),
+          slides: existingPage?.header?.slides?.length
+            ? existingPage.header.slides
+            : fallbackSlides,
         },
-        content: { rendered: assembledHtml, sections: [] as any[] },
-        form: false,
-        variant_link: `/models/${modelSlug}/variants`,
+        content: {
+          ...(existingContent ?? {}),
+          rendered: existingContent?.rendered ?? '',
+          sections: Array.isArray(existingContent?.sections) ? existingContent.sections : [],
+          modes: existingContent?.modes,
+        },
+        form: existingPage?.form ?? false,
+        variant_link: existingPage?.variant_link ?? `/models/${modelSlug}/variants`,
         generated_at: new Date().toISOString(),
         source_url: sourceUrl,
-        version: 3,
+        version: typeof existingPage?.version === 'number' ? existingPage.version + 1 : 3,
       };
 
-      const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+      const pageData = applyCloneMode(basePage, {
+        rendered: assembledHtml,
+        source_url: sourceUrl,
+        viewport: { width: 1440, height: 1080 },
+        asset_map: Object.fromEntries(urlMapping),
+        stylesheet_urls: capture.stylesheetLinks
+          .map(extractStylesheetHref)
+          .filter((href): href is string => Boolean(href)),
+        section_index: [],
+        warnings: [],
+      }, { activate: !existingPage || !existingPage.active_mode }) as VehicleModelPage;
+
       const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
       const jsonStr = JSON.stringify(pageData);
 
