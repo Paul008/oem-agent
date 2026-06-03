@@ -40,6 +40,15 @@ const previewWidthClass: Record<string, string> = {
 
 const showCloneFrame = computed(() => props.activeMode === 'clone' && props.isCloned)
 const showStructuredPreview = computed(() => props.activeMode === 'sections' && props.isStructured && props.sections.length > 0)
+const cloneStudioCanvas = ref<InstanceType<typeof CloneStudioCanvas> | null>(null)
+
+function patchCloneField(payload: Record<string, unknown>) {
+  cloneStudioCanvas.value?.patchField(payload)
+}
+
+defineExpose({
+  patchCloneField,
+})
 
 // Preview animation on a section
 async function previewAnimation(sectionId: string, animation: string) {
@@ -296,6 +305,7 @@ function sectionStyle(section: any): Record<string, string> {
         <div class="h-full min-h-[720px] transition-all duration-300 bg-white" :class="previewWidthClass[previewWidth]">
           <!-- Clone Studio srcdoc preserves the legacy static preview image intent: oem-static-clone-shim .imgdesktop .dsktoponly -->
           <CloneStudioCanvas
+            ref="cloneStudioCanvas"
             :page="page"
             :title="page?.name || 'Clone Studio'"
             :base-href="page?.source_url || workerBase"

@@ -56,6 +56,73 @@ describe('usePageBuilder media URL resolution', () => {
     expect(builder.sections.value).toEqual([{ id: 's1', type: 'hero' }])
   })
 
+  it('restores mode-aware section items on undo', () => {
+    const builder = usePageBuilder()
+    builder.page.value = {
+      active_mode: 'sections',
+      content: {
+        sections: [{ id: 's1', type: 'hero', heading: 'Original' }],
+        modes: {
+          sections: {
+            items: [{ id: 's1', type: 'hero', heading: 'Original' }],
+          },
+        },
+      },
+    }
+
+    builder.replaceSections([{ id: 's1', type: 'hero', heading: 'Edited' }])
+    builder.replaceSections([{ id: 's1', type: 'hero', heading: 'Second edit' }])
+
+    expect(builder.sections.value[0].heading).toBe('Second edit')
+
+    builder.undo()
+
+    expect(builder.sections.value[0].heading).toBe('Original')
+    expect(builder.page.value.content.sections[0].heading).toBe('Original')
+    expect(builder.page.value.content.modes.sections.items[0].heading).toBe('Original')
+  })
+
+  it('clears selections that do not belong to the active page mode', () => {
+    const builder = usePageBuilder()
+    builder.page.value = {
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>OEM clone</main>',
+        sections: [{ id: 's1', type: 'hero' }],
+        modes: {
+          clone: {
+            rendered: '<main>OEM clone</main>',
+            section_index: [{
+              id: 'r1',
+              label: 'Hero',
+              selector: 'main',
+              tag: 'main',
+              classes: [],
+              top: 0,
+              height: 400,
+              editable_fields: [],
+            }],
+          },
+          sections: {
+            items: [{ id: 's1', type: 'hero' }],
+          },
+        },
+      },
+    }
+
+    builder.selectSection('s1')
+    builder.selectCloneRegion('r1')
+
+    builder.setActiveMode('sections')
+    expect(builder.selectedCloneRegionId.value).toBeNull()
+    expect(builder.selectedSectionId.value).toBe('s1')
+
+    builder.selectCloneRegion('r1')
+    builder.setActiveMode('clone')
+    expect(builder.selectedSectionId.value).toBeNull()
+    expect(builder.selectedCloneRegionId.value).toBe('r1')
+  })
+
   it('normalizes resolved worker media URLs before storage', () => {
     const section = {
       id: 'hero-1',

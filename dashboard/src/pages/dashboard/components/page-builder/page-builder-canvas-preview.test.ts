@@ -32,6 +32,35 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).not.toContain("previewMode.value = 'sections'")
   })
 
+  it('forwards clone editor patch payloads into the Clone Studio iframe', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('function patchCloneField(payload: Record<string, unknown>)')
+    expect(source).toContain('cloneStudioCanvas.value?.patchField(payload)')
+    expect(source).toContain('defineExpose({')
+    expect(source).toContain('patchCloneField,')
+    expect(source).toContain('ref="cloneStudioCanvas"')
+
+    expect(pageSource).toContain('import CloneRegionEditor')
+    expect(pageSource).toContain('ref="pageBuilderCanvas"')
+    expect(pageSource).toContain('function patchCloneField(payload: CloneFieldPatchPayload)')
+    expect(pageSource).toContain('pageBuilderCanvas.value?.patchCloneField(payload)')
+    expect(pageSource).toContain('<CloneRegionEditor')
+    expect(pageSource).toContain('@patch-field="patchCloneField"')
+  })
+
+  it('clears clone drafts and section editor state on mode and page changes', () => {
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+
+    expect(pageSource).toContain("if (mode !== 'clone')")
+    expect(pageSource).toContain('cloneDraftHtml.value = null')
+    expect(pageSource).toContain('cloneEditorOpen.value = false')
+    expect(pageSource).toContain('cloneDraftHtml.value = cloneHtml.value')
+    expect(pageSource).toContain('closeEditor()')
+    expect(pageSource).toContain("() => page.value?.id ?? page.value?.slug")
+  })
+
   it('keeps desktop-only cloned OEM images visible in the static iframe preview', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 

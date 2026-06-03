@@ -187,9 +187,7 @@ export function usePageBuilder() {
     _restoringHistory = true
     historyIndex.value = index
     const restored = JSON.parse(JSON.stringify(history.value[index].sections))
-    if (page.value?.content) {
-      page.value.content.sections = restored
-    }
+    sections.value = restored
     isDirty.value = true
     _restoringHistory = false
   }
@@ -316,6 +314,10 @@ export function usePageBuilder() {
       return
     if (page.value)
       page.value.active_mode = mode
+    if (mode === 'clone')
+      selectedSectionId.value = null
+    if (mode === 'sections')
+      selectedCloneRegionId.value = null
   }
 
   function selectCloneRegion(idOrRegion: string | CloneRegion | null) {

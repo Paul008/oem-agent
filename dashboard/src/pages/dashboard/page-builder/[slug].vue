@@ -21,7 +21,7 @@ import {
   Undo2,
   Zap,
 } from 'lucide-vue-next'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useOemData } from '@/composables/use-oem-data'
@@ -32,6 +32,8 @@ import type { CloneRegion, PageMode } from './page-modes'
 
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
+import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
+import type { CloneFieldPatchPayload } from '../components/page-builder/CloneRegionEditor.vue'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
 import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
@@ -113,9 +115,14 @@ const showHistory = ref(false)
 const showSectionBrowser = ref(false)
 const showCapture = ref(false)
 const cloneDraftHtml = ref<string | null>(null)
+const cloneEditorOpen = ref(false)
+const pageBuilderCanvas = ref<{ patchCloneField: (payload: Record<string, unknown>) => void } | null>(null)
 const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
+)
+const selectedCloneRegion = computed(() =>
+  selectedCloneRegionId.value ? cloneRegions.value.find(region => region.id === selectedCloneRegionId.value) ?? null : null,
 )
 
 function openEditor(id: string) {
@@ -131,6 +138,14 @@ function updateEditorSection(updates: Record<string, any>) {
 }
 
 function setPageMode(mode: PageMode) {
+  if (mode !== 'clone') {
+    cloneDraftHtml.value = null
+    cloneEditorOpen.value = false
+  }
+  else {
+    cloneDraftHtml.value = cloneHtml.value
+    closeEditor()
+  }
   setActiveMode(mode)
 }
 
@@ -141,6 +156,11 @@ function onCloneDomUpdated(html: string) {
 
 function onCloneRegionSelected(region: CloneRegion) {
   selectCloneRegion(region)
+  cloneEditorOpen.value = true
+}
+
+function patchCloneField(payload: CloneFieldPatchPayload) {
+  pageBuilderCanvas.value?.patchCloneField(payload)
 }
 
 async function saveActiveMode() {
@@ -223,6 +243,8 @@ onMounted(async () => {
   const slug = (route.params as { slug?: string }).slug
   if (slug) {
     await loadPage(slug)
+    cloneDraftHtml.value = null
+    cloneEditorOpen.value = false
   }
 })
 
@@ -307,6 +329,26 @@ const workflowSteps = computed(() => {
     },
   ]
 })
+
+watch(
+  () => page.value?.id ?? page.value?.slug,
+  () => {
+    cloneDraftHtml.value = null
+    cloneEditorOpen.value = false
+  },
+)
+
+watch(
+  activeMode,
+  (mode, previousMode) => {
+    if (previousMode === 'clone' && mode !== 'clone') {
+      cloneDraftHtml.value = null
+      cloneEditorOpen.value = false
+    }
+    if (mode === 'clone')
+      closeEditor()
+  },
+)
 </script>
 
 <template>
@@ -778,6 +820,7 @@ const workflowSteps = computed(() => {
         <!-- Canvas (left) -->
         <UiResizablePanel :default-size="65" :min-size="40">
           <PageBuilderCanvas
+            ref="pageBuilderCanvas"
             :page="page"
             :sections="sections"
             :selected-section-id="selectedSectionId"
@@ -846,6 +889,23 @@ const workflowSteps = computed(() => {
         @convert="(type: string) => convertSection(editorSection.id, type as any)"
         @update:section="updateEditorSection($event)"
       />
+
+      <UiSheet
+        v-if="activeMode === 'clone'"
+        :open="cloneEditorOpen && !!selectedCloneRegion"
+        @update:open="cloneEditorOpen = $event"
+      >
+        <UiSheetContent side="right" class="w-80 sm:w-96 p-0">
+          <UiSheetHeader class="sr-only">
+            <UiSheetTitle>Clone Inspector</UiSheetTitle>
+            <UiSheetDescription>Edit fields in the selected cloned DOM region</UiSheetDescription>
+          </UiSheetHeader>
+          <CloneRegionEditor
+            :region="selectedCloneRegion"
+            @patch-field="patchCloneField"
+          />
+        </UiSheetContent>
+      </UiSheet>
     </template>
 
     <!-- Section Capture (load page in iframe, click to capture) -->
