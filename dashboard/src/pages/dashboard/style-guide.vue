@@ -206,8 +206,17 @@ const ACTIVE_LINE_PX = 120
 let scrollRaf = 0
 
 function updateActiveSection() {
-  let current = sectionNav.value[0]?.id ?? ''
-  for (const item of sectionNav.value) {
+  const nav = sectionNav.value
+  if (!nav.length)
+    return
+  // At (or near) the page bottom, the final section wins — short trailing sections (e.g. Components
+  // after a 3000px Recipes block) can never scroll their top up to the line.
+  if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+    activeSection.value = nav[nav.length - 1].id
+    return
+  }
+  let current = nav[0].id
+  for (const item of nav) {
     const el = document.getElementById(item.id)
     if (el && el.getBoundingClientRect().top <= ACTIVE_LINE_PX)
       current = item.id
