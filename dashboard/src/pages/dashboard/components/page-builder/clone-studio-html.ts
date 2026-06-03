@@ -8,6 +8,8 @@ export interface CloneStudioHtmlOptions {
   bridgeToken?: string
 }
 
+export type CloneStudioUrlContext = 'link' | 'media'
+
 const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
@@ -113,7 +115,7 @@ ${rendered}
       markedRegions[j].removeAttribute('data-clone-studio-selected')
     }
 
-    return stripPreviewScaffolding(clone.innerHTML)
+    return sanitizeHtml(stripPreviewScaffolding(clone.innerHTML))
   }
 
   function stripPreviewScaffolding(html) {
@@ -174,20 +176,53 @@ ${rendered}
     return String(value).replace(/[.*+?^$\\{\\}()|[\\]\\\\]/g, '\\\\$&')
   }
 
-  function sanitizeUrl(value) {
+  function decodeHtmlEntities(value) {
+    return String(value)
+      .replace(/&#x([0-9a-f]+);?/gi, function (_match, code) {
+        return String.fromCharCode(parseInt(code, 16))
+      })
+      .replace(/&#([0-9]+);?/g, function (_match, code) {
+        return String.fromCharCode(parseInt(code, 10))
+      })
+      .replace(/&colon;/gi, ':')
+  }
+
+  function isSafeRasterDataImage(normalizedUrl) {
+    return /^data:image\\/(?:png|jpe?g|gif|webp|avif)(?:;[^,]*)?,/.test(normalizedUrl)
+  }
+
+  function isRelativeUrl(url, context) {
+    if (url.indexOf('//') === 0)
+      return false
+
+    if (context === 'link' && url.charAt(0) === '#')
+      return true
+
+    return url.charAt(0) === '/'
+      || url.indexOf('./') === 0
+      || url.indexOf('../') === 0
+      || url.charAt(0) === '?'
+      || /^[a-z0-9._~-]/i.test(url)
+  }
+
+  function sanitizeUrl(value, context) {
     var url = String(value == null ? '' : value).trim()
-    var lowerUrl = url.toLowerCase()
+    var normalizedUrl = decodeHtmlEntities(url).replace(/[\\s\\x00-\\x1F\\x7F]+/g, '').toLowerCase()
+    var policy = context === 'media' ? 'media' : 'link'
 
     if (!url)
       return ''
 
-    if (lowerUrl.indexOf('http://') === 0 || lowerUrl.indexOf('https://') === 0)
+    if (normalizedUrl.indexOf('http://') === 0 || normalizedUrl.indexOf('https://') === 0)
       return url
 
-    if (url.charAt(0) === '#' || (url.charAt(0) === '/' && url.charAt(1) !== '/'))
+    if (policy === 'media' && isSafeRasterDataImage(normalizedUrl))
       return url
 
-    if (lowerUrl.indexOf('data:image/') === 0)
+    if (/^[a-z][a-z0-9+.-]*:/i.test(normalizedUrl))
+      return ''
+
+    if (isRelativeUrl(url, policy))
       return url
 
     return ''
@@ -202,7 +237,7 @@ ${rendered}
         if (!match)
           return ''
 
-        var sanitizedUrl = sanitizeUrl(match[1])
+        var sanitizedUrl = sanitizeUrl(match[1], 'media')
         return sanitizedUrl ? sanitizedUrl + match[2] : ''
       })
       .filter(Boolean)
@@ -211,9 +246,22 @@ ${rendered}
 
   function sanitizeStyle(value) {
     return String(value || '').replace(/url\\((["']?)(.*?)\\1\\)/gi, function (_match, _quote, url) {
-      var sanitizedUrl = sanitizeUrl(url)
+      var sanitizedUrl = sanitizeUrl(url, 'media')
       return sanitizedUrl ? 'url("' + sanitizedUrl.replace(/"/g, '%22') + '")' : ''
     })
+  }
+
+  function escapeHtmlAttributeValue(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+  }
+
+  function urlPolicyForAttribute(name) {
+    var lowerName = String(name).toLowerCase()
+    return lowerName === 'src' || lowerName === 'poster' ? 'media' : 'link'
   }
 
   function sanitizeHtml(value) {
@@ -221,14 +269,17 @@ ${rendered}
     html = html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, '')
     html = html.replace(/<script\\b[^>]*\\/?\\s*>/gi, '')
     html = html.replace(/\\son[a-z0-9:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+)/gi, '')
-    html = html.replace(/\\s(href|src|poster|action|xlink:href)\\s*=\\s*(["'])(.*?)\\2/gi, function (_match, name, quote, url) {
-      return ' ' + name + '=' + quote + sanitizeUrl(url) + quote
+    html = html.replace(/\\s(href|src|poster|action|xlink:href)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi, function (_match, name, doubleQuotedUrl, singleQuotedUrl, unquotedUrl) {
+      var url = doubleQuotedUrl != null ? doubleQuotedUrl : singleQuotedUrl != null ? singleQuotedUrl : unquotedUrl
+      return ' ' + name + '="' + escapeHtmlAttributeValue(sanitizeUrl(url, urlPolicyForAttribute(name))) + '"'
     })
-    html = html.replace(/\\ssrcset\\s*=\\s*(["'])(.*?)\\1/gi, function (_match, quote, srcset) {
-      return ' srcset=' + quote + sanitizeSrcset(srcset) + quote
+    html = html.replace(/\\ssrcset\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi, function (_match, doubleQuotedSrcset, singleQuotedSrcset, unquotedSrcset) {
+      var srcset = doubleQuotedSrcset != null ? doubleQuotedSrcset : singleQuotedSrcset != null ? singleQuotedSrcset : unquotedSrcset
+      return ' srcset="' + escapeHtmlAttributeValue(sanitizeSrcset(srcset)) + '"'
     })
-    html = html.replace(/\\sstyle\\s*=\\s*(["'])(.*?)\\1/gi, function (_match, quote, style) {
-      return ' style=' + quote + sanitizeStyle(style) + quote
+    html = html.replace(/\\sstyle\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi, function (_match, doubleQuotedStyle, singleQuotedStyle, unquotedStyle) {
+      var style = doubleQuotedStyle != null ? doubleQuotedStyle : singleQuotedStyle != null ? singleQuotedStyle : unquotedStyle
+      return ' style="' + escapeHtmlAttributeValue(sanitizeStyle(style)) + '"'
     })
     return html
   }
@@ -380,7 +431,7 @@ ${rendered}
   }
 
   function patchImage(target, value) {
-    var sanitizedUrl = sanitizeUrl(value)
+    var sanitizedUrl = sanitizeUrl(value, 'media')
 
     if (target.tagName === 'SOURCE') {
       target.setAttribute('srcset', sanitizeSrcset(value))
@@ -402,7 +453,7 @@ ${rendered}
     if (!anchor)
       anchor = target
 
-    var sanitizedUrl = sanitizeUrl(value)
+    var sanitizedUrl = sanitizeUrl(value, 'link')
     anchor.setAttribute('href', sanitizedUrl)
     anchor.setAttribute('data-oem-preview-href', sanitizedUrl)
 
@@ -449,16 +500,25 @@ ${rendered}
     return true
   }
 
+  function stopBlockedEvent(event) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (event.stopImmediatePropagation)
+      event.stopImmediatePropagation()
+  }
+
   function handleNavigationEvent(event) {
     var target = event.target
     var region = closestRegion(target)
+    var shouldBlock = event.type === 'click' || isNavigationElement(target)
 
-    if (event.type === 'click' || isNavigationElement(target))
-      event.preventDefault()
+    if (shouldBlock)
+      stopBlockedEvent(event)
 
     if (region) {
-      event.preventDefault()
-      event.stopPropagation()
+      if (!shouldBlock)
+        stopBlockedEvent(event)
       selectRegion(region, true)
     }
   }
@@ -475,8 +535,7 @@ ${rendered}
   document.addEventListener('auxclick', handleNavigationEvent, true)
   document.addEventListener('dblclick', handleNavigationEvent, true)
   document.addEventListener('submit', function (event) {
-    event.preventDefault()
-    event.stopPropagation()
+    stopBlockedEvent(event)
   }, true)
 
   window.addEventListener('message', function (event) {
@@ -510,8 +569,12 @@ export function stripCloneStudioScaffoldingForTest(html: string): string {
   return stripCloneStudioScaffolding(html)
 }
 
-export function sanitizeCloneStudioUrlForTest(value: unknown): string {
-  return sanitizeCloneStudioUrl(value)
+export function serializeCloneStudioBodyForTest(html: string): string {
+  return serializeCloneStudioBody(html)
+}
+
+export function sanitizeCloneStudioUrlForTest(value: unknown, context: CloneStudioUrlContext = 'link'): string {
+  return sanitizeCloneStudioUrl(value, context)
 }
 
 export function sanitizeCloneStudioHtmlForTest(value: unknown): string {
@@ -526,6 +589,10 @@ function extractHeadParts(rendered: string): { bodyHtml: string, headParts: stri
   })
 
   return { bodyHtml, headParts }
+}
+
+function serializeCloneStudioBody(html: string): string {
+  return sanitizeCloneStudioHtml(stripCloneStudioScaffolding(html))
 }
 
 function stripCloneStudioScaffolding(html: string): string {
@@ -574,20 +641,52 @@ function setHtmlAttribute(tag: string, name: string, value: string): string {
   return tag.replace(/>$/, ` ${name}="${escapedValue}">`)
 }
 
-function sanitizeCloneStudioUrl(value: unknown): string {
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&#x([0-9a-f]+);?/gi, (_match: string, code: string) => {
+      return String.fromCharCode(Number.parseInt(code, 16))
+    })
+    .replace(/&#([0-9]+);?/g, (_match: string, code: string) => {
+      return String.fromCharCode(Number.parseInt(code, 10))
+    })
+    .replace(/&colon;/gi, ':')
+}
+
+function isSafeRasterDataImage(normalizedUrl: string): boolean {
+  return /^data:image\/(?:png|jpe?g|gif|webp|avif)(?:;[^,]*)?,/.test(normalizedUrl)
+}
+
+function isRelativeUrl(url: string, context: CloneStudioUrlContext): boolean {
+  if (url.startsWith('//'))
+    return false
+
+  if (context === 'link' && url.startsWith('#'))
+    return true
+
+  return url.startsWith('/')
+    || url.startsWith('./')
+    || url.startsWith('../')
+    || url.startsWith('?')
+    || /^[a-z0-9._~-]/i.test(url)
+}
+
+function sanitizeCloneStudioUrl(value: unknown, context: CloneStudioUrlContext = 'link'): string {
   const url = String(value ?? '').trim()
-  const lowerUrl = url.toLowerCase()
+  const normalizedUrl = decodeHtmlEntities(url).replace(/[\s\u0000-\u001F\u007F]+/g, '').toLowerCase()
 
   if (!url)
     return ''
 
-  if (lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://'))
+  if (normalizedUrl.startsWith('http://') || normalizedUrl.startsWith('https://'))
     return url
 
-  if (url.startsWith('#') || (url.startsWith('/') && !url.startsWith('//')))
+  if (context === 'media' && isSafeRasterDataImage(normalizedUrl))
     return url
 
-  if (lowerUrl.startsWith('data:image/'))
+  if (/^[a-z][a-z0-9+.-]*:/i.test(normalizedUrl))
+    return ''
+
+  if (isRelativeUrl(url, context))
     return url
 
   return ''
@@ -602,7 +701,7 @@ function sanitizeCloneStudioSrcset(value: unknown): string {
       if (!match)
         return ''
 
-      const sanitizedUrl = sanitizeCloneStudioUrl(match[1])
+      const sanitizedUrl = sanitizeCloneStudioUrl(match[1], 'media')
       return sanitizedUrl ? `${sanitizedUrl}${match[2]}` : ''
     })
     .filter(Boolean)
@@ -611,9 +710,14 @@ function sanitizeCloneStudioSrcset(value: unknown): string {
 
 function sanitizeCloneStudioStyle(value: string): string {
   return value.replace(/url\((["']?)(.*?)\1\)/gi, (_match: string, _quote: string, url: string) => {
-    const sanitizedUrl = sanitizeCloneStudioUrl(url)
+    const sanitizedUrl = sanitizeCloneStudioUrl(url, 'media')
     return sanitizedUrl ? `url("${sanitizedUrl.replace(/"/g, '%22')}")` : ''
   })
+}
+
+function urlPolicyForAttribute(name: string): CloneStudioUrlContext {
+  const lowerName = name.toLowerCase()
+  return lowerName === 'src' || lowerName === 'poster' ? 'media' : 'link'
 }
 
 function sanitizeCloneStudioHtml(value: unknown): string {
@@ -621,14 +725,17 @@ function sanitizeCloneStudioHtml(value: unknown): string {
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
   html = html.replace(/<script\b[^>]*\/?\s*>/gi, '')
   html = html.replace(/\son[a-z0-9:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-  html = html.replace(/\s(href|src|poster|action|xlink:href)\s*=\s*(["'])(.*?)\2/gi, (_match: string, name: string, quote: string, url: string) => {
-    return ` ${name}=${quote}${sanitizeCloneStudioUrl(url)}${quote}`
+  html = html.replace(/\s(href|src|poster|action|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match: string, name: string, doubleQuotedUrl?: string, singleQuotedUrl?: string, unquotedUrl?: string) => {
+    const url = doubleQuotedUrl ?? singleQuotedUrl ?? unquotedUrl ?? ''
+    return ` ${name}="${escapeHtmlAttribute(sanitizeCloneStudioUrl(url, urlPolicyForAttribute(name)))}"`
   })
-  html = html.replace(/\ssrcset\s*=\s*(["'])(.*?)\1/gi, (_match: string, quote: string, srcset: string) => {
-    return ` srcset=${quote}${sanitizeCloneStudioSrcset(srcset)}${quote}`
+  html = html.replace(/\ssrcset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match: string, doubleQuotedSrcset?: string, singleQuotedSrcset?: string, unquotedSrcset?: string) => {
+    const srcset = doubleQuotedSrcset ?? singleQuotedSrcset ?? unquotedSrcset ?? ''
+    return ` srcset="${escapeHtmlAttribute(sanitizeCloneStudioSrcset(srcset))}"`
   })
-  html = html.replace(/\sstyle\s*=\s*(["'])(.*?)\1/gi, (_match: string, quote: string, style: string) => {
-    return ` style=${quote}${sanitizeCloneStudioStyle(style)}${quote}`
+  html = html.replace(/\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match: string, doubleQuotedStyle?: string, singleQuotedStyle?: string, unquotedStyle?: string) => {
+    const style = doubleQuotedStyle ?? singleQuotedStyle ?? unquotedStyle ?? ''
+    return ` style="${escapeHtmlAttribute(sanitizeCloneStudioStyle(style))}"`
   })
 
   return html

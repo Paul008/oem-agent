@@ -4,6 +4,7 @@ import {
   buildCloneStudioHtml,
   sanitizeCloneStudioHtmlForTest,
   sanitizeCloneStudioUrlForTest,
+  serializeCloneStudioBodyForTest,
   stripCloneStudioScaffoldingForTest,
 } from './clone-studio-html'
 
@@ -47,6 +48,20 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('onclick="return false"')
   })
 
+  it('serializes saved body HTML without preview scaffolding or unsafe attributes', () => {
+    const html = serializeCloneStudioBodyForTest(
+      '<main><a href="#oem-preview-disabled" data-oem-preview-href="/showroom" data-oem-preview-link="true" data-oem-preview-onclick="track(&quot;cta&quot;)" onclick="return false">Compare</a><img src=javascript:alert(1) onerror=alert(2)></main>',
+    )
+
+    expect(html).toContain('href="/showroom"')
+    expect(html).not.toContain('data-oem-preview-link')
+    expect(html).not.toContain('data-oem-preview-href')
+    expect(html).not.toContain('data-oem-preview-onclick')
+    expect(html).not.toContain('onclick')
+    expect(html).not.toContain('onerror')
+    expect(html).not.toContain('javascript:')
+  })
+
   it('includes bridge token handling and parent-source guard', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main data-oem-region-id="r1"><h1>Mustang</h1></main>',
@@ -64,11 +79,11 @@ describe('buildCloneStudioHtml', () => {
   })
 
   it('sanitizes unsafe javascript URLs for clone patches', () => {
-    expect(sanitizeCloneStudioUrlForTest('javascript:alert(1)')).toBe('')
-    expect(sanitizeCloneStudioUrlForTest('https://example.test/image.jpg')).toBe('https://example.test/image.jpg')
-    expect(sanitizeCloneStudioUrlForTest('/showroom')).toBe('/showroom')
-    expect(sanitizeCloneStudioUrlForTest('#features')).toBe('#features')
-    expect(sanitizeCloneStudioUrlForTest('data:image/png;base64,abc')).toBe('data:image/png;base64,abc')
+    expect(sanitizeCloneStudioUrlForTest('javascript:alert(1)', 'link')).toBe('')
+    expect(sanitizeCloneStudioUrlForTest('https://example.test/image.jpg', 'media')).toBe('https://example.test/image.jpg')
+    expect(sanitizeCloneStudioUrlForTest('/showroom', 'link')).toBe('/showroom')
+    expect(sanitizeCloneStudioUrlForTest('#features', 'link')).toBe('#features')
+    expect(sanitizeCloneStudioUrlForTest('data:image/png;base64,abc', 'media')).toBe('data:image/png;base64,abc')
   })
 
   it('sanitizes unsafe HTML patches', () => {
@@ -85,6 +100,25 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('src=""')
   })
 
+  it('sanitizes unquoted unsafe URL and style attributes in HTML patches', () => {
+    const html = sanitizeCloneStudioHtmlForTest(
+      '<a href=javascript:alert(1)>Go</a><img src=javascript:alert(2) srcset=javascript:alert(3)><div style=background:url(javascript:alert(4))></div>',
+    )
+
+    expect(html).not.toContain('javascript:')
+    expect(html).toContain('href=""')
+    expect(html).toContain('src=""')
+    expect(html).toContain('srcset=""')
+  })
+
+  it('applies context-specific URL policy for link and media patches', () => {
+    expect(sanitizeCloneStudioUrlForTest('data:image/png;base64,abc', 'link')).toBe('')
+    expect(sanitizeCloneStudioUrlForTest('data:image/png;base64,abc', 'media')).toBe('data:image/png;base64,abc')
+    expect(sanitizeCloneStudioUrlForTest('data:image/jpeg;base64,abc', 'media')).toBe('data:image/jpeg;base64,abc')
+    expect(sanitizeCloneStudioUrlForTest('data:image/svg+xml;base64,abc', 'media')).toBe('')
+    expect(sanitizeCloneStudioUrlForTest('//example.test/image.jpg', 'media')).toBe('')
+  })
+
   it('blocks navigation-capable interaction events in the bridge', () => {
     const html = buildCloneStudioHtml({
       rendered: '<form action="/lead"><button type="submit">Submit</button></form>',
@@ -97,6 +131,8 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain("'auxclick'")
     expect(html).toContain("'dblclick'")
     expect(html).toContain('isNavigationElement')
+    expect(html).toContain('stopBlockedEvent')
+    expect(html).toContain('stopImmediatePropagation')
   })
 
   it('emits parseable clone studio bridge script', () => {
