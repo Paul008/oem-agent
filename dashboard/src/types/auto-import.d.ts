@@ -76,6 +76,7 @@ declare global {
   const useAuth: typeof import('../composables/use-auth').useAuth
   const useAuthStore: typeof import('../stores/auth').useAuthStore
   const useAxios: typeof import('../composables/use-axios').useAxios
+  const useClipboard: typeof import('../composables/use-clipboard').useClipboard
   const useCronJobs: typeof import('../composables/use-cron-jobs').useCronJobs
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
