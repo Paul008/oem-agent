@@ -173,6 +173,40 @@ describe('usePageBuilder media URL resolution', () => {
     expect(builder.selectedCloneRegionData.value).toBeNull()
   })
 
+  it('accumulates touched clone regions into the save set so the sidebar survives reload', () => {
+    const builder = usePageBuilder()
+    builder.page.value = {
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>OEM clone</main>',
+        modes: {
+          clone: { rendered: '<main>OEM clone</main>', section_index: [] },
+        },
+      },
+    }
+
+    const region = (id: string, label: string) => ({
+      id,
+      label,
+      selector: `[data-oem-region-id="${id}"]`,
+      tag: 'section',
+      classes: [],
+      top: 0,
+      height: 400,
+      editable_fields: [],
+    })
+
+    expect(builder.cloneRegionsForSave.value).toHaveLength(0)
+
+    builder.selectCloneRegion(region('r1', 'Hero'))
+    builder.selectCloneRegion(region('r2', 'Gallery'))
+    builder.selectCloneRegion(region('r1', 'Hero (re-selected)')) // upsert, not duplicate
+
+    const ids = builder.cloneRegionsForSave.value.map(r => r.id)
+    expect(ids).toEqual(['r1', 'r2'])
+    expect(builder.cloneRegionsForSave.value.find(r => r.id === 'r1')?.label).toBe('Hero (re-selected)')
+  })
+
   it('normalizes resolved worker media URLs before storage', () => {
     const section = {
       id: 'hero-1',

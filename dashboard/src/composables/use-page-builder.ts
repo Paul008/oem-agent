@@ -154,6 +154,9 @@ export function usePageBuilder() {
   // The persisted section_index is empty until the first save, so the editor must resolve the
   // selected region from this live object rather than only from cloneRegions/section_index.
   const selectedCloneRegionData = ref<CloneRegion | null>(null)
+  // Regions the user has touched this session (from bridge selections), keyed by id. Merged into
+  // section_index on save so the sidebar region list survives a reload of a fresh clone.
+  const cloneRegionDrafts = ref<CloneRegion[]>([])
   const sourceUrlOverride = ref('')
 
   // History system
@@ -256,6 +259,7 @@ export function usePageBuilder() {
     selectedSectionId.value = null
     selectedCloneRegionId.value = null
     selectedCloneRegionData.value = null
+    cloneRegionDrafts.value = []
 
     try {
       page.value = normalizeLoadedPage(await fetchGeneratedPage(newSlug, { includeRendered: true, includeModes: true }))
@@ -342,7 +346,26 @@ export function usePageBuilder() {
 
     selectedCloneRegionId.value = idOrRegion.id
     selectedCloneRegionData.value = idOrRegion
+    upsertCloneRegionDraft(idOrRegion)
   }
+
+  function upsertCloneRegionDraft(region: CloneRegion) {
+    const idx = cloneRegionDrafts.value.findIndex(draft => draft.id === region.id)
+    if (idx === -1)
+      cloneRegionDrafts.value = [...cloneRegionDrafts.value, region]
+    else
+      cloneRegionDrafts.value = cloneRegionDrafts.value.map((draft, i) => (i === idx ? region : draft))
+  }
+
+  // section_index to persist on save: persisted regions plus any touched this session (drafts win).
+  const cloneRegionsForSave = computed<CloneRegion[]>(() => {
+    const byId = new Map<string, CloneRegion>()
+    for (const region of cloneRegions.value)
+      byId.set(region.id, region)
+    for (const draft of cloneRegionDrafts.value)
+      byId.set(draft.id, draft)
+    return [...byId.values()]
+  })
 
   function deleteSection(id: string) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
@@ -613,6 +636,8 @@ export function usePageBuilder() {
       page.value.active_mode = 'clone'
       page.value.version = result?.version ?? ((page.value.version || 0) + 1)
       isDirty.value = false
+      // Drafts are now persisted into section_index; clear so they don't accumulate.
+      cloneRegionDrafts.value = []
       return true
     }
     catch (err: any) {
@@ -832,6 +857,7 @@ export function usePageBuilder() {
     availableModes,
     cloneHtml,
     cloneRegions,
+    cloneRegionsForSave,
     selectedCloneRegionId,
     selectedCloneRegionData,
     regenerating,
