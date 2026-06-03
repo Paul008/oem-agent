@@ -124,13 +124,14 @@ export function applyCloneMode<T extends ModeAwarePage>(
   input: CloneCaptureInput,
   options?: { activate?: boolean },
 ): T {
+  const originalActiveMode = normalizeModeName(page.active_mode)
+
   normalizePageModes(page)
 
   const content = ensureContent(page)
   const modes = ensureModes(content)
-  const activeBeforeCapture = normalizeModeName(page.active_mode)
-  const hadAvailableActiveMode = activeBeforeCapture
-    ? isModeAvailable(activeBeforeCapture, modes)
+  const hadAvailableActiveMode = originalActiveMode
+    ? isModeAvailable(originalActiveMode, modes)
     : false
 
   modes.clone = {
@@ -164,13 +165,14 @@ export function applySectionsMode<T extends ModeAwarePage>(
   sections: any[],
   source: SectionsModeSource,
 ): T {
+  const originalActiveMode = normalizeModeName(page.active_mode)
+
   normalizePageModes(page)
 
   const content = ensureContent(page)
   const modes = ensureModes(content)
-  const activeBeforeSections = normalizeModeName(page.active_mode)
-  const hadAvailableActiveMode = activeBeforeSections
-    ? isModeAvailable(activeBeforeSections, modes)
+  const hadAvailableActiveMode = originalActiveMode
+    ? isModeAvailable(originalActiveMode, modes)
     : false
 
   modes.sections = {
@@ -275,10 +277,12 @@ function normalizeCloneMode(input: Partial<CloneModeContent>, fallbackRendered: 
 }
 
 function normalizeSectionsMode(input: Partial<SectionsModeContent>, fallbackItems: any[], page: ModeAwarePage): SectionsModeContent {
+  const source = normalizeSectionsSource(input.source)
+
   return {
     items: Array.isArray(input.items) ? input.items : fallbackItems,
-    source: isSectionsSource(input.source)
-      ? input.source
+    source: source
+      ? source
       : {
         mode: 'sections',
         version: typeof page.version === 'number' ? page.version : 0,
@@ -359,11 +363,22 @@ function isViewport(value: unknown): value is CloneModeContent['viewport'] {
     && typeof value.height === 'number'
 }
 
-function isSectionsSource(value: unknown): value is SectionsModeContent['source'] {
-  return isRecord(value)
-    && normalizeModeName(value.mode) === value.mode
-    && typeof value.version === 'number'
-    && typeof value.generated_at === 'string'
+function normalizeSectionsSource(value: unknown): SectionsModeSource | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  const mode = normalizeModeName(value.mode)
+
+  if (!mode || typeof value.version !== 'number' || typeof value.generated_at !== 'string') {
+    return undefined
+  }
+
+  return {
+    mode,
+    version: value.version,
+    generated_at: value.generated_at,
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

@@ -76,6 +76,51 @@ describe('page mode helpers', () => {
     expect(updated.content.sections).toHaveLength(1)
   })
 
+  it('activates clone capture when no explicit active mode existed before normalization', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      content: {
+        modes: {
+          generated: { rendered: '<main>Generated</main>' },
+        },
+      },
+    }
+
+    const updated = applyCloneMode(page, {
+      rendered: '<main>Captured Clone</main>',
+      source_url: 'https://www.ford.com.au/showroom/cars/mustang/',
+      viewport: { width: 1440, height: 1080 },
+      asset_map: {},
+      stylesheet_urls: [],
+      section_index: [],
+      warnings: [],
+    })
+
+    expect(updated.active_mode).toBe('clone')
+  })
+
+  it('preserves an explicit valid active mode for clone capture when activation is disabled', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      active_mode: 'sections',
+      content: {
+        sections: [{ id: 's1', type: 'hero', heading: 'Manual Hero' }],
+      },
+    }
+
+    const updated = applyCloneMode(page, {
+      rendered: '<main>Captured Clone</main>',
+      source_url: 'https://www.ford.com.au/showroom/cars/mustang/',
+      viewport: { width: 1440, height: 1080 },
+      asset_map: {},
+      stylesheet_urls: [],
+      section_index: [],
+      warnings: [],
+    }, { activate: false })
+
+    expect(updated.active_mode).toBe('sections')
+  })
+
   it('applies structured sections as a derivative without switching away from clone mode', () => {
     const page: any = {
       id: 'ford-au-mustang',
@@ -113,6 +158,64 @@ describe('page mode helpers', () => {
       generated_at: '2026-06-03T01:00:00.000Z',
     })
     expect(updated.content.rendered).toContain('Clone')
+  })
+
+  it('activates sections when the original active mode was invalid despite existing generated content', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      active_mode: 'missing-mode',
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main>Clone</main>',
+            source_url: 'https://www.ford.com.au/showroom/cars/mustang/',
+            captured_at: '2026-06-03T00:00:00.000Z',
+            viewport: { width: 1440, height: 1080 },
+            asset_map: {},
+            stylesheet_urls: [],
+            section_index: [],
+            stripped_selectors: [],
+            warnings: [],
+          },
+          generated: { rendered: '<main>Generated</main>' },
+          template: { template_id: 'x', sections: [] },
+        },
+      },
+    }
+
+    const updated = applySectionsMode(page, [{ id: 's1', type: 'hero', heading: 'Extracted' }], {
+      mode: 'generated',
+      version: 4,
+      generated_at: '2026-06-03T01:00:00.000Z',
+    })
+
+    expect(updated.active_mode).toBe('sections')
+  })
+
+  it('canonicalizes raw_html section source mode without dropping metadata', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      content: {
+        modes: {
+          sections: {
+            items: [{ id: 's1', type: 'hero', heading: 'Extracted' }],
+            source: {
+              mode: 'raw_html',
+              version: 7,
+              generated_at: '2026-06-03T03:00:00.000Z',
+            },
+          },
+        },
+      },
+    }
+
+    const normalized = normalizePageModes(page)
+
+    expect(normalized.content.modes.sections.source).toEqual({
+      mode: 'raw-html',
+      version: 7,
+      generated_at: '2026-06-03T03:00:00.000Z',
+    })
   })
 
   it('preserves generated active mode when generated rendered content is available', () => {
