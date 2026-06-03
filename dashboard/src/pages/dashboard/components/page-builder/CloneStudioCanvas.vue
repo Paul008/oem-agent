@@ -11,6 +11,16 @@ export interface CloneStudioFrameHtmlForCanvasOptions {
   bridgeToken: string
 }
 
+/**
+ * Scale a fixed device-width clone frame to fit the editor panel. Never upscales past 1:1, so a
+ * panel wider than the frame renders it at native size.
+ */
+export function computeCloneFrameScale(containerWidth: number, frameWidth: number): number {
+  if (!containerWidth || !frameWidth || frameWidth <= 0)
+    return 1
+  return Math.min(1, containerWidth / frameWidth)
+}
+
 export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtmlForCanvasOptions): string {
   return buildCloneStudioHtml({
     rendered: getCloneHtml(options.page),
@@ -33,10 +43,15 @@ const props = withDefaults(defineProps<{
   baseHref?: string
   workerBase?: string
   selectedRegionId: string | null
+  // Viewport width the clone renders at, so OEM responsive CSS (media queries, .onlydesktop, etc.)
+  // resolves to the intended device layout instead of the narrow editor panel width. The frame is
+  // scaled down to fit the available container.
+  frameWidth?: number
 }>(), {
   title: 'Clone Studio',
   baseHref: '',
   workerBase: '',
+  frameWidth: 1280,
 })
 
 const emit = defineEmits<{
@@ -45,7 +60,31 @@ const emit = defineEmits<{
 }>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
+const container = ref<HTMLDivElement | null>(null)
+const containerWidth = ref(0)
+const containerHeight = ref(0)
+let resizeObserver: ResizeObserver | null = null
 const bridgeToken = createBridgeToken()
+
+// Scale the desktop-width frame down to fit the editor panel; never scale up past 1:1.
+const frameScale = computed(() => computeCloneFrameScale(containerWidth.value, props.frameWidth))
+
+const frameStyle = computed(() => {
+  const scale = frameScale.value
+  return {
+    width: `${props.frameWidth}px`,
+    height: containerHeight.value ? `${Math.ceil(containerHeight.value / scale)}px` : '100%',
+    transform: `scale(${scale})`,
+    transformOrigin: 'top left',
+  }
+})
+
+function measureContainer() {
+  if (!container.value)
+    return
+  containerWidth.value = container.value.clientWidth
+  containerHeight.value = container.value.clientHeight
+}
 
 const frameHtml = computed(() => buildCloneStudioFrameHtmlForCanvas({
   page: props.page,
@@ -125,10 +164,17 @@ watch(
 
 onMounted(() => {
   window.addEventListener('message', onMessage)
+  measureContainer()
+  if (container.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => measureContainer())
+    resizeObserver.observe(container.value)
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('message', onMessage)
+  resizeObserver?.disconnect()
+  resizeObserver = null
 })
 
 defineExpose({
@@ -138,12 +184,15 @@ defineExpose({
 </script>
 
 <template>
-  <iframe
-    ref="iframe"
-    class="h-full min-h-[640px] w-full border-0 bg-white"
-    sandbox="allow-scripts"
-    title="Clone Studio canvas"
-    :srcdoc="frameHtml"
-    @load="onFrameLoad"
-  />
+  <div ref="container" class="relative h-full min-h-[640px] w-full overflow-hidden bg-white">
+    <iframe
+      ref="iframe"
+      class="border-0 bg-white"
+      :style="frameStyle"
+      sandbox="allow-scripts"
+      title="Clone Studio canvas"
+      :srcdoc="frameHtml"
+      @load="onFrameLoad"
+    />
+  </div>
 </template>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildCloneFieldPatchPayload } from './CloneRegionEditor.vue'
 import { cloneRegionFieldCount, cloneRegionSelectionPayload, sortCloneRegions } from './CloneRegionSidebar.vue'
-import { buildCloneStudioFrameHtmlForCanvas } from './CloneStudioCanvas.vue'
+import { buildCloneStudioFrameHtmlForCanvas, computeCloneFrameScale } from './CloneStudioCanvas.vue'
 import type { CloneEditableField, CloneRegion } from '../../page-builder/page-modes'
 
 function makeRegion(overrides: Partial<CloneRegion> = {}): CloneRegion {
@@ -57,6 +57,17 @@ describe('Clone Studio components', () => {
     expect(heroHtml).toContain('test-token')
     expect(heroHtml).toContain('<base href="https://www.ford.com.au/">')
     expect(heroHtml).toContain('data-oem-region-id="hero"')
+  })
+
+  it('scales a desktop-width clone frame to fit a narrow editor panel without upscaling', () => {
+    // 1280px desktop frame in a ~700px panel -> scaled down.
+    expect(computeCloneFrameScale(700, 1280)).toBeCloseTo(700 / 1280, 5)
+    // Panel wider than the frame -> render at native size, never upscale.
+    expect(computeCloneFrameScale(1024, 768)).toBe(1)
+    // Native device widths (tablet/mobile) -> 1:1.
+    expect(computeCloneFrameScale(768, 768)).toBe(1)
+    // Unmeasured container -> safe default.
+    expect(computeCloneFrameScale(0, 1280)).toBe(1)
   })
 
   it('returns full region objects and stable sorted sidebar data', () => {

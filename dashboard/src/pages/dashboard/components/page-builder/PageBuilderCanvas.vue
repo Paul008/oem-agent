@@ -37,6 +37,16 @@ const previewWidthClass: Record<string, string> = {
   tablet: 'max-w-[768px] mx-auto',
   mobile: 'max-w-[375px] mx-auto',
 }
+// Viewport width the cloned OEM page renders at, so its responsive CSS resolves to the intended
+// device layout. 'full' uses a desktop width (scaled to fit the panel); tablet/mobile match the
+// constrained container so they render at native device width.
+const cloneFrameWidth = computed(() => {
+  if (previewWidth.value === 'tablet')
+    return 768
+  if (previewWidth.value === 'mobile')
+    return 375
+  return 1280
+})
 
 const showCloneFrame = computed(() => props.activeMode === 'clone' && props.isCloned)
 const showStructuredPreview = computed(() => props.activeMode === 'sections' && props.isStructured && props.sections.length > 0)
@@ -310,6 +320,7 @@ function sectionStyle(section: any): Record<string, string> {
             :title="page?.name || 'Clone Studio'"
             :base-href="page?.source_url || workerBase"
             :worker-base="workerBase"
+            :frame-width="cloneFrameWidth"
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
             @dom-updated="emit('cloneDomUpdated', $event)"
