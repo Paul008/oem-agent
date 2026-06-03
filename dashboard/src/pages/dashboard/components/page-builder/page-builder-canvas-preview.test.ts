@@ -17,4 +17,12 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(structuredPreview).toBeGreaterThan(cloneFrame)
     expect(legacyClonedBranch).toBe(-1)
   })
+
+  it('keeps desktop-only cloned OEM images visible in the static iframe preview', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('oem-static-clone-shim')
+    expect(source).toContain('.imgdesktop')
+    expect(source).toContain('.dsktoponly')
+  })
 })

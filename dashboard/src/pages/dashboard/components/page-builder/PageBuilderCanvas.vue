@@ -284,6 +284,27 @@ function buildStandaloneHtml(p: any): string {
 <base href="${props.workerBase}">
 <title>${p.name} — ${oemName(p.oem_id)}</title>
 ${headParts.join('\n')}
+<style id="oem-static-clone-shim">
+img.imgdesktop,
+img.dsktoponly {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+.billboardCarousel,
+.billboard-carousel,
+.billboard-wrapper,
+.billboard-item,
+.slick-track {
+  height: auto !important;
+  min-height: auto !important;
+}
+.billboardCarousel picture,
+.brandcard-wrapper picture {
+  display: block;
+}
+</style>
 </head>
 <body style="margin:0;padding:0;background:#fff;">
 ${rendered}
