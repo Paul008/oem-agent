@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
+import { disableClonePreviewNavigation } from './clone-preview-html'
+
 describe('PageBuilderCanvas preview mode', () => {
   it('keeps cloned OEM HTML available when extracted sections also exist', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
@@ -24,5 +26,16 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).toContain('oem-static-clone-shim')
     expect(source).toContain('.imgdesktop')
     expect(source).toContain('.dsktoponly')
+  })
+
+  it('disables cloned page links so preview clicks cannot navigate into the worker app', () => {
+    const html = '<a href="/showroom/cars/mustang/specs.html" onclick="window.location.href=\'/\'"><img src="/media/pages/assets/ford-au/mustang/hero.webp"></a>'
+    const disabled = disableClonePreviewNavigation(html)
+
+    expect(disabled).toContain('href="#oem-preview-disabled"')
+    expect(disabled).toContain('data-oem-preview-href="/showroom/cars/mustang/specs.html"')
+    expect(disabled).toContain('data-oem-preview-onclick="window.location.href=&#39;/&#39;"')
+    expect(disabled).toContain('data-oem-preview-link="true"')
+    expect(disabled).toContain('onclick="return false"')
   })
 })

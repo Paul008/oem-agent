@@ -2,6 +2,7 @@
 import { AlertCircle, Copy, GripVertical, Monitor, Palette, Pipette, Play, Settings, Smartphone, Tablet, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
+import { disableClonePreviewNavigation } from './clone-preview-html'
 import EditToolbar from './EditToolbar.vue'
 import { resolveSectionComponent } from './section-registry'
 
@@ -275,6 +276,7 @@ function buildStandaloneHtml(p: any): string {
     headParts.push(m)
     return ''
   })
+  rendered = disableClonePreviewNavigation(rendered)
 
   return `<!DOCTYPE html>
 <html lang="en">
