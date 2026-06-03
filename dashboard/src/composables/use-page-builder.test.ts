@@ -18,8 +18,42 @@ describe('usePageBuilder media URL resolution', () => {
   it('loads page-builder detail pages with cloned HTML retained for OEM preview', () => {
     const source = readFileSync(new URL('./use-page-builder.ts', import.meta.url), 'utf8')
 
-    expect(source).toContain('fetchGeneratedPage(newSlug, { includeRendered: true })')
-    expect(source).toContain('fetchGeneratedPage(slug.value, { includeRendered: true })')
+    expect(source).toContain('fetchGeneratedPage(newSlug, { includeRendered: true, includeModes: true })')
+    expect(source).toContain('fetchGeneratedPage(slug.value, { includeRendered: true, includeModes: true })')
+  })
+
+  it('exposes clone-first mode state while keeping structured sections available', () => {
+    const builder = usePageBuilder()
+    builder.page.value = {
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>OEM clone</main>',
+        sections: [{ id: 's1', type: 'hero' }],
+        modes: {
+          clone: {
+            rendered: '<main>OEM clone</main>',
+            section_index: [{
+              id: 'r1',
+              label: 'Hero',
+              selector: 'main',
+              tag: 'main',
+              classes: [],
+              top: 0,
+              height: 400,
+              editable_fields: [],
+            }],
+          },
+          sections: {
+            items: [{ id: 's1', type: 'hero' }],
+          },
+        },
+      },
+    }
+
+    expect(builder.activeMode.value).toBe('clone')
+    expect(builder.cloneHtml.value).toContain('OEM clone')
+    expect(builder.cloneRegions.value).toHaveLength(1)
+    expect(builder.sections.value).toEqual([{ id: 's1', type: 'hero' }])
   })
 
   it('normalizes resolved worker media URLs before storage', () => {
@@ -86,5 +120,6 @@ describe('usePageBuilder media URL resolution', () => {
         ],
       },
     ])
+    expect(builder.page.value.content.modes.sections.items).toEqual(builder.page.value.content.sections)
   })
 })
