@@ -111,6 +111,36 @@ describe('buildCloneStudioHtml', () => {
     expect(head).not.toContain('href="/relative.css"')
   })
 
+  it('injects a GSAP carousel enhancement marked for save-time stripping by default', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><div class="slick-track"><div class="slick-slide">1</div><div class="slick-slide">2</div></div></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      selectedRegionId: null,
+    })
+
+    expect(html).toContain('gsap.min.js')
+    expect(html).toContain('.slick-track')
+    expect(html).toContain('data-clone-carousel')
+    // Enhancement scripts must be bridge-marked so getBodyHtml strips them from saved HTML.
+    expect(html).toContain('<script data-clone-studio-bridge="true" src="https://cdnjs.cloudflare.com/ajax/libs/gsap/')
+    // The bridge resets carousel transforms on serialize.
+    expect(html).toContain('data-clone-carousel')
+    expect(html).toContain('.slick-list')
+  })
+
+  it('omits the carousel enhancement when disabled', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      enhanceCarousels: false,
+      selectedRegionId: null,
+    })
+
+    expect(html).not.toContain('gsap.min.js')
+  })
+
   it('force-shows OEM desktop-only image classes hidden by stripped responsive scripts', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"></picture></main>',

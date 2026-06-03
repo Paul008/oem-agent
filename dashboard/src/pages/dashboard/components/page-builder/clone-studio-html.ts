@@ -19,9 +19,18 @@ export interface CloneStudioHtmlOptions {
    * not duplicated.
    */
   stylesheetUrls?: string[]
+  /**
+   * Inject a GSAP-powered enhancement that auto-advances Slick carousels in the preview, restoring
+   * the OEM's rotating-slide behavior that the stripped carousel JS would provide. Preview-only:
+   * the enhancement scripts are bridge-marked (stripped on save) and carousel transforms are reset
+   * in getBodyHtml. Defaults to enabled.
+   */
+  enhanceCarousels?: boolean
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
+
+const CLONE_STUDIO_GSAP_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js'
 
 const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 const LINK_URL_ATTRIBUTE_NAMES = new Set(['href', 'action', 'formaction', 'cite', 'manifest'])
@@ -42,6 +51,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   )
   const selectedRegion = safeJson(options.selectedRegionId)
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
+  const carouselEnhancement = options.enhanceCarousels === false ? '' : buildCloneCarouselEnhancement()
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -92,6 +102,15 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     .imgmobile > img,
     .mobonly > img {
       display: none !important;
+    }
+
+    /*
+     * Slick/carousel tracks are laid out at full multi-slide width; the OEM JS that clips them is
+     * stripped. Constrain the viewport so slides clip cleanly (GSAP auto-advance, when enabled,
+     * translates the track through the slides).
+     */
+    .slick-list {
+      overflow: hidden !important;
     }
 
     @media (min-width: 1024px) {
@@ -151,6 +170,7 @@ ${rendered}
     var clone = document.body.cloneNode(true)
     var bridgeScripts = clone.querySelectorAll('script[data-clone-studio-bridge]')
     var markedRegions = clone.querySelectorAll('[data-clone-studio-hover], [data-clone-studio-selected]')
+    var enhancedCarousels = clone.querySelectorAll('[data-clone-carousel]')
 
     for (var i = 0; i < bridgeScripts.length; i++)
       bridgeScripts[i].parentNode.removeChild(bridgeScripts[i])
@@ -158,6 +178,12 @@ ${rendered}
     for (var j = 0; j < markedRegions.length; j++) {
       markedRegions[j].removeAttribute('data-clone-studio-hover')
       markedRegions[j].removeAttribute('data-clone-studio-selected')
+    }
+
+    // Reset GSAP-applied carousel transforms so the saved clone keeps its captured slide-0 state.
+    for (var k = 0; k < enhancedCarousels.length; k++) {
+      enhancedCarousels[k].style.transform = ''
+      enhancedCarousels[k].removeAttribute('data-clone-carousel')
     }
 
     return sanitizeHtml(stripPreviewScaffolding(clone.innerHTML))
@@ -926,8 +952,42 @@ ${rendered}
   post(MESSAGE_READY)
 })()
 </script>
+${carouselEnhancement}
 </body>
 </html>`
+}
+
+/**
+ * Preview-only GSAP enhancement: auto-advance Slick carousels so their slides cycle into view,
+ * restoring the OEM's rotating behavior. All nodes are marked `data-clone-studio-bridge` so the
+ * bridge's getBodyHtml strips them, and carousel transforms are reset there, keeping saved HTML clean.
+ */
+function buildCloneCarouselEnhancement(): string {
+  return `<script data-clone-studio-bridge="true" src="${CLONE_STUDIO_GSAP_SRC}" crossorigin="anonymous"></script>
+<script data-clone-studio-bridge="true">
+(function () {
+  function initCarousels() {
+    if (!window.gsap) return;
+    var tracks = document.querySelectorAll('.slick-track');
+    Array.prototype.forEach.call(tracks, function (track) {
+      var slides = track.querySelectorAll('.slick-slide');
+      if (slides.length < 2) return;
+      track.setAttribute('data-clone-carousel', '');
+      var index = 0;
+      function step() {
+        index = (index + 1) % slides.length;
+        var target = slides[index];
+        if (!target) return;
+        window.gsap.to(track, { x: -target.offsetLeft, duration: 0.9, ease: 'power2.inOut' });
+      }
+      setInterval(step, 3800);
+    });
+  }
+  function boot() { setTimeout(initCarousels, 700); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>`
 }
 
 export function stripCloneStudioScaffoldingForTest(html: string): string {
