@@ -89,6 +89,17 @@ export function isOfferLikeSourceUrl(sourceUrl: string): boolean {
   return /(^|\/)(buying\/offers|offers?|special-offers?|specials|promotions?)(\/|$)/.test(path);
 }
 
+const CURATED_PRODUCT_FEED_OEMS = new Set<OemId>([
+  'chery-au',
+  'ford-au',
+  'gac-au',
+  'mazda-au',
+]);
+
+export function shouldSkipCrawlerProductWrites(oemId: OemId): boolean {
+  return CURATED_PRODUCT_FEED_OEMS.has(oemId);
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -3713,19 +3724,23 @@ ${html.substring(0, 50000)}
 
     // Process products
     if (extractionResult.products?.data) {
-      console.log(`[Orchestrator] Processing ${extractionResult.products.data.length} products for ${page.url}`);
-      for (const extractedProduct of extractionResult.products.data) {
-        try {
-          const result = await this.upsertProduct(oemId, page.url, extractedProduct);
-          if (result.created || result.updated) {
-            productsUpserted++;
+      if (shouldSkipCrawlerProductWrites(oemId)) {
+        console.log(`[Orchestrator] Skipping ${extractionResult.products.data.length} crawler products for ${oemId}; product catalog is owned by curated feed sync`);
+      } else {
+        console.log(`[Orchestrator] Processing ${extractionResult.products.data.length} products for ${page.url}`);
+        for (const extractedProduct of extractionResult.products.data) {
+          try {
+            const result = await this.upsertProduct(oemId, page.url, extractedProduct);
+            if (result.created || result.updated) {
+              productsUpserted++;
+            }
+            if (result.changeDetected) {
+              changesFound++;
+            }
+            console.log(`[Orchestrator] Upserted product: ${extractedProduct.title} (created: ${result.created}, updated: ${result.updated}, changed: ${result.changeDetected})`);
+          } catch (error) {
+            console.error(`[Orchestrator] Failed to upsert product ${extractedProduct.title}:`, error);
           }
-          if (result.changeDetected) {
-            changesFound++;
-          }
-          console.log(`[Orchestrator] Upserted product: ${extractedProduct.title} (created: ${result.created}, updated: ${result.updated}, changed: ${result.changeDetected})`);
-        } catch (error) {
-          console.error(`[Orchestrator] Failed to upsert product ${extractedProduct.title}:`, error);
         }
       }
     }
