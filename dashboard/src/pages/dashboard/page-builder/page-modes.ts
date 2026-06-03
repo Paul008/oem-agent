@@ -138,12 +138,13 @@ export function getCloneRegions(page: DashboardPage | null | undefined): CloneRe
 
 export function getSectionItems(page: DashboardPage | null | undefined): any[] {
   const sectionItems = getSectionsMode(page)?.items
+  const legacySections = Array.isArray(page?.content?.sections) ? page.content.sections : []
 
-  if (Array.isArray(sectionItems)) {
+  if (Array.isArray(sectionItems) && sectionItems.length > 0) {
     return sectionItems
   }
 
-  return Array.isArray(page?.content?.sections) ? page.content.sections : []
+  return legacySections
 }
 
 function ensureContent(page: DashboardPage): DashboardPageContent {

@@ -82,6 +82,22 @@ describe('getPageWorkflowState', () => {
       error: null,
     })).toBe('cloned')
   })
+
+  it('returns structured for stale clone mode when clone payload is missing', () => {
+    expect(getPageWorkflowState({
+      page: {
+        active_mode: 'clone',
+        content: {
+          sections: [{ id: 's1', type: 'hero' }],
+          modes: {
+            clone: {},
+            sections: { items: [{ id: 's1', type: 'hero' }] },
+          },
+        },
+      } as any,
+      error: null,
+    })).toBe('structured')
+  })
 })
 
 describe('isPipelineActionDisabled', () => {

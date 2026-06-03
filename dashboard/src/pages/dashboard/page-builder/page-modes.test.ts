@@ -79,4 +79,20 @@ describe('dashboard page modes', () => {
 
     expect(getAvailablePageModes(page)).toEqual(['clone', 'sections'])
   })
+
+  it('preserves legacy sections when section mode items are empty', () => {
+    const page = normalizeDashboardPageModes({
+      content: {
+        sections: [{ id: 's1', type: 'hero' }],
+        modes: {
+          sections: {
+            items: [],
+          },
+        },
+      },
+    })
+
+    expect(getSectionItems(page)).toEqual([{ id: 's1', type: 'hero' }])
+    expect(page.content.sections).toEqual([{ id: 's1', type: 'hero' }])
+  })
 })

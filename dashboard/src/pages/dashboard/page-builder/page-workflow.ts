@@ -33,7 +33,7 @@ export function getPageWorkflowState(input: {
   if (page?.page_type === 'custom')
     return 'custom'
 
-  if (page?.active_mode === 'clone')
+  if (page?.active_mode === 'clone' && hasClonePayload(page))
     return 'cloned'
 
   const sections = page?.content?.sections
@@ -84,4 +84,27 @@ export function isPipelineActionDisabled(options: PipelineActionDisabledOptions)
 
 export function shouldShowSourceUrlInput(state: PageWorkflowState): boolean {
   return state !== 'custom'
+}
+
+function hasClonePayload(page: PageWorkflowPage): boolean {
+  const rendered = page.content?.rendered
+
+  if (isNonEmptyString(rendered))
+    return true
+
+  const cloneMode = isRecord(page.content?.modes)
+    && isRecord(page.content.modes.clone)
+    ? page.content.modes.clone
+    : null
+
+  return isNonEmptyString(cloneMode?.rendered)
+    || isNonEmptyString(cloneMode?.edited_rendered)
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
