@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildCloneFieldPatchPayload } from './CloneRegionEditor.vue'
 import { cloneRegionFieldCount, cloneRegionSelectionPayload, sortCloneRegions } from './CloneRegionSidebar.vue'
+import * as CloneStudioCanvas from './CloneStudioCanvas.vue'
 import { buildCloneStudioFrameHtmlForCanvas, computeCloneFrameScale } from './CloneStudioCanvas.vue'
 import type { CloneEditableField, CloneRegion } from '../../page-builder/page-modes'
 
@@ -68,6 +69,17 @@ describe('Clone Studio components', () => {
     expect(computeCloneFrameScale(768, 768)).toBe(1)
     // Unmeasured container -> safe default.
     expect(computeCloneFrameScale(0, 1280)).toBe(1)
+  })
+
+  it('keeps same-origin iframe sandboxing opt-in for Clone Studio', () => {
+    const helper = (CloneStudioCanvas as {
+      cloneStudioIframeSandbox?: (allowSameOrigin?: boolean) => string
+    }).cloneStudioIframeSandbox
+
+    expect(helper).toBeTypeOf('function')
+    expect(helper?.()).toBe('allow-scripts')
+    expect(helper?.(false)).toBe('allow-scripts')
+    expect(helper?.(true)).toBe('allow-scripts allow-same-origin')
   })
 
   it('returns full region objects and stable sorted sidebar data', () => {

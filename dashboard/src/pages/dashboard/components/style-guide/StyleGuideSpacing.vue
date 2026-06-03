@@ -1,10 +1,33 @@
 <script lang="ts" setup>
-import { Ruler } from 'lucide-vue-next'
+import { Check, Copy, Ruler } from 'lucide-vue-next'
+
+import { useClipboard } from '@/composables/use-clipboard'
 
 defineProps<{
   spacing: any
   colors: any
 }>()
+
+const { copy, isCopied } = useClipboard()
+
+function formatSpacingValue(value: unknown): string {
+  const text = String(value ?? '').trim()
+  if (!text)
+    return ''
+  return /[a-z%]$/i.test(text) ? text : `${text}px`
+}
+
+function spacingBarWidth(value: unknown): string {
+  return `${Math.min(Number.parseFloat(String(value)) || 0, 400)}px`
+}
+
+async function copySpacingMetric(key: string, value: unknown): Promise<void> {
+  await copy(formatSpacingValue(value), `spacing-${key}`)
+}
+
+async function copySpacingScale(name: string, value: unknown): Promise<void> {
+  await copy(formatSpacingValue(value), `spacing-scale-${name}`)
+}
 </script>
 
 <template>
@@ -24,30 +47,72 @@ defineProps<{
     <div class="px-6 pb-6">
       <!-- Key metrics -->
       <div class="grid grid-cols-3 gap-4 mt-4 mb-6">
-        <div v-if="spacing.container_max_width" class="border rounded-lg px-4 py-3">
+        <button
+          v-if="spacing.container_max_width"
+          type="button"
+          class="group rounded-lg border px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :title="`Copy ${formatSpacingValue(spacing.container_max_width)}`"
+          @click="copySpacingMetric('container-max-width', spacing.container_max_width)"
+        >
           <p class="text-xs text-muted-foreground mb-1">
             Container Max Width
           </p>
-          <p class="text-lg font-semibold font-mono">
-            {{ spacing.container_max_width }}px
+          <p class="flex items-center justify-between gap-2 text-lg font-semibold font-mono">
+            <span>{{ formatSpacingValue(spacing.container_max_width) }}</span>
+            <span
+              class="inline-flex shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+              :class="{ '!opacity-100': isCopied('spacing-container-max-width') }"
+              data-export-ignore
+            >
+              <Check v-if="isCopied('spacing-container-max-width')" class="size-3.5" />
+              <Copy v-else class="size-3.5" />
+            </span>
           </p>
-        </div>
-        <div v-if="spacing.section_gap" class="border rounded-lg px-4 py-3">
+        </button>
+        <button
+          v-if="spacing.section_gap"
+          type="button"
+          class="group rounded-lg border px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :title="`Copy ${formatSpacingValue(spacing.section_gap)}`"
+          @click="copySpacingMetric('section-gap', spacing.section_gap)"
+        >
           <p class="text-xs text-muted-foreground mb-1">
             Section Gap
           </p>
-          <p class="text-lg font-semibold font-mono">
-            {{ spacing.section_gap }}px
+          <p class="flex items-center justify-between gap-2 text-lg font-semibold font-mono">
+            <span>{{ formatSpacingValue(spacing.section_gap) }}</span>
+            <span
+              class="inline-flex shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+              :class="{ '!opacity-100': isCopied('spacing-section-gap') }"
+              data-export-ignore
+            >
+              <Check v-if="isCopied('spacing-section-gap')" class="size-3.5" />
+              <Copy v-else class="size-3.5" />
+            </span>
           </p>
-        </div>
-        <div v-if="spacing.container_padding" class="border rounded-lg px-4 py-3">
+        </button>
+        <button
+          v-if="spacing.container_padding"
+          type="button"
+          class="group rounded-lg border px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :title="`Copy ${formatSpacingValue(spacing.container_padding)}`"
+          @click="copySpacingMetric('container-padding', spacing.container_padding)"
+        >
           <p class="text-xs text-muted-foreground mb-1">
             Container Padding
           </p>
-          <p class="text-lg font-semibold font-mono">
-            {{ spacing.container_padding }}px
+          <p class="flex items-center justify-between gap-2 text-lg font-semibold font-mono">
+            <span>{{ formatSpacingValue(spacing.container_padding) }}</span>
+            <span
+              class="inline-flex shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+              :class="{ '!opacity-100': isCopied('spacing-container-padding') }"
+              data-export-ignore
+            >
+              <Check v-if="isCopied('spacing-container-padding')" class="size-3.5" />
+              <Copy v-else class="size-3.5" />
+            </span>
           </p>
-        </div>
+        </button>
       </div>
 
       <!-- Scale bars -->
@@ -65,12 +130,27 @@ defineProps<{
             <div
               class="h-5 rounded"
               :style="{
-                width: `${Math.min(Number(value) || 0, 400)}px`,
+                width: spacingBarWidth(value),
                 backgroundColor: colors?.primary || 'hsl(var(--primary))',
                 opacity: 0.6,
               }"
             />
-            <span class="text-xs text-muted-foreground font-mono">{{ value }}px</span>
+            <button
+              type="button"
+              class="group inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground font-mono transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              :title="`Copy ${formatSpacingValue(value)}`"
+              @click="copySpacingScale(String(name), value)"
+            >
+              <span>{{ formatSpacingValue(value) }}</span>
+              <span
+                class="inline-flex shrink-0 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                :class="{ '!opacity-100': isCopied(`spacing-scale-${String(name)}`) }"
+                data-export-ignore
+              >
+                <Check v-if="isCopied(`spacing-scale-${String(name)}`)" class="size-3" />
+                <Copy v-else class="size-3" />
+              </span>
+            </button>
           </div>
         </div>
       </template>

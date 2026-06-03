@@ -81,6 +81,15 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).toContain('.dsktoponly')
   })
 
+  it('keeps Clone Studio same-origin sandboxing behind an explicit flag', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('VITE_CLONE_STUDIO_SAME_ORIGIN')
+    expect(source).toContain('allowSameOriginSandbox')
+    expect(source).toContain(':sandbox="iframeSandbox"')
+    expect(source).not.toContain('sandbox="allow-scripts"')
+  })
+
   it('disables cloned page links so preview clicks cannot navigate into the worker app', () => {
     const html = '<a href="/showroom/cars/mustang/specs.html" onclick="window.location.href=\'/\'"><img src="/media/pages/assets/ford-au/mustang/hero.webp"></a>'
     const disabled = disableClonePreviewNavigation(html)

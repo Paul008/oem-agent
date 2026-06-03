@@ -62,6 +62,12 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       margin: 0;
     }
 
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: clip !important;
+    }
+
     [data-clone-studio-hover] {
       cursor: pointer;
       outline: 2px solid rgba(37, 99, 235, 0.55);
@@ -95,11 +101,56 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     }
 
     /*
-     * Slick/carousel tracks are laid out at full multi-slide width; the OEM JS that clips them is
-     * stripped, so constrain the viewport here to clip slides cleanly and avoid horizontal overflow.
+     * Scroll-reveal libraries leave content transparent until OEM scripts add final-state classes.
+     * Those scripts are stripped in Clone Studio, so keep the static desktop clone readable.
      */
-    .slick-list {
+    .animated,
+    .animate__animated,
+    .wow,
+    .aos-init,
+    [data-aos],
+    [class*="fadeIn"] {
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
+    }
+
+    /*
+     * Carousel tracks are often laid out at full multi-slide width; the OEM JS that clips and
+     * positions them is stripped, so constrain common carousel libraries to the desktop frame.
+     */
+    .slick-list,
+    .swiper,
+    .swiper-container,
+    .swiper-wrapper,
+    .splide,
+    .splide__track,
+    .splide__list,
+    .carousel,
+    .carousel-inner,
+    [class*="swiper"],
+    [class*="carousel"],
+    [class*="slider"] {
+      max-width: 100% !important;
       overflow: hidden !important;
+    }
+
+    .slick-track,
+    .swiper-wrapper,
+    .splide__list,
+    .carousel-inner {
+      width: 100% !important;
+      max-width: 100% !important;
+      transform: none !important;
+    }
+
+    .slick-slide,
+    .swiper-slide,
+    .splide__slide,
+    .carousel-item {
+      width: 100% !important;
+      max-width: 100% !important;
+      flex-shrink: 0 !important;
     }
 
     @media (min-width: 1024px) {
@@ -108,12 +159,12 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       video,
       canvas,
       svg {
-        max-width: 100%;
+        max-width: 100% !important;
       }
 
       img,
       video {
-        height: auto;
+        height: auto !important;
       }
     }
   </style>

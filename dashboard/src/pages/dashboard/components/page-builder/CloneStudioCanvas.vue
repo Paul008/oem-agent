@@ -21,6 +21,10 @@ export function computeCloneFrameScale(containerWidth: number, frameWidth: numbe
   return Math.min(1, containerWidth / frameWidth)
 }
 
+export function cloneStudioIframeSandbox(allowSameOrigin = false): string {
+  return allowSameOrigin ? 'allow-scripts allow-same-origin' : 'allow-scripts'
+}
+
 export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtmlForCanvasOptions): string {
   return buildCloneStudioHtml({
     rendered: getCloneHtml(options.page),
@@ -47,11 +51,13 @@ const props = withDefaults(defineProps<{
   // resolves to the intended device layout instead of the narrow editor panel width. The frame is
   // scaled down to fit the available container.
   frameWidth?: number
+  allowSameOriginSandbox?: boolean
 }>(), {
   title: 'Clone Studio',
   baseHref: '',
   workerBase: '',
   frameWidth: 1280,
+  allowSameOriginSandbox: false,
 })
 
 const emit = defineEmits<{
@@ -68,6 +74,10 @@ const bridgeToken = createBridgeToken()
 
 // Scale the desktop-width frame down to fit the editor panel; never scale up past 1:1.
 const frameScale = computed(() => computeCloneFrameScale(containerWidth.value, props.frameWidth))
+const sameOriginSandboxEnabled = computed(() =>
+  props.allowSameOriginSandbox || import.meta.env.VITE_CLONE_STUDIO_SAME_ORIGIN === 'true',
+)
+const iframeSandbox = computed(() => cloneStudioIframeSandbox(sameOriginSandboxEnabled.value))
 
 const frameStyle = computed(() => {
   const scale = frameScale.value
@@ -189,7 +199,7 @@ defineExpose({
       ref="iframe"
       class="border-0 bg-white"
       :style="frameStyle"
-      sandbox="allow-scripts"
+      :sandbox="iframeSandbox"
       title="Clone Studio canvas"
       :srcdoc="frameHtml"
       @load="onFrameLoad"

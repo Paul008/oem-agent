@@ -13,6 +13,8 @@
  * 5. Result stored as VehicleModelPage in R2
  */
 
+import { load } from 'cheerio';
+
 import type { OemId, VehicleModelPage } from '../oem/types';
 import { applyCloneMode, type ModeAwarePage } from './page-modes';
 
@@ -32,7 +34,7 @@ export interface PageCaptureResult {
   error?: string;
 }
 
-interface DomCaptureResult {
+export interface DomCaptureResult {
   html: string;
   stylesheetLinks: string[];
   imageUrls: string[];
@@ -54,6 +56,120 @@ function extractStylesheetHref(linkTag: string): string | null {
   const match = linkTag.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i);
 
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
+}
+
+function absolutizeCaptureUrl(url: string, sourceUrl: string): string {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('blob:'))
+    return trimmed;
+  if (trimmed.startsWith('//'))
+    return `https:${trimmed}`;
+
+  try {
+    return new URL(trimmed, sourceUrl).href;
+  } catch {
+    return trimmed;
+  }
+}
+
+function normalizeCaptureSrcset(srcset: string, sourceUrl: string, imageUrls: Set<string>): string {
+  return srcset
+    .split(',')
+    .map((entry) => {
+      const parts = entry.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 0)
+        return '';
+
+      parts[0] = absolutizeCaptureUrl(parts[0], sourceUrl);
+      if (parts[0] && !parts[0].startsWith('data:') && !parts[0].startsWith('blob:'))
+        imageUrls.add(parts[0]);
+
+      return parts.join(' ');
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
+function bestCaptureSrcsetUrl(srcset: string): string {
+  return srcset.split(',').pop()?.trim().split(/\s+/)[0] ?? '';
+}
+
+export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: string): DomCaptureResult {
+  const $ = load(result.html, {}, false);
+  const imageUrls = new Set(result.imageUrls.filter(Boolean));
+
+  $('source[data-srcset], img[data-srcset]').each((_idx, node) => {
+    const el = $(node);
+    const srcset = (el.attr('srcset') || el.attr('data-srcset') || '').trim();
+    if (!srcset)
+      return;
+
+    el.attr('srcset', normalizeCaptureSrcset(srcset, sourceUrl, imageUrls));
+  });
+
+  $('picture').each((_idx, node) => {
+    const picture = $(node);
+    const source = picture.find('source').first();
+    const img = picture.find('img').first();
+    if (img.length === 0)
+      return;
+
+    const sourceSrcset = (source.attr('srcset') || source.attr('data-srcset') || '').trim();
+    const imgSrcset = (img.attr('srcset') || img.attr('data-srcset') || '').trim();
+    const fallbackSrcset = imgSrcset || sourceSrcset;
+    if (!fallbackSrcset)
+      return;
+
+    const normalizedSrcset = normalizeCaptureSrcset(fallbackSrcset, sourceUrl, imageUrls);
+    if (source.length > 0 && !(source.attr('srcset') || '').trim())
+      source.attr('srcset', normalizedSrcset);
+    if (!(img.attr('srcset') || '').trim())
+      img.attr('srcset', normalizedSrcset);
+    if (!(img.attr('src') || '').trim()) {
+      const best = bestCaptureSrcsetUrl(normalizedSrcset);
+      if (best)
+        img.attr('src', best);
+    }
+  });
+
+  $('img').each((_idx, node) => {
+    const img = $(node);
+    const srcset = (img.attr('srcset') || '').trim();
+    if (srcset) {
+      const normalizedSrcset = normalizeCaptureSrcset(srcset, sourceUrl, imageUrls);
+      img.attr('srcset', normalizedSrcset);
+      if (!(img.attr('src') || '').trim()) {
+        const best = bestCaptureSrcsetUrl(normalizedSrcset);
+        if (best)
+          img.attr('src', best);
+      }
+    }
+
+    const src = (img.attr('src') || '').trim();
+    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+      const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
+      img.attr('src', absoluteSrc);
+      imageUrls.add(absoluteSrc);
+    }
+  });
+
+  $('source[srcset]').each((_idx, node) => {
+    const source = $(node);
+    const srcset = (source.attr('srcset') || '').trim();
+    if (srcset)
+      source.attr('srcset', normalizeCaptureSrcset(srcset, sourceUrl, imageUrls));
+  });
+
+  const heroUrl = result.heroUrl ? absolutizeCaptureUrl(result.heroUrl, sourceUrl) : result.heroUrl;
+  if (heroUrl && !heroUrl.startsWith('data:') && !heroUrl.startsWith('blob:'))
+    imageUrls.add(heroUrl);
+
+  return {
+    ...result,
+    html: $.html(),
+    imageUrls: [...imageUrls],
+    heroUrl,
+  };
 }
 
 // ============================================================================
@@ -300,7 +416,6 @@ export class PageCapturer {
           const val = el.getAttribute('data-srcset');
           if (val) {
             el.setAttribute('srcset', val);
-            el.removeAttribute('data-srcset');
           }
         });
 
@@ -641,7 +756,7 @@ export class PageCapturer {
         };
       });
 
-      return result;
+      return normalizeCapturedLazyMedia(result, sourceUrl);
     } finally {
       await browser.close();
     }

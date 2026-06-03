@@ -1,9 +1,13 @@
 <script lang="ts" setup>
-import { Download, Type } from 'lucide-vue-next'
+import { Check, Copy, Download, Type } from 'lucide-vue-next'
+
+import { useClipboard } from '@/composables/use-clipboard'
 
 defineProps<{
   typography: any
 }>()
+
+const { copy, isCopied } = useClipboard()
 
 const TYPO_SCALES = [
   'display',
@@ -29,6 +33,40 @@ function capFontSize(size: string | number | undefined, max = 48): string {
     return String(size)
   return `${Math.min(n, max)}px`
 }
+
+function fontFamilyLabel(value: string | undefined): string {
+  return value?.split(',')[0]?.trim() || 'System'
+}
+
+function typographyTokenSummary(token: any): string {
+  return [
+    token?.fontSize,
+    token?.fontWeight,
+    token?.letterSpacing,
+    token?.lineHeight,
+  ].filter(Boolean).join(' / ')
+}
+
+function typographyTokenCss(token: any): string {
+  return [
+    token?.fontSize ? `font-size: ${token.fontSize}` : '',
+    token?.fontWeight ? `font-weight: ${token.fontWeight}` : '',
+    token?.letterSpacing ? `letter-spacing: ${token.letterSpacing}` : '',
+    token?.lineHeight ? `line-height: ${token.lineHeight}` : '',
+  ].filter(Boolean).join('; ')
+}
+
+async function copyTypographyScale(scale: string, token: any): Promise<void> {
+  await copy(typographyTokenCss(token) || typographyTokenSummary(token), `type-${scale}`)
+}
+
+async function copyFontName(key: string, value: string | undefined): Promise<void> {
+  await copy(fontFamilyLabel(value), `font-${key}`)
+}
+
+async function copyFontFace(face: any): Promise<void> {
+  await copy([face?.family, face?.weight].filter(Boolean).join(' '), `font-${face.family}-${face.weight}`)
+}
 </script>
 
 <template>
@@ -41,9 +79,41 @@ function capFontSize(size: string | number | undefined, max = 48): string {
         </h2>
       </div>
       <p class="text-sm text-muted-foreground">
-        Primary font: <span class="font-semibold">{{ typography.font_primary?.split(',')[0] || 'System' }}</span>
+        Primary font:
+        <button
+          type="button"
+          class="group inline-flex items-center gap-1 rounded px-1 font-semibold transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :title="`Copy ${fontFamilyLabel(typography.font_primary)}`"
+          @click="copyFontName('primary', typography.font_primary)"
+        >
+          {{ fontFamilyLabel(typography.font_primary) }}
+          <span
+            class="inline-flex opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+            :class="{ '!opacity-100': isCopied('font-primary') }"
+            data-export-ignore
+          >
+            <Check v-if="isCopied('font-primary')" class="size-3" />
+            <Copy v-else class="size-3" />
+          </span>
+        </button>
         <template v-if="typography.font_secondary">
-          &middot; Secondary: <span class="font-semibold">{{ typography.font_secondary?.split(',')[0] }}</span>
+          &middot; Secondary:
+          <button
+            type="button"
+            class="group inline-flex items-center gap-1 rounded px-1 font-semibold transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            :title="`Copy ${fontFamilyLabel(typography.font_secondary)}`"
+            @click="copyFontName('secondary', typography.font_secondary)"
+          >
+            {{ fontFamilyLabel(typography.font_secondary) }}
+            <span
+              class="inline-flex opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+              :class="{ '!opacity-100': isCopied('font-secondary') }"
+              data-export-ignore
+            >
+              <Check v-if="isCopied('font-secondary')" class="size-3" />
+              <Copy v-else class="size-3" />
+            </span>
+          </button>
         </template>
       </p>
     </div>
@@ -74,12 +144,25 @@ function capFontSize(size: string | number | undefined, max = 48): string {
                 The quick brown fox jumps
               </p>
             </div>
-            <div class="w-48 shrink-0 text-right">
-              <span class="text-[10px] text-muted-foreground font-mono">
-                {{ typography.scale[scale].fontSize }}
-                <template v-if="typography.scale[scale].fontWeight"> / {{ typography.scale[scale].fontWeight }}</template>
-                <template v-if="typography.scale[scale].letterSpacing"> / {{ typography.scale[scale].letterSpacing }}</template>
-              </span>
+            <div class="w-56 shrink-0 text-right">
+              <button
+                type="button"
+                class="group inline-flex max-w-full items-center justify-end gap-1 rounded px-1.5 py-1 text-right transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :title="`Copy ${typographyTokenCss(typography.scale[scale])}`"
+                @click="copyTypographyScale(scale, typography.scale[scale])"
+              >
+                <span class="truncate text-[10px] text-muted-foreground font-mono">
+                  {{ typographyTokenSummary(typography.scale[scale]) }}
+                </span>
+                <span
+                  class="inline-flex shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                  :class="{ '!opacity-100': isCopied(`type-${scale}`) }"
+                  data-export-ignore
+                >
+                  <Check v-if="isCopied(`type-${scale}`)" class="size-3" />
+                  <Copy v-else class="size-3" />
+                </span>
+              </button>
             </div>
           </div>
         </template>
@@ -101,16 +184,31 @@ function capFontSize(size: string | number | undefined, max = 48): string {
           Font Files
         </p>
         <div class="flex flex-wrap gap-2">
-          <a
+          <div
             v-for="face in typography.font_faces"
             :key="face.url"
-            :href="face.url"
-            download
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md hover:bg-muted transition-colors"
+            class="inline-flex items-center gap-1 rounded-md border px-2 py-1.5"
           >
-            <Download class="size-3" />
-            {{ face.family }} {{ face.weight }}
-          </a>
+            <a
+              :href="face.url"
+              download
+              class="inline-flex items-center gap-1.5 text-xs font-medium hover:text-primary"
+            >
+              <Download class="size-3" />
+              {{ face.family }} {{ face.weight }}
+            </a>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              :title="`Copy ${face.family} ${face.weight}`"
+              data-export-ignore
+              @click="copyFontFace(face)"
+            >
+              <Check v-if="isCopied(`font-${face.family}-${face.weight}`)" class="size-3" />
+              <Copy v-else class="size-3" />
+              {{ isCopied(`font-${face.family}-${face.weight}`) ? 'Copied' : 'Copy' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>

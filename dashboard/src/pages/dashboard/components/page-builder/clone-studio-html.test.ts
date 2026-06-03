@@ -120,10 +120,55 @@ describe('buildCloneStudioHtml', () => {
     })
 
     const head = html.slice(0, html.indexOf('</head>'))
-    expect(head).toMatch(/\.slick-list\s*\{[^}]*overflow:\s*hidden\s*!important/i)
+    expect(head).toContain('.slick-list,')
+    expect(head).toMatch(/\.slick-list,[\s\S]*overflow:\s*hidden\s*!important/i)
     // No carousel animation / external script is injected (rAF ticker is throttled in the iframe).
     expect(html).not.toContain('gsap.min.js')
     expect(html).not.toContain('translateX')
+  })
+
+  it('constrains common carousel libraries so static clone slides cannot overflow the desktop frame', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><div class="swiper"><div class="swiper-wrapper"><div class="swiper-slide swiper-slide-active">Hero</div><div class="swiper-slide">Next</div></div></div><div class="splide"><div class="splide__track"><div class="splide__slide">Slide</div></div></div></main>',
+      title: 'Haval H6',
+      baseHref: 'https://www.gwmanz.com/au/models/suv/haval-h6/',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toContain('.swiper,')
+    expect(head).toContain('.swiper-wrapper,')
+    expect(head).toContain('.splide__track')
+    expect(head).toMatch(/overflow:\s*hidden\s*!important/i)
+    expect(head).toMatch(/\.swiper-slide,[\s\S]*\.splide__slide[\s\S]*width:\s*100%\s*!important/i)
+  })
+
+  it('clips document-level horizontal overflow and caps media to the desktop frame', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><div class="article-wrapper"><picture><img src="/hero.jpg"></picture></div></main>',
+      title: 'i30',
+      baseHref: 'https://www.hyundai.com/au/en/cars/small-cars/i30/',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toMatch(/html,[\s\S]*body[\s\S]*overflow-x:\s*clip\s*!important/i)
+    expect(head).toMatch(/img,[\s\S]*picture[\s\S]*max-width:\s*100%\s*!important/i)
+  })
+
+  it('reveals common scroll-animation classes left transparent when OEM scripts are stripped', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><div class="txt fadeInUp animated" style="opacity: 0">Sportage feature copy</div></main>',
+      title: 'Sportage',
+      baseHref: 'https://www.kia.com/au/cars/sportage/',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toContain('.animated,')
+    expect(head).toContain('[class*="fadeIn"]')
+    expect(head).toMatch(/opacity:\s*1\s*!important/i)
+    expect(head).toMatch(/visibility:\s*visible\s*!important/i)
   })
 
   it('force-shows OEM desktop-only image classes hidden by stripped responsive scripts', () => {
