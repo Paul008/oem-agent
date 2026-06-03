@@ -1,13 +1,11 @@
 export type PageMode = 'clone' | 'sections' | 'raw-html' | 'generated' | 'template'
 
 export interface CloneEditableField {
-  id?: string
-  label?: string
-  selector?: string
-  type?: string
-  attribute?: string
-  value?: string
-  [key: string]: unknown
+  id: string
+  selector: string
+  kind: 'text' | 'html' | 'image' | 'link' | 'button' | 'background' | 'visibility'
+  label: string
+  value: string
 }
 
 export interface CloneSectionRegion {
@@ -18,16 +16,16 @@ export interface CloneSectionRegion {
   classes: string[]
   top: number
   height: number
-  editable_fields: CloneEditableField[]
-  [key: string]: unknown
+  type_hint?: string
+  editable_fields?: CloneEditableField[]
 }
 
 export interface CloneModeContent {
   rendered: string
   edited_rendered?: string
-  source_url?: string
+  source_url: string
   captured_at: string
-  viewport?: {
+  viewport: {
     width: number
     height: number
   }
@@ -36,62 +34,53 @@ export interface CloneModeContent {
   section_index: CloneSectionRegion[]
   stripped_selectors: string[]
   warnings: string[]
-  [key: string]: unknown
 }
 
 export interface SectionsModeContent {
   items: any[]
-  source?: {
-    mode?: PageMode | string
-    version?: number
-    generated_at?: string
+  source: {
+    mode: PageMode
+    version: number
+    generated_at: string
   }
-  [key: string]: unknown
 }
 
 export interface PageModes {
   clone?: CloneModeContent
   sections?: SectionsModeContent
-  raw_html?: { items: any[]; [key: string]: unknown }
-  generated?: { items: any[]; [key: string]: unknown }
-  template?: { items: any[]; [key: string]: unknown }
+  raw_html?: { items: any[] }
+  generated?: { rendered: string }
+  template?: { template_id: string, sections: any[] }
 }
 
 export interface ModeAwarePage {
   id?: string
   version?: number
+  source_url?: string
   active_mode?: PageMode | string
   content?: {
     rendered?: string
     sections?: any[]
     modes?: PageModes
-    [key: string]: unknown
   }
-  [key: string]: unknown
 }
 
 export interface CloneCaptureInput {
   rendered: string
-  source_url?: string
-  viewport?: {
+  source_url: string
+  viewport: {
     width: number
     height: number
   }
-  asset_map?: Record<string, string>
-  stylesheet_urls?: string[]
-  section_index?: CloneSectionRegion[]
-  warnings?: string[]
+  asset_map: Record<string, string>
+  stylesheet_urls: string[]
+  section_index: CloneSectionRegion[]
+  warnings: string[]
 }
 
 interface CloneEditInput {
   edited_rendered: string
   section_index: CloneSectionRegion[]
-}
-
-interface SectionsModeSourceInput {
-  sourceMode?: PageMode | string
-  sourceVersion?: number
-  generatedAt?: string
 }
 
 const MODE_PREFERENCE: PageMode[] = ['clone', 'sections', 'generated', 'raw-html', 'template']
@@ -106,17 +95,15 @@ export function normalizePageModes<T extends ModeAwarePage>(page: T): T {
     modes.clone = normalizeCloneMode({
       rendered: legacyRendered,
       stylesheet_urls: extractStylesheetUrls(legacyRendered),
-    }, legacyRendered)
+    }, legacyRendered, page.source_url ?? '')
   } else if (modes.clone) {
-    modes.clone = normalizeCloneMode(modes.clone, legacyRendered)
+    modes.clone = normalizeCloneMode(modes.clone, legacyRendered, page.source_url ?? '')
   }
 
   if (!modes.sections && legacySections.length > 0) {
-    modes.sections = {
-      items: legacySections,
-    }
-  } else if (modes.sections && !Array.isArray(modes.sections.items)) {
-    modes.sections.items = legacySections
+    modes.sections = normalizeSectionsMode({ items: legacySections }, legacySections, page)
+  } else if (modes.sections) {
+    modes.sections = normalizeSectionsMode(modes.sections, legacySections, page)
   }
 
   const activeMode = normalizeModeName(page.active_mode)
@@ -149,11 +136,11 @@ export function applyCloneMode<T extends ModeAwarePage>(
     source_url: input.source_url,
     captured_at: new Date().toISOString(),
     viewport: input.viewport,
-    asset_map: input.asset_map ?? {},
-    stylesheet_urls: input.stylesheet_urls ?? extractStylesheetUrls(input.rendered),
-    section_index: input.section_index ?? [],
+    asset_map: input.asset_map,
+    stylesheet_urls: input.stylesheet_urls,
+    section_index: input.section_index,
     stripped_selectors: [],
-    warnings: input.warnings ?? [],
+    warnings: input.warnings,
   }
 
   content.rendered = input.rendered
@@ -173,7 +160,7 @@ export function applyCloneMode<T extends ModeAwarePage>(
 export function applySectionsMode<T extends ModeAwarePage>(
   page: T,
   sections: any[],
-  source: SectionsModeSourceInput = {},
+  source: SectionsModeContent['source'],
 ): T {
   normalizePageModes(page)
 
@@ -186,11 +173,7 @@ export function applySectionsMode<T extends ModeAwarePage>(
 
   modes.sections = {
     items: sections,
-    source: {
-      mode: source.sourceMode,
-      version: source.sourceVersion,
-      generated_at: source.generatedAt,
-    },
+    source,
   }
   content.sections = sections
   content.rendered = getRenderableCloneHtml(page)
@@ -259,18 +242,20 @@ function ensureModes(content: NonNullable<ModeAwarePage['content']>): PageModes 
   const hyphenatedRawHtml = (modes as Record<string, unknown>)['raw-html']
 
   if (!modes.raw_html && isRecord(hyphenatedRawHtml) && Array.isArray(hyphenatedRawHtml.items)) {
-    modes.raw_html = hyphenatedRawHtml as PageModes['raw_html']
+    modes.raw_html = { items: hyphenatedRawHtml.items }
   }
 
   return modes
 }
 
-function normalizeCloneMode(input: Partial<CloneModeContent>, fallbackRendered: string): CloneModeContent {
+function normalizeCloneMode(input: Partial<CloneModeContent>, fallbackRendered: string, fallbackSourceUrl: string): CloneModeContent {
   const rendered = typeof input.rendered === 'string' ? input.rendered : fallbackRendered
   const clone: CloneModeContent = {
     ...input,
     rendered,
+    source_url: typeof input.source_url === 'string' ? input.source_url : fallbackSourceUrl,
     captured_at: typeof input.captured_at === 'string' ? input.captured_at : '',
+    viewport: isViewport(input.viewport) ? input.viewport : { width: 0, height: 0 },
     asset_map: isStringRecord(input.asset_map) ? input.asset_map : {},
     stylesheet_urls: Array.isArray(input.stylesheet_urls)
       ? input.stylesheet_urls
@@ -285,6 +270,19 @@ function normalizeCloneMode(input: Partial<CloneModeContent>, fallbackRendered: 
   }
 
   return clone
+}
+
+function normalizeSectionsMode(input: Partial<SectionsModeContent>, fallbackItems: any[], page: ModeAwarePage): SectionsModeContent {
+  return {
+    items: Array.isArray(input.items) ? input.items : fallbackItems,
+    source: isSectionsSource(input.source)
+      ? input.source
+      : {
+        mode: 'sections',
+        version: typeof page.version === 'number' ? page.version : 0,
+        generated_at: '',
+      },
+  }
 }
 
 function chooseActiveMode(modes: PageModes): PageMode {
@@ -304,11 +302,11 @@ function isModeAvailable(mode: PageMode, modes: PageModes): boolean {
     case 'sections':
       return Array.isArray(modes.sections?.items)
     case 'generated':
-      return Array.isArray(modes.generated?.items)
+      return typeof modes.generated?.rendered === 'string' && modes.generated.rendered.length > 0
     case 'raw-html':
       return Array.isArray(modes.raw_html?.items)
     case 'template':
-      return Array.isArray(modes.template?.items)
+      return typeof modes.template?.template_id === 'string' && Array.isArray(modes.template.sections)
   }
 }
 
@@ -351,6 +349,19 @@ function getHtmlAttribute(tag: string, attribute: string): string | undefined {
 
 function isStringRecord(value: unknown): value is Record<string, string> {
   return isRecord(value) && Object.values(value).every((item) => typeof item === 'string')
+}
+
+function isViewport(value: unknown): value is CloneModeContent['viewport'] {
+  return isRecord(value)
+    && typeof value.width === 'number'
+    && typeof value.height === 'number'
+}
+
+function isSectionsSource(value: unknown): value is SectionsModeContent['source'] {
+  return isRecord(value)
+    && normalizeModeName(value.mode) === value.mode
+    && typeof value.version === 'number'
+    && typeof value.generated_at === 'string'
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

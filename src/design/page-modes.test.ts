@@ -22,6 +22,7 @@ describe('page mode helpers', () => {
 
     expect(normalized.active_mode).toBe('clone')
     expect(normalized.content.modes.clone.rendered).toContain('Mustang')
+    expect(normalized.content.modes.clone.stylesheet_urls).toEqual(['/ford.css'])
     expect(normalized.content.rendered).toContain('Mustang')
   })
 
@@ -92,15 +93,52 @@ describe('page mode helpers', () => {
     }
 
     const updated = applySectionsMode(page, [{ id: 's1', type: 'hero', heading: 'Extracted' }], {
-      sourceMode: 'clone',
-      sourceVersion: 4,
-      generatedAt: '2026-06-03T01:00:00.000Z',
+      mode: 'clone',
+      version: 4,
+      generated_at: '2026-06-03T01:00:00.000Z',
     })
 
     expect(updated.active_mode).toBe('clone')
     expect(updated.content.modes.sections.items[0].heading).toBe('Extracted')
-    expect(updated.content.modes.sections.source.mode).toBe('clone')
+    expect(updated.content.modes.sections.source).toEqual({
+      mode: 'clone',
+      version: 4,
+      generated_at: '2026-06-03T01:00:00.000Z',
+    })
     expect(updated.content.rendered).toContain('Clone')
+  })
+
+  it('preserves generated active mode when generated rendered content is available', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      active_mode: 'generated',
+      content: {
+        rendered: '<main>Legacy</main>',
+        modes: {
+          generated: { rendered: '<main>Generated</main>' },
+        },
+      },
+    }
+
+    const normalized = normalizePageModes(page)
+
+    expect(normalized.active_mode).toBe('generated')
+  })
+
+  it('preserves template active mode when template content is available', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      active_mode: 'template',
+      content: {
+        modes: {
+          template: { template_id: 'x', sections: [] },
+        },
+      },
+    }
+
+    const normalized = normalizePageModes(page)
+
+    expect(normalized.active_mode).toBe('template')
   })
 
   it('saves clone edits separately from the original captured clone', () => {
@@ -133,5 +171,68 @@ describe('page mode helpers', () => {
     expect(updated.content.modes.clone.rendered).toContain('Original')
     expect(updated.content.modes.clone.edited_rendered).toContain('Edited')
     expect(getRenderableCloneHtml(updated)).toContain('Edited')
+  })
+
+  it('throws when applying clone edits without clone mode content', () => {
+    const page: any = {
+      id: 'ford-au-mustang',
+      content: {
+        sections: [],
+      },
+    }
+
+    expect(() => applyCloneEdit(page, {
+      edited_rendered: '<main>Edited</main>',
+      section_index: [],
+    })).toThrow('Cannot apply clone edit without clone mode content')
+  })
+
+  it('returns renderable clone HTML by edited, original, legacy, empty fallback order', () => {
+    expect(getRenderableCloneHtml({
+      content: {
+        rendered: '<main>Legacy</main>',
+        modes: {
+          clone: {
+            rendered: '<main>Original</main>',
+            edited_rendered: '<main>Edited</main>',
+            source_url: 'https://www.ford.com.au/showroom/cars/mustang/',
+            captured_at: '2026-06-03T00:00:00.000Z',
+            viewport: { width: 1440, height: 1080 },
+            asset_map: {},
+            stylesheet_urls: [],
+            section_index: [],
+            stripped_selectors: [],
+            warnings: [],
+          },
+        },
+      },
+    })).toContain('Edited')
+
+    expect(getRenderableCloneHtml({
+      content: {
+        rendered: '<main>Legacy</main>',
+        modes: {
+          clone: {
+            rendered: '<main>Original</main>',
+            source_url: 'https://www.ford.com.au/showroom/cars/mustang/',
+            captured_at: '2026-06-03T00:00:00.000Z',
+            viewport: { width: 1440, height: 1080 },
+            asset_map: {},
+            stylesheet_urls: [],
+            section_index: [],
+            stripped_selectors: [],
+            warnings: [],
+          },
+        },
+      },
+    })).toContain('Original')
+
+    expect(getRenderableCloneHtml({
+      content: {
+        rendered: '<main>Legacy</main>',
+      },
+    })).toContain('Legacy')
+
+    expect(getRenderableCloneHtml({ content: {} })).toBe('')
   })
 })
