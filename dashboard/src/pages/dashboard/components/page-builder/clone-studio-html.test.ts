@@ -111,7 +111,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).not.toContain('href="/relative.css"')
   })
 
-  it('injects a GSAP carousel enhancement marked for save-time stripping by default', () => {
+  it('injects a CSS-transition carousel auto-advance marked for save-time stripping by default', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><div class="slick-track"><div class="slick-slide">1</div><div class="slick-slide">2</div></div></main>',
       title: 'Mustang',
@@ -119,26 +119,32 @@ describe('buildCloneStudioHtml', () => {
       selectedRegionId: null,
     })
 
-    expect(html).toContain('gsap.min.js')
     expect(html).toContain('.slick-track')
     expect(html).toContain('data-clone-carousel')
-    // Enhancement scripts must be bridge-marked so getBodyHtml strips them from saved HTML.
-    expect(html).toContain('<script data-clone-studio-bridge="true" src="https://cdnjs.cloudflare.com/ajax/libs/gsap/')
-    // The bridge resets carousel transforms on serialize.
-    expect(html).toContain('data-clone-carousel')
+    expect(html).toContain('translateX')
+    expect(html).toContain('transition')
+    // No external script dependency — compositor-driven, since the iframe rAF ticker is throttled.
+    expect(html).not.toContain('gsap.min.js')
+    expect(html).not.toContain('cdnjs')
+    // Enhancement script must be bridge-marked so getBodyHtml strips it from saved HTML.
+    expect(html).toMatch(/<script data-clone-studio-bridge="true">\s*\(function \(\) \{/)
+    // .slick-list overflow constraint is present so slides clip cleanly.
     expect(html).toContain('.slick-list')
   })
 
-  it('omits the carousel enhancement when disabled', () => {
+  it('omits the carousel auto-advance when disabled', () => {
     const html = buildCloneStudioHtml({
-      rendered: '<main><h1>Mustang</h1></main>',
+      rendered: '<main><div class="slick-track"><div class="slick-slide">1</div></div></main>',
       title: 'Mustang',
       baseHref: 'https://www.ford.com.au/',
       enhanceCarousels: false,
       selectedRegionId: null,
     })
 
-    expect(html).not.toContain('gsap.min.js')
+    // The bridge always references data-clone-carousel (it resets it on save); the distinguishing
+    // marker is the enhancement's transform stepper, which must be absent when disabled.
+    expect(html).not.toContain('translateX')
+    expect(html).not.toContain('cubic-bezier')
   })
 
   it('force-shows OEM desktop-only image classes hidden by stripped responsive scripts', () => {
