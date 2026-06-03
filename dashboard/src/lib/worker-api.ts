@@ -103,8 +103,9 @@ export async function fetchGeneratedPages(oemId: string) {
   return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`)
 }
 
-export async function fetchGeneratedPage(slug: string) {
-  return workerFetch(`/api/v1/oem-agent/pages/${slug}`)
+export async function fetchGeneratedPage(slug: string, options?: { includeRendered?: boolean }) {
+  const query = options?.includeRendered ? '?includeRendered=true' : ''
+  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query}`)
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {

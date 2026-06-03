@@ -15,6 +15,13 @@ describe('usePageBuilder media URL resolution', () => {
     expect(duplicates).toEqual([])
   })
 
+  it('loads page-builder detail pages with cloned HTML retained for OEM preview', () => {
+    const source = readFileSync(new URL('./use-page-builder.ts', import.meta.url), 'utf8')
+
+    expect(source).toContain('fetchGeneratedPage(newSlug, { includeRendered: true })')
+    expect(source).toContain('fetchGeneratedPage(slug.value, { includeRendered: true })')
+  })
+
   it('normalizes resolved worker media URLs before storage', () => {
     const section = {
       id: 'hero-1',

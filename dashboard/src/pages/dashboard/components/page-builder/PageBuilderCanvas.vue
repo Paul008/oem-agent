@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { AlertCircle, Copy, GripVertical, Monitor, Palette, Pipette, Play, Settings, Smartphone, Tablet, Trash2 } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import EditToolbar from './EditToolbar.vue'
 import { resolveSectionComponent } from './section-registry'
@@ -30,6 +30,29 @@ const previewWidthClass: Record<string, string> = {
   tablet: 'max-w-[768px] mx-auto',
   mobile: 'max-w-[375px] mx-auto',
 }
+
+type CanvasPreviewMode = 'clone' | 'sections'
+
+function hasRenderedClone(page: any): boolean {
+  return typeof page?.content?.rendered === 'string' && page.content.rendered.trim().length > 0
+}
+
+function getInitialPreviewMode(page: any): CanvasPreviewMode {
+  return hasRenderedClone(page) ? 'clone' : 'sections'
+}
+
+const previewMode = ref<CanvasPreviewMode>(getInitialPreviewMode(props.page))
+const showClonePreview = computed(() => props.isCloned && hasRenderedClone(props.page))
+const showModeToggle = computed(() => showClonePreview.value && props.isStructured && props.sections.length > 0)
+const showCloneFrame = computed(() => showClonePreview.value && (previewMode.value === 'clone' || !props.isStructured || props.sections.length === 0))
+const showStructuredPreview = computed(() => props.isStructured && props.sections.length > 0 && (!showClonePreview.value || previewMode.value === 'sections'))
+
+watch(
+  () => [props.page?.id, props.page?.slug, props.page?.content?.rendered] as const,
+  () => {
+    previewMode.value = getInitialPreviewMode(props.page)
+  },
+)
 
 // Preview animation on a section
 async function previewAnimation(sectionId: string, animation: string) {
@@ -271,37 +294,75 @@ ${rendered}
 
 <template>
   <div class="h-full flex flex-col bg-muted/30">
-    <!-- Responsive preview toggle -->
-    <div v-if="isStructured && sections.length > 0" class="flex items-center justify-center gap-1 py-1.5 border-b bg-card shrink-0">
-      <button
-        class="p-1.5 rounded-md transition-colors"
-        :class="previewWidth === 'full' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
-        title="Desktop"
-        @click="previewWidth = 'full'"
-      >
-        <Monitor class="size-3.5" />
-      </button>
-      <button
-        class="p-1.5 rounded-md transition-colors"
-        :class="previewWidth === 'tablet' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
-        title="Tablet (768px)"
-        @click="previewWidth = 'tablet'"
-      >
-        <Tablet class="size-3.5" />
-      </button>
-      <button
-        class="p-1.5 rounded-md transition-colors"
-        :class="previewWidth === 'mobile' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
-        title="Mobile (375px)"
-        @click="previewWidth = 'mobile'"
-      >
-        <Smartphone class="size-3.5" />
-      </button>
+    <!-- Preview mode and responsive controls -->
+    <div v-if="showModeToggle || showStructuredPreview || showCloneFrame" class="flex items-center justify-between gap-2 py-1.5 px-2 border-b bg-card shrink-0">
+      <div class="min-w-0">
+        <div v-if="showModeToggle" class="inline-flex items-center rounded-md border bg-muted/40 p-0.5">
+          <button
+            class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+            :class="previewMode === 'clone' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            @click="previewMode = 'clone'"
+          >
+            OEM Clone
+          </button>
+          <button
+            class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+            :class="previewMode === 'sections' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            @click="previewMode = 'sections'"
+          >
+            Sections
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-center gap-1">
+        <button
+          class="p-1.5 rounded-md transition-colors"
+          :class="previewWidth === 'full' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+          title="Desktop"
+          @click="previewWidth = 'full'"
+        >
+          <Monitor class="size-3.5" />
+        </button>
+        <button
+          class="p-1.5 rounded-md transition-colors"
+          :class="previewWidth === 'tablet' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+          title="Tablet (768px)"
+          @click="previewWidth = 'tablet'"
+        >
+          <Tablet class="size-3.5" />
+        </button>
+        <button
+          class="p-1.5 rounded-md transition-colors"
+          :class="previewWidth === 'mobile' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+          title="Mobile (375px)"
+          @click="previewWidth = 'mobile'"
+        >
+          <Smartphone class="size-3.5" />
+        </button>
+      </div>
     </div>
 
     <div class="flex-1 overflow-y-auto">
+      <!-- Cloned OEM page in iframe -->
+      <template v-if="showCloneFrame">
+        <div v-if="!showModeToggle" class="flex flex-col items-center justify-center py-4 bg-amber-50 dark:bg-amber-950/20 border-b">
+          <AlertCircle class="size-5 text-amber-500 mb-1" />
+          <p class="text-sm text-amber-700 dark:text-amber-400">
+            This page is cloned but not structured. Click <strong>Structure</strong> to extract sections.
+          </p>
+        </div>
+        <div class="h-full min-h-[720px] transition-all duration-300 bg-white" :class="previewWidthClass[previewWidth]">
+          <iframe
+            :srcdoc="buildStandaloneHtml(page)"
+            class="w-full h-full border-0 bg-white"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+          />
+        </div>
+      </template>
+
       <!-- Structured sections -->
-      <template v-if="isStructured && sections.length > 0">
+      <template v-else-if="showStructuredPreview">
         <div class="space-y-0 transition-all duration-300" :class="previewWidthClass[previewWidth]">
           <div
             v-for="(section, index) in sections"
@@ -463,22 +524,6 @@ ${rendered}
             </button>
           </div>
         </Teleport>
-      </template>
-
-      <!-- Cloned page in iframe (not yet structured) -->
-      <template v-else-if="isCloned && page?.content?.rendered">
-        <div class="flex flex-col items-center justify-center py-4 bg-amber-50 dark:bg-amber-950/20 border-b">
-          <AlertCircle class="size-5 text-amber-500 mb-1" />
-          <p class="text-sm text-amber-700 dark:text-amber-400">
-            This page is cloned but not structured. Click <strong>Structure</strong> to extract sections.
-          </p>
-        </div>
-        <iframe
-          :srcdoc="buildStandaloneHtml(page)"
-          class="w-full border-0"
-          style="height: calc(100% - 64px);"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
-        />
       </template>
 
       <!-- No content — show workflow guidance -->

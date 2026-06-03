@@ -230,7 +230,7 @@ export function usePageBuilder() {
     selectedSectionId.value = null
 
     try {
-      page.value = await fetchGeneratedPage(newSlug)
+      page.value = await fetchGeneratedPage(newSlug, { includeRendered: true })
       if (oemId.value) {
         await loadRecipes(oemId.value)
       }
@@ -274,7 +274,7 @@ export function usePageBuilder() {
       return
     error.value = null
     try {
-      page.value = await fetchGeneratedPage(slug.value)
+      page.value = await fetchGeneratedPage(slug.value, { includeRendered: true })
       isDirty.value = false
     }
     catch (err: any) {
