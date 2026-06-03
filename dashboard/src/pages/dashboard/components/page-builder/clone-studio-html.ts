@@ -13,9 +13,12 @@ export type CloneStudioUrlContext = 'link' | 'media'
 const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 const LINK_URL_ATTRIBUTE_NAMES = new Set(['href', 'action', 'formaction', 'cite', 'manifest'])
 const MEDIA_URL_ATTRIBUTE_NAMES = new Set(['src', 'poster', 'data', 'xlink:href'])
+const SAFE_HEAD_LINK_REL_NAMES = new Set(['stylesheet', 'preconnect', 'dns-prefetch', 'preload'])
+const SAFE_HEAD_PRELOAD_AS_NAMES = new Set(['style', 'font', 'image'])
 
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const { bodyHtml, headParts } = extractHeadParts(options.rendered)
+  const sanitizedHeadParts = sanitizeCloneStudioHeadParts(headParts)
   const rendered = stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(bodyHtml)))
   const selectedRegion = safeJson(options.selectedRegionId)
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
@@ -27,7 +30,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="${escapeHtmlAttribute(options.baseHref)}">
   <title>${escapeHtmlText(options.title)}</title>
-  ${headParts.join('\n  ')}
+  ${sanitizedHeadParts.join('\n  ')}
   <style>
     html {
       min-height: 100%;
@@ -681,6 +684,92 @@ function extractHeadParts(rendered: string): { bodyHtml: string, headParts: stri
   })
 
   return { bodyHtml, headParts }
+}
+
+function sanitizeCloneStudioHeadParts(headParts: string[]): string[] {
+  return headParts
+    .map((part: string) => sanitizeCloneStudioHeadPart(part))
+    .filter((part: string) => part.length > 0)
+}
+
+function sanitizeCloneStudioHeadPart(part: string): string {
+  if (/^<link\b/i.test(part))
+    return sanitizeCloneStudioHeadLink(part)
+
+  if (/^<style\b/i.test(part))
+    return sanitizeCloneStudioHeadStyle(part)
+
+  return ''
+}
+
+function sanitizeCloneStudioHeadLink(part: string): string {
+  const attrs = parseCloneStudioTagAttributes(part)
+  const relTokens = (attrs.get('rel') ?? '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (relTokens.length === 0 || relTokens.some((rel: string) => !SAFE_HEAD_LINK_REL_NAMES.has(rel)))
+    return ''
+
+  const preloadAs = (attrs.get('as') ?? '').toLowerCase()
+  if (relTokens.includes('preload') && !SAFE_HEAD_PRELOAD_AS_NAMES.has(preloadAs))
+    return ''
+
+  const href = sanitizeCloneStudioUrl(attrs.get('href') ?? '', 'link')
+  if (!href)
+    return ''
+
+  const attrPairs: Array<[string, string]> = [
+    ['rel', relTokens.join(' ')],
+    ['href', href],
+  ]
+  const optionalAttrs = ['media', 'as', 'type', 'crossorigin', 'integrity', 'referrerpolicy']
+
+  for (const name of optionalAttrs) {
+    const value = attrs.get(name)
+    if (value != null)
+      attrPairs.push([name, value])
+  }
+
+  return `<link${formatCloneStudioAttributes(attrPairs)}>`
+}
+
+function sanitizeCloneStudioHeadStyle(part: string): string {
+  const match = part.match(/^<style\b[^>]*>([\s\S]*?)<\/style>$/i)
+  if (!match)
+    return ''
+
+  const css = sanitizeCloneStudioStyle(match[1]).trim()
+  if (!css)
+    return ''
+
+  return `<style>${css}</style>`
+}
+
+function parseCloneStudioTagAttributes(tag: string): Map<string, string> {
+  const attrs = new Map<string, string>()
+  const attrSource = tag
+    .replace(/^<\s*[a-z0-9:-]+\b/i, '')
+    .replace(/\/?\s*>\s*$/i, '')
+  const pattern = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+)))?/g
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(attrSource)) != null) {
+    const name = match[1]?.toLowerCase()
+    if (!name)
+      continue
+
+    attrs.set(name, match[2] ?? match[3] ?? match[4] ?? '')
+  }
+
+  return attrs
+}
+
+function formatCloneStudioAttributes(attrs: Array<[string, string]>): string {
+  return attrs
+    .map(([name, value]: [string, string]) => ` ${name}="${escapeHtmlAttribute(value)}"`)
+    .join('')
 }
 
 function serializeCloneStudioBody(html: string): string {

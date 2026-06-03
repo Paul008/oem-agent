@@ -13,6 +13,10 @@ function extractInitialBody(html: string): string {
   return html.match(/<body>\n([\s\S]*?)\n<script data-clone-studio-bridge="true">/)?.[1] ?? ''
 }
 
+function extractDocumentHead(html: string): string {
+  return html.match(/<head>([\s\S]*?)<\/head>/)?.[1] ?? ''
+}
+
 describe('buildCloneStudioHtml', () => {
   it('disables navigation and injects clone studio bridge messages', () => {
     const html = buildCloneStudioHtml({
@@ -87,6 +91,43 @@ describe('buildCloneStudioHtml', () => {
     expect(body).not.toContain('onclick')
     expect(body).not.toContain('srcdoc')
     expect(body).not.toContain('javascript:')
+  })
+
+  it('sanitizes extracted head link and style fragments before inserting srcdoc head', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<link rel="stylesheet" href="javascript:alert(1)" onload="alert(2)"><link rel="modulepreload" href="/app.js"><link rel="preload" as="script" href="/app.js"><style onload="alert(3)">@import url("https://evil.test/a.css"); .hero { background: url(data:image/svg+xml;base64,abc); color: red; behavior: expression(alert(4)); }</style><main>Mustang</main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = extractDocumentHead(html)
+
+    expect(head).not.toContain('onload')
+    expect(head).not.toContain('javascript:')
+    expect(head).not.toContain('modulepreload')
+    expect(head).not.toContain('as="script"')
+    expect(head).not.toContain('@import')
+    expect(head).not.toContain('data:image/svg')
+    expect(head).not.toContain('expression(')
+    expect(head).toContain('color: red')
+  })
+
+  it('preserves safe extracted head stylesheet links and CSS', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen"><link rel="preconnect" href="https://fonts.example.test" crossorigin="anonymous"><link rel="preload" as="font" href="/fonts/oem.woff2" type="font/woff2"><style>.hero { background-image: url(/images/mustang.png); color: #111; }</style><main>Mustang</main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = extractDocumentHead(html)
+
+    expect(head).toContain('<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen">')
+    expect(head).toContain('<link rel="preconnect" href="https://fonts.example.test" crossorigin="anonymous">')
+    expect(head).toContain('<link rel="preload" href="/fonts/oem.woff2" as="font" type="font/woff2">')
+    expect(head).toContain('background-image: url("/images/mustang.png")')
+    expect(head).toContain('color: #111')
   })
 
   it('includes bridge token handling and parent-source guard', () => {
