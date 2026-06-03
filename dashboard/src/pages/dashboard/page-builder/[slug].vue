@@ -40,7 +40,7 @@ import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialo
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
-import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, shouldShowSourceUrlInput } from './page-workflow'
+import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, needsDestructiveActionConfirmation, shouldShowSourceUrlInput } from './page-workflow'
 
 const route = useRoute()
 const router = useRouter()
@@ -208,6 +208,42 @@ const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-d
 
 const selectedModel = ref(DEFAULT_AI_MODEL_VALUE)
 const selectedModelOverride = computed(() => getAiModelOverride(selectedModel.value))
+
+type ModelOverride = { provider: string, model: string }
+
+const DESTRUCTIVE_ACTION_COPY = {
+  clone: 'Clone again? Existing manual edits or sections may be overwritten. Other mode data is preserved where possible.',
+  structure: 'Structure again? Existing manual section edits may be overwritten. Clone mode is preserved.',
+  pipeline: 'Run the pipeline again? Existing edits, sections, or clone HTML may be overwritten. Other mode data is preserved where possible.',
+} as const
+
+function confirmDestructiveAction(action: keyof typeof DESTRUCTIVE_ACTION_COPY) {
+  if (!needsDestructiveActionConfirmation(action, page.value))
+    return true
+
+  return window.confirm(DESTRUCTIVE_ACTION_COPY[action])
+}
+
+async function runClone() {
+  if (!confirmDestructiveAction('clone'))
+    return
+
+  await handleClone()
+}
+
+async function runStructure(modelOverride?: ModelOverride) {
+  if (!confirmDestructiveAction('structure'))
+    return
+
+  await handleStructure(modelOverride)
+}
+
+async function runAdaptivePipeline(modelOverride?: ModelOverride) {
+  if (!confirmDestructiveAction('pipeline'))
+    return
+
+  await handleAdaptivePipeline(modelOverride)
+}
 
 function handleKeyboard(e: KeyboardEvent) {
   const mod = e.metaKey || e.ctrlKey
@@ -512,7 +548,7 @@ watch(
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
           class="hidden xl:inline-flex"
-          @click="handleClone()"
+          @click="runClone()"
         >
           <Copy v-if="!cloning" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -541,7 +577,7 @@ watch(
           :variant="primaryWorkflowAction.key === 'structure' ? 'default' : 'outline'"
           :disabled="structuring || pipelining"
           class="hidden xl:inline-flex"
-          @click="handleStructure(selectedModelOverride)"
+          @click="runStructure(selectedModelOverride)"
         >
           <Sparkles v-if="!structuring" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -555,7 +591,7 @@ watch(
           :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
           :disabled="pipelineActionDisabled"
           class="hidden xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
-          @click="handleAdaptivePipeline(selectedModelOverride)"
+          @click="runAdaptivePipeline(selectedModelOverride)"
         >
           <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -644,7 +680,7 @@ watch(
               </UiDropdownMenuLabel>
               <UiDropdownMenuItem
                 :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
-                @select="handleClone()"
+                @select="runClone()"
               >
                 <Copy class="size-3.5 mr-2" />
                 Clone{{ needsSourceUrl && !sourceUrlOverride?.trim() ? ' (enter URL first)' : '' }}
@@ -665,14 +701,14 @@ watch(
               <UiDropdownMenuItem
                 v-if="pageWorkflowState === 'cloned' || pageWorkflowState === 'structured'"
                 :disabled="structuring || pipelining"
-                @select="handleStructure(selectedModelOverride)"
+                @select="runStructure(selectedModelOverride)"
               >
                 <Sparkles class="size-3.5 mr-2" />
                 {{ primaryWorkflowAction.key === 'structure' ? primaryWorkflowAction.label : 'Structure' }}
               </UiDropdownMenuItem>
               <UiDropdownMenuItem
                 :disabled="pipelineActionDisabled"
-                @select="handleAdaptivePipeline(selectedModelOverride)"
+                @select="runAdaptivePipeline(selectedModelOverride)"
               >
                 <Zap class="size-3.5 mr-2 text-violet-500" />
                 {{ primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Adaptive Pipeline' }}
@@ -781,7 +817,7 @@ watch(
         <button
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           :disabled="pipelineActionDisabled"
-          @click="handleAdaptivePipeline(selectedModelOverride)"
+          @click="runAdaptivePipeline(selectedModelOverride)"
         >
           <Loader2 v-if="pipelining" class="size-4 animate-spin" />
           <Zap v-else class="size-4" />

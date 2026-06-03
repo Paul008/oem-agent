@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, shouldShowSourceUrlInput } from './page-workflow'
+import {
+  getPageWorkflowState,
+  getPrimaryWorkflowAction,
+  isPipelineActionDisabled,
+  needsDestructiveActionConfirmation,
+  shouldShowSourceUrlInput,
+} from './page-workflow'
 
 describe('getPageWorkflowState', () => {
   it('returns missing when the API error is a 404', () => {
@@ -194,5 +200,88 @@ describe('getPrimaryWorkflowAction', () => {
       key: 'edit',
       label: 'Edit Sections',
     })
+  })
+})
+
+describe('needsDestructiveActionConfirmation', () => {
+  it('does not guard clone-only empty or current clone pages', () => {
+    expect(needsDestructiveActionConfirmation('clone', null)).toBe(false)
+    expect(needsDestructiveActionConfirmation('clone', {
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>Captured</main>',
+        modes: {
+          clone: { rendered: '<main>Captured</main>' },
+        },
+      },
+    } as any)).toBe(false)
+  })
+
+  it('guards clone when manual edits or sections exist', () => {
+    expect(needsDestructiveActionConfirmation('clone', {
+      manually_edited: true,
+      content: { rendered: '<main>Captured</main>', sections: [] },
+    } as any)).toBe(true)
+
+    expect(needsDestructiveActionConfirmation('clone', {
+      content: {
+        sections: [],
+        modes: {
+          sections: { items: [{ id: 's1', type: 'hero' }] },
+        },
+      },
+    } as any)).toBe(true)
+  })
+
+  it('guards structure only when manual section edits already exist', () => {
+    expect(needsDestructiveActionConfirmation('structure', {
+      content: {
+        rendered: '<main>Captured</main>',
+        modes: {
+          clone: { rendered: '<main>Captured</main>' },
+        },
+      },
+    } as any)).toBe(false)
+
+    expect(needsDestructiveActionConfirmation('structure', {
+      manually_edited: true,
+      content: {
+        sections: [{ id: 's1', type: 'hero' }],
+        modes: {
+          clone: { rendered: '<main>Captured</main>' },
+          sections: { items: [{ id: 's1', type: 'hero' }] },
+        },
+      },
+    } as any)).toBe(true)
+  })
+
+  it('guards pipeline and template when manual edits, sections, or clone content exist', () => {
+    expect(needsDestructiveActionConfirmation('pipeline', {
+      content: {
+        modes: {
+          clone: { edited_rendered: '<main>Edited clone</main>' },
+        },
+      },
+    } as any)).toBe(true)
+
+    expect(needsDestructiveActionConfirmation('template', {
+      content: {
+        rendered: '<main>Legacy clone</main>',
+        sections: [],
+      },
+    } as any)).toBe(true)
+
+    expect(needsDestructiveActionConfirmation('pipeline', {
+      content: {
+        modes: {
+          sections: { items: [{ id: 's1', type: 'hero' }] },
+        },
+      },
+    } as any)).toBe(true)
+
+    expect(needsDestructiveActionConfirmation('template', {
+      manually_edited: true,
+      content: { sections: [] },
+    } as any)).toBe(true)
   })
 })

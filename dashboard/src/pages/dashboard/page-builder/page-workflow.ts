@@ -2,6 +2,8 @@ export type PageWorkflowState = 'missing' | 'empty' | 'cloned' | 'structured' | 
 
 export type PrimaryWorkflowActionKey = 'pipeline' | 'structure' | 'save' | 'edit'
 
+export type DestructivePageAction = 'clone' | 'structure' | 'pipeline' | 'template'
+
 export interface PrimaryWorkflowAction {
   key: PrimaryWorkflowActionKey
   label: string
@@ -18,6 +20,7 @@ export interface PipelineActionDisabledOptions {
 interface PageWorkflowPage {
   active_mode?: string | null
   page_type?: string | null
+  manually_edited?: boolean | null
   content?: {
     sections?: unknown
     rendered?: unknown
@@ -85,13 +88,32 @@ export function shouldShowSourceUrlInput(state: PageWorkflowState): boolean {
   return state !== 'custom'
 }
 
-function hasClonePayload(page: PageWorkflowPage): boolean {
-  const rendered = page.content?.rendered
+export function needsDestructiveActionConfirmation(
+  action: DestructivePageAction,
+  page: PageWorkflowPage | null | undefined,
+): boolean {
+  const hasManualEdits = page?.manually_edited === true
+  const hasSections = hasStructuredSections(page)
+  const hasClone = hasClonePayload(page)
+
+  switch (action) {
+    case 'clone':
+      return hasManualEdits || hasSections
+    case 'structure':
+      return hasManualEdits && hasSections
+    case 'pipeline':
+    case 'template':
+      return hasManualEdits || hasSections || hasClone
+  }
+}
+
+function hasClonePayload(page: PageWorkflowPage | null | undefined): boolean {
+  const rendered = page?.content?.rendered
 
   if (isNonEmptyString(rendered))
     return true
 
-  const cloneMode = isRecord(page.content?.modes)
+  const cloneMode = isRecord(page?.content?.modes)
     && isRecord(page.content.modes.clone)
     ? page.content.modes.clone
     : null
