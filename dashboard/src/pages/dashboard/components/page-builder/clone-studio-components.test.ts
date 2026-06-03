@@ -1,82 +1,116 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath, URL } from 'node:url'
-
 import { describe, expect, it } from 'vitest'
 
-function readComponent(name: string): string {
-  return readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), 'utf8')
+import { buildCloneFieldPatchPayload } from './CloneRegionEditor.vue'
+import { cloneRegionFieldCount, cloneRegionSelectionPayload, sortCloneRegions } from './CloneRegionSidebar.vue'
+import { buildCloneStudioFrameHtmlForCanvas } from './CloneStudioCanvas.vue'
+import type { CloneEditableField, CloneRegion } from '../../page-builder/page-modes'
+
+function makeRegion(overrides: Partial<CloneRegion> = {}): CloneRegion {
+  return {
+    id: 'region-1',
+    label: 'Hero',
+    selector: '[data-oem-region-id="region-1"]',
+    tag: 'section',
+    classes: ['hero'],
+    top: 0,
+    height: 640,
+    editable_fields: [],
+    ...overrides,
+  }
+}
+
+function makeField(kind: CloneEditableField['kind'], overrides: Partial<CloneEditableField> = {}): CloneEditableField {
+  return {
+    id: `${kind}-1`,
+    selector: `[data-field="${kind}"]`,
+    kind,
+    label: kind,
+    value: '',
+    ...overrides,
+  }
 }
 
 describe('Clone Studio components', () => {
-  it('wires the canvas through the tokenized iframe bridge', () => {
-    const source = readComponent('CloneStudioCanvas.vue')
-
-    expect(source).toContain('buildCloneStudioHtml')
-    expect(source).toContain('getCloneHtml')
-    expect(source).toContain('bridgeToken')
-    expect(source).toContain('crypto.randomUUID')
-    expect(source).toContain('const cloneDocument = computed')
-    expect(source).toContain('selectedRegionId: null')
-    expect(source).not.toContain('selectedRegionId: props.selectedRegionId')
-    expect(source).toContain("data.source !== 'clone-studio'")
-    expect(source).toContain('data.bridgeToken !== bridgeToken')
-    expect(source).toContain("data.type === 'clone-studio:select-region'")
-    expect(source).toContain("data.type === 'clone-studio:dom-updated'")
-    expect(source).toContain('source !== iframe.value.contentWindow')
-    expect(source).toContain('function selectRegionInFrame')
-    expect(source).toContain("type: 'clone-studio:select'")
-    expect(source).toContain("type: 'clone-studio:patch-field'")
-    expect(source).toContain('@load="onFrameLoad"')
-    expect(source).toContain('defineExpose')
-    expect(source).toContain('patchField')
-    expect(source).toContain('sandbox="allow-scripts"')
-    expect(source).not.toContain('allow-top-navigation')
-    expect(source).not.toContain('allow-popups')
-  })
-
-  it('keeps clone regions separate from structured sections in the sidebar', () => {
-    const source = readComponent('CloneRegionSidebar.vue')
-
-    expect(source).toContain('regions:')
-    expect(source).toContain('structuredSections')
-    expect(source).toContain('selectRegion')
-    expect(source).toContain('editRegion')
-    expect(source).toContain('selectRegion: [region: CloneRegion]')
-    expect(source).toContain('editRegion: [region: CloneRegion]')
-    expect(source).toContain("emit('selectRegion', region)")
-    expect(source).toContain("emit('editRegion', region)")
-    expect(source).not.toContain("emit('selectRegion', region.id)")
-    expect(source).not.toContain("emit('editRegion', region.id)")
-    expect(source).toContain('editable_fields')
-    expect(source).toContain('Edit clone region')
-    expect(source).toContain('aria-label')
-    expect(source).toContain('selectedRegionId')
-    expect(source).toContain('height')
-    expect(source).toContain('tag')
-  })
-
-  it('supports all Clone Studio field kinds in the region editor', () => {
-    const source = readComponent('CloneRegionEditor.vue')
-
-    for (const kind of ['text', 'html', 'image', 'link', 'button', 'background', 'visibility']) {
-      expect(source).toContain(`'${kind}'`)
+  it('builds canvas srcdoc independently of selected region changes', () => {
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main data-oem-region-id="hero">Hero</main>',
+          },
+        },
+      },
     }
 
-    expect(source).toContain('patchField')
-    expect(source).toContain('UiInput')
-    expect(source).toContain('UiTextarea')
-    expect(source).toContain('UiSelect')
-    expect(source).toContain('fieldId: field.id')
-    expect(source).toContain('regionId: region.id')
-    expect(source).toContain('selector: field.selector')
-    expect(source).toContain("Exclude<CloneEditableField['kind'], 'background'>")
-    expect(source).toContain("if (field.kind === 'background')")
-    expect(source).toContain('return')
-    expect(source).toContain('disabled')
-    expect(source).toContain('requires bridge support')
-    expect(source).not.toContain("field.kind === 'image' || field.kind === 'link' || field.kind === 'button' || field.kind === 'background'")
-    expect(source).toContain('value')
-    expect(source).toContain('hidden')
-    expect(source).toContain('visible')
+    const baseOptions = {
+      page,
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      workerBase: '',
+      bridgeToken: 'test-token',
+    }
+
+    const heroHtml = buildCloneStudioFrameHtmlForCanvas({ ...baseOptions, selectedRegionId: 'hero' })
+    const footerHtml = buildCloneStudioFrameHtmlForCanvas({ ...baseOptions, selectedRegionId: 'footer' })
+
+    expect(heroHtml).toBe(footerHtml)
+    expect(heroHtml).toContain('test-token')
+    expect(heroHtml).toContain('<base href="https://www.ford.com.au/">')
+    expect(heroHtml).toContain('data-oem-region-id="hero"')
+  })
+
+  it('returns full region objects and stable sorted sidebar data', () => {
+    const hero = makeRegion({ id: 'hero', top: 120, editable_fields: [makeField('text'), makeField('image')] })
+    const intro = makeRegion({ id: 'intro', top: 20, editable_fields: [] })
+
+    expect(sortCloneRegions([hero, intro]).map(region => region.id)).toEqual(['intro', 'hero'])
+    expect(cloneRegionSelectionPayload(hero)).toBe(hero)
+    expect(cloneRegionFieldCount(hero)).toBe(2)
+    expect(cloneRegionFieldCount(intro)).toBe(0)
+  })
+
+  it('builds bridge-compatible editor patch payloads and blocks unsupported backgrounds', () => {
+    const region = makeRegion()
+
+    expect(buildCloneFieldPatchPayload(region, makeField('text'), 'New text')).toEqual({
+      regionId: 'region-1',
+      fieldId: 'text-1',
+      selector: '[data-field="text"]',
+      kind: 'text',
+      value: 'New text',
+    })
+
+    expect(buildCloneFieldPatchPayload(region, makeField('html'), '<strong>HTML</strong>')).toEqual({
+      regionId: 'region-1',
+      fieldId: 'html-1',
+      selector: '[data-field="html"]',
+      kind: 'html',
+      value: '<strong>HTML</strong>',
+      html: '<strong>HTML</strong>',
+    })
+
+    expect(buildCloneFieldPatchPayload(region, makeField('image'), '/hero.jpg')).toMatchObject({
+      kind: 'image',
+      value: '/hero.jpg',
+    })
+
+    expect(buildCloneFieldPatchPayload(region, makeField('link'), '/offers')).toMatchObject({
+      kind: 'link',
+      value: '/offers',
+    })
+
+    expect(buildCloneFieldPatchPayload(region, makeField('button'), 'Enquire now')).toMatchObject({
+      kind: 'button',
+      value: 'Enquire now',
+      text: 'Enquire now',
+    })
+
+    expect(buildCloneFieldPatchPayload(region, makeField('visibility'), false)).toMatchObject({
+      kind: 'visibility',
+      value: false,
+    })
+
+    expect(buildCloneFieldPatchPayload(region, makeField('background'), '#fff')).toBeNull()
+    expect(buildCloneFieldPatchPayload(null, makeField('text'), 'ignored')).toBeNull()
   })
 })

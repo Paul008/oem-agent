@@ -1,38 +1,26 @@
-<script lang="ts" setup>
+<script lang="ts">
 import type { CloneEditableField, CloneRegion } from '../../page-builder/page-modes'
 
-const props = defineProps<{
-  region: CloneRegion | null
-}>()
+export type CloneFieldPatchPayload = {
+  regionId: string
+  fieldId: string
+  selector: string
+  kind: Exclude<CloneEditableField['kind'], 'background'>
+  value: string | boolean
+  html?: string
+  text?: string
+}
 
-const emit = defineEmits<{
-  patchField: [payload: {
-    regionId: string
-    fieldId: string
-    selector: string
-    kind: Exclude<CloneEditableField['kind'], 'background'>
-    value: string | boolean
-    html?: string
-    text?: string
-  }]
-}>()
+export function buildCloneFieldPatchPayload(
+  region: CloneRegion | null,
+  field: CloneEditableField,
+  value: string | boolean,
+): CloneFieldPatchPayload | null {
+  if (!region || field.kind === 'background') {
+    return null
+  }
 
-const FIELD_KINDS: CloneEditableField['kind'][] = ['text', 'html', 'image', 'link', 'button', 'background', 'visibility']
-
-function patchField(field: CloneEditableField, value: string | boolean) {
-  const region = props.region
-  if (!region)
-    return
-
-  const payload: {
-    regionId: string
-    fieldId: string
-    selector: string
-    kind: Exclude<CloneEditableField['kind'], 'background'>
-    value: string | boolean
-    html?: string
-    text?: string
-  } = {
+  const payload: CloneFieldPatchPayload = {
     regionId: region.id,
     fieldId: field.id,
     selector: field.selector,
@@ -40,15 +28,31 @@ function patchField(field: CloneEditableField, value: string | boolean) {
     value,
   }
 
-  if (field.kind === 'background') {
-    return
-  }
-
   if (field.kind === 'html')
     payload.html = String(value)
 
   if (field.kind === 'button')
     payload.text = String(value)
+
+  return payload
+}
+</script>
+
+<script lang="ts" setup>
+const props = defineProps<{
+  region: CloneRegion | null
+}>()
+
+const emit = defineEmits<{
+  patchField: [payload: CloneFieldPatchPayload]
+}>()
+
+const FIELD_KINDS: CloneEditableField['kind'][] = ['text', 'html', 'image', 'link', 'button', 'background', 'visibility']
+
+function patchField(field: CloneEditableField, value: string | boolean) {
+  const payload = buildCloneFieldPatchPayload(props.region, field, value)
+  if (!payload)
+    return
 
   emit('patchField', payload)
 }

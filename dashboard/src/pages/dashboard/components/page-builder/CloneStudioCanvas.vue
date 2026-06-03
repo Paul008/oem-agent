@@ -1,8 +1,29 @@
-<script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-
+<script lang="ts">
 import { getCloneHtml } from '../../page-builder/page-modes'
 import { buildCloneStudioHtml } from './clone-studio-html'
+
+export interface CloneStudioFrameHtmlForCanvasOptions {
+  page: any
+  title: string
+  baseHref: string
+  workerBase: string
+  selectedRegionId: string | null
+  bridgeToken: string
+}
+
+export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtmlForCanvasOptions): string {
+  return buildCloneStudioHtml({
+    rendered: getCloneHtml(options.page),
+    title: options.title,
+    baseHref: options.baseHref || options.workerBase || '/',
+    selectedRegionId: null,
+    bridgeToken: options.bridgeToken,
+  })
+}
+</script>
+
+<script lang="ts" setup>
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   page: any
@@ -24,15 +45,12 @@ const emit = defineEmits<{
 const iframe = ref<HTMLIFrameElement | null>(null)
 const bridgeToken = createBridgeToken()
 
-const cloneDocument = computed(() => ({
-  rendered: getCloneHtml(props.page),
+const frameHtml = computed(() => buildCloneStudioFrameHtmlForCanvas({
+  page: props.page,
   title: props.title,
-  baseHref: props.baseHref || props.workerBase || '/',
-}))
-
-const frameHtml = computed(() => buildCloneStudioHtml({
-  ...cloneDocument.value,
-  selectedRegionId: null,
+  baseHref: props.baseHref,
+  workerBase: props.workerBase,
+  selectedRegionId: props.selectedRegionId,
   bridgeToken,
 }))
 
