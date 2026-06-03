@@ -199,34 +199,42 @@ function scrollToSection(id: string) {
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-let sectionObserver: IntersectionObserver | null = null
-function setupSectionObserver() {
-  sectionObserver?.disconnect()
-  if (typeof IntersectionObserver === 'undefined')
-    return
-  sectionObserver = new IntersectionObserver((entries) => {
-    const visible = entries
-      .filter(entry => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
-    if (visible[0])
-      activeSection.value = visible[0].target.id
-  }, { rootMargin: '-10% 0px -70% 0px', threshold: [0, 0.5, 1] })
+// Deterministic active-section detection: the active section is the last one whose top has
+// scrolled past a line just below the sticky nav. Height-independent (Recipes can be 3000px+ tall),
+// unlike IntersectionObserver ratios which are meaningless across wildly different section sizes.
+const ACTIVE_LINE_PX = 120
+let scrollRaf = 0
 
+function updateActiveSection() {
+  let current = sectionNav.value[0]?.id ?? ''
   for (const item of sectionNav.value) {
     const el = document.getElementById(item.id)
-    if (el)
-      sectionObserver.observe(el)
+    if (el && el.getBoundingClientRect().top <= ACTIVE_LINE_PX)
+      current = item.id
   }
+  activeSection.value = current
 }
 
-// Re-establish the observer whenever the rendered section set can change: sections are gated on
-// loading/loadError as well as tokens, so observing on sectionNav alone can run before they mount.
+function onScroll() {
+  if (scrollRaf)
+    return
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0
+    updateActiveSection()
+  })
+}
+
 watch([sectionNav, loading, loadError], async () => {
   await nextTick()
-  setupSectionObserver()
+  updateActiveSection()
 }, { flush: 'post' })
 
-onUnmounted(() => sectionObserver?.disconnect())
+onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+  if (scrollRaf)
+    cancelAnimationFrame(scrollRaf)
+})
 
 /* ---- Export ---- */
 
