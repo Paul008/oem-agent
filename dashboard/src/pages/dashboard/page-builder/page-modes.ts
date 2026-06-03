@@ -35,6 +35,7 @@ interface CloneModeContent extends Record<string, unknown> {
   rendered?: unknown
   edited_rendered?: unknown
   section_index?: unknown
+  stylesheet_urls?: unknown
 }
 
 interface SectionsModeContent extends Record<string, unknown> {
@@ -134,6 +135,37 @@ export function getCloneRegions(page: DashboardPage | null | undefined): CloneRe
   const sectionIndex = getCloneMode(page)?.section_index
 
   return Array.isArray(sectionIndex) ? sectionIndex as CloneRegion[] : []
+}
+
+/**
+ * OEM stylesheet URLs for the clone. Sourced from the structured `stylesheet_urls` captured with the
+ * clone; falls back to extracting `<link rel="stylesheet">` hrefs from the original captured HTML.
+ * Decoupling styling from the editable body keeps OEM CSS applied even after edits strip head links.
+ */
+export function getCloneStylesheetUrls(page: DashboardPage | null | undefined): string[] {
+  const clone = getCloneMode(page)
+  const stored = clone?.stylesheet_urls
+  if (Array.isArray(stored)) {
+    const urls = stored.filter((url): url is string => typeof url === 'string' && /^https?:\/\//i.test(url))
+    if (urls.length > 0)
+      return dedupe(urls)
+  }
+
+  const cloneRendered = typeof clone?.rendered === 'string' ? clone.rendered : ''
+  return dedupe(extractStylesheetHrefs(cloneRendered))
+}
+
+function extractStylesheetHrefs(html: string): string[] {
+  return [...html.matchAll(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi)]
+    .map((match) => {
+      const href = match[0].match(/\bhref=["']([^"']+)["']/i)
+      return href?.[1] ?? ''
+    })
+    .filter(url => /^https?:\/\//i.test(url))
+}
+
+function dedupe(values: string[]): string[] {
+  return [...new Set(values)]
 }
 
 export function getSectionItems(page: DashboardPage | null | undefined): any[] {

@@ -6,6 +6,7 @@ import {
   getAvailablePageModes,
   getCloneHtml,
   getCloneRegions,
+  getCloneStylesheetUrls,
   getSectionItems,
   normalizeDashboardPageModes,
 } from './page-modes'
@@ -94,5 +95,40 @@ describe('dashboard page modes', () => {
 
     expect(getSectionItems(page)).toEqual([{ id: 's1', type: 'hero' }])
     expect(page.content.sections).toEqual([{ id: 's1', type: 'hero' }])
+  })
+
+  it('returns stored clone stylesheet urls', () => {
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main>clone</main>',
+            edited_rendered: '<main>edited</main>',
+            stylesheet_urls: ['https://www.ford.com.au/a.css', 'https://www.ford.com.au/b.css'],
+          },
+        },
+      },
+    }
+
+    expect(getCloneStylesheetUrls(page)).toEqual([
+      'https://www.ford.com.au/a.css',
+      'https://www.ford.com.au/b.css',
+    ])
+  })
+
+  it('falls back to extracting stylesheet links from original clone HTML when stylesheet_urls is missing', () => {
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            // original capture retains <link>s; edited_rendered is body-only and loses them
+            rendered: '<link rel="stylesheet" href="https://www.ford.com.au/site.css"><main>clone</main>',
+            edited_rendered: '<main>edited body only</main>',
+          },
+        },
+      },
+    }
+
+    expect(getCloneStylesheetUrls(page)).toEqual(['https://www.ford.com.au/site.css'])
   })
 })

@@ -12,6 +12,13 @@ export interface CloneStudioHtmlOptions {
    * OEM source `<base href>` (e.g. ford.com.au), where they would 404.
    */
   mediaBase?: string
+  /**
+   * OEM stylesheet URLs to load independently of the editable body. Edited clone HTML is serialized
+   * body-only (head `<link>`s are stripped), so styling must be sourced from this structured list to
+   * survive edits. Only absolute http(s) URLs are emitted; entries already in the captured head are
+   * not duplicated.
+   */
+  stylesheetUrls?: string[]
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -27,6 +34,8 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const { bodyHtml, headParts } = extractHeadParts(options.rendered)
   const sanitizedHeadParts = sanitizeCloneStudioHeadParts(headParts)
     .map(part => rewriteProxiedMediaUrls(part, mediaBase))
+  const stylesheetLinkTags = buildOemStylesheetLinkTags(options.stylesheetUrls, sanitizedHeadParts)
+  sanitizedHeadParts.push(...stylesheetLinkTags)
   const rendered = rewriteProxiedMediaUrls(
     stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(bodyHtml))),
     mediaBase,
@@ -945,6 +954,29 @@ export interface CloneStudioBlockedEventForTest {
 
 export function stopCloneStudioBlockedEventForTest(event: CloneStudioBlockedEventForTest): void {
   stopCloneStudioBlockedEvent(event)
+}
+
+function buildOemStylesheetLinkTags(stylesheetUrls: string[] | undefined, existingHeadParts: string[]): string[] {
+  if (!Array.isArray(stylesheetUrls) || stylesheetUrls.length === 0)
+    return []
+
+  const existingHrefs = new Set(
+    existingHeadParts
+      .flatMap(part => [...part.matchAll(/\bhref=["']([^"']+)["']/gi)].map(match => match[1])),
+  )
+
+  const seen = new Set<string>()
+  const tags: string[] = []
+  for (const url of stylesheetUrls) {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim()))
+      continue
+    const href = url.trim()
+    if (existingHrefs.has(href) || seen.has(href))
+      continue
+    seen.add(href)
+    tags.push(`<link rel="stylesheet" href="${escapeHtmlAttribute(href)}">`)
+  }
+  return tags
 }
 
 function normalizeCloneStudioMediaBase(base: string | undefined): string {

@@ -64,6 +64,53 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('src="/media/')
   })
 
+  it('emits OEM stylesheet links from stylesheetUrls so styling survives body-only edits', () => {
+    const html = buildCloneStudioHtml({
+      // edited_rendered is body-only (head links stripped on a prior edit)
+      rendered: '<main><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      stylesheetUrls: [
+        'https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-common.min.css',
+        'https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-nameplates.min.css',
+      ],
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toContain('href="https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-common.min.css"')
+    expect(head).toContain('href="https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-nameplates.min.css"')
+    expect((head.match(/rel="stylesheet"/g) || []).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('does not duplicate stylesheet links already present in the captured head', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<link rel="stylesheet" href="https://www.ford.com.au/site.css"><main><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      stylesheetUrls: ['https://www.ford.com.au/site.css'],
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect((head.match(/href="https:\/\/www\.ford\.com\.au\/site\.css"/g) || []).length).toBe(1)
+  })
+
+  it('ignores non-http stylesheet urls', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      stylesheetUrls: ['javascript:alert(1)', '/relative.css', 'https://www.ford.com.au/ok.css'],
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toContain('href="https://www.ford.com.au/ok.css"')
+    expect(head).not.toContain('javascript:alert')
+    expect(head).not.toContain('href="/relative.css"')
+  })
+
   it('force-shows OEM desktop-only image classes hidden by stripped responsive scripts', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"></picture></main>',
