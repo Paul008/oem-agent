@@ -55,6 +55,14 @@ watch(
   },
 )
 
+watch(
+  () => props.selectedSectionId,
+  (sectionId) => {
+    if (sectionId && showModeToggle.value)
+      previewMode.value = 'sections'
+  },
+)
+
 // Preview animation on a section
 async function previewAnimation(sectionId: string, animation: string) {
   const el = document.querySelector(`[data-section-id="${sectionId}"]`) as HTMLElement

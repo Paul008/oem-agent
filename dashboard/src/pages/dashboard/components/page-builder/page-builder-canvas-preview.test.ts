@@ -20,6 +20,13 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(legacyClonedBranch).toBe(-1)
   })
 
+  it('switches from OEM clone preview into section editing when a section is selected', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('() => props.selectedSectionId')
+    expect(source).toContain("previewMode.value = 'sections'")
+  })
+
   it('keeps desktop-only cloned OEM images visible in the static iframe preview', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
