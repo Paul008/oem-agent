@@ -18,9 +18,16 @@ import type {
 } from '../oem/types';
 import type { AiRouter } from '../ai/router';
 import type { SmartPromptBuilder } from './prompt-builder';
-import { applySectionsMode } from './page-modes';
+import {
+  applySectionsMode,
+  getRenderableCloneHtml,
+  normalizePageModes,
+  type ModeAwarePage,
+} from './page-modes';
 
 const R2_PREFIX = 'pages/definitions';
+
+type ModeAwareVehicleModelPage = VehicleModelPage & ModeAwarePage;
 
 export const EXTRACTABLE_SECTION_TYPES: readonly PageSectionType[] = [
   'hero', 'intro', 'tabs', 'color-picker', 'specs-grid',
@@ -186,9 +193,10 @@ export class PageStructurer {
         };
       }
 
-      const pageData: VehicleModelPage = await obj.json();
+      const pageData = normalizePageModes((await obj.json()) as ModeAwareVehicleModelPage);
+      const renderedHtml = getRenderableCloneHtml(pageData);
 
-      if (!pageData.content?.rendered) {
+      if (!renderedHtml) {
         return {
           success: false,
           structuring_time_ms: Date.now() - startTime,
@@ -197,14 +205,15 @@ export class PageStructurer {
           error: 'Page has no rendered content to structure.',
         };
       }
+      pageData.content.rendered = renderedHtml;
 
       // 2. Build prompt (smart or basic) and call Gemini 3.1 Pro
       let prompt = this.promptBuilder
-        ? await this.promptBuilder.buildExtractionPrompt(oemId, pageData.content.rendered, {
+        ? await this.promptBuilder.buildExtractionPrompt(oemId, renderedHtml, {
             modelSlug,
             sourceUrl: pageData.source_url || '',
           })
-        : buildExtractionPrompt(pageData.content.rendered);
+        : buildExtractionPrompt(renderedHtml);
 
       // Inject OEM recipe context if available
       const recipeContext = await this.getRecipeContext(oemId);
@@ -212,7 +221,7 @@ export class PageStructurer {
         prompt += recipeContext;
       }
 
-      console.log(`[PageStructurer] Extracting sections for ${oemId}/${modelSlug} (${Math.round(pageData.content.rendered.length / 1024)}KB HTML, smart=${!!this.promptBuilder}, recipes=${recipeContext ? 'yes' : 'no'})`);
+      console.log(`[PageStructurer] Extracting sections for ${oemId}/${modelSlug} (${Math.round(renderedHtml.length / 1024)}KB HTML, smart=${!!this.promptBuilder}, recipes=${recipeContext ? 'yes' : 'no'})`);
 
       const response = await this.aiRouter.route({
         taskType: 'page_structuring',
@@ -342,9 +351,10 @@ export class PageStructurer {
         };
       }
 
-      const pageData: VehicleModelPage = await obj.json();
+      const pageData = normalizePageModes((await obj.json()) as ModeAwareVehicleModelPage);
+      const renderedHtml = getRenderableCloneHtml(pageData);
 
-      if (!pageData.content?.rendered) {
+      if (!renderedHtml) {
         return {
           success: false,
           structuring_time_ms: Date.now() - startTime,
@@ -353,8 +363,13 @@ export class PageStructurer {
           error: 'Page has no rendered content.',
         };
       }
+      pageData.content.rendered = renderedHtml;
 
-      const existingSections = pageData.content.sections || [];
+      const existingSections = [
+        ...(Array.isArray(pageData.content.modes?.sections?.items)
+          ? pageData.content.modes.sections.items
+          : pageData.content.sections || []),
+      ];
       const targetIndex = existingSections.findIndex(s => s.id === sectionId);
 
       if (targetIndex === -1) {
@@ -383,7 +398,7 @@ export class PageStructurer {
       };
 
       const schema = sectionSchemas[sectionType] || sectionSchemas['intro'];
-      const hasRenderedHtml = pageData.content.rendered && pageData.content.rendered.length > 100;
+      const hasRenderedHtml = renderedHtml.length > 100;
 
       const prompt = `You are a structured data extractor. Regenerate a "${sectionType}" section for an OEM automotive model page.
 
@@ -397,7 +412,7 @@ Use id "${sectionId}" and order ${existingSection.order}.
 ## Current Section Data (improve upon this)
 ${JSON.stringify(existingSection, null, 2)}
 
-${hasRenderedHtml ? `## Source HTML (extract better data from this if available):\n\n${pageData.content.rendered.substring(0, 60000)}` : '## No source HTML available — regenerate by improving the existing section data above. Keep all existing image URLs and enhance the text content.'}
+${hasRenderedHtml ? `## Source HTML (extract better data from this if available):\n\n${renderedHtml.substring(0, 60000)}` : '## No source HTML available — regenerate by improving the existing section data above. Keep all existing image URLs and enhance the text content.'}
 
 ## Rules
 - All image URLs must be absolute (https://...) or /media/ proxy paths
@@ -456,11 +471,17 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
       const costUsd = promptM * 2.00 + completionM * 12.00;
 
       // Replace in array
+      const previousVersion = pageData.version || 0;
+      const generatedAt = new Date().toISOString();
       const newSection = { ...validated[0], id: sectionId, order: existingSections[targetIndex].order };
       existingSections[targetIndex] = newSection;
-      pageData.content.sections = existingSections;
-      pageData.version = (pageData.version || 0) + 1;
-      pageData.generated_at = new Date().toISOString();
+      applySectionsMode(pageData, existingSections, {
+        mode: pageData.active_mode === 'clone' ? 'clone' : 'sections',
+        version: previousVersion,
+        generated_at: generatedAt,
+      });
+      pageData.version = previousVersion + 1;
+      pageData.generated_at = generatedAt;
 
       // Store back to R2
       const jsonStr = JSON.stringify(pageData);
