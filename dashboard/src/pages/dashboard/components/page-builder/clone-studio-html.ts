@@ -87,6 +87,7 @@ ${rendered}
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
   var hoverRegion = null
+  var generatedRegionId = 1
 
   function post(type, extra) {
     var bodyHtml = getBodyHtml()
@@ -96,7 +97,7 @@ ${rendered}
       bridgeToken: BRIDGE_TOKEN,
       html: bodyHtml,
       bodyHtml: bodyHtml,
-      selectedRegionId: selectedRegion ? selectedRegion.getAttribute('data-oem-region-id') : null
+      selectedRegionId: selectedRegion ? ensureRegionId(selectedRegion) : null
     }
 
     if (extra) {
@@ -429,6 +430,212 @@ ${rendered}
     return target.closest(REGION_SELECTOR)
   }
 
+  function candidateFrom(eventTarget) {
+    if (!eventTarget || !eventTarget.closest)
+      return null
+
+    return eventTarget.closest(REGION_SELECTOR)
+      || eventTarget.closest('[data-oem-field], [data-oem-field-key], [data-clone-field], [data-clone-studio-field], [data-field], section, article, main, header, footer, nav, aside, figure, li, a, button, img, h1, h2, h3, h4, h5, h6, p, div')
+  }
+
+  function ensureRegionId(element) {
+    if (!element || !element.getAttribute || !element.setAttribute)
+      return null
+
+    var existingId = element.getAttribute('data-oem-region-id')
+    if (existingId)
+      return existingId
+
+    var id = null
+    do {
+      id = 'clone-region-' + generatedRegionId++
+    } while (document.querySelector('[data-oem-region-id="' + escapeAttributeSelectorValue(id) + '"]'))
+
+    element.setAttribute('data-oem-region-id', id)
+    return id
+  }
+
+  function selectorForElement(element) {
+    if (!element || !element.getAttribute)
+      return ''
+
+    var regionId = element.getAttribute('data-oem-region-id')
+    if (regionId)
+      return '[data-oem-region-id="' + escapeAttributeSelectorValue(regionId) + '"]'
+
+    var fieldName = element.getAttribute('data-oem-field')
+      || element.getAttribute('data-oem-field-key')
+      || element.getAttribute('data-clone-field')
+      || element.getAttribute('data-clone-studio-field')
+      || element.getAttribute('data-field')
+
+    if (fieldName)
+      return '[data-oem-field="' + escapeAttributeSelectorValue(fieldName) + '"]'
+
+    var id = element.getAttribute('id')
+    if (id) {
+      var escapedId = window.CSS && window.CSS.escape ? window.CSS.escape(id) : escapeAttributeSelectorValue(id)
+      return '#' + escapedId
+    }
+
+    return String(element.tagName || '').toLowerCase()
+  }
+
+  function previewText(value) {
+    var text = String(value || '').replace(/\\s+/g, ' ').trim()
+    return text.length > 90 ? text.slice(0, 87) + '...' : text
+  }
+
+  function isTextBearingElement(element) {
+    if (!element)
+      return false
+
+    var tag = String(element.tagName || '').toLowerCase()
+    return !!element.isContentEditable
+      || tag === 'h1'
+      || tag === 'h2'
+      || tag === 'h3'
+      || tag === 'h4'
+      || tag === 'h5'
+      || tag === 'h6'
+      || tag === 'p'
+      || tag === 'span'
+      || tag === 'small'
+      || tag === 'li'
+      || tag === 'a'
+      || tag === 'button'
+  }
+
+  function addField(fields, field) {
+    for (var i = 0; i < fields.length; i++) {
+      if (fields[i].kind === field.kind && fields[i].selector === field.selector && fields[i].key === field.key)
+        return
+    }
+
+    fields.push(field)
+  }
+
+  function matchingElements(root, selector) {
+    var elements = []
+
+    if (root && root.matches && root.matches(selector))
+      elements.push(root)
+
+    if (root && root.querySelectorAll) {
+      var matches = root.querySelectorAll(selector)
+      for (var i = 0; i < matches.length; i++)
+        elements.push(matches[i])
+    }
+
+    return elements
+  }
+
+  function extractFields(element) {
+    var fields = []
+    if (!element)
+      return fields
+
+    var regionSelector = selectorForElement(element)
+    var textTarget = isTextBearingElement(element)
+      ? element
+      : element.querySelector('[contenteditable], h1, h2, h3, h4, h5, h6, p, span, small, li, a, button')
+
+    if (textTarget && previewText(textTarget.textContent)) {
+      addField(fields, {
+        key: 'text',
+        label: 'Text',
+        kind: 'text',
+        selector: selectorForElement(textTarget) || regionSelector,
+        value: textTarget.textContent || ''
+      })
+    }
+
+    if (element.innerHTML && element.children && element.children.length) {
+      addField(fields, {
+        key: 'html',
+        label: 'HTML',
+        kind: 'html',
+        selector: regionSelector,
+        value: element.innerHTML
+      })
+    }
+
+    var images = matchingElements(element, 'img[src], source[srcset]')
+    for (var i = 0; i < images.length; i++) {
+      addField(fields, {
+        key: 'image',
+        label: images[i].getAttribute('alt') || 'Image',
+        kind: 'image',
+        selector: selectorForElement(images[i]) || regionSelector,
+        value: images[i].getAttribute('src') || images[i].getAttribute('srcset') || ''
+      })
+    }
+
+    var links = matchingElements(element, 'a[href], area[href]')
+    for (var j = 0; j < links.length; j++) {
+      addField(fields, {
+        key: 'link',
+        label: previewText(links[j].textContent) || 'Link',
+        kind: 'link',
+        selector: selectorForElement(links[j]) || regionSelector,
+        value: links[j].getAttribute('href') || '',
+        text: links[j].textContent || ''
+      })
+    }
+
+    var buttons = matchingElements(element, 'button, [role="button"], input[type="button"], input[type="submit"], input[type="image"]')
+    for (var k = 0; k < buttons.length; k++) {
+      addField(fields, {
+        key: 'button',
+        label: previewText(buttons[k].textContent || buttons[k].getAttribute('value')) || 'Button',
+        kind: 'button',
+        selector: selectorForElement(buttons[k]) || regionSelector,
+        value: buttons[k].textContent || buttons[k].getAttribute('value') || '',
+        href: buttons[k].getAttribute('formaction') || buttons[k].getAttribute('data-href') || ''
+      })
+    }
+
+    addField(fields, {
+      key: 'visibility',
+      label: 'Visibility',
+      kind: 'visibility',
+      selector: regionSelector,
+      value: !element.hidden && element.getAttribute('aria-hidden') !== 'true'
+    })
+
+    return fields
+  }
+
+  function regionLabel(element) {
+    if (!element)
+      return ''
+
+    return previewText(element.getAttribute('aria-label')
+      || element.getAttribute('alt')
+      || element.getAttribute('title')
+      || element.textContent
+      || String(element.tagName || '').toLowerCase())
+  }
+
+  function regionPayload(element) {
+    if (!element)
+      return null
+
+    var id = ensureRegionId(element)
+    var rect = element.getBoundingClientRect ? element.getBoundingClientRect() : { top: 0, height: 0 }
+
+    return {
+      id: id,
+      label: regionLabel(element),
+      selector: selectorForElement(element),
+      tag: String(element.tagName || '').toLowerCase(),
+      classes: element.getAttribute ? element.getAttribute('class') || '' : '',
+      top: (rect.top || 0) + (window.scrollY || 0),
+      height: rect.height || 0,
+      editable_fields: extractFields(element)
+    }
+  }
+
   function isNavigationElement(target) {
     if (!target || !target.closest)
       return false
@@ -449,20 +656,27 @@ ${rendered}
       hoverRegion.setAttribute('data-clone-studio-hover', 'true')
   }
 
-  function selectRegion(region, shouldPost) {
+  function selectRegion(region, shouldPost, shouldScroll) {
     if (selectedRegion)
       selectedRegion.removeAttribute('data-clone-studio-selected')
 
     selectedRegion = region || null
 
     if (selectedRegion) {
+      ensureRegionId(selectedRegion)
       selectedRegion.setAttribute('data-clone-studio-selected', 'true')
       selectedRegion.removeAttribute('data-clone-studio-hover')
+
+      if (shouldScroll && selectedRegion.scrollIntoView)
+        selectedRegion.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
 
     if (shouldPost) {
+      var selectedRegionId = selectedRegion ? ensureRegionId(selectedRegion) : null
       post(MESSAGE_SELECT_REGION, {
-        regionId: selectedRegion ? selectedRegion.getAttribute('data-oem-region-id') : null
+        regionId: selectedRegionId,
+        id: selectedRegionId,
+        region: regionPayload(selectedRegion)
       })
     }
   }
@@ -604,7 +818,7 @@ ${rendered}
     else if (kind === 'visibility')
       patchVisibility(target, value)
     else if (kind === 'html')
-      target.innerHTML = sanitizeHtml(value)
+      target.innerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? '' : value)
     else
       target.textContent = String(value == null ? '' : value)
 
@@ -621,7 +835,7 @@ ${rendered}
 
   function handleNavigationEvent(event) {
     var target = event.target
-    var region = closestRegion(target)
+    var region = candidateFrom(target)
     var shouldBlock = event.type === 'click' || isNavigationElement(target)
 
     if (shouldBlock)
@@ -635,7 +849,7 @@ ${rendered}
   }
 
   document.addEventListener('mousemove', function (event) {
-    setHoverRegion(closestRegion(event.target))
+    setHoverRegion(candidateFrom(event.target))
   }, true)
 
   document.addEventListener('mouseleave', function () {
@@ -658,7 +872,8 @@ ${rendered}
       return
 
     if (message.type === MESSAGE_SELECT || message.type === MESSAGE_SELECT_REGION) {
-      selectRegion(findRegionById(message.regionId || message.selectedRegionId || message.id), true)
+      var targetRegion = findRegionById(message.regionId || message.selectedRegionId || message.id)
+      selectRegion(targetRegion, true, true)
       return
     }
 

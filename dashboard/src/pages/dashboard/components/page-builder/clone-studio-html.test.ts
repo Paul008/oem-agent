@@ -17,6 +17,10 @@ function extractDocumentHead(html: string): string {
   return html.match(/<head>([\s\S]*?)<\/head>/)?.[1] ?? ''
 }
 
+function extractBridgeScript(html: string): string {
+  return html.match(/<script data-clone-studio-bridge="true">([\s\S]*?)<\/script>/)?.[1] ?? ''
+}
+
 describe('buildCloneStudioHtml', () => {
   it('disables navigation and injects clone studio bridge messages', () => {
     const html = buildCloneStudioHtml({
@@ -182,6 +186,57 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('event.source !== window.parent')
     expect(html).toContain('message.bridgeToken !== BRIDGE_TOKEN')
     expect(html).toContain('clone-studio:select')
+  })
+
+  it('emits clone region payload extraction with editable fields', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><h1>Mustang</h1><a href="/showroom">Compare</a><img src="/car.png" alt="Mustang"></main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('function candidateFrom(eventTarget)')
+    expect(bridgeScript).toContain('function regionPayload(element)')
+    expect(bridgeScript).toContain('function extractFields(element)')
+    expect(bridgeScript).toContain('clone-region-')
+    expect(bridgeScript).toContain('editable_fields')
+    expect(bridgeScript).toContain('region: regionPayload(selectedRegion)')
+    expect(bridgeScript).toContain("kind: 'text'")
+    expect(bridgeScript).toContain("kind: 'image'")
+    expect(bridgeScript).toContain("kind: 'link'")
+    expect(bridgeScript).toContain("kind: 'button'")
+    expect(bridgeScript).toContain("kind: 'visibility'")
+    expect(bridgeScript).toContain('getBoundingClientRect')
+  })
+
+  it('uses message.html for html patch-field messages', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main data-oem-region-id="r1"><p>Mustang</p></main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain("target.innerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? '' : value)")
+  })
+
+  it('scrolls parent-selected regions into view', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main data-oem-region-id="r1"><p>Mustang</p></main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain("scrollIntoView({ behavior: 'smooth', block: 'center' })")
+    expect(bridgeScript).toContain('selectRegion(targetRegion, true, true)')
   })
 
   it('sanitizes unsafe javascript URLs for clone patches', () => {
