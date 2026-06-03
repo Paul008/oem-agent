@@ -61,6 +61,18 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(pageSource).toContain("() => page.value?.id ?? page.value?.slug")
   })
 
+  it('keeps unsaved clone draft HTML when clone save fails', () => {
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+    const saveStart = pageSource.indexOf('async function saveActiveMode()')
+    const saveEnd = pageSource.indexOf('function openSourceUrl()')
+    const saveSource = pageSource.slice(saveStart, saveEnd)
+
+    expect(saveSource).toContain('const saved = await saveClone')
+    expect(saveSource).toContain('if (saved)')
+    expect(saveSource).toContain('cloneDraftHtml.value = null')
+    expect(saveSource.indexOf('if (saved)')).toBeLessThan(saveSource.indexOf('cloneDraftHtml.value = null'))
+  })
+
   it('keeps desktop-only cloned OEM images visible in the static iframe preview', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 

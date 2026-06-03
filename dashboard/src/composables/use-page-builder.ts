@@ -314,9 +314,9 @@ export function usePageBuilder() {
       return
     if (page.value)
       page.value.active_mode = mode
-    if (mode === 'clone')
+    if (mode !== 'sections')
       selectedSectionId.value = null
-    if (mode === 'sections')
+    if (mode !== 'clone')
       selectedCloneRegionId.value = null
   }
 
@@ -571,9 +571,9 @@ export function usePageBuilder() {
     }
   }
 
-  async function saveClone(editedRendered: string, sectionIndex?: CloneRegion[]) {
+  async function saveClone(editedRendered: string, sectionIndex?: CloneRegion[]): Promise<boolean> {
     if (!oemId.value || !modelSlug.value)
-      return
+      return false
     saving.value = true
     try {
       const payload: { edited_rendered: string, section_index?: CloneRegion[] } = {
@@ -595,9 +595,11 @@ export function usePageBuilder() {
       page.value.active_mode = 'clone'
       page.value.version = result?.version ?? ((page.value.version || 0) + 1)
       isDirty.value = false
+      return true
     }
     catch (err: any) {
       error.value = err.message || 'Save failed'
+      return false
     }
     finally {
       saving.value = false

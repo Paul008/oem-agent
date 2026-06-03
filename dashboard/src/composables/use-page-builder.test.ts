@@ -106,6 +106,9 @@ describe('usePageBuilder media URL resolution', () => {
           sections: {
             items: [{ id: 's1', type: 'hero' }],
           },
+          generated: {
+            rendered: '<main>Generated</main>',
+          },
         },
       },
     }
@@ -121,6 +124,12 @@ describe('usePageBuilder media URL resolution', () => {
     builder.setActiveMode('clone')
     expect(builder.selectedSectionId.value).toBeNull()
     expect(builder.selectedCloneRegionId.value).toBe('r1')
+
+    builder.selectSection('s1')
+    builder.selectCloneRegion('r1')
+    builder.setActiveMode('generated')
+    expect(builder.selectedSectionId.value).toBeNull()
+    expect(builder.selectedCloneRegionId.value).toBeNull()
   })
 
   it('normalizes resolved worker media URLs before storage', () => {

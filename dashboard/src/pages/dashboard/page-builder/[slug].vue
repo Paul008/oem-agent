@@ -165,8 +165,9 @@ function patchCloneField(payload: CloneFieldPatchPayload) {
 
 async function saveActiveMode() {
   if (activeMode.value === 'clone') {
-    await saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegions.value)
-    cloneDraftHtml.value = null
+    const saved = await saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegions.value)
+    if (saved)
+      cloneDraftHtml.value = null
     return
   }
 
