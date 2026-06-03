@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import type { CloneRegion } from './page-modes'
 import {
   getActivePageMode,
   getAvailablePageModes,
@@ -12,13 +13,13 @@ import {
 describe('dashboard page modes', () => {
   it('defaults cloned pages to clone mode even when sections exist', () => {
     const page = normalizeDashboardPageModes({
-      active_mode: 'clone',
       content: {
         rendered: '<main>Ford clone</main>',
         sections: [{ id: 's1', type: 'hero' }],
       },
     })
 
+    expect((page as { active_mode?: string }).active_mode).toBe('clone')
     expect(getActivePageMode(page)).toBe('clone')
     expect(getCloneHtml(page)).toContain('Ford clone')
     expect(getSectionItems(page)).toHaveLength(1)
@@ -41,13 +42,25 @@ describe('dashboard page modes', () => {
   })
 
   it('returns clone regions from mode metadata', () => {
+    const region: CloneRegion = {
+      id: 'r1',
+      label: 'Hero',
+      selector: 'main',
+      tag: 'main',
+      classes: [],
+      top: 0,
+      height: 400,
+      type_hint: 'hero',
+      editable_fields: [],
+    }
+
     const page = normalizeDashboardPageModes({
       content: {
         rendered: '<main>Clone</main>',
         modes: {
           clone: {
             rendered: '<main>Clone</main>',
-            section_index: [{ id: 'r1', label: 'Hero', selector: 'main', tag: 'main', classes: [], top: 0, height: 400, editable_fields: [] }],
+            section_index: [region],
           },
         },
       },

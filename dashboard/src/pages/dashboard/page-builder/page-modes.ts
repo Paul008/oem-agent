@@ -16,6 +16,7 @@ export interface CloneRegion {
   classes: string[]
   top: number
   height: number
+  type_hint?: string
   editable_fields: CloneEditableField[]
 }
 
