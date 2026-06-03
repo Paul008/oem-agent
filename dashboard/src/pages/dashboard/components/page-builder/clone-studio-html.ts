@@ -6,6 +6,12 @@ export interface CloneStudioHtmlOptions {
   baseHref: string
   selectedRegionId: string | null
   bridgeToken?: string
+  /**
+   * Absolute origin that serves proxied `/media/...` assets (the OEM-agent worker/media host).
+   * Root-relative proxied URLs are rewritten against this so they don't resolve against the
+   * OEM source `<base href>` (e.g. ford.com.au), where they would 404.
+   */
+  mediaBase?: string
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -17,9 +23,14 @@ const SAFE_HEAD_LINK_REL_NAMES = new Set(['stylesheet', 'preconnect', 'dns-prefe
 const SAFE_HEAD_PRELOAD_AS_NAMES = new Set(['style', 'font', 'image'])
 
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
+  const mediaBase = normalizeCloneStudioMediaBase(options.mediaBase)
   const { bodyHtml, headParts } = extractHeadParts(options.rendered)
   const sanitizedHeadParts = sanitizeCloneStudioHeadParts(headParts)
-  const rendered = stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(bodyHtml)))
+    .map(part => rewriteProxiedMediaUrls(part, mediaBase))
+  const rendered = rewriteProxiedMediaUrls(
+    stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(bodyHtml))),
+    mediaBase,
+  )
   const selectedRegion = safeJson(options.selectedRegionId)
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
 
@@ -915,6 +926,35 @@ export interface CloneStudioBlockedEventForTest {
 
 export function stopCloneStudioBlockedEventForTest(event: CloneStudioBlockedEventForTest): void {
   stopCloneStudioBlockedEvent(event)
+}
+
+function normalizeCloneStudioMediaBase(base: string | undefined): string {
+  if (!base)
+    return ''
+
+  const trimmed = String(base).trim()
+  if (!trimmed || !/^https?:\/\//i.test(trimmed))
+    return ''
+
+  return trimmed.replace(/\/+$/, '')
+}
+
+/**
+ * Rewrite root-relative proxied asset URLs (`/media/...`) to absolute URLs against the media host.
+ *
+ * Proxied OEM assets are stored as root-relative `/media/...` paths, but the clone iframe sets
+ * `<base href>` to the OEM source origin (e.g. ford.com.au), where those paths 404. Pinning them to
+ * the media base lets them resolve regardless of the iframe's opaque (`allow-scripts`) origin while
+ * leaving the OEM source base href intact for genuinely source-relative resources. Absolute URLs are
+ * left untouched, so the rewrite is idempotent.
+ */
+function rewriteProxiedMediaUrls(html: string, mediaBase: string): string {
+  if (!mediaBase)
+    return html
+
+  // Match `/media/` only at a value boundary (start, whitespace, quote, paren, comma, `;` from
+  // an escaped quote, or `=`) so it never matches `//media` or `host/media/` inside an absolute URL.
+  return String(html).replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${mediaBase}/media/`)
 }
 
 function extractHeadParts(rendered: string): { bodyHtml: string, headParts: string[] } {

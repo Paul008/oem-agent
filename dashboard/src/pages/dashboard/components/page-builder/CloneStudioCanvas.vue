@@ -16,6 +16,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     rendered: getCloneHtml(options.page),
     title: options.title,
     baseHref: options.baseHref || options.workerBase || '/',
+    mediaBase: options.workerBase,
     selectedRegionId: null,
     bridgeToken: options.bridgeToken,
   })

@@ -47,6 +47,36 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('window.__CLONE_STUDIO_SELECTED_REGION__ = "r1"')
   })
 
+  it('rewrites root-relative proxied /media/ URLs to the media base while keeping the OEM source base href', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><img src="/media/pages/assets/ford-au/mustang/hero.webp" alt="Mustang"><img src="/media/pages/assets/ford-au/mustang/a.webp" srcset="/media/pages/assets/ford-au/mustang/a.webp 1x, /media/pages/assets/ford-au/mustang/a2.webp 2x"></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    // Base href stays the OEM source so OEM-relative resources still resolve.
+    expect(html).toContain('<base href="https://www.ford.com.au/showroom/cars/mustang/">')
+    // Proxied images become absolute against the media host that actually serves them.
+    expect(html).toContain('src="https://oem-agent.adme-dev.workers.dev/media/pages/assets/ford-au/mustang/hero.webp"')
+    expect(html).toContain('https://oem-agent.adme-dev.workers.dev/media/pages/assets/ford-au/mustang/a2.webp 2x')
+    expect(html).not.toContain('src="/media/')
+  })
+
+  it('leaves absolute media URLs and non-proxied relative paths untouched', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><img src="https://cdn.ford.com.au/media/x.webp"></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    expect(html).toContain('src="https://cdn.ford.com.au/media/x.webp"')
+    expect(html).not.toContain('oem-agent.adme-dev.workers.dev/media/x.webp')
+  })
+
   it('restores preview link scaffolding before posting saved body HTML', () => {
     const html = stripCloneStudioScaffoldingForTest(
       '<main><a href="#oem-preview-disabled" data-oem-preview-href="/showroom" data-oem-preview-link="true" data-oem-preview-onclick="track(&quot;cta&quot;)" onclick="return false">Compare</a></main>',
