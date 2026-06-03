@@ -66,6 +66,25 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.82);
     }
 
+    /*
+     * OEM responsive image classes (e.g. AEM .imgdesktop / .dsktoponly) are hidden by default and
+     * revealed by OEM scripts that the clone strips for safety. The editor renders at desktop width,
+     * so force the desktop variants visible and keep mobile-only variants hidden to avoid duplicates.
+     */
+    img.imgdesktop,
+    img.dsktoponly,
+    .imgdesktop > img,
+    .dsktoponly > img {
+      display: block !important;
+    }
+
+    img.imgmobile,
+    img.mobonly,
+    .imgmobile > img,
+    .mobonly > img {
+      display: none !important;
+    }
+
     @media (min-width: 1024px) {
       img,
       picture,

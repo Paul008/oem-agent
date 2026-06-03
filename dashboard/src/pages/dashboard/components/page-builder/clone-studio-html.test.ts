@@ -64,6 +64,20 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('src="/media/')
   })
 
+  it('force-shows OEM desktop-only image classes hidden by stripped responsive scripts', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"></picture></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toMatch(/img\.imgdesktop[\s\S]*display:\s*block\s*!important/i)
+    expect(head).toContain('dsktoponly')
+  })
+
   it('leaves absolute media URLs and non-proxied relative paths untouched', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><img src="https://cdn.ford.com.au/media/x.webp"></main>',
