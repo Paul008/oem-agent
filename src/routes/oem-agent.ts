@@ -2588,11 +2588,15 @@ app.put('/admin/update-clone/:oemId/:modelSlug', async (c) => {
   }
 
   const pageData = await obj.json() as any;
+  const existingCloneIndex = Array.isArray(pageData.content?.modes?.clone?.section_index)
+    ? pageData.content.modes.clone.section_index
+    : [];
+  const nextSectionIndex = Array.isArray(body.section_index) ? body.section_index : existingCloneIndex;
 
   try {
     applyCloneEdit(pageData, {
       edited_rendered: body.edited_rendered,
-      section_index: Array.isArray(body.section_index) ? body.section_index : [],
+      section_index: nextSectionIndex,
     });
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'Failed to apply clone edit' }, 400);
