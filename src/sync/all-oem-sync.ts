@@ -3125,6 +3125,48 @@ function fordMoney(value: string | number | null | undefined): number | null {
   return cleaned ? pf(cleaned) : null;
 }
 
+interface FordStoredPriceFields {
+  price_amount?: number | null;
+  price_currency?: string | null;
+  price_type?: string | null;
+  price_raw_string?: string | null;
+  price_qualifier?: string | null;
+}
+
+export function buildFordPriceFields(
+  incomingPrice: number | null,
+  existing?: FordStoredPriceFields | null,
+): FordStoredPriceFields {
+  if (incomingPrice) {
+    return {
+      price_amount: incomingPrice,
+      price_currency: 'AUD',
+      price_type: 'driveaway',
+      price_raw_string: `$${incomingPrice.toLocaleString('en-AU')}`,
+      price_qualifier: 'Ford ADME driveaway price',
+    };
+  }
+
+  const existingPrice = fordMoney(existing?.price_amount);
+  if (existingPrice) {
+    return {
+      price_amount: existingPrice,
+      price_currency: existing?.price_currency || 'AUD',
+      price_type: existing?.price_type || 'driveaway',
+      price_raw_string: existing?.price_raw_string || `$${existingPrice.toLocaleString('en-AU')}`,
+      price_qualifier: existing?.price_qualifier || 'Ford retained previously sourced price',
+    };
+  }
+
+  return {
+    price_amount: null,
+    price_currency: 'AUD',
+    price_type: null,
+    price_raw_string: null,
+    price_qualifier: null,
+  };
+}
+
 function fordModelCategory(segment: string | null, body: string | null): string | null {
   const text = `${segment ?? ''} ${body ?? ''}`.toLowerCase();
   if (text.includes('pickup') || text.includes('cab chassis') || text.includes('van')) return 'commercial';
@@ -3227,7 +3269,19 @@ export async function syncFordAdme(supabase: SupabaseClient): Promise<AllOemSync
     const features = fordFeatureList(variant.features);
     const externalKey = `ford-adme-${variant.id ?? slugify(variant.slug || `${modelInfo.slug}-${variantName}`)}`;
 
+    const { data: existingProduct, error: lookupErr } = await supabase
+      .from('products')
+      .select('id, price_amount, price_currency, price_type, price_raw_string, price_qualifier')
+      .eq('oem_id', OEM_ID)
+      .eq('external_key', externalKey)
+      .maybeSingle();
+    if (lookupErr) {
+      result.errors.push(`Ford product lookup ${externalKey}: ${lookupErr.message}`);
+      continue;
+    }
+
     const productPatch = specsJson ? productPatchFromSpecs(specsJson) : {};
+    const priceFields = buildFordPriceFields(price, existingProduct);
     const productRow = {
       oem_id: OEM_ID,
       external_key: externalKey,
@@ -3241,11 +3295,7 @@ export async function syncFordAdme(supabase: SupabaseClient): Promise<AllOemSync
       transmission,
       seats,
       availability: 'available',
-      price_amount: price,
-      price_currency: 'AUD',
-      price_type: price ? 'driveaway' : null,
-      price_raw_string: price ? `$${price.toLocaleString('en-AU')}` : null,
-      price_qualifier: price ? 'Ford ADME driveaway price' : null,
+      ...priceFields,
       disclaimer_text: cleanFordText(variant.disclaimer) || null,
       primary_image_r2_key: primaryImage,
       gallery_image_count: (variant.colours ?? []).reduce((count, color) => count + fordColorGallery(color).length, 0),
@@ -3269,17 +3319,6 @@ export async function syncFordAdme(supabase: SupabaseClient): Promise<AllOemSync
       },
       last_seen_at: new Date().toISOString(),
     };
-
-    const { data: existingProduct, error: lookupErr } = await supabase
-      .from('products')
-      .select('id')
-      .eq('oem_id', OEM_ID)
-      .eq('external_key', externalKey)
-      .maybeSingle();
-    if (lookupErr) {
-      result.errors.push(`Ford product lookup ${externalKey}: ${lookupErr.message}`);
-      continue;
-    }
 
     const { data: product, error: productErr } = existingProduct
       ? await supabase.from('products')
