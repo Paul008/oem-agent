@@ -38,12 +38,14 @@ export interface CloneModeContent {
 
 export interface SectionsModeContent {
   items: any[]
-  source: {
+  source?: {
     mode: PageMode
     version: number
     generated_at: string
   }
 }
+
+export type SectionsModeSource = NonNullable<SectionsModeContent['source']>
 
 export interface PageModes {
   clone?: CloneModeContent
@@ -160,7 +162,7 @@ export function applyCloneMode<T extends ModeAwarePage>(
 export function applySectionsMode<T extends ModeAwarePage>(
   page: T,
   sections: any[],
-  source: SectionsModeContent['source'],
+  source: SectionsModeSource,
 ): T {
   normalizePageModes(page)
 

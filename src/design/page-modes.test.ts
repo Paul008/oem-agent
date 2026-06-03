@@ -7,8 +7,15 @@ import {
   getRenderableCloneHtml,
   normalizePageModes,
 } from './page-modes'
+import type { SectionsModeContent } from './page-modes'
 
 describe('page mode helpers', () => {
+  it('allows sections mode content without source metadata', () => {
+    const sectionsMode: SectionsModeContent = { items: [] }
+
+    expect(sectionsMode.items).toHaveLength(0)
+  })
+
   it('normalizes legacy rendered HTML into clone mode', () => {
     const page: any = {
       id: 'ford-au-mustang',
