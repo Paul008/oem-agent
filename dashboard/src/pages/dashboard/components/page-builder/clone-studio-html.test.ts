@@ -134,6 +134,23 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('color: blue')
   })
 
+  it('neutralizes escaped style-tag breakouts in extracted head styles', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<style>.hero { color: purple; } .hero::before { content: "\\3c/style\\3e<script>alert(1)</script>"; }</style><main>Mustang</main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = extractDocumentHead(html)
+
+    expect(head).not.toContain('</style><script')
+    expect(head).not.toContain('<script>alert')
+    expect(head).not.toContain('</style&gt;&lt;script')
+    expect(head).toContain('\\3C')
+    expect(head).toContain('color: purple')
+  })
+
   it('preserves safe extracted head stylesheet links and CSS', () => {
     const html = buildCloneStudioHtml({
       rendered: '<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen"><link rel="preconnect" href="https://fonts.example.test" crossorigin="anonymous"><link rel="preload" as="font" href="/fonts/oem.woff2" type="font/woff2"><style>.hero { background-image: url(/images/mustang.png); color: #111; }</style><main>Mustang</main>',

@@ -766,11 +766,17 @@ function sanitizeCloneStudioHeadStyle(part: string): string {
   if (!match)
     return ''
 
-  const css = sanitizeCloneStudioStyle(match[1]).trim()
+  const css = neutralizeCssForStyleElement(sanitizeCloneStudioStyle(match[1])).trim()
   if (!css)
     return ''
 
   return `<style>${css}</style>`
+}
+
+function neutralizeCssForStyleElement(css: string): string {
+  return css
+    .replace(/</g, '\\3C ')
+    .replace(/>/g, '\\3E ')
 }
 
 function parseCloneStudioTagAttributes(tag: string): Map<string, string> {
