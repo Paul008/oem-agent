@@ -16,10 +16,12 @@ export interface PipelineActionDisabledOptions {
 }
 
 interface PageWorkflowPage {
+  active_mode?: string | null
   page_type?: string | null
   content?: {
     sections?: unknown
     rendered?: unknown
+    modes?: unknown
   } | null
 }
 
@@ -30,6 +32,9 @@ export function getPageWorkflowState(input: {
   const page = input.page
   if (page?.page_type === 'custom')
     return 'custom'
+
+  if (page?.active_mode === 'clone')
+    return 'cloned'
 
   const sections = page?.content?.sections
   if (Array.isArray(sections) && sections.length > 0)

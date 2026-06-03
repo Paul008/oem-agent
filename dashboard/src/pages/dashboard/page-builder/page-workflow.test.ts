@@ -65,6 +65,23 @@ describe('getPageWorkflowState', () => {
       error: null,
     })).toBe('custom')
   })
+
+  it('returns cloned for mode-aware clone pages even when sections also exist', () => {
+    expect(getPageWorkflowState({
+      page: {
+        active_mode: 'clone',
+        content: {
+          rendered: '<main>Clone</main>',
+          sections: [{ id: 's1', type: 'hero' }],
+          modes: {
+            clone: { rendered: '<main>Clone</main>' },
+            sections: { items: [{ id: 's1', type: 'hero' }] },
+          },
+        },
+      } as any,
+      error: null,
+    })).toBe('cloned')
+  })
 })
 
 describe('isPipelineActionDisabled', () => {
