@@ -350,6 +350,8 @@ describe('buildCloneStudioHtml', () => {
     const bridgeScript = html.match(/<script data-clone-studio-bridge="true">([\s\S]*?)<\/script>/)?.[1]
 
     expect(bridgeScript).toBeTruthy()
+    if (!bridgeScript)
+      throw new Error('Clone Studio bridge script was not emitted')
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 })
