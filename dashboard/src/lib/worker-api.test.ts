@@ -61,6 +61,14 @@ describe('worker-api fetchGeneratedPage', () => {
     expect(fetchMock.mock.calls[0][0]).not.toContain('includeModes=true')
     expect(fetchMock.mock.calls[1][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang?includeRendered=true&includeModes=true')
   })
+
+  it('requests modes without cloned HTML when only modes are needed', async () => {
+    await fetchGeneratedPage('ford-au-mustang', { includeModes: true })
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang?includeModes=true')
+    expect(fetchMock.mock.calls[0][0]).not.toContain('includeRendered=true')
+  })
 })
 
 describe('worker-api updateClonePage', () => {
@@ -88,5 +96,19 @@ describe('worker-api updateClonePage', () => {
       edited_rendered: '<main>Edited Mustang</main>',
       section_index: [{ id: 'r1', label: 'Hero', selector: 'main', tag: 'main', classes: [], top: 0, height: 400, editable_fields: [] }],
     }))
+  })
+
+  it('saves edited clone HTML without replacing the section index', async () => {
+    await updateClonePage('ford-au', 'mustang', {
+      edited_rendered: '<main>Edited Mustang</main>',
+    })
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/admin/update-clone/ford-au/mustang')
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('PUT')
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({
+      edited_rendered: '<main>Edited Mustang</main>',
+    }))
+    expect(fetchMock.mock.calls[0][1]?.body).not.toContain('section_index')
   })
 })

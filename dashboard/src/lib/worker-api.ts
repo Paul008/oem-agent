@@ -284,7 +284,7 @@ export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: st
   })
 }
 
-export async function updateClonePage(oemId: string, modelSlug: string, payload: { edited_rendered: string, section_index: any[] }) {
+export async function updateClonePage(oemId: string, modelSlug: string, payload: { edited_rendered: string, section_index?: any[] }) {
   return workerFetch(`/api/v1/oem-agent/admin/update-clone/${oemId}/${modelSlug}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
