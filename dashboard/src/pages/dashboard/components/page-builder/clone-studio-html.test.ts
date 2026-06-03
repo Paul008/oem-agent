@@ -113,6 +113,27 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('color: red')
   })
 
+  it('sanitizes escaped CSS bypasses in extracted head styles', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<style>@\\69mport url("/evil.css"); .hero { color: blue; width: e\\78pression(alert(1)); background: url(ja\\76ascript:alert(2)); mask-image: url(data:image/s\\76g+xml;base64,abc); }</style><main>Mustang</main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = extractDocumentHead(html)
+
+    expect(head).not.toContain('@import')
+    expect(head).not.toContain('@\\69mport')
+    expect(head).not.toContain('expression(')
+    expect(head).not.toContain('e\\78pression')
+    expect(head).not.toContain('javascript:')
+    expect(head).not.toContain('ja\\76ascript')
+    expect(head).not.toContain('data:image/svg')
+    expect(head).not.toContain('data:image/s\\76g')
+    expect(head).toContain('color: blue')
+  })
+
   it('preserves safe extracted head stylesheet links and CSS', () => {
     const html = buildCloneStudioHtml({
       rendered: '<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen"><link rel="preconnect" href="https://fonts.example.test" crossorigin="anonymous"><link rel="preload" as="font" href="/fonts/oem.woff2" type="font/woff2"><style>.hero { background-image: url(/images/mustang.png); color: #111; }</style><main>Mustang</main>',
@@ -177,6 +198,20 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('href=""')
     expect(html).toContain('src=""')
     expect(html).toContain('srcset=""')
+  })
+
+  it('sanitizes escaped CSS bypasses in inline style patches', () => {
+    const html = sanitizeCloneStudioHtmlForTest(
+      '<div style="color: green; width:e\\78pression(alert(1)); background:url(ja\\76ascript:alert(2)); border-image:url(data:image/s\\76g+xml;base64,abc)"></div>',
+    )
+
+    expect(html).not.toContain('expression(')
+    expect(html).not.toContain('e\\78pression')
+    expect(html).not.toContain('javascript:')
+    expect(html).not.toContain('ja\\76ascript')
+    expect(html).not.toContain('data:image/svg')
+    expect(html).not.toContain('data:image/s\\76g')
+    expect(html).toContain('color: green')
   })
 
   it('removes dangerous patch elements and navigation-capable attributes', () => {

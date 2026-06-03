@@ -192,6 +192,32 @@ ${rendered}
       .replace(/&colon;/gi, ':')
   }
 
+  function cssCodePoint(code) {
+    return code > 0 && code <= 1114111 ? String.fromCodePoint(code) : ''
+  }
+
+  function decodeCssEscapes(value) {
+    return String(value).replace(/\\\\([0-9a-fA-F]{1,6})(?:\\r\\n|[\\t\\n\\f\\r ])?|\\\\([^\\r\\n])/g, function (_match, hex, escapedChar) {
+      if (!hex)
+        return escapedChar || ''
+
+      if (hex.length >= 6) {
+        var fullCode = parseInt(hex, 16)
+        if (Number.isFinite(fullCode))
+          return cssCodePoint(fullCode)
+      }
+
+      if (hex.length >= 2) {
+        var shortCode = parseInt(hex.slice(0, 2), 16)
+        if (shortCode >= 32 && shortCode <= 126)
+          return cssCodePoint(shortCode) + hex.slice(2)
+      }
+
+      var code = parseInt(hex, 16)
+      return Number.isFinite(code) ? cssCodePoint(code) : ''
+    })
+  }
+
   function isSafeRasterDataImage(normalizedUrl) {
     return /^data:image\\/(?:png|jpe?g|gif|webp|avif)(?:;[^,]*)?,/.test(normalizedUrl)
   }
@@ -250,7 +276,7 @@ ${rendered}
   }
 
   function sanitizeStyle(value) {
-    var style = String(value || '').replace(/\\/\\*[\\s\\S]*?\\*\\//g, '')
+    var style = decodeCssEscapes(String(value || '').replace(/\\/\\*[\\s\\S]*?\\*\\//g, ''))
 
     if (/expression\\s*\\(|@import|-moz-binding|javascript\\s*:|vbscript\\s*:/i.test(style))
       style = style
@@ -261,7 +287,7 @@ ${rendered}
         .replace(/vbscript\\s*:/gi, '')
 
     return style.replace(/url\\((["']?)(.*?)\\1\\)/gi, function (_match, _quote, url) {
-      var sanitizedUrl = sanitizeUrl(url, 'media')
+      var sanitizedUrl = sanitizeUrl(decodeCssEscapes(url), 'media')
       return sanitizedUrl ? 'url("' + sanitizedUrl.replace(/"/g, '%22') + '")' : ''
     })
   }
@@ -837,6 +863,32 @@ function decodeHtmlEntities(value: string): string {
     .replace(/&colon;/gi, ':')
 }
 
+function cssCodePoint(code: number): string {
+  return code > 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : ''
+}
+
+function decodeCssEscapes(value: string): string {
+  return value.replace(/\\([0-9a-fA-F]{1,6})(?:\r\n|[\t\n\f\r ])?|\\([^\r\n])/g, (_match: string, hex?: string, escapedChar?: string) => {
+    if (!hex)
+      return escapedChar ?? ''
+
+    if (hex.length >= 6) {
+      const fullCode = Number.parseInt(hex, 16)
+      if (Number.isFinite(fullCode))
+        return cssCodePoint(fullCode)
+    }
+
+    if (hex.length >= 2) {
+      const shortCode = Number.parseInt(hex.slice(0, 2), 16)
+      if (shortCode >= 32 && shortCode <= 126)
+        return `${cssCodePoint(shortCode)}${hex.slice(2)}`
+    }
+
+    const code = Number.parseInt(hex, 16)
+    return Number.isFinite(code) ? cssCodePoint(code) : ''
+  })
+}
+
 function isSafeRasterDataImage(normalizedUrl: string): boolean {
   return /^data:image\/(?:png|jpe?g|gif|webp|avif)(?:;[^,]*)?,/.test(normalizedUrl)
 }
@@ -894,7 +946,7 @@ function sanitizeCloneStudioSrcset(value: unknown): string {
 }
 
 function sanitizeCloneStudioStyle(value: string): string {
-  let style = value.replace(/\/\*[\s\S]*?\*\//g, '')
+  let style = decodeCssEscapes(value.replace(/\/\*[\s\S]*?\*\//g, ''))
 
   if (/expression\s*\(|@import|-moz-binding|javascript\s*:|vbscript\s*:/i.test(style)) {
     style = style
@@ -906,7 +958,7 @@ function sanitizeCloneStudioStyle(value: string): string {
   }
 
   return style.replace(/url\((["']?)(.*?)\1\)/gi, (_match: string, _quote: string, url: string) => {
-    const sanitizedUrl = sanitizeCloneStudioUrl(url, 'media')
+    const sanitizedUrl = sanitizeCloneStudioUrl(decodeCssEscapes(url), 'media')
     return sanitizedUrl ? `url("${sanitizedUrl.replace(/"/g, '%22')}")` : ''
   })
 }
