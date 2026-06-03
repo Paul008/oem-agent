@@ -40,6 +40,14 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) { console.error('Missing SUPABA
 if (!GROQ_API_KEY) { console.error('Missing GROQ_API_KEY'); process.exit(1); }
 const s = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+function runTypeScriptScript(scriptPath: string, args: string[] = []): void {
+  const quotedScript = JSON.stringify(scriptPath);
+  const quotedArgs = args.map((arg) => JSON.stringify(arg)).join(' ');
+  execSync(`${JSON.stringify(process.execPath)} --experimental-transform-types ${quotedScript}${quotedArgs ? ` ${quotedArgs}` : ''}`, {
+    stdio: 'inherit',
+  });
+}
+
 interface Variant {
   name: string;
   body_style?: string | null;
@@ -565,7 +573,7 @@ async function main() {
   if (fs.existsSync(pricingScript)) {
     console.log('\n=== Chaining Ford pricing + offers RSC extract ===');
     try {
-      execSync(`npx tsx "${pricingScript}" --apply`, { stdio: 'inherit' });
+      runTypeScriptScript(pricingScript, ['--apply']);
     } catch (e: any) {
       console.log(`  pricing extract failed: ${e.message}`);
       console.log(`  (products updated successfully; re-run populate-ford-pricing-rsc.ts manually)`);
@@ -574,13 +582,26 @@ async function main() {
     console.log(`\n  note: populate-ford-pricing-rsc.ts not found — skipping pricing extract`);
   }
 
+  const builderCardsScript = path.resolve(__dirname, 'populate-ford-builder-cards.ts');
+  if (fs.existsSync(builderCardsScript)) {
+    console.log('\n=== Chaining Ford live Builder card sync ===');
+    try {
+      runTypeScriptScript(builderCardsScript, ['--apply']);
+    } catch (e: any) {
+      console.log(`  live Builder sync failed: ${e.message}`);
+      console.log(`  (pricing updated successfully; re-run populate-ford-builder-cards.ts manually)`);
+    }
+  } else {
+    console.log(`\n  note: populate-ford-builder-cards.ts not found — skipping live Builder card sync`);
+  }
+
   // 7. Chain the accessories extract. Independent of pricing (different endpoint)
-  //    but runs afterwards so logs read in the order: trims → colors → pricing → accessories.
+  //    but runs afterwards so logs read in the order: trims → colors → pricing → Builder → accessories.
   const accessoriesScript = path.resolve(__dirname, 'populate-ford-accessories-rsc.ts');
   if (fs.existsSync(accessoriesScript)) {
     console.log('\n=== Chaining Ford accessories RSC extract ===');
     try {
-      execSync(`npx tsx "${accessoriesScript}" --apply`, { stdio: 'inherit' });
+      runTypeScriptScript(accessoriesScript, ['--apply']);
     } catch (e: any) {
       console.log(`  accessories extract failed: ${e.message}`);
       console.log(`  (products/pricing updated successfully; re-run populate-ford-accessories-rsc.ts manually)`);
@@ -595,7 +616,7 @@ async function main() {
   if (fs.existsSync(colourPricingScript)) {
     console.log('\n=== Chaining Ford colour pricing RSC extract ===');
     try {
-      execSync(`npx tsx "${colourPricingScript}" --apply`, { stdio: 'inherit' });
+      runTypeScriptScript(colourPricingScript, ['--apply']);
     } catch (e: any) {
       console.log(`  colour pricing extract failed: ${e.message}`);
       console.log(`  (everything else updated successfully; re-run populate-ford-colour-pricing-rsc.ts manually)`);
@@ -612,7 +633,7 @@ async function main() {
   if (fs.existsSync(galleriesScript)) {
     console.log('\n=== Chaining Ford gallery enrichment RSC extract ===');
     try {
-      execSync(`npx tsx "${galleriesScript}" --apply`, { stdio: 'inherit' });
+      runTypeScriptScript(galleriesScript, ['--apply']);
     } catch (e: any) {
       console.log(`  gallery enrichment failed: ${e.message}`);
       console.log(`  (everything else updated successfully; re-run populate-ford-galleries-rsc.ts manually)`);

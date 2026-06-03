@@ -315,7 +315,7 @@ export function useOemData() {
       .order('oem_id, title')
     if (err)
       throw err
-    return (data ?? []) as Product[]
+    return ((data ?? []) as Product[]).filter(product => product.availability !== 'discontinued')
   }
 
   async function fetchOffers() {
