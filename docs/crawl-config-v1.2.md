@@ -2,7 +2,7 @@
 
 **Version:** v1.1
 **Date:** 2026-02-11
-**Owner:** Paul Giurin / ADME
+**Owner:** Paul Giurin / OEM Agent team
 
 ---
 

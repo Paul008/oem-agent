@@ -4,7 +4,7 @@ import { getCloneDecision } from './pipeline';
 describe('getCloneDecision', () => {
   it('refreshes an existing clone when the requested source URL changed', () => {
     const decision = getCloneDecision(
-      { source_url: 'https://ford-adme.adus.com.au/api/variants/all/v1/content/all' },
+      { source_url: 'https://www.ford.com.au/showroom/suvs/everest/' },
       'https://www.ford.com.au/showroom/cars/mustang/',
     );
 
