@@ -34,6 +34,46 @@ import { UxKnowledgeManager } from './ux-knowledge';
 /** Skip bespoke generation unless quality drops below this threshold */
 const BESPOKE_QUALITY_THRESHOLD = 0.6;
 
+export interface CloneDecision {
+  shouldClone: boolean;
+  reason: string;
+}
+
+function normalizeSourceUrl(url: string | null | undefined): string {
+  const trimmed = url?.trim();
+  if (!trimmed) return '';
+
+  try {
+    const parsed = new URL(trimmed);
+    parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+    return parsed.toString();
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
+}
+
+export function getCloneDecision(
+  existingPage: Pick<import('../oem/types').VehicleModelPage, 'source_url'> | null | undefined,
+  requestedSourceUrl: string,
+): CloneDecision {
+  if (!existingPage) {
+    return { shouldClone: true, reason: 'clone missing' };
+  }
+
+  const existingSourceUrl = normalizeSourceUrl(existingPage.source_url);
+  const normalizedRequestedSourceUrl = normalizeSourceUrl(requestedSourceUrl);
+
+  if (!existingSourceUrl) {
+    return { shouldClone: true, reason: 'existing clone has no source URL' };
+  }
+
+  if (existingSourceUrl !== normalizedRequestedSourceUrl) {
+    return { shouldClone: true, reason: 'source URL changed' };
+  }
+
+  return { shouldClone: false, reason: 'clone already exists in R2' };
+}
+
 // ============================================================================
 // AdaptivePipeline Class
 // ============================================================================
@@ -107,18 +147,29 @@ export class AdaptivePipeline {
       const step0Start = Date.now();
       try {
         const latestKey = `pages/definitions/${oemId}/${modelSlug}/latest.json`;
-        const existing = await this.r2Bucket.head(latestKey);
+        const existing = await this.r2Bucket.get(latestKey);
+        let existingPage: Pick<import('../oem/types').VehicleModelPage, 'source_url'> | null = null;
 
         if (existing) {
+          try {
+            existingPage = await existing.json() as Pick<import('../oem/types').VehicleModelPage, 'source_url'>;
+          } catch {
+            existingPage = null;
+          }
+        }
+
+        const cloneDecision = getCloneDecision(existingPage, sourceUrl);
+
+        if (!cloneDecision.shouldClone) {
           console.log(`[Pipeline] Clone exists at ${latestKey}, skipping clone step`);
           steps.push({
             step: 'clone',
             status: 'skipped',
             duration_ms: Date.now() - step0Start,
-            details: { reason: 'Clone already exists in R2' },
+            details: { reason: cloneDecision.reason },
           });
         } else {
-          console.log(`[Pipeline] No clone found, capturing page from ${sourceUrl}`);
+          console.log(`[Pipeline] Capturing page from ${sourceUrl} (${cloneDecision.reason})`);
           const cloneResult = await this.capturer.captureModelPage(oemId, modelSlug, sourceUrl, modelName);
 
           if (!cloneResult.success) {
@@ -142,6 +193,7 @@ export class AdaptivePipeline {
               elements_captured: cloneResult.elements_captured,
               images_uploaded: cloneResult.images_uploaded,
               html_size_kb: cloneResult.html_size_kb,
+              reason: cloneDecision.reason,
             },
           });
         }
