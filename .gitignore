@@ -43,6 +43,9 @@ Thumbs.db
 # greger.el conversation
 *.greger
 
+# Local git worktrees
+.worktrees/
+
 # playwright-cli
 .playwright-cli/
 
