@@ -103,9 +103,14 @@ export async function fetchGeneratedPages(oemId: string) {
   return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`)
 }
 
-export async function fetchGeneratedPage(slug: string, options?: { includeRendered?: boolean }) {
-  const query = options?.includeRendered ? '?includeRendered=true' : ''
-  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query}`)
+export async function fetchGeneratedPage(slug: string, options?: { includeRendered?: boolean, includeModes?: boolean }) {
+  const params = new URLSearchParams()
+  if (options?.includeRendered)
+    params.set('includeRendered', 'true')
+  if (options?.includeModes)
+    params.set('includeModes', 'true')
+  const query = params.toString()
+  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query ? `?${query}` : ''}`)
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
@@ -276,6 +281,14 @@ export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: st
           body: JSON.stringify(bodyData),
         }
       : {}),
+  })
+}
+
+export async function updateClonePage(oemId: string, modelSlug: string, payload: { edited_rendered: string, section_index: any[] }) {
+  return workerFetch(`/api/v1/oem-agent/admin/update-clone/${oemId}/${modelSlug}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   })
 }
 

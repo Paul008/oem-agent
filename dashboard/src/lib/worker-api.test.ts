@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clonePage, fetchGeneratedPage } from './worker-api'
+import { clonePage, fetchGeneratedPage, updateClonePage } from './worker-api'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -51,13 +51,42 @@ describe('worker-api fetchGeneratedPage', () => {
     )
   })
 
-  it('requests cloned HTML only when the caller needs the rendered page', async () => {
+  it('requests cloned HTML and modes only when the caller needs them', async () => {
     await fetchGeneratedPage('ford-au-mustang')
-    await fetchGeneratedPage('ford-au-mustang', { includeRendered: true })
+    await fetchGeneratedPage('ford-au-mustang', { includeRendered: true, includeModes: true })
 
     const fetchMock = vi.mocked(fetch)
     expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang')
     expect(fetchMock.mock.calls[0][0]).not.toContain('includeRendered=true')
-    expect(fetchMock.mock.calls[1][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang?includeRendered=true')
+    expect(fetchMock.mock.calls[0][0]).not.toContain('includeModes=true')
+    expect(fetchMock.mock.calls[1][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang?includeRendered=true&includeModes=true')
+  })
+})
+
+describe('worker-api updateClonePage', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ success: true, version: 6 }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  })
+
+  it('saves edited clone HTML and section index', async () => {
+    await updateClonePage('ford-au', 'mustang', {
+      edited_rendered: '<main>Edited Mustang</main>',
+      section_index: [{ id: 'r1', label: 'Hero', selector: 'main', tag: 'main', classes: [], top: 0, height: 400, editable_fields: [] }],
+    })
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/admin/update-clone/ford-au/mustang')
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('PUT')
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({
+      edited_rendered: '<main>Edited Mustang</main>',
+      section_index: [{ id: 'r1', label: 'Hero', selector: 'main', tag: 'main', classes: [], top: 0, height: 400, editable_fields: [] }],
+    }))
   })
 })
