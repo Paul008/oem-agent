@@ -488,43 +488,12 @@ app.post('/admin/smart-capture', async (c) => {
   if (body.html.length > 500_000) return c.json({ error: 'HTML too large (>500KB)' }, 413);
 
   try {
-    // Raw HTML → Tailwind mode: send to Claude for conversion
+    // Raw HTML → Tailwind: the client capture injection already converts the region to Tailwind
+    // deterministically (use-capture-injection.ts cssTw/tailwindHtml — computed styles + Bootstrap
+    // class mapping). This server branch is a deterministic pass-through that downloads the
+    // converted HTML's images to R2 and rewrites their URLs. No AI.
     if (body.forced_type === '_raw_html') {
-      const aiRouter = new AiRouter({
-        groq: c.env.GROQ_API_KEY,
-        together: c.env.TOGETHER_API_KEY,
-        moonshot: c.env.MOONSHOT_API_KEY,
-        anthropic: c.env.ANTHROPIC_API_KEY,
-        google: c.env.GOOGLE_API_KEY,
-      }, undefined);
-
-      const tailwindPrompt = `Convert this HTML to clean Tailwind CSS. Keep ALL content, images, links, and text exactly as-is. Only replace the CSS styling with Tailwind utility classes.
-
-Rules:
-1. Output ONLY the converted HTML — no explanation, no markdown fences
-2. Use Tailwind utility classes for ALL styling
-3. Keep all image src URLs exactly as they are
-4. Keep all link href URLs exactly as they are
-5. Keep all text content exactly as-is
-6. Make it responsive (mobile-first with sm:/md:/lg: breakpoints)
-7. Remove all inline styles, replace with Tailwind classes
-8. Remove all class names from the original (replace with Tailwind)
-9. Strip any <script> tags
-10. Use arbitrary values for exact colors: bg-[#C8102E], text-[#1A1A1A]
-
-HTML to convert:
-
-${body.html}`;
-
-      const response = await aiRouter.route({
-        taskType: 'bespoke_component',
-        prompt: tailwindPrompt,
-        maxTokens: 8192,
-      });
-
-      let tailwindHtml = response.content || '';
-      // Strip markdown fences if present
-      tailwindHtml = tailwindHtml.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      let tailwindHtml = body.html;
 
       // Collect image URLs from the converted HTML for R2 download
       const imageUrls: string[] = [...(body.image_urls || [])];
