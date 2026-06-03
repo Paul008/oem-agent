@@ -55,6 +55,7 @@ const {
   sections,
   selectedSectionId,
   selectedCloneRegionId,
+  selectedCloneRegionData,
   isStructured,
   isCloned,
   activeMode,
@@ -121,9 +122,15 @@ const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
 )
-const selectedCloneRegion = computed(() =>
-  selectedCloneRegionId.value ? cloneRegions.value.find(region => region.id === selectedCloneRegionId.value) ?? null : null,
-)
+const selectedCloneRegion = computed(() => {
+  if (!selectedCloneRegionId.value)
+    return null
+  // Prefer the live region emitted by the clone bridge (carries editable_fields); fall back to the
+  // persisted section_index for regions restored from a saved page.
+  if (selectedCloneRegionData.value && selectedCloneRegionData.value.id === selectedCloneRegionId.value)
+    return selectedCloneRegionData.value
+  return cloneRegions.value.find(region => region.id === selectedCloneRegionId.value) ?? null
+})
 
 function openEditor(id: string) {
   selectSection(id)

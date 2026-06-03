@@ -150,6 +150,10 @@ export function usePageBuilder() {
 
   const selectedSectionId = ref<string | null>(null)
   const selectedCloneRegionId = ref<string | null>(null)
+  // Holds the full region (with editable_fields) emitted by the clone bridge on selection.
+  // The persisted section_index is empty until the first save, so the editor must resolve the
+  // selected region from this live object rather than only from cloneRegions/section_index.
+  const selectedCloneRegionData = ref<CloneRegion | null>(null)
   const sourceUrlOverride = ref('')
 
   // History system
@@ -251,6 +255,7 @@ export function usePageBuilder() {
     isDirty.value = false
     selectedSectionId.value = null
     selectedCloneRegionId.value = null
+    selectedCloneRegionData.value = null
 
     try {
       page.value = normalizeLoadedPage(await fetchGeneratedPage(newSlug, { includeRendered: true, includeModes: true }))
@@ -316,14 +321,27 @@ export function usePageBuilder() {
       page.value.active_mode = mode
     if (mode !== 'sections')
       selectedSectionId.value = null
-    if (mode !== 'clone')
+    if (mode !== 'clone') {
       selectedCloneRegionId.value = null
+      selectedCloneRegionData.value = null
+    }
   }
 
   function selectCloneRegion(idOrRegion: string | CloneRegion | null) {
-    selectedCloneRegionId.value = typeof idOrRegion === 'string'
-      ? idOrRegion
-      : idOrRegion?.id ?? null
+    if (idOrRegion == null) {
+      selectedCloneRegionId.value = null
+      selectedCloneRegionData.value = null
+      return
+    }
+
+    if (typeof idOrRegion === 'string') {
+      selectedCloneRegionId.value = idOrRegion
+      selectedCloneRegionData.value = cloneRegions.value.find(region => region.id === idOrRegion) ?? null
+      return
+    }
+
+    selectedCloneRegionId.value = idOrRegion.id
+    selectedCloneRegionData.value = idOrRegion
   }
 
   function deleteSection(id: string) {
@@ -815,6 +833,7 @@ export function usePageBuilder() {
     cloneHtml,
     cloneRegions,
     selectedCloneRegionId,
+    selectedCloneRegionData,
     regenerating,
     cloning,
     structuring,

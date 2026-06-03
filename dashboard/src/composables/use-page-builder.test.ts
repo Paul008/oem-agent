@@ -132,6 +132,47 @@ describe('usePageBuilder media URL resolution', () => {
     expect(builder.selectedCloneRegionId.value).toBeNull()
   })
 
+  it('exposes the live selected clone region even when section_index is empty', () => {
+    const builder = usePageBuilder()
+    builder.page.value = {
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>OEM clone</main>',
+        modes: {
+          clone: {
+            rendered: '<main>OEM clone</main>',
+            // Fresh clone: no persisted regions yet.
+            section_index: [],
+          },
+        },
+      },
+    }
+
+    const liveRegion = {
+      id: 'clone-region-1',
+      label: 'Hero',
+      selector: '[data-oem-region-id="clone-region-1"]',
+      tag: 'section',
+      classes: ['hero'],
+      top: 0,
+      height: 800,
+      editable_fields: [
+        { id: 'f1', selector: 'h1', kind: 'text' as const, label: 'h1', value: 'Mustang' },
+      ],
+    }
+
+    expect(builder.cloneRegions.value).toHaveLength(0)
+
+    builder.selectCloneRegion(liveRegion)
+
+    expect(builder.selectedCloneRegionId.value).toBe('clone-region-1')
+    expect(builder.selectedCloneRegionData.value).toEqual(liveRegion)
+    expect(builder.selectedCloneRegionData.value?.editable_fields).toHaveLength(1)
+
+    builder.selectCloneRegion(null)
+    expect(builder.selectedCloneRegionData.value).toBeNull()
+  })
+
   it('normalizes resolved worker media URLs before storage', () => {
     const section = {
       id: 'hero-1',
