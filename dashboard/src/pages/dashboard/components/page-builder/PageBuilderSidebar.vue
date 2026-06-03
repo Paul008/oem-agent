@@ -2,9 +2,11 @@
 import { Clock, DollarSign, Hash, Layers } from 'lucide-vue-next'
 import { ref } from 'vue'
 
+import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
 import type { PageSectionType } from './section-templates'
 
 import AddSectionPicker from './AddSectionPicker.vue'
+import CloneRegionSidebar from './CloneRegionSidebar.vue'
 import SectionListItem from './SectionListItem.vue'
 import TemplateGalleryDrawer from './TemplateGalleryDrawer.vue'
 
@@ -12,6 +14,9 @@ const props = defineProps<{
   page: any
   sections: any[]
   selectedSectionId: string | null
+  activeMode: PageMode
+  cloneRegions: CloneRegion[]
+  selectedCloneRegionId: string | null
   oemName: string
   oemId?: string
   recipes?: any[]
@@ -32,6 +37,8 @@ const emit = defineEmits<{
   pasteFromClipboard: []
   addFromRecipe: [recipe: any]
   saveAsRecipe: [id: string]
+  selectCloneRegion: [region: CloneRegion]
+  editCloneRegion: [region: CloneRegion]
 }>()
 
 const galleryOpen = ref(false)
@@ -118,8 +125,18 @@ function formatCost(cost: number | undefined) {
       </div>
     </div>
 
+    <CloneRegionSidebar
+      v-if="activeMode === 'clone'"
+      class="min-h-0 flex-1"
+      :regions="cloneRegions"
+      :structured-sections="sections"
+      :selected-region-id="selectedCloneRegionId"
+      @select-region="emit('selectCloneRegion', $event)"
+      @edit-region="emit('editCloneRegion', $event)"
+    />
+
     <!-- Section list -->
-    <div class="flex-1 overflow-y-auto min-h-0">
+    <div v-else class="flex-1 overflow-y-auto min-h-0">
       <div class="px-4 py-3">
         <h3 class="text-sm font-semibold mb-2">
           Sections ({{ sections.length }})

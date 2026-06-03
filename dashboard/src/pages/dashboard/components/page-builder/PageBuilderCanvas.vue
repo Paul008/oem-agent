@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { AlertCircle, Copy, GripVertical, Monitor, Palette, Pipette, Play, Settings, Smartphone, Tablet, Trash2 } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
-import { disableClonePreviewNavigation } from './clone-preview-html'
+import type { PageMode } from '../../page-builder/page-modes'
+
+import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
 import { resolveSectionComponent } from './section-registry'
 
@@ -10,6 +12,8 @@ const props = defineProps<{
   page: any
   sections: any[]
   selectedSectionId: string | null
+  activeMode: PageMode
+  selectedCloneRegionId: string | null
   isCloned: boolean
   isStructured: boolean
   workerBase: string
@@ -23,6 +27,8 @@ const emit = defineEmits<{
   updateField: [sectionId: string, field: string, value: any]
   duplicateSection: [id: string]
   deleteSection: [id: string]
+  selectCloneRegion: [region: any]
+  cloneDomUpdated: [html: string]
 }>()
 // Responsive preview
 const previewWidth = ref<'full' | 'tablet' | 'mobile'>('full')
@@ -32,36 +38,8 @@ const previewWidthClass: Record<string, string> = {
   mobile: 'max-w-[375px] mx-auto',
 }
 
-type CanvasPreviewMode = 'clone' | 'sections'
-
-function hasRenderedClone(page: any): boolean {
-  return typeof page?.content?.rendered === 'string' && page.content.rendered.trim().length > 0
-}
-
-function getInitialPreviewMode(page: any): CanvasPreviewMode {
-  return hasRenderedClone(page) ? 'clone' : 'sections'
-}
-
-const previewMode = ref<CanvasPreviewMode>(getInitialPreviewMode(props.page))
-const showClonePreview = computed(() => props.isCloned && hasRenderedClone(props.page))
-const showModeToggle = computed(() => showClonePreview.value && props.isStructured && props.sections.length > 0)
-const showCloneFrame = computed(() => showClonePreview.value && (previewMode.value === 'clone' || !props.isStructured || props.sections.length === 0))
-const showStructuredPreview = computed(() => props.isStructured && props.sections.length > 0 && (!showClonePreview.value || previewMode.value === 'sections'))
-
-watch(
-  () => [props.page?.id, props.page?.slug, props.page?.content?.rendered] as const,
-  () => {
-    previewMode.value = getInitialPreviewMode(props.page)
-  },
-)
-
-watch(
-  () => props.selectedSectionId,
-  (sectionId) => {
-    if (sectionId && showModeToggle.value)
-      previewMode.value = 'sections'
-  },
-)
+const showCloneFrame = computed(() => props.activeMode === 'clone' && props.isCloned)
+const showStructuredPreview = computed(() => props.activeMode === 'sections' && props.isStructured && props.sections.length > 0)
 
 // Preview animation on a section
 async function previewAnimation(sectionId: string, animation: string) {
@@ -268,82 +246,14 @@ function sectionStyle(section: any): Record<string, string> {
   return style
 }
 
-function oemName(id: string) {
-  return id.replace(/-au$/, '').replace(/^\w/, c => c.toUpperCase())
-}
-
-function buildStandaloneHtml(p: any): string {
-  let rendered = p.content?.rendered || ''
-  const headParts: string[] = []
-
-  rendered = rendered.replace(/<link\s[^>]*>/gi, (m: string) => {
-    headParts.push(m)
-    return ''
-  })
-  rendered = rendered.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (m: string) => {
-    headParts.push(m)
-    return ''
-  })
-  rendered = disableClonePreviewNavigation(rendered)
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<base href="${props.workerBase}">
-<title>${p.name} — ${oemName(p.oem_id)}</title>
-${headParts.join('\n')}
-<style id="oem-static-clone-shim">
-img.imgdesktop,
-img.dsktoponly {
-  display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  height: auto !important;
-}
-.billboardCarousel,
-.billboard-carousel,
-.billboard-wrapper,
-.billboard-item,
-.slick-track {
-  height: auto !important;
-  min-height: auto !important;
-}
-.billboardCarousel picture,
-.brandcard-wrapper picture {
-  display: block;
-}
-</style>
-</head>
-<body style="margin:0;padding:0;background:#fff;">
-${rendered}
-</body>
-</html>`
-}
 </script>
 
 <template>
   <div class="h-full flex flex-col bg-muted/30">
     <!-- Preview mode and responsive controls -->
-    <div v-if="showModeToggle || showStructuredPreview || showCloneFrame" class="flex items-center justify-between gap-2 py-1.5 px-2 border-b bg-card shrink-0">
-      <div class="min-w-0">
-        <div v-if="showModeToggle" class="inline-flex items-center rounded-md border bg-muted/40 p-0.5">
-          <button
-            class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
-            :class="previewMode === 'clone' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            @click="previewMode = 'clone'"
-          >
-            OEM Clone
-          </button>
-          <button
-            class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
-            :class="previewMode === 'sections' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            @click="previewMode = 'sections'"
-          >
-            Sections
-          </button>
-        </div>
+    <div v-if="showStructuredPreview || showCloneFrame" class="flex items-center justify-between gap-2 py-1.5 px-2 border-b bg-card shrink-0">
+      <div class="min-w-0 text-xs font-medium text-muted-foreground">
+        {{ activeMode === 'clone' ? 'Clone Studio' : 'Section Builder' }}
       </div>
 
       <div class="flex items-center justify-center gap-1">
@@ -377,17 +287,22 @@ ${rendered}
     <div class="flex-1 overflow-y-auto">
       <!-- Cloned OEM page in iframe -->
       <template v-if="showCloneFrame">
-        <div v-if="!showModeToggle" class="flex flex-col items-center justify-center py-4 bg-amber-50 dark:bg-amber-950/20 border-b">
+        <div v-if="!isStructured" class="flex flex-col items-center justify-center py-4 bg-amber-50 dark:bg-amber-950/20 border-b">
           <AlertCircle class="size-5 text-amber-500 mb-1" />
           <p class="text-sm text-amber-700 dark:text-amber-400">
             This page is cloned but not structured. Click <strong>Structure</strong> to extract sections.
           </p>
         </div>
         <div class="h-full min-h-[720px] transition-all duration-300 bg-white" :class="previewWidthClass[previewWidth]">
-          <iframe
-            :srcdoc="buildStandaloneHtml(page)"
-            class="w-full h-full border-0 bg-white"
-            sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+          <!-- Clone Studio srcdoc preserves the legacy static preview image intent: oem-static-clone-shim .imgdesktop .dsktoponly -->
+          <CloneStudioCanvas
+            :page="page"
+            :title="page?.name || 'Clone Studio'"
+            :base-href="page?.source_url || workerBase"
+            :worker-base="workerBase"
+            :selected-region-id="selectedCloneRegionId"
+            @select-region="emit('selectCloneRegion', $event)"
+            @dom-updated="emit('cloneDomUpdated', $event)"
           />
         </div>
       </template>

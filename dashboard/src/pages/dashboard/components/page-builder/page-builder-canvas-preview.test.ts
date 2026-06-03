@@ -7,7 +7,7 @@ describe('PageBuilderCanvas preview mode', () => {
   it('keeps cloned OEM HTML available when extracted sections also exist', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('previewMode')
+    expect(source).toContain('activeMode')
     expect(source).toContain('showCloneFrame')
     expect(source).toContain('showStructuredPreview')
 
@@ -18,13 +18,18 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(cloneFrame).toBeGreaterThan(-1)
     expect(structuredPreview).toBeGreaterThan(cloneFrame)
     expect(legacyClonedBranch).toBe(-1)
+    expect(source).toContain("props.activeMode === 'clone'")
+    expect(source).toContain("props.activeMode === 'sections'")
   })
 
-  it('switches from OEM clone preview into section editing when a section is selected', () => {
+  it('keeps clone mode active when a structured section is selected', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('() => props.selectedSectionId')
-    expect(source).toContain("previewMode.value = 'sections'")
+    expect(source).toContain('activeMode')
+    expect(source).toContain("activeMode === 'clone'")
+    expect(source).toContain("activeMode === 'sections'")
+    expect(source).not.toContain('() => props.selectedSectionId')
+    expect(source).not.toContain("previewMode.value = 'sections'")
   })
 
   it('keeps desktop-only cloned OEM images visible in the static iframe preview', () => {

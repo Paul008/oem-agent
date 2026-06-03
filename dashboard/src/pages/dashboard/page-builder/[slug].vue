@@ -28,6 +28,8 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { useThemeStore } from '@/stores/theme'
 
+import type { CloneRegion, PageMode } from './page-modes'
+
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
@@ -50,8 +52,13 @@ const {
   isDirty,
   sections,
   selectedSectionId,
+  selectedCloneRegionId,
   isStructured,
   isCloned,
+  activeMode,
+  availableModes,
+  cloneHtml,
+  cloneRegions,
   oemId,
   modelSlug,
   isSubpage,
@@ -79,6 +86,7 @@ const {
   duplicateSection,
   updateSection,
   saveSections,
+  saveClone,
   regenerateSectionById,
   handleClone,
   handleStructure,
@@ -94,6 +102,8 @@ const {
   convertSection,
   splitSection,
   saveCurrentAsRecipe,
+  setActiveMode,
+  selectCloneRegion,
 } = usePageBuilder()
 
 const themeStore = useThemeStore()
@@ -102,6 +112,7 @@ const showJson = ref(false)
 const showHistory = ref(false)
 const showSectionBrowser = ref(false)
 const showCapture = ref(false)
+const cloneDraftHtml = ref<string | null>(null)
 const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
@@ -117,6 +128,29 @@ function closeEditor() {
 function updateEditorSection(updates: Record<string, any>) {
   if (editorSectionId.value)
     updateSection(editorSectionId.value, updates)
+}
+
+function setPageMode(mode: PageMode) {
+  setActiveMode(mode)
+}
+
+function onCloneDomUpdated(html: string) {
+  cloneDraftHtml.value = html
+  isDirty.value = true
+}
+
+function onCloneRegionSelected(region: CloneRegion) {
+  selectCloneRegion(region)
+}
+
+async function saveActiveMode() {
+  if (activeMode.value === 'clone') {
+    await saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegions.value)
+    cloneDraftHtml.value = null
+    return
+  }
+
+  await saveSections()
 }
 
 function openSourceUrl() {
@@ -218,6 +252,8 @@ const primaryWorkflowAction = computed(() => getPrimaryWorkflowAction(pageWorkfl
 const canShowEditorActions = computed(() => pageWorkflowState.value !== 'missing')
 const canShowWorkflowActions = computed(() => canShowEditorActions.value && pageWorkflowState.value !== 'custom')
 const canShowSectionActions = computed(() => canShowEditorActions.value && (isStructured.value || sections.value.length > 0))
+const canShowSaveAction = computed(() => canShowEditorActions.value && (activeMode.value === 'clone' ? isCloned.value : canShowSectionActions.value))
+const canShowModeSwitcher = computed(() => availableModes.value.length > 1)
 const canShowSourceUrlInput = computed(() => shouldShowSourceUrlInput(pageWorkflowState.value))
 const pipelineActionDisabled = computed(() => isPipelineActionDisabled({
   needsSourceUrl: needsSourceUrl.value,
@@ -317,6 +353,18 @@ const workflowSteps = computed(() => {
         <UiBadge v-else-if="pageWorkflowState === 'cloned'" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
           Cloned
         </UiBadge>
+        <div v-if="canShowModeSwitcher" class="ml-1 hidden md:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
+          <button
+            v-for="mode in availableModes"
+            :key="mode"
+            type="button"
+            class="px-2.5 py-1 text-xs font-medium rounded transition-colors capitalize"
+            :class="activeMode === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            @click="setPageMode(mode)"
+          >
+            {{ mode === 'clone' ? 'Clone Studio' : mode === 'sections' ? 'Sections' : mode.replace('-', ' ') }}
+          </button>
+        </div>
       </template>
 
       <div class="flex-1 min-w-0" />
@@ -475,11 +523,11 @@ const workflowSteps = computed(() => {
 
         <!-- Save — always visible -->
         <UiButton
-          v-if="canShowSectionActions"
+          v-if="canShowSaveAction"
           size="sm"
           :variant="isDirty ? 'default' : 'outline'"
           :disabled="saving || !isDirty"
-          @click="saveSections"
+          @click="saveActiveMode"
         >
           <Save v-if="!saving" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
@@ -733,6 +781,8 @@ const workflowSteps = computed(() => {
             :page="page"
             :sections="sections"
             :selected-section-id="selectedSectionId"
+            :active-mode="activeMode"
+            :selected-clone-region-id="selectedCloneRegionId"
             :is-cloned="isCloned"
             :is-structured="isStructured"
             :worker-base="WORKER_BASE"
@@ -744,6 +794,8 @@ const workflowSteps = computed(() => {
             @duplicate-section="duplicateSection"
             @delete-section="deleteSection"
             @update-field="(id: string, field: string, value: any) => updateSection(id, { [field]: value })"
+            @select-clone-region="onCloneRegionSelected"
+            @clone-dom-updated="onCloneDomUpdated"
           />
         </UiResizablePanel>
 
@@ -755,6 +807,9 @@ const workflowSteps = computed(() => {
             :page="page"
             :sections="sections"
             :selected-section-id="selectedSectionId"
+            :active-mode="activeMode"
+            :clone-regions="cloneRegions"
+            :selected-clone-region-id="selectedCloneRegionId"
             :oem-name="oemName(page.oem_id)"
             :oem-id="oemId"
             :recipes="recipes"
@@ -772,6 +827,8 @@ const workflowSteps = computed(() => {
             @add-section-from-template="addSectionFromTemplate"
             @insert-from-gallery="addSectionFromLiveData"
             @paste-from-clipboard="pasteSectionFromClipboard()"
+            @select-clone-region="onCloneRegionSelected"
+            @edit-clone-region="onCloneRegionSelected"
           />
         </UiResizablePanel>
       </UiResizablePanelGroup>

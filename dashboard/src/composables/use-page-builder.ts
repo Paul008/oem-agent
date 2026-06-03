@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 
 import type { Recipe } from '@/lib/worker-api'
 import type { PageSectionType } from '@/pages/dashboard/components/page-builder/section-templates'
+import type { CloneRegion, PageMode } from '@/pages/dashboard/page-builder/page-modes'
 
 import {
   adaptivePipeline as apiAdaptivePipeline,
@@ -11,6 +12,7 @@ import {
   fetchRecipes,
   saveRecipe,
   structurePage,
+  updateClonePage,
   updatePageSections,
 } from '@/lib/worker-api'
 import {
@@ -25,6 +27,14 @@ import {
   SECTION_DEFAULTS,
   SECTION_TEMPLATES,
 } from '@/pages/dashboard/components/page-builder/section-templates'
+import {
+  getActivePageMode,
+  getAvailablePageModes,
+  getCloneHtml,
+  getCloneRegions,
+  getSectionItems,
+  normalizeDashboardPageModes,
+} from '@/pages/dashboard/page-builder/page-modes'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
@@ -116,6 +126,10 @@ export interface HistoryEntry {
   timestamp: string
 }
 
+function normalizeLoadedPage<T>(loadedPage: T): T {
+  return normalizeDashboardPageModes(loadedPage)
+}
+
 export function usePageBuilder() {
   const page = ref<any>(null)
   const loading = ref(false)
@@ -135,6 +149,7 @@ export function usePageBuilder() {
   }
 
   const selectedSectionId = ref<string | null>(null)
+  const selectedCloneRegionId = ref<string | null>(null)
   const sourceUrlOverride = ref('')
 
   // History system
@@ -203,11 +218,23 @@ export function usePageBuilder() {
   const parentModelSlug = computed(() => parsed.value?.parentModelSlug ?? null)
   const parentFullSlug = computed(() => parentModelSlug.value && oemId.value ? `${oemId.value}-${parentModelSlug.value}` : null)
 
+  const activeMode = computed<PageMode>(() => getActivePageMode(page.value))
+  const availableModes = computed<PageMode[]>(() => getAvailablePageModes(page.value))
+  const cloneHtml = computed(() => getCloneHtml(page.value))
+  const cloneRegions = computed<CloneRegion[]>(() => getCloneRegions(page.value))
+
   const sections = computed({
-    get: () => (page.value?.content?.sections ?? []).map((section: any) => resolveSectionMediaPaths(section, resolveMediaUrl)),
+    get: () => getSectionItems(page.value).map((section: any) => resolveSectionMediaPaths(section, resolveMediaUrl)),
     set: (val: any[]) => {
       if (page.value?.content) {
-        page.value.content.sections = normalizeStoredMediaUrls(val)
+        const storedSections = normalizeStoredMediaUrls(val)
+        page.value.content.sections = storedSections
+        if (!page.value.content.modes)
+          page.value.content.modes = {}
+        page.value.content.modes.sections = {
+          ...(page.value.content.modes.sections ?? {}),
+          items: storedSections,
+        }
       }
     },
   })
@@ -217,10 +244,7 @@ export function usePageBuilder() {
   )
 
   const isStructured = computed(() => sections.value.length > 0)
-  const isCloned = computed(() => {
-    const rendered = page.value?.content?.rendered ?? ''
-    return rendered.includes('tailwindcss.com') || rendered.includes('<link rel="stylesheet"')
-  })
+  const isCloned = computed(() => cloneHtml.value.trim().length > 0)
 
   async function loadPage(newSlug: string) {
     slug.value = newSlug
@@ -228,9 +252,10 @@ export function usePageBuilder() {
     error.value = null
     isDirty.value = false
     selectedSectionId.value = null
+    selectedCloneRegionId.value = null
 
     try {
-      page.value = await fetchGeneratedPage(newSlug, { includeRendered: true })
+      page.value = normalizeLoadedPage(await fetchGeneratedPage(newSlug, { includeRendered: true, includeModes: true }))
       if (oemId.value) {
         await loadRecipes(oemId.value)
       }
@@ -274,7 +299,7 @@ export function usePageBuilder() {
       return
     error.value = null
     try {
-      page.value = await fetchGeneratedPage(slug.value, { includeRendered: true })
+      page.value = normalizeLoadedPage(await fetchGeneratedPage(slug.value, { includeRendered: true, includeModes: true }))
       isDirty.value = false
     }
     catch (err: any) {
@@ -284,6 +309,19 @@ export function usePageBuilder() {
 
   function selectSection(id: string | null) {
     selectedSectionId.value = id
+  }
+
+  function setActiveMode(mode: PageMode) {
+    if (!availableModes.value.includes(mode))
+      return
+    if (page.value)
+      page.value.active_mode = mode
+  }
+
+  function selectCloneRegion(idOrRegion: string | CloneRegion | null) {
+    selectedCloneRegionId.value = typeof idOrRegion === 'string'
+      ? idOrRegion
+      : idOrRegion?.id ?? null
   }
 
   function deleteSection(id: string) {
@@ -329,6 +367,9 @@ export function usePageBuilder() {
     }
     if (!page.value.content.sections) {
       page.value.content.sections = []
+    }
+    if (!page.value.content.modes) {
+      page.value.content.modes = {}
     }
   }
 
@@ -519,6 +560,39 @@ export function usePageBuilder() {
       // Bump version locally
       if (page.value)
         page.value.version = (page.value.version || 0) + 1
+    }
+    catch (err: any) {
+      error.value = err.message || 'Save failed'
+    }
+    finally {
+      saving.value = false
+    }
+  }
+
+  async function saveClone(editedRendered: string, sectionIndex?: CloneRegion[]) {
+    if (!oemId.value || !modelSlug.value)
+      return
+    saving.value = true
+    try {
+      const payload: { edited_rendered: string, section_index?: CloneRegion[] } = {
+        edited_rendered: editedRendered,
+      }
+      if (sectionIndex)
+        payload.section_index = sectionIndex
+
+      const result = await updateClonePage(oemId.value, modelSlug.value, payload)
+
+      ensureContentExists()
+      const modes = page.value.content.modes
+      modes.clone = {
+        ...(modes.clone ?? {}),
+        edited_rendered: editedRendered,
+        ...(sectionIndex ? { section_index: sectionIndex } : {}),
+      }
+      page.value.content.rendered = editedRendered
+      page.value.active_mode = 'clone'
+      page.value.version = result?.version ?? ((page.value.version || 0) + 1)
+      isDirty.value = false
     }
     catch (err: any) {
       error.value = err.message || 'Save failed'
@@ -732,6 +806,11 @@ export function usePageBuilder() {
     selectedSection,
     isStructured,
     isCloned,
+    activeMode,
+    availableModes,
+    cloneHtml,
+    cloneRegions,
+    selectedCloneRegionId,
     regenerating,
     cloning,
     structuring,
@@ -749,6 +828,8 @@ export function usePageBuilder() {
     loadPage,
     refreshPage,
     selectSection,
+    setActiveMode,
+    selectCloneRegion,
     deleteSection,
     moveSection,
     addSection,
@@ -758,6 +839,7 @@ export function usePageBuilder() {
     duplicateSection,
     updateSection,
     saveSections,
+    saveClone,
     regenerateSectionById,
     handleClone,
     handleStructure,
