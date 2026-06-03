@@ -1,9 +1,13 @@
 <script lang="ts" setup>
-import { Palette } from 'lucide-vue-next'
+import { Check, Copy, Palette } from 'lucide-vue-next'
+
+import { useClipboard } from '@/composables/use-clipboard'
 
 defineProps<{
   colors: any
 }>()
+
+const { copy, isCopied } = useClipboard()
 
 function isLightColor(hex: string): boolean {
   if (!hex || !hex.startsWith('#'))
@@ -45,14 +49,27 @@ function formatColorLabel(key: string): string {
           :key="key"
         >
           <template v-if="colors[key]">
-            <div
-              class="rounded-lg border overflow-hidden"
+            <button
+              type="button"
+              class="group w-full text-left rounded-lg border overflow-hidden transition hover:shadow-md hover:border-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               :class="{ 'border-border/50': isLightColor(colors[key]) }"
+              :title="`Copy ${colors[key]}`"
+              @click="copy(colors[key], `core-${key}`)"
             >
               <div
-                class="h-20"
+                class="relative h-20"
                 :style="{ backgroundColor: colors[key] }"
-              />
+              >
+                <span
+                  class="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100"
+                  :class="{ '!opacity-100': isCopied(`core-${key}`) }"
+                  data-export-ignore
+                >
+                  <Check v-if="isCopied(`core-${key}`)" class="size-3" />
+                  <Copy v-else class="size-3" />
+                  {{ isCopied(`core-${key}`) ? 'Copied' : 'Copy' }}
+                </span>
+              </div>
               <div class="px-3 py-2 bg-background">
                 <p class="text-sm font-medium capitalize">
                   {{ key }}
@@ -61,7 +78,7 @@ function formatColorLabel(key: string): string {
                   {{ colors[key] }}
                 </p>
               </div>
-            </div>
+            </button>
           </template>
         </div>
       </div>
@@ -77,19 +94,32 @@ function formatColorLabel(key: string): string {
             :key="key"
           >
             <template v-if="colors[key]">
-              <div class="text-center">
+              <button
+                type="button"
+                class="group block w-full text-center focus:outline-none"
+                :title="`Copy ${colors[key]}`"
+                @click="copy(colors[key], `sem-${key}`)"
+              >
                 <div
-                  class="h-12 w-full rounded-lg border mb-1.5"
+                  class="relative h-12 w-full rounded-lg border mb-1.5 transition group-hover:ring-2 group-hover:ring-primary/40 group-focus-visible:ring-2 group-focus-visible:ring-primary"
                   :class="{ 'border-border/50': isLightColor(colors[key]) }"
                   :style="{ backgroundColor: colors[key] }"
-                />
+                >
+                  <span
+                    v-if="isCopied(`sem-${key}`)"
+                    class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/55 text-[10px] font-medium text-white"
+                    data-export-ignore
+                  >
+                    <Check class="size-3.5" />
+                  </span>
+                </div>
                 <p class="text-xs font-medium capitalize">
                   {{ key }}
                 </p>
                 <p class="text-[10px] text-muted-foreground font-mono">
                   {{ colors[key] }}
                 </p>
-              </div>
+              </button>
             </template>
           </div>
         </div>
@@ -101,23 +131,34 @@ function formatColorLabel(key: string): string {
           Extended Palette
         </h3>
         <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
-          <div
+          <button
             v-for="(hex, name) in colors.palette_extended"
             :key="String(name)"
-            class="text-center"
+            type="button"
+            class="group block w-full text-center focus:outline-none"
+            :title="`Copy ${hex}`"
+            @click="copy(String(hex), `ext-${String(name)}`)"
           >
             <div
-              class="h-10 w-full rounded border mb-1"
+              class="relative h-10 w-full rounded border mb-1 transition group-hover:ring-2 group-hover:ring-primary/40 group-focus-visible:ring-2 group-focus-visible:ring-primary"
               :class="{ 'border-border/50': isLightColor(String(hex)) }"
               :style="{ backgroundColor: String(hex) }"
-            />
+            >
+              <span
+                v-if="isCopied(`ext-${String(name)}`)"
+                class="absolute inset-0 flex items-center justify-center rounded bg-black/55 text-white"
+                data-export-ignore
+              >
+                <Check class="size-3" />
+              </span>
+            </div>
             <p class="text-[10px] font-medium truncate">
               {{ formatColorLabel(String(name)) }}
             </p>
             <p class="text-[9px] text-muted-foreground font-mono">
               {{ hex }}
             </p>
-          </div>
+          </button>
         </div>
       </template>
     </div>

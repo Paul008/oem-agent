@@ -15,7 +15,7 @@ import {
   Wand2,
   X,
 } from 'lucide-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import type { ExtractedRecipe, StyleGuideData } from '@/lib/worker-api'
@@ -167,6 +167,64 @@ const oemDisplayName = computed(() => {
   const oem = oems.value.find(o => o.id === selectedOem.value)
   return oem?.name?.replace(' Australia', '') ?? selectedOem.value
 })
+
+/* ---- In-page section navigation ---- */
+
+const activeSection = ref<string>('')
+
+const sectionNav = computed<{ id: string, label: string }[]>(() => {
+  if (!tokens.value)
+    return []
+  const items: { id: string, label: string }[] = [{ id: 'sg-brand', label: 'Brand' }]
+  if (colors.value)
+    items.push({ id: 'sg-colors', label: 'Colors' })
+  if (typography.value)
+    items.push({ id: 'sg-typography', label: 'Typography' })
+  if (buttons.value)
+    items.push({ id: 'sg-buttons', label: 'Buttons' })
+  if (spacing.value)
+    items.push({ id: 'sg-spacing', label: 'Spacing' })
+  if (recipePatterns.length)
+    items.push({ id: 'sg-recipes', label: 'Recipes' })
+  if (components.value && Object.keys(components.value).length)
+    items.push({ id: 'sg-components', label: 'Components' })
+  return items
+})
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id)
+  if (!el)
+    return
+  activeSection.value = id
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+let sectionObserver: IntersectionObserver | null = null
+function setupSectionObserver() {
+  sectionObserver?.disconnect()
+  if (typeof IntersectionObserver === 'undefined')
+    return
+  sectionObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+    if (visible[0])
+      activeSection.value = visible[0].target.id
+  }, { rootMargin: '-15% 0px -75% 0px', threshold: [0, 0.25, 0.5, 1] })
+
+  for (const item of sectionNav.value) {
+    const el = document.getElementById(item.id)
+    if (el)
+      sectionObserver.observe(el)
+  }
+}
+
+watch(sectionNav, async () => {
+  await nextTick()
+  setupSectionObserver()
+}, { flush: 'post' })
+
+onUnmounted(() => sectionObserver?.disconnect())
 
 /* ---- Export ---- */
 
@@ -597,24 +655,56 @@ async function handleApplyTokens() {
       </p>
     </div>
 
+    <!-- Sticky section nav -->
+    <nav
+      v-if="tokens && sectionNav.length > 1"
+      class="sticky top-2 z-20 mb-6 flex gap-1 overflow-x-auto rounded-lg border bg-background/80 p-1 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      data-export-ignore
+    >
+      <button
+        v-for="s in sectionNav"
+        :key="s.id"
+        type="button"
+        class="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        :class="activeSection === s.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+        @click="scrollToSection(s.id)"
+      >
+        {{ s.label }}
+      </button>
+    </nav>
+
     <!-- Style Guide Content -->
-    <div v-else ref="styleGuideContent" class="space-y-10">
-      <StyleGuideBrandHeader
-        :oem-display-name="oemDisplayName"
-        :colors="colors"
-        :typography="typography"
-        :spacing="spacing"
-      />
-      <StyleGuideColors :colors="colors" />
-      <StyleGuideTypography :typography="typography" />
-      <StyleGuideButtons :buttons="buttons" :colors="colors" />
-      <StyleGuideSpacing :spacing="spacing" :colors="colors" />
-      <StyleGuideRecipes
-        :recipes-by-pattern="recipesByPattern"
-        :colors="colors"
-        :patterns="recipePatterns"
-      />
-      <StyleGuideComponents :components="components" />
+    <div v-if="tokens && !loading && !loadError" ref="styleGuideContent" class="space-y-10">
+      <section id="sg-brand" class="scroll-mt-16">
+        <StyleGuideBrandHeader
+          :oem-display-name="oemDisplayName"
+          :colors="colors"
+          :typography="typography"
+          :spacing="spacing"
+        />
+      </section>
+      <section id="sg-colors" class="scroll-mt-16">
+        <StyleGuideColors :colors="colors" />
+      </section>
+      <section id="sg-typography" class="scroll-mt-16">
+        <StyleGuideTypography :typography="typography" />
+      </section>
+      <section id="sg-buttons" class="scroll-mt-16">
+        <StyleGuideButtons :buttons="buttons" :colors="colors" />
+      </section>
+      <section id="sg-spacing" class="scroll-mt-16">
+        <StyleGuideSpacing :spacing="spacing" :colors="colors" />
+      </section>
+      <section id="sg-recipes" class="scroll-mt-16">
+        <StyleGuideRecipes
+          :recipes-by-pattern="recipesByPattern"
+          :colors="colors"
+          :patterns="recipePatterns"
+        />
+      </section>
+      <section id="sg-components" class="scroll-mt-16">
+        <StyleGuideComponents :components="components" />
+      </section>
     </div>
 
     <!-- Extract from URL Dialog -->
