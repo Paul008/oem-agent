@@ -98,6 +98,22 @@ describe('getPageWorkflowState', () => {
       error: null,
     })).toBe('structured')
   })
+
+  it('returns structured for stale clone mode when sections only exist in mode data', () => {
+    expect(getPageWorkflowState({
+      page: {
+        active_mode: 'clone',
+        content: {
+          sections: [],
+          modes: {
+            clone: {},
+            sections: { items: [{ id: 's1', type: 'hero' }] },
+          },
+        },
+      } as any,
+      error: null,
+    })).toBe('structured')
+  })
 })
 
 describe('isPipelineActionDisabled', () => {

@@ -36,8 +36,7 @@ export function getPageWorkflowState(input: {
   if (page?.active_mode === 'clone' && hasClonePayload(page))
     return 'cloned'
 
-  const sections = page?.content?.sections
-  if (Array.isArray(sections) && sections.length > 0)
+  if (hasStructuredSections(page))
     return 'structured'
 
   const rendered = page?.content?.rendered
@@ -99,6 +98,20 @@ function hasClonePayload(page: PageWorkflowPage): boolean {
 
   return isNonEmptyString(cloneMode?.rendered)
     || isNonEmptyString(cloneMode?.edited_rendered)
+}
+
+function hasStructuredSections(page: PageWorkflowPage | null | undefined): boolean {
+  const sections = page?.content?.sections
+
+  if (Array.isArray(sections) && sections.length > 0)
+    return true
+
+  const sectionItems = isRecord(page?.content?.modes)
+    && isRecord(page.content.modes.sections)
+    ? page.content.modes.sections.items
+    : null
+
+  return Array.isArray(sectionItems) && sectionItems.length > 0
 }
 
 function isNonEmptyString(value: unknown): value is string {
