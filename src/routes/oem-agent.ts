@@ -24,6 +24,7 @@ import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/registry';
 import type { OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
+import { applyCloneEdit } from '../design/page-modes';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
@@ -2562,6 +2563,95 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
     success: true,
     version: pageData.version,
     sections_count: body.sections.length,
+  });
+});
+
+/**
+ * PUT /api/v1/oem-agent/admin/update-clone/:oemId/:modelSlug
+ * Save edited cloned DOM back to R2 without mutating structured sections.
+ */
+app.put('/admin/update-clone/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const body = await c.req.json<{ edited_rendered: string; section_index?: any[] }>();
+  if (typeof body.edited_rendered !== 'string' || body.edited_rendered.trim().length < 20) {
+    return c.json({ error: 'edited_rendered string is required' }, 400);
+  }
+
+  const R2_PREFIX = 'pages/definitions';
+  const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(latestKey);
+
+  if (!obj) {
+    return c.json({ error: 'Page not found in R2' }, 404);
+  }
+
+  const pageData = await obj.json() as any;
+
+  try {
+    applyCloneEdit(pageData, {
+      edited_rendered: body.edited_rendered,
+      section_index: Array.isArray(body.section_index) ? body.section_index : [],
+    });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Failed to apply clone edit' }, 400);
+  }
+
+  const editedAt = new Date().toISOString();
+  pageData.version = (pageData.version || 0) + 1;
+  pageData.generated_at = editedAt;
+  pageData.manually_edited = true;
+  pageData.manually_edited_at = editedAt;
+
+  const jsonStr = JSON.stringify(pageData);
+  const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
+
+  await Promise.all([
+    c.env.MOLTBOT_BUCKET.put(latestKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'clone-studio', oem_id: oemId, model_slug: modelSlug },
+    }),
+    c.env.MOLTBOT_BUCKET.put(versionKey, jsonStr, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { pipeline: 'clone-studio', oem_id: oemId, model_slug: modelSlug },
+    }),
+  ]);
+
+  // Purge dealer network cache so model pages serve fresh data immediately.
+  // Fan out to ALL registered webhook subscribers (multi-tenant: multiple dealers per OEM).
+  // Falls back to DEALER_NETWORK_URL for backward compat if no webhooks registered.
+  c.executionCtx.waitUntil(
+    (async () => {
+      const purgePayload = { oem_code: oemId, model_slug: modelSlug };
+      const hooks = await loadWebhooks(c.env.MOLTBOT_BUCKET);
+      const cacheHooks = hooks.filter(h => h.events.includes('page.updated'));
+
+      if (cacheHooks.length > 0) {
+        // Fan out to all registered dealer sites
+        await Promise.allSettled(cacheHooks.map(h =>
+          fetch(h.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(purgePayload),
+          }).catch(err => console.error(`[clone-studio] Webhook failed ${h.url}:`, err))
+        ));
+      } else if (c.env.DEALER_NETWORK_URL) {
+        // Backward compat: single URL fallback
+        await fetch(`${c.env.DEALER_NETWORK_URL}/api/webhooks/purge-model-cache`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(purgePayload),
+        }).catch(err => console.error(`[clone-studio] Cache purge failed for ${oemId}/${modelSlug}:`, err));
+      }
+    })()
+  );
+
+  return c.json({
+    success: true,
+    version: pageData.version,
+    active_mode: pageData.active_mode,
+    clone_regions_count: pageData.content?.modes?.clone?.section_index?.length || 0,
   });
 });
 

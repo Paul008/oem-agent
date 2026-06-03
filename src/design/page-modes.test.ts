@@ -344,6 +344,16 @@ describe('page mode helpers', () => {
     })).toThrow('Cannot apply clone edit without clone mode content')
   })
 
+  it('throws when saving clone edits for a page without clone mode', () => {
+    expect(() => applyCloneEdit({
+      active_mode: 'sections',
+      content: { sections: [{ id: 's1', type: 'hero' }] },
+    }, {
+      edited_rendered: '<main>Edited</main>',
+      section_index: [],
+    })).toThrow('Cannot apply clone edit without clone mode content')
+  })
+
   it('returns renderable clone HTML by edited, original, legacy, empty fallback order', () => {
     expect(getRenderableCloneHtml({
       content: {
