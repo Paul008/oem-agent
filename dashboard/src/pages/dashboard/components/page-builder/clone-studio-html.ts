@@ -11,10 +11,12 @@ export interface CloneStudioHtmlOptions {
 export type CloneStudioUrlContext = 'link' | 'media'
 
 const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
+const LINK_URL_ATTRIBUTE_NAMES = new Set(['href', 'action', 'formaction', 'cite', 'manifest'])
+const MEDIA_URL_ATTRIBUTE_NAMES = new Set(['src', 'poster', 'data', 'xlink:href'])
 
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const { bodyHtml, headParts } = extractHeadParts(options.rendered)
-  const rendered = disableClonePreviewNavigation(bodyHtml)
+  const rendered = stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(bodyHtml)))
   const selectedRegion = safeJson(options.selectedRegionId)
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
 
@@ -245,7 +247,17 @@ ${rendered}
   }
 
   function sanitizeStyle(value) {
-    return String(value || '').replace(/url\\((["']?)(.*?)\\1\\)/gi, function (_match, _quote, url) {
+    var style = String(value || '').replace(/\\/\\*[\\s\\S]*?\\*\\//g, '')
+
+    if (/expression\\s*\\(|@import|-moz-binding|javascript\\s*:|vbscript\\s*:/i.test(style))
+      style = style
+        .replace(/@import[^;]*;?/gi, '')
+        .replace(/expression\\s*\\([^)]*\\)/gi, '')
+        .replace(/-moz-binding\\s*:[^;]*;?/gi, '')
+        .replace(/javascript\\s*:/gi, '')
+        .replace(/vbscript\\s*:/gi, '')
+
+    return style.replace(/url\\((["']?)(.*?)\\1\\)/gi, function (_match, _quote, url) {
       var sanitizedUrl = sanitizeUrl(url, 'media')
       return sanitizedUrl ? 'url("' + sanitizedUrl.replace(/"/g, '%22') + '")' : ''
     })
@@ -261,15 +273,85 @@ ${rendered}
 
   function urlPolicyForAttribute(name) {
     var lowerName = String(name).toLowerCase()
-    return lowerName === 'src' || lowerName === 'poster' ? 'media' : 'link'
+    return lowerName === 'src' || lowerName === 'poster' || lowerName === 'data' || lowerName === 'xlink:href' ? 'media' : 'link'
   }
 
   function sanitizeHtml(value) {
+    if (typeof DOMParser !== 'undefined')
+      return sanitizeHtmlWithDom(value)
+
+    return sanitizeHtmlFallback(value)
+  }
+
+  function sanitizeHtmlWithDom(value) {
+    var parser = new DOMParser()
+    var doc = parser.parseFromString('<body>' + String(value == null ? '' : value) + '</body>', 'text/html')
+    var removable = doc.body.querySelectorAll('script, iframe, object, embed, base, meta, link')
+
+    for (var i = 0; i < removable.length; i++)
+      removable[i].parentNode.removeChild(removable[i])
+
+    var elements = doc.body.querySelectorAll('*')
+    for (var j = 0; j < elements.length; j++)
+      sanitizeElementAttributes(elements[j])
+
+    return doc.body.innerHTML
+  }
+
+  function sanitizeElementAttributes(element) {
+    var attrs = Array.prototype.slice.call(element.attributes || [])
+
+    for (var i = 0; i < attrs.length; i++) {
+      var attr = attrs[i]
+      var name = String(attr.name)
+      var lowerName = name.toLowerCase()
+
+      if (lowerName.indexOf('on') === 0 || lowerName === 'srcdoc') {
+        element.removeAttribute(name)
+        continue
+      }
+
+      if (lowerName === 'style') {
+        var sanitizedStyle = sanitizeStyle(attr.value)
+        if (sanitizedStyle)
+          element.setAttribute(name, sanitizedStyle)
+        else
+          element.removeAttribute(name)
+        continue
+      }
+
+      if (lowerName === 'srcset') {
+        element.setAttribute(name, sanitizeSrcset(attr.value))
+        continue
+      }
+
+      if (isLinkUrlAttribute(lowerName)) {
+        element.setAttribute(name, sanitizeUrl(attr.value, 'link'))
+        continue
+      }
+
+      if (isMediaUrlAttribute(lowerName))
+        element.setAttribute(name, sanitizeUrl(attr.value, 'media'))
+    }
+  }
+
+  function isLinkUrlAttribute(name) {
+    return name === 'href' || name === 'action' || name === 'formaction' || name === 'cite' || name === 'manifest'
+  }
+
+  function isMediaUrlAttribute(name) {
+    return name === 'src' || name === 'poster' || name === 'data' || name === 'xlink:href'
+  }
+
+  function sanitizeHtmlFallback(value) {
     var html = String(value == null ? '' : value)
+    html = html.replace(/<\\s*(script|iframe|object|embed)\\b[\\s\\S]*?<\\/\\s*\\1\\s*>/gi, '')
+    html = html.replace(/<\\s*(script|iframe|object|embed|base|meta|link)\\b[^>]*\\/?\\s*>/gi, '')
     html = html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, '')
     html = html.replace(/<script\\b[^>]*\\/?\\s*>/gi, '')
     html = html.replace(/\\son[a-z0-9:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+)/gi, '')
-    html = html.replace(/\\s(href|src|poster|action|xlink:href)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi, function (_match, name, doubleQuotedUrl, singleQuotedUrl, unquotedUrl) {
+    html = html.replace(/\\ssrcdoc\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+)/gi, '')
+    html = html.replace(/\\s(href|src|poster|action|formaction|cite|manifest|data|xlink:href)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi, function (_match, name, doubleQuotedUrl, singleQuotedUrl, unquotedUrl) {
       var url = doubleQuotedUrl != null ? doubleQuotedUrl : singleQuotedUrl != null ? singleQuotedUrl : unquotedUrl
       return ' ' + name + '="' + escapeHtmlAttributeValue(sanitizeUrl(url, urlPolicyForAttribute(name))) + '"'
     })
@@ -581,6 +663,16 @@ export function sanitizeCloneStudioHtmlForTest(value: unknown): string {
   return sanitizeCloneStudioHtml(value)
 }
 
+export interface CloneStudioBlockedEventForTest {
+  preventDefault: () => void
+  stopPropagation: () => void
+  stopImmediatePropagation?: () => void
+}
+
+export function stopCloneStudioBlockedEventForTest(event: CloneStudioBlockedEventForTest): void {
+  stopCloneStudioBlockedEvent(event)
+}
+
 function extractHeadParts(rendered: string): { bodyHtml: string, headParts: string[] } {
   const headParts: string[] = []
   const bodyHtml = rendered.replace(HEAD_PART_PATTERN, (match: string) => {
@@ -593,6 +685,10 @@ function extractHeadParts(rendered: string): { bodyHtml: string, headParts: stri
 
 function serializeCloneStudioBody(html: string): string {
   return sanitizeCloneStudioHtml(stripCloneStudioScaffolding(html))
+}
+
+function stripClonePreviewInlineHandlers(html: string): string {
+  return html.replace(/\sonclick\s*=\s*(["'])return false\1/gi, '')
 }
 
 function stripCloneStudioScaffolding(html: string): string {
@@ -709,7 +805,18 @@ function sanitizeCloneStudioSrcset(value: unknown): string {
 }
 
 function sanitizeCloneStudioStyle(value: string): string {
-  return value.replace(/url\((["']?)(.*?)\1\)/gi, (_match: string, _quote: string, url: string) => {
+  let style = value.replace(/\/\*[\s\S]*?\*\//g, '')
+
+  if (/expression\s*\(|@import|-moz-binding|javascript\s*:|vbscript\s*:/i.test(style)) {
+    style = style
+      .replace(/@import[^;]*;?/gi, '')
+      .replace(/expression\s*\([^)]*\)/gi, '')
+      .replace(/-moz-binding\s*:[^;]*;?/gi, '')
+      .replace(/javascript\s*:/gi, '')
+      .replace(/vbscript\s*:/gi, '')
+  }
+
+  return style.replace(/url\((["']?)(.*?)\1\)/gi, (_match: string, _quote: string, url: string) => {
     const sanitizedUrl = sanitizeCloneStudioUrl(url, 'media')
     return sanitizedUrl ? `url("${sanitizedUrl.replace(/"/g, '%22')}")` : ''
   })
@@ -717,15 +824,81 @@ function sanitizeCloneStudioStyle(value: string): string {
 
 function urlPolicyForAttribute(name: string): CloneStudioUrlContext {
   const lowerName = name.toLowerCase()
-  return lowerName === 'src' || lowerName === 'poster' ? 'media' : 'link'
+  return lowerName === 'src' || lowerName === 'poster' || lowerName === 'data' || lowerName === 'xlink:href' ? 'media' : 'link'
 }
 
 function sanitizeCloneStudioHtml(value: unknown): string {
+  if (typeof DOMParser !== 'undefined')
+    return sanitizeCloneStudioHtmlWithDom(value)
+
+  return sanitizeCloneStudioHtmlFallback(value)
+}
+
+function sanitizeCloneStudioHtmlWithDom(value: unknown): string {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(`<body>${String(value ?? '')}</body>`, 'text/html')
+  const removable = doc.body.querySelectorAll('script, iframe, object, embed, base, meta, link')
+
+  for (const element of Array.from(removable))
+    element.parentNode?.removeChild(element)
+
+  for (const element of Array.from(doc.body.querySelectorAll('*')))
+    sanitizeCloneStudioElementAttributes(element)
+
+  return doc.body.innerHTML
+}
+
+function sanitizeCloneStudioElementAttributes(element: Element): void {
+  for (const attr of Array.from(element.attributes)) {
+    const name = attr.name
+    const lowerName = name.toLowerCase()
+
+    if (lowerName.startsWith('on') || lowerName === 'srcdoc') {
+      element.removeAttribute(name)
+      continue
+    }
+
+    if (lowerName === 'style') {
+      const sanitizedStyle = sanitizeCloneStudioStyle(attr.value)
+      if (sanitizedStyle)
+        element.setAttribute(name, sanitizedStyle)
+      else
+        element.removeAttribute(name)
+      continue
+    }
+
+    if (lowerName === 'srcset') {
+      element.setAttribute(name, sanitizeCloneStudioSrcset(attr.value))
+      continue
+    }
+
+    if (isCloneStudioLinkUrlAttribute(lowerName)) {
+      element.setAttribute(name, sanitizeCloneStudioUrl(attr.value, 'link'))
+      continue
+    }
+
+    if (isCloneStudioMediaUrlAttribute(lowerName))
+      element.setAttribute(name, sanitizeCloneStudioUrl(attr.value, 'media'))
+  }
+}
+
+function isCloneStudioLinkUrlAttribute(name: string): boolean {
+  return LINK_URL_ATTRIBUTE_NAMES.has(name)
+}
+
+function isCloneStudioMediaUrlAttribute(name: string): boolean {
+  return MEDIA_URL_ATTRIBUTE_NAMES.has(name)
+}
+
+function sanitizeCloneStudioHtmlFallback(value: unknown): string {
   let html = String(value ?? '')
+  html = html.replace(/<\s*(script|iframe|object|embed)\b[\s\S]*?<\/\s*\1\s*>/gi, '')
+  html = html.replace(/<\s*(script|iframe|object|embed|base|meta|link)\b[^>]*\/?\s*>/gi, '')
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
   html = html.replace(/<script\b[^>]*\/?\s*>/gi, '')
   html = html.replace(/\son[a-z0-9:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-  html = html.replace(/\s(href|src|poster|action|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match: string, name: string, doubleQuotedUrl?: string, singleQuotedUrl?: string, unquotedUrl?: string) => {
+  html = html.replace(/\ssrcdoc\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  html = html.replace(/\s(href|src|poster|action|formaction|cite|manifest|data|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match: string, name: string, doubleQuotedUrl?: string, singleQuotedUrl?: string, unquotedUrl?: string) => {
     const url = doubleQuotedUrl ?? singleQuotedUrl ?? unquotedUrl ?? ''
     return ` ${name}="${escapeHtmlAttribute(sanitizeCloneStudioUrl(url, urlPolicyForAttribute(name)))}"`
   })
@@ -739,6 +912,12 @@ function sanitizeCloneStudioHtml(value: unknown): string {
   })
 
   return html
+}
+
+function stopCloneStudioBlockedEvent(event: CloneStudioBlockedEventForTest): void {
+  event.preventDefault()
+  event.stopPropagation()
+  event.stopImmediatePropagation?.()
 }
 
 function createCloneStudioBridgeToken(): string {

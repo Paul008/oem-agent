@@ -5,8 +5,13 @@ import {
   sanitizeCloneStudioHtmlForTest,
   sanitizeCloneStudioUrlForTest,
   serializeCloneStudioBodyForTest,
+  stopCloneStudioBlockedEventForTest,
   stripCloneStudioScaffoldingForTest,
 } from './clone-studio-html'
+
+function extractInitialBody(html: string): string {
+  return html.match(/<body>\n([\s\S]*?)\n<script data-clone-studio-bridge="true">/)?.[1] ?? ''
+}
 
 describe('buildCloneStudioHtml', () => {
   it('disables navigation and injects clone studio bridge messages', () => {
@@ -62,6 +67,28 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('javascript:')
   })
 
+  it('sanitizes initial rendered HTML before inserting it into the iframe body', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main onclick="alert(1)"><a href="/showroom">Compare</a><script>alert(2)</script><iframe srcdoc="<script>alert(3)</script>"></iframe><object data="javascript:alert(4)"></object><embed src="javascript:alert(5)"><base href="https://evil.test"><meta http-equiv="refresh" content="0;url=javascript:alert(6)"></main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const body = extractInitialBody(html)
+
+    expect(body).toContain('data-oem-preview-link="true"')
+    expect(body).not.toContain('<script')
+    expect(body).not.toContain('<iframe')
+    expect(body).not.toContain('<object')
+    expect(body).not.toContain('<embed')
+    expect(body).not.toContain('<base')
+    expect(body).not.toContain('<meta')
+    expect(body).not.toContain('onclick')
+    expect(body).not.toContain('srcdoc')
+    expect(body).not.toContain('javascript:')
+  })
+
   it('includes bridge token handling and parent-source guard', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main data-oem-region-id="r1"><h1>Mustang</h1></main>',
@@ -111,6 +138,23 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('srcset=""')
   })
 
+  it('removes dangerous patch elements and navigation-capable attributes', () => {
+    const html = sanitizeCloneStudioHtmlForTest(
+      '<form action=/lead><button formaction=javascript:alert(1)>Send</button></form><iframe srcdoc="<script>alert(2)</script>"></iframe><object data=javascript:alert(3)></object><embed src=javascript:alert(4)><base href=https://evil.test><meta http-equiv=refresh content="0;url=javascript:alert(5)"><link rel=modulepreload href=javascript:alert(6)><blockquote cite=javascript:alert(7)>Quote</blockquote>',
+    )
+
+    expect(html).toContain('formaction=""')
+    expect(html).toContain('cite=""')
+    expect(html).not.toContain('<iframe')
+    expect(html).not.toContain('<object')
+    expect(html).not.toContain('<embed')
+    expect(html).not.toContain('<base')
+    expect(html).not.toContain('<meta')
+    expect(html).not.toContain('<link')
+    expect(html).not.toContain('srcdoc')
+    expect(html).not.toContain('javascript:')
+  })
+
   it('applies context-specific URL policy for link and media patches', () => {
     expect(sanitizeCloneStudioUrlForTest('data:image/png;base64,abc', 'link')).toBe('')
     expect(sanitizeCloneStudioUrlForTest('data:image/png;base64,abc', 'media')).toBe('data:image/png;base64,abc')
@@ -133,6 +177,18 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('isNavigationElement')
     expect(html).toContain('stopBlockedEvent')
     expect(html).toContain('stopImmediatePropagation')
+  })
+
+  it('suppresses default behavior and propagation for blocked events', () => {
+    const calls: string[] = []
+
+    stopCloneStudioBlockedEventForTest({
+      preventDefault: () => calls.push('preventDefault'),
+      stopPropagation: () => calls.push('stopPropagation'),
+      stopImmediatePropagation: () => calls.push('stopImmediatePropagation'),
+    })
+
+    expect(calls).toEqual(['preventDefault', 'stopPropagation', 'stopImmediatePropagation'])
   })
 
   it('emits parseable clone studio bridge script', () => {
