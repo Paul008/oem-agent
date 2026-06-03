@@ -210,7 +210,7 @@ function setupSectionObserver() {
       .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
     if (visible[0])
       activeSection.value = visible[0].target.id
-  }, { rootMargin: '-15% 0px -75% 0px', threshold: [0, 0.25, 0.5, 1] })
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: [0, 0.5, 1] })
 
   for (const item of sectionNav.value) {
     const el = document.getElementById(item.id)
@@ -219,7 +219,9 @@ function setupSectionObserver() {
   }
 }
 
-watch(sectionNav, async () => {
+// Re-establish the observer whenever the rendered section set can change: sections are gated on
+// loading/loadError as well as tokens, so observing on sectionNav alone can run before they mount.
+watch([sectionNav, loading, loadError], async () => {
   await nextTick()
   setupSectionObserver()
 }, { flush: 'post' })
