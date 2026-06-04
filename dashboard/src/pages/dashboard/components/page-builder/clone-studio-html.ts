@@ -195,6 +195,7 @@ ${rendered}
   var MESSAGE_CONTEXT_MENU = 'clone-studio:context-menu'
   var MESSAGE_BEGIN_EDIT = 'clone-studio:begin-edit'
   var MESSAGE_SET_HEIGHT = 'clone-studio:set-height'
+  var MESSAGE_SWITCH_PANEL = 'clone-studio:switch-panel'
   var activeEdit = null
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
@@ -729,6 +730,43 @@ ${rendered}
       || String(element.tagName || '').toLowerCase())
   }
 
+  function matchesAny(element, selector) {
+    if (!element || !element.matches)
+      return false
+
+    try {
+      return element.matches(selector)
+    }
+    catch (_error) {
+      return false
+    }
+  }
+
+  function classifyRegion(element) {
+    if (!element)
+      return ''
+
+    var className = element.getAttribute ? element.getAttribute('class') || '' : ''
+
+    if (matchesAny(element, '.swiper, .slick, [class*="carousel"], [class*="slider"]'))
+      return 'carousel'
+
+    var hasTablist = matchesAny(element, '[role="tablist"]')
+      || (element.querySelector && element.querySelector('[role="tablist"]'))
+    if (hasTablist)
+      return 'tabs'
+
+    var looksTabbish = /(^|\\s|-)tabs?($|\\s|-)/i.test(className)
+      || matchesAny(element, '[class*="tab"]')
+    if (looksTabbish) {
+      var panels = element.querySelectorAll ? element.querySelectorAll('[role="tabpanel"], .tab-content, .tab-pane') : []
+      if (panels.length > 1)
+        return 'tabs'
+    }
+
+    return ''
+  }
+
   function regionPayload(element) {
     if (!element)
       return null
@@ -741,6 +779,7 @@ ${rendered}
       label: regionLabel(element),
       selector: selectorForElement(element),
       tag: String(element.tagName || '').toLowerCase(),
+      type_hint: classifyRegion(element),
       classes: element.getAttribute ? element.getAttribute('class') || '' : '',
       top: (rect.top || 0) + (window.scrollY || 0),
       height: rect.height || 0,
@@ -961,6 +1000,57 @@ ${rendered}
     }
   }
 
+  function collectPanels(region) {
+    if (!region || !region.querySelectorAll)
+      return []
+
+    var found = region.querySelectorAll('[role="tabpanel"], .tab-content, .tab-pane, .swiper-slide, .slick-slide')
+    var panels = []
+    for (var i = 0; i < found.length; i++)
+      panels.push(found[i])
+
+    return panels
+  }
+
+  function switchPanel(regionId, index) {
+    var region = findRegionById(regionId)
+    if (!region)
+      return false
+
+    var panels = collectPanels(region)
+    if (!panels.length)
+      return false
+
+    var targetIndex = typeof index === 'number' && index >= 0 && index < panels.length ? index : 0
+
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i]
+      if (!panel)
+        continue
+
+      if (i === targetIndex) {
+        panel.removeAttribute('hidden')
+        if (panel.style)
+          panel.style.display = ''
+        if (panel.classList) {
+          panel.classList.add('is-active')
+          panel.classList.add('active')
+        }
+      }
+      else {
+        panel.setAttribute('hidden', 'hidden')
+        if (panel.style)
+          panel.style.display = 'none'
+        if (panel.classList) {
+          panel.classList.remove('is-active')
+          panel.classList.remove('active')
+        }
+      }
+    }
+
+    return true
+  }
+
   function beginInlineEdit(region) {
     if (!region)
       return false
@@ -1091,7 +1181,7 @@ ${rendered}
     post(MESSAGE_CONTEXT_MENU, {
       regionId: payload ? payload.id : ensureRegionId(region),
       fields: payload ? payload.editable_fields : extractFields(region),
-      typeHint: payload ? payload.tag : String(region.tagName || '').toLowerCase(),
+      typeHint: payload ? payload.type_hint : classifyRegion(region),
       x: event.clientX,
       y: event.clientY
     })
@@ -1130,6 +1220,13 @@ ${rendered}
       var heightRegionId = message.regionId || message.selectedRegionId || message.id
       if (setRegionHeight(heightRegionId, message.value))
         post(MESSAGE_DOM_UPDATED, { regionId: heightRegionId })
+      return
+    }
+
+    if (message.type === MESSAGE_SWITCH_PANEL) {
+      var panelRegionId = message.regionId || message.selectedRegionId || message.id
+      if (switchPanel(panelRegionId, message.index))
+        post(MESSAGE_DOM_UPDATED, { regionId: panelRegionId })
     }
   })
 

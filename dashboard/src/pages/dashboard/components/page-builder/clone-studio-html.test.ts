@@ -566,4 +566,9 @@ describe('buildCloneStudioHtml', () => {
     const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok', regionOverrides: [{ id: 'r1', height_override: 320 }] })
     expect(html).toContain('clone-studio:set-height')
   })
+
+  it('classifies a tablist region with type_hint=tabs and supports panel switching', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><div class="tabs" role="tablist"><div role="tabpanel">A</div><div role="tabpanel" hidden>B</div></div></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain('clone-studio:switch-panel')
+  })
 })
