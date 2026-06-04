@@ -1257,6 +1257,159 @@ ${rendered}
     return true
   }
 
+  function enableInteractivity() {
+    // Trusted, event-driven navigation for tabs/carousels in the read-only preview. OEM scripts are
+    // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
+    // primitive (switchPanel). No timers/auto-advance — those are throttled in the sandbox.
+    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"]')
+
+    for (var i = 0; i < candidates.length; i++) {
+      var regionEl = candidates[i]
+      var kind = classifyRegion(regionEl)
+      if (kind !== 'tabs' && kind !== 'carousel')
+        continue
+
+      var regionId = ensureRegionId(regionEl)
+
+      if (kind === 'tabs')
+        wireTabRegion(regionId, regionEl)
+      else
+        wireCarouselRegion(regionId, regionEl)
+
+      // Normalize to exactly one visible panel on load (avoids all-visible / all-hidden states).
+      switchPanel(regionId, 0)
+    }
+  }
+
+  function wireTabRegion(regionId, regionEl) {
+    // Tab TRIGGERS: [role="tab"], [aria-controls], or interactive children of [role="tablist"] / .tabs.
+    var triggers = tabTriggersFor(regionEl)
+    if (!triggers.length)
+      return
+
+    for (var t = 0; t < triggers.length; t++) {
+      triggers[t].addEventListener('click', function (event) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.stopImmediatePropagation)
+          event.stopImmediatePropagation()
+
+        var index = interactivityIndexOf(triggers, event.currentTarget)
+        if (index < 0)
+          index = 0
+        switchPanel(regionId, index)
+        setTabActiveState(triggers, index)
+      }, true)
+    }
+  }
+
+  function wireCarouselRegion(regionId, regionEl) {
+    // Carousel next/prev controls drive switchPanel; index clamped within collectPanels length.
+    var controls = carouselControlsFor(regionEl)
+    var state = { index: 0 }
+
+    function step(delta) {
+      var total = collectPanels(regionEl).length
+      if (!total)
+        return
+      var next = state.index + delta
+      if (next < 0)
+        next = 0
+      if (next > total - 1)
+        next = total - 1
+      state.index = next
+      switchPanel(regionId, next)
+    }
+
+    for (var n = 0; n < controls.next.length; n++) {
+      controls.next[n].addEventListener('click', function (event) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.stopImmediatePropagation)
+          event.stopImmediatePropagation()
+        step(1)
+      }, true)
+    }
+
+    for (var p = 0; p < controls.prev.length; p++) {
+      controls.prev[p].addEventListener('click', function (event) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.stopImmediatePropagation)
+          event.stopImmediatePropagation()
+        step(-1)
+      }, true)
+    }
+  }
+
+  function interactivityIndexOf(list, node) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] === node)
+        return i
+    }
+    return -1
+  }
+
+  function tabTriggersFor(regionEl) {
+    if (!regionEl || !regionEl.querySelectorAll)
+      return []
+
+    // Prefer explicit ARIA tabs, then aria-controls owners, then interactive children of a tablist/.tabs.
+    var explicit = regionEl.querySelectorAll('[role="tab"], [aria-controls]')
+    if (explicit.length)
+      return Array.prototype.slice.call(explicit)
+
+    var lists = regionEl.querySelectorAll('[role="tablist"], .tabs, [class*="tab"]')
+    var triggers = []
+    var listEls = lists.length ? Array.prototype.slice.call(lists) : (regionEl.matches && regionEl.matches('[role="tablist"], .tabs, [class*="tab"]') ? [regionEl] : [])
+
+    for (var i = 0; i < listEls.length; i++) {
+      var children = listEls[i].querySelectorAll('button, a, li, [class*="tab"]')
+      for (var j = 0; j < children.length; j++) {
+        var child = children[j]
+        // Skip the panels themselves; only collect tab-like controls.
+        if (matchesAny(child, '[role="tabpanel"], .tab-content, .tab-pane'))
+          continue
+        if (interactivityIndexOf(triggers, child) === -1)
+          triggers.push(child)
+      }
+    }
+
+    return triggers
+  }
+
+  function carouselControlsFor(regionEl) {
+    if (!regionEl || !regionEl.querySelectorAll)
+      return { next: [], prev: [] }
+
+    var nextSel = '.swiper-button-next, .slick-next, [aria-label*="next" i], [class*="next"]'
+    var prevSel = '.swiper-button-prev, .slick-prev, [aria-label*="prev" i], [class*="prev"]'
+
+    return {
+      next: Array.prototype.slice.call(regionEl.querySelectorAll(nextSel)),
+      prev: Array.prototype.slice.call(regionEl.querySelectorAll(prevSel))
+    }
+  }
+
+  function setTabActiveState(triggers, activeIndex) {
+    for (var i = 0; i < triggers.length; i++) {
+      var trigger = triggers[i]
+      var isActive = i === activeIndex
+      if (trigger.classList) {
+        if (isActive) {
+          trigger.classList.add('active')
+          trigger.classList.add('is-active')
+        }
+        else {
+          trigger.classList.remove('active')
+          trigger.classList.remove('is-active')
+        }
+      }
+      if (trigger.setAttribute)
+        trigger.setAttribute('aria-selected', isActive ? 'true' : 'false')
+    }
+  }
+
   function beginInlineEdit(region) {
     if (!region)
       return false
@@ -1450,6 +1603,12 @@ ${rendered}
 
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
   applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
+
+  // Read-only preview only: make tabs/carousels clickable via the trusted bridge layer. The editor
+  // (EDITABLE) is unaffected — it keeps click for region selection and the context-menu panel actions.
+  if (!EDITABLE)
+    enableInteractivity()
+
   post(MESSAGE_READY)
 })()
 </script>

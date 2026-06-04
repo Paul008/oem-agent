@@ -612,6 +612,43 @@ describe('buildCloneStudioHtml', () => {
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
+  it('wires trusted click-navigation for tabs/carousels only in read-only preview', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    // The interactivity layer is defined and invoked, guarded by !EDITABLE.
+    expect(bridgeScript).toContain('function enableInteractivity()')
+    expect(bridgeScript).toContain('if (!EDITABLE)')
+    // It uses the existing panel-switching primitive (not OEM scripts) to navigate.
+    const interactivityBlock = bridgeScript.slice(bridgeScript.indexOf('function enableInteractivity()'))
+    expect(interactivityBlock).toContain('switchPanel')
+    expect(interactivityBlock).toContain('classifyRegion')
+    expect(interactivityBlock).toContain('ensureRegionId')
+    // Tab triggers: role=tab / aria-controls / tablist children are detected and click-wired.
+    expect(interactivityBlock).toContain('[role="tab"]')
+    expect(interactivityBlock).toContain('aria-controls')
+    expect(interactivityBlock).toContain("addEventListener('click'")
+    // Carousel next/prev controls are detected.
+    expect(interactivityBlock).toContain('swiper-button-next')
+    expect(interactivityBlock).toContain('swiper-button-prev')
+    expect(interactivityBlock).toContain('slick-next')
+    expect(interactivityBlock).toContain('slick-prev')
+    // Clicks must not navigate or trigger region-select.
+    expect(interactivityBlock).toContain('preventDefault')
+    expect(interactivityBlock).toContain('stopImmediatePropagation')
+    // Read-only build still parses.
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('enables interactivity on bridge init for the read-only preview build', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main role="tablist"><button role="tab">A</button><button role="tab">B</button><div role="tabpanel">A</div><div role="tabpanel" hidden>B</div></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    // The init sequence calls enableInteractivity guarded by !EDITABLE.
+    expect(bridgeScript).toMatch(/if\s*\(!EDITABLE\)[\s\S]*enableInteractivity\(\)/)
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
   it('injects editable:true by default and keeps editing affordances', () => {
     const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
     expect(html).toContain('window.__CLONE_STUDIO_EDITABLE__ = true')
