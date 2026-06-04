@@ -15,8 +15,13 @@ Status: in progress.
 - [x] Prove Scrapling can fetch real Toyota RAV4 HTML through the local ops probe.
 - [x] Add a Worker-safe external capture adapter so validated Scrapling HTML can enter the existing
       page persistence pipeline.
-- [ ] Re-capture Toyota RAV4 through the adapter.
-- [ ] Run Clone Studio audit for `toyota-au-rav4` after recapture.
+- [x] Re-capture Toyota RAV4 through the adapter.
+- [x] Run Clone Studio audit for `toyota-au-rav4` after recapture.
+
+Result: Toyota RAV4 latest is version `9`, captured via `scrapling-stealth`, with 50 proxied assets.
+Clone Studio audit: 70 images, 0 broken, 10 stylesheets / 2 stylesheet links, 104 fonts, root
+overflow 0. Remaining hidden text samples are Toyota mobile/interactive overlay blocks rather than
+missing media.
 
 ## 2. Fleet Clone Audit
 

@@ -123,9 +123,9 @@ Before broad rollout:
 
 ## Acceptance Criteria
 
-- A Toyota recapture that receives a security page returns `bot_blocked: true` and preserves the old
+- [x] A Toyota recapture that receives a security page returns `bot_blocked: true` and preserves the old
   `latest.json`.
-- A successful Scrapling Toyota capture produces real RAV4 content, non-empty images, and no
+- [x] A successful Scrapling Toyota capture produces real RAV4 content, non-empty images, and no
   security-verification copy.
-- Clone Studio audit for `toyota-au-rav4` reports no broken responsive-media URLs after a successful
+- [x] Clone Studio audit for `toyota-au-rav4` reports no broken responsive-media URLs after a successful
   recapture.

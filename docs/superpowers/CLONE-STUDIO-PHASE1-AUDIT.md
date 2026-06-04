@@ -14,7 +14,7 @@ These checks were run in the authenticated production dashboard at
 | Ford Mustang | AEM/Slick baseline | 20 | 0 | 4 sheets / 3 links | 7 | 0 | 0 | Pass |
 | Kia Sportage | kwcms/Slick/reveal animation | 43 | 0 | 14 sheets / 12 links | 6 | 1 | 0 | Fixed by reveal shim |
 | GWM Haval H6 | Storyblok/Swiper | 27 | 0 | 3 sheets / 1 link | 0 | 0 | 535px | Fixed by carousel shim |
-| Toyota RAV4 | browser-rendered responsive media | 49 | 16 after delayed load | 10 sheets / 2 links | 104 | 1 | 0 | Fixed in capturer; needs re-capture |
+| Toyota RAV4 | Scrapling external capture / responsive media | 70 | 0 | 10 sheets / 2 links | 104 | 3 | 0 | Pass; mobile/interactive overlays remain hidden |
 | Hyundai i30 | AEM/Swiper/fixed-width wrappers | 34 | 0 | 10 sheets / 8 links | 0 | 0 | 597px | Fixed by carousel shim + frame guard |
 | GAC EMZOOM | Nuxt/Swiper/responsive media | 23 | 0 | 13 sheets / 11 links | 0 | 0 | 511px | Fixed by carousel/media shim |
 | LDV Deliver 7 | Gatsby/i-motor | 19 | 0 | 2 sheets / 0 links | 0 | 0 | 0 | Pass |
@@ -106,8 +106,14 @@ The live Toyota page still exposes the real values as `source[data-srcset]`, so 
 
 The capturer now preserves `data-srcset` during browser capture and runs a post-capture media
 normalizer before image download/storage. That normalizer restores `source[srcset]`, adds an `img`
-fallback `src`/`srcset`, and queues the restored image URL for R2 download. Existing Toyota clones
-still need to be re-captured because their persisted HTML already lost the original URLs.
+fallback `src`/`srcset`, removes unrecoverable empty image placeholders, and queues the restored
+image URL for R2 download.
+
+Toyota RAV4 was re-captured on 2026-06-04 through the `scrapling-stealth` external HTML adapter after
+Scrapling fetched the real Toyota page. Latest R2 page version is `9`. Clone Studio audit after the
+recapture reported 70 images, 0 broken images, 10 stylesheets / 2 stylesheet links, 104 fonts, and
+root overflow 0. The remaining hidden text blocks are Toyota mobile driveaway pricing and interior
+panorama assist overlays.
 
 ## Phase 2 Same-Origin Sandbox Spike
 
