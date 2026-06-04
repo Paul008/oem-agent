@@ -116,6 +116,7 @@ const {
   setActiveMode,
   selectCloneRegion,
   setRegionHeight,
+  addCloneRegion,
 } = usePageBuilder()
 
 const themeStore = useThemeStore()
@@ -126,7 +127,10 @@ const showSectionBrowser = ref(false)
 const showCapture = ref(false)
 const cloneDraftHtml = ref<string | null>(null)
 const cloneEditorOpen = ref(false)
-const pageBuilderCanvas = ref<{ patchCloneField: (payload: Record<string, unknown>) => void } | null>(null)
+const pageBuilderCanvas = ref<{
+  patchCloneField: (payload: Record<string, unknown>) => void
+  duplicateRegion: (regionId: string) => void
+} | null>(null)
 const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((s: any) => s.id === editorSectionId.value) ?? null : null,
@@ -217,8 +221,12 @@ function onRegionAction({ action, regionId }: { action: RegionActionId, regionId
     })
     return
   }
-  if (action === 'duplicate' || action === 'convert') {
-    toast('Duplicate / Convert coming soon')
+  if (action === 'duplicate') {
+    pageBuilderCanvas.value?.duplicateRegion(regionId)
+    return
+  }
+  if (action === 'convert') {
+    toast('Convert coming soon')
   }
 }
 
@@ -1036,6 +1044,7 @@ watch(
             @update-field="onUpdateField"
             @select-clone-region="onCloneRegionSelected"
             @clone-dom-updated="onCloneDomUpdated"
+            @clone-region-added="addCloneRegion"
             @region-action="onRegionAction"
           />
         </UiResizablePanel>

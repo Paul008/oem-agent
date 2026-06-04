@@ -2,7 +2,7 @@
 import { AlertCircle, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Wand2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import type { PageMode } from '../../page-builder/page-modes'
+import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
 
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
@@ -36,6 +36,7 @@ const emit = defineEmits<{
   deleteSection: [id: string]
   selectCloneRegion: [region: any]
   cloneDomUpdated: [html: string]
+  cloneRegionAdded: [region: CloneRegion]
   regionAction: [payload: { action: RegionActionId, regionId: string }]
 }>()
 // Responsive preview
@@ -66,8 +67,15 @@ function patchCloneField(payload: Record<string, unknown>) {
   cloneStudioCanvas.value?.patchField(payload)
 }
 
+function duplicateRegion(regionId: string) {
+  if (props.readOnly)
+    return
+  cloneStudioCanvas.value?.duplicateRegion(regionId)
+}
+
 defineExpose({
   patchCloneField,
+  duplicateRegion,
 })
 
 // ── Clone region context menu ──────────────────────────────────────────────
@@ -525,6 +533,7 @@ function sectionStyle(section: any): Record<string, string> {
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
+            @region-added="!props.readOnly && emit('cloneRegionAdded', $event)"
             @region-height="onRegionHeight"
             @context-menu="onCloneContextMenu"
           />

@@ -112,3 +112,22 @@ describe('CloneStudioCanvas duplicate-region relay', () => {
     expect(source).toContain("emit('regionAdded', data.newRegion)")
   })
 })
+
+describe('duplicate region wiring through the host layers', () => {
+  it('threads duplicateRegion and cloneRegionAdded from page to bridge', () => {
+    const canvasSource = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+
+    // Wrapper exposes duplicateRegion and re-emits cloneRegionAdded
+    expect(canvasSource).toContain('cloneRegionAdded: [region: CloneRegion]')
+    expect(canvasSource).toContain('cloneStudioCanvas.value?.duplicateRegion(regionId)')
+    expect(canvasSource).toContain('duplicateRegion,')
+    expect(canvasSource).toContain("@region-added=\"!props.readOnly && emit('cloneRegionAdded', $event)\"")
+
+    // Page dispatches duplicate and persists the new region
+    expect(pageSource).toContain('pageBuilderCanvas.value?.duplicateRegion(regionId)')
+    expect(pageSource).toContain('@clone-region-added="addCloneRegion"')
+    expect(pageSource).toContain('addCloneRegion,')
+    expect(pageSource).toContain("action === 'convert'")
+  })
+})
