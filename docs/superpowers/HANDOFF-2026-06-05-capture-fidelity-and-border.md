@@ -1,9 +1,26 @@
 # Handoff — Clone Studio duplicate + capture fidelity + border emission
 
-> Written 2026-06-05. Everything below is **merged to `main`, pushed to `origin/main`, and
-> deployed to production** (`oem-dashboard.pages.dev`). `main` HEAD = `82462b6`, in sync with
-> origin. A fresh session can resume cold from this file + project memory
+> Written 2026-06-05. At original handoff time, everything below was **merged to `main`, pushed to
+> `origin/main`, and deployed to production** (`oem-dashboard.pages.dev`). `main` HEAD was
+> `82462b6`, in sync with origin. A fresh session can resume cold from this file + project memory
 > (`MEMORY.md` → the "CSS→Tailwind (ACTIVE = client-side)" bullet, `project_clone_studio_editing`).
+
+## Addendum — Follow-ups Resolved Later on 2026-06-05
+
+This handoff predates later work on the same branch. Current `main` includes:
+
+- `db4dd75 fix(capture): compact rgba color tokens` — `colTw` now emits space-free rgba arbitrary
+  tokens such as `bg-[rgba(0,0,0,0.5)]`, locked by `capture-tailwind-rules.test.ts`.
+- `5da74e3 feat(preview): enable right-click editing` — the standalone preview route now wires the
+  same editable canvas/context-menu path as Page Builder where the page is not write-protected.
+- `2978053 feat(page-builder): convert clone regions to sections` — clone-region `Convert` now
+  stages raw HTML as editable `content-block` sections in both builder and preview hosts.
+- `bb95d7a feat(model-pages): show mode-aware page status` — Model Pages now classifies cached
+  details as `Loading`, `Structured`, `Clone-only`, or `Generated` using mode-aware sections and
+  clone payloads. Dashboard Pages deploy: `https://ac5e3523.oem-dashboard.pages.dev`.
+
+The resolved bullets below are retained as historical context. The remaining frontier from this
+handoff is the larger Path-A clone fidelity work.
 
 ## Three features shipped this session (all live in prod)
 
@@ -99,12 +116,12 @@ Borders were dropped entirely; now emitted.
 
 ## Known debt / deferred (logged, NOT silently dropped)
 
-- **`colTw` rgba spaces bug (pre-existing):** `colTw` emits `bg-[rgba(0, 0, 0, .5)]` /
+- **Resolved after handoff — `colTw` rgba spaces bug (pre-existing):** `colTw` emitted `bg-[rgba(0, 0, 0, .5)]` /
   `text-[rgba(...)]` with unescaped spaces → broken Tailwind class for rgba bg/text colors.
-  `borderTw` sidesteps this for borders (routes rgba → inline). Fix: in `colTw`, when the value is
-  rgba (no `#`), either escape spaces with `_` or route to inline. Small, isolated follow-up.
-- **`convert` clone-region action** — still a toast stub (region→structured section; overlaps the
-  structurer/`mapAndPersist`; needs its own design).
+  Fixed in `db4dd75` by compacting whitespace in rgba arbitrary color tokens.
+- **Resolved after handoff — `convert` clone-region action:** was still a toast stub
+  (region→structured section). Implemented in `2978053` by converting selected clone-region HTML
+  into a raw `content-block` section and switching to sections mode.
 - **Path-A clone fidelity (larger):** OEM `<script>` is stripped, so JS-driven content is
   frozen/lost — carousels/tabs (we inject trusted controls as a partial patch), lazy-loaded
   images, scroll-reveal/intersection-observer animations. Plus pseudo-elements (`::before/::after`)
@@ -113,14 +130,12 @@ Borders were dropped entirely; now emitted.
 
 ## Resume pointers
 
-1. **Quickest follow-up:** `colTw` rgba-spaces fix (mirror borderTw's hex-gate / space-escape) +
-   a test. Touches only `capture-tailwind-rules.ts`.
-2. **Manual UAT (can't be automated — DOM walker / bridge run in-browser):** smart-capture a
+1. **Manual UAT (can't be automated — DOM walker / bridge run in-browser):** smart-capture a
    section with a gradient hero, drop-shadow card, italic/underlined text, a non-standard font
    size, a uniform-bordered card, and a bottom-divider element; confirm it renders visibly closer
    to source (gradient/shadow present, exact type, borders present). For duplicate: right-click a
    region → Duplicate → crop the copy → save → reload → copy + crop persist.
-3. **Bigger bet:** Path-A "de-freeze" — capture the post-JS-settle DOM (Puppeteer network-idle +
+2. **Bigger bet:** Path-A "de-freeze" — capture the post-JS-settle DOM (Puppeteer network-idle +
    scroll-to-bottom) so lazy content / animation end-states bake into the static snapshot.
 
 ## Verification status (at handoff)
