@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { supabase } from '@/lib/supabase'
-import { clonePage, fetchGeneratedPage, updateClonePage } from './worker-api'
+import { clonePage, fetchGeneratedPage, fetchGeneratedPages, updateClonePage } from './worker-api'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -61,6 +61,15 @@ describe('worker-api fetchGeneratedPage', () => {
     expect(fetchMock.mock.calls[0][0]).not.toContain('includeRendered=true')
     expect(fetchMock.mock.calls[0][0]).not.toContain('includeModes=true')
     expect(fetchMock.mock.calls[1][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang?includeRendered=true&includeModes=true')
+  })
+
+  it('uses the Worker host for generated page list and detail reads', async () => {
+    await fetchGeneratedPages('mazda-au')
+    await fetchGeneratedPage('mazda-au-cx-5', { includeRendered: true, includeModes: true })
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/pages?oemId=mazda-au')
+    expect(fetchMock.mock.calls[1][0]).toBe('https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/pages/mazda-au-cx-5?includeRendered=true&includeModes=true')
   })
 
   it('requests modes without cloned HTML when only modes are needed', async () => {
