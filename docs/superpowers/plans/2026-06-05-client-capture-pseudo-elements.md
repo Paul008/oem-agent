@@ -15,7 +15,7 @@
 **Files:**
 - Modify: `dashboard/src/composables/use-capture-injection.test.ts`
 
-- [ ] **Step 1: Add failing source-regression tests**
+- [x] **Step 1: Add failing source-regression tests**
 
 Assert the injected script contains:
 
@@ -26,10 +26,10 @@ Assert the injected script contains:
 - `span.setAttribute('data-oem-pseudo', pseudo)`
 - `span.setAttribute('data-oem-pseudo-capture', 'true')`
 - `span.textContent = text`
-- `materializePseudoElementsForCapture(src, cln, true)` after child recursion
+- `materializePseudoElementsForCapture(el, clone, true)` after Tailwind conversion
 - `materializePseudoElementsForCapture(el, clone, false)` in `cleanHtml()`
 
-- [ ] **Step 2: Run focused test and confirm failure**
+- [x] **Step 2: Run focused test and confirm failure**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/use-capture-injection.test.ts
@@ -42,7 +42,7 @@ Expected: FAIL because the injected script does not materialize pseudo-elements 
 **Files:**
 - Modify: `dashboard/src/composables/use-capture-injection.ts`
 
-- [ ] **Step 1: Add self-contained helpers**
+- [x] **Step 1: Add self-contained helpers**
 
 Add ES5-style helper functions inside the injected script before `tailwindHtml()`:
 
@@ -52,15 +52,15 @@ Add ES5-style helper functions inside the injected script before `tailwindHtml()
 - `materializePseudoElementForCapture(src, cln, pseudo, includeStyle)`
 - `materializePseudoElementsForCapture(src, cln, includeStyle)`
 
-- [ ] **Step 2: Wire Tailwind clone output**
+- [x] **Step 2: Wire Tailwind clone output**
 
-Call `materializePseudoElementsForCapture(src, cln, true)` after the existing child recursion in `convert()` so inserted pseudo spans do not offset source/clone child alignment.
+Call `materializePseudoElementsForCapture(el, clone, true)` once after `convert(el, clone)` so inserted pseudo spans do not offset source/clone child alignment.
 
-- [ ] **Step 3: Wire clean parser output**
+- [x] **Step 3: Wire clean parser output**
 
 Call `materializePseudoElementsForCapture(el, clone, false)` inside `cleanHtml()` after styles are stripped and before returning `clone.outerHTML`.
 
-- [ ] **Step 4: Run focused test**
+- [x] **Step 4: Run focused test**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/use-capture-injection.test.ts
@@ -73,7 +73,7 @@ Expected: PASS.
 **Files:**
 - Verify dashboard and repo.
 
-- [ ] **Step 1: Run verification**
+- [x] **Step 1: Run verification**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/use-capture-injection.test.ts

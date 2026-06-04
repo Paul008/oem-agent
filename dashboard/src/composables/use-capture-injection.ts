@@ -261,6 +261,105 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
     'border-radius','box-shadow','background-image','transform','filter','backdrop-filter','clip-path','mask',
     'object-fit','object-position','overflow','opacity'];
 
+  function normalizePseudoElementContentForCapture(content) {
+    var raw = String(content || '').trim();
+    if (!raw) return '';
+    var lower = raw.toLowerCase();
+    if (
+      lower === 'none' ||
+      lower === 'normal' ||
+      lower === 'open-quote' ||
+      lower === 'close-quote' ||
+      lower === 'no-open-quote' ||
+      lower === 'no-close-quote' ||
+      lower.indexOf('url(') === 0 ||
+      lower.indexOf('counter(') === 0 ||
+      lower.indexOf('counters(') === 0 ||
+      lower.indexOf('attr(') === 0
+    ) return '';
+    var quote = raw.charAt(0);
+    if ((quote !== '"' && quote !== "'") || raw.charAt(raw.length - 1) !== quote) return '';
+    var value = raw
+      .slice(1, -1)
+      .replace(/\\\\A\\s?/gi, String.fromCharCode(10))
+      .replace(/\\\\([0-9a-fA-F]{1,6})\\s?/g, function(_match, hex) {
+        var code = parseInt(hex, 16);
+        return isFinite(code) && code > 0 && code <= 65535 ? String.fromCharCode(code) : '';
+      })
+      .replace(/\\\\+(["'\\\\])/g, '$1')
+      .trim();
+    return value;
+  }
+
+  function pseudoElementInlineStyleForCapture(style) {
+    var out = [];
+
+    function clean(value) {
+      return String(value || '').trim().replace(/[;<>"']/g, '');
+    }
+
+    function push(prop, value, skip) {
+      var cleaned = clean(value);
+      if (!cleaned) return;
+      var lower = cleaned.toLowerCase();
+      for (var i = 0; skip && i < skip.length; i++) {
+        if (lower === skip[i]) return;
+      }
+      out.push(prop + ':' + cleaned);
+    }
+
+    push('display', style.display, ['none']);
+    push('color', style.color);
+    push('background-color', style.backgroundColor, ['transparent', 'rgba(0, 0, 0, 0)']);
+    push('font-weight', style.fontWeight, ['normal', '400']);
+    push('font-size', style.fontSize);
+    push('line-height', style.lineHeight, ['normal']);
+    push('margin', style.margin);
+    push('padding', style.padding);
+    push('border-radius', style.borderRadius, ['0px']);
+    push('text-transform', style.textTransform, ['none']);
+    push('letter-spacing', style.letterSpacing, ['normal', '0px']);
+
+    return out.join(';');
+  }
+
+  function isVisiblePseudoElementForCapture(style) {
+    return !!style && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function materializePseudoElementForCapture(src, cln, pseudo, includeStyle) {
+    if (!src || !cln || !window.getComputedStyle) return;
+    var style = window.getComputedStyle(src, '::' + pseudo);
+    if (!isVisiblePseudoElementForCapture(style)) return;
+    var text = normalizePseudoElementContentForCapture(style.content);
+    if (!text) return;
+    var existing = cln.querySelector && cln.querySelector(':scope > [data-oem-pseudo="' + pseudo + '"][data-oem-pseudo-capture="true"]');
+    if (existing) return;
+
+    var span = document.createElement('span');
+    span.setAttribute('data-oem-pseudo', pseudo);
+    span.setAttribute('data-oem-pseudo-capture', 'true');
+    span.textContent = text;
+
+    if (includeStyle) {
+      var styleText = pseudoElementInlineStyleForCapture(style);
+      if (styleText) span.setAttribute('style', styleText);
+    }
+
+    if (pseudo === 'before') cln.insertBefore(span, cln.firstChild);
+    else cln.appendChild(span);
+  }
+
+  function materializePseudoElementsForCapture(src, cln, includeStyle) {
+    var srcCh = src && src.children ? src.children : [];
+    var clnCh = cln && cln.children ? cln.children : [];
+    for (var i = 0; i < srcCh.length && i < clnCh.length; i++) {
+      if (srcCh[i].nodeType === 1) materializePseudoElementsForCapture(srcCh[i], clnCh[i], includeStyle);
+    }
+    materializePseudoElementForCapture(src, cln, 'before', includeStyle);
+    materializePseudoElementForCapture(src, cln, 'after', includeStyle);
+  }
+
   function tailwindHtml(el) {
     var clone = el.cloneNode(true);
     clone.removeAttribute('data-capture-hover');
@@ -323,6 +422,7 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
       }
     }
     convert(el, clone);
+    materializePseudoElementsForCapture(el, clone, true);
 
     // Fix relative URLs
     var base = document.location.origin;
@@ -345,6 +445,7 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
     });
     clone.removeAttribute('style');
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+    materializePseudoElementsForCapture(el, clone, false);
     var base = document.location.origin;
     clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
       ['src','srcset','poster','href'].forEach(function(attr) {

@@ -18,4 +18,23 @@ describe('buildCaptureInjection uses the extracted rules', () => {
     const { lateInjection } = buildCaptureInjection()
     expect(lateInjection).toContain('R.borderTw(')
   })
+
+  it('materializes simple pseudo-element text in clean and Tailwind capture output', () => {
+    const { lateInjection } = buildCaptureInjection()
+
+    expect(lateInjection).toContain('function normalizePseudoElementContentForCapture')
+    expect(lateInjection).toContain('function pseudoElementInlineStyleForCapture')
+    expect(lateInjection).toContain('function materializePseudoElementForCapture')
+    expect(lateInjection).toContain("window.getComputedStyle(src, '::' + pseudo)")
+    expect(lateInjection).toContain("span.setAttribute('data-oem-pseudo', pseudo)")
+    expect(lateInjection).toContain("span.setAttribute('data-oem-pseudo-capture', 'true')")
+    expect(lateInjection).toContain('span.textContent = text')
+    expect(lateInjection).toContain("materializePseudoElementsForCapture(el, clone, true)")
+    expect(lateInjection).toContain("materializePseudoElementsForCapture(el, clone, false)")
+
+    const convertIndex = lateInjection.indexOf('convert(el, clone);')
+    const tailwindPseudoIndex = lateInjection.indexOf("materializePseudoElementsForCapture(el, clone, true)")
+    expect(convertIndex).toBeGreaterThan(-1)
+    expect(tailwindPseudoIndex).toBeGreaterThan(convertIndex)
+  })
 })
