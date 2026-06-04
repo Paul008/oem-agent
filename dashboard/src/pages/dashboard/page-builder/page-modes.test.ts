@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { CloneRegion } from './page-modes'
 import {
+  applyRegionHeightOverride,
   getActivePageMode,
   getAvailablePageModes,
   getCloneHtml,
@@ -130,5 +131,18 @@ describe('dashboard page modes', () => {
     }
 
     expect(getCloneStylesheetUrls(page)).toEqual(['https://www.ford.com.au/site.css'])
+  })
+})
+
+describe('applyRegionHeightOverride', () => {
+  it('sets a numeric height_override on the matching region', () => {
+    const regions = [{ id: 'r1', height: 800 } as any, { id: 'r2', height: 200 } as any]
+    const next = applyRegionHeightOverride(regions, 'r1', 400)
+    expect(next.find(r => r.id === 'r1')!.height_override).toBe(400)
+    expect(next.find(r => r.id === 'r2')!.height_override).toBeUndefined()
+  })
+  it('clears the override when passed null', () => {
+    const regions = [{ id: 'r1', height: 800, height_override: 400 } as any]
+    expect(applyRegionHeightOverride(regions, 'r1', null)[0].height_override).toBeUndefined()
   })
 })
