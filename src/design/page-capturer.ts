@@ -84,8 +84,44 @@ const MAX_IMAGE_DOWNLOADS = 50;
 const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
 export const CAPTURE_FONT_READY_TIMEOUT_MS = 2_500;
+export const CAPTURE_IMAGE_READY_TIMEOUT_MS = 3_000;
 
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
+export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
+
+export async function waitForCaptureImagesForCapture(
+  timeoutMs = 3000,
+  doc?: { images?: ArrayLike<{ complete?: boolean; decode?: () => Promise<unknown> }> },
+): Promise<CaptureImageReadyStatus> {
+  const activeDocument = doc ?? (typeof document !== 'undefined' ? document : undefined);
+  const images = activeDocument?.images;
+  if (!images)
+    return 'unsupported';
+
+  const imageList = Array.from(images);
+  if (imageList.length === 0)
+    return 'no-images';
+
+  const pendingDecodes = imageList
+    .filter(img => img.complete !== true && typeof img.decode === 'function')
+    .map(img => img.decode!().catch(() => undefined));
+
+  if (pendingDecodes.length === 0)
+    return 'ready';
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race<CaptureImageReadyStatus>([
+      Promise.allSettled(pendingDecodes).then(() => 'ready' as CaptureImageReadyStatus),
+      new Promise<CaptureImageReadyStatus>((resolve) => {
+        timeoutId = setTimeout(() => resolve('timeout'), Math.max(0, timeoutMs));
+      }),
+    ]);
+  } finally {
+    if (timeoutId)
+      clearTimeout(timeoutId);
+  }
+}
 
 export async function waitForCaptureFontsForCapture(
   timeoutMs = 2500,
@@ -1066,6 +1102,9 @@ export class PageCapturer {
 
       // Wait for images to finish loading after scroll
       await new Promise(r => setTimeout(r, 2000));
+
+      const imageReadyStatus = await page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS);
+      console.log(`[PageCapturer] Image readiness: ${imageReadyStatus}`);
 
       const fontReadyStatus = await page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS);
       console.log(`[PageCapturer] Font readiness: ${fontReadyStatus}`);

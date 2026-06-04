@@ -4,12 +4,41 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDomCaptureFromHtml,
   CAPTURE_FONT_READY_TIMEOUT_MS,
+  CAPTURE_IMAGE_READY_TIMEOUT_MS,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   pseudoElementInlineStyleForCapture,
   waitForCaptureFontsForCapture,
+  waitForCaptureImagesForCapture,
 } from './page-capturer'
+
+describe('waitForCaptureImagesForCapture', () => {
+  it('returns ready when pending image decodes settle before the timeout', async () => {
+    await expect(waitForCaptureImagesForCapture(50, {
+      images: [
+        { complete: false, decode: () => Promise.resolve() },
+        { complete: true, decode: () => Promise.resolve() },
+      ],
+    } as any)).resolves.toBe('ready')
+  })
+
+  it('returns timeout when pending image decodes do not settle in time', async () => {
+    await expect(waitForCaptureImagesForCapture(1, {
+      images: [{ complete: false, decode: () => new Promise(() => {}) }],
+    } as any)).resolves.toBe('timeout')
+  })
+
+  it('returns no-images when the image collection is empty', async () => {
+    await expect(waitForCaptureImagesForCapture(1, {
+      images: [],
+    } as any)).resolves.toBe('no-images')
+  })
+
+  it('returns unsupported when document images are not available', async () => {
+    await expect(waitForCaptureImagesForCapture(1, {} as any)).resolves.toBe('unsupported')
+  })
+})
 
 describe('waitForCaptureFontsForCapture', () => {
   it('returns ready when document fonts settle before the timeout', async () => {
@@ -29,13 +58,17 @@ describe('waitForCaptureFontsForCapture', () => {
   })
 })
 
-describe('PageCapturer font readiness wiring', () => {
-  it('waits for fonts before materializing pseudo-element text', () => {
+describe('PageCapturer readiness wiring', () => {
+  it('waits for images, then fonts, before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const imageWait = source.indexOf('page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS)')
     const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
     const pseudoMaterialize = source.indexOf('page.evaluate(materializePseudoElementTextForCapture as any)')
 
+    expect(CAPTURE_IMAGE_READY_TIMEOUT_MS).toBe(3000)
     expect(CAPTURE_FONT_READY_TIMEOUT_MS).toBe(2500)
+    expect(imageWait).toBeGreaterThan(-1)
+    expect(fontWait).toBeGreaterThan(imageWait)
     expect(fontWait).toBeGreaterThan(-1)
     expect(pseudoMaterialize).toBeGreaterThan(fontWait)
   })
