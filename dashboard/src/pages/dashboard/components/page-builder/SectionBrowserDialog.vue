@@ -2,6 +2,7 @@
 import { Copy, Loader2, Search } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
+import { OEM_IDS } from '@/lib/oem-ids'
 import { fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
 
 const props = defineProps<{
@@ -12,24 +13,6 @@ const emit = defineEmits<{
   'update:open': [val: boolean]
   'paste': [sections: any[]]
 }>()
-
-const OEM_IDS = [
-  'ford-au',
-  'gac-au',
-  'gwm-au',
-  'hyundai-au',
-  'isuzu-au',
-  'kia-au',
-  'ldv-au',
-  'mazda-au',
-  'mitsubishi-au',
-  'nissan-au',
-  'subaru-au',
-  'suzuki-au',
-  'toyota-au',
-  'volkswagen-au',
-  'kgm-au',
-]
 
 const selectedOem = ref(OEM_IDS[0])
 const pages = ref<any[]>([])

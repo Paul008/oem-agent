@@ -2,26 +2,9 @@ import { computed, ref } from 'vue'
 
 import type { OemSectionTemplate } from '@/pages/dashboard/components/page-builder/oem-templates'
 
+import { OEM_IDS } from '@/lib/oem-ids'
 import { fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
 import { OEM_CURATED_TEMPLATES } from '@/pages/dashboard/components/page-builder/oem-templates'
-
-const OEM_IDS = [
-  'ford-au',
-  'gac-au',
-  'gwm-au',
-  'hyundai-au',
-  'isuzu-au',
-  'kia-au',
-  'ldv-au',
-  'mazda-au',
-  'mitsubishi-au',
-  'nissan-au',
-  'subaru-au',
-  'suzuki-au',
-  'toyota-au',
-  'volkswagen-au',
-  'kgm-au',
-]
 
 export interface SlugEntry {
   oem_id: string

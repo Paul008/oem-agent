@@ -5,25 +5,8 @@ import { computed, ref, watch } from 'vue'
 import type { MediaItem } from '@/lib/worker-api'
 
 import { BasicPage } from '@/components/global-layout'
+import { OEM_IDS } from '@/lib/oem-ids'
 import { listMedia } from '@/lib/worker-api'
-
-const OEM_IDS = [
-  'ford-au',
-  'gac-au',
-  'gwm-au',
-  'hyundai-au',
-  'isuzu-au',
-  'kia-au',
-  'ldv-au',
-  'mazda-au',
-  'mitsubishi-au',
-  'nissan-au',
-  'subaru-au',
-  'suzuki-au',
-  'toyota-au',
-  'volkswagen-au',
-  'kgm-au',
-]
 
 const selectedOem = ref('')
 const items = ref<MediaItem[]>([])

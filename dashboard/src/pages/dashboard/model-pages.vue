@@ -8,6 +8,7 @@ import type { VehicleModel } from '@/composables/use-oem-data'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
+import { OEM_IDS } from '@/lib/oem-ids'
 import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
@@ -308,27 +309,6 @@ function getCustomPageData(item: { oem_id: string, slug: string }) {
   return pageCache.value.get(fullSlug(item)) ?? null
 }
 
-const OEM_IDS = [
-  'chery-au',
-  'ford-au',
-  'foton-au',
-  'gac-au',
-  'gmsv-au',
-  'gwm-au',
-  'hyundai-au',
-  'isuzu-au',
-  'kia-au',
-  'kgm-au',
-  'ldv-au',
-  'mazda-au',
-  'mitsubishi-au',
-  'nissan-au',
-  'subaru-au',
-  'suzuki-au',
-  'toyota-au',
-  'volkswagen-au',
-]
-
 // Track collapsed OEM groups in coverage view
 const collapsedOems = ref(new Set<string>())
 
@@ -341,6 +321,23 @@ function toggleOemCollapse(oemId: string) {
   }
 }
 
+const modelPageOemIds = computed(() => {
+  const ids = new Set<string>()
+  const knownIds = new Set<string>(OEM_IDS)
+  for (const oem of oems.value) {
+    if (oem.id)
+      ids.add(oem.id)
+  }
+  for (const model of allModels.value) {
+    if (model.oem_id)
+      ids.add(model.oem_id)
+  }
+
+  const orderedKnown = OEM_IDS.filter(id => ids.has(id))
+  const extraIds = [...ids].filter(id => !knownIds.has(id)).sort()
+  return orderedKnown.length || extraIds.length ? [...orderedKnown, ...extraIds] : [...OEM_IDS]
+})
+
 onMounted(async () => {
   try {
     const [oemList, models] = await Promise.all([
@@ -352,7 +349,7 @@ onMounted(async () => {
 
     // Fetch slug lists from all OEMs in parallel
     const results = await Promise.allSettled(
-      OEM_IDS.map(async (oemId) => {
+      modelPageOemIds.value.map(async (oemId) => {
         const res = await fetchGeneratedPages(oemId)
         return { oemId, pages: res.pages as string[] }
       }),
@@ -533,7 +530,7 @@ function stopBulkGenerate(oemId: string, event: Event) {
 const coverageByOem = computed(() => {
   const groups: { oemId: string, oemName: string, models: VehicleModel[], created: number, total: number }[] = []
 
-  for (const oemId of OEM_IDS) {
+  for (const oemId of modelPageOemIds.value) {
     const models = allModels.value.filter(m => m.oem_id === oemId)
     if (!models.length)
       continue
@@ -727,7 +724,7 @@ async function handleRefresh() {
   pageCache.value.clear()
   try {
     const results = await Promise.allSettled(
-      OEM_IDS.map(async (oemId) => {
+      modelPageOemIds.value.map(async (oemId) => {
         const res = await fetchGeneratedPages(oemId)
         return { oemId, pages: res.pages as string[] }
       }),

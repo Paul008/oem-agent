@@ -4,6 +4,7 @@ import type { Recipe } from '@/lib/worker-api'
 import type { PageSectionType } from '@/pages/dashboard/components/page-builder/section-templates'
 import type { CloneRegion, PageMode } from '@/pages/dashboard/page-builder/page-modes'
 
+import { OEM_IDS } from '@/lib/oem-ids'
 import {
   adaptivePipeline as apiAdaptivePipeline,
   regenerateSection as apiRegenerateSection,
@@ -37,27 +38,6 @@ import {
 } from '@/pages/dashboard/page-builder/page-modes'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
-
-const OEM_IDS = [
-  'chery-au',
-  'ford-au',
-  'foton-au',
-  'gac-au',
-  'gmsv-au',
-  'gwm-au',
-  'hyundai-au',
-  'isuzu-au',
-  'kia-au',
-  'ldv-au',
-  'mazda-au',
-  'mitsubishi-au',
-  'nissan-au',
-  'subaru-au',
-  'suzuki-au',
-  'toyota-au',
-  'volkswagen-au',
-  'kgm-au',
-]
 
 function parseSlug(slug: string): { oemId: string, modelSlug: string, subpageSlug?: string, parentModelSlug?: string } | null {
   for (const oemId of OEM_IDS) {
