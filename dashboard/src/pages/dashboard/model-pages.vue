@@ -66,6 +66,7 @@ const pageDetailErrors = ref<Record<string, string>>({})
 // Inline generation tracking
 const generating = ref(new Set<string>())
 const generateErrors = ref(new Map<string, string>())
+const PROTECTED_GENERATION_OEM_IDS = new Set(['gac-au', 'foton-au'])
 
 // Custom page creation state
 const customPageName = ref('')
@@ -477,10 +478,22 @@ function modelKey(model: VehicleModel) {
   return `${model.oem_id}/${model.slug}`
 }
 
+function isGenerationProtected(oemId: string): boolean {
+  return PROTECTED_GENERATION_OEM_IDS.has(oemId)
+}
+
+function generationProtectedMessage(oemId: string): string {
+  return `${oemName(oemId)} model pages are protected from dashboard generation`
+}
+
 // Inline adaptive pipeline trigger
 async function triggerGenerate(model: VehicleModel, event: Event) {
   event.stopPropagation()
   const key = modelKey(model)
+  if (isGenerationProtected(model.oem_id)) {
+    generateErrors.value.set(key, generationProtectedMessage(model.oem_id))
+    return
+  }
   if (generating.value.has(key))
     return
 
@@ -528,6 +541,8 @@ const bulkAbort = ref<Record<string, AbortController>>({})
 
 async function triggerGenerateAll(oemId: string, event: Event) {
   event.stopPropagation()
+  if (isGenerationProtected(oemId))
+    return
   if (isBulkRunning(oemId))
     return
 
@@ -1073,6 +1088,17 @@ async function handleRefresh() {
               </UiButton>
               <!-- Bulk generate: generate all button -->
               <UiButton
+                v-else-if="group.created < group.total && isGenerationProtected(group.oemId)"
+                size="sm"
+                variant="outline"
+                class="h-7 text-xs px-2.5 shrink-0"
+                :title="generationProtectedMessage(group.oemId)"
+                disabled
+              >
+                <AlertCircle class="size-3 mr-1" />
+                Protected
+              </UiButton>
+              <UiButton
                 v-else-if="group.created < group.total"
                 size="sm"
                 variant="outline"
@@ -1181,11 +1207,13 @@ async function handleRefresh() {
                       size="sm"
                       variant="outline"
                       class="h-7 text-xs px-2.5 shrink-0"
-                      title="Run adaptive pipeline (Clone + Structure + Generate)"
+                      :title="isGenerationProtected(model.oem_id) ? generationProtectedMessage(model.oem_id) : 'Run adaptive pipeline (Clone + Structure + Generate)'"
+                      :disabled="isGenerationProtected(model.oem_id)"
                       @click="triggerGenerate(model, $event)"
                     >
-                      <Play class="size-3 mr-1" />
-                      Generate
+                      <AlertCircle v-if="isGenerationProtected(model.oem_id)" class="size-3 mr-1" />
+                      <Play v-else class="size-3 mr-1" />
+                      {{ isGenerationProtected(model.oem_id) ? 'Protected' : 'Generate' }}
                     </UiButton>
                   </template>
 
