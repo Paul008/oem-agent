@@ -615,4 +615,32 @@ describe('buildCloneStudioHtml', () => {
     const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
     expect(html).toContain('window.__CLONE_STUDIO_EDITABLE__ = true')
   })
+
+  it('renders an ns-resize drag handle and posts clone-studio:region-height on release', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    const bridgeScript = extractBridgeScript(html)
+
+    // Handle message constant + cursor affordance present.
+    expect(bridgeScript).toContain("var MESSAGE_REGION_HEIGHT = 'clone-studio:region-height'")
+    expect(bridgeScript).toContain('ns-resize')
+    // Drag release persists via the region-height message; double-click clears (height null).
+    expect(bridgeScript).toContain('post(MESSAGE_REGION_HEIGHT')
+    expect(bridgeScript).toContain('height: null')
+    // Live crop reuses setRegionHeight.
+    expect(bridgeScript).toContain('setRegionHeight')
+    // Still parses as valid JS.
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('gates the resize handle behind EDITABLE so the read-only preview never shows it', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    // The handle is created via ensureResizeHandle, which must early-return when not EDITABLE.
+    expect(bridgeScript).toContain('function ensureResizeHandle()')
+    const handleBlock = bridgeScript.slice(bridgeScript.indexOf('function ensureResizeHandle()'))
+    expect(handleBlock.slice(0, 200)).toContain('if (!EDITABLE)')
+    // Read-only build still parses.
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
 })

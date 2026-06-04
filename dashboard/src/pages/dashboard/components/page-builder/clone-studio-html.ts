@@ -204,7 +204,11 @@ ${rendered}
   var MESSAGE_CONTEXT_MENU = 'clone-studio:context-menu'
   var MESSAGE_BEGIN_EDIT = 'clone-studio:begin-edit'
   var MESSAGE_SET_HEIGHT = 'clone-studio:set-height'
+  var MESSAGE_REGION_HEIGHT = 'clone-studio:region-height'
   var MESSAGE_SWITCH_PANEL = 'clone-studio:switch-panel'
+  var RESIZE_HANDLE_MIN_HEIGHT = 40
+  var resizeHandle = null
+  var resizeDrag = null
   var activeEdit = null
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
@@ -831,6 +835,8 @@ ${rendered}
         selectedRegion.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
 
+    positionResizeHandle()
+
     if (shouldPost) {
       var selectedRegionId = selectedRegion ? ensureRegionId(selectedRegion) : null
       post(MESSAGE_SELECT_REGION, {
@@ -1042,6 +1048,162 @@ ${rendered}
     }
   }
 
+  function ensureResizeHandle() {
+    // The drag handle is an editor-only affordance, so the read-only preview never creates it.
+    if (!EDITABLE)
+      return null
+
+    if (resizeHandle)
+      return resizeHandle
+
+    var handle = document.createElement('div')
+    // Mark as bridge scaffolding so getBodyHtml() strips it from any serialized/persisted HTML.
+    handle.setAttribute('data-clone-studio-bridge', 'true')
+    handle.setAttribute('data-clone-studio-resize-handle', 'true')
+    handle.setAttribute('title', 'Drag to crop height · double-click to clear')
+    handle.style.position = 'absolute'
+    handle.style.height = '8px'
+    handle.style.zIndex = '2147483646'
+    handle.style.cursor = 'ns-resize'
+    handle.style.background = 'rgba(14, 165, 233, 0.95)'
+    handle.style.borderRadius = '4px'
+    handle.style.boxShadow = '0 0 0 1px rgba(255, 255, 255, 0.85)'
+    handle.style.display = 'none'
+    handle.style.touchAction = 'none'
+
+    handle.addEventListener('pointerdown', onResizePointerDown, false)
+    handle.addEventListener('dblclick', onResizeDoubleClick, false)
+
+    document.body.appendChild(handle)
+    resizeHandle = handle
+    return handle
+  }
+
+  function regionNaturalHeight(el) {
+    if (!el)
+      return 0
+
+    // Temporarily clear the crop so scrollHeight reports the uncropped (natural) height, then restore.
+    var prevMaxHeight = el.style ? el.style.maxHeight : ''
+    var prevOverflow = el.style ? el.style.overflow : ''
+
+    if (el.style) {
+      el.style.maxHeight = ''
+      el.style.overflow = ''
+    }
+
+    var natural = el.scrollHeight || el.offsetHeight || 0
+
+    if (el.style) {
+      el.style.maxHeight = prevMaxHeight
+      el.style.overflow = prevOverflow
+    }
+
+    return natural
+  }
+
+  function positionResizeHandle() {
+    if (!EDITABLE)
+      return
+
+    var handle = ensureResizeHandle()
+    if (!handle)
+      return
+
+    if (!selectedRegion || !selectedRegion.getBoundingClientRect) {
+      handle.style.display = 'none'
+      return
+    }
+
+    var rect = selectedRegion.getBoundingClientRect()
+    var width = Math.min(rect.width || 0, 120)
+    if (width < 40)
+      width = Math.max(rect.width || 0, 24)
+
+    var left = (rect.left || 0) + (window.scrollX || 0) + ((rect.width || 0) - width) / 2
+    var top = (rect.bottom || 0) + (window.scrollY || 0) - 4
+
+    handle.style.width = width + 'px'
+    handle.style.left = left + 'px'
+    handle.style.top = top + 'px'
+    handle.style.display = 'block'
+  }
+
+  function onResizePointerDown(event) {
+    if (!EDITABLE || !selectedRegion)
+      return
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    var rect = selectedRegion.getBoundingClientRect()
+    resizeDrag = {
+      regionId: ensureRegionId(selectedRegion),
+      el: selectedRegion,
+      // Region top in client coordinates; pointermove uses clientY so both share the same space.
+      regionTop: rect.top || 0,
+      naturalHeight: regionNaturalHeight(selectedRegion),
+      height: rect.height || 0
+    }
+
+    if (resizeHandle && resizeHandle.setPointerCapture && event.pointerId != null) {
+      try { resizeHandle.setPointerCapture(event.pointerId) }
+      catch (_captureError) {}
+    }
+
+    document.addEventListener('pointermove', onResizePointerMove, true)
+    document.addEventListener('pointerup', onResizePointerUp, true)
+  }
+
+  function clampResizeHeight(pointerY, regionTop, naturalHeight) {
+    // Mirror clampRegionHeight from CloneStudioCanvas (kept inline; the bridge is ES5 string code).
+    var raw = pointerY - regionTop
+    var max = naturalHeight > 0 ? naturalHeight : raw
+    return Math.max(RESIZE_HANDLE_MIN_HEIGHT, Math.min(raw, max))
+  }
+
+  function onResizePointerMove(event) {
+    if (!resizeDrag)
+      return
+
+    var height = clampResizeHeight(event.clientY, resizeDrag.regionTop, resizeDrag.naturalHeight)
+    resizeDrag.height = height
+    setRegionHeight(resizeDrag.regionId, height)
+    positionResizeHandle()
+  }
+
+  function onResizePointerUp(event) {
+    document.removeEventListener('pointermove', onResizePointerMove, true)
+    document.removeEventListener('pointerup', onResizePointerUp, true)
+
+    if (!resizeDrag)
+      return
+
+    if (resizeHandle && resizeHandle.releasePointerCapture && event && event.pointerId != null) {
+      try { resizeHandle.releasePointerCapture(event.pointerId) }
+      catch (_releaseError) {}
+    }
+
+    var drag = resizeDrag
+    resizeDrag = null
+    post(MESSAGE_REGION_HEIGHT, { regionId: drag.regionId, height: drag.height })
+    positionResizeHandle()
+  }
+
+  function onResizeDoubleClick(event) {
+    if (!EDITABLE || !selectedRegion)
+      return
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    var regionId = ensureRegionId(selectedRegion)
+    // Clear the crop (height -> natural) locally and tell the parent to drop the persisted override.
+    setRegionHeight(regionId, 0)
+    post(MESSAGE_REGION_HEIGHT, { regionId: regionId, height: null })
+    positionResizeHandle()
+  }
+
   function collectPanels(region) {
     if (!region || !region.querySelectorAll)
       return []
@@ -1205,6 +1367,12 @@ ${rendered}
   document.addEventListener('mouseleave', function () {
     setHoverRegion(null)
   }, true)
+
+  if (EDITABLE) {
+    // Keep the bottom-edge resize handle pinned to the selected region as the page scrolls/resizes.
+    window.addEventListener('scroll', positionResizeHandle, true)
+    window.addEventListener('resize', positionResizeHandle, false)
+  }
 
   document.addEventListener('click', handleNavigationEvent, true)
   document.addEventListener('auxclick', handleNavigationEvent, true)
