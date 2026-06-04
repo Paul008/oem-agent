@@ -1089,7 +1089,7 @@ function stripSourceDocumentImagePlaceholders(html: string, baseHref: string): s
     const src = attrs.get('src') ?? ''
     if (!src || hasRecoverableCloneStudioImageSource(attrs))
       return tag
-    return normalizeCloneStudioComparableUrl(src, baseHref) === comparableBaseHref ? '' : tag
+    return isLikelySourceDocumentImageUrl(src, baseHref, comparableBaseHref) ? '' : tag
   })
 }
 
@@ -1098,7 +1098,37 @@ function isSourceDocumentImagePlaceholder(image: Element, baseHref: string, comp
   if (!src || hasRecoverableCloneStudioImageSource(image))
     return false
 
-  return normalizeCloneStudioComparableUrl(src, baseHref) === comparableBaseHref
+  return isLikelySourceDocumentImageUrl(src, baseHref, comparableBaseHref)
+}
+
+function isLikelySourceDocumentImageUrl(src: string, baseHref: string, comparableBaseHref: string): boolean {
+  if (normalizeCloneStudioComparableUrl(src, baseHref) === comparableBaseHref)
+    return true
+
+  try {
+    const parsed = new URL(src, baseHref)
+    const base = new URL(baseHref)
+    if (parsed.origin !== base.origin || parsed.search || parsed.hash)
+      return false
+    if (/\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(parsed.pathname))
+      return false
+
+    const basePath = normalizeCloneStudioComparablePath(base.pathname)
+    const parsedPath = normalizeCloneStudioComparablePath(parsed.pathname)
+    if (!basePath || basePath === '/' || !parsedPath.startsWith(`${basePath}/`))
+      return false
+
+    const lastSegment = parsedPath.split('/').filter(Boolean).pop() ?? ''
+    return /^(?:19|20)\d{2}$/.test(lastSegment)
+  }
+  catch {
+    return false
+  }
+}
+
+function normalizeCloneStudioComparablePath(pathname: string): string {
+  const normalized = String(pathname ?? '').replace(/\/+$/, '')
+  return normalized || '/'
 }
 
 function hasRecoverableCloneStudioImageSource(source: Element | Map<string, string>): boolean {

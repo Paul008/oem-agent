@@ -222,6 +222,26 @@ describe('buildCloneStudioHtml', () => {
     expect(body).toContain('https://oem-agent.adme-dev.workers.dev/media/pages/assets/subaru-au/brz/hero.webp')
   })
 
+  it('removes same-origin model-year document routes when the stored source URL lacks the year segment', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <img class="subaru-year-placeholder" src="https://www.subaru.com.au/brz/2026" alt="BRZ tS">
+          <img class="subaru-extensionless-query-image" src="https://www.subaru.com.au/brz/asset?id=hero">
+          <img class="subaru-extension-image" src="https://www.subaru.com.au/brz/2026/hero.webp">
+        </main>
+      `,
+      title: 'BRZ',
+      baseHref: 'https://www.subaru.com.au/brz',
+      selectedRegionId: null,
+    })
+    const body = extractInitialBody(html)
+
+    expect(body).not.toContain('subaru-year-placeholder')
+    expect(body).toContain('subaru-extensionless-query-image')
+    expect(body).toContain('subaru-extension-image')
+  })
+
   it('restores preview link scaffolding before posting saved body HTML', () => {
     const html = stripCloneStudioScaffoldingForTest(
       '<main><a href="#oem-preview-disabled" data-oem-preview-href="/showroom" data-oem-preview-link="true" data-oem-preview-onclick="track(&quot;cta&quot;)" onclick="return false">Compare</a></main>',
