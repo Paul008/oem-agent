@@ -110,6 +110,21 @@ describe('borderTw', () => {
     expect(r.classes).toEqual([])
     expect(r.style).toBe('border-top:2px groove rgb(0, 0, 0);border-right:2px groove rgb(0, 0, 0);border-bottom:2px groove rgb(0, 0, 0);border-left:2px groove rgb(0, 0, 0)')
   })
+  it('uniform rgba color → inline (not a broken Tailwind token)', () => {
+    const r = R.borderTw(makeReader(uniform('1px', 'solid', 'rgba(0, 0, 0, 0.1)')))
+    expect(r.classes).toEqual([])
+    expect(r.style).toBe('border-top:1px solid rgba(0, 0, 0, 0.1);border-right:1px solid rgba(0, 0, 0, 0.1);border-bottom:1px solid rgba(0, 0, 0, 0.1);border-left:1px solid rgba(0, 0, 0, 0.1)')
+  })
+  it('mixed widths (4 sides, same color/style) → inline', () => {
+    const r = R.borderTw(makeReader({
+      'border-top-width': '1px', 'border-top-style': 'solid', 'border-top-color': 'rgb(0, 0, 0)',
+      'border-right-width': '2px', 'border-right-style': 'solid', 'border-right-color': 'rgb(0, 0, 0)',
+      'border-bottom-width': '1px', 'border-bottom-style': 'solid', 'border-bottom-color': 'rgb(0, 0, 0)',
+      'border-left-width': '1px', 'border-left-style': 'solid', 'border-left-color': 'rgb(0, 0, 0)',
+    }))
+    expect(r.classes).toEqual([])
+    expect(r.style).toBe('border-top:1px solid rgb(0, 0, 0);border-right:2px solid rgb(0, 0, 0);border-bottom:1px solid rgb(0, 0, 0);border-left:1px solid rgb(0, 0, 0)')
+  })
 })
 
 describe('styleTw inline routing', () => {

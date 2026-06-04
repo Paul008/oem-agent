@@ -234,9 +234,9 @@ export function tailwindRules() {
       if (d.s !== first.s) samS = false;
       if (d.c !== first.c) samC = false;
     }
-    var uniform = allFour && samW && samS && samC && !!TOKEN[first.s];
+    var hex = rgbHex(first.c);
+    var uniform = allFour && samW && samS && samC && !!TOKEN[first.s] && hex.charAt(0) === '#';
     if (uniform) {
-      var hex = rgbHex(first.c);
       return {
         classes: ['border-[length:' + first.w + ']', 'border-[color:' + hex + ']', 'border-' + first.s],
         style: '',
