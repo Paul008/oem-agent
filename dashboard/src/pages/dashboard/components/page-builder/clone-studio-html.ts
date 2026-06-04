@@ -1263,29 +1263,36 @@ ${rendered}
     // primitive (switchPanel). No timers/auto-advance — those are throttled in the sandbox.
     var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"]')
 
-    for (var i = 0; i < candidates.length; i++) {
-      var regionEl = candidates[i]
-      var kind = classifyRegion(regionEl)
-      if (kind !== 'tabs' && kind !== 'carousel')
-        continue
+    // Wire each region inside its OWN function call so every click handler closes over per-call
+    // params (regionId/regionEl/kind) -- never a shared loop var. With ES5 var, a loop variable is
+    // function-scoped and mutated on every iteration; a handler that closed over the loop var directly
+    // would, at click time, see the LAST region value and switch the wrong region. Routing through
+    // wireRegion() gives each region a fresh scope, so the captured values are stable.
+    for (var i = 0; i < candidates.length; i++)
+      wireRegion(candidates[i])
+  }
 
-      var regionId = ensureRegionId(regionEl)
-      var wired = false
+  function wireRegion(regionEl) {
+    var kind = classifyRegion(regionEl)
+    if (kind !== 'tabs' && kind !== 'carousel')
+      return
 
-      if (kind === 'tabs')
-        wired = wireTabRegion(regionId, regionEl)
-      else
-        wired = wireCarouselRegion(regionId, regionEl)
+    var regionId = ensureRegionId(regionEl)
+    var wired = false
 
-      // slick/swiper inject their arrows via JS, which the sanitizer strips — so a multi-panel region
-      // can have slide panels but NO usable existing controls. When nothing was wired, inject our own
-      // trusted prev/next/dot bar so the panels stay navigable. Only inject for >1 panel.
-      if (!wired && collectPanels(regionEl).length > 1)
-        injectControlBar(regionId, regionEl, collectPanels(regionEl).length)
+    if (kind === 'tabs')
+      wired = wireTabRegion(regionId, regionEl)
+    else
+      wired = wireCarouselRegion(regionId, regionEl)
 
-      // Normalize to exactly one visible panel on load (avoids all-visible / all-hidden states).
-      switchPanel(regionId, 0)
-    }
+    // slick/swiper inject their arrows via JS, which the sanitizer strips — so a multi-panel region
+    // can have slide panels but NO usable existing controls. When nothing was wired, inject our own
+    // trusted prev/next/dot bar so the panels stay navigable. Only inject for >1 panel.
+    if (!wired && collectPanels(regionEl).length > 1)
+      injectControlBar(regionId, regionEl, collectPanels(regionEl).length)
+
+    // Normalize to exactly one visible panel on load (avoids all-visible / all-hidden states).
+    switchPanel(regionId, 0)
   }
 
   function injectControlBar(regionId, regionEl, panelCount) {
@@ -1623,8 +1630,19 @@ ${rendered}
       event.stopImmediatePropagation()
   }
 
+  function isBridgeOwnedTarget(target) {
+    // Trusted bridge-injected controls (prev/next/dot bar, etc.) carry data-clone-studio-bridge.
+    // The document-level navigation guard runs at capture phase BEFORE the control's own capture-phase
+    // click handler, so without this exemption stopImmediatePropagation() would swallow the click and
+    // the control would never switch the panel. Let bridge-owned targets through untouched.
+    return !!(target && target.closest && target.closest('[data-clone-studio-bridge]'))
+  }
+
   function handleNavigationEvent(event) {
     var target = event.target
+    if (isBridgeOwnedTarget(target))
+      return
+
     var region = candidateFrom(target)
     var shouldBlock = event.type === 'click' || isNavigationElement(target)
 
