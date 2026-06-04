@@ -68,6 +68,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
 const props = withDefaults(defineProps<{
   page: any
@@ -99,6 +100,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   selectRegion: [region: any]
   domUpdated: [html: string]
+  regionAdded: [region: CloneRegion]
   contextMenu: [menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }]
   regionHeight: [payload: { regionId: any, height: number | null }]
 }>()
@@ -182,6 +184,8 @@ function onMessage(event: MessageEvent) {
     const html = typeof data.bodyHtml === 'string' ? data.bodyHtml : data.html
     if (typeof html === 'string')
       emit('domUpdated', html)
+    if (data.newRegion && typeof data.newRegion === 'object')
+      emit('regionAdded', data.newRegion)
     return
   }
 
@@ -235,6 +239,10 @@ function setHeight(regionId: string, value: number | null) {
   postToFrame({ type: 'clone-studio:set-height', regionId, value, bridgeToken })
 }
 
+function duplicateRegion(regionId: string) {
+  postToFrame({ type: 'clone-studio:duplicate-region', regionId, bridgeToken })
+}
+
 function selectRegionInFrame(regionId: string | null) {
   postToFrame({
     type: 'clone-studio:select',
@@ -275,6 +283,7 @@ defineExpose({
   beginEdit,
   switchPanel,
   setHeight,
+  duplicateRegion,
 })
 </script>
 

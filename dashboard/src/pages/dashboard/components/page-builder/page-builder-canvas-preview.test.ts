@@ -101,3 +101,14 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(disabled).toContain('onclick="return false"')
   })
 })
+
+describe('CloneStudioCanvas duplicate-region relay', () => {
+  it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('regionAdded: [region: CloneRegion]')
+    expect(source).toContain("type: 'clone-studio:duplicate-region'")
+    expect(source).toContain('duplicateRegion,')
+    expect(source).toContain("emit('regionAdded', data.newRegion)")
+  })
+})
