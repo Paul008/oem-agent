@@ -207,5 +207,49 @@ export function tailwindRules() {
     return prop + ':' + val;
   }
 
-  return { pxToSp: pxToSp, fsTw: fsTw, rgbHex: rgbHex, colTw: colTw, cssTw: cssTw, mapClasses: mapClasses, styleTw: styleTw };
+  function borderTw(read: (prop: string) => string): { classes: string[], style: string } {
+    var sides = ['top', 'right', 'bottom', 'left'];
+    var TOKEN: Record<string, number> = { solid: 1, dashed: 1, dotted: 1, double: 1 };
+    var present: string[] = [];
+    var info: Record<string, { w: string, s: string, c: string }> = {};
+    for (var i = 0; i < sides.length; i++) {
+      var side = sides[i];
+      var w = read('border-' + side + '-width');
+      var s = read('border-' + side + '-style');
+      var c = read('border-' + side + '-color');
+      var px = parseFloat(w);
+      if (!isNaN(px) && px > 0 && s && s !== 'none') {
+        present.push(side);
+        info[side] = { w: px + 'px', s: s, c: c };
+      }
+    }
+    if (present.length === 0) return { classes: [], style: '' };
+
+    var first = info[present[0]];
+    var allFour = present.length === 4;
+    var samW = true, samS = true, samC = true;
+    for (var j = 0; j < present.length; j++) {
+      var d = info[present[j]];
+      if (d.w !== first.w) samW = false;
+      if (d.s !== first.s) samS = false;
+      if (d.c !== first.c) samC = false;
+    }
+    var uniform = allFour && samW && samS && samC && !!TOKEN[first.s];
+    if (uniform) {
+      var hex = rgbHex(first.c);
+      return {
+        classes: ['border-[length:' + first.w + ']', 'border-[color:' + hex + ']', 'border-' + first.s],
+        style: '',
+      };
+    }
+    var decls: string[] = [];
+    for (var k = 0; k < present.length; k++) {
+      var p = present[k];
+      var pd = info[p];
+      decls.push('border-' + p + ':' + pd.w + ' ' + pd.s + ' ' + pd.c);
+    }
+    return { classes: [], style: decls.join(';') };
+  }
+
+  return { pxToSp: pxToSp, fsTw: fsTw, rgbHex: rgbHex, colTw: colTw, cssTw: cssTw, mapClasses: mapClasses, styleTw: styleTw, borderTw: borderTw };
 }

@@ -70,6 +70,48 @@ describe('newly-emitted Tailwind props', () => {
   })
 })
 
+describe('borderTw', () => {
+  function makeReader(map: Record<string, string>) {
+    return function (p: string) { return map[p] || '' }
+  }
+  function uniform(width: string, style: string, color: string) {
+    var m: Record<string, string> = {}
+    ;['top', 'right', 'bottom', 'left'].forEach(function (s) {
+      m['border-' + s + '-width'] = width
+      m['border-' + s + '-style'] = style
+      m['border-' + s + '-color'] = color
+    })
+    return m
+  }
+
+  it('no border → empty', () => {
+    expect(R.borderTw(makeReader(uniform('0px', 'none', 'rgb(0, 0, 0)')))).toEqual({ classes: [], style: '' })
+  })
+  it('uniform solid → Tailwind tokens', () => {
+    expect(R.borderTw(makeReader(uniform('2px', 'solid', 'rgb(226, 226, 226)')))).toEqual({
+      classes: ['border-[length:2px]', 'border-[color:#e2e2e2]', 'border-solid'],
+      style: '',
+    })
+  })
+  it('uniform dashed → border-dashed token', () => {
+    const r = R.borderTw(makeReader(uniform('1px', 'dashed', 'rgb(0, 0, 0)')))
+    expect(r.classes).toContain('border-dashed')
+    expect(r.classes).toContain('border-[length:1px]')
+    expect(r.style).toBe('')
+  })
+  it('non-uniform (only bottom) → inline border-bottom', () => {
+    expect(R.borderTw(makeReader({
+      'border-bottom-width': '1px', 'border-bottom-style': 'solid', 'border-bottom-color': 'rgb(204, 204, 204)',
+      'border-top-width': '0px', 'border-right-width': '0px', 'border-left-width': '0px',
+    }))).toEqual({ classes: [], style: 'border-bottom:1px solid rgb(204, 204, 204)' })
+  })
+  it('non-tokenizable uniform style (groove) → inline all sides', () => {
+    const r = R.borderTw(makeReader(uniform('2px', 'groove', 'rgb(0, 0, 0)')))
+    expect(r.classes).toEqual([])
+    expect(r.style).toBe('border-top:2px groove rgb(0, 0, 0);border-right:2px groove rgb(0, 0, 0);border-bottom:2px groove rgb(0, 0, 0);border-left:2px groove rgb(0, 0, 0)')
+  })
+})
+
 describe('styleTw inline routing', () => {
   it('routes un-tokenizable props verbatim', () => {
     expect(R.styleTw('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')).toBe('box-shadow:0 4px 12px rgba(0,0,0,0.3)')
