@@ -785,3 +785,21 @@ describe('reassignClonedRegionIdsForTest', () => {
     expect(removed).toEqual(['root', 'nested-1', 'nested-2'])
   })
 })
+
+describe('buildCloneStudioHtml duplicate-region bridge handler', () => {
+  it('wires the duplicate-region message to clone, re-ID and post newRegion', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main data-oem-region-id="r1"><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      selectedRegionId: null,
+    })
+    const bridge = extractBridgeScript(html)
+
+    expect(bridge).toContain('clone-studio:duplicate-region')
+    expect(bridge).toContain('cloneNode(true)')
+    expect(bridge).toContain('insertBefore')
+    expect(bridge).toContain("querySelectorAll('[data-oem-region-id]')")
+    expect(bridge).toContain('newRegion')
+  })
+})

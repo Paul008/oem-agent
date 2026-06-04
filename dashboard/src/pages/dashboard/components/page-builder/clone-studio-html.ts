@@ -206,6 +206,7 @@ ${rendered}
   var MESSAGE_SET_HEIGHT = 'clone-studio:set-height'
   var MESSAGE_REGION_HEIGHT = 'clone-studio:region-height'
   var MESSAGE_SWITCH_PANEL = 'clone-studio:switch-panel'
+  var MESSAGE_DUPLICATE_REGION = 'clone-studio:duplicate-region'
   var RESIZE_HANDLE_MIN_HEIGHT = 40
   var resizeHandle = null
   var resizeDrag = null
@@ -1742,6 +1743,25 @@ ${rendered}
       var panelRegionId = message.regionId || message.selectedRegionId || message.id
       if (switchPanel(panelRegionId, message.index))
         post(MESSAGE_DOM_UPDATED, { regionId: panelRegionId })
+    }
+
+    if (message.type === MESSAGE_DUPLICATE_REGION) {
+      var dupRegionId = message.regionId || message.selectedRegionId || message.id
+      var dupSource = findRegionById(dupRegionId)
+      if (!dupSource || !dupSource.parentNode)
+        return
+      var dupClone = dupSource.cloneNode(true)
+      // Strip the clone's own region id and every nested region id so ensureRegionId
+      // re-assigns collision-free (descendants re-acquire ids lazily on interaction).
+      if (dupClone.removeAttribute)
+        dupClone.removeAttribute('data-oem-region-id')
+      var dupNested = dupClone.querySelectorAll('[data-oem-region-id]')
+      for (var di = 0; di < dupNested.length; di++)
+        dupNested[di].removeAttribute('data-oem-region-id')
+      dupSource.parentNode.insertBefore(dupClone, dupSource.nextSibling)
+      ensureRegionId(dupClone)
+      post(MESSAGE_DOM_UPDATED, { regionId: dupClone.getAttribute('data-oem-region-id'), newRegion: regionPayload(dupClone) })
+      return
     }
   })
 
