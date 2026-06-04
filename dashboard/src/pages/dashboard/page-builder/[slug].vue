@@ -29,6 +29,8 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { useThemeStore } from '@/stores/theme'
+import { fetchCaptureDiagnostics, type CaptureDiagnosticsRecord } from '@/lib/worker-api'
+import { describeCaptureStatus } from '@/lib/capture-status'
 
 import type { CloneRegion, PageMode } from './page-modes'
 
@@ -328,6 +330,30 @@ onMounted(async () => {
     await loadPage(slug)
     cloneDraftHtml.value = null
     cloneEditorOpen.value = false
+    void loadCaptureDiagnostics()
+  }
+})
+
+const captureDiagnostics = ref<CaptureDiagnosticsRecord | null>(null)
+async function loadCaptureDiagnostics() {
+  captureDiagnostics.value = null
+  if (!oemId.value || !modelSlug.value)
+    return
+  try {
+    const res = await fetchCaptureDiagnostics(oemId.value, modelSlug.value)
+    captureDiagnostics.value = res.found ? res.latest ?? null : null
+  }
+  catch {
+    captureDiagnostics.value = null
+  }
+}
+const captureStatus = computed(() => describeCaptureStatus(captureDiagnostics.value))
+const captureStatusBadgeClass = computed(() => {
+  switch (captureStatus.value.tone) {
+    case 'success': return 'bg-emerald-600 text-white'
+    case 'warning': return 'bg-amber-600 text-white'
+    case 'error': return 'bg-red-600 text-white'
+    default: return 'bg-muted text-muted-foreground'
   }
 })
 
@@ -481,6 +507,15 @@ watch(
         </UiBadge>
         <UiBadge v-else-if="pageWorkflowState === 'cloned'" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
           Cloned
+        </UiBadge>
+        <UiBadge
+          v-if="captureStatus.tone !== 'neutral'"
+          variant="default"
+          class="text-[10px] shrink-0 hidden md:inline-flex"
+          :class="captureStatusBadgeClass"
+          :title="captureStatus.detail"
+        >
+          {{ captureStatus.label }}
         </UiBadge>
         <div v-if="canShowModeSwitcher" class="ml-1 hidden lg:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
           <button
