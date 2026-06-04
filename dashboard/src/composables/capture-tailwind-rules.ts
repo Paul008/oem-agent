@@ -195,8 +195,13 @@ export function tailwindRules() {
     return result;
   }
 
-  // styleTw: inline-style escape hatch. Stub for now (Task 6 implements it).
-  function styleTw(_prop: string, _val: string): string { return ''; }
+  // styleTw: inline-style escape hatch for un-tokenizable CSS props.
+  function styleTw(prop: string, val: string): string {
+    if (!val || val === 'none' || val === 'normal' || val === 'auto' || val === 'rgba(0, 0, 0, 0)') return '';
+    var INLINE: Record<string, number> = { 'box-shadow':1, 'background-image':1, 'transform':1, 'filter':1, 'backdrop-filter':1, 'clip-path':1, 'mask':1 };
+    if (!INLINE[prop]) return '';
+    return prop + ':' + val;
+  }
 
   return { pxToSp: pxToSp, fsTw: fsTw, rgbHex: rgbHex, colTw: colTw, cssTw: cssTw, mapClasses: mapClasses, styleTw: styleTw };
 }

@@ -14,10 +14,10 @@ describe('tailwindRules (characterization — current behavior)', () => {
     expect(R.cssTw('padding-top', '16px')).toEqual(['pt-4'])
     expect(R.cssTw('padding-top', '37px')).toEqual(['pt-[37px]'])
   })
-  it('dropped props emit nothing (box-shadow deferred to Task 5–6)', () => {
+  it('box-shadow: cssTw returns [] (routes to inline), styleTw returns inline string', () => {
     expect(R.cssTw('line-height', '26.4px')).toEqual(['leading-[26.4px]'])
     expect(R.cssTw('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')).toEqual([])
-    expect(R.styleTw('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')).toBe('')
+    expect(R.styleTw('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')).toBe('box-shadow:0 4px 12px rgba(0,0,0,0.3)')
   })
   it('maps Bootstrap classes', () => {
     expect(R.mapClasses('d-flex justify-content-center')).toEqual(['flex', 'justify-center'])
@@ -67,5 +67,20 @@ describe('newly-emitted Tailwind props', () => {
   it('font-weight: arbitrary fallback for unmapped weights', () => {
     expect(R.cssTw('font-weight', '700')).toEqual(['font-bold'])
     expect(R.cssTw('font-weight', '350')).toEqual(['font-[350]'])
+  })
+})
+
+describe('styleTw inline routing', () => {
+  it('routes un-tokenizable props verbatim', () => {
+    expect(R.styleTw('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')).toBe('box-shadow:0 4px 12px rgba(0,0,0,0.3)')
+    expect(R.styleTw('background-image', 'linear-gradient(180deg, #000, rgba(0,0,0,0))')).toBe('background-image:linear-gradient(180deg, #000, rgba(0,0,0,0))')
+    expect(R.styleTw('transform', 'translateX(-50%)')).toBe('transform:translateX(-50%)')
+    expect(R.styleTw('filter', 'blur(4px)')).toBe('filter:blur(4px)')
+  })
+  it('returns empty for none/empty and for non-inline props', () => {
+    expect(R.styleTw('box-shadow', 'none')).toBe('')
+    expect(R.styleTw('background-image', 'none')).toBe('')
+    expect(R.styleTw('transform', 'none')).toBe('')
+    expect(R.styleTw('font-size', '17px')).toBe('') // Tailwind-routed → not inline
   })
 })

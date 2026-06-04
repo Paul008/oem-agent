@@ -258,7 +258,7 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
     'position','top','right','bottom','left','z-index',
     'color','background-color','font-family','font-size','font-weight','font-style',
     'line-height','letter-spacing','text-align','text-transform','text-decoration',
-    'border','border-radius','box-shadow',
+    'border-radius','box-shadow','background-image','transform','filter','backdrop-filter','clip-path','mask',
     'object-fit','object-position','overflow','opacity'];
 
   function tailwindHtml(el) {
@@ -286,11 +286,14 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
       }
 
       // Convert computed styles → Tailwind classes
+      var styleString = '';
       for (var i = 0; i < STYLE_PROPS.length; i++) {
         var prop = STYLE_PROPS[i];
         var val = computed.getPropertyValue(prop);
         var converted = R.cssTw(prop, val);
         twClasses.push.apply(twClasses, converted);
+        var inline = R.styleTw(prop, val);
+        if (inline) styleString += (styleString ? ';' : '') + inline;
       }
 
       // Remove original classes and inline styles
@@ -307,6 +310,7 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
         }
         cln.setAttribute('class', unique.join(' '));
       }
+      if (styleString) cln.setAttribute('style', styleString);
 
       var srcCh = src.children, clnCh = cln.children;
       for (var k = 0; k < srcCh.length && k < clnCh.length; k++) {
