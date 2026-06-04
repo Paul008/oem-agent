@@ -209,7 +209,7 @@ function openSourceUrl() {
 function openPagePreview() {
   const slug = (route.params as { slug?: string }).slug
   if (slug)
-    window.open(`/dashboard/page-preview/${slug}`, '_blank', 'noopener,noreferrer')
+    window.open(`/preview/${slug}`, '_blank', 'noopener,noreferrer')
 }
 
 function onCaptureHtml(html: string) {

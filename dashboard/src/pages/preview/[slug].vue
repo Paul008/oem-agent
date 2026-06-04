@@ -4,7 +4,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { usePageBuilder } from '@/composables/use-page-builder'
-import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
+import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 
 // Standalone, chrome-free preview of a model page as the builder renders it.
 // Reuses PageBuilderCanvas in read-only mode so both clone and structured
