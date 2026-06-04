@@ -14,7 +14,7 @@ const emit = defineEmits<{
   'paste': [sections: any[]]
 }>()
 
-const selectedOem = ref(OEM_IDS[0])
+const selectedOem = ref('ford-au')
 const pages = ref<any[]>([])
 const loadingPages = ref(false)
 const selectedPageSlug = ref<string | null>(null)

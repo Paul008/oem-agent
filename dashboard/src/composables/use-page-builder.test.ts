@@ -1,9 +1,28 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { fetchGeneratedPage, fetchRecipes } from '@/lib/worker-api'
 import { normalizeStoredMediaUrls, usePageBuilder } from './use-page-builder'
 
+vi.mock('@/lib/worker-api', () => ({
+  adaptivePipeline: vi.fn(),
+  clonePage: vi.fn(),
+  fetchGeneratedPage: vi.fn(),
+  fetchRecipes: vi.fn(),
+  regenerateSection: vi.fn(),
+  saveRecipe: vi.fn(),
+  structurePage: vi.fn(),
+  updateClonePage: vi.fn(),
+  updatePageSections: vi.fn(),
+}))
+
 describe('usePageBuilder media URL resolution', () => {
+  beforeEach(() => {
+    vi.mocked(fetchGeneratedPage).mockReset()
+    vi.mocked(fetchRecipes).mockReset()
+    vi.mocked(fetchRecipes).mockResolvedValue([])
+  })
+
   it('does not define duplicate section media resolver cases', () => {
     const source = readFileSync(new URL('./use-page-builder.ts', import.meta.url), 'utf8')
     const resolverStart = source.indexOf('function resolveSectionMediaUrls')
@@ -20,6 +39,23 @@ describe('usePageBuilder media URL resolution', () => {
 
     expect(source).toContain('fetchGeneratedPage(newSlug, { includeRendered: true, includeModes: true })')
     expect(source).toContain('fetchGeneratedPage(slug.value, { includeRendered: true, includeModes: true })')
+  })
+
+  it('parses Renault page-builder slugs from the canonical OEM list', async () => {
+    vi.mocked(fetchGeneratedPage).mockResolvedValueOnce({
+      name: 'Arkana',
+      header: { slides: [] },
+      content: { sections: [] },
+    })
+
+    const builder = usePageBuilder()
+
+    await builder.loadPage('renault-au-arkana')
+
+    expect(builder.oemId.value).toBe('renault-au')
+    expect(builder.modelSlug.value).toBe('arkana')
+    expect(fetchGeneratedPage).toHaveBeenCalledWith('renault-au-arkana', { includeRendered: true, includeModes: true })
+    expect(fetchRecipes).toHaveBeenCalledWith('renault-au')
   })
 
   it('exposes clone-first mode state while keeping structured sections available', () => {
