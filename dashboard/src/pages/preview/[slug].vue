@@ -56,6 +56,7 @@ onMounted(async () => {
         :oem-id="oemId"
         :model-slug="modelSlug"
         :read-only="true"
+        :fit-width="true"
       />
     </div>
 
