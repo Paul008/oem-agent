@@ -549,4 +549,70 @@ describe('buildCloneStudioHtml', () => {
       throw new Error('Clone Studio bridge script was not emitted')
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
+
+  it('bridge wires a contextmenu listener that posts clone-studio:context-menu', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain("addEventListener('contextmenu'")
+    expect(html).toContain('clone-studio:context-menu')
+  })
+
+  it('bridge enables contenteditable on a begin-edit message and commits text', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain('clone-studio:begin-edit')
+    expect(html).toContain("setAttribute('contenteditable'")
+  })
+
+  it('applies a height_override as max-height + overflow on the region', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok', regionOverrides: [{ id: 'r1', height_override: 320 }] })
+    expect(html).toContain('clone-studio:set-height')
+  })
+
+  it('classifies a tablist region with type_hint=tabs and supports panel switching', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><div class="tabs" role="tablist"><div role="tabpanel">A</div><div role="tabpanel" hidden>B</div></div></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain('clone-studio:switch-panel')
+  })
+
+  it('commits inline edits by posting dom-updated (not patch-field) upward', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    const bridgeScript = extractBridgeScript(html)
+
+    // finishInlineEdit commit path must post dom-updated so the parent persists the edit.
+    expect(bridgeScript).toContain('function finishInlineEdit(commit)')
+    const commitBlock = bridgeScript.slice(bridgeScript.indexOf('function finishInlineEdit(commit)'))
+    expect(commitBlock).toContain('post(MESSAGE_DOM_UPDATED, {')
+    // It must NOT post the unhandled patch-field upward from the commit path.
+    expect(commitBlock).not.toContain('post(MESSAGE_PATCH_FIELD')
+  })
+
+  it('patchField handles alt and background kinds without clobbering text', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><img src="/a.png" alt="old"></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    const bridgeScript = extractBridgeScript(html)
+
+    // alt branch: set the img alt attribute, never textContent.
+    expect(bridgeScript).toContain("kind === 'alt'")
+    expect(bridgeScript).toContain("setAttribute('alt'")
+    // background branch: set backgroundColor on the region container, guarded by a colour check.
+    expect(bridgeScript).toContain("kind === 'background'")
+    expect(bridgeScript).toContain('backgroundColor')
+    expect(bridgeScript).toContain('isPlausibleCssColor')
+  })
+
+  it('locks the bridge read-only when built with editable:false', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+
+    // The editable flag is injected like selectedRegion, and the bridge reads it into EDITABLE.
+    expect(html).toContain('window.__CLONE_STUDIO_EDITABLE__ = false')
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('var EDITABLE = window.__CLONE_STUDIO_EDITABLE__ !== false')
+    // dblclick inline edit and context-menu emit are guarded by EDITABLE.
+    expect(bridgeScript).toContain("if (EDITABLE && event.type === 'dblclick')")
+    expect(bridgeScript).toContain('if (!EDITABLE)')
+    // Still parses as valid JS.
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('injects editable:true by default and keeps editing affordances', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain('window.__CLONE_STUDIO_EDITABLE__ = true')
+  })
 })

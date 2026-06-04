@@ -1,5 +1,5 @@
 <script lang="ts">
-import { getCloneHtml, getCloneStylesheetUrls } from '../../page-builder/page-modes'
+import { getCloneHtml, getCloneRegions, getCloneStylesheetUrls } from '../../page-builder/page-modes'
 import { buildCloneStudioHtml } from './clone-studio-html'
 
 export interface CloneStudioFrameHtmlForCanvasOptions {
@@ -9,6 +9,7 @@ export interface CloneStudioFrameHtmlForCanvasOptions {
   workerBase: string
   selectedRegionId: string | null
   bridgeToken: string
+  editable?: boolean
 }
 
 /**
@@ -25,7 +26,21 @@ export function cloneStudioIframeSandbox(allowSameOrigin = false): string {
   return allowSameOrigin ? 'allow-scripts allow-same-origin' : 'allow-scripts'
 }
 
+/**
+ * Translate an iframe-relative point into parent-viewport coordinates by scaling the point by the
+ * frame scale and offsetting by the iframe's origin (its top-left in the parent viewport).
+ */
+export function translateFramePoint(p: { x: number; y: number }, originRect: { left: number; top: number }, scale: number): { x: number; y: number } {
+  return { x: originRect.left + p.x * scale, y: originRect.top + p.y * scale }
+}
+
 export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtmlForCanvasOptions): string {
+  // Saved per-region height crops live in section_index (not the rendered HTML), so re-apply them to
+  // the iframe on load — otherwise persisted crops would not render until the user re-set them.
+  const regionOverrides = getCloneRegions(options.page)
+    .filter(region => typeof region.height_override === 'number')
+    .map(region => ({ id: region.id, height_override: region.height_override }))
+
   return buildCloneStudioHtml({
     rendered: getCloneHtml(options.page),
     title: options.title,
@@ -34,6 +49,8 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     stylesheetUrls: getCloneStylesheetUrls(options.page),
     selectedRegionId: null,
     bridgeToken: options.bridgeToken,
+    regionOverrides,
+    editable: options.editable !== false,
   })
 }
 </script>
@@ -55,6 +72,9 @@ const props = withDefaults(defineProps<{
   // When true, the desktop frame scales UP to fill the container width (used by the full-screen
   // preview so the clone fills the window instead of sitting left-aligned at native width).
   fitWidth?: boolean
+  // When false, the bridge is locked read-only (no inline-edit caret, no context menu). The
+  // read-only preview passes false; the editor leaves it true.
+  editable?: boolean
 }>(), {
   title: 'Clone Studio',
   baseHref: '',
@@ -62,11 +82,13 @@ const props = withDefaults(defineProps<{
   frameWidth: 1280,
   allowSameOriginSandbox: false,
   fitWidth: false,
+  editable: true,
 })
 
 const emit = defineEmits<{
   selectRegion: [region: any]
   domUpdated: [html: string]
+  contextMenu: [menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }]
 }>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
@@ -112,6 +134,7 @@ const frameHtml = computed(() => buildCloneStudioFrameHtmlForCanvas({
   workerBase: props.workerBase,
   selectedRegionId: props.selectedRegionId,
   bridgeToken,
+  editable: props.editable,
 }))
 
 function createBridgeToken(): string {
@@ -147,6 +170,23 @@ function onMessage(event: MessageEvent) {
     const html = typeof data.bodyHtml === 'string' ? data.bodyHtml : data.html
     if (typeof html === 'string')
       emit('domUpdated', html)
+    return
+  }
+
+  if (data.type === 'clone-studio:context-menu') {
+    const rect = iframe.value?.getBoundingClientRect() ?? { left: 0, top: 0 }
+    const pt = translateFramePoint(
+      { x: Number(data.x) || 0, y: Number(data.y) || 0 },
+      rect,
+      frameScale.value,
+    )
+    emit('contextMenu', {
+      regionId: data.regionId,
+      fields: data.fields,
+      typeHint: data.typeHint,
+      x: pt.x,
+      y: pt.y,
+    })
   }
 }
 
@@ -160,6 +200,18 @@ function patchField(payload: Record<string, unknown>) {
     ...payload,
     bridgeToken,
   })
+}
+
+function beginEdit(regionId: string) {
+  postToFrame({ type: 'clone-studio:begin-edit', regionId, bridgeToken })
+}
+
+function switchPanel(regionId: string, index: number) {
+  postToFrame({ type: 'clone-studio:switch-panel', regionId, index, bridgeToken })
+}
+
+function setHeight(regionId: string, value: number | null) {
+  postToFrame({ type: 'clone-studio:set-height', regionId, value, bridgeToken })
 }
 
 function selectRegionInFrame(regionId: string | null) {
@@ -199,6 +251,9 @@ onBeforeUnmount(() => {
 defineExpose({
   postToFrame,
   patchField,
+  beginEdit,
+  switchPanel,
+  setHeight,
 })
 </script>
 

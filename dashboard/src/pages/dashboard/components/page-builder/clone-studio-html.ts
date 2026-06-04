@@ -19,6 +19,18 @@ export interface CloneStudioHtmlOptions {
    * not duplicated.
    */
   stylesheetUrls?: string[]
+  /**
+   * Persisted per-region visible-height crops. Each entry pins a region (by the same id scheme the
+   * bridge assigns via `data-oem-region-id`) to a max-height with `overflow:hidden` so a saved crop
+   * renders on load. Live adjustments arrive separately via `clone-studio:set-height` messages.
+   */
+  regionOverrides?: Array<{ id: string, height_override?: number }>
+  /**
+   * When false, the bridge is locked to read-only: double-click does not begin an inline edit and
+   * the context-menu message is never emitted, so a viewer cannot get an editable caret or menu.
+   * Defaults to true (the editor leaves it enabled).
+   */
+  editable?: boolean
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -43,7 +55,9 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     mediaBase,
   )
   const selectedRegion = safeJson(options.selectedRegionId)
+  const editable = options.editable !== false
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
+  const regionOverrides = safeJsonValue(normalizeCloneStudioRegionOverrides(options.regionOverrides))
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -172,6 +186,8 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   </style>
   <script>
     window.__CLONE_STUDIO_SELECTED_REGION__ = ${selectedRegion};
+    window.__CLONE_STUDIO_REGION_OVERRIDES__ = ${regionOverrides};
+    window.__CLONE_STUDIO_EDITABLE__ = ${editable ? 'true' : 'false'};
   </script>
 </head>
 <body>
@@ -179,11 +195,17 @@ ${rendered}
 <script data-clone-studio-bridge="true">
 (function () {
   var BRIDGE_TOKEN = ${bridgeToken}
+  var EDITABLE = window.__CLONE_STUDIO_EDITABLE__ !== false
   var MESSAGE_READY = 'clone-studio:ready'
   var MESSAGE_SELECT = 'clone-studio:select'
   var MESSAGE_SELECT_REGION = 'clone-studio:select-region'
   var MESSAGE_DOM_UPDATED = 'clone-studio:dom-updated'
   var MESSAGE_PATCH_FIELD = 'clone-studio:patch-field'
+  var MESSAGE_CONTEXT_MENU = 'clone-studio:context-menu'
+  var MESSAGE_BEGIN_EDIT = 'clone-studio:begin-edit'
+  var MESSAGE_SET_HEIGHT = 'clone-studio:set-height'
+  var MESSAGE_SWITCH_PANEL = 'clone-studio:switch-panel'
+  var activeEdit = null
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
   var hoverRegion = null
@@ -717,6 +739,43 @@ ${rendered}
       || String(element.tagName || '').toLowerCase())
   }
 
+  function matchesAny(element, selector) {
+    if (!element || !element.matches)
+      return false
+
+    try {
+      return element.matches(selector)
+    }
+    catch (_error) {
+      return false
+    }
+  }
+
+  function classifyRegion(element) {
+    if (!element)
+      return ''
+
+    var className = element.getAttribute ? element.getAttribute('class') || '' : ''
+
+    if (matchesAny(element, '.swiper, .slick, [class*="carousel"], [class*="slider"]'))
+      return 'carousel'
+
+    var hasTablist = matchesAny(element, '[role="tablist"]')
+      || (element.querySelector && element.querySelector('[role="tablist"]'))
+    if (hasTablist)
+      return 'tabs'
+
+    var looksTabbish = /(^|\\s|-)tabs?($|\\s|-)/i.test(className)
+      || matchesAny(element, '[class*="tab"]')
+    if (looksTabbish) {
+      var panels = element.querySelectorAll ? element.querySelectorAll('[role="tabpanel"], .tab-content, .tab-pane') : []
+      if (panels.length > 1)
+        return 'tabs'
+    }
+
+    return ''
+  }
+
   function regionPayload(element) {
     if (!element)
       return null
@@ -729,6 +788,7 @@ ${rendered}
       label: regionLabel(element),
       selector: selectorForElement(element),
       tag: String(element.tagName || '').toLowerCase(),
+      type_hint: classifyRegion(element),
       classes: element.getAttribute ? element.getAttribute('class') || '' : '',
       top: (rect.top || 0) + (window.scrollY || 0),
       height: rect.height || 0,
@@ -819,13 +879,13 @@ ${rendered}
     if (fieldTarget)
       return fieldTarget
 
-    if (kind === 'image')
+    if (kind === 'image' || kind === 'alt')
       return root.querySelector('img, source, [data-oem-field*="image"], [data-field*="image"]') || root
 
     if (kind === 'link')
       return root.querySelector('a') || root
 
-    if (kind === 'visibility')
+    if (kind === 'visibility' || kind === 'background')
       return root
 
     return root.querySelector('[contenteditable], h1, h2, h3, h4, h5, h6, p, span, small, li, a, button') || root
@@ -886,6 +946,35 @@ ${rendered}
       anchor.textContent = String(message.text)
   }
 
+  function patchAlt(target, value) {
+    var img = target && target.tagName === 'IMG' ? target : (target && target.querySelector ? target.querySelector('img') : null)
+    if (!img || !img.setAttribute)
+      return
+    img.setAttribute('alt', String(value == null ? '' : value))
+  }
+
+  function isPlausibleCssColor(value) {
+    var color = String(value == null ? '' : value).trim()
+    if (!color)
+      return false
+    if (/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color))
+      return true
+    if (/^rgba?\\(\\s*[0-9.]+\\s*,\\s*[0-9.]+\\s*,\\s*[0-9.]+\\s*(?:,\\s*[0-9.]+\\s*)?\\)$/i.test(color))
+      return true
+    if (/^[a-z]+$/i.test(color))
+      return true
+    return false
+  }
+
+  function patchBackground(target, value) {
+    if (!target || !target.style)
+      return
+    var color = String(value == null ? '' : value).trim()
+    if (!isPlausibleCssColor(color))
+      return
+    target.style.backgroundColor = color
+  }
+
   function patchVisibility(target, value) {
     var isVisible = booleanValue(value)
     target.hidden = !isVisible
@@ -913,6 +1002,10 @@ ${rendered}
 
     if (kind === 'image')
       patchImage(target, value)
+    else if (kind === 'alt')
+      patchAlt(target, value)
+    else if (kind === 'background')
+      patchBackground(target, value)
     else if (kind === 'link')
       patchLink(target, value, message)
     else if (kind === 'visibility')
@@ -923,6 +1016,160 @@ ${rendered}
       target.textContent = String(value == null ? '' : value)
 
     return true
+  }
+
+  function setRegionHeight(regionId, value) {
+    var el = findRegionById(regionId)
+    if (!el || !el.style)
+      return false
+
+    var height = typeof value === 'number' && value > 0 ? value : 0
+
+    el.style.maxHeight = height ? height + 'px' : ''
+    el.style.overflow = height ? 'hidden' : ''
+
+    return true
+  }
+
+  function applyRegionOverrides(overrides) {
+    if (!overrides || !overrides.length)
+      return
+
+    for (var i = 0; i < overrides.length; i++) {
+      var override = overrides[i]
+      if (override && override.id)
+        setRegionHeight(override.id, override.height_override)
+    }
+  }
+
+  function collectPanels(region) {
+    if (!region || !region.querySelectorAll)
+      return []
+
+    var found = region.querySelectorAll('[role="tabpanel"], .tab-content, .tab-pane, .swiper-slide, .slick-slide')
+    var panels = []
+    for (var i = 0; i < found.length; i++)
+      panels.push(found[i])
+
+    return panels
+  }
+
+  function switchPanel(regionId, index) {
+    var region = findRegionById(regionId)
+    if (!region)
+      return false
+
+    var panels = collectPanels(region)
+    if (!panels.length)
+      return false
+
+    var targetIndex = typeof index === 'number' && index >= 0 && index < panels.length ? index : 0
+
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i]
+      if (!panel)
+        continue
+
+      if (i === targetIndex) {
+        panel.removeAttribute('hidden')
+        if (panel.style)
+          panel.style.display = ''
+        if (panel.classList) {
+          panel.classList.add('is-active')
+          panel.classList.add('active')
+        }
+      }
+      else {
+        panel.setAttribute('hidden', 'hidden')
+        if (panel.style)
+          panel.style.display = 'none'
+        if (panel.classList) {
+          panel.classList.remove('is-active')
+          panel.classList.remove('active')
+        }
+      }
+    }
+
+    return true
+  }
+
+  function beginInlineEdit(region) {
+    if (!region)
+      return false
+
+    // Reuse the shared text-target resolver so the editable element matches what patchField targets.
+    var el = resolvePatchTarget({}, region, 'text')
+    if (!el || !el.setAttribute)
+      return false
+
+    if (activeEdit && activeEdit.el === el) {
+      try { el.focus() } catch (_focusError) {}
+      return true
+    }
+
+    if (activeEdit)
+      finishInlineEdit(true)
+
+    var regionId = ensureRegionId(region)
+    var originalText = el.textContent
+
+    function onBlur() {
+      finishInlineEdit(true)
+    }
+
+    function onKeydown(event) {
+      if (event.key === 'Enter' || event.keyCode === 13) {
+        event.preventDefault()
+        finishInlineEdit(true)
+      }
+      else if (event.key === 'Escape' || event.keyCode === 27) {
+        event.preventDefault()
+        el.textContent = originalText
+        finishInlineEdit(false)
+      }
+    }
+
+    activeEdit = {
+      el: el,
+      regionId: regionId,
+      originalText: originalText,
+      onBlur: onBlur,
+      onKeydown: onKeydown
+    }
+
+    el.setAttribute('contenteditable', 'plaintext-only')
+    el.addEventListener('blur', onBlur, false)
+    el.addEventListener('keydown', onKeydown, false)
+
+    try { el.focus() } catch (_focusError) {}
+
+    return true
+  }
+
+  function finishInlineEdit(commit) {
+    if (!activeEdit)
+      return
+
+    var edit = activeEdit
+    activeEdit = null
+
+    edit.el.removeEventListener('blur', edit.onBlur, false)
+    edit.el.removeEventListener('keydown', edit.onKeydown, false)
+    edit.el.removeAttribute('contenteditable')
+
+    if (edit.el.blur)
+      edit.el.blur()
+
+    if (commit) {
+      // Post dom-updated (not patch-field) so the parent's onMessage dom-updated branch persists the
+      // committed text. The shared post() helper already attaches the updated body HTML
+      // (html/bodyHtml from getBodyHtml()), matching every other parent-initiated dom-updated post.
+      post(MESSAGE_DOM_UPDATED, {
+        regionId: edit.regionId,
+        kind: 'text',
+        committed: true
+      })
+    }
   }
 
   function stopBlockedEvent(event) {
@@ -945,6 +1192,9 @@ ${rendered}
       if (!shouldBlock)
         stopBlockedEvent(event)
       selectRegion(region, true)
+
+      if (EDITABLE && event.type === 'dblclick')
+        beginInlineEdit(region)
     }
   }
 
@@ -963,6 +1213,28 @@ ${rendered}
     stopBlockedEvent(event)
   }, true)
 
+  document.addEventListener('contextmenu', function (event) {
+    var region = candidateFrom(event.target)
+    if (!region)
+      return
+
+    stopBlockedEvent(event)
+    selectRegion(region, true)
+
+    // In read-only previews, suppress the editing context menu (plain selection is still allowed).
+    if (!EDITABLE)
+      return
+
+    var payload = regionPayload(region)
+    post(MESSAGE_CONTEXT_MENU, {
+      regionId: payload ? payload.id : ensureRegionId(region),
+      fields: payload ? payload.editable_fields : extractFields(region),
+      typeHint: payload ? payload.type_hint : classifyRegion(region),
+      x: event.clientX,
+      y: event.clientY
+    })
+  }, true)
+
   window.addEventListener('message', function (event) {
     if (event.source !== window.parent)
       return
@@ -977,13 +1249,37 @@ ${rendered}
       return
     }
 
+    if (message.type === MESSAGE_BEGIN_EDIT) {
+      var editRegion = findRegionById(message.regionId || message.selectedRegionId || message.id)
+      if (!editRegion)
+        return
+      selectRegion(editRegion, true)
+      beginInlineEdit(editRegion)
+      return
+    }
+
     if (message.type === MESSAGE_PATCH_FIELD) {
       if (patchField(message))
         post(MESSAGE_DOM_UPDATED, { regionId: message.regionId || message.selectedRegionId || null })
+      return
+    }
+
+    if (message.type === MESSAGE_SET_HEIGHT) {
+      var heightRegionId = message.regionId || message.selectedRegionId || message.id
+      if (setRegionHeight(heightRegionId, message.value))
+        post(MESSAGE_DOM_UPDATED, { regionId: heightRegionId })
+      return
+    }
+
+    if (message.type === MESSAGE_SWITCH_PANEL) {
+      var panelRegionId = message.regionId || message.selectedRegionId || message.id
+      if (switchPanel(panelRegionId, message.index))
+        post(MESSAGE_DOM_UPDATED, { regionId: panelRegionId })
     }
   })
 
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
+  applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
   post(MESSAGE_READY)
 })()
 </script>
@@ -1533,6 +1829,29 @@ function createCloneStudioBridgeToken(): string {
 
 function safeJson(value: string | null): string {
   return JSON.stringify(value).replace(/</g, '\\u003C')
+}
+
+function safeJsonValue(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003C')
+}
+
+function normalizeCloneStudioRegionOverrides(
+  overrides: CloneStudioHtmlOptions['regionOverrides'],
+): Array<{ id: string, height_override?: number }> {
+  if (!Array.isArray(overrides))
+    return []
+
+  const normalized: Array<{ id: string, height_override?: number }> = []
+  for (const override of overrides) {
+    if (!override || typeof override.id !== 'string' || !override.id)
+      continue
+
+    const height = override.height_override
+    if (typeof height === 'number' && Number.isFinite(height) && height > 0)
+      normalized.push({ id: override.id, height_override: height })
+  }
+
+  return normalized
 }
 
 function escapeHtmlAttribute(value: string): string {

@@ -18,6 +18,8 @@ export interface CloneRegion {
   height: number
   type_hint?: string
   editable_fields: CloneEditableField[]
+  height_override?: number;
+  panel_index?: number;
 }
 
 interface DashboardPageContent {
@@ -166,6 +168,20 @@ function extractStylesheetHrefs(html: string): string[] {
 
 function dedupe(values: string[]): string[] {
   return [...new Set(values)]
+}
+
+export function applyRegionHeightOverride(
+  regions: CloneRegion[],
+  regionId: string,
+  height: number | null,
+): CloneRegion[] {
+  return regions.map((r) => {
+    if (r.id !== regionId) return r
+    const next = { ...r }
+    if (height == null) delete next.height_override
+    else next.height_override = height
+    return next
+  })
 }
 
 export function getSectionItems(page: DashboardPage | null | undefined): any[] {
