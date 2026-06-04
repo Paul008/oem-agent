@@ -15,6 +15,7 @@ import type {
   PageSection,
   PageSectionType,
   PageStructuringResult,
+  AiProvider,
 } from '../oem/types';
 import type { AiRouter } from '../ai/router';
 import type { SmartPromptBuilder } from './prompt-builder';
@@ -84,6 +85,8 @@ export function mappedSectionsToRawSections(mapped: MappedSection[]): any[] {
 export interface PageMapAndPersistResult extends PageStructuringResult {
   mapping_source: 'deterministic' | 'ai';
 }
+
+type ModelOverride = { provider?: AiProvider; model?: string };
 
 const R2_PREFIX = 'pages/definitions';
 
@@ -235,7 +238,7 @@ export class PageStructurer {
     }
   }
 
-  async structurePage(oemId: OemId, modelSlug: string): Promise<PageStructuringResult> {
+  async structurePage(oemId: OemId, modelSlug: string, modelOverride?: ModelOverride): Promise<PageStructuringResult> {
     const startTime = Date.now();
 
     try {
@@ -298,6 +301,7 @@ export class PageStructurer {
         prompt,
         oemId,
         requireJson: true,
+        ...(modelOverride ? { overrideRoute: modelOverride } : {}),
       });
 
       // 3. Parse JSON response
@@ -435,7 +439,7 @@ export class PageStructurer {
    * sections mode (keeping clone mode), and stores to R2 — with NO AI call. If
    * confidence is low (needs_ai_fallback) it delegates to the AI structurePage.
    */
-  async mapAndPersist(oemId: OemId, modelSlug: string): Promise<PageMapAndPersistResult> {
+  async mapAndPersist(oemId: OemId, modelSlug: string, modelOverride?: ModelOverride): Promise<PageMapAndPersistResult> {
     const startTime = Date.now();
 
     if (isModelPageWriteProtected(oemId)) {
@@ -470,7 +474,7 @@ export class PageStructurer {
 
     // Low confidence → use the AI structurer.
     if (mapping.needs_ai_fallback) {
-      const aiResult = await this.structurePage(oemId, modelSlug);
+      const aiResult = await this.structurePage(oemId, modelSlug, modelOverride);
       return { ...aiResult, mapping_source: 'ai' };
     }
 
@@ -481,7 +485,7 @@ export class PageStructurer {
 
     if (sections.length === 0) {
       // Conversion produced nothing usable — fall back to AI rather than failing.
-      const aiResult = await this.structurePage(oemId, modelSlug);
+      const aiResult = await this.structurePage(oemId, modelSlug, modelOverride);
       return { ...aiResult, mapping_source: 'ai' };
     }
 

@@ -8,6 +8,7 @@ import {
   fetchGeneratedPage,
   fetchGeneratedPages,
   importLegacyPage,
+  mapAndStructurePage,
   saveDealerOverrides,
   updateClonePage,
   updatePageSections,
@@ -143,6 +144,44 @@ describe('worker-api updateClonePage', () => {
       edited_rendered: '<main>Edited Mustang</main>',
     }))
     expect(fetchMock.mock.calls[0][1]?.body).not.toContain('section_index')
+  })
+})
+
+describe('worker-api mapAndStructurePage', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ success: true, mapping_source: 'deterministic' }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  })
+
+  it('serializes selected model overrides for AI fallback', async () => {
+    await mapAndStructurePage('ford-au', 'mustang', {
+      provider: 'google_gemini',
+      model: 'gemini-2.5-pro',
+    })
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/admin/map-and-structure/ford-au/mustang')
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({
+      modelOverride: {
+        provider: 'google_gemini',
+        model: 'gemini-2.5-pro',
+      },
+    }))
+  })
+
+  it('omits the request body when no model override is selected', async () => {
+    await mapAndStructurePage('ford-au', 'mustang')
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
+    expect(fetchMock.mock.calls[0][1]?.body).toBeUndefined()
   })
 })
 

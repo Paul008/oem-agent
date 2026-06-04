@@ -179,17 +179,44 @@ describe('PageBuilderCanvas preview mode', () => {
 
     expect(mountedSource).toContain('await loadPage(slug)')
     expect(mountedSource).toContain('void loadCaptureDiagnostics()')
+    expect(mountedSource).toContain('void loadMappingPreview()')
 
     expect(cloneSource).toContain('await handleClone()')
     expect(cloneSource).toContain('await loadCaptureDiagnostics()')
+    expect(cloneSource).toContain('await loadMappingPreview()')
     expect(cloneSource.indexOf('await loadCaptureDiagnostics()')).toBeGreaterThan(cloneSource.indexOf('await handleClone()'))
 
-    expect(structureSource).toContain('await handleStructure(modelOverride)')
+    expect(structureSource).toContain('await handleMapAndStructure(modelOverride)')
     expect(structureSource).not.toContain('loadCaptureDiagnostics')
+    expect(structureSource).toContain('await loadMappingPreview()')
 
     expect(pipelineSource).toContain('await handleAdaptivePipeline(modelOverride)')
     expect(pipelineSource).toContain('await loadCaptureDiagnostics()')
+    expect(pipelineSource).toContain('await loadMappingPreview()')
     expect(pipelineSource.indexOf('await loadCaptureDiagnostics()')).toBeGreaterThan(pipelineSource.indexOf('await handleAdaptivePipeline(modelOverride)'))
+  })
+
+  it('surfaces mapping confidence and routes Structure through deterministic-first persistence', () => {
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+    const composableSource = readFileSync(new URL('../../../../composables/use-page-builder.ts', import.meta.url), 'utf8')
+
+    expect(composableSource).toContain('mapAndStructurePage')
+    expect(composableSource).toContain('async function handleMapAndStructure')
+    expect(composableSource).toContain('await mapAndStructurePage(oemId.value, modelSlug.value, modelOverride)')
+
+    expect(pageSource).toContain('mapPagePreview')
+    expect(pageSource).toContain('const mappingPreview = ref')
+    expect(pageSource).toContain('async function loadMappingPreview()')
+    expect(pageSource).toContain('const mappingStatus = computed')
+    expect(pageSource).toContain('Map {{ mappingStatus.percent }}%')
+    expect(pageSource).toContain('AI fallback {{ mappingStatus.percent }}%')
+
+    const structureStart = pageSource.indexOf('async function runStructure')
+    const structureEnd = pageSource.indexOf('async function runAdaptivePipeline', structureStart)
+    const structureSource = pageSource.slice(structureStart, structureEnd)
+    expect(structureSource).toContain('await handleMapAndStructure(modelOverride)')
+    expect(structureSource).toContain('await loadMappingPreview()')
+    expect(structureSource).not.toContain('await handleStructure(modelOverride)')
   })
 })
 

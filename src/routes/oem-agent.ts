@@ -22,13 +22,15 @@ import { analyzeBannerGraphics, arrayBufferToBase64, inferImageMimeType } from '
 import { SalesRepAgent } from '../ai/sales-rep';
 import { MultiChannelNotifier } from '../notify/slack';
 import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/registry';
-import type { OemId } from '../oem/types';
+import type { AiProvider, OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
 import { applyCloneEdit } from '../design/page-modes';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+
+type PageBuilderModelOverride = { provider?: AiProvider; model?: string };
 
 function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
   if (!isModelPageWriteProtected(oemId)) {
@@ -2312,7 +2314,7 @@ app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
   if (protectedWrite) return protectedWrite;
 
   // Accept optional modelOverride in body for A/B testing
-  let modelOverride: { provider?: string; model?: string } | undefined;
+  let modelOverride: PageBuilderModelOverride | undefined;
   try {
     const body = await c.req.json();
     modelOverride = body?.modelOverride;
@@ -2487,7 +2489,7 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
   if (protectedWrite) return protectedWrite;
 
   // Accept optional modelOverride in body for A/B testing
-  let modelOverride: { provider?: string; model?: string } | undefined;
+  let modelOverride: PageBuilderModelOverride | undefined;
   try {
     const body = await c.req.json();
     modelOverride = body?.modelOverride;
@@ -2521,7 +2523,7 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
     supabase,
   });
 
-  const result = await structurer.structurePage(oemId, modelSlug);
+  const result = await structurer.structurePage(oemId, modelSlug, modelOverride);
 
   return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
 });
@@ -2580,6 +2582,12 @@ app.post('/admin/map-and-structure/:oemId/:modelSlug', async (c) => {
   const { DesignMemoryManager } = await import('../design/memory');
   const { SmartPromptBuilder } = await import('../design/prompt-builder');
 
+  let modelOverride: PageBuilderModelOverride | undefined;
+  try {
+    const body = await c.req.json();
+    modelOverride = body?.modelOverride;
+  } catch { /* no body is fine */ }
+
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,
     serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -2591,6 +2599,7 @@ app.post('/admin/map-and-structure/:oemId/:modelSlug', async (c) => {
     anthropic: c.env.ANTHROPIC_API_KEY,
     google: c.env.GOOGLE_API_KEY,
   }, supabase);
+  if (modelOverride) await aiRouter.loadModelOverrides();
   const memoryManager = new DesignMemoryManager(supabase);
   const promptBuilder = new SmartPromptBuilder(memoryManager);
 
@@ -2601,7 +2610,7 @@ app.post('/admin/map-and-structure/:oemId/:modelSlug', async (c) => {
     supabase,
   });
 
-  const result = await structurer.mapAndPersist(oemId, modelSlug);
+  const result = await structurer.mapAndPersist(oemId, modelSlug, modelOverride);
 
   return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
 });

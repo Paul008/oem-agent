@@ -31,7 +31,7 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { useThemeStore } from '@/stores/theme'
-import { fetchCaptureDiagnostics, type CaptureDiagnosticsRecord } from '@/lib/worker-api'
+import { fetchCaptureDiagnostics, mapPagePreview, type CaptureDiagnosticsRecord } from '@/lib/worker-api'
 import { describeCaptureStatus } from '@/lib/capture-status'
 
 import type { CloneRegion, PageMode } from './page-modes'
@@ -101,7 +101,7 @@ const {
   saveClone,
   regenerateSectionById,
   handleClone,
-  handleStructure,
+  handleMapAndStructure,
   handleAdaptivePipeline,
   undo,
   redo,
@@ -339,6 +339,7 @@ async function runClone() {
 
   await handleClone()
   await loadCaptureDiagnostics()
+  await loadMappingPreview()
 }
 
 async function runStructure(modelOverride?: ModelOverride) {
@@ -347,7 +348,8 @@ async function runStructure(modelOverride?: ModelOverride) {
   if (!confirmDestructiveAction('structure'))
     return
 
-  await handleStructure(modelOverride)
+  await handleMapAndStructure(modelOverride)
+  await loadMappingPreview()
 }
 
 async function runAdaptivePipeline(modelOverride?: ModelOverride) {
@@ -358,6 +360,7 @@ async function runAdaptivePipeline(modelOverride?: ModelOverride) {
 
   await handleAdaptivePipeline(modelOverride)
   await loadCaptureDiagnostics()
+  await loadMappingPreview()
 }
 
 function handleKeyboard(e: KeyboardEvent) {
@@ -400,6 +403,7 @@ onMounted(async () => {
     cloneDraftHtml.value = null
     cloneEditorOpen.value = false
     void loadCaptureDiagnostics()
+    void loadMappingPreview()
   }
 })
 
@@ -423,6 +427,39 @@ const captureStatusBadgeClass = computed(() => {
     case 'warning': return 'bg-amber-600 text-white'
     case 'error': return 'bg-red-600 text-white'
     default: return 'bg-muted text-muted-foreground'
+  }
+})
+
+type MappingPreviewSummary = {
+  overall_confidence: number
+  needs_ai_fallback: boolean
+  sections: Array<{ type: string, confidence: number }>
+}
+
+const mappingPreview = ref<MappingPreviewSummary | null>(null)
+async function loadMappingPreview() {
+  mappingPreview.value = null
+  if (!oemId.value || !modelSlug.value || !isCloned.value)
+    return
+  try {
+    const res = await mapPagePreview(oemId.value, modelSlug.value)
+    mappingPreview.value = res.success && res.mapping ? res.mapping : null
+  }
+  catch {
+    mappingPreview.value = null
+  }
+}
+const mappingStatus = computed(() => {
+  const mapping = mappingPreview.value
+  if (!mapping)
+    return null
+  const percent = Math.round((mapping.overall_confidence || 0) * 100)
+  const count = Array.isArray(mapping.sections) ? mapping.sections.length : 0
+  return {
+    percent,
+    count,
+    needsAiFallback: mapping.needs_ai_fallback,
+    detail: `${count} mapped section${count === 1 ? '' : 's'}; ${mapping.needs_ai_fallback ? 'AI fallback expected' : 'deterministic structure available'}`,
   }
 })
 
@@ -513,6 +550,7 @@ watch(
   () => {
     cloneDraftHtml.value = null
     cloneEditorOpen.value = false
+    mappingPreview.value = null
   },
 )
 
@@ -585,6 +623,16 @@ watch(
           :title="captureStatus.detail"
         >
           {{ captureStatus.label }}
+        </UiBadge>
+        <UiBadge
+          v-if="mappingStatus"
+          variant="default"
+          class="text-[10px] shrink-0 hidden md:inline-flex"
+          :class="mappingStatus.needsAiFallback ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'"
+          :title="mappingStatus.detail"
+        >
+          <template v-if="mappingStatus.needsAiFallback">AI fallback {{ mappingStatus.percent }}%</template>
+          <template v-else>Map {{ mappingStatus.percent }}%</template>
         </UiBadge>
         <div v-if="canShowModeSwitcher" class="ml-1 hidden lg:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
           <button

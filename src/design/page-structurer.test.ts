@@ -150,6 +150,36 @@ describe('PageStructurer page mode integration', () => {
     expect(stored.content.modes.sections.items[0].heading).toBe('Extracted Hero')
   })
 
+  it('passes selected model overrides to AI structuring', async () => {
+    const bucket = new MemoryR2Bucket({ [LATEST_KEY]: makeBasePage() })
+    const ai = makeAiRouter({
+      sections: [{
+        id: 'section-hero-0',
+        type: 'hero',
+        order: 0,
+        heading: 'Override Hero',
+        sub_heading: '',
+        cta_text: '',
+        cta_url: '',
+        desktop_image_url: 'https://www.ford.com.au/hero.jpg',
+        mobile_image_url: 'https://www.ford.com.au/hero.jpg',
+        background_image_url: null,
+        video_url: null,
+      }],
+    })
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    await structurer.structurePage('ford-au', 'mustang', {
+      provider: 'google_gemini',
+      model: 'gemini-2.5-pro',
+    })
+
+    expect(ai.calls[0].overrideRoute).toEqual({
+      provider: 'google_gemini',
+      model: 'gemini-2.5-pro',
+    })
+  })
+
   it('regenerates a section through sections mode and keeps legacy sections synchronized', async () => {
     const page = makeBasePage({
       content: {
@@ -376,7 +406,10 @@ describe('PageStructurer.mapAndPersist (deterministic-first persistence)', () =>
     const ai = makeAiRouter({})
     const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
 
-    const result = await structurer.mapAndPersist('ford-au', 'mustang')
+    const result = await structurer.mapAndPersist('ford-au', 'mustang', {
+      provider: 'moonshot',
+      model: 'kimi-k2.5',
+    })
 
     expect(result.success).toBe(true)
     expect(result.mapping_source).toBe('deterministic')
@@ -402,10 +435,17 @@ describe('PageStructurer.mapAndPersist (deterministic-first persistence)', () =>
     })
     const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
 
-    const result = await structurer.mapAndPersist('ford-au', 'mustang')
+    const result = await structurer.mapAndPersist('ford-au', 'mustang', {
+      provider: 'moonshot',
+      model: 'kimi-k2.5',
+    })
 
     expect(result.success).toBe(true)
     expect(result.mapping_source).toBe('ai')
     expect(ai.calls.length).toBe(1)
+    expect(ai.calls[0].overrideRoute).toEqual({
+      provider: 'moonshot',
+      model: 'kimi-k2.5',
+    })
   })
 })

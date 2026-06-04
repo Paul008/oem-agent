@@ -11,6 +11,7 @@ import {
   clonePage,
   fetchGeneratedPage,
   fetchRecipes,
+  mapAndStructurePage,
   saveRecipe,
   structurePage,
   updateClonePage,
@@ -719,6 +720,22 @@ export function usePageBuilder() {
     }
   }
 
+  async function handleMapAndStructure(modelOverride?: { provider: string, model: string }) {
+    if (!oemId.value || !modelSlug.value)
+      return
+    structuring.value = true
+    try {
+      await mapAndStructurePage(oemId.value, modelSlug.value, modelOverride)
+      await refreshPage()
+    }
+    catch (err: any) {
+      error.value = err.message || 'Structuring failed'
+    }
+    finally {
+      structuring.value = false
+    }
+  }
+
   const pipelining = ref(false)
   const pipelineResult = ref<any>(null)
 
@@ -897,6 +914,7 @@ export function usePageBuilder() {
     regenerateSectionById,
     handleClone,
     handleStructure,
+    handleMapAndStructure,
     handleAdaptivePipeline,
     // History methods
     undo,

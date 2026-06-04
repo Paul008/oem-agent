@@ -383,9 +383,17 @@ export async function mapPagePreview(oemId: string, modelSlug: string) {
 }
 
 /** Deterministic-first mapping WITH persistence (AI fallback when low confidence). */
-export async function mapAndStructurePage(oemId: string, modelSlug: string) {
+export async function mapAndStructurePage(oemId: string, modelSlug: string, modelOverride?: { provider: string, model: string }) {
   assertModelPageWriteAllowed(oemId)
-  return workerFetch(`/api/v1/oem-agent/admin/map-and-structure/${oemId}/${modelSlug}`, { method: 'POST' })
+  return workerFetch(`/api/v1/oem-agent/admin/map-and-structure/${oemId}/${modelSlug}`, {
+    method: 'POST',
+    ...(modelOverride
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modelOverride }),
+        }
+      : {}),
+  })
 }
 
 export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
