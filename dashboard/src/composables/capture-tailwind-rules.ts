@@ -21,7 +21,7 @@ export function tailwindRules() {
   }
   function colTw(rgb: string): string {
     if(rgb==='rgb(0, 0, 0)')return 'black'; if(rgb==='rgb(255, 255, 255)')return 'white'; if(rgb==='rgba(0, 0, 0, 0)')return 'transparent';
-    var h=rgbHex(rgb); return h.startsWith('#')?'['+h+']':'['+rgb+']';
+    var h=rgbHex(rgb); return h.startsWith('#')?'['+h+']':'['+rgb.replace(/\s+/g,'')+']';
   }
   function cssTw(prop: string, val: string): string[] {
     if(!val||val==='none'||val==='normal'||val==='auto'||val==='0px'||val==='rgba(0, 0, 0, 0)')return [];

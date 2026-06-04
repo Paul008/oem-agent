@@ -10,6 +10,11 @@ describe('tailwindRules (characterization — current behavior)', () => {
     expect(R.colTw('rgba(0, 0, 0, 0)')).toBe('transparent')
     expect(R.colTw('rgb(26, 26, 26)')).toBe('[#1a1a1a]')
   })
+  it('rgba color tokens are valid single Tailwind classes', () => {
+    expect(R.colTw('rgba(0, 0, 0, 0.5)')).toBe('[rgba(0,0,0,0.5)]')
+    expect(R.cssTw('background-color', 'rgba(0, 0, 0, 0.5)')).toEqual(['bg-[rgba(0,0,0,0.5)]'])
+    expect(R.cssTw('color', 'rgba(255, 255, 255, 0.75)')).toEqual(['text-[rgba(255,255,255,0.75)]'])
+  })
   it('spacing → scale or exact arbitrary', () => {
     expect(R.cssTw('padding-top', '16px')).toEqual(['pt-4'])
     expect(R.cssTw('padding-top', '37px')).toEqual(['pt-[37px]'])
