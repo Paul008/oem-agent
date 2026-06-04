@@ -25,6 +25,12 @@ export interface CloneStudioHtmlOptions {
    * renders on load. Live adjustments arrive separately via `clone-studio:set-height` messages.
    */
   regionOverrides?: Array<{ id: string, height_override?: number }>
+  /**
+   * When false, the bridge is locked to read-only: double-click does not begin an inline edit and
+   * the context-menu message is never emitted, so a viewer cannot get an editable caret or menu.
+   * Defaults to true (the editor leaves it enabled).
+   */
+  editable?: boolean
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -49,6 +55,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     mediaBase,
   )
   const selectedRegion = safeJson(options.selectedRegionId)
+  const editable = options.editable !== false
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
   const regionOverrides = safeJsonValue(normalizeCloneStudioRegionOverrides(options.regionOverrides))
 
@@ -180,6 +187,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   <script>
     window.__CLONE_STUDIO_SELECTED_REGION__ = ${selectedRegion};
     window.__CLONE_STUDIO_REGION_OVERRIDES__ = ${regionOverrides};
+    window.__CLONE_STUDIO_EDITABLE__ = ${editable ? 'true' : 'false'};
   </script>
 </head>
 <body>
@@ -187,6 +195,7 @@ ${rendered}
 <script data-clone-studio-bridge="true">
 (function () {
   var BRIDGE_TOKEN = ${bridgeToken}
+  var EDITABLE = window.__CLONE_STUDIO_EDITABLE__ !== false
   var MESSAGE_READY = 'clone-studio:ready'
   var MESSAGE_SELECT = 'clone-studio:select'
   var MESSAGE_SELECT_REGION = 'clone-studio:select-region'
@@ -870,13 +879,13 @@ ${rendered}
     if (fieldTarget)
       return fieldTarget
 
-    if (kind === 'image')
+    if (kind === 'image' || kind === 'alt')
       return root.querySelector('img, source, [data-oem-field*="image"], [data-field*="image"]') || root
 
     if (kind === 'link')
       return root.querySelector('a') || root
 
-    if (kind === 'visibility')
+    if (kind === 'visibility' || kind === 'background')
       return root
 
     return root.querySelector('[contenteditable], h1, h2, h3, h4, h5, h6, p, span, small, li, a, button') || root
@@ -937,6 +946,35 @@ ${rendered}
       anchor.textContent = String(message.text)
   }
 
+  function patchAlt(target, value) {
+    var img = target && target.tagName === 'IMG' ? target : (target && target.querySelector ? target.querySelector('img') : null)
+    if (!img || !img.setAttribute)
+      return
+    img.setAttribute('alt', String(value == null ? '' : value))
+  }
+
+  function isPlausibleCssColor(value) {
+    var color = String(value == null ? '' : value).trim()
+    if (!color)
+      return false
+    if (/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color))
+      return true
+    if (/^rgba?\\(\\s*[0-9.]+\\s*,\\s*[0-9.]+\\s*,\\s*[0-9.]+\\s*(?:,\\s*[0-9.]+\\s*)?\\)$/i.test(color))
+      return true
+    if (/^[a-z]+$/i.test(color))
+      return true
+    return false
+  }
+
+  function patchBackground(target, value) {
+    if (!target || !target.style)
+      return
+    var color = String(value == null ? '' : value).trim()
+    if (!isPlausibleCssColor(color))
+      return
+    target.style.backgroundColor = color
+  }
+
   function patchVisibility(target, value) {
     var isVisible = booleanValue(value)
     target.hidden = !isVisible
@@ -964,6 +1002,10 @@ ${rendered}
 
     if (kind === 'image')
       patchImage(target, value)
+    else if (kind === 'alt')
+      patchAlt(target, value)
+    else if (kind === 'background')
+      patchBackground(target, value)
     else if (kind === 'link')
       patchLink(target, value, message)
     else if (kind === 'visibility')
@@ -1119,10 +1161,12 @@ ${rendered}
       edit.el.blur()
 
     if (commit) {
-      post(MESSAGE_PATCH_FIELD, {
+      // Post dom-updated (not patch-field) so the parent's onMessage dom-updated branch persists the
+      // committed text. The shared post() helper already attaches the updated body HTML
+      // (html/bodyHtml from getBodyHtml()), matching every other parent-initiated dom-updated post.
+      post(MESSAGE_DOM_UPDATED, {
         regionId: edit.regionId,
         kind: 'text',
-        value: edit.el.textContent,
         committed: true
       })
     }
@@ -1149,7 +1193,7 @@ ${rendered}
         stopBlockedEvent(event)
       selectRegion(region, true)
 
-      if (event.type === 'dblclick')
+      if (EDITABLE && event.type === 'dblclick')
         beginInlineEdit(region)
     }
   }
@@ -1176,6 +1220,10 @@ ${rendered}
 
     stopBlockedEvent(event)
     selectRegion(region, true)
+
+    // In read-only previews, suppress the editing context menu (plain selection is still allowed).
+    if (!EDITABLE)
+      return
 
     var payload = regionPayload(region)
     post(MESSAGE_CONTEXT_MENU, {

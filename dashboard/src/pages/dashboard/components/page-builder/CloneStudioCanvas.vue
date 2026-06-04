@@ -9,6 +9,7 @@ export interface CloneStudioFrameHtmlForCanvasOptions {
   workerBase: string
   selectedRegionId: string | null
   bridgeToken: string
+  editable?: boolean
 }
 
 /**
@@ -49,6 +50,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     selectedRegionId: null,
     bridgeToken: options.bridgeToken,
     regionOverrides,
+    editable: options.editable !== false,
   })
 }
 </script>
@@ -70,6 +72,9 @@ const props = withDefaults(defineProps<{
   // When true, the desktop frame scales UP to fill the container width (used by the full-screen
   // preview so the clone fills the window instead of sitting left-aligned at native width).
   fitWidth?: boolean
+  // When false, the bridge is locked read-only (no inline-edit caret, no context menu). The
+  // read-only preview passes false; the editor leaves it true.
+  editable?: boolean
 }>(), {
   title: 'Clone Studio',
   baseHref: '',
@@ -77,6 +82,7 @@ const props = withDefaults(defineProps<{
   frameWidth: 1280,
   allowSameOriginSandbox: false,
   fitWidth: false,
+  editable: true,
 })
 
 const emit = defineEmits<{
@@ -128,6 +134,7 @@ const frameHtml = computed(() => buildCloneStudioFrameHtmlForCanvas({
   workerBase: props.workerBase,
   selectedRegionId: props.selectedRegionId,
   bridgeToken,
+  editable: props.editable,
 }))
 
 function createBridgeToken(): string {

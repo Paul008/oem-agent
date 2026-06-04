@@ -512,6 +512,7 @@ function sectionStyle(section: any): Record<string, string> {
             :worker-base="workerBase"
             :frame-width="cloneFrameWidth"
             :fit-width="fitWidth && previewWidth === 'full'"
+            :editable="!readOnly"
             :allow-same-origin-sandbox="allowSameOriginSandbox"
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
