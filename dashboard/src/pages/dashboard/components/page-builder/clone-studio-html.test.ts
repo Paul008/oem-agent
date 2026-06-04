@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildCloneStudioHtml,
+  reassignClonedRegionIdsForTest,
   sanitizeCloneStudioHtmlForTest,
   sanitizeCloneStudioUrlForTest,
   serializeCloneStudioBodyForTest,
@@ -756,5 +757,31 @@ describe('buildCloneStudioHtml', () => {
     expect(handleBlock.slice(0, 200)).toContain('if (!EDITABLE)')
     // Read-only build still parses.
     expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+})
+
+describe('reassignClonedRegionIdsForTest', () => {
+  it('removes the clone root id and every nested region id so ids re-assign collision-free', () => {
+    const removed: string[] = []
+    const makeNode = (id: string) => ({
+      removeAttribute: (name: string) => {
+        if (name === 'data-oem-region-id')
+          removed.push(id)
+      },
+    })
+    const nested = [makeNode('nested-1'), makeNode('nested-2')]
+    const fakeClone = {
+      removeAttribute: (name: string) => {
+        if (name === 'data-oem-region-id')
+          removed.push('root')
+      },
+      querySelectorAll: (selector: string) =>
+        (selector === '[data-oem-region-id]' ? nested : []) as any,
+    }
+
+    const count = reassignClonedRegionIdsForTest(fakeClone as any)
+
+    expect(count).toBe(2)
+    expect(removed).toEqual(['root', 'nested-1', 'nested-2'])
   })
 })

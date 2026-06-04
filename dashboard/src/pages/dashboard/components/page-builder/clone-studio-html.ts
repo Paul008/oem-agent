@@ -1785,6 +1785,22 @@ export function stripCloneStudioBridgeNodesForTest(clone: CloneStudioStrippableN
   return queried
 }
 
+interface CloneStudioReassignNode {
+  removeAttribute: (name: string) => void
+  querySelectorAll: (selector: string) => ArrayLike<{ removeAttribute: (name: string) => void }>
+}
+
+// Strip the clone root's region id plus every nested region id. After this, ids re-acquire
+// lazily and collision-free via ensureRegionId. The bridge duplicate-region handler runs the
+// equivalent ES5 walk in the iframe — keep the two in sync.
+export function reassignClonedRegionIdsForTest(clone: CloneStudioReassignNode): number {
+  clone.removeAttribute('data-oem-region-id')
+  const nested = clone.querySelectorAll('[data-oem-region-id]')
+  for (let i = 0; i < nested.length; i++)
+    nested[i].removeAttribute('data-oem-region-id')
+  return nested.length
+}
+
 export function serializeCloneStudioBodyForTest(html: string): string {
   return serializeCloneStudioBody(html)
 }
