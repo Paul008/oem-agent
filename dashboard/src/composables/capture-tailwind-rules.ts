@@ -80,13 +80,24 @@ export function tailwindRules() {
       case 'color': cls.push('text-'+colTw(val));break;
       case 'background-color': cls.push('bg-'+colTw(val));break;
       case 'font-size': if(!isNaN(px))cls.push('text-'+fsTw(px));break;
-      case 'font-weight': var fw: Record<string, string>={'400':'font-normal','500':'font-medium','600':'font-semibold','700':'font-bold','800':'font-extrabold'}; if(fw[val])cls.push(fw[val]);break;
+      case 'font-weight': var fw: Record<string, string>={'400':'font-normal','500':'font-medium','600':'font-semibold','700':'font-bold','800':'font-extrabold'}; cls.push(fw[val]?fw[val]:'font-['+val+']');break;
       case 'text-align': var ta: Record<string, string>={left:'text-left',center:'text-center',right:'text-right'}; if(ta[val])cls.push(ta[val]);break;
       case 'text-transform': if(val==='uppercase')cls.push('uppercase');else if(val==='capitalize')cls.push('capitalize');break;
       case 'border-radius': if(!isNaN(px)&&px>0){if(px>=9999)cls.push('rounded-full');else cls.push('rounded-['+px+'px]');}break;
       case 'object-fit': if(val==='cover')cls.push('object-cover');else if(val==='contain')cls.push('object-contain');break;
       case 'overflow': if(val==='hidden')cls.push('overflow-hidden');break;
       case 'opacity': var op=parseFloat(val);if(op<1&&op>=0){var s=op===0?'0':String(op).replace(/^0/,'');cls.push('opacity-['+s+']');}break;
+      case 'line-height': if(val.indexOf('px')>=0){if(!isNaN(px)&&px>0)cls.push('leading-['+px+'px]');}else{var lh: number=parseFloat(val);if(!isNaN(lh))cls.push('leading-['+lh+']');}break;
+      case 'letter-spacing': if(!isNaN(px))cls.push('tracking-['+px+'px]');break;
+      case 'top': if(!isNaN(px))cls.push('top-['+px+'px]');break;
+      case 'right': if(!isNaN(px))cls.push('right-['+px+'px]');break;
+      case 'bottom': if(!isNaN(px))cls.push('bottom-['+px+'px]');break;
+      case 'left': if(!isNaN(px))cls.push('left-['+px+'px]');break;
+      case 'z-index': if(/^-?\d+$/.test(val))cls.push('z-['+val+']');break;
+      case 'min-width': if(!isNaN(px)&&px>0)cls.push('min-w-['+px+'px]');break;
+      case 'font-style': if(val==='italic')cls.push('italic');break;
+      case 'text-decoration': if(val.indexOf('underline')>=0)cls.push('underline');else if(val.indexOf('line-through')>=0)cls.push('line-through');break;
+      case 'font-family': var fam: string=val.split(',')[0].replace(/["']/g,'').trim();if(fam){cls.push('font-['+fam.replace(/\s+/g,'_')+']');}break;
     }
     return cls;
   }
