@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { PageStructurer } from './page-structurer'
+import { PageStructurer, mappedSectionsToRawSections } from './page-structurer'
+import type { MappedSection } from './section-mapper'
 
 const LATEST_KEY = 'pages/definitions/ford-au/mustang/latest.json'
 const SOURCE_URL = 'https://www.ford.com.au/showroom/cars/mustang/'
@@ -307,5 +308,104 @@ describe('PageStructurer.previewMapping (deterministic-first, non-mutating)', ()
 
     expect(result.success).toBe(false)
     expect(result.mapping).toBeUndefined()
+  })
+})
+
+describe('mappedSectionsToRawSections', () => {
+  function mapped(type: string, data: Record<string, any>, i = 0): MappedSection {
+    return { type: type as any, data, id: `s${i}`, order: i, confidence: 1, source: 'deterministic' }
+  }
+
+  it('passes through extractable types and reshapes dashboard-only types', () => {
+    const raw = mappedSectionsToRawSections([
+      mapped('hero', { heading: 'H', desktop_image_url: '/h.jpg' }, 0),
+      mapped('heading', { heading: 'Why', sub_heading: 'Because' }, 1),
+      mapped('image', { desktop_image_url: '/i.jpg', alt: 'a' }, 2),
+      mapped('testimonial', { testimonials: [{ quote: 'Great car' }] }, 3),
+      mapped('stats', { stats: [{ value: '500hp', label: 'Power' }] }, 4),
+      mapped('feature-cards', { cards: [{ title: 'x', image_url: '/x.jpg' }] }, 5),
+    ])
+
+    expect(raw[0].type).toBe('hero')
+    expect(raw[1].type).toBe('intro')
+    expect(raw[1].title).toBe('Why')
+    expect(raw[1].body_html).toBeTruthy()
+    expect(raw[2].type).toBe('gallery')
+    expect(raw[2].images[0].url).toBe('/i.jpg')
+    expect(raw[3].type).toBe('content-block')
+    expect(raw[3].content_html).toContain('Great car')
+    expect(raw[4].type).toBe('content-block')
+    expect(raw[4].content_html).toContain('500hp')
+    expect(raw[5].type).toBe('feature-cards')
+  })
+
+  it('preserves id and order', () => {
+    const raw = mappedSectionsToRawSections([mapped('hero', { heading: 'H' }, 7)])
+    expect(raw[0].id).toBe('s7')
+    expect(raw[0].order).toBe(7)
+  })
+})
+
+describe('PageStructurer.mapAndPersist (deterministic-first persistence)', () => {
+  const HERO_GRID_CLONE = `<body>
+    <section class="hero"><h1>Mustang</h1><p>Iconic.</p><img src="/media/hero.jpg"></section>
+    <section class="grid-blocks">
+      <div class="grid-blocks__block"><img src="/media/a.jpg"><h3>Power</h3></div>
+      <div class="grid-blocks__block"><img src="/media/b.jpg"><h3>Tech</h3></div>
+      <div class="grid-blocks__block"><img src="/media/c.jpg"><h3>Drive</h3></div>
+    </section>
+  </body>`
+
+  function clonePage(rendered: string) {
+    return makeBasePage({
+      content: {
+        modes: {
+          clone: {
+            rendered, source_url: SOURCE_URL, captured_at: '2026-06-03T00:00:00.000Z',
+            viewport: { width: 1440, height: 1080 }, asset_map: {},
+            stylesheet_urls: [], section_index: [], stripped_selectors: [], warnings: [],
+          },
+        },
+        sections: [],
+      },
+    })
+  }
+
+  it('persists deterministically WITHOUT calling AI when confidence is high', async () => {
+    const bucket = new MemoryR2Bucket({ [LATEST_KEY]: clonePage(HERO_GRID_CLONE) })
+    const ai = makeAiRouter({})
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    const result = await structurer.mapAndPersist('ford-au', 'mustang')
+
+    expect(result.success).toBe(true)
+    expect(result.mapping_source).toBe('deterministic')
+    expect(ai.calls.length).toBe(0)
+
+    const stored = bucket.readJson<any>(LATEST_KEY)
+    expect(stored.active_mode).toBe('clone')
+    expect(stored.content.modes.sections.items.length).toBeGreaterThanOrEqual(2)
+    expect(stored.content.modes.sections.items[0].type).toBe('hero')
+    expect(stored.version).toBe(4) // bumped from 3
+  })
+
+  it('falls back to AI structuring when deterministic confidence is low', async () => {
+    const opaque = '<body><div class="b1"><p>Lorem ipsum dolor sit amet consectetur adipiscing.</p></div><div class="b2"><p>Sed do eiusmod tempor incididunt ut labore et dolore.</p></div></body>'
+    const bucket = new MemoryR2Bucket({ [LATEST_KEY]: clonePage(opaque) })
+    const ai = makeAiRouter({
+      sections: [{
+        id: 'section-hero-0', type: 'hero', order: 0,
+        heading: 'AI Hero', sub_heading: '', cta_text: '', cta_url: '',
+        desktop_image_url: 'https://www.ford.com.au/hero.jpg', mobile_image_url: '',
+        background_image_url: null, video_url: null,
+      }],
+    })
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    const result = await structurer.mapAndPersist('ford-au', 'mustang')
+
+    expect(result.success).toBe(true)
+    expect(result.mapping_source).toBe('ai')
+    expect(ai.calls.length).toBe(1)
   })
 })

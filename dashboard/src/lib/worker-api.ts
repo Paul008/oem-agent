@@ -382,6 +382,12 @@ export async function mapPagePreview(oemId: string, modelSlug: string) {
   return workerFetch(`/api/v1/oem-agent/admin/map-page/${oemId}/${modelSlug}`, { method: 'POST' })
 }
 
+/** Deterministic-first mapping WITH persistence (AI fallback when low confidence). */
+export async function mapAndStructurePage(oemId: string, modelSlug: string) {
+  assertModelPageWriteAllowed(oemId)
+  return workerFetch(`/api/v1/oem-agent/admin/map-and-structure/${oemId}/${modelSlug}`, { method: 'POST' })
+}
+
 export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
   assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/update-sections/${oemId}/${modelSlug}`, {

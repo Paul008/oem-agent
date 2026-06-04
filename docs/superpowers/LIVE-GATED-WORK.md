@@ -72,13 +72,15 @@ live dashboard to verify.
 5. Make clone→sections→generated transitions explicit in the UI (clear mode
    indicator + the confidence/`needs_ai_fallback` signal from the preview).
 
-> Note on type reconciliation: the deterministic mapper can emit `heading`/`image`
-> (dashboard-only section types) which are NOT in the worker `PageSectionType`
-> union / `EXTRACTABLE_SECTION_TYPES`. The preview endpoint is intentionally
-> non-mutating for this reason. Before persisting deterministic mapper output
-> directly (vs AI structuring), add a converter that maps `heading`→`hero`/`intro`
-> and `image`→`gallery`/`media`, or extend the worker union. Until then, persistence
-> remains the AI structurer's job; the mapper is the cheap router/preview.
+> Type reconciliation (DONE 2026-06-04): the deterministic mapper can emit
+> `heading`/`image` (dashboard-only) and `testimonial`/`stats` (parser-only) types
+> that are not directly persistable. `mappedSectionsToRawSections` now converts
+> them to extractable worker types (`heading`→`intro`, `image`→`gallery`,
+> `testimonial`/`stats`→`content-block`), validates via `validateSections`, and
+> persists. Use `POST /admin/map-and-structure/:oemId/:modelSlug`
+> (client: `mapAndStructurePage`) — it persists deterministically when confidence
+> is high (no AI cost) and falls back to AI structuring when low. The non-mutating
+> `map-page` preview remains for inspecting the proposed mapping first.
 
 ## 4. Fleet clone audit (#4)
 

@@ -2565,6 +2565,48 @@ app.post('/admin/map-page/:oemId/:modelSlug', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/map-and-structure/:oemId/:modelSlug
+ * Deterministic-first persistence. Maps the cloned page to sections; when
+ * confidence is high it persists them with NO AI cost, otherwise it delegates
+ * to AI structuring. Returns mapping_source ('deterministic' | 'ai').
+ */
+app.post('/admin/map-and-structure/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
+  const { PageStructurer } = await import('../design/page-structurer');
+  const { DesignMemoryManager } = await import('../design/memory');
+  const { SmartPromptBuilder } = await import('../design/prompt-builder');
+
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+  const memoryManager = new DesignMemoryManager(supabase);
+  const promptBuilder = new SmartPromptBuilder(memoryManager);
+
+  const structurer = new PageStructurer({
+    aiRouter,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    promptBuilder,
+    supabase,
+  });
+
+  const result = await structurer.mapAndPersist(oemId, modelSlug);
+
+  return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
+});
+
+/**
  * PUT /api/v1/oem-agent/admin/update-sections/:oemId/:modelSlug
  * Save reordered/edited sections back to R2.
  */
