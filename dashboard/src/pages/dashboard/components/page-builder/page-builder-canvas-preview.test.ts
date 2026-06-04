@@ -161,6 +161,36 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(previewSource).toContain('fieldId: `${regionId}:visibility`')
     expect(previewSource).toContain('<SectionEditorDialog')
   })
+
+  it('refreshes capture diagnostics after capture-producing page builder actions', () => {
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+    const mountedStart = pageSource.indexOf('onMounted(async () => {')
+    const mountedEnd = pageSource.indexOf('const captureDiagnostics = ref', mountedStart)
+    const mountedSource = pageSource.slice(mountedStart, mountedEnd)
+    const cloneStart = pageSource.indexOf('async function runClone()')
+    const cloneEnd = pageSource.indexOf('async function runStructure', cloneStart)
+    const cloneSource = pageSource.slice(cloneStart, cloneEnd)
+    const structureStart = pageSource.indexOf('async function runStructure')
+    const structureEnd = pageSource.indexOf('async function runAdaptivePipeline', structureStart)
+    const structureSource = pageSource.slice(structureStart, structureEnd)
+    const pipelineStart = pageSource.indexOf('async function runAdaptivePipeline')
+    const pipelineEnd = pageSource.indexOf('function handleKeyboard', pipelineStart)
+    const pipelineSource = pageSource.slice(pipelineStart, pipelineEnd)
+
+    expect(mountedSource).toContain('await loadPage(slug)')
+    expect(mountedSource).toContain('void loadCaptureDiagnostics()')
+
+    expect(cloneSource).toContain('await handleClone()')
+    expect(cloneSource).toContain('await loadCaptureDiagnostics()')
+    expect(cloneSource.indexOf('await loadCaptureDiagnostics()')).toBeGreaterThan(cloneSource.indexOf('await handleClone()'))
+
+    expect(structureSource).toContain('await handleStructure(modelOverride)')
+    expect(structureSource).not.toContain('loadCaptureDiagnostics')
+
+    expect(pipelineSource).toContain('await handleAdaptivePipeline(modelOverride)')
+    expect(pipelineSource).toContain('await loadCaptureDiagnostics()')
+    expect(pipelineSource.indexOf('await loadCaptureDiagnostics()')).toBeGreaterThan(pipelineSource.indexOf('await handleAdaptivePipeline(modelOverride)'))
+  })
 })
 
 describe('CloneStudioCanvas duplicate-region relay', () => {

@@ -338,6 +338,7 @@ async function runClone() {
     return
 
   await handleClone()
+  await loadCaptureDiagnostics()
 }
 
 async function runStructure(modelOverride?: ModelOverride) {
@@ -356,6 +357,7 @@ async function runAdaptivePipeline(modelOverride?: ModelOverride) {
     return
 
   await handleAdaptivePipeline(modelOverride)
+  await loadCaptureDiagnostics()
 }
 
 function handleKeyboard(e: KeyboardEvent) {
