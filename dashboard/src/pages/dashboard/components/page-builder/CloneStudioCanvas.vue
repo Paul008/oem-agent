@@ -68,7 +68,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
+import type { CloneRegion } from '../../page-builder/page-modes'
 
 const props = withDefaults(defineProps<{
   page: any
