@@ -121,6 +121,41 @@ img.mobonly,
   transform: none !important;
 }
 `.trim();
+export const CAPTURE_STATIC_CAROUSEL_SAFETY_CSS = `
+.slick-list,
+.swiper,
+.swiper-container,
+.swiper-wrapper,
+.splide,
+.splide__track,
+.splide__list,
+.carousel,
+.carousel-inner,
+[class*="swiper"],
+[class*="carousel"],
+[class*="slider"] {
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.slick-track,
+.swiper-wrapper,
+.splide__list,
+.carousel-inner {
+  width: 100% !important;
+  max-width: 100% !important;
+  transform: none !important;
+}
+
+.slick-slide,
+.swiper-slide,
+.splide__slide,
+.carousel-item {
+  width: 100% !important;
+  max-width: 100% !important;
+  flex-shrink: 0 !important;
+}
+`.trim();
 
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
 export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
@@ -979,6 +1014,7 @@ export class PageCapturer {
         // Force tab panels visible (external CSS hides inactive tabs)
         '.tab_contents,.tab-content,.tab-panel,.tab_content,[role="tabpanel"],[class*="tabpanel"]{display:block!important;visibility:visible!important;opacity:1!important;}',
         CAPTURE_STATIC_CLONE_SAFETY_CSS,
+        CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
         // Basic resets for iframe context
         'img{max-width:100%;height:auto;} :root{overflow-x:hidden;}',
       ].join('\n');

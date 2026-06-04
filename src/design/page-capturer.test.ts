@@ -7,6 +7,7 @@ import {
   CAPTURE_DOM_QUIET_WINDOW_MS,
   CAPTURE_FONT_READY_TIMEOUT_MS,
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
+  CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
   CAPTURE_STATIC_CLONE_SAFETY_CSS,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
@@ -145,6 +146,33 @@ describe('CAPTURE_STATIC_CLONE_SAFETY_CSS', () => {
   })
 })
 
+describe('CAPTURE_STATIC_CAROUSEL_SAFETY_CSS', () => {
+  it('constrains common carousel wrappers and containers', () => {
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.slick-list')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.swiper-container')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.splide__track')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('[class*="carousel"]')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toMatch(/max-width:\s*100%\s*!important/i)
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toMatch(/overflow:\s*hidden\s*!important/i)
+  })
+
+  it('normalizes carousel tracks that would otherwise retain scripted offsets', () => {
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.slick-track')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.swiper-wrapper')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.splide__list')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toMatch(/width:\s*100%\s*!important/i)
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toMatch(/transform:\s*none\s*!important/i)
+  })
+
+  it('keeps carousel slide items inside the static clone frame', () => {
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.slick-slide')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.swiper-slide')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.splide__slide')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toContain('.carousel-item')
+    expect(CAPTURE_STATIC_CAROUSEL_SAFETY_CSS).toMatch(/flex-shrink:\s*0\s*!important/i)
+  })
+})
+
 describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
@@ -174,6 +202,21 @@ describe('PageCapturer persisted clone safety CSS wiring', () => {
     expect(overrideCssStart).toBeGreaterThan(-1)
     expect(safetyCssUsage).toBeGreaterThan(overrideCssStart)
     expect(assembledStyle).toBeGreaterThan(safetyCssUsage)
+  })
+})
+
+describe('PageCapturer persisted carousel safety CSS wiring', () => {
+  it('includes carousel safety CSS after general clone safety CSS in persisted override CSS', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const overrideCssStart = source.indexOf('const overrideCss = [')
+    const cloneSafetyUsage = source.indexOf('CAPTURE_STATIC_CLONE_SAFETY_CSS', overrideCssStart)
+    const carouselSafetyUsage = source.indexOf('CAPTURE_STATIC_CAROUSEL_SAFETY_CSS', overrideCssStart)
+    const assembledStyle = source.indexOf('`<style>${overrideCss}</style>`', overrideCssStart)
+
+    expect(overrideCssStart).toBeGreaterThan(-1)
+    expect(cloneSafetyUsage).toBeGreaterThan(overrideCssStart)
+    expect(carouselSafetyUsage).toBeGreaterThan(cloneSafetyUsage)
+    expect(assembledStyle).toBeGreaterThan(carouselSafetyUsage)
   })
 })
 
