@@ -506,6 +506,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/preview/[slug]': RouteRecordInfo<
+      '/preview/[slug]',
+      '/preview/:slug',
+      { slug: ParamValue<true> },
+      { slug: ParamValue<false> },
+      | never
+    >,
     '/settings/': RouteRecordInfo<
       '/settings/',
       '/settings',
@@ -987,6 +994,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/marketing/hello.vue': {
       routes:
         | '/marketing/hello'
+      views:
+        | never
+    }
+    'src/pages/preview/[slug].vue': {
+      routes:
+        | '/preview/[slug]'
       views:
         | never
     }
