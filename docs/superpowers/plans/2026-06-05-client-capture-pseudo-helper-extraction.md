@@ -107,7 +107,7 @@ git diff --check
 CHOKIDAR_USEPOLLING=true pnpm --dir dashboard build
 ```
 
-- [ ] **Step 2: Commit and push**
+- [x] **Step 2: Commit and push**
 
 ```bash
 git add docs/superpowers/specs/2026-06-05-client-capture-pseudo-helper-extraction-design.md docs/superpowers/plans/2026-06-05-client-capture-pseudo-helper-extraction.md dashboard/src/composables/capture-pseudo-elements.ts dashboard/src/composables/capture-pseudo-elements.test.ts dashboard/src/composables/use-capture-injection.ts dashboard/src/composables/use-capture-injection.test.ts
@@ -115,7 +115,7 @@ git commit -m "refactor(capture): test client pseudo helpers directly"
 git push
 ```
 
-- [ ] **Step 3: Deploy dashboard**
+- [x] **Step 3: Deploy dashboard**
 
 ```bash
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main
