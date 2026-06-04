@@ -11,19 +11,19 @@ describe('getRegionActions', () => {
 
   it('offers edit-text only when the region has a text field', () => {
     expect(getRegionActions(base).map(a => a.id)).not.toContain('edit-text')
-    const withText = { ...base, editable_fields: [{ kind: 'text', selector: 'h1' }] }
+    const withText = { ...base, editable_fields: [{ kind: 'text', selector: 'h1' }] as any[] }
     expect(getRegionActions(withText).map(a => a.id)).toContain('edit-text')
   })
 
   it('offers image + alt actions only when the region has an image field', () => {
-    const withImg = { ...base, editable_fields: [{ kind: 'image', selector: 'img' }] }
+    const withImg = { ...base, editable_fields: [{ kind: 'image', selector: 'img' }] as any[] }
     const ids = getRegionActions(withImg).map(a => a.id)
     expect(ids).toContain('replace-image')
     expect(ids).toContain('alt-text')
   })
 
   it('offers edit-link only when the region has a link field', () => {
-    const withLink = { ...base, editable_fields: [{ kind: 'link', selector: 'a' }] }
+    const withLink = { ...base, editable_fields: [{ kind: 'link', selector: 'a' }] as any[] }
     expect(getRegionActions(withLink).map(a => a.id)).toContain('edit-link')
   })
 
