@@ -549,4 +549,10 @@ describe('buildCloneStudioHtml', () => {
       throw new Error('Clone Studio bridge script was not emitted')
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
+
+  it('bridge wires a contextmenu listener that posts clone-studio:context-menu', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain("addEventListener('contextmenu'")
+    expect(html).toContain('clone-studio:context-menu')
+  })
 })

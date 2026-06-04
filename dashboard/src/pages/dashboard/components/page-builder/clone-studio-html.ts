@@ -184,6 +184,7 @@ ${rendered}
   var MESSAGE_SELECT_REGION = 'clone-studio:select-region'
   var MESSAGE_DOM_UPDATED = 'clone-studio:dom-updated'
   var MESSAGE_PATCH_FIELD = 'clone-studio:patch-field'
+  var MESSAGE_CONTEXT_MENU = 'clone-studio:context-menu'
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
   var hoverRegion = null
@@ -961,6 +962,24 @@ ${rendered}
   document.addEventListener('dblclick', handleNavigationEvent, true)
   document.addEventListener('submit', function (event) {
     stopBlockedEvent(event)
+  }, true)
+
+  document.addEventListener('contextmenu', function (event) {
+    var region = candidateFrom(event.target)
+    if (!region)
+      return
+
+    stopBlockedEvent(event)
+    selectRegion(region, true)
+
+    var payload = regionPayload(region)
+    post(MESSAGE_CONTEXT_MENU, {
+      regionId: payload ? payload.id : ensureRegionId(region),
+      fields: payload ? payload.editable_fields : extractFields(region),
+      typeHint: payload ? payload.tag : String(region.tagName || '').toLowerCase(),
+      x: event.clientX,
+      y: event.clientY
+    })
   }, true)
 
   window.addEventListener('message', function (event) {
