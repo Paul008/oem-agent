@@ -20,6 +20,7 @@ These checks were run in the authenticated production dashboard at
 | LDV Deliver 7 | Gatsby/i-motor | 19 | 0 | 2 sheets / 0 links | 0 | 0 | 0 | Pass |
 | Mazda CX-5 | Mazda SSR/static assets | 88 | 0 | 3 sheets / 1 link | 16 | 0 | 0 | Pass |
 | Volkswagen Tiguan | VW model page | 35 | 0 | 2 sheets / 0 links | 0 | 0 | 0 | Pass |
+| Subaru BRZ | Legacy source-document image placeholders | 40 | 0 | 82 sheets / 72 links | 279 | 0 | 0 | Fixed by source-document image cleanup |
 
 Generated page slug discovery through the authenticated dashboard initially showed existing Clone
 Studio pages for Ford, Kia, GWM, Toyota, Hyundai, and GAC only. LDV, Mazda, and Volkswagen had zero
@@ -32,6 +33,16 @@ generated page slugs, so representative zero-AI `clone-page` captures were creat
 These writes created the corresponding R2 `pages/definitions/{oem}/{slug}/latest.json` clone pages
 and proxied page assets. They did not run the AI structuring/adaptive pipeline.
 
+A follow-up non-mutating production audit on 2026-06-04 found an existing Subaru BRZ clone with
+legacy `<img src="https://www.subaru.com.au/brz/2026">` placeholders. These pointed at the source
+document route, not an image. No recapture was run. The dashboard renderer now strips source-document
+image placeholders at render time, including same-origin model-year child routes like `/brz/2026`
+when the stored source URL is `/brz`, as long as there is no recoverable lazy image source.
+
+Remaining non-protected OEMs checked for existing generated Clone Studio pages on 2026-06-04 had no
+generated slugs to audit yet: Chery, GMSV, Isuzu, KGM, Mitsubishi, Nissan, Renault, and Suzuki.
+Do not run new tests or writes against GAC or FOTON unless the live-site restriction is lifted.
+
 ## Implemented Generalizations
 
 - Common scroll-reveal classes are forced visible in Clone Studio because OEM animation scripts are
@@ -42,6 +53,10 @@ and proxied page assets. They did not run the AI structuring/adaptive pipeline.
 - The iframe now clips document-level horizontal overflow and caps common media elements to the
   desktop frame. This covers Hyundai/GAC fixed-width media wrappers without adding OEM-specific
   class names.
+- Legacy clone images whose `src` resolves to the captured source document URL are stripped at
+  render time when no lazy/source fallback is available. This also covers same-origin model-year
+  document routes such as Subaru `/brz/2026` when the stored source URL is `/brz`, while preserving
+  query-bearing URLs and image-extension assets.
 
 ## Shim Verification
 
@@ -87,6 +102,13 @@ New OEM coverage audit on 2026-06-03:
 ldv-au-ldv-deliver-7 before: imgs=19 broken=0 sheets=2/0 fonts=0 hidden=0 overflow=0 after: imgs=19 broken=0 sheets=3/0 fonts=0 hidden=0 overflow=0
 mazda-au-cx-5 before: imgs=88 broken=0 sheets=3/1 fonts=16 hidden=0 overflow=0 after: imgs=88 broken=0 sheets=4/1 fonts=16 hidden=0 overflow=0
 volkswagen-au-tiguan before: imgs=35 broken=0 sheets=2/0 fonts=0 hidden=0 overflow=0 after: imgs=35 broken=0 sheets=3/0 fonts=0 hidden=0 overflow=0
+```
+
+Subaru production re-check on 2026-06-04 after `49e6d4f` and dashboard deploy
+`https://f8a88ac2.oem-dashboard.pages.dev`:
+
+```text
+subaru-au-brz before: imgs=40 broken=0 sheets=82/72 fonts=279 hidden=0 overflow=0 after: not run
 ```
 
 ## Toyota Capture Fix

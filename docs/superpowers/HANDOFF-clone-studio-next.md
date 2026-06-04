@@ -4,6 +4,11 @@
 > can resume cold from this file + project memory (`project_clone_studio_v1.md`,
 > `feedback_image_rendering.md`).
 
+> Update 2026-06-04: Subaru BRZ was audited without recapture. Legacy source-document image
+> placeholders are now stripped in the dashboard renderer, including model-year child routes like
+> `/brz/2026`; production audit reports 40 images, 0 broken, and root overflow 0. Do not run new
+> tests or writes against GAC or FOTON while their live-site restriction remains in place.
+
 ## 1. Where things stand (done & verified)
 
 Clone Studio v1 is shipped. **Static clone fidelity is essentially maxed for Ford Mustang**, all
@@ -54,8 +59,9 @@ GWM=UIkit, Foton=Umbraco, etc.). The fixes likely DON'T fully generalize:
    only at the rendered viewport width rather than hardcoding class names).
 
 **Suggested OEM coverage:** Ford (baseline ✓), plus a spread of stacks — Kia (kwcms), LDV (Gatsby),
-Hyundai, Mazda, GAC (Nuxt/Storyblok), GWM (UIkit), Toyota/VW (the only two that use the browser
-renderer). Pick ~6-8 to start.
+Hyundai, Mazda, GWM (UIkit), Toyota/VW (the only two that use the browser renderer), and Subaru when
+generated pages exist. GAC/FOTON should remain skipped unless explicitly cleared because those live
+pages are in active use.
 
 **Deliverable:** generalized fidelity rules + a short per-OEM fidelity report. Consider wiring a
 lightweight automated fidelity check (the §5 audit as a repeatable script).
@@ -118,7 +124,7 @@ JSON.stringify({imgs:imgs.length,broken:imgs.filter(i=>!(i.complete&&i.naturalWi
 `detail <requestId>` on `…/oem-agent/pages/<slug>?includeRendered=true&includeModes=true`.
 
 **Build/deploy:**
-- Dashboard tests: `pnpm test:dashboard` · typecheck: `pnpm run typecheck` · build: `CI=1 pnpm --dir dashboard build`
+- Dashboard tests: `pnpm test:dashboard` · typecheck: `pnpm run typecheck` · build: `CHOKIDAR_USEPOLLING=true pnpm --dir dashboard build`
 - Deploy dashboard: `pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main`
 - Deploy worker (needs Docker): `pnpm run deploy`
 - New deploys hit `oem-dashboard.pages.dev` but the browser caches the SPA bundle — verify the loaded

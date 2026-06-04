@@ -27,11 +27,21 @@ missing media.
 
 Status: partially complete.
 
-Already audited: Ford, Kia, GWM, Toyota, Hyundai, GAC, LDV, Mazda, Volkswagen.
+Already audited: Ford, Kia, GWM, Toyota, Hyundai, GAC, LDV, Mazda, Volkswagen, Subaru.
 
-- [ ] Audit remaining OEMs for images, stylesheets, fonts, hidden text, and overflow.
+- [ ] Audit remaining OEMs for images, stylesheets, fonts, hidden text, and overflow when generated
+      Clone Studio pages exist.
 - [ ] Add generalized shims only where repeated CMS/library patterns appear.
 - [ ] Keep a short per-OEM result table in `CLONE-STUDIO-PHASE1-AUDIT.md`.
+
+Latest result: Subaru BRZ had legacy source-document image placeholders from an older clone
+(`src` pointed at `/brz/2026`, a document route). The dashboard now strips those at render time
+without recapture. Production audit after deploy: 40 images, 0 broken, 82 stylesheets / 72 links,
+279 fonts, hidden text 0, root overflow 0.
+
+Remaining non-protected OEMs with no generated Clone Studio slugs found on 2026-06-04: Chery, GMSV,
+Isuzu, KGM, Mitsubishi, Nissan, Renault, and Suzuki. GAC and FOTON are under live-site restriction;
+do not run new tests or writes against them unless explicitly cleared.
 
 ## 3. Structured Model-Page Editing
 
