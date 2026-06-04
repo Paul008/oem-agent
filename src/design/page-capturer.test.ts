@@ -3,12 +3,15 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildDomCaptureFromHtml,
+  CAPTURE_DOM_QUIET_TIMEOUT_MS,
+  CAPTURE_DOM_QUIET_WINDOW_MS,
   CAPTURE_FONT_READY_TIMEOUT_MS,
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   pseudoElementInlineStyleForCapture,
+  waitForCaptureDomQuietForCapture,
   waitForCaptureFontsForCapture,
   waitForCaptureImagesForCapture,
 } from './page-capturer'
@@ -40,6 +43,65 @@ describe('waitForCaptureImagesForCapture', () => {
   })
 })
 
+class TestMutationObserver {
+  static instances: TestMutationObserver[] = []
+
+  callback: () => void
+  disconnected = false
+
+  constructor(callback: () => void) {
+    this.callback = callback
+    TestMutationObserver.instances.push(this)
+  }
+
+  observe() {}
+
+  disconnect() {
+    this.disconnected = true
+  }
+}
+
+describe('waitForCaptureDomQuietForCapture', () => {
+  it('returns quiet when no mutations arrive during the quiet window', async () => {
+    TestMutationObserver.instances = []
+
+    await expect(waitForCaptureDomQuietForCapture(1, 50, {
+      target: {},
+      MutationObserverCtor: TestMutationObserver as any,
+    })).resolves.toBe('quiet')
+
+    expect(TestMutationObserver.instances[0]?.disconnected).toBe(true)
+  })
+
+  it('returns timeout when mutations keep arriving before the quiet window elapses', async () => {
+    TestMutationObserver.instances = []
+    const result = waitForCaptureDomQuietForCapture(20, 35, {
+      target: {},
+      MutationObserverCtor: TestMutationObserver as any,
+    })
+
+    const mutation = setInterval(() => {
+      TestMutationObserver.instances[0]?.callback()
+    }, 5)
+
+    await expect(result).resolves.toBe('timeout')
+    clearInterval(mutation)
+    expect(TestMutationObserver.instances[0]?.disconnected).toBe(true)
+  })
+
+  it('returns unsupported when target or MutationObserver is unavailable', async () => {
+    await expect(waitForCaptureDomQuietForCapture(1, 1, {
+      target: undefined,
+      MutationObserverCtor: TestMutationObserver as any,
+    })).resolves.toBe('unsupported')
+
+    await expect(waitForCaptureDomQuietForCapture(1, 1, {
+      target: {},
+      MutationObserverCtor: undefined,
+    })).resolves.toBe('unsupported')
+  })
+})
+
 describe('waitForCaptureFontsForCapture', () => {
   it('returns ready when document fonts settle before the timeout', async () => {
     await expect(waitForCaptureFontsForCapture(50, {
@@ -59,18 +121,21 @@ describe('waitForCaptureFontsForCapture', () => {
 })
 
 describe('PageCapturer readiness wiring', () => {
-  it('waits for images, then fonts, before materializing pseudo-element text', () => {
+  it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
     const imageWait = source.indexOf('page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS)')
     const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
+    const domQuietWait = source.indexOf('page.evaluate(waitForCaptureDomQuietForCapture as any, CAPTURE_DOM_QUIET_WINDOW_MS, CAPTURE_DOM_QUIET_TIMEOUT_MS)')
     const pseudoMaterialize = source.indexOf('page.evaluate(materializePseudoElementTextForCapture as any)')
 
     expect(CAPTURE_IMAGE_READY_TIMEOUT_MS).toBe(3000)
     expect(CAPTURE_FONT_READY_TIMEOUT_MS).toBe(2500)
+    expect(CAPTURE_DOM_QUIET_WINDOW_MS).toBe(250)
+    expect(CAPTURE_DOM_QUIET_TIMEOUT_MS).toBe(1500)
     expect(imageWait).toBeGreaterThan(-1)
     expect(fontWait).toBeGreaterThan(imageWait)
-    expect(fontWait).toBeGreaterThan(-1)
-    expect(pseudoMaterialize).toBeGreaterThan(fontWait)
+    expect(domQuietWait).toBeGreaterThan(fontWait)
+    expect(pseudoMaterialize).toBeGreaterThan(domQuietWait)
   })
 })
 

@@ -85,9 +85,19 @@ const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
 export const CAPTURE_FONT_READY_TIMEOUT_MS = 2_500;
 export const CAPTURE_IMAGE_READY_TIMEOUT_MS = 3_000;
+export const CAPTURE_DOM_QUIET_WINDOW_MS = 250;
+export const CAPTURE_DOM_QUIET_TIMEOUT_MS = 1_500;
 
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
 export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
+export type CaptureDomQuietStatus = 'quiet' | 'timeout' | 'unsupported';
+
+type CaptureMutationObserver = {
+  observe: (target: unknown, options: MutationObserverInit) => void;
+  disconnect: () => void;
+};
+
+type CaptureMutationObserverConstructor = new (callback: () => void) => CaptureMutationObserver;
 
 export async function waitForCaptureImagesForCapture(
   timeoutMs = 3000,
@@ -121,6 +131,63 @@ export async function waitForCaptureImagesForCapture(
     if (timeoutId)
       clearTimeout(timeoutId);
   }
+}
+
+export async function waitForCaptureDomQuietForCapture(
+  quietWindowMs = 250,
+  timeoutMs = 1500,
+  options?: {
+    target?: unknown;
+    MutationObserverCtor?: CaptureMutationObserverConstructor;
+  },
+): Promise<CaptureDomQuietStatus> {
+  const activeDocument = typeof document !== 'undefined' ? document : undefined;
+  const target = options?.target ?? activeDocument?.body;
+  const ObserverCtor: CaptureMutationObserverConstructor | undefined = options?.MutationObserverCtor
+    ?? (typeof MutationObserver !== 'undefined'
+      ? MutationObserver as unknown as CaptureMutationObserverConstructor
+      : undefined);
+
+  if (!target || !ObserverCtor)
+    return 'unsupported';
+
+  return new Promise<CaptureDomQuietStatus>((resolve) => {
+    let quietTimer: ReturnType<typeof setTimeout> | undefined;
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+    let settled = false;
+
+    const cleanup = (status: CaptureDomQuietStatus) => {
+      if (settled)
+        return;
+
+      settled = true;
+      observer.disconnect();
+      if (quietTimer)
+        clearTimeout(quietTimer);
+      if (timeoutTimer)
+        clearTimeout(timeoutTimer);
+      resolve(status);
+    };
+
+    const scheduleQuiet = () => {
+      if (settled)
+        return;
+      if (quietTimer)
+        clearTimeout(quietTimer);
+      quietTimer = setTimeout(() => cleanup('quiet'), Math.max(0, quietWindowMs));
+    };
+
+    const observer = new ObserverCtor(() => scheduleQuiet());
+    observer.observe(target, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+
+    timeoutTimer = setTimeout(() => cleanup('timeout'), Math.max(0, timeoutMs));
+    scheduleQuiet();
+  });
 }
 
 export async function waitForCaptureFontsForCapture(
@@ -1108,6 +1175,9 @@ export class PageCapturer {
 
       const fontReadyStatus = await page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS);
       console.log(`[PageCapturer] Font readiness: ${fontReadyStatus}`);
+
+      const domQuietStatus = await page.evaluate(waitForCaptureDomQuietForCapture as any, CAPTURE_DOM_QUIET_WINDOW_MS, CAPTURE_DOM_QUIET_TIMEOUT_MS);
+      console.log(`[PageCapturer] DOM quiet: ${domQuietStatus}`);
 
       // Materialize simple CSS ::before/::after text before serializing the DOM. This preserves
       // OEM badges/labels that would otherwise disappear when Clone Studio strips page CSS scripts.
