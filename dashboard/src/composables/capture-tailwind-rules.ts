@@ -9,7 +9,7 @@ export function tailwindRules() {
   }
   function fsTw(px: number): string {
     var m: Record<number, string>={12:'xs',14:'sm',16:'base',18:'lg',20:'xl',24:'2xl',30:'3xl',36:'4xl',48:'5xl',60:'6xl'};
-    if(m[px])return m[px]; var ks=Object.keys(m).map(Number); var c=ks.reduce(function(p,k){return Math.abs(k-px)<Math.abs(p-px)?k:p}); return Math.abs(c-px)<=1?m[c]:'['+px+'px]';
+    return m[px] ? m[px] : '['+px+'px]';
   }
   function rgbHex(rgb: string): string {
     var m=rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/); if(!m)return rgb;
@@ -83,10 +83,10 @@ export function tailwindRules() {
       case 'font-weight': var fw: Record<string, string>={'400':'font-normal','500':'font-medium','600':'font-semibold','700':'font-bold','800':'font-extrabold'}; if(fw[val])cls.push(fw[val]);break;
       case 'text-align': var ta: Record<string, string>={left:'text-left',center:'text-center',right:'text-right'}; if(ta[val])cls.push(ta[val]);break;
       case 'text-transform': if(val==='uppercase')cls.push('uppercase');else if(val==='capitalize')cls.push('capitalize');break;
-      case 'border-radius': if(!isNaN(px)&&px>0){if(px>=9999)cls.push('rounded-full');else if(px<=4)cls.push('rounded');else if(px<=8)cls.push('rounded-lg');else cls.push('rounded-['+px+'px]');}break;
+      case 'border-radius': if(!isNaN(px)&&px>0){if(px>=9999)cls.push('rounded-full');else cls.push('rounded-['+px+'px]');}break;
       case 'object-fit': if(val==='cover')cls.push('object-cover');else if(val==='contain')cls.push('object-contain');break;
       case 'overflow': if(val==='hidden')cls.push('overflow-hidden');break;
-      case 'opacity': var op=parseFloat(val);if(op<1)cls.push('opacity-'+Math.round(op*100));break;
+      case 'opacity': var op=parseFloat(val);if(op<1&&op>=0){var s=String(op).replace(/^0/,'');cls.push('opacity-['+s+']');}break;
     }
     return cls;
   }
