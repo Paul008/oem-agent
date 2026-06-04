@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { supabase } from '@/lib/supabase'
 import { clonePage, fetchGeneratedPage, updateClonePage } from './worker-api'
 
 vi.mock('@/lib/supabase', () => ({
@@ -68,6 +69,19 @@ describe('worker-api fetchGeneratedPage', () => {
     const fetchMock = vi.mocked(fetch)
     expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/pages/ford-au-mustang?includeModes=true')
     expect(fetchMock.mock.calls[0][0]).not.toContain('includeRendered=true')
+  })
+
+  it('does not send Supabase Authorization on generated page reads', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: { session: { access_token: 'supabase-token' } },
+    } as any)
+
+    await fetchGeneratedPage('toyota-au-rav4', { includeRendered: true, includeModes: true })
+
+    const fetchMock = vi.mocked(fetch)
+    const headers = new Headers(fetchMock.mock.calls[0][1]?.headers)
+    expect(headers.has('Authorization')).toBe(false)
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('include')
   })
 })
 

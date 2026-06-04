@@ -6,11 +6,16 @@ export type { Recipe } from '@/lib/recipes'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
-export async function workerFetch(path: string, options?: RequestInit) {
-  const headers = await buildWorkerHeaders(options?.headers)
+type WorkerFetchOptions = RequestInit & {
+  skipAuthHeader?: boolean
+}
+
+export async function workerFetch(path: string, options?: WorkerFetchOptions) {
+  const { skipAuthHeader, ...fetchOptions } = options ?? {}
+  const headers = await buildWorkerHeaders(fetchOptions.headers, { skipAuthHeader })
   const res = await fetch(`${WORKER_BASE}${path}`, {
     credentials: 'include',
-    ...options,
+    ...fetchOptions,
     headers,
   })
   if (!res.ok) {
@@ -25,9 +30,9 @@ export async function workerFetch(path: string, options?: RequestInit) {
   return res.json()
 }
 
-async function buildWorkerHeaders(headers?: HeadersInit) {
+async function buildWorkerHeaders(headers?: HeadersInit, options?: { skipAuthHeader?: boolean }) {
   const merged = new Headers(headers)
-  if (!merged.has('Authorization')) {
+  if (!options?.skipAuthHeader && !merged.has('Authorization')) {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (token)
@@ -100,7 +105,7 @@ export async function fetchWorkerHealth() {
 }
 
 export async function fetchGeneratedPages(oemId: string) {
-  return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`)
+  return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`, { skipAuthHeader: true })
 }
 
 export async function fetchGeneratedPage(slug: string, options?: { includeRendered?: boolean, includeModes?: boolean }) {
@@ -110,7 +115,7 @@ export async function fetchGeneratedPage(slug: string, options?: { includeRender
   if (options?.includeModes)
     params.set('includeModes', 'true')
   const query = params.toString()
-  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query ? `?${query}` : ''}`)
+  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query ? `?${query}` : ''}`, { skipAuthHeader: true })
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
