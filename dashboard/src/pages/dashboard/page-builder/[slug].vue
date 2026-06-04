@@ -46,6 +46,7 @@ import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vu
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
+import { buildRawHtmlSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
 import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, needsDestructiveActionConfirmation, shouldShowSourceUrlInput } from './page-workflow'
 
@@ -212,8 +213,8 @@ function onUpdateField(id: string, field: string, value: any) {
 }
 
 // Structural region actions. `delete`/`hide` map to a visibility patch (the pragmatic delete for a
-// clone). `duplicate` clones the region via the bridge; `convert` is still a placeholder toast.
-function onRegionAction({ action, regionId }: { action: RegionActionId, regionId: string }) {
+// clone). `duplicate` clones the region via the bridge; `convert` stages a raw editable section.
+function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
   if (isWriteProtectedPage.value)
     return
   if (action === 'delete' || action === 'hide') {
@@ -232,7 +233,15 @@ function onRegionAction({ action, regionId }: { action: RegionActionId, regionId
     return
   }
   if (action === 'convert') {
-    toast('Convert coming soon')
+    const section = buildRawHtmlSectionFromCloneRegion(html)
+    if (!section) {
+      toast.error('Region HTML is not available')
+      return
+    }
+    addSectionFromLiveData(section)
+    setActiveMode('sections')
+    cloneEditorOpen.value = false
+    toast.success('Region converted to editable section')
     return
   }
 }

@@ -6,6 +6,7 @@ import { toast } from 'vue-sonner'
 
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
+import { buildRawHtmlSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
@@ -39,8 +40,10 @@ const {
   moveSection,
   duplicateSection,
   updateSection,
+  addSectionFromLiveData,
   saveSections,
   saveClone,
+  setActiveMode,
   selectCloneRegion,
   setRegionHeight,
   addCloneRegion,
@@ -120,7 +123,7 @@ function onUpdateField(id: string, field: string, value: any) {
   updateSection(id, { [field]: value })
 }
 
-function onRegionAction({ action, regionId }: { action: RegionActionId, regionId: string }) {
+function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
   if (isWriteProtectedPage.value)
     return
 
@@ -141,8 +144,16 @@ function onRegionAction({ action, regionId }: { action: RegionActionId, regionId
     return
   }
 
-  if (action === 'convert')
-    toast('Convert coming soon')
+  if (action === 'convert') {
+    const section = buildRawHtmlSectionFromCloneRegion(html)
+    if (!section) {
+      toast.error('Region HTML is not available')
+      return
+    }
+    addSectionFromLiveData(section)
+    setActiveMode('sections')
+    toast.success('Region converted to editable section')
+  }
 }
 
 async function savePreview() {

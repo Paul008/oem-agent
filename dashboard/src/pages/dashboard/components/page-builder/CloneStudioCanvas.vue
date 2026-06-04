@@ -101,7 +101,7 @@ const emit = defineEmits<{
   selectRegion: [region: any]
   domUpdated: [html: string]
   regionAdded: [region: CloneRegion]
-  contextMenu: [menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }]
+  contextMenu: [menu: { regionId: any, fields: any, typeHint: any, html: string, x: number, y: number }]
   regionHeight: [payload: { regionId: any, height: number | null }]
 }>()
 
@@ -209,6 +209,7 @@ function onMessage(event: MessageEvent) {
       regionId: data.regionId,
       fields: data.fields,
       typeHint: data.typeHint,
+      html: typeof data.regionHtml === 'string' ? data.regionHtml : '',
       x: pt.x,
       y: pt.y,
     })

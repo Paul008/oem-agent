@@ -253,6 +253,32 @@ ${rendered}
     return sanitizeHtml(stripPreviewScaffolding(clone.innerHTML))
   }
 
+  function getRegionHtml(element) {
+    if (!element)
+      return ''
+
+    var clone = element.cloneNode(true)
+    var bridgeNodes = clone.querySelectorAll ? clone.querySelectorAll('[data-clone-studio-bridge]') : []
+    var markedRegions = clone.querySelectorAll ? clone.querySelectorAll('[data-clone-studio-hover], [data-clone-studio-selected]') : []
+
+    if (clone.removeAttribute) {
+      clone.removeAttribute('data-clone-studio-hover')
+      clone.removeAttribute('data-clone-studio-selected')
+    }
+
+    for (var i = 0; i < bridgeNodes.length; i++) {
+      if (bridgeNodes[i].parentNode)
+        bridgeNodes[i].parentNode.removeChild(bridgeNodes[i])
+    }
+
+    for (var j = 0; j < markedRegions.length; j++) {
+      markedRegions[j].removeAttribute('data-clone-studio-hover')
+      markedRegions[j].removeAttribute('data-clone-studio-selected')
+    }
+
+    return sanitizeHtml(stripPreviewScaffolding(clone.outerHTML || ''))
+  }
+
   function stripPreviewScaffolding(html) {
     return String(html || '').replace(/<a\\b[^>]*>/gi, restorePreviewAnchor)
   }
@@ -1698,6 +1724,7 @@ ${rendered}
       regionId: payload ? payload.id : ensureRegionId(region),
       fields: payload ? payload.editable_fields : extractFields(region),
       typeHint: payload ? payload.type_hint : classifyRegion(region),
+      regionHtml: getRegionHtml(region),
       x: event.clientX,
       y: event.clientY
     })

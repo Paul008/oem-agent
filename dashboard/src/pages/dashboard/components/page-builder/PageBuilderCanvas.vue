@@ -37,7 +37,7 @@ const emit = defineEmits<{
   selectCloneRegion: [region: any]
   cloneDomUpdated: [html: string]
   cloneRegionAdded: [region: CloneRegion]
-  regionAction: [payload: { action: RegionActionId, regionId: string }]
+  regionAction: [payload: { action: RegionActionId, regionId: string, html?: string }]
 }>()
 // Responsive preview
 const previewWidth = ref<'full' | 'tablet' | 'mobile'>('full')
@@ -81,7 +81,7 @@ defineExpose({
 // ── Clone region context menu ──────────────────────────────────────────────
 // Mirrors the section-mode context menu below, but driven by getRegionActions()
 // off the emitted region payload and routed through the CloneStudioCanvas relay.
-interface CloneMenuRegion { id: string, editable_fields: any, type_hint: any }
+interface CloneMenuRegion { id: string, editable_fields: any, type_hint: any, html?: string }
 interface CloneMenuState {
   x: number
   y: number
@@ -104,10 +104,10 @@ const cloneMenuGroups = computed<{ group: RegionAction['group'], actions: Region
     .filter(g => g.actions.length > 0)
 })
 
-function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }) {
+function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, html?: string, x: number, y: number }) {
   if (props.readOnly)
     return
-  const region: CloneMenuRegion = { id: menu.regionId, editable_fields: menu.fields, type_hint: menu.typeHint }
+  const region: CloneMenuRegion = { id: menu.regionId, editable_fields: menu.fields, type_hint: menu.typeHint, html: menu.html }
   cloneMenu.value = {
     x: menu.x,
     y: menu.y,
@@ -238,7 +238,7 @@ function runCloneAction(id: RegionActionId) {
     case 'duplicate':
     case 'delete':
       // Parent (Task 9) owns destructive / structural region operations.
-      emit('regionAction', { action: id, regionId: region.id })
+      emit('regionAction', { action: id, regionId: region.id, html: region.html })
       closeCloneMenu()
       break
     default:

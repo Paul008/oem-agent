@@ -148,6 +148,36 @@ describe('CloneStudioCanvas duplicate-region relay', () => {
   })
 })
 
+describe('clone region conversion wiring', () => {
+  it('threads selected clone region HTML from iframe context menus into region actions', () => {
+    const bridgeSource = readFileSync(new URL('./clone-studio-html.ts', import.meta.url), 'utf8')
+    const cloneCanvasSource = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+    const canvasSource = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+
+    expect(bridgeSource).toContain('function getRegionHtml(element)')
+    expect(bridgeSource).toContain('regionHtml: getRegionHtml(region)')
+    expect(cloneCanvasSource).toContain("html: typeof data.regionHtml === 'string' ? data.regionHtml : ''")
+    expect(canvasSource).toContain('html?: string')
+    expect(canvasSource).toContain('html: menu.html')
+    expect(canvasSource).toContain("emit('regionAction', { action: id, regionId: region.id, html: region.html })")
+  })
+
+  it('converts clone region HTML into raw content-block sections in builder and preview', () => {
+    const builderSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    for (const source of [builderSource, previewSource]) {
+      expect(source).toContain('buildRawHtmlSectionFromCloneRegion')
+      expect(source).toContain('addSectionFromLiveData')
+      expect(source).toContain('setActiveMode')
+      expect(source).toContain('const section = buildRawHtmlSectionFromCloneRegion(html)')
+      expect(source).toContain("toast.error('Region HTML is not available')")
+      expect(source).toContain('addSectionFromLiveData(section)')
+      expect(source).toContain("setActiveMode('sections')")
+    }
+  })
+})
+
 describe('duplicate region wiring through the host layers', () => {
   it('threads duplicateRegion and cloneRegionAdded from page to bridge', () => {
     const canvasSource = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
