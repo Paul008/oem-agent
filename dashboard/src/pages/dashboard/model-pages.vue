@@ -768,6 +768,12 @@ function openPageBuilder(item: { oem_id: string, slug: string }) {
   router.push(`/dashboard/page-builder/${fullSlug(item)}`)
 }
 
+function openModelPageBuilder(model: VehicleModel) {
+  if (!isModelPageCreated(model))
+    return
+  openPageBuilder({ oem_id: model.oem_id, slug: model.slug })
+}
+
 const refreshing = ref(false)
 
 async function handleRefresh() {
@@ -1083,8 +1089,9 @@ async function handleRefresh() {
             <div v-if="!collapsedOems.has(group.oemId)" class="border-t divide-y">
               <div v-for="model in group.models" :key="model.id">
                 <div
-                  class="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors cursor-pointer"
-                  @click="openPageBuilder({ oem_id: model.oem_id, slug: model.slug })"
+                  class="flex items-center gap-3 px-4 py-2.5 transition-colors"
+                  :class="isModelPageCreated(model) ? 'cursor-pointer hover:bg-muted/30' : 'cursor-default hover:bg-muted/10'"
+                  @click="openModelPageBuilder(model)"
                 >
                   <!-- Status icon -->
                   <CheckCircle2
