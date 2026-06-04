@@ -198,6 +198,30 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('oem-agent.adme-dev.workers.dev/media/x.webp')
   })
 
+  it('removes legacy image placeholders that point at the captured source document', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <img class="subaru-placeholder" src="https://www.subaru.com.au/brz/2026" alt="BRZ Coupe tS Manual">
+          <img class="subaru-relative-placeholder" src="/brz/2026">
+          <img class="subaru-recoverable" src="https://www.subaru.com.au/brz/2026" data-src="/media/pages/assets/subaru-au/brz/coupe.webp">
+          <img class="subaru-real" src="/media/pages/assets/subaru-au/brz/hero.webp">
+        </main>
+      `,
+      title: 'BRZ',
+      baseHref: 'https://www.subaru.com.au/brz/2026',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+    const body = extractInitialBody(html)
+
+    expect(body).not.toContain('subaru-placeholder')
+    expect(body).not.toContain('subaru-relative-placeholder')
+    expect(body).toContain('subaru-recoverable')
+    expect(body).toContain('subaru-real')
+    expect(body).toContain('https://oem-agent.adme-dev.workers.dev/media/pages/assets/subaru-au/brz/hero.webp')
+  })
+
   it('restores preview link scaffolding before posting saved body HTML', () => {
     const html = stripCloneStudioScaffoldingForTest(
       '<main><a href="#oem-preview-disabled" data-oem-preview-href="/showroom" data-oem-preview-link="true" data-oem-preview-onclick="track(&quot;cta&quot;)" onclick="return false">Compare</a></main>',

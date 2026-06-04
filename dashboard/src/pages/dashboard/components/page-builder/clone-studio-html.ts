@@ -37,7 +37,9 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const stylesheetLinkTags = buildOemStylesheetLinkTags(options.stylesheetUrls, sanitizedHeadParts)
   sanitizedHeadParts.push(...stylesheetLinkTags)
   const rendered = rewriteProxiedMediaUrls(
-    stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(bodyHtml))),
+    stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(
+      stripSourceDocumentImagePlaceholders(bodyHtml, options.baseHref),
+    ))),
     mediaBase,
   )
   const selectedRegion = safeJson(options.selectedRegionId)
@@ -1065,6 +1067,61 @@ function rewriteProxiedMediaUrls(html: string, mediaBase: string): string {
   // Match `/media/` only at a value boundary (start, whitespace, quote, paren, comma, `;` from
   // an escaped quote, or `=`) so it never matches `//media` or `host/media/` inside an absolute URL.
   return String(html).replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${mediaBase}/media/`)
+}
+
+function stripSourceDocumentImagePlaceholders(html: string, baseHref: string): string {
+  const comparableBaseHref = normalizeCloneStudioComparableUrl(baseHref)
+  if (!comparableBaseHref)
+    return html
+
+  if (typeof DOMParser !== 'undefined') {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(`<body>${String(html ?? '')}</body>`, 'text/html')
+    for (const image of Array.from(doc.body.querySelectorAll('img[src]'))) {
+      if (isSourceDocumentImagePlaceholder(image, baseHref, comparableBaseHref))
+        image.parentElement?.removeChild(image)
+    }
+    return doc.body.innerHTML
+  }
+
+  return String(html ?? '').replace(/<img\b[^>]*>/gi, (tag: string) => {
+    const attrs = parseCloneStudioTagAttributes(tag)
+    const src = attrs.get('src') ?? ''
+    if (!src || hasRecoverableCloneStudioImageSource(attrs))
+      return tag
+    return normalizeCloneStudioComparableUrl(src, baseHref) === comparableBaseHref ? '' : tag
+  })
+}
+
+function isSourceDocumentImagePlaceholder(image: Element, baseHref: string, comparableBaseHref: string): boolean {
+  const src = image.getAttribute('src') ?? ''
+  if (!src || hasRecoverableCloneStudioImageSource(image))
+    return false
+
+  return normalizeCloneStudioComparableUrl(src, baseHref) === comparableBaseHref
+}
+
+function hasRecoverableCloneStudioImageSource(source: Element | Map<string, string>): boolean {
+  const read = (name: string) => source instanceof Map ? source.get(name) : source.getAttribute(name)
+  const recoverableAttrs = ['srcset', 'data-srcset', 'data-src', 'data-lazy-src', 'data-original', 'data-lazy']
+  return recoverableAttrs.some(name => Boolean((read(name) ?? '').trim()))
+}
+
+function normalizeCloneStudioComparableUrl(url: string, baseHref?: string): string {
+  const trimmed = String(url ?? '').trim()
+  if (!trimmed)
+    return ''
+
+  try {
+    const parsed = baseHref ? new URL(trimmed, baseHref) : new URL(trimmed)
+    parsed.hash = ''
+    parsed.search = ''
+    parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/'
+    return parsed.toString()
+  }
+  catch {
+    return trimmed.replace(/[?#].*$/, '').replace(/\/+$/, '')
+  }
 }
 
 function extractHeadParts(rendered: string): { bodyHtml: string, headParts: string[] } {
