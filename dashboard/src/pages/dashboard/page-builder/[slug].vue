@@ -524,7 +524,7 @@ watch(
           <Redo2 class="size-3.5" />
         </UiButton>
 
-        <!-- === INLINE buttons (2xl+ screens) === -->
+        <!-- === INLINE buttons on very wide screens === -->
 
         <!-- Import -->
         <UiButton
@@ -532,7 +532,7 @@ watch(
           size="sm"
           variant="outline"
           title="Import sections from another page"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="showSectionBrowser = true"
         >
           <Import class="size-3.5 mr-1" />
@@ -545,7 +545,7 @@ watch(
           size="sm"
           variant="outline"
           title="Capture sections from a live webpage"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="showCapture = true"
         >
           <MousePointer2 class="size-3.5 mr-1" />
@@ -558,7 +558,7 @@ watch(
           size="sm"
           variant="outline"
           title="Paste sections from clipboard (Ctrl+V)"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="pasteSectionFromClipboard()"
         >
           <ClipboardPaste class="size-3.5 mr-1" />
@@ -571,14 +571,14 @@ watch(
           size="sm"
           :variant="showHistory ? 'default' : 'outline'"
           title="History"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="showHistory = !showHistory"
         >
           <History class="size-3.5 mr-1" />
           History
         </UiButton>
 
-        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden 2xl:block" />
+        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden min-[2100px]:block" />
 
         <!-- Source URL input for subpages -->
         <div v-if="canShowSourceUrlInput" class="order-last flex basis-full items-center gap-1.5 min-w-0 lg:order-none lg:basis-auto">
@@ -597,7 +597,7 @@ watch(
           size="sm"
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="runClone()"
         >
           <Copy v-if="!cloning" class="size-3.5 mr-1" />
@@ -606,7 +606,7 @@ watch(
         </UiButton>
 
         <!-- AI model selector -->
-        <div v-if="canShowWorkflowActions" class="hidden 2xl:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
+        <div v-if="canShowWorkflowActions" class="hidden min-[2100px]:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
           <Cpu class="size-3.5 text-violet-500 shrink-0" />
           <UiSelect v-model="selectedModel">
             <UiSelectTrigger class="h-7 w-44 text-xs bg-background">
@@ -626,7 +626,7 @@ watch(
           size="sm"
           :variant="primaryWorkflowAction.key === 'structure' ? 'default' : 'outline'"
           :disabled="structuring || pipelining"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="runStructure(selectedModelOverride)"
         >
           <Sparkles v-if="!structuring" class="size-3.5 mr-1" />
@@ -640,7 +640,7 @@ watch(
           size="sm"
           :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
           :disabled="pipelineActionDisabled"
-          class="hidden 2xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
+          class="hidden min-[2100px]:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
           @click="runAdaptivePipeline(selectedModelOverride)"
         >
           <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
@@ -648,7 +648,7 @@ watch(
           {{ pipelining ? 'Running...' : primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Pipeline' }}
         </UiButton>
 
-        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden 2xl:block" />
+        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden min-[2100px]:block" />
 
         <!-- Save — always visible -->
         <UiButton
@@ -664,12 +664,12 @@ watch(
           <span v-if="isDirty" class="ml-1 size-1.5 rounded-full bg-amber-400 inline-block" />
         </UiButton>
 
-        <!-- Source — inline on 2xl+ -->
+        <!-- Source — inline on very wide screens -->
         <a
           v-if="canShowEditorActions && page?.source_url"
           :href="page.source_url"
           target="_blank"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
         >
           <UiButton size="sm" variant="outline">
             <ExternalLink class="size-3.5 mr-1" />
@@ -677,22 +677,22 @@ watch(
           </UiButton>
         </a>
 
-        <!-- JSON toggle — inline on 2xl+ -->
+        <!-- JSON toggle — inline on very wide screens -->
         <UiButton
           v-if="canShowEditorActions && !isWriteProtectedPage"
           size="sm"
           :variant="showJson ? 'default' : 'outline'"
-          class="hidden 2xl:inline-flex"
+          class="hidden min-[2100px]:inline-flex"
           @click="showJson = !showJson"
         >
           <Code class="size-3.5 mr-1" />
           JSON
         </UiButton>
 
-        <!-- === OVERFLOW MENU (below 2xl) === -->
+        <!-- === OVERFLOW MENU except on very wide screens === -->
         <UiDropdownMenu v-if="canShowEditorActions">
           <UiDropdownMenuTrigger as-child>
-            <UiButton size="sm" variant="outline" class="2xl:hidden size-8 p-0" title="More actions">
+            <UiButton size="sm" variant="outline" class="min-[2100px]:hidden size-8 p-0" title="More actions">
               <Menu class="size-4" />
             </UiButton>
           </UiDropdownMenuTrigger>

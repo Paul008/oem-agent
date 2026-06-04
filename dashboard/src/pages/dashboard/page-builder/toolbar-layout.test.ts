@@ -10,10 +10,10 @@ describe('page builder toolbar layout', () => {
     expect(source).toContain('ml-auto flex max-w-full flex-wrap items-center justify-end')
   })
 
-  it('keeps dense actions in the compact menu below very wide screens', () => {
-    expect(source).toContain('class="hidden 2xl:inline-flex"')
-    expect(source).toContain('class="hidden 2xl:flex')
-    expect(source).toContain('class="2xl:hidden size-8 p-0"')
+  it('keeps dense actions in the compact menu unless the viewport is genuinely wide', () => {
+    expect(source).toContain('class="hidden min-[2100px]:inline-flex"')
+    expect(source).toContain('class="hidden min-[2100px]:flex')
+    expect(source).toContain('class="min-[2100px]:hidden size-8 p-0"')
   })
 
   it('keeps required subpage source input reachable on narrow screens', () => {
