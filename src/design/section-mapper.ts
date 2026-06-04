@@ -75,17 +75,38 @@ function contentChildren($: any, node: any): any[] {
     .filter((el: any) => el.type === 'tag' && !CHROME_TAGS.has((el.name || '').toLowerCase()))
 }
 
+/**
+ * Element children that actually carry content — excludes chrome and "noise"
+ * nodes that have neither child elements nor text (e.g. stray tracking <img>
+ * siblings on the body, which would otherwise stop wrapper descent).
+ */
+function meaningfulChildren($: any, node: any): any[] {
+  return contentChildren($, node).filter((el: any) => {
+    const $el = $(el)
+    return $el.children().length > 0 || ($el.text() || '').trim().length > 0
+  })
+}
+
 function isWrapper(el: any): boolean {
   return WRAPPER_TAGS.has((el.name || '').toLowerCase())
 }
 
-/** Descend through single-wrapper chains so repeating children become direct. */
-function unwrapSingle($: any, node: any): any {
+/**
+ * Follow single-meaningful-wrapper chains down to the first node that branches
+ * into multiple content regions (or whose only child stops being a descendable
+ * wrapper). Real CMS clones (e.g. AEM `root > aem-Grid > aem-GridColumn >
+ * aem-Grid`) nest the actual sections several wrapper levels deep; without this
+ * the whole page collapses into a single region.
+ */
+function descendToBranch($: any, node: any): any {
   let current = node
-  let kids = contentChildren($, current)
-  while (kids.length === 1 && isWrapper(kids[0]) && contentChildren($, $(kids[0])).length > 1) {
-    current = $(kids[0])
-    kids = contentChildren($, current)
+  for (let i = 0; i < 12; i++) {
+    const m = meaningfulChildren($, current)
+    if (m.length === 1 && isWrapper(m[0]) && $(m[0]).children().length > 0) {
+      current = $(m[0])
+    } else {
+      break
+    }
   }
   return current
 }
@@ -105,13 +126,16 @@ export function splitPageRegions(html: string): Array<{ html: string; selector: 
   let root: any = $('body').first()
   if (!root.length) root = $.root()
 
-  // Descend through a single generic wrapper at the page root.
-  root = unwrapSingle($, root)
+  // Descend through single-meaningful-wrapper chains to the real content
+  // container (skips deep CMS wrapper nesting and stray noise siblings).
+  root = descendToBranch($, root)
 
   const regions: Array<{ html: string; selector: string }> = []
   for (const el of contentChildren($, root)) {
     if (regions.length >= MAX_REGIONS) break
-    const node = unwrapSingle($, $(el))
+    // Per region, unwrap a single generic wrapper so repeating children
+    // (e.g. container > row > cols) become directly visible to the parser.
+    const node = descendToBranch($, $(el))
     const text = (node.text() || '').replace(/\s+/g, ' ').trim()
     const hasImg = node.find('img').length > 0
     if (!text && !hasImg) continue
