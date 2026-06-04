@@ -91,6 +91,10 @@ const R2_SCREENSHOTS_PREFIX = 'screenshots';
 const MAX_IMAGE_DOWNLOADS = 50;
 const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
+export const CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS = 300;
+export const CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS = 500;
+export const CAPTURE_SCROLL_SWEEP_TIMEOUT_MS = 10_000;
+export const CAPTURE_SCROLL_SWEEP_MAX_STEPS = 30;
 export const CAPTURE_FONT_READY_TIMEOUT_MS = 2_500;
 export const CAPTURE_IMAGE_READY_TIMEOUT_MS = 3_000;
 export const CAPTURE_DOM_QUIET_WINDOW_MS = 250;
@@ -179,9 +183,22 @@ body {
 }
 `.trim();
 
+export type CaptureScrollSweepStatus = 'complete' | 'max-steps' | 'timeout' | 'unsupported';
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
 export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
 export type CaptureDomQuietStatus = 'quiet' | 'timeout' | 'unsupported';
+
+type CaptureScrollSweepWindow = {
+  innerHeight?: number;
+  scrollY?: number;
+  scrollTo?: (x: number, y: number) => void;
+  setTimeout?: (callback: () => void, timeout?: number) => ReturnType<typeof setTimeout>;
+  Date?: Pick<typeof Date, 'now'>;
+  document?: {
+    body?: { scrollHeight?: number };
+    documentElement?: { scrollHeight?: number };
+  };
+};
 
 type CaptureMutationObserver = {
   observe: (target: unknown, options: MutationObserverInit) => void;
@@ -189,6 +206,67 @@ type CaptureMutationObserver = {
 };
 
 type CaptureMutationObserverConstructor = new (callback: () => void) => CaptureMutationObserver;
+
+export async function sweepCaptureScrollForCapture(options?: {
+  stepDelayMs?: number;
+  finalDelayMs?: number;
+  timeoutMs?: number;
+  maxSteps?: number;
+  win?: CaptureScrollSweepWindow;
+}): Promise<CaptureScrollSweepStatus> {
+  const activeWindow = options?.win ?? (typeof window !== 'undefined'
+    ? window as unknown as CaptureScrollSweepWindow
+    : undefined);
+  const activeDocument = activeWindow?.document ?? (typeof document !== 'undefined'
+    ? document as unknown as CaptureScrollSweepWindow['document']
+    : undefined);
+  const viewportHeight = Number(activeWindow?.innerHeight ?? 0);
+  const scrollTo = activeWindow?.scrollTo;
+
+  if (!activeWindow || !activeDocument || typeof scrollTo !== 'function' || !Number.isFinite(viewportHeight) || viewportHeight <= 0)
+    return 'unsupported';
+
+  const stepDelayMs = Math.max(0, options?.stepDelayMs ?? 300);
+  const finalDelayMs = Math.max(0, options?.finalDelayMs ?? 500);
+  const timeoutMs = Math.max(0, options?.timeoutMs ?? 10000);
+  const maxSteps = Math.max(1, options?.maxSteps ?? 30);
+  const clock = activeWindow.Date ?? Date;
+  const sleep = (delayMs: number) => new Promise<void>((resolve) => {
+    const timer = activeWindow.setTimeout ?? setTimeout;
+    timer(resolve, delayMs);
+  });
+  const scrollHeight = () => Math.max(
+    0,
+    Number(activeDocument.documentElement?.scrollHeight ?? 0),
+    Number(activeDocument.body?.scrollHeight ?? 0),
+  );
+  const startedAt = clock.now();
+
+  try {
+    let y = Math.max(0, Number(activeWindow.scrollY ?? 0));
+    let steps = 0;
+
+    while (true) {
+      if (clock.now() - startedAt >= timeoutMs)
+        return 'timeout';
+
+      const maxY = Math.max(0, scrollHeight() - viewportHeight);
+      if (y >= maxY)
+        return 'complete';
+
+      if (steps >= maxSteps)
+        return 'max-steps';
+
+      y = Math.min(y + viewportHeight, maxY);
+      scrollTo.call(activeWindow, 0, y);
+      steps++;
+      await sleep(stepDelayMs);
+    }
+  } finally {
+    scrollTo.call(activeWindow, 0, 0);
+    await sleep(finalDelayMs);
+  }
+}
 
 export async function waitForCaptureImagesForCapture(
   timeoutMs = 3000,
@@ -1273,17 +1351,15 @@ export class PageCapturer {
       // Wait a moment for the DOM changes to take effect
       await new Promise(r => setTimeout(r, 500));
 
-      // Scroll to trigger lazy-loaded images (now that hidden panels are visible)
-      await page.evaluate(async () => {
-        const step = window.innerHeight;
-        const maxScroll = document.body.scrollHeight;
-        for (let y = 0; y < maxScroll; y += step) {
-          window.scrollTo(0, y);
-          await new Promise(r => setTimeout(r, 300));
-        }
-        window.scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 500));
+      // Scroll to trigger lazy-loaded images (now that hidden panels are visible).
+      // Re-measure height during the sweep because OEM pages may append content near the bottom.
+      const scrollSweepStatus = await page.evaluate(sweepCaptureScrollForCapture as any, {
+        stepDelayMs: CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS,
+        finalDelayMs: CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS,
+        timeoutMs: CAPTURE_SCROLL_SWEEP_TIMEOUT_MS,
+        maxSteps: CAPTURE_SCROLL_SWEEP_MAX_STEPS,
       });
+      console.log(`[PageCapturer] Scroll sweep: ${scrollSweepStatus}`);
 
       // Wait for images to finish loading after scroll
       await new Promise(r => setTimeout(r, 2000));

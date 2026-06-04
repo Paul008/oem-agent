@@ -7,6 +7,10 @@ import {
   CAPTURE_DOM_QUIET_WINDOW_MS,
   CAPTURE_FONT_READY_TIMEOUT_MS,
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
+  CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS,
+  CAPTURE_SCROLL_SWEEP_MAX_STEPS,
+  CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS,
+  CAPTURE_SCROLL_SWEEP_TIMEOUT_MS,
   CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
   CAPTURE_STATIC_CLONE_SAFETY_CSS,
   CAPTURE_STATIC_MEDIA_FRAME_CSS,
@@ -14,10 +18,127 @@ import {
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   pseudoElementInlineStyleForCapture,
+  sweepCaptureScrollForCapture,
   waitForCaptureDomQuietForCapture,
   waitForCaptureFontsForCapture,
   waitForCaptureImagesForCapture,
 } from './page-capturer'
+
+function createScrollSweepWindow(options: {
+  innerHeight?: number;
+  scrollHeight: number;
+  onScroll?: (y: number, win: any) => void;
+}) {
+  const calls: Array<[number, number]> = []
+  const win: any = {
+    innerHeight: options.innerHeight ?? 1000,
+    scrollY: 0,
+    document: {
+      body: { scrollHeight: options.scrollHeight },
+      documentElement: { scrollHeight: options.scrollHeight },
+    },
+    Date: { now: () => 0 },
+    setTimeout: ((callback: () => void) => {
+      callback()
+      return 0 as any
+    }) as typeof setTimeout,
+    scrollTo: (x: number, y: number) => {
+      calls.push([x, y])
+      win.scrollY = y
+      options.onScroll?.(y, win)
+    },
+  }
+
+  return { win, calls }
+}
+
+describe('sweepCaptureScrollForCapture', () => {
+  it('returns complete and scrolls back to top for a stable page', async () => {
+    const { win, calls } = createScrollSweepWindow({ scrollHeight: 2500 })
+
+    await expect(sweepCaptureScrollForCapture({
+      stepDelayMs: 0,
+      finalDelayMs: 0,
+      timeoutMs: 1000,
+      maxSteps: 10,
+      win,
+    })).resolves.toBe('complete')
+
+    expect(calls).toEqual([
+      [0, 1000],
+      [0, 1500],
+      [0, 0],
+    ])
+  })
+
+  it('continues beyond the initially measured height when content grows during scrolling', async () => {
+    const { win, calls } = createScrollSweepWindow({
+      scrollHeight: 1800,
+      onScroll: (y, activeWindow) => {
+        if (y >= 800) {
+          activeWindow.document.body.scrollHeight = 3200
+          activeWindow.document.documentElement.scrollHeight = 3200
+        }
+      },
+    })
+
+    await expect(sweepCaptureScrollForCapture({
+      stepDelayMs: 0,
+      finalDelayMs: 0,
+      timeoutMs: 1000,
+      maxSteps: 10,
+      win,
+    })).resolves.toBe('complete')
+
+    expect(calls.some(([, y]) => y > 800)).toBe(true)
+    expect(calls.at(-1)).toEqual([0, 0])
+  })
+
+  it('returns max-steps when content keeps growing beyond the configured step limit', async () => {
+    const { win, calls } = createScrollSweepWindow({
+      scrollHeight: 3000,
+      onScroll: (_y, activeWindow) => {
+        activeWindow.document.body.scrollHeight += 1000
+        activeWindow.document.documentElement.scrollHeight += 1000
+      },
+    })
+
+    await expect(sweepCaptureScrollForCapture({
+      stepDelayMs: 0,
+      finalDelayMs: 0,
+      timeoutMs: 1000,
+      maxSteps: 2,
+      win,
+    })).resolves.toBe('max-steps')
+
+    expect(calls).toHaveLength(3)
+    expect(calls.at(-1)).toEqual([0, 0])
+  })
+
+  it('returns timeout when the configured elapsed limit is already reached', async () => {
+    const { win, calls } = createScrollSweepWindow({ scrollHeight: 3000 })
+
+    await expect(sweepCaptureScrollForCapture({
+      stepDelayMs: 0,
+      finalDelayMs: 0,
+      timeoutMs: 0,
+      maxSteps: 10,
+      win,
+    })).resolves.toBe('timeout')
+
+    expect(calls).toEqual([[0, 0]])
+  })
+
+  it('returns unsupported when the viewport cannot scroll', async () => {
+    await expect(sweepCaptureScrollForCapture({
+      win: {
+        innerHeight: 0,
+        document: { body: { scrollHeight: 1000 }, documentElement: { scrollHeight: 1000 } },
+        scrollTo: () => {},
+      },
+    })).resolves.toBe('unsupported')
+  })
+})
 
 describe('waitForCaptureImagesForCapture', () => {
   it('returns ready when pending image decodes settle before the timeout', async () => {
@@ -198,15 +319,22 @@ describe('CAPTURE_STATIC_MEDIA_FRAME_CSS', () => {
 describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const scrollSweep = source.indexOf('page.evaluate(sweepCaptureScrollForCapture as any')
     const imageWait = source.indexOf('page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS)')
     const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
     const domQuietWait = source.indexOf('page.evaluate(waitForCaptureDomQuietForCapture as any, CAPTURE_DOM_QUIET_WINDOW_MS, CAPTURE_DOM_QUIET_TIMEOUT_MS)')
     const pseudoMaterialize = source.indexOf('page.evaluate(materializePseudoElementTextForCapture as any)')
 
+    expect(CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS).toBe(300)
+    expect(CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS).toBe(500)
+    expect(CAPTURE_SCROLL_SWEEP_TIMEOUT_MS).toBe(10000)
+    expect(CAPTURE_SCROLL_SWEEP_MAX_STEPS).toBe(30)
     expect(CAPTURE_IMAGE_READY_TIMEOUT_MS).toBe(3000)
     expect(CAPTURE_FONT_READY_TIMEOUT_MS).toBe(2500)
     expect(CAPTURE_DOM_QUIET_WINDOW_MS).toBe(250)
     expect(CAPTURE_DOM_QUIET_TIMEOUT_MS).toBe(1500)
+    expect(scrollSweep).toBeGreaterThan(-1)
+    expect(imageWait).toBeGreaterThan(scrollSweep)
     expect(imageWait).toBeGreaterThan(-1)
     expect(fontWait).toBeGreaterThan(imageWait)
     expect(domQuietWait).toBeGreaterThan(fontWait)
