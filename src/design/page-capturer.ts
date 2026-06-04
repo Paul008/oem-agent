@@ -141,6 +141,21 @@ function bestCaptureSrcsetUrl(srcset: string): string {
   return srcset.split(',').pop()?.trim().split(/\s+/)[0] ?? '';
 }
 
+function normalizeComparableUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed)
+    return '';
+  try {
+    const parsed = new URL(trimmed);
+    parsed.hash = '';
+    parsed.search = '';
+    parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+    return parsed.toString();
+  } catch {
+    return trimmed.replace(/[?#].*$/, '').replace(/\/+$/, '');
+  }
+}
+
 function escapeHtmlAttribute(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -428,6 +443,7 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
 export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: string): DomCaptureResult {
   const $ = load(result.html, {}, false);
   const imageUrls = new Set(result.imageUrls.filter(Boolean));
+  const comparableSourceUrl = normalizeComparableUrl(sourceUrl);
 
   $('source[data-srcset], img[data-srcset]').each((_idx, node) => {
     const el = $(node);
@@ -479,6 +495,10 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     const src = (img.attr('src') || '').trim();
     if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
       const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
+      if (normalizeComparableUrl(absoluteSrc) === comparableSourceUrl && !(img.attr('srcset') || '').trim()) {
+        img.remove();
+        return;
+      }
       img.attr('src', absoluteSrc);
       imageUrls.add(absoluteSrc);
     }

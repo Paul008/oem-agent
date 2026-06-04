@@ -46,6 +46,26 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.html).toContain('real-image')
     expect(result.imageUrls).toContain('https://www.toyota.com.au/-/media/rav4.jpg')
   })
+
+  it('removes image placeholders whose src is the captured page URL', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <img class="subaru-placeholder" src="https://www.subaru.com.au/brz/2026">
+          <img class="subaru-real" src="/media/brz.jpg">
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: ['https://www.subaru.com.au/brz/2026'],
+      heroUrl: '',
+      title: 'BRZ',
+      elementCount: 3,
+    }, 'https://www.subaru.com.au/brz/2026')
+
+    expect(result.html).not.toContain('subaru-placeholder')
+    expect(result.html).toContain('subaru-real')
+    expect(result.imageUrls).toContain('https://www.subaru.com.au/media/brz.jpg')
+  })
 })
 
 describe('isCaptureBlockedBySecurityPage', () => {
