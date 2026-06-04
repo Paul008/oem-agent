@@ -760,6 +760,23 @@ describe('buildCloneStudioHtml', () => {
   })
 })
 
+describe('sanitizeStyle preserves inline fidelity styles', () => {
+  it('keeps box-shadow, gradient and transform; strips js/expression', () => {
+    const safe = sanitizeCloneStudioHtmlForTest(
+      '<div style="box-shadow:0 4px 12px rgba(0,0,0,0.3);background-image:linear-gradient(180deg,#000,rgba(0,0,0,0));transform:translateX(-50%)">x</div>'
+    )
+    expect(safe).toContain('box-shadow:0 4px 12px rgba(0,0,0,0.3)')
+    expect(safe).toContain('linear-gradient(180deg,#000,rgba(0,0,0,0))')
+    expect(safe).toContain('transform:translateX(-50%)')
+
+    const danger = sanitizeCloneStudioHtmlForTest(
+      '<div style="width:expression(alert(1));background:url(javascript:alert(1))">x</div>'
+    )
+    expect(danger).not.toContain('expression(')
+    expect(danger).not.toContain('javascript:')
+  })
+})
+
 describe('reassignClonedRegionIdsForTest', () => {
   it('removes the clone root id and every nested region id so ids re-assign collision-free', () => {
     const removed: string[] = []
