@@ -139,6 +139,19 @@ describe('PageCapturer readiness wiring', () => {
   })
 })
 
+describe('PageCapturer viewport metadata wiring', () => {
+  it('persists the capture viewport into clone mode instead of a hard-coded viewport', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const applyCloneModeCall = source.indexOf('const pageData = applyCloneMode(basePage, {')
+    const captureViewport = source.indexOf('viewport: capture.viewport', applyCloneModeCall)
+    const hardCodedViewport = source.indexOf('viewport: { width: 1440, height: 1080 }', applyCloneModeCall)
+
+    expect(applyCloneModeCall).toBeGreaterThan(-1)
+    expect(captureViewport).toBeGreaterThan(applyCloneModeCall)
+    expect(hardCodedViewport).toBe(-1)
+  })
+})
+
 describe('pseudo-element capture helpers', () => {
   it('keeps only quoted pseudo-element text content', () => {
     expect(normalizePseudoElementContentForCapture('"New"')).toBe('New')
@@ -187,6 +200,7 @@ describe('normalizeCapturedLazyMedia', () => {
       heroUrl: '',
       title: 'RAV4',
       elementCount: 4,
+      viewport: { width: 1440, height: 1080 },
     }, 'https://www.toyota.com.au/rav4')
 
     const expectedUrl = 'https://www.toyota.com.au/-/media/toyota/main-site/vehicle-hubs/rav4/bep/2026/new_powertrain_mosaic_d_v4.jpg?rev=f4075ca88c294e0187cf8f14c4f5d12f'
@@ -209,6 +223,7 @@ describe('normalizeCapturedLazyMedia', () => {
       heroUrl: '',
       title: 'RAV4',
       elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
     }, 'https://www.toyota.com.au/rav4')
 
     expect(result.html).not.toContain('blank-placeholder')
@@ -229,6 +244,7 @@ describe('normalizeCapturedLazyMedia', () => {
       heroUrl: '',
       title: 'BRZ',
       elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
     }, 'https://www.subaru.com.au/brz/2026')
 
     expect(result.html).not.toContain('subaru-placeholder')
@@ -262,6 +278,43 @@ describe('isCaptureBlockedBySecurityPage', () => {
         </main>
       `,
     })).toBe(false)
+  })
+})
+
+describe('buildDomCaptureFromHtml viewport metadata', () => {
+  const html = `
+    <html>
+      <head><title>Viewport Model</title></head>
+      <body>
+        <main>
+          <h1>Viewport Model</h1>
+          <section>${'<p>Vehicle content</p>'.repeat(80)}</section>
+        </main>
+      </body>
+    </html>
+  `
+
+  it('defaults external captures to the standard desktop viewport', () => {
+    const result = buildDomCaptureFromHtml({ html }, 'https://example.test/model')
+
+    expect('bot_blocked' in result).toBe(false)
+    if ('bot_blocked' in result)
+      return
+
+    expect(result.viewport).toEqual({ width: 1440, height: 1080 })
+  })
+
+  it('preserves supplied external capture viewport metadata', () => {
+    const result = buildDomCaptureFromHtml({
+      html,
+      viewport: { width: 1680, height: 1080 },
+    }, 'https://example.test/model')
+
+    expect('bot_blocked' in result).toBe(false)
+    if ('bot_blocked' in result)
+      return
+
+    expect(result.viewport).toEqual({ width: 1680, height: 1080 })
   })
 })
 

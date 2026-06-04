@@ -43,6 +43,10 @@ export interface ExternalHtmlCaptureInput {
   title?: string;
   finalUrl?: string;
   stylesheetUrls?: string[];
+  viewport?: {
+    width: number;
+    height: number;
+  };
 }
 
 export interface PageCaptureOptions {
@@ -57,6 +61,10 @@ export interface DomCaptureResult {
   heroUrl: string;
   title: string;
   elementCount: number;
+  viewport: {
+    width: number;
+    height: number;
+  };
 }
 
 export interface PseudoElementCaptureStyle {
@@ -761,6 +769,7 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
     heroUrl,
     title,
     elementCount: container.find('*').length,
+    viewport: input.viewport ?? { width: 1440, height: 1080 },
   }, sourceUrl);
 
   if (isCaptureBlockedBySecurityPage({ html: result.html, title: result.title }))
@@ -1004,7 +1013,7 @@ export class PageCapturer {
       const pageData = applyCloneMode(basePage, {
         rendered: assembledHtml,
         source_url: sourceUrl,
-        viewport: { width: 1440, height: 1080 },
+        viewport: capture.viewport,
         asset_map: Object.fromEntries(urlMapping),
         stylesheet_urls: capture.stylesheetLinks
           .map(extractStylesheetHref)
@@ -1492,7 +1501,12 @@ export class PageCapturer {
         };
       });
 
-      const normalized = normalizeCapturedLazyMedia(result, sourceUrl);
+      const resultWithViewport: DomCaptureResult = {
+        ...result,
+        viewport: { width: viewportWidth, height: 1080 },
+      };
+
+      const normalized = normalizeCapturedLazyMedia(resultWithViewport, sourceUrl);
       if (isCaptureBlockedBySecurityPage({ html: normalized.html, title: normalized.title })) {
         return { bot_blocked: true };
       }
