@@ -29,6 +29,24 @@ import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
 
+const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = new Set(['foton-au', 'gac-au']);
+
+function isModelPageWriteProtected(oemId: string | null | undefined): boolean {
+  return typeof oemId === 'string' && PROTECTED_MODEL_PAGE_WRITE_OEM_IDS.has(oemId);
+}
+
+function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
+  if (!isModelPageWriteProtected(oemId)) {
+    return null;
+  }
+
+  return c.json({
+    error: `${oemId} model pages are protected from admin writes`,
+    oemId,
+    protected: true,
+  }, 403);
+}
+
 // SSRF protection: validate URL before fetching
 function validateUrl(url: string): { valid: boolean; error?: string; parsed?: URL } {
   let parsed: URL;
@@ -2292,6 +2310,8 @@ app.get('/pages/:oemId/:modelSlug/should-regenerate', async (c) => {
 app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   // Accept optional modelOverride in body for A/B testing
   let modelOverride: { provider?: string; model?: string } | undefined;
@@ -2359,6 +2379,8 @@ app.post('/admin/generate-page/:oemId/:modelSlug', async (c) => {
 app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   // Accept optional source_url override and external capture payload in body.
   let body: {
@@ -2430,6 +2452,8 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
 app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   // Accept optional modelOverride in body for A/B testing
   let modelOverride: { provider?: string; model?: string } | undefined;
@@ -2478,6 +2502,8 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
 app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   const body = await c.req.json<{ sections: any[] }>();
   if (!Array.isArray(body.sections)) {
@@ -2568,6 +2594,8 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
 app.put('/admin/update-clone/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   const body = await c.req.json<{ edited_rendered: string; section_index?: any[] }>();
   if (typeof body.edited_rendered !== 'string' || body.edited_rendered.trim().length < 20) {
@@ -2663,6 +2691,9 @@ app.put('/admin/update-clone/:oemId/:modelSlug', async (c) => {
 app.post('/admin/import-legacy/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
   const body = await c.req.json<{ url?: string; json?: any }>();
 
   let legacyData: any;
@@ -2784,6 +2815,9 @@ app.post('/admin/preview-legacy-import', async (c) => {
 app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
   const body = await c.req.json<{ url?: string }>().catch((): { url?: string } => ({}));
 
   const { scrapeOemModelPage, GWM_OEM_MODEL_URLS } = await import('../design/oem-scraper');
@@ -2872,6 +2906,9 @@ app.post('/admin/scrape-oem/:oemId/:modelSlug', async (c) => {
 app.post('/admin/scrape-gac/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
   const body = await c.req.json<{ path?: string }>().catch((): { path?: string } => ({}));
 
   const { scrapeGacModelPage, GAC_MODEL_PATHS } = await import('../design/gac-scraper');
@@ -3023,6 +3060,8 @@ app.post('/admin/preview-oem-scrape', async (c) => {
 app.post('/admin/upload-media/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId');
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   const ALLOWED_TYPES = new Set([
     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -3120,6 +3159,8 @@ app.get('/admin/list-media/:oemId', async (c) => {
 app.post('/admin/regenerate-section/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   const body = await c.req.json<{ sectionId: string; sectionType: string }>();
   if (!body.sectionId || !body.sectionType) {
@@ -3180,6 +3221,8 @@ app.post('/admin/regenerate-section/:oemId/:modelSlug', async (c) => {
 app.put('/admin/screenshot/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   const supabaseForResolve = createSupabaseClient({
     url: c.env.SUPABASE_URL,
@@ -3821,6 +3864,9 @@ app.post('/admin/page-templates/save', async (c) => {
 
 app.put('/admin/dealer-overrides/:oemId/:modelSlug', async (c) => {
   const { oemId, modelSlug } = c.req.param();
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
   const overrides = await c.req.json<{ dealer_name?: string; logo_url?: string; phone?: string; address?: string; special_offer?: string }>();
 
   const r2Key = `pages/definitions/${oemId}/${modelSlug}/latest.json`;
@@ -3851,6 +3897,8 @@ app.post('/admin/page-templates/apply', async (c) => {
   if (!body.template_id || !body.oem_id || !body.model_slug) {
     return c.json({ error: 'template_id, oem_id, and model_slug are required' }, 400);
   }
+  const protectedWrite = rejectProtectedModelPageWrite(c, body.oem_id);
+  if (protectedWrite) return protectedWrite;
 
   const template = PAGE_TEMPLATES.find(t => t.id === body.template_id);
   if (!template) return c.json({ error: 'Template not found' }, 404);
@@ -4750,6 +4798,8 @@ app.get('/extraction-runs', async (c) => {
 app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   if (!allOemIds.includes(oemId)) {
     return c.json({ error: `Unknown OEM: ${oemId}` }, 400);
@@ -4816,6 +4866,8 @@ app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
 // POST /admin/create-custom-page/:oemId/:slug — Create a blank custom page in R2
 app.post('/admin/create-custom-page/:oemId/:slug', async (c) => {
   const { oemId, slug } = c.req.param();
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   // Validate slug format
   if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug) && !/^[a-z0-9]$/.test(slug)) {
@@ -4868,6 +4920,8 @@ app.post('/admin/create-custom-page/:oemId/:slug', async (c) => {
 // POST /admin/create-subpage/:oemId/:modelSlug/:subpageSlug — Create a subpage under a model page
 app.post('/admin/create-subpage/:oemId/:modelSlug/:subpageSlug', async (c) => {
   const { oemId, modelSlug, subpageSlug } = c.req.param();
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
 
   // Validate subpage slug format
   if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subpageSlug) && !/^[a-z0-9]$/.test(subpageSlug)) {
@@ -4933,6 +4987,9 @@ app.post('/admin/create-subpage/:oemId/:modelSlug/:subpageSlug', async (c) => {
 // DELETE /admin/delete-subpage/:oemId/:modelSlug/:subpageSlug — Delete a subpage from R2
 app.delete('/admin/delete-subpage/:oemId/:modelSlug/:subpageSlug', async (c) => {
   const { oemId, modelSlug, subpageSlug } = c.req.param();
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
   const bucket = c.env.MOLTBOT_BUCKET;
   const compositeSlug = `${modelSlug}--${subpageSlug}`;
   const key = `pages/definitions/${oemId}/${compositeSlug}/latest.json`;
@@ -4954,6 +5011,9 @@ app.delete('/admin/delete-subpage/:oemId/:modelSlug/:subpageSlug', async (c) => 
 // DELETE /admin/delete-custom-page/:oemId/:slug — Delete a custom page from R2
 app.delete('/admin/delete-custom-page/:oemId/:slug', async (c) => {
   const { oemId, slug } = c.req.param();
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  if (protectedWrite) return protectedWrite;
+
   const bucket = c.env.MOLTBOT_BUCKET;
   const key = `pages/definitions/${oemId}/${slug}/latest.json`;
 

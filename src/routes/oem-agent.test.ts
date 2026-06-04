@@ -2,6 +2,23 @@ import { describe, expect, it } from 'vitest';
 
 import oemAgentApp from './oem-agent';
 
+function throwingBucket() {
+  return {
+    get() {
+      throw new Error('bucket.get should not be called for protected model page writes');
+    },
+    head() {
+      throw new Error('bucket.head should not be called for protected model page writes');
+    },
+    put() {
+      throw new Error('bucket.put should not be called for protected model page writes');
+    },
+    delete() {
+      throw new Error('bucket.delete should not be called for protected model page writes');
+    },
+  };
+}
+
 describe('oem-agent clone update route', () => {
   it.each([
     {
@@ -80,5 +97,48 @@ describe('oem-agent clone update route', () => {
     expect(latestPut).toBeDefined();
     const savedPage = JSON.parse(latestPut!.value);
     expect(savedPage.content.modes.clone.section_index).toEqual(existingSectionIndex);
+  });
+});
+
+describe('oem-agent protected model page writes', () => {
+  it.each([
+    { method: 'POST', path: '/admin/generate-page/gac-au/emkoo' },
+    { method: 'POST', path: '/admin/clone-page/foton-au/tunland' },
+    { method: 'POST', path: '/admin/structure-page/gac-au/emkoo' },
+    { method: 'PUT', path: '/admin/update-sections/foton-au/tunland' },
+    { method: 'PUT', path: '/admin/update-clone/gac-au/emkoo' },
+    { method: 'POST', path: '/admin/import-legacy/foton-au/tunland' },
+    { method: 'POST', path: '/admin/scrape-oem/gac-au/emkoo' },
+    { method: 'POST', path: '/admin/scrape-gac/gac-au/emkoo' },
+    { method: 'POST', path: '/admin/upload-media/foton-au/tunland' },
+    { method: 'POST', path: '/admin/regenerate-section/gac-au/emkoo' },
+    { method: 'PUT', path: '/admin/screenshot/foton-au/tunland' },
+    { method: 'PUT', path: '/admin/dealer-overrides/gac-au/emkoo' },
+    {
+      method: 'POST',
+      path: '/admin/page-templates/apply',
+      body: { template_id: 'basic-landing', oem_id: 'foton-au', model_slug: 'tunland' },
+    },
+    { method: 'POST', path: '/admin/adaptive-pipeline/gac-au/emkoo' },
+    { method: 'POST', path: '/admin/create-custom-page/foton-au/warranty' },
+    { method: 'POST', path: '/admin/create-subpage/gac-au/emkoo/specs' },
+    { method: 'DELETE', path: '/admin/delete-subpage/foton-au/tunland/specs' },
+    { method: 'DELETE', path: '/admin/delete-custom-page/gac-au/warranty' },
+  ])('blocks $method $path before mutating storage', async ({ method, path, body }) => {
+    const response = await oemAgentApp.request(path, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    }, {
+      MOLTBOT_BUCKET: throwingBucket(),
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(403);
+    const json = await response.json() as { protected: boolean; error: string };
+    expect(json.protected).toBe(true);
+    expect(json.error).toContain('protected from admin writes');
   });
 });
