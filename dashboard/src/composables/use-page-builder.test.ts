@@ -347,3 +347,27 @@ describe('usePageBuilder media URL resolution', () => {
     expect(builder.page.value.content.modes.sections.items).toEqual(builder.page.value.content.sections)
   })
 })
+
+describe('usePageBuilder addCloneRegion', () => {
+  it('adds a region to cloneRegionsForSave and marks the builder dirty', () => {
+    const builder = usePageBuilder()
+    const region = {
+      id: 'clone-region-99',
+      label: 'Hero (copy)',
+      selector: '[data-oem-region-id="clone-region-99"]',
+      tag: 'section',
+      classes: ['hero'],
+      top: 120,
+      height: 480,
+      type_hint: 'hero',
+      editable_fields: [],
+    }
+
+    expect(builder.cloneRegionsForSave.value.some(r => r.id === 'clone-region-99')).toBe(false)
+
+    builder.addCloneRegion(region as any)
+
+    expect(builder.cloneRegionsForSave.value.some(r => r.id === 'clone-region-99')).toBe(true)
+    expect(builder.isDirty.value).toBe(true)
+  })
+})

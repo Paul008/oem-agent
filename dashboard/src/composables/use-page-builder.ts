@@ -338,6 +338,13 @@ export function usePageBuilder() {
       cloneRegionDrafts.value = cloneRegionDrafts.value.map((draft, i) => (i === idx ? region : draft))
   }
 
+  // Add a brand-new clone region (e.g. from a duplicate action) to the draft list so it
+  // persists into section_index via saveClone. Drafts win in cloneRegionsForSave.
+  function addCloneRegion(region: CloneRegion) {
+    upsertCloneRegionDraft(region)
+    isDirty.value = true
+  }
+
   // section_index to persist on save: persisted regions plus any touched this session (drafts win).
   const cloneRegionsForSave = computed<CloneRegion[]>(() => {
     const byId = new Map<string, CloneRegion>()
@@ -876,6 +883,7 @@ export function usePageBuilder() {
     setActiveMode,
     selectCloneRegion,
     setRegionHeight,
+    addCloneRegion,
     deleteSection,
     moveSection,
     addSection,
