@@ -60,6 +60,8 @@ const viewMode = ref<'grid' | 'coverage'>('coverage')
 // Page data: slug list per OEM, and cached full page objects
 const allSlugs = ref<{ oem_id: string, slug: string }[]>([])
 const pageCache = ref<Map<string, VehicleModelPage>>(new Map())
+const pageListErrors = ref<Record<string, string>>({})
+const pageDetailErrors = ref<Record<string, string>>({})
 
 // Inline generation tracking
 const generating = ref(new Set<string>())
@@ -338,6 +340,63 @@ const modelPageOemIds = computed(() => {
   return orderedKnown.length || extraIds.length ? [...orderedKnown, ...extraIds] : [...OEM_IDS]
 })
 
+function formatLoadError(reason: unknown): string {
+  if (reason instanceof Error)
+    return reason.message
+  if (typeof reason === 'string')
+    return reason
+  return 'Unknown error'
+}
+
+function pageSlugsFromResponse(response: any): string[] {
+  const pages = Array.isArray(response) ? response : response?.pages
+  return Array.isArray(pages)
+    ? pages.filter((slug): slug is string => typeof slug === 'string' && slug.length > 0)
+    : []
+}
+
+async function loadGeneratedPageSlugs() {
+  const results = await Promise.allSettled(
+    modelPageOemIds.value.map(async (oemId) => {
+      const res = await fetchGeneratedPages(oemId)
+      return { oemId, pages: pageSlugsFromResponse(res) }
+    }),
+  )
+
+  const slugs: { oem_id: string, slug: string }[] = []
+  const errors: Record<string, string> = {}
+  for (let index = 0; index < results.length; index++) {
+    const r = results[index]
+    if (r.status === 'fulfilled') {
+      for (const s of r.value.pages) {
+        slugs.push({ oem_id: r.value.oemId, slug: s })
+      }
+    }
+    else {
+      const oemId = modelPageOemIds.value[index] ?? 'unknown'
+      errors[oemId] = formatLoadError(r.reason)
+    }
+  }
+  pageListErrors.value = errors
+  return slugs
+}
+
+const pageLoadIssues = computed(() => [
+  ...Object.entries(pageListErrors.value).map(([oemId, message]) => ({
+    kind: 'Page list',
+    target: oemName(oemId),
+    message,
+  })),
+  ...Object.entries(pageDetailErrors.value).map(([key, message]) => ({
+    kind: 'Page detail',
+    target: key,
+    message,
+  })),
+])
+
+const visiblePageLoadIssues = computed(() => pageLoadIssues.value.slice(0, 4))
+const hiddenPageLoadIssueCount = computed(() => Math.max(0, pageLoadIssues.value.length - visiblePageLoadIssues.value.length))
+
 onMounted(async () => {
   try {
     const [oemList, models] = await Promise.all([
@@ -347,22 +406,7 @@ onMounted(async () => {
     oems.value = oemList
     allModels.value = models
 
-    // Fetch slug lists from all OEMs in parallel
-    const results = await Promise.allSettled(
-      modelPageOemIds.value.map(async (oemId) => {
-        const res = await fetchGeneratedPages(oemId)
-        return { oemId, pages: res.pages as string[] }
-      }),
-    )
-
-    const slugs: { oem_id: string, slug: string }[] = []
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.pages?.length) {
-        for (const s of r.value.pages) {
-          slugs.push({ oem_id: r.value.oemId, slug: s })
-        }
-      }
-    }
+    const slugs = await loadGeneratedPageSlugs()
     allSlugs.value = slugs
 
     // Prefetch first batch of page details for stats and cards
@@ -383,11 +427,20 @@ async function prefetchPages(items: { oem_id: string, slug: string }[]) {
       return { key: fullSlug(item), data: data as VehicleModelPage }
     }),
   )
-  for (const r of results) {
+  const errors = { ...pageDetailErrors.value }
+  for (let index = 0; index < results.length; index++) {
+    const r = results[index]
     if (r.status === 'fulfilled') {
       pageCache.value.set(r.value.key, r.value.data)
+      delete errors[r.value.key]
+    }
+    else {
+      const item = toFetch[index]
+      if (item)
+        errors[fullSlug(item)] = formatLoadError(r.reason)
     }
   }
+  pageDetailErrors.value = errors
 }
 
 function fullSlug(item: { oem_id: string, slug: string }) {
@@ -722,21 +775,9 @@ async function handleRefresh() {
     return
   refreshing.value = true
   pageCache.value.clear()
+  pageDetailErrors.value = {}
   try {
-    const results = await Promise.allSettled(
-      modelPageOemIds.value.map(async (oemId) => {
-        const res = await fetchGeneratedPages(oemId)
-        return { oemId, pages: res.pages as string[] }
-      }),
-    )
-    const slugs: { oem_id: string, slug: string }[] = []
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.pages?.length) {
-        for (const s of r.value.pages) {
-          slugs.push({ oem_id: r.value.oemId, slug: s })
-        }
-      }
-    }
+    const slugs = await loadGeneratedPageSlugs()
     allSlugs.value = slugs
     await prefetchPages(slugs.slice(0, 48))
   }
@@ -826,6 +867,34 @@ async function handleRefresh() {
           {{ filtered.length }} pages
         </template>
       </span>
+    </div>
+
+    <div
+      v-if="pageLoadIssues.length"
+      class="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm"
+    >
+      <div class="flex items-start gap-3">
+        <AlertCircle class="size-4 text-amber-600 mt-0.5 shrink-0" />
+        <div class="min-w-0 flex-1">
+          <p class="font-medium text-amber-700 dark:text-amber-400">
+            Some model page data failed to load
+          </p>
+          <div class="mt-2 grid gap-1 text-xs text-muted-foreground">
+            <div
+              v-for="issue in visiblePageLoadIssues"
+              :key="`${issue.kind}-${issue.target}`"
+              class="flex gap-2 min-w-0"
+            >
+              <span class="font-medium text-foreground shrink-0">{{ issue.kind }}</span>
+              <span class="truncate">{{ issue.target }}</span>
+              <span class="text-muted-foreground/70 truncate">{{ issue.message }}</span>
+            </div>
+            <p v-if="hiddenPageLoadIssueCount" class="text-muted-foreground/80">
+              {{ hiddenPageLoadIssueCount }} more issue{{ hiddenPageLoadIssueCount === 1 ? '' : 's' }}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center h-64">
