@@ -22,6 +22,17 @@ export function computeCloneFrameScale(containerWidth: number, frameWidth: numbe
   return Math.min(1, containerWidth / frameWidth)
 }
 
+/**
+ * Clamp a region's cropped height from a pointer position. `pointerY`/`regionTop` are in the same
+ * coordinate space (the region's top edge); the result is bounded to `[min, naturalHeight]` so a
+ * drag can never shrink below `min` or grow past the region's natural (uncropped) height.
+ */
+export function clampRegionHeight(pointerY: number, regionTop: number, naturalHeight: number, min = 40): number {
+  const raw = pointerY - regionTop
+  const max = naturalHeight > 0 ? naturalHeight : raw
+  return Math.max(min, Math.min(raw, max))
+}
+
 export function cloneStudioIframeSandbox(allowSameOrigin = false): string {
   return allowSameOrigin ? 'allow-scripts allow-same-origin' : 'allow-scripts'
 }
@@ -89,6 +100,7 @@ const emit = defineEmits<{
   selectRegion: [region: any]
   domUpdated: [html: string]
   contextMenu: [menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }]
+  regionHeight: [payload: { regionId: any, height: number | null }]
 }>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
@@ -170,6 +182,15 @@ function onMessage(event: MessageEvent) {
     const html = typeof data.bodyHtml === 'string' ? data.bodyHtml : data.html
     if (typeof html === 'string')
       emit('domUpdated', html)
+    return
+  }
+
+  if (data.type === 'clone-studio:region-height') {
+    const height = data.height == null ? null : Number(data.height)
+    emit('regionHeight', {
+      regionId: data.regionId,
+      height: height != null && Number.isFinite(height) ? height : null,
+    })
     return
   }
 

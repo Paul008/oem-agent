@@ -151,6 +151,14 @@ function submitCloneInput() {
   closeCloneMenu()
 }
 
+// Drag-handle release/clear from the bridge persists via the existing height_override path
+// (onUpdateField → setRegionHeight in [slug].vue), so no parallel persistence code is needed.
+function onRegionHeight(payload: { regionId: any, height: number | null }) {
+  if (props.readOnly || !payload || !payload.regionId)
+    return
+  emit('updateField', payload.regionId, 'height_override', payload.height)
+}
+
 function setCloneBgColor(color: string) {
   const region = cloneMenu.value?.region
   if (!region || props.readOnly)
@@ -517,6 +525,7 @@ function sectionStyle(section: any): Record<string, string> {
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
+            @region-height="onRegionHeight"
             @context-menu="onCloneContextMenu"
           />
         </div>
