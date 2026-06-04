@@ -295,7 +295,7 @@ function sectionStyle(section: any): Record<string, string> {
     <!-- Preview mode and responsive controls -->
     <div v-if="showStructuredPreview || showCloneFrame" class="flex items-center justify-between gap-2 py-1.5 px-2 border-b bg-card shrink-0">
       <div class="min-w-0 text-xs font-medium text-muted-foreground">
-        {{ activeMode === 'clone' ? 'Clone Studio' : 'Section Builder' }}
+        {{ readOnly ? 'Preview' : (activeMode === 'clone' ? 'Clone Studio' : 'Section Builder') }}
       </div>
 
       <div class="flex items-center justify-center gap-1">
