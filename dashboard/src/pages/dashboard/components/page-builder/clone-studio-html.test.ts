@@ -555,4 +555,10 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain("addEventListener('contextmenu'")
     expect(html).toContain('clone-studio:context-menu')
   })
+
+  it('bridge enables contenteditable on a begin-edit message and commits text', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
+    expect(html).toContain('clone-studio:begin-edit')
+    expect(html).toContain("setAttribute('contenteditable'")
+  })
 })

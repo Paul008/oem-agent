@@ -185,6 +185,8 @@ ${rendered}
   var MESSAGE_DOM_UPDATED = 'clone-studio:dom-updated'
   var MESSAGE_PATCH_FIELD = 'clone-studio:patch-field'
   var MESSAGE_CONTEXT_MENU = 'clone-studio:context-menu'
+  var MESSAGE_BEGIN_EDIT = 'clone-studio:begin-edit'
+  var activeEdit = null
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
   var hoverRegion = null
@@ -926,6 +928,83 @@ ${rendered}
     return true
   }
 
+  function beginInlineEdit(region) {
+    if (!region)
+      return false
+
+    // Reuse the shared text-target resolver so the editable element matches what patchField targets.
+    var el = resolvePatchTarget({}, region, 'text')
+    if (!el || !el.setAttribute)
+      return false
+
+    if (activeEdit && activeEdit.el === el) {
+      try { el.focus() } catch (_focusError) {}
+      return true
+    }
+
+    if (activeEdit)
+      finishInlineEdit(true)
+
+    var regionId = ensureRegionId(region)
+    var originalText = el.textContent
+
+    function onBlur() {
+      finishInlineEdit(true)
+    }
+
+    function onKeydown(event) {
+      if (event.key === 'Enter' || event.keyCode === 13) {
+        event.preventDefault()
+        finishInlineEdit(true)
+      }
+      else if (event.key === 'Escape' || event.keyCode === 27) {
+        event.preventDefault()
+        el.textContent = originalText
+        finishInlineEdit(false)
+      }
+    }
+
+    activeEdit = {
+      el: el,
+      regionId: regionId,
+      originalText: originalText,
+      onBlur: onBlur,
+      onKeydown: onKeydown
+    }
+
+    el.setAttribute('contenteditable', 'plaintext-only')
+    el.addEventListener('blur', onBlur, false)
+    el.addEventListener('keydown', onKeydown, false)
+
+    try { el.focus() } catch (_focusError) {}
+
+    return true
+  }
+
+  function finishInlineEdit(commit) {
+    if (!activeEdit)
+      return
+
+    var edit = activeEdit
+    activeEdit = null
+
+    edit.el.removeEventListener('blur', edit.onBlur, false)
+    edit.el.removeEventListener('keydown', edit.onKeydown, false)
+    edit.el.removeAttribute('contenteditable')
+
+    if (edit.el.blur)
+      edit.el.blur()
+
+    if (commit) {
+      post(MESSAGE_PATCH_FIELD, {
+        regionId: edit.regionId,
+        kind: 'text',
+        value: edit.el.textContent,
+        committed: true
+      })
+    }
+  }
+
   function stopBlockedEvent(event) {
     event.preventDefault()
     event.stopPropagation()
@@ -946,6 +1025,9 @@ ${rendered}
       if (!shouldBlock)
         stopBlockedEvent(event)
       selectRegion(region, true)
+
+      if (event.type === 'dblclick')
+        beginInlineEdit(region)
     }
   }
 
@@ -993,6 +1075,15 @@ ${rendered}
     if (message.type === MESSAGE_SELECT || message.type === MESSAGE_SELECT_REGION) {
       var targetRegion = findRegionById(message.regionId || message.selectedRegionId || message.id)
       selectRegion(targetRegion, true, true)
+      return
+    }
+
+    if (message.type === MESSAGE_BEGIN_EDIT) {
+      var editRegion = findRegionById(message.regionId || message.selectedRegionId || message.id)
+      if (!editRegion)
+        return
+      selectRegion(editRegion, true)
+      beginInlineEdit(editRegion)
       return
     }
 
