@@ -2,34 +2,32 @@
 // Authored as ONE self-contained function so use-capture-injection can inject
 // tailwindRules.toString() into the page (minification-safe: no outside refs).
 // Single source of truth; unit-tested directly.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// @ts-nocheck  — ES5-style body (no type annotations) intentional: function is serialised via .toString() for in-page injection
 export function tailwindRules() {
-  function pxToSp(px) {
-    var m={0:'0',1:'px',2:'0.5',4:'1',6:'1.5',8:'2',10:'2.5',12:'3',14:'3.5',16:'4',20:'5',24:'6',28:'7',32:'8',36:'9',40:'10',44:'11',48:'12',56:'14',64:'16',72:'18',80:'20',96:'24'};
+  function pxToSp(px: number): string {
+    var m: Record<number, string>={0:'0',1:'px',2:'0.5',4:'1',6:'1.5',8:'2',10:'2.5',12:'3',14:'3.5',16:'4',20:'5',24:'6',28:'7',32:'8',36:'9',40:'10',44:'11',48:'12',56:'14',64:'16',72:'18',80:'20',96:'24'};
     if(m[px]!==undefined)return m[px]; return px>96?'['+px+'px]':'['+px+'px]';
   }
-  function fsTw(px) {
-    var m={12:'xs',14:'sm',16:'base',18:'lg',20:'xl',24:'2xl',30:'3xl',36:'4xl',48:'5xl',60:'6xl'};
+  function fsTw(px: number): string {
+    var m: Record<number, string>={12:'xs',14:'sm',16:'base',18:'lg',20:'xl',24:'2xl',30:'3xl',36:'4xl',48:'5xl',60:'6xl'};
     if(m[px])return m[px]; var ks=Object.keys(m).map(Number); var c=ks.reduce(function(p,k){return Math.abs(k-px)<Math.abs(p-px)?k:p}); return Math.abs(c-px)<=1?m[c]:'['+px+'px]';
   }
-  function rgbHex(rgb) {
+  function rgbHex(rgb: string): string {
     var m=rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/); if(!m)return rgb;
     return '#'+[m[1],m[2],m[3]].map(function(n){return parseInt(n).toString(16).padStart(2,'0')}).join('');
   }
-  function colTw(rgb) {
+  function colTw(rgb: string): string {
     if(rgb==='rgb(0, 0, 0)')return 'black'; if(rgb==='rgb(255, 255, 255)')return 'white'; if(rgb==='rgba(0, 0, 0, 0)')return 'transparent';
     var h=rgbHex(rgb); return h.startsWith('#')?'['+h+']':'['+rgb+']';
   }
-  function cssTw(prop,val) {
+  function cssTw(prop: string, val: string): string[] {
     if(!val||val==='none'||val==='normal'||val==='auto'||val==='0px'||val==='rgba(0, 0, 0, 0)')return [];
-    var px=parseFloat(val),cls=[];
+    var px=parseFloat(val),cls: string[]=[];
     switch(prop){
-      case 'display': var dm={block:'block','inline-block':'inline-block',flex:'flex',grid:'grid',none:'hidden','inline-flex':'inline-flex'}; if(dm[val])cls.push(dm[val]);break;
+      case 'display': var dm: Record<string, string>={block:'block','inline-block':'inline-block',flex:'flex',grid:'grid',none:'hidden','inline-flex':'inline-flex'}; if(dm[val])cls.push(dm[val]);break;
       case 'flex-direction': if(val==='column')cls.push('flex-col');else if(val==='row-reverse')cls.push('flex-row-reverse');break;
       case 'flex-wrap': if(val==='wrap')cls.push('flex-wrap');break;
-      case 'align-items': var ai={'flex-start':'items-start','flex-end':'items-end',center:'items-center',stretch:'items-stretch',baseline:'items-baseline'}; if(ai[val])cls.push(ai[val]);break;
-      case 'justify-content': var jc={'flex-start':'justify-start','flex-end':'justify-end',center:'justify-center','space-between':'justify-between','space-around':'justify-around'}; if(jc[val])cls.push(jc[val]);break;
+      case 'align-items': var ai: Record<string, string>={'flex-start':'items-start','flex-end':'items-end',center:'items-center',stretch:'items-stretch',baseline:'items-baseline'}; if(ai[val])cls.push(ai[val]);break;
+      case 'justify-content': var jc: Record<string, string>={'flex-start':'justify-start','flex-end':'justify-end',center:'justify-center','space-between':'justify-between','space-around':'justify-around'}; if(jc[val])cls.push(jc[val]);break;
       case 'grid-template-columns': var cm=val.match(/repeat\((\d+),/i); if(cm)cls.push('grid-cols-'+cm[1]); else{var fr=(val.match(/\d+fr/g)||[]).length;if(fr>0)cls.push('grid-cols-'+fr);} break;
       case 'gap':case 'grid-gap': if(!isNaN(px)&&px>0)cls.push('gap-'+pxToSp(px));break;
       case 'column-gap': if(!isNaN(px)&&px>0)cls.push('gap-x-'+pxToSp(px));break;
@@ -82,8 +80,8 @@ export function tailwindRules() {
       case 'color': cls.push('text-'+colTw(val));break;
       case 'background-color': cls.push('bg-'+colTw(val));break;
       case 'font-size': if(!isNaN(px))cls.push('text-'+fsTw(px));break;
-      case 'font-weight': var fw={'400':'font-normal','500':'font-medium','600':'font-semibold','700':'font-bold','800':'font-extrabold'}; if(fw[val])cls.push(fw[val]);break;
-      case 'text-align': var ta={left:'text-left',center:'text-center',right:'text-right'}; if(ta[val])cls.push(ta[val]);break;
+      case 'font-weight': var fw: Record<string, string>={'400':'font-normal','500':'font-medium','600':'font-semibold','700':'font-bold','800':'font-extrabold'}; if(fw[val])cls.push(fw[val]);break;
+      case 'text-align': var ta: Record<string, string>={left:'text-left',center:'text-center',right:'text-right'}; if(ta[val])cls.push(ta[val]);break;
       case 'text-transform': if(val==='uppercase')cls.push('uppercase');else if(val==='capitalize')cls.push('capitalize');break;
       case 'border-radius': if(!isNaN(px)&&px>0){if(px>=9999)cls.push('rounded-full');else if(px<=4)cls.push('rounded');else if(px<=8)cls.push('rounded-lg');else cls.push('rounded-['+px+'px]');}break;
       case 'object-fit': if(val==='cover')cls.push('object-cover');else if(val==='contain')cls.push('object-contain');break;
@@ -93,7 +91,7 @@ export function tailwindRules() {
     return cls;
   }
   // Bootstrap/framework class → Tailwind class mapping (tailwindo-style)
-  var CLASS_MAP = {
+  var CLASS_MAP: Record<string, string> = {
     // Display
     'd-flex':'flex','d-inline-flex':'inline-flex','d-block':'block','d-inline-block':'inline-block',
     'd-none':'hidden','d-grid':'grid','d-inline':'inline','d-table':'table',
@@ -143,19 +141,19 @@ export function tailwindRules() {
   };
 
   // Bootstrap col-* → Tailwind width (handles responsive prefixes)
-  function mapColClass(cls) {
+  function mapColClass(cls: string): string | null {
     var m = cls.match(/^col-(xs|sm|md|lg|xl|xxl)-(\d+)$/);
     if (m) {
       var prefix = m[1] === 'xs' ? '' : m[1] + ':';
       var n = parseInt(m[2]);
-      var fracs = {1:'1/12',2:'2/12',3:'1/4',4:'1/3',5:'5/12',6:'1/2',7:'7/12',8:'2/3',9:'3/4',10:'10/12',11:'11/12',12:'w-full'};
+      var fracs: Record<number, string> = {1:'1/12',2:'2/12',3:'1/4',4:'1/3',5:'5/12',6:'1/2',7:'7/12',8:'2/3',9:'3/4',10:'10/12',11:'11/12',12:'w-full'};
       return n === 12 ? prefix + 'w-full' : prefix + 'w-' + (fracs[n] || n + '/12');
     }
     // col-{n} without breakpoint
     var m2 = cls.match(/^col-(\d+)$/);
     if (m2) {
       var n2 = parseInt(m2[1]);
-      var fracs2 = {1:'1/12',2:'2/12',3:'1/4',4:'1/3',5:'5/12',6:'1/2',7:'7/12',8:'2/3',9:'3/4',10:'10/12',11:'11/12',12:'full'};
+      var fracs2: Record<number, string> = {1:'1/12',2:'2/12',3:'1/4',4:'1/3',5:'5/12',6:'1/2',7:'7/12',8:'2/3',9:'3/4',10:'10/12',11:'11/12',12:'full'};
       return 'w-' + (fracs2[n2] || n2 + '/12');
     }
     // bare "col" = flex grow
@@ -164,9 +162,9 @@ export function tailwindRules() {
   }
 
   // Map all classes on an element from Bootstrap/framework → Tailwind
-  function mapClasses(originalClasses) {
+  function mapClasses(originalClasses: string): string[] {
     if (!originalClasses) return [];
-    var result = [];
+    var result: string[] = [];
     var classes = originalClasses.split(/\s+/);
     for (var i = 0; i < classes.length; i++) {
       var c = classes[i].trim();
@@ -187,7 +185,7 @@ export function tailwindRules() {
   }
 
   // styleTw: inline-style escape hatch. Stub for now (Task 6 implements it).
-  function styleTw(prop, val) { return ''; }
+  function styleTw(_prop: string, _val: string): string { return ''; }
 
   return { pxToSp: pxToSp, fsTw: fsTw, rgbHex: rgbHex, colTw: colTw, cssTw: cssTw, mapClasses: mapClasses, styleTw: styleTw };
 }
