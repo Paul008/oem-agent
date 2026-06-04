@@ -8,6 +8,7 @@ import {
   getCloneHtml,
   getCloneRegions,
   getCloneStylesheetUrls,
+  getCloneViewport,
   getSectionItems,
   normalizeDashboardPageModes,
 } from './page-modes'
@@ -131,6 +132,37 @@ describe('dashboard page modes', () => {
     }
 
     expect(getCloneStylesheetUrls(page)).toEqual(['https://www.ford.com.au/site.css'])
+  })
+
+  it('returns the stored clone viewport metadata', () => {
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main>clone</main>',
+            viewport: { width: 1680, height: 1080 },
+          },
+        },
+      },
+    }
+
+    expect(getCloneViewport(page)).toEqual({ width: 1680, height: 1080 })
+  })
+
+  it('falls back to the standard desktop viewport when clone viewport metadata is missing or invalid', () => {
+    const invalidPages = [
+      {},
+      { content: { modes: { clone: { rendered: '<main>clone</main>' } } } },
+      { content: { modes: { clone: { rendered: '<main>clone</main>', viewport: { width: 0, height: 1080 } } } } },
+      { content: { modes: { clone: { rendered: '<main>clone</main>', viewport: { width: -1, height: 1080 } } } } },
+      { content: { modes: { clone: { rendered: '<main>clone</main>', viewport: { width: Number.POSITIVE_INFINITY, height: 1080 } } } } },
+      { content: { modes: { clone: { rendered: '<main>clone</main>', viewport: { width: '1440', height: 1080 } } } } },
+      { content: { modes: { clone: { rendered: '<main>clone</main>', viewport: { width: 1440, height: 0 } } } } },
+    ]
+
+    for (const page of invalidPages) {
+      expect(getCloneViewport(page)).toEqual({ width: 1280, height: 1080 })
+    }
   })
 })
 

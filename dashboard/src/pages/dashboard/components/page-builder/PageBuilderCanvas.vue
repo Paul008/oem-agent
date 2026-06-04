@@ -2,7 +2,7 @@
 import { AlertCircle, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Wand2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
+import { getCloneViewport, type CloneRegion, type PageMode } from '../../page-builder/page-modes'
 
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
@@ -49,12 +49,13 @@ const previewWidthClass: Record<string, string> = {
 // Viewport width the cloned OEM page renders at, so its responsive CSS resolves to the intended
 // device layout. 'full' uses a desktop width (scaled to fit the panel); tablet/mobile match the
 // constrained container so they render at native device width.
+const cloneViewport = computed(() => getCloneViewport(props.page))
 const cloneFrameWidth = computed(() => {
   if (previewWidth.value === 'tablet')
     return 768
   if (previewWidth.value === 'mobile')
     return 375
-  return 1280
+  return cloneViewport.value.width
 })
 
 const showCloneFrame = computed(() => props.activeMode === 'clone' && props.isCloned)

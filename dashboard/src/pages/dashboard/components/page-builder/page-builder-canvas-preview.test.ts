@@ -81,6 +81,22 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).toContain('.dsktoponly')
   })
 
+  it('uses captured clone viewport metadata for the full clone frame width', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const helperImport = source.indexOf('getCloneViewport')
+    const viewportComputed = source.indexOf('const cloneViewport = computed(() => getCloneViewport(props.page))')
+    const fullWidthBranch = source.indexOf('return cloneViewport.value.width')
+    const tabletBranch = source.indexOf("if (previewWidth.value === 'tablet')")
+    const mobileBranch = source.indexOf("if (previewWidth.value === 'mobile')")
+
+    expect(helperImport).toBeGreaterThan(-1)
+    expect(viewportComputed).toBeGreaterThan(helperImport)
+    expect(tabletBranch).toBeGreaterThan(viewportComputed)
+    expect(mobileBranch).toBeGreaterThan(tabletBranch)
+    expect(fullWidthBranch).toBeGreaterThan(mobileBranch)
+    expect(source).not.toContain('return 1280')
+  })
+
   it('keeps Clone Studio same-origin sandboxing behind an explicit flag', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 

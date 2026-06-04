@@ -22,6 +22,11 @@ export interface CloneRegion {
   panel_index?: number;
 }
 
+export interface CloneViewport {
+  width: number
+  height: number
+}
+
 interface DashboardPageContent {
   rendered?: unknown
   sections?: unknown
@@ -38,6 +43,7 @@ interface CloneModeContent extends Record<string, unknown> {
   edited_rendered?: unknown
   section_index?: unknown
   stylesheet_urls?: unknown
+  viewport?: unknown
 }
 
 interface SectionsModeContent extends Record<string, unknown> {
@@ -54,6 +60,7 @@ interface DashboardPageModes extends Record<string, unknown> {
 }
 
 const PAGE_MODE_ORDER: PageMode[] = ['clone', 'sections', 'raw-html', 'generated', 'template']
+const FALLBACK_CLONE_VIEWPORT: CloneViewport = { width: 1280, height: 1080 }
 
 export function normalizeDashboardPageModes<T extends any>(page: T): T {
   if (!page || !isRecord(page)) {
@@ -155,6 +162,19 @@ export function getCloneStylesheetUrls(page: DashboardPage | null | undefined): 
 
   const cloneRendered = typeof clone?.rendered === 'string' ? clone.rendered : ''
   return dedupe(extractStylesheetHrefs(cloneRendered))
+}
+
+export function getCloneViewport(page: DashboardPage | null | undefined): CloneViewport {
+  const viewport = getCloneMode(page)?.viewport
+  if (!isRecord(viewport))
+    return { ...FALLBACK_CLONE_VIEWPORT }
+
+  const width = viewport.width
+  const height = viewport.height
+  if (!isPositiveFiniteNumber(width) || !isPositiveFiniteNumber(height))
+    return { ...FALLBACK_CLONE_VIEWPORT }
+
+  return { width, height }
 }
 
 function extractStylesheetHrefs(html: string): string[] {
@@ -278,4 +298,8 @@ function normalizeModeName(mode: unknown): PageMode | undefined {
 
 function isRecord(value: unknown): value is Record<string, any> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isPositiveFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
