@@ -58,21 +58,9 @@ export { Sandbox };
  */
 function validateRequiredEnv(env: MoltbotEnv): string[] {
   const missing: string[] = [];
-  const isTestMode = env.DEV_MODE === 'true' || env.E2E_TEST_MODE === 'true';
 
   if (!env.MOLTBOT_GATEWAY_TOKEN) {
     missing.push('MOLTBOT_GATEWAY_TOKEN');
-  }
-
-  // CF Access vars not required in dev/test mode since auth is skipped
-  if (!isTestMode) {
-    if (!env.CF_ACCESS_TEAM_DOMAIN) {
-      missing.push('CF_ACCESS_TEAM_DOMAIN');
-    }
-
-    if (!env.CF_ACCESS_AUD) {
-      missing.push('CF_ACCESS_AUD');
-    }
   }
 
   // Check for AI provider configuration (at least one must be set)
@@ -153,6 +141,44 @@ async function authenticateSupabaseBearer(c: Context<AppEnv>): Promise<boolean> 
 
 function canUseSupabaseDashboardAuth(pathname: string): boolean {
   return pathname.startsWith('/api/') || pathname === '/cron' || pathname.startsWith('/cron/');
+}
+
+function requiresWorkerAuth(pathname: string): boolean {
+  return (
+    pathname === '/cron' ||
+    pathname.startsWith('/cron/') ||
+    pathname === '/_admin' ||
+    pathname.startsWith('/_admin/') ||
+    pathname === '/debug' ||
+    pathname.startsWith('/debug/') ||
+    pathname === '/api/admin' ||
+    pathname.startsWith('/api/admin/') ||
+    pathname === '/api/oem-agent/admin' ||
+    pathname.startsWith('/api/oem-agent/admin/') ||
+    pathname === '/api/oem-agent/sales-rep' ||
+    pathname.startsWith('/api/oem-agent/sales-rep/') ||
+    pathname === '/api/oem-agent/design-memory' ||
+    pathname.startsWith('/api/oem-agent/design-memory/') ||
+    pathname === '/api/oem-agent/extraction-runs' ||
+    pathname.startsWith('/api/oem-agent/extraction-runs') ||
+    pathname === '/api/v1/oem-agent/admin' ||
+    pathname.startsWith('/api/v1/oem-agent/admin/') ||
+    pathname === '/api/v1/oem-agent/sales-rep' ||
+    pathname.startsWith('/api/v1/oem-agent/sales-rep/') ||
+    pathname === '/api/v1/oem-agent/design-memory' ||
+    pathname.startsWith('/api/v1/oem-agent/design-memory/') ||
+    pathname === '/api/v1/oem-agent/extraction-runs' ||
+    pathname.startsWith('/api/v1/oem-agent/extraction-runs') ||
+    pathname === '/api/v1/agents' ||
+    pathname.startsWith('/api/v1/agents/') ||
+    pathname === '/api/v1/admin' ||
+    pathname.startsWith('/api/v1/admin/')
+  );
+}
+
+function shouldInjectGatewayToken(c: Context<AppEnv>, url: URL): boolean {
+  if (!c.env.MOLTBOT_GATEWAY_TOKEN || url.searchParams.has('token')) return false;
+  return c.env.DEV_MODE === 'true' || c.env.E2E_TEST_MODE === 'true' || !!c.get('accessUser');
 }
 
 // Main app
@@ -291,13 +317,21 @@ app.use('*', async (c, next) => {
   return next();
 });
 
-// Middleware: Cloudflare Access authentication for protected routes
+// Middleware: authenticate protected Worker-owned routes.
+// Cloudflare Access is only a fallback here; dashboard requests normally arrive
+// with a Supabase bearer token and OpenClaw catch-all traffic relies on the
+// gateway's own token/session handling.
 app.use('*', async (c, next) => {
+  const pathname = new URL(c.req.url).pathname;
+  if (!requiresWorkerAuth(pathname)) {
+    return next();
+  }
+
   // Determine response type based on Accept header
   const acceptsHtml = c.req.header('Accept')?.includes('text/html');
   const middleware = createAccessMiddleware({
     type: acceptsHtml ? 'html' : 'json',
-    redirectOnMissing: acceptsHtml,
+    redirectOnMissing: false,
   });
 
   return middleware(c, next);
@@ -397,18 +431,19 @@ app.all('*', async (c) => {
       console.log('[WS] URL:', url.pathname + redactedSearch);
     }
 
-    // Inject gateway token into WebSocket request if not already present.
-    // CF Access redirects strip query params, so authenticated users lose ?token=.
-    // Since the user already passed CF Access auth, we inject the token server-side.
+    // Only forward the gateway token for requests the Worker has already
+    // authenticated. Anonymous catch-all traffic should use OpenClaw's own
+    // token/session flow instead.
     let wsRequest = request;
     const hasToken = url.searchParams.has('token');
     const hasGatewayToken = !!c.env.MOLTBOT_GATEWAY_TOKEN;
     console.log('[WS] Token check - hasToken:', hasToken, 'hasGatewayToken:', hasGatewayToken);
 
-    if (c.env.MOLTBOT_GATEWAY_TOKEN && !url.searchParams.has('token')) {
+    const gatewayToken = c.env.MOLTBOT_GATEWAY_TOKEN;
+    if (gatewayToken && shouldInjectGatewayToken(c, url)) {
       console.log('[WS] Injecting gateway token into WebSocket request');
       const tokenUrl = new URL(url.toString());
-      tokenUrl.searchParams.set('token', c.env.MOLTBOT_GATEWAY_TOKEN);
+      tokenUrl.searchParams.set('token', gatewayToken);
       wsRequest = new Request(tokenUrl.toString(), request);
       console.log('[WS] Token injected, new URL has token:', new URL(wsRequest.url).searchParams.has('token'));
     }
@@ -544,13 +579,14 @@ app.all('*', async (c) => {
 
   console.log('[HTTP] Proxying:', url.pathname + url.search);
 
-  // Inject gateway token into HTTP request if not already present.
-  // CF Access redirects strip query params, so authenticated users lose ?token=.
-  // Since the user already passed CF Access auth, we inject the token server-side.
+  // Only forward the gateway token for requests the Worker has already
+  // authenticated. Anonymous catch-all traffic should use OpenClaw's own
+  // token/session flow instead.
   let httpRequest = request;
-  if (c.env.MOLTBOT_GATEWAY_TOKEN && !url.searchParams.has('token')) {
+  const gatewayToken = c.env.MOLTBOT_GATEWAY_TOKEN;
+  if (gatewayToken && shouldInjectGatewayToken(c, url)) {
     const tokenUrl = new URL(url.toString());
-    tokenUrl.searchParams.set('token', c.env.MOLTBOT_GATEWAY_TOKEN);
+    tokenUrl.searchParams.set('token', gatewayToken);
     httpRequest = new Request(tokenUrl.toString(), request);
   }
 

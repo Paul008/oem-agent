@@ -71,7 +71,7 @@ describe('worker-api fetchGeneratedPage', () => {
     expect(fetchMock.mock.calls[0][0]).not.toContain('includeRendered=true')
   })
 
-  it('does not send Supabase Authorization on generated page reads', async () => {
+  it('sends Supabase Authorization on generated page reads', async () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
       data: { session: { access_token: 'supabase-token' } },
     } as any)
@@ -80,7 +80,7 @@ describe('worker-api fetchGeneratedPage', () => {
 
     const fetchMock = vi.mocked(fetch)
     const headers = new Headers(fetchMock.mock.calls[0][1]?.headers)
-    expect(headers.has('Authorization')).toBe(false)
+    expect(headers.get('Authorization')).toBe('Bearer supabase-token')
     expect(fetchMock.mock.calls[0][1]?.credentials).toBe('include')
   })
 })

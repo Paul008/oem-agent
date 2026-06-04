@@ -105,7 +105,7 @@ export async function fetchWorkerHealth() {
 }
 
 export async function fetchGeneratedPages(oemId: string) {
-  return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`, { skipAuthHeader: true })
+  return workerFetch(`/api/v1/oem-agent/pages?oemId=${oemId}`)
 }
 
 export async function fetchGeneratedPage(slug: string, options?: { includeRendered?: boolean, includeModes?: boolean }) {
@@ -115,7 +115,7 @@ export async function fetchGeneratedPage(slug: string, options?: { includeRender
   if (options?.includeModes)
     params.set('includeModes', 'true')
   const query = params.toString()
-  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query ? `?${query}` : ''}`, { skipAuthHeader: true })
+  return workerFetch(`/api/v1/oem-agent/pages/${slug}${query ? `?${query}` : ''}`)
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {
