@@ -162,10 +162,10 @@ export function tailwindRules() {
   }
 
   // Map all classes on an element from Bootstrap/framework → Tailwind
-  function mapClasses(oc: string): string[] {
-    if (!oc) return [];
+  function mapClasses(originalClasses: string): string[] {
+    if (!originalClasses) return [];
     var result: string[] = [];
-    var classes = oc.split(/\s+/);
+    var classes = originalClasses.split(/\s+/);
     for (var i = 0; i < classes.length; i++) {
       var c = classes[i].trim();
       if (!c) continue;
