@@ -182,6 +182,20 @@ describe('splitPageRegions', () => {
     expect(regions.length).toBe(2)
   })
 
+  it('skips a11y announcers and nav landmarks so the hero is the first region', () => {
+    const withChrome = `<body>
+      <span class="nuxt-route-announcer" aria-live="assertive"></span>
+      <div role="navigation" class="StickyNav"><a href="/">Home</a></div>
+      <section class="hero"><h1>Model X</h1><p>Tagline.</p><img src="/h.jpg"></section>
+      <section class="cards"><div class="c"><img src="/1.jpg"><h3>a</h3></div><div class="c"><img src="/2.jpg"><h3>b</h3></div></section>
+    </body>`
+    const regions = splitPageRegions(withChrome)
+    expect(regions[0].selector).toContain('hero')
+    const joined = regions.map(r => r.selector).join(' ')
+    expect(joined).not.toContain('nuxt-route-announcer')
+    expect(joined).not.toContain('StickyNav')
+  })
+
   it('descends through a deep single-meaningful-wrapper chain past stray noise (real AEM shape)', () => {
     const regions = splitPageRegions(AEM_DEEP_PAGE)
     // billboardCarousel + container + cardcomponents — NOT 1 collapsed region,

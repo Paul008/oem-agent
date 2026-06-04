@@ -67,12 +67,26 @@ const CHROME_TAGS = new Set([
 ])
 const WRAPPER_TAGS = new Set(['div', 'main', 'section', 'article', 'ul', 'ol'])
 const MAX_REGIONS = 60
+const NAV_ROLES = new Set(['navigation', 'banner', 'contentinfo', 'search'])
+// Framework-agnostic noise: a11y announcers, screen-reader-only text, breadcrumbs,
+// skip links, sticky navs. Not OEM-specific — these appear across CMS stacks.
+const NOISE_CLASS_RE = /route-announcer|sr-only|visually-hidden|skip-link|breadcrumb|cookie/i
+
+/** A node that is page chrome / accessibility scaffolding, never a content section. */
+function isChromeNode($: any, el: any): boolean {
+  if (CHROME_TAGS.has((el.name || '').toLowerCase())) return true
+  const $el = $(el)
+  if ($el.attr('aria-live')) return true
+  if (NAV_ROLES.has(($el.attr('role') || '').toLowerCase())) return true
+  if (NOISE_CLASS_RE.test($el.attr('class') || '')) return true
+  return false
+}
 
 function contentChildren($: any, node: any): any[] {
   return node
     .children()
     .toArray()
-    .filter((el: any) => el.type === 'tag' && !CHROME_TAGS.has((el.name || '').toLowerCase()))
+    .filter((el: any) => el.type === 'tag' && !isChromeNode($, el))
 }
 
 /**
