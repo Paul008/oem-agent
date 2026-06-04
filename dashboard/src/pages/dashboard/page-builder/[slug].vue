@@ -13,6 +13,7 @@ import {
   History,
   Import,
   Loader2,
+  Lock,
   Menu,
   MousePointer2,
   Redo2,
@@ -26,6 +27,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { useThemeStore } from '@/stores/theme'
 
 import type { CloneRegion, PageMode } from './page-modes'
@@ -135,12 +137,16 @@ const selectedCloneRegion = computed(() => {
 
 function openEditor(id: string) {
   selectSection(id)
+  if (isWriteProtectedPage.value)
+    return
   editorSectionId.value = id
 }
 function closeEditor() {
   editorSectionId.value = null
 }
 function updateEditorSection(updates: Record<string, any>) {
+  if (isWriteProtectedPage.value)
+    return
   if (editorSectionId.value)
     updateSection(editorSectionId.value, updates)
 }
@@ -158,20 +164,29 @@ function setPageMode(mode: PageMode) {
 }
 
 function onCloneDomUpdated(html: string) {
+  if (isWriteProtectedPage.value)
+    return
   cloneDraftHtml.value = html
   isDirty.value = true
 }
 
 function onCloneRegionSelected(region: CloneRegion) {
   selectCloneRegion(region)
+  if (isWriteProtectedPage.value)
+    return
   cloneEditorOpen.value = true
 }
 
 function patchCloneField(payload: CloneFieldPatchPayload) {
+  if (isWriteProtectedPage.value)
+    return
   pageBuilderCanvas.value?.patchCloneField(payload)
 }
 
 async function saveActiveMode() {
+  if (guardProtectedWrite())
+    return
+
   if (activeMode.value === 'clone') {
     const saved = await saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegionsForSave.value)
     if (saved)
@@ -189,6 +204,8 @@ function openSourceUrl() {
 }
 
 function onCaptureHtml(html: string) {
+  if (isWriteProtectedPage.value)
+    return
   // Fallback: add captured HTML as a content-block section
   addSection('content-block')
   const newest = sections.value[sections.value.length - 1]
@@ -202,6 +219,8 @@ function onCaptureHtml(html: string) {
 }
 
 function onSmartCapture(section: { type: string, data: Record<string, any> }) {
+  if (isWriteProtectedPage.value)
+    return
   // AI identified the section type — create a properly typed section
   const type = section.type as any
   addSection(type)
@@ -216,6 +235,10 @@ const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-d
 
 const selectedModel = ref(DEFAULT_AI_MODEL_VALUE)
 const selectedModelOverride = computed(() => getAiModelOverride(selectedModel.value))
+const isWriteProtectedPage = computed(() => isModelPageWriteProtected(oemId.value))
+const writeProtectedMessage = computed(() =>
+  getModelPageWriteProtectedMessage(oemName(oemId.value)),
+)
 
 type ModelOverride = { provider: string, model: string }
 
@@ -232,7 +255,16 @@ function confirmDestructiveAction(action: keyof typeof DESTRUCTIVE_ACTION_COPY) 
   return window.confirm(DESTRUCTIVE_ACTION_COPY[action])
 }
 
+function guardProtectedWrite() {
+  if (!isWriteProtectedPage.value)
+    return false
+  error.value = writeProtectedMessage.value
+  return true
+}
+
 async function runClone() {
+  if (guardProtectedWrite())
+    return
   if (!confirmDestructiveAction('clone'))
     return
 
@@ -240,6 +272,8 @@ async function runClone() {
 }
 
 async function runStructure(modelOverride?: ModelOverride) {
+  if (guardProtectedWrite())
+    return
   if (!confirmDestructiveAction('structure'))
     return
 
@@ -247,6 +281,8 @@ async function runStructure(modelOverride?: ModelOverride) {
 }
 
 async function runAdaptivePipeline(modelOverride?: ModelOverride) {
+  if (guardProtectedWrite())
+    return
   if (!confirmDestructiveAction('pipeline'))
     return
 
@@ -267,6 +303,8 @@ function handleKeyboard(e: KeyboardEvent) {
     redo()
   }
   else if (e.key === 'v' && !e.shiftKey) {
+    if (isWriteProtectedPage.value)
+      return
     // Only intercept if no input/textarea is focused
     const tag = (e.target as HTMLElement)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')
@@ -317,18 +355,18 @@ const primaryWorkflowAction = computed(() => getPrimaryWorkflowAction(pageWorkfl
   isDirty: isDirty.value,
 }))
 const canShowEditorActions = computed(() => pageWorkflowState.value !== 'missing')
-const canShowWorkflowActions = computed(() => canShowEditorActions.value && pageWorkflowState.value !== 'custom')
-const canShowSectionActions = computed(() => canShowEditorActions.value && (isStructured.value || sections.value.length > 0))
-const canShowSaveAction = computed(() => canShowEditorActions.value && (activeMode.value === 'clone' ? isCloned.value : canShowSectionActions.value))
+const canShowWorkflowActions = computed(() => canShowEditorActions.value && !isWriteProtectedPage.value && pageWorkflowState.value !== 'custom')
+const canShowSectionActions = computed(() => canShowEditorActions.value && !isWriteProtectedPage.value && (isStructured.value || sections.value.length > 0))
+const canShowSaveAction = computed(() => canShowEditorActions.value && !isWriteProtectedPage.value && (activeMode.value === 'clone' ? isCloned.value : canShowSectionActions.value))
 const canShowModeSwitcher = computed(() => availableModes.value.length > 1)
-const canShowSourceUrlInput = computed(() => shouldShowSourceUrlInput(pageWorkflowState.value))
+const canShowSourceUrlInput = computed(() => !isWriteProtectedPage.value && shouldShowSourceUrlInput(pageWorkflowState.value))
 const pipelineActionDisabled = computed(() => isPipelineActionDisabled({
   needsSourceUrl: needsSourceUrl.value,
   sourceUrlOverride: sourceUrlOverride.value,
   pipelining: pipelining.value,
   cloning: cloning.value,
   structuring: structuring.value,
-}))
+}) || isWriteProtectedPage.value)
 
 const subpageDisplayName = computed(() => {
   if (!isSubpage.value || !subpageSlug.value)
@@ -433,6 +471,10 @@ watch(
         </template>
         <UiBadge v-if="page.version" variant="secondary" class="text-[10px] shrink-0">
           v{{ page.version }}
+        </UiBadge>
+        <UiBadge v-if="isWriteProtectedPage" variant="secondary" class="text-[10px] shrink-0">
+          <Lock class="size-3 mr-1" />
+          Read-only
         </UiBadge>
         <UiBadge v-if="pageWorkflowState === 'structured'" variant="default" class="text-[10px] bg-emerald-600 shrink-0 hidden sm:inline-flex">
           Structured
@@ -743,6 +785,14 @@ watch(
       </div>
     </div>
 
+    <div
+      v-if="isWriteProtectedPage && page"
+      class="flex items-center gap-2 px-4 py-2 border-b bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm shrink-0"
+    >
+      <Lock class="size-4 shrink-0" />
+      <span>{{ writeProtectedMessage }}. This page is read-only in the dashboard.</span>
+    </div>
+
     <!-- Workflow Stepper -->
     <div v-if="canShowEditorActions && page && !loading" class="flex items-center gap-0 px-4 py-2 border-b bg-muted/30 shrink-0">
       <template v-for="(step, i) in workflowSteps" :key="step.label">
@@ -829,8 +879,11 @@ watch(
         >
           <Loader2 v-if="pipelining" class="size-4 animate-spin" />
           <Zap v-else class="size-4" />
-          {{ pipelining ? 'Running...' : primaryWorkflowAction.label }}
+          {{ isWriteProtectedPage ? 'Protected' : pipelining ? 'Running...' : primaryWorkflowAction.label }}
         </button>
+        <p v-if="isWriteProtectedPage" class="text-xs text-amber-600 dark:text-amber-400">
+          {{ writeProtectedMessage }}.
+        </p>
         <p v-if="pipelining" class="text-xs text-muted-foreground">
           This may take 1-2 minutes
         </p>
@@ -876,6 +929,7 @@ watch(
             :worker-base="WORKER_BASE"
             :oem-id="oemId"
             :model-slug="modelSlug"
+            :read-only="isWriteProtectedPage"
             @select-section="selectSection"
             @open-editor="openEditor"
             @move-section="moveSection"
@@ -901,6 +955,7 @@ watch(
             :oem-name="oemName(page.oem_id)"
             :oem-id="oemId"
             :recipes="recipes"
+            :read-only="isWriteProtectedPage"
             @select-section="selectSection"
             @add-from-recipe="addSectionFromRecipe"
             @open-editor="openEditor"
@@ -923,7 +978,7 @@ watch(
 
       <!-- Floating section editor dialog -->
       <SectionEditorDialog
-        v-if="editorSection"
+        v-if="editorSection && !isWriteProtectedPage"
         :section="editorSection"
         :regenerating="regenerating"
         :oem-id="oemId"
@@ -955,7 +1010,7 @@ watch(
 
     <!-- Section Capture (load page in iframe, click to capture) -->
     <SectionCapture
-      v-if="canShowEditorActions && showCapture"
+      v-if="canShowEditorActions && !isWriteProtectedPage && showCapture"
       :worker-base="WORKER_BASE"
       :oem-id="oemId"
       :model-slug="modelSlug"
@@ -967,7 +1022,7 @@ watch(
 
     <!-- Section Browser Dialog (import from other pages) -->
     <SectionBrowserDialog
-      v-if="canShowEditorActions"
+      v-if="canShowEditorActions && !isWriteProtectedPage"
       :open="showSectionBrowser"
       @update:open="showSectionBrowser = $event"
       @paste="pasteSections"

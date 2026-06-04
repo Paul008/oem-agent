@@ -24,6 +24,7 @@ const props = defineProps<{
   index: number
   total: number
   selected: boolean
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -78,6 +79,7 @@ function sectionLabel(s: any): string {
     <div class="flex items-center gap-2 px-3 py-2.5">
       <!-- Drag handle -->
       <div
+        v-if="!props.readOnly"
         draggable="true"
         class="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground"
         title="Drag to reorder"
@@ -102,6 +104,7 @@ function sectionLabel(s: any): string {
       </div>
       <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
+          v-if="!props.readOnly"
           class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
           title="Edit section"
           @click.stop="emit('openEditor')"
@@ -109,7 +112,7 @@ function sectionLabel(s: any): string {
           <Settings class="size-3.5" />
         </button>
         <button
-          v-if="index > 0"
+          v-if="!props.readOnly && index > 0"
           class="p-1 rounded-md hover:bg-muted"
           title="Move up"
           @click.stop="emit('moveUp')"
@@ -117,7 +120,7 @@ function sectionLabel(s: any): string {
           <ChevronUp class="size-3.5" />
         </button>
         <button
-          v-if="index < total - 1"
+          v-if="!props.readOnly && index < total - 1"
           class="p-1 rounded-md hover:bg-muted"
           title="Move down"
           @click.stop="emit('moveDown')"
@@ -132,6 +135,7 @@ function sectionLabel(s: any): string {
           <Clipboard class="size-3.5" />
         </button>
         <button
+          v-if="!props.readOnly"
           class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-green-600"
           title="Save as Recipe"
           @click.stop="emit('saveAsRecipe')"
@@ -139,6 +143,7 @@ function sectionLabel(s: any): string {
           <BookmarkPlus class="size-3.5" />
         </button>
         <button
+          v-if="!props.readOnly"
           class="p-1 rounded-md hover:bg-muted"
           title="Duplicate section"
           @click.stop="emit('duplicate')"
@@ -148,7 +153,7 @@ function sectionLabel(s: any): string {
 
         <!-- Split into individual sections -->
         <button
-          v-if="canSplit"
+          v-if="!props.readOnly && canSplit"
           class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-orange-500"
           title="Split into individual sections"
           @click.stop="emit('split')"
@@ -157,7 +162,7 @@ function sectionLabel(s: any): string {
         </button>
 
         <!-- Convert To dropdown -->
-        <UiDropdownMenu v-if="convertibleTypes.length > 0">
+        <UiDropdownMenu v-if="!props.readOnly && convertibleTypes.length > 0">
           <UiDropdownMenuTrigger as-child>
             <button
               class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
@@ -184,6 +189,7 @@ function sectionLabel(s: any): string {
         </UiDropdownMenu>
 
         <button
+          v-if="!props.readOnly"
           class="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
           title="Delete section"
           @click.stop="emit('delete')"

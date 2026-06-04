@@ -20,6 +20,7 @@ const props = defineProps<{
   oemName: string
   oemId?: string
   recipes?: any[]
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -48,6 +49,8 @@ const dragIndex = ref<number | null>(null)
 const dropIndex = ref<number | null>(null)
 
 function onDragStart(e: DragEvent, index: number) {
+  if (props.readOnly)
+    return
   dragIndex.value = index
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
@@ -55,6 +58,8 @@ function onDragStart(e: DragEvent, index: number) {
   }
 }
 function onDragOver(e: DragEvent, index: number) {
+  if (props.readOnly)
+    return
   if (dragIndex.value === null)
     return
   e.preventDefault()
@@ -66,6 +71,8 @@ function onDragLeave() {
   dropIndex.value = null
 }
 function onDrop(e: DragEvent, index: number) {
+  if (props.readOnly)
+    return
   e.preventDefault()
   if (dragIndex.value !== null && dragIndex.value !== index) {
     emit('moveSection', dragIndex.value, index)
@@ -149,20 +156,21 @@ function formatCost(cost: number | undefined) {
             :index="index"
             :total="sections.length"
             :selected="selectedSectionId === section.id"
+            :read-only="props.readOnly"
             :class="{
               'opacity-40': dragIndex === index,
               'ring-2 ring-blue-500 ring-offset-1 rounded-lg': dropIndex === index && dragIndex !== index,
             }"
             @select="emit('selectSection', section.id)"
-            @open-editor="emit('openEditor', section.id)"
-            @move-up="emit('moveSection', index, index - 1)"
-            @move-down="emit('moveSection', index, index + 1)"
-            @duplicate="emit('duplicateSection', section.id)"
+            @open-editor="!props.readOnly && emit('openEditor', section.id)"
+            @move-up="!props.readOnly && emit('moveSection', index, index - 1)"
+            @move-down="!props.readOnly && emit('moveSection', index, index + 1)"
+            @duplicate="!props.readOnly && emit('duplicateSection', section.id)"
             @copy-json="emit('copySectionJson', section.id)"
-            @convert="(targetType: string) => emit('convertSection', section.id, targetType)"
-            @split="emit('splitSection', section.id)"
-            @save-as-recipe="emit('saveAsRecipe', section.id)"
-            @delete="emit('deleteSection', section.id)"
+            @convert="(targetType: string) => !props.readOnly && emit('convertSection', section.id, targetType)"
+            @split="!props.readOnly && emit('splitSection', section.id)"
+            @save-as-recipe="!props.readOnly && emit('saveAsRecipe', section.id)"
+            @delete="!props.readOnly && emit('deleteSection', section.id)"
             @dragstart="onDragStart($event, index)"
             @dragover="onDragOver($event, index)"
             @dragleave="onDragLeave"
@@ -182,6 +190,7 @@ function formatCost(cost: number | undefined) {
 
         <!-- Add Section picker -->
         <AddSectionPicker
+          v-if="!props.readOnly"
           :recipes="recipes"
           :oem-id="oemId"
           @add-blank="emit('addSection', $event)"
@@ -195,6 +204,7 @@ function formatCost(cost: number | undefined) {
 
     <!-- Template Gallery Drawer -->
     <TemplateGalleryDrawer
+      v-if="!props.readOnly"
       v-model:open="galleryOpen"
       :oem-id="oemId"
       @insert-section="emit('insertFromGallery', $event)"

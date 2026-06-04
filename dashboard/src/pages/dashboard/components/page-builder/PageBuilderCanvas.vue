@@ -19,6 +19,7 @@ const props = defineProps<{
   workerBase: string
   oemId?: string
   modelSlug?: string
+  readOnly?: boolean
 }>()
 const emit = defineEmits<{
   selectSection: [id: string]
@@ -53,6 +54,8 @@ const showStructuredPreview = computed(() => props.activeMode === 'sections' && 
 const cloneStudioCanvas = ref<InstanceType<typeof CloneStudioCanvas> | null>(null)
 
 function patchCloneField(payload: Record<string, unknown>) {
+  if (props.readOnly)
+    return
   cloneStudioCanvas.value?.patchField(payload)
 }
 
@@ -90,6 +93,8 @@ const bgColorInput = ref(false)
 const hasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window
 
 function onContextMenu(e: MouseEvent, sectionId: string, index: number) {
+  if (props.readOnly)
+    return
   e.preventDefault()
   contextMenu.value = { x: e.clientX, y: e.clientY, sectionId, sectionIndex: index }
   bgColorInput.value = false
@@ -101,6 +106,8 @@ function closeContextMenu() {
 }
 
 function setBgColor(sectionId: string, color: string) {
+  if (props.readOnly)
+    return
   emit('updateField', sectionId, 'background', color)
   emit('updateField', sectionId, 'background_color', color)
 }
@@ -135,6 +142,8 @@ function onInlineEdit(sectionId: string, field: string, value: string) {
   editingSectionId.value = null
   editingField.value = null
   editingSection.value = null
+  if (props.readOnly)
+    return
   emit('updateField', sectionId, field, value)
 }
 
@@ -149,6 +158,8 @@ const linkEditor = ref<{ show: boolean, el: HTMLAnchorElement | null, href: stri
 })
 
 function onCapturedClick(e: MouseEvent, sectionId: string) {
+  if (props.readOnly)
+    return
   const link = (e.target as HTMLElement).closest?.('a')
   if (link) {
     e.preventDefault()
@@ -168,6 +179,10 @@ function onCapturedClick(e: MouseEvent, sectionId: string) {
 }
 
 function saveLinkHref() {
+  if (props.readOnly) {
+    linkEditor.value.show = false
+    return
+  }
   if (linkEditor.value.el) {
     linkEditor.value.el.setAttribute('href', linkEditor.value.href)
     // Save the updated HTML back to section
@@ -184,6 +199,8 @@ function closeLinkEditor() {
 }
 
 function onToolbarUpdate(sectionId: string, field: string, value: any) {
+  if (props.readOnly)
+    return
   emit('updateField', sectionId, field, value)
 }
 
@@ -192,6 +209,8 @@ const dragIndex = ref<number | null>(null)
 const dropIndex = ref<number | null>(null)
 
 function onDragStart(e: DragEvent, index: number) {
+  if (props.readOnly)
+    return
   dragIndex.value = index
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
@@ -200,6 +219,8 @@ function onDragStart(e: DragEvent, index: number) {
 }
 
 function onDragOver(e: DragEvent, index: number) {
+  if (props.readOnly)
+    return
   if (dragIndex.value === null)
     return
   e.preventDefault()
@@ -213,6 +234,8 @@ function onDragLeave() {
 }
 
 function onDrop(e: DragEvent, index: number) {
+  if (props.readOnly)
+    return
   e.preventDefault()
   if (dragIndex.value !== null && dragIndex.value !== index) {
     emit('moveSection', dragIndex.value, index)
@@ -323,7 +346,7 @@ function sectionStyle(section: any): Record<string, string> {
             :frame-width="cloneFrameWidth"
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
-            @dom-updated="emit('cloneDomUpdated', $event)"
+            @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
           />
         </div>
       </template>
@@ -339,6 +362,7 @@ function sectionStyle(section: any): Record<string, string> {
               selectedSectionId === section.id
                 ? 'ring-2 ring-primary ring-offset-2'
                 : 'hover:ring-1 hover:ring-muted-foreground/30 hover:ring-offset-1',
+              props.readOnly ? 'cursor-default' : 'cursor-pointer',
               dragIndex === index ? 'opacity-40' : '',
               dropIndex === index && dragIndex !== index ? 'ring-2 ring-blue-500 ring-offset-2' : '',
             ]"
@@ -356,6 +380,7 @@ function sectionStyle(section: any): Record<string, string> {
               class="absolute top-2 left-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <div
+                v-if="!props.readOnly"
                 draggable="true"
                 class="bg-black/70 hover:bg-black/90 text-white rounded p-1 cursor-grab active:cursor-grabbing transition-colors"
                 title="Drag to reorder"
@@ -380,6 +405,7 @@ function sectionStyle(section: any): Record<string, string> {
                 </button>
               </template>
               <button
+                v-if="!props.readOnly"
                 class="bg-black/70 hover:bg-black/90 text-white rounded p-1 transition-colors"
                 title="Edit section"
                 @click.stop="emit('openEditor', section.id)"
@@ -392,7 +418,7 @@ function sectionStyle(section: any): Record<string, string> {
             <div
               v-if="section._generated_html"
               class="captured-section cursor-text outline-none focus:ring-2 focus:ring-primary/20 rounded"
-              contenteditable="true"
+              :contenteditable="!props.readOnly"
               spellcheck="false"
               @click="onCapturedClick($event, section.id)"
               @focus="editingTarget = $event.target as HTMLElement; editingSectionId = section.id; editingField = '_generated_html'; editingSection = section"
@@ -407,12 +433,14 @@ function sectionStyle(section: any): Record<string, string> {
               :oem-id="props.oemId"
               :model-slug="props.modelSlug"
               @inline-edit="(field: string, _value: string, el: HTMLElement) => {
+                if (props.readOnly)
+                  return
                 editingTarget = el
                 editingSectionId = section.id
                 editingField = field
                 editingSection = section
               }"
-              @update-text="(field: string, value: string) => onInlineEdit(section.id, field, value)"
+              @update-text="(field: string, value: string) => !props.readOnly && onInlineEdit(section.id, field, value)"
             />
             <div
               v-else
@@ -425,7 +453,7 @@ function sectionStyle(section: any): Record<string, string> {
 
         <!-- Inline edit toolbar -->
         <EditToolbar
-          v-if="editingTarget && editingSectionId && editingField"
+          v-if="!props.readOnly && editingTarget && editingSectionId && editingField"
           :target="editingTarget"
           :section-id="editingSectionId"
           :field="editingField"
@@ -439,7 +467,7 @@ function sectionStyle(section: any): Record<string, string> {
 
         <!-- Link editor popover for captured HTML blocks -->
         <div
-          v-if="linkEditor.show"
+          v-if="!props.readOnly && linkEditor.show"
           class="fixed z-[60] bg-popover border rounded-lg shadow-xl p-2 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100"
           :style="{ left: `${linkEditor.x}px`, top: `${linkEditor.y}px` }"
         >
@@ -459,10 +487,10 @@ function sectionStyle(section: any): Record<string, string> {
             ✕
           </button>
         </div>
-        <div v-if="linkEditor.show" class="fixed inset-0 z-[59]" @click="closeLinkEditor" />
+        <div v-if="!props.readOnly && linkEditor.show" class="fixed inset-0 z-[59]" @click="closeLinkEditor" />
 
         <!-- Right-click context menu -->
-        <Teleport v-if="contextMenu" to="body">
+        <Teleport v-if="contextMenu && !props.readOnly" to="body">
           <div class="fixed inset-0 z-[55]" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu" />
           <div
             class="fixed z-[56] bg-card border rounded-lg shadow-xl py-1 min-w-[180px]"
@@ -503,7 +531,12 @@ function sectionStyle(section: any): Record<string, string> {
             No page content yet
           </h3>
           <p class="text-sm text-muted-foreground mb-6">
-            Start by cloning the OEM page, or use the <strong>Adaptive Pipeline</strong> to clone, extract, and validate in one step.
+            <template v-if="props.readOnly">
+              No editable page content is available in read-only mode.
+            </template>
+            <template v-else>
+              Start by cloning the OEM page, or use the <strong>Adaptive Pipeline</strong> to clone, extract, and validate in one step.
+            </template>
           </p>
           <div class="space-y-3 text-left w-full">
             <div class="flex items-start gap-3 text-sm">

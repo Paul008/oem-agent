@@ -8,7 +8,7 @@ import type { VehicleModel } from '@/composables/use-oem-data'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { OEM_IDS } from '@/lib/oem-ids'
+import { OEM_IDS, getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
@@ -66,7 +66,6 @@ const pageDetailErrors = ref<Record<string, string>>({})
 // Inline generation tracking
 const generating = ref(new Set<string>())
 const generateErrors = ref(new Map<string, string>())
-const PROTECTED_GENERATION_OEM_IDS = new Set(['gac-au', 'foton-au'])
 
 // Custom page creation state
 const customPageName = ref('')
@@ -167,6 +166,10 @@ function existingSubpageSlugs(oemId: string, modelSlug: string): Set<string> {
 }
 
 async function handleCreateSubpage(oemId: string, modelSlug: string, subpageSlug: string, name: string, subpageType?: string) {
+  if (isGenerationProtected(oemId)) {
+    alert(generationProtectedMessage(oemId))
+    return
+  }
   creatingSubpage.value = true
   try {
     await createSubpage(oemId, modelSlug, subpageSlug, name, subpageType)
@@ -198,6 +201,11 @@ async function handleDeleteSubpage() {
   const sp = deletingSubpage.value
   if (!sp)
     return
+  if (isGenerationProtected(sp.oem_id)) {
+    alert(generationProtectedMessage(sp.oem_id))
+    deletingSubpage.value = null
+    return
+  }
   deleteSubpageLoading.value = true
   try {
     await deleteSubpage(sp.oem_id, sp.modelSlug, sp.subpageSlug)
@@ -220,6 +228,11 @@ async function handleDeleteCustomPage() {
   const page = deletingPage.value
   if (!page)
     return
+  if (isGenerationProtected(page.oem_id)) {
+    alert(generationProtectedMessage(page.oem_id))
+    deletingPage.value = null
+    return
+  }
   deleteLoading.value = true
   try {
     await deleteCustomPage(page.oem_id, page.slug)
@@ -277,6 +290,10 @@ const totalCustomPages = computed(() => {
 })
 
 async function handleCreateCustomPage(oemId: string) {
+  if (isGenerationProtected(oemId)) {
+    alert(generationProtectedMessage(oemId))
+    return
+  }
   const name = customPageName.value.trim()
   const slug = customPageSlug.value.trim() || toKebabCase(name)
   if (!name || !slug)
@@ -479,11 +496,11 @@ function modelKey(model: VehicleModel) {
 }
 
 function isGenerationProtected(oemId: string): boolean {
-  return PROTECTED_GENERATION_OEM_IDS.has(oemId)
+  return isModelPageWriteProtected(oemId)
 }
 
 function generationProtectedMessage(oemId: string): string {
-  return `${oemName(oemId)} model pages are protected from dashboard generation`
+  return getModelPageWriteProtectedMessage(oemName(oemId))
 }
 
 // Inline adaptive pipeline trigger
@@ -1161,11 +1178,13 @@ async function handleRefresh() {
                   <button
                     v-else-if="isModelPageCreated(model)"
                     class="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-indigo-600 px-1.5 py-0.5 rounded shrink-0 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                    title="Add subpage"
+                    :class="isGenerationProtected(model.oem_id) ? 'opacity-50 cursor-not-allowed hover:text-muted-foreground hover:bg-transparent dark:hover:bg-transparent' : ''"
+                    :disabled="isGenerationProtected(model.oem_id)"
+                    :title="isGenerationProtected(model.oem_id) ? generationProtectedMessage(model.oem_id) : 'Add subpage'"
                     @click.stop="toggleModelExpand(model.oem_id, model.slug)"
                   >
                     <Plus class="size-3" />
-                    Subpage
+                    {{ isGenerationProtected(model.oem_id) ? 'Protected' : 'Subpage' }}
                   </button>
 
                   <!-- Spacer -->
@@ -1247,7 +1266,9 @@ async function handleRefresh() {
                     <div class="flex-1" />
                     <button
                       class="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                      title="Delete subpage"
+                      :class="isGenerationProtected(sp.oem_id) ? 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground' : ''"
+                      :disabled="isGenerationProtected(sp.oem_id)"
+                      :title="isGenerationProtected(sp.oem_id) ? generationProtectedMessage(sp.oem_id) : 'Delete subpage'"
                       @click.stop="deletingSubpage = { oem_id: sp.oem_id, modelSlug: model.slug, subpageSlug: sp.subpageSlug, name: getSubpageDisplayName(sp.subpageSlug) }"
                     >
                       <Trash2 class="size-3.5" />
@@ -1276,7 +1297,8 @@ async function handleRefresh() {
                           size="sm"
                           variant="outline"
                           class="h-6 text-[11px] px-2"
-                          :disabled="creatingSubpage"
+                          :disabled="creatingSubpage || isGenerationProtected(model.oem_id)"
+                          :title="isGenerationProtected(model.oem_id) ? generationProtectedMessage(model.oem_id) : undefined"
                           @click="handleCreateSubpage(model.oem_id, model.slug, stype.slug, stype.name, stype.slug)"
                         >
                           {{ stype.name }}
@@ -1285,6 +1307,8 @@ async function handleRefresh() {
                           size="sm"
                           variant="outline"
                           class="h-6 text-[11px] px-2 border-dashed"
+                          :disabled="isGenerationProtected(model.oem_id)"
+                          :title="isGenerationProtected(model.oem_id) ? generationProtectedMessage(model.oem_id) : undefined"
                           @click="showCustomSubpageForm = `${model.oem_id}/${model.slug}`"
                         >
                           Custom...
@@ -1307,7 +1331,8 @@ async function handleRefresh() {
                           size="sm"
                           variant="default"
                           class="h-7 text-xs px-3 shrink-0"
-                          :disabled="!customSubpageName.trim() || creatingSubpage"
+                          :disabled="!customSubpageName.trim() || creatingSubpage || isGenerationProtected(model.oem_id)"
+                          :title="isGenerationProtected(model.oem_id) ? generationProtectedMessage(model.oem_id) : undefined"
                           @click="handleCreateCustomSubpage(model.oem_id, model.slug)"
                         >
                           <Loader2 v-if="creatingSubpage" class="size-3 mr-1 animate-spin" />
@@ -1341,10 +1366,12 @@ async function handleRefresh() {
                     size="sm"
                     variant="ghost"
                     class="h-6 text-xs px-2"
+                    :disabled="isGenerationProtected(group.oemId)"
+                    :title="isGenerationProtected(group.oemId) ? generationProtectedMessage(group.oemId) : 'Add custom page'"
                     @click.stop="toggleCustomPageForm(group.oemId)"
                   >
                     <Plus class="size-3 mr-1" />
-                    Add
+                    {{ isGenerationProtected(group.oemId) ? 'Protected' : 'Add' }}
                   </UiButton>
                 </div>
 
@@ -1374,7 +1401,9 @@ async function handleRefresh() {
                   </template>
                   <button
                     class="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                    title="Delete custom page"
+                    :class="isGenerationProtected(cp.oem_id) ? 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground' : ''"
+                    :disabled="isGenerationProtected(cp.oem_id)"
+                    :title="isGenerationProtected(cp.oem_id) ? generationProtectedMessage(cp.oem_id) : 'Delete custom page'"
                     @click.stop="deletingPage = { oem_id: cp.oem_id, slug: cp.slug, name: getCustomPageData(cp)?.name || cp.slug }"
                   >
                     <Trash2 class="size-3.5" />
@@ -1399,7 +1428,8 @@ async function handleRefresh() {
                     size="sm"
                     variant="default"
                     class="h-7 text-xs px-3 shrink-0"
-                    :disabled="!customPageName.trim() || creatingCustomPage[group.oemId]"
+                    :disabled="!customPageName.trim() || creatingCustomPage[group.oemId] || isGenerationProtected(group.oemId)"
+                    :title="isGenerationProtected(group.oemId) ? generationProtectedMessage(group.oemId) : undefined"
                     @click="handleCreateCustomPage(group.oemId)"
                   >
                     <Loader2 v-if="creatingCustomPage[group.oemId]" class="size-3 mr-1 animate-spin" />

@@ -1,10 +1,16 @@
 import { supabase } from '@/lib/supabase'
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { normalizeRecipesResponse } from '@/lib/recipes'
 import type { Recipe } from '@/lib/recipes'
 
 export type { Recipe } from '@/lib/recipes'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+
+function assertModelPageWriteAllowed(oemId: string) {
+  if (isModelPageWriteProtected(oemId))
+    throw new Error(getModelPageWriteProtectedMessage(oemId))
+}
 
 type WorkerFetchOptions = RequestInit & {
   skipAuthHeader?: boolean
@@ -226,6 +232,7 @@ export async function getDealerOverrides(oemId: string, modelSlug: string): Prom
 }
 
 export async function applyPageTemplate(templateId: string, oemId: string, modelSlug: string): Promise<{ success: boolean, slug: string, sections: number }> {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch('/api/v1/oem-agent/admin/page-templates/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -262,6 +269,7 @@ export async function generateRecipeComponent(oemId: string, recipe: ExtractedRe
 }
 
 export async function generatePage(oemId: string, modelSlug: string, modelOverride?: { provider: string, model: string }) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/generate-page/${oemId}/${modelSlug}`, {
     method: 'POST',
     ...(modelOverride
@@ -285,6 +293,7 @@ export interface ClonePageOptions {
 }
 
 export async function clonePage(oemId: string, modelSlug: string, sourceUrlOrOptions?: string | ClonePageOptions) {
+  assertModelPageWriteAllowed(oemId)
   const options = typeof sourceUrlOrOptions === 'string'
     ? { sourceUrl: sourceUrlOrOptions }
     : sourceUrlOrOptions
@@ -314,6 +323,7 @@ export async function clonePage(oemId: string, modelSlug: string, sourceUrlOrOpt
 }
 
 export async function updateClonePage(oemId: string, modelSlug: string, payload: { edited_rendered: string, section_index?: any[] }) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/update-clone/${oemId}/${modelSlug}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -322,6 +332,7 @@ export async function updateClonePage(oemId: string, modelSlug: string, payload:
 }
 
 export async function structurePage(oemId: string, modelSlug: string, modelOverride?: { provider: string, model: string }) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/structure-page/${oemId}/${modelSlug}`, {
     method: 'POST',
     ...(modelOverride
@@ -334,6 +345,7 @@ export async function structurePage(oemId: string, modelSlug: string, modelOverr
 }
 
 export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/update-sections/${oemId}/${modelSlug}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -342,6 +354,7 @@ export async function updatePageSections(oemId: string, modelSlug: string, secti
 }
 
 export async function regenerateSection(oemId: string, modelSlug: string, sectionId: string, sectionType: string) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/regenerate-section/${oemId}/${modelSlug}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -350,6 +363,7 @@ export async function regenerateSection(oemId: string, modelSlug: string, sectio
 }
 
 export async function createCustomPage(oemId: string, slug: string, name: string) {
+  assertModelPageWriteAllowed(oemId)
   if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug))
     throw new Error('Invalid slug format')
   if (!name?.trim())
@@ -362,12 +376,14 @@ export async function createCustomPage(oemId: string, slug: string, name: string
 }
 
 export async function deleteCustomPage(oemId: string, slug: string) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/delete-custom-page/${encodeURIComponent(oemId)}/${encodeURIComponent(slug)}`, {
     method: 'DELETE',
   })
 }
 
 export async function createSubpage(oemId: string, modelSlug: string, subpageSlug: string, name: string, subpageType?: string) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/create-subpage/${encodeURIComponent(oemId)}/${encodeURIComponent(modelSlug)}/${encodeURIComponent(subpageSlug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -376,12 +392,14 @@ export async function createSubpage(oemId: string, modelSlug: string, subpageSlu
 }
 
 export async function deleteSubpage(oemId: string, modelSlug: string, subpageSlug: string) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/delete-subpage/${encodeURIComponent(oemId)}/${encodeURIComponent(modelSlug)}/${encodeURIComponent(subpageSlug)}`, {
     method: 'DELETE',
   })
 }
 
 export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string, model: string }) {
+  assertModelPageWriteAllowed(oemId)
   const bodyData: Record<string, unknown> = {}
   if (sourceUrl)
     bodyData.source_url = sourceUrl
@@ -400,6 +418,7 @@ export async function adaptivePipeline(oemId: string, modelSlug: string, sourceU
 }
 
 export async function uploadMedia(oemId: string, modelSlug: string, file: File) {
+  assertModelPageWriteAllowed(oemId)
   const formData = new FormData()
   formData.append('file', file)
   const res = await fetch(`${WORKER_BASE}/api/v1/oem-agent/admin/upload-media/${oemId}/${modelSlug}`, {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { supabase } from '@/lib/supabase'
-import { clonePage, fetchGeneratedPage, fetchGeneratedPages, updateClonePage } from './worker-api'
+import { adaptivePipeline, clonePage, createSubpage, fetchGeneratedPage, fetchGeneratedPages, updateClonePage, updatePageSections } from './worker-api'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -133,5 +133,29 @@ describe('worker-api updateClonePage', () => {
       edited_rendered: '<main>Edited Mustang</main>',
     }))
     expect(fetchMock.mock.calls[0][1]?.body).not.toContain('section_index')
+  })
+})
+
+describe('worker-api protected model page writes', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ success: true }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  })
+
+  it.each([
+    ['clonePage', () => clonePage('gac-au', 'emkoo')],
+    ['adaptivePipeline', () => adaptivePipeline('foton-au', 'tunland')],
+    ['updateClonePage', () => updateClonePage('gac-au', 'emkoo', { edited_rendered: '<main />' })],
+    ['updatePageSections', () => updatePageSections('foton-au', 'tunland', [])],
+    ['createSubpage', () => createSubpage('gac-au', 'emkoo', 'specs', 'Specifications', 'specs')],
+  ])('blocks %s before making a request', async (_, call) => {
+    await expect(call()).rejects.toThrow('protected from dashboard writes')
+    expect(fetch).not.toHaveBeenCalled()
   })
 })
