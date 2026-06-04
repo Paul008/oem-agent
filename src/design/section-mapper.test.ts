@@ -102,6 +102,23 @@ const OPAQUE_PAGE = `
   <div class="block-3"><p>Duis aute irure dolor in reprehenderit in voluptate velit esse.</p></div>
 </body>`
 
+// AEM-like (real Ford Mustang shape): the real content sits several
+// single-child wrapper levels deep (root > aem-Grid > aem-GridColumn > aem-Grid),
+// and the body also carries stray tracking <img> noise siblings.
+const AEM_DEEP_PAGE = `<body>
+  <div class="root responsivegrid"><div class="aem-Grid aem-Grid--12"><div class="responsivegrid aem-GridColumn"><div class="aem-Grid aem-Grid--12">
+    <div class="billboardCarousel carousel"><h1>Mustang</h1><p>They'll hear you.</p><img src="/m/hero.jpg"></div>
+    <div class="container responsivegrid"><h2>Unbelievable power</h2><p>unlimited fun.</p><img src="/m/power.jpg"></div>
+    <div class="cardcomponents">
+      <div class="card"><img src="/m/c1.jpg"><h3>Track</h3></div>
+      <div class="card"><img src="/m/c2.jpg"><h3>Road</h3></div>
+      <div class="card"><img src="/m/c3.jpg"><h3>Style</h3></div>
+    </div>
+  </div></div></div></div>
+  <img src="/m/pixel1.gif">
+  <img src="/m/pixel2.gif">
+</body>`
+
 // ---------------------------------------------------------------------------
 // scoreSection
 // ---------------------------------------------------------------------------
@@ -164,6 +181,16 @@ describe('splitPageRegions', () => {
     const regions = splitPageRegions(wrapped)
     expect(regions.length).toBe(2)
   })
+
+  it('descends through a deep single-meaningful-wrapper chain past stray noise (real AEM shape)', () => {
+    const regions = splitPageRegions(AEM_DEEP_PAGE)
+    // billboardCarousel + container + cardcomponents — NOT 1 collapsed region,
+    // and the two stray tracking <img> on body are excluded.
+    expect(regions.length).toBe(3)
+    const joined = regions.map(r => r.selector).join(' ')
+    expect(joined).toContain('billboardCarousel')
+    expect(joined).toContain('cardcomponents')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -213,6 +240,13 @@ describe('mapPageToSections', () => {
     const result = mapPageToSections(OPAQUE_PAGE)
     expect(result.needs_ai_fallback).toBe(true)
     expect(result.low_confidence_section_ids.length).toBeGreaterThan(0)
+  })
+
+  it('maps a deep AEM page into multiple sections (hero + cards), not one collapsed region', () => {
+    const result = mapPageToSections(AEM_DEEP_PAGE)
+    expect(result.sections.length).toBeGreaterThanOrEqual(3)
+    expect(result.sections[0].type).toBe('hero')
+    expect(result.sections.map(s => s.type)).toContain('feature-cards')
   })
 })
 
