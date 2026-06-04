@@ -66,3 +66,6 @@ test/e2e/.dev.vars
 # Ford HAR intake (contains session cookies — never commit)
 scripts/ford-nukleus-hars/*.har
 .superpowers/
+
+# Claude Code harness lock files
+.claude/scheduled_tasks.lock
