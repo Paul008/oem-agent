@@ -9,7 +9,8 @@ import ConfirmDialog from '@/components/confirm-dialog.vue'
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
-import env from '@/utils/env'
+
+const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const router = useRouter()
 const { fetchOems, fetchVehicleModels } = useOemData()
@@ -669,7 +670,7 @@ function heroImage(item: { oem_id: string, slug: string }) {
 
   // Convert relative URLs to absolute by prepending the Worker URL
   if (url && url.startsWith('/')) {
-    url = `${env.VITE_SERVER_API_URL}${url}`
+    url = `${WORKER_BASE}${url}`
   }
 
   return url
