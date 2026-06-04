@@ -1753,14 +1753,12 @@ ${rendered}
       var dupClone = dupSource.cloneNode(true)
       // Strip the clone's own region id and every nested region id so ensureRegionId
       // re-assigns collision-free (descendants re-acquire ids lazily on interaction).
-      if (dupClone.removeAttribute)
-        dupClone.removeAttribute('data-oem-region-id')
+      dupClone.removeAttribute('data-oem-region-id')
       var dupNested = dupClone.querySelectorAll('[data-oem-region-id]')
       for (var di = 0; di < dupNested.length; di++)
         dupNested[di].removeAttribute('data-oem-region-id')
       dupSource.parentNode.insertBefore(dupClone, dupSource.nextSibling)
-      ensureRegionId(dupClone)
-      post(MESSAGE_DOM_UPDATED, { regionId: dupClone.getAttribute('data-oem-region-id'), newRegion: regionPayload(dupClone) })
+      post(MESSAGE_DOM_UPDATED, { regionId: ensureRegionId(dupClone), newRegion: regionPayload(dupClone) })
       return
     }
   })
