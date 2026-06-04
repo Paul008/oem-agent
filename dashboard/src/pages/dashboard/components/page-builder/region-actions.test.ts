@@ -43,4 +43,9 @@ describe('buildPatchPayload', () => {
   it('builds a link payload for edit-link', () => {
     expect(buildPatchPayload('edit-link', base, '/build')).toEqual({ regionId: 'r1', kind: 'link', value: '/build' })
   })
+  it('returns null for non-patch actions', () => {
+    expect(buildPatchPayload('height', base)).toBeNull()
+    expect(buildPatchPayload('duplicate', base)).toBeNull()
+    expect(buildPatchPayload('next-panel', { ...base, type_hint: 'tabs' } as any)).toBeNull()
+  })
 })

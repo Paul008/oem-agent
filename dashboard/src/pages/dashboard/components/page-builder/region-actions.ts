@@ -7,8 +7,10 @@ export type RegionActionId =
 
 export interface RegionAction { id: RegionActionId; label: string; group: 'content' | 'layout' | 'region' }
 
+export interface PatchPayload { regionId: string; kind: 'text' | 'image' | 'link' | 'alt' | 'background' | 'visibility'; value?: string | boolean }
+
 function hasKind(region: CloneRegion, kind: string): boolean {
-  return Array.isArray(region.editable_fields) && region.editable_fields.some((f: any) => f?.kind === kind)
+  return Array.isArray(region.editable_fields) && region.editable_fields.some((f: any) => f.kind === kind)
 }
 
 export function getRegionActions(region: CloneRegion): RegionAction[] {
@@ -20,7 +22,7 @@ export function getRegionActions(region: CloneRegion): RegionAction[] {
   }
   if (hasKind(region, 'link')) out.push({ id: 'edit-link', label: 'Edit link / button…', group: 'content' })
   out.push({ id: 'background', label: 'Background colour…', group: 'content' })
-  if ((region as any).type_hint === 'tabs' || (region as any).type_hint === 'carousel') {
+  if (region.type_hint === 'tabs' || region.type_hint === 'carousel') {
     out.push({ id: 'next-panel', label: 'Next panel', group: 'layout' })
     out.push({ id: 'prev-panel', label: 'Previous panel', group: 'layout' })
   }
@@ -32,13 +34,14 @@ export function getRegionActions(region: CloneRegion): RegionAction[] {
   return out
 }
 
-export function buildPatchPayload(action: RegionActionId, region: CloneRegion, value?: string) {
+export function buildPatchPayload(action: RegionActionId, region: CloneRegion, value?: string): PatchPayload | null {
   switch (action) {
     case 'hide': return { regionId: region.id, kind: 'visibility', value: false }
     case 'replace-image': return { regionId: region.id, kind: 'image', value }
     case 'edit-link': return { regionId: region.id, kind: 'link', value }
     case 'alt-text': return { regionId: region.id, kind: 'alt', value }
     case 'background': return { regionId: region.id, kind: 'background', value }
-    default: return { regionId: region.id, kind: 'text', value }
+    case 'edit-text': return { regionId: region.id, kind: 'text', value }
+    default: return null
   }
 }
