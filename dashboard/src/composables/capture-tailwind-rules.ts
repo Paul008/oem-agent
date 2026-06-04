@@ -86,7 +86,7 @@ export function tailwindRules() {
       case 'border-radius': if(!isNaN(px)&&px>0){if(px>=9999)cls.push('rounded-full');else cls.push('rounded-['+px+'px]');}break;
       case 'object-fit': if(val==='cover')cls.push('object-cover');else if(val==='contain')cls.push('object-contain');break;
       case 'overflow': if(val==='hidden')cls.push('overflow-hidden');break;
-      case 'opacity': var op=parseFloat(val);if(op<1&&op>=0){var s=String(op).replace(/^0/,'');cls.push('opacity-['+s+']');}break;
+      case 'opacity': var op=parseFloat(val);if(op<1&&op>=0){var s=op===0?'0':String(op).replace(/^0/,'');cls.push('opacity-['+s+']');}break;
     }
     return cls;
   }

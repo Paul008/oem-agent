@@ -37,6 +37,7 @@ describe('exact values (font-size, radius, opacity)', () => {
   })
   it('opacity: exact arbitrary fraction', () => {
     expect(R.cssTw('opacity', '0.73')).toEqual(['opacity-[.73]'])
+    expect(R.cssTw('opacity', '0')).toEqual(['opacity-[0]'])
     expect(R.cssTw('opacity', '1')).toEqual([])
   })
 })
