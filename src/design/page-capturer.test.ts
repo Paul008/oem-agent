@@ -1,12 +1,45 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
   buildDomCaptureFromHtml,
+  CAPTURE_FONT_READY_TIMEOUT_MS,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   pseudoElementInlineStyleForCapture,
+  waitForCaptureFontsForCapture,
 } from './page-capturer'
+
+describe('waitForCaptureFontsForCapture', () => {
+  it('returns ready when document fonts settle before the timeout', async () => {
+    await expect(waitForCaptureFontsForCapture(50, {
+      fonts: { ready: Promise.resolve() },
+    } as any)).resolves.toBe('ready')
+  })
+
+  it('returns timeout when document fonts do not settle in time', async () => {
+    await expect(waitForCaptureFontsForCapture(1, {
+      fonts: { ready: new Promise(() => {}) },
+    } as any)).resolves.toBe('timeout')
+  })
+
+  it('returns unsupported when document fonts are not available', async () => {
+    await expect(waitForCaptureFontsForCapture(1, {} as any)).resolves.toBe('unsupported')
+  })
+})
+
+describe('PageCapturer font readiness wiring', () => {
+  it('waits for fonts before materializing pseudo-element text', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
+    const pseudoMaterialize = source.indexOf('page.evaluate(materializePseudoElementTextForCapture as any)')
+
+    expect(CAPTURE_FONT_READY_TIMEOUT_MS).toBe(2500)
+    expect(fontWait).toBeGreaterThan(-1)
+    expect(pseudoMaterialize).toBeGreaterThan(fontWait)
+  })
+})
 
 describe('pseudo-element capture helpers', () => {
   it('keeps only quoted pseudo-element text content', () => {

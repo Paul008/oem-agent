@@ -83,6 +83,32 @@ const R2_SCREENSHOTS_PREFIX = 'screenshots';
 const MAX_IMAGE_DOWNLOADS = 50;
 const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
+export const CAPTURE_FONT_READY_TIMEOUT_MS = 2_500;
+
+export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
+
+export async function waitForCaptureFontsForCapture(
+  timeoutMs = 2500,
+  doc?: { fonts?: { ready?: Promise<unknown> } },
+): Promise<CaptureFontReadyStatus> {
+  const activeDocument = doc ?? (typeof document !== 'undefined' ? document : undefined);
+  const fonts = activeDocument?.fonts;
+  if (!fonts?.ready || typeof fonts.ready.then !== 'function')
+    return 'unsupported';
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race<CaptureFontReadyStatus>([
+      fonts.ready.then(() => 'ready' as CaptureFontReadyStatus),
+      new Promise<CaptureFontReadyStatus>((resolve) => {
+        timeoutId = setTimeout(() => resolve('timeout'), Math.max(0, timeoutMs));
+      }),
+    ]);
+  } finally {
+    if (timeoutId)
+      clearTimeout(timeoutId);
+  }
+}
 
 export function isCaptureBlockedBySecurityPage(input: { html: string; title?: string }): boolean {
   const haystack = `${input.title ?? ''}\n${input.html}`
@@ -1040,6 +1066,9 @@ export class PageCapturer {
 
       // Wait for images to finish loading after scroll
       await new Promise(r => setTimeout(r, 2000));
+
+      const fontReadyStatus = await page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS);
+      console.log(`[PageCapturer] Font readiness: ${fontReadyStatus}`);
 
       // Materialize simple CSS ::before/::after text before serializing the DOM. This preserves
       // OEM badges/labels that would otherwise disappear when Clone Studio strips page CSS scripts.
