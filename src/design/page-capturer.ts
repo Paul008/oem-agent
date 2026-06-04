@@ -192,6 +192,8 @@ export type CaptureLazyMediaActivationResult = {
   sourceSets: number;
   backgrounds: number;
   eagerImages: number;
+  videoSources: number;
+  videoPosters: number;
 };
 
 type CaptureScrollSweepWindow = {
@@ -227,6 +229,8 @@ export function activateLazyMediaForCapture(options?: {
     sourceSets: 0,
     backgrounds: 0,
     eagerImages: 0,
+    videoSources: 0,
+    videoPosters: 0,
   };
 
   if (!activeDocument || typeof activeDocument.querySelectorAll !== 'function')
@@ -321,6 +325,47 @@ export function activateLazyMediaForCapture(options?: {
     if (typeof el.removeAttribute === 'function')
       el.removeAttribute(attr);
     result.backgrounds++;
+  });
+
+  Array.from(activeDocument.querySelectorAll('video')).forEach((video: any) => {
+    if (typeof video.querySelectorAll === 'function') {
+      Array.from(video.querySelectorAll('source')).forEach((source: any) => {
+        const value = typeof source.getAttribute === 'function'
+          ? source.getAttribute('data-src')
+          : null;
+        if (!value)
+          return;
+
+        const src = abs(value);
+        if (src) {
+          source.src = src;
+          if (typeof source.setAttribute === 'function')
+            source.setAttribute('src', src);
+        }
+        if (typeof source.removeAttribute === 'function')
+          source.removeAttribute('data-src');
+        result.videoSources++;
+      });
+    }
+
+    const dataPoster = typeof video.getAttribute === 'function'
+      ? video.getAttribute('data-poster')
+      : null;
+    const poster = dataPoster || (typeof video.getAttribute === 'function'
+      ? video.getAttribute('poster')
+      : null) || video.poster;
+    if (!poster)
+      return;
+
+    const resolvedPoster = abs(poster);
+    if (resolvedPoster) {
+      video.poster = resolvedPoster;
+      if (typeof video.setAttribute === 'function')
+        video.setAttribute('poster', resolvedPoster);
+    }
+    if (dataPoster && typeof video.removeAttribute === 'function')
+      video.removeAttribute('data-poster');
+    result.videoPosters++;
   });
 
   return result;
@@ -1434,7 +1479,7 @@ export class PageCapturer {
       });
 
       const lazyMediaActivation = await page.evaluate(activateLazyMediaForCapture as any);
-      console.log(`[PageCapturer] Lazy media activation: images=${lazyMediaActivation.imageSources}, srcsets=${lazyMediaActivation.sourceSets}, backgrounds=${lazyMediaActivation.backgrounds}, eager=${lazyMediaActivation.eagerImages}`);
+      console.log(`[PageCapturer] Lazy media activation: images=${lazyMediaActivation.imageSources}, srcsets=${lazyMediaActivation.sourceSets}, backgrounds=${lazyMediaActivation.backgrounds}, eager=${lazyMediaActivation.eagerImages}, videoSources=${lazyMediaActivation.videoSources}, videoPosters=${lazyMediaActivation.videoPosters}`);
 
       // Wait a moment for the DOM changes to take effect
       await new Promise(r => setTimeout(r, 500));

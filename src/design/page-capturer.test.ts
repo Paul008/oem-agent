@@ -25,12 +25,13 @@ import {
   waitForCaptureImagesForCapture,
 } from './page-capturer'
 
-function createLazyMediaElement(attrs: Record<string, string> = {}, props: { loading?: string } = {}) {
+function createLazyMediaElement(attrs: Record<string, string> = {}, props: { loading?: string; sources?: any[] } = {}) {
   const element: any = {
     attrs: { ...attrs },
     removedAttrs: [] as string[],
     style: {},
     loading: props.loading,
+    sources: props.sources ?? [],
     getAttribute(name: string) {
       return Object.prototype.hasOwnProperty.call(this.attrs, name) ? this.attrs[name] : null
     },
@@ -40,10 +41,18 @@ function createLazyMediaElement(attrs: Record<string, string> = {}, props: { loa
         this.src = value
       if (name === 'srcset')
         this.srcset = value
+      if (name === 'poster')
+        this.poster = value
     },
     removeAttribute(name: string) {
       this.removedAttrs.push(name)
       delete this.attrs[name]
+    },
+    querySelectorAll(selector: string) {
+      if (selector === 'source')
+        return this.sources
+
+      return []
     },
   }
 
@@ -55,6 +64,7 @@ function createLazyMediaDocument(input: {
   images?: any[];
   srcsetElements?: any[];
   backgroundElements?: any[];
+  videos?: any[];
 }) {
   return {
     location: {
@@ -68,6 +78,8 @@ function createLazyMediaDocument(input: {
         return input.srcsetElements ?? []
       if (selector === '[data-bg], [data-background-image]')
         return input.backgroundElements ?? []
+      if (selector === 'video')
+        return input.videos ?? []
 
       return []
     },
@@ -171,6 +183,52 @@ describe('activateLazyMediaForCapture', () => {
     expect(result.eagerImages).toBe(1)
     expect(lazy.loading).toBe('eager')
     expect(eager.loading).toBe('eager')
+  })
+
+  it('resolves video data-poster before scrolling', () => {
+    const video = createLazyMediaElement({ 'data-poster': '/-/media/rav4-poster.jpg' })
+    const doc = createLazyMediaDocument({
+      videos: [video],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.videoPosters).toBe(1)
+    expect(video.poster).toBe('https://www.toyota.com.au/-/media/rav4-poster.jpg')
+    expect(video.attrs.poster).toBe('https://www.toyota.com.au/-/media/rav4-poster.jpg')
+    expect(video.removedAttrs).toContain('data-poster')
+  })
+
+  it('resolves relative video poster attributes before scrolling', () => {
+    const video = createLazyMediaElement({ poster: 'assets/video-poster.jpg' })
+    const doc = createLazyMediaDocument({
+      videos: [video],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.videoPosters).toBe(1)
+    expect(video.poster).toBe('https://www.toyota.com.au/assets/video-poster.jpg')
+    expect(video.attrs.poster).toBe('https://www.toyota.com.au/assets/video-poster.jpg')
+    expect(video.removedAttrs).not.toContain('poster')
+  })
+
+  it('resolves video source data-src attributes before scrolling', () => {
+    const source = createLazyMediaElement({ 'data-src': 'media/rav4-loop.mp4' })
+    const absoluteSource = createLazyMediaElement({ 'data-src': 'https://cdn.example.test/rav4.mp4' })
+    const video = createLazyMediaElement({}, { sources: [source, absoluteSource] })
+    const doc = createLazyMediaDocument({
+      videos: [video],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.videoSources).toBe(2)
+    expect(source.src).toBe('https://www.toyota.com.au/media/rav4-loop.mp4')
+    expect(source.attrs.src).toBe('https://www.toyota.com.au/media/rav4-loop.mp4')
+    expect(source.removedAttrs).toContain('data-src')
+    expect(absoluteSource.src).toBe('https://cdn.example.test/rav4.mp4')
+    expect(absoluteSource.removedAttrs).toContain('data-src')
   })
 })
 
@@ -442,6 +500,7 @@ describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
     const lazyActivation = source.indexOf('page.evaluate(activateLazyMediaForCapture as any)')
+    const lazyActivationLog = source.indexOf('videoSources=${lazyMediaActivation.videoSources}, videoPosters=${lazyMediaActivation.videoPosters}', lazyActivation)
     const scrollSweep = source.indexOf('page.evaluate(sweepCaptureScrollForCapture as any')
     const imageWait = source.indexOf('page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS)')
     const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
@@ -457,6 +516,7 @@ describe('PageCapturer readiness wiring', () => {
     expect(CAPTURE_DOM_QUIET_WINDOW_MS).toBe(250)
     expect(CAPTURE_DOM_QUIET_TIMEOUT_MS).toBe(1500)
     expect(lazyActivation).toBeGreaterThan(-1)
+    expect(lazyActivationLog).toBeGreaterThan(lazyActivation)
     expect(scrollSweep).toBeGreaterThan(lazyActivation)
     expect(scrollSweep).toBeGreaterThan(-1)
     expect(imageWait).toBeGreaterThan(scrollSweep)
