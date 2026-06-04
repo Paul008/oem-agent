@@ -9,6 +9,7 @@ import {
   Copy,
   Cpu,
   ExternalLink,
+  Eye,
   Globe,
   History,
   Import,
@@ -203,6 +204,12 @@ function openSourceUrl() {
   const sourceUrl = page.value?.source_url
   if (sourceUrl)
     window.open(sourceUrl, '_blank', 'noopener,noreferrer')
+}
+
+function openPagePreview() {
+  const slug = (route.params as { slug?: string }).slug
+  if (slug)
+    window.open(`/dashboard/page-preview/${slug}`, '_blank', 'noopener,noreferrer')
 }
 
 function onCaptureHtml(html: string) {
@@ -712,6 +719,19 @@ watch(
           </UiButton>
         </a>
 
+        <!-- Preview — opens the page chrome-free in a new tab -->
+        <UiButton
+          v-if="canShowEditorActions && (isCloned || isStructured)"
+          size="sm"
+          variant="outline"
+          class="hidden min-[2100px]:inline-flex"
+          title="Preview page in a new tab"
+          @click="openPagePreview"
+        >
+          <Eye class="size-3.5 mr-1" />
+          Preview
+        </UiButton>
+
         <!-- JSON toggle — inline on very wide screens -->
         <UiButton
           v-if="canShowEditorActions && !isWriteProtectedPage"
@@ -807,6 +827,13 @@ watch(
             <UiDropdownMenuItem v-if="!isWriteProtectedPage" @select="showJson = !showJson">
               <Code class="size-3.5 mr-2" />
               {{ showJson ? 'Hide JSON' : 'Show JSON' }}
+            </UiDropdownMenuItem>
+            <UiDropdownMenuItem
+              v-if="isCloned || isStructured"
+              @select="openPagePreview"
+            >
+              <Eye class="size-3.5 mr-2" />
+              Preview page
             </UiDropdownMenuItem>
             <UiDropdownMenuItem
               v-if="page?.source_url"
