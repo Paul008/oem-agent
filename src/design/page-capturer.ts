@@ -525,6 +525,13 @@ function extractStylesheetHref(linkTag: string): string | null {
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
 }
 
+function extractHtmlAttribute(tag: string, attrName: string): string | null {
+  const escapedName = attrName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = tag.match(new RegExp(`\\b${escapedName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i'));
+
+  return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
+}
+
 function absolutizeCaptureUrl(url: string, sourceUrl: string): string {
   const trimmed = url.trim();
   if (!trimmed || trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('blob:'))
@@ -584,6 +591,8 @@ function escapeHtmlAttribute(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+const SAFE_STYLESHEET_LINK_ATTRS = ['media', 'crossorigin', 'integrity', 'referrerpolicy'] as const;
+
 function stylesheetLinkTag(input: string, sourceUrl: string): string | null {
   const trimmed = input.trim();
   if (!trimmed)
@@ -599,7 +608,20 @@ function stylesheetLinkTag(input: string, sourceUrl: string): string | null {
   if (!absoluteHref || !absoluteHref.startsWith('http'))
     return null;
 
-  return `<link rel="stylesheet" href="${escapeHtmlAttribute(absoluteHref)}">`;
+  const attrs: Array<[string, string]> = [
+    ['rel', 'stylesheet'],
+    ['href', absoluteHref],
+  ];
+
+  if (trimmed.startsWith('<')) {
+    for (const attrName of SAFE_STYLESHEET_LINK_ATTRS) {
+      const value = extractHtmlAttribute(trimmed, attrName);
+      if (value != null)
+        attrs.push([attrName, value]);
+    }
+  }
+
+  return `<link ${attrs.map(([name, value]) => `${name}="${escapeHtmlAttribute(value)}"`).join(' ')}>`;
 }
 
 function collectSrcsetUrls(srcset: string, sourceUrl: string, imageUrls: Set<string>): string {
@@ -752,7 +774,8 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
   }
   $('link[rel~="stylesheet"]').each((_idx, node) => {
     const href = $(node).attr('href') || '';
-    const tag = stylesheetLinkTag(href, sourceUrl);
+    const linkHtml = $.html(node);
+    const tag = stylesheetLinkTag(linkHtml || href, sourceUrl);
     const absoluteHref = tag ? extractStylesheetHref(tag) : null;
     if (tag && absoluteHref)
       stylesheetLinks.set(absoluteHref, tag);
@@ -1445,19 +1468,46 @@ export class PageCapturer {
         const seenHrefs = new Set<string>();
         const stylesheetLinks: string[] = [];
 
+        function escapeAttr(value: string): string {
+          return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        document.querySelectorAll('link[rel~="stylesheet"]').forEach(link => {
+          const htmlLink = link as HTMLLinkElement;
+          const href = htmlLink.href;
+          if (!href || !href.startsWith('http') || seenHrefs.has(href))
+            return;
+
+          const attrs: Array<[string, string]> = [
+            ['rel', 'stylesheet'],
+            ['href', href],
+          ];
+          const media = link.getAttribute('media');
+          if (media != null)
+            attrs.push(['media', media]);
+          const crossorigin = link.getAttribute('crossorigin');
+          if (crossorigin != null)
+            attrs.push(['crossorigin', crossorigin]);
+          const integrity = link.getAttribute('integrity');
+          if (integrity != null)
+            attrs.push(['integrity', integrity]);
+          const referrerpolicy = link.getAttribute('referrerpolicy');
+          if (referrerpolicy != null)
+            attrs.push(['referrerpolicy', referrerpolicy]);
+
+          seenHrefs.add(href);
+          stylesheetLinks.push('<link ' + attrs.map(([name, value]) => name + '="' + escapeAttr(value) + '"').join(' ') + '>');
+        });
         for (const sheet of document.styleSheets) {
           if (sheet.href && !seenHrefs.has(sheet.href)) {
             seenHrefs.add(sheet.href);
-            stylesheetLinks.push(`<link rel="stylesheet" href="${sheet.href}">`);
+            stylesheetLinks.push(`<link rel="stylesheet" href="${escapeAttr(sheet.href)}">`);
           }
         }
-        document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
-          const href = (link as HTMLLinkElement).href;
-          if (href && href.startsWith('http') && !seenHrefs.has(href)) {
-            seenHrefs.add(href);
-            stylesheetLinks.push(`<link rel="stylesheet" href="${href}">`);
-          }
-        });
         // @import URLs from inline <style> tags
         document.querySelectorAll('style').forEach(style => {
           const imports = style.textContent?.match(/@import\s+url\(["']?([^"')]+)["']?\)/g);
@@ -1468,7 +1518,7 @@ export class PageCapturer {
                 const url = abs(m[1]);
                 if (!seenHrefs.has(url)) {
                   seenHrefs.add(url);
-                  stylesheetLinks.push(`<link rel="stylesheet" href="${url}">`);
+                  stylesheetLinks.push(`<link rel="stylesheet" href="${escapeAttr(url)}">`);
                 }
               }
             }

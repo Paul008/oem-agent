@@ -270,6 +270,27 @@ describe('PageCapturer viewport metadata wiring', () => {
   })
 })
 
+describe('PageCapturer stylesheet link attribute wiring', () => {
+  it('collects real stylesheet link elements before document.styleSheets fallback', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const phaseC = source.indexOf('// ====== Phase C: Collect external stylesheets ======')
+    const linkQuery = source.indexOf('document.querySelectorAll(\'link[rel~="stylesheet"]\')', phaseC)
+    const mediaAttr = source.indexOf('link.getAttribute(\'media\')', linkQuery)
+    const crossoriginAttr = source.indexOf('link.getAttribute(\'crossorigin\')', linkQuery)
+    const integrityAttr = source.indexOf('link.getAttribute(\'integrity\')', linkQuery)
+    const referrerPolicyAttr = source.indexOf('link.getAttribute(\'referrerpolicy\')', linkQuery)
+    const styleSheetFallback = source.indexOf('for (const sheet of document.styleSheets)', phaseC)
+
+    expect(phaseC).toBeGreaterThan(-1)
+    expect(linkQuery).toBeGreaterThan(phaseC)
+    expect(mediaAttr).toBeGreaterThan(linkQuery)
+    expect(crossoriginAttr).toBeGreaterThan(mediaAttr)
+    expect(integrityAttr).toBeGreaterThan(crossoriginAttr)
+    expect(referrerPolicyAttr).toBeGreaterThan(integrityAttr)
+    expect(styleSheetFallback).toBeGreaterThan(referrerPolicyAttr)
+  })
+})
+
 describe('pseudo-element capture helpers', () => {
   it('keeps only quoted pseudo-element text content', () => {
     expect(normalizePseudoElementContentForCapture('"New"')).toBe('New')
@@ -477,6 +498,42 @@ describe('buildDomCaptureFromHtml', () => {
     expect(result.imageUrls).toContain('https://www.toyota.com.au/-/media/rav4-hero@2x.jpg')
     expect(result.imageUrls).toContain('https://www.toyota.com.au/-/media/rav4-bg.jpg')
     expect(result.heroUrl).toBe('https://www.toyota.com.au/-/media/rav4-hero@2x.jpg')
+  })
+
+  it('preserves safe stylesheet link attributes in external captures', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `
+        <!doctype html>
+        <html>
+          <head>
+            <title>RAV4</title>
+            <link
+              rel="stylesheet"
+              href="/assets/desktop.css?rev=1"
+              media="screen and (min-width: 1024px)"
+              crossorigin="anonymous"
+              integrity="sha384-test"
+              referrerpolicy="no-referrer"
+              onload="alert(1)"
+              data-track="drop-me"
+            >
+          </head>
+          <body>
+            <main>
+              <h1>RAV4</h1>
+              <p>${'Hybrid SUV. '.repeat(120)}</p>
+            </main>
+          </body>
+        </html>
+      `,
+    }, 'https://www.toyota.com.au/rav4')
+
+    if ('bot_blocked' in result)
+      throw new Error('Expected external capture to succeed')
+
+    expect(result.stylesheetLinks).toContain('<link rel="stylesheet" href="https://www.toyota.com.au/assets/desktop.css?rev=1" media="screen and (min-width: 1024px)" crossorigin="anonymous" integrity="sha384-test" referrerpolicy="no-referrer">')
+    expect(result.stylesheetLinks.join('\n')).not.toContain('onload=')
+    expect(result.stylesheetLinks.join('\n')).not.toContain('data-track')
   })
 
   it('rejects externally rendered security verification pages', () => {
