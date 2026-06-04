@@ -57,6 +57,7 @@ onMounted(async () => {
         :model-slug="modelSlug"
         :read-only="true"
         :fit-width="true"
+        :allow-same-origin-sandbox="true"
       />
     </div>
 

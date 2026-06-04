@@ -23,6 +23,9 @@ const props = defineProps<{
   readOnly?: boolean
   // Full-screen preview: let the desktop clone frame scale up to fill the window width.
   fitWidth?: boolean
+  // Full-screen preview only: enables allow-same-origin in the iframe sandbox so timers and
+  // permitted clone interactivity run at full speed. Never set this in the editor.
+  allowSameOriginSandbox?: boolean
 }>()
 const emit = defineEmits<{
   selectSection: [id: string]
@@ -509,6 +512,7 @@ function sectionStyle(section: any): Record<string, string> {
             :worker-base="workerBase"
             :frame-width="cloneFrameWidth"
             :fit-width="fitWidth && previewWidth === 'full'"
+            :allow-same-origin-sandbox="allowSameOriginSandbox"
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
