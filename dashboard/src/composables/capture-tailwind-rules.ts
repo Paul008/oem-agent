@@ -2,6 +2,10 @@
 // Authored as ONE self-contained function so use-capture-injection can inject
 // tailwindRules.toString() into the page (minification-safe: no outside refs).
 // Single source of truth; unit-tested directly.
+// NOTE: to exercise the stringified body in a test, eval the BUNDLER output, not a raw
+// `tsx`/esbuild dev transform — the dev transform injects `__name()` name-keeper calls that
+// don't exist in the reconstructed scope (ReferenceError). The Vite production build does not
+// (verified: no `__name` in the chunk), so the real in-page injection path is unaffected.
 export function tailwindRules() {
   function pxToSp(px: number): string {
     var m: Record<number, string>={0:'0',1:'px',2:'0.5',4:'1',6:'1.5',8:'2',10:'2.5',12:'3',14:'3.5',16:'4',20:'5',24:'6',28:'7',32:'8',36:'9',40:'10',44:'11',48:'12',56:'14',64:'16',72:'18',80:'20',96:'24'};
