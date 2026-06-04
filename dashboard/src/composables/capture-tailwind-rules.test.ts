@@ -76,11 +76,15 @@ describe('styleTw inline routing', () => {
     expect(R.styleTw('background-image', 'linear-gradient(180deg, #000, rgba(0,0,0,0))')).toBe('background-image:linear-gradient(180deg, #000, rgba(0,0,0,0))')
     expect(R.styleTw('transform', 'translateX(-50%)')).toBe('transform:translateX(-50%)')
     expect(R.styleTw('filter', 'blur(4px)')).toBe('filter:blur(4px)')
+    expect(R.styleTw('backdrop-filter', 'blur(2px)')).toBe('backdrop-filter:blur(2px)')
+    expect(R.styleTw('clip-path', 'inset(0 0 50% 0)')).toBe('clip-path:inset(0 0 50% 0)')
+    expect(R.styleTw('mask', 'url(#m)')).toBe('mask:url(#m)')
   })
   it('returns empty for none/empty and for non-inline props', () => {
     expect(R.styleTw('box-shadow', 'none')).toBe('')
     expect(R.styleTw('background-image', 'none')).toBe('')
     expect(R.styleTw('transform', 'none')).toBe('')
+    expect(R.styleTw('background-image', 'rgba(0, 0, 0, 0)')).toBe('')
     expect(R.styleTw('font-size', '17px')).toBe('') // Tailwind-routed → not inline
   })
 })

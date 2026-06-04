@@ -196,10 +196,10 @@ export function tailwindRules() {
   }
 
   // styleTw: inline-style escape hatch for un-tokenizable CSS props.
+  var INLINE_STYLE_PROPS: Record<string, number> = { 'box-shadow':1, 'background-image':1, 'transform':1, 'filter':1, 'backdrop-filter':1, 'clip-path':1, 'mask':1 };
   function styleTw(prop: string, val: string): string {
     if (!val || val === 'none' || val === 'normal' || val === 'auto' || val === 'rgba(0, 0, 0, 0)') return '';
-    var INLINE: Record<string, number> = { 'box-shadow':1, 'background-image':1, 'transform':1, 'filter':1, 'backdrop-filter':1, 'clip-path':1, 'mask':1 };
-    if (!INLINE[prop]) return '';
+    if (!INLINE_STYLE_PROPS[prop]) return '';
     return prop + ':' + val;
   }
 
