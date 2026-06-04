@@ -43,6 +43,64 @@ Remaining non-protected OEMs checked for existing generated Clone Studio pages o
 generated slugs to audit yet: Chery, GMSV, Isuzu, KGM, Mitsubishi, Nissan, Renault, and Suzuki.
 Do not run new tests or writes against GAC or FOTON unless the live-site restriction is lifted.
 
+## Mapper cross-stack verification (2026-06-04, production)
+
+The unified section mapper (`src/design/section-mapper.ts`) was verified live against
+real production clones via the non-mutating `POST /admin/map-page` endpoint, after
+two splitter fixes (deep CMS wrapper descent + a11y/nav chrome skip) were deployed.
+
+| OEM/page | regions | section[0] | overall conf | low-conf | notes |
+|---|---:|---|---:|---:|---|
+| ford-au/mustang | 21 | hero | 0.61 | 8 | was collapsing to 1 region pre-fix |
+| kia-au/sportage | 14 | hero | 0.70 | 2 | |
+| gwm-au/haval-h6 | 10 | hero | 0.73 | 2 | was 2 regions pre-chrome-skip (nuxt announcer) |
+| toyota-au/rav4 | 57 | content-block | 0.64 | 14 | over-segmented (responsive media blocks) |
+| hyundai-au/i30 | 11 | hero | 0.77 | 0 | clean |
+| mazda-au/cx-5 | 13 | image | 0.77 | 0 | image-led hero (heading in separate region) |
+| volkswagen-au/tiguan | 3 | content-block | 0.63 | 1 | under-segmented |
+| ldv-au/ldv-deliver-7 | 22 | image | 0.63 | 10 | image-led hero |
+| subaru-au/brz | 5 | image | 0.78 | 0 | image-led hero |
+
+Newly cloned + mapped on 2026-06-04 (deterministic `clone-page`, then `map-page`):
+
+| OEM/page | clone elements | regions | section[0] | overall | notes |
+|---|---:|---:|---|---:|---|
+| chery-au/chery-c5 | 772 | 28 | hero | 0.70 | healthy |
+| gmsv-au/silverado-2500hd | 880 | 23 | content-block | 0.64 | healthy |
+| renault-au/arkana | 395 | 22 | hero | 0.57 | healthy |
+| suzuki-au/ignis | 35 | 1 | intro | 0.80 | **thin clone** — page under-rendered via cloudflare-browser; retry with `scrapling-stealth` |
+
+Findings:
+- The catastrophic single-region collapse (deep AEM/CMS wrapper nesting + stray
+  noise siblings) is fixed and verified on the real 98KB Mustang clone (1 → 21).
+- a11y/nav chrome (Nuxt route-announcer, sticky navs) is now skipped, fixing GWM
+  (2 → 10) and improving hero-first detection.
+- Residual deterministic gaps are honest and expected: **image-led heroes**
+  (Mazda/Subaru/LDV — full-bleed hero image with the heading in a separate region)
+  read as `image`/`content-block` at section[0], and Toyota over-segments. These
+  are precisely the cases the **AI fallback** (`mapAndPersist` → AI when
+  `needs_ai_fallback`) is designed to cover; chasing per-stack deterministic
+  perfection would over-fit.
+
+## Capture diagnostics — verified live
+
+`POST /admin/clone-page` now records a diagnostics record per capture under
+`pages/diagnostics/{oem}/{slug}` (outside `pages/definitions`).
+`GET /admin/capture-diagnostics/chery-au/chery-c5` returned `found:false` before the
+capture and `{found:true, status:ok, backend:cloudflare-browser, capture_time_ms:25987}`
+after — end-to-end persistence confirmed in production.
+
+## Fleet audit status (2026-06-04)
+
+- **Cloned + mapped this session:** Chery, GMSV, Renault, Suzuki (Suzuki needs a
+  stealth re-clone — thin render).
+- **Still blocked — need model-page clone targets onboarded:** Isuzu, Mitsubishi,
+  Nissan, KGM. Their `products` source URLs are range/browse pages
+  (e.g. Nissan `browse-range.html`), not model pages, so there is nothing
+  model-specific to clone yet. Onboard a `vehicle_models` slug + model URL per OEM
+  (or pass `source_url` to `clone-page`) before auditing.
+- **GAC, FOTON:** untouched (live-site restriction in force).
+
 ## Implemented Generalizations
 
 - Common scroll-reveal classes are forced visible in Clone Studio because OEM animation scripts are

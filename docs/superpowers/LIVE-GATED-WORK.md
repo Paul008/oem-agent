@@ -1,5 +1,15 @@
 # Live-Gated Work — runs only with the authenticated browser / deploy
 
+> **Status 2026-06-04:** Merged to main + deployed to production (worker `eb3cad77`,
+> dashboard `oem-dashboard.pages.dev`). Mapper verified live across 13 real OEM
+> stacks; capture diagnostics verified end-to-end; splitter collapse + chrome bugs
+> fixed and deployed. Chery/GMSV/Renault/Suzuki newly cloned + mapped. See
+> `CLONE-STUDIO-PHASE1-AUDIT.md` for the full results table. Remaining: Isuzu/
+> Mitsubishi/Nissan/KGM need model-page clone targets onboarded; Suzuki needs a
+> stealth re-clone; structured-section persistence on curated pages is a deliberate
+> per-page action (not mass-run, to avoid overwriting hand-curated sections).
+
+
 Written 2026-06-04. These items cannot be completed from local code alone: they
 need the authenticated production dashboard (`oem-dashboard.pages.dev`, behind
 Cloudflare Access), a Worker/dashboard deploy, or both. Everything here is
