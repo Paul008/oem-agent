@@ -85,7 +85,11 @@ async function loadScreenshot() {
     const resp = await fetch(`${props.workerBase}/api/v1/oem-agent/admin/capture-screenshot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url.value }),
+      body: JSON.stringify({
+        url: url.value,
+        oem_id: props.oemId,
+        model_slug: props.modelSlug,
+      }),
     })
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({ error: 'Screenshot failed' }))

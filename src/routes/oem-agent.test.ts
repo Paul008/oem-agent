@@ -102,6 +102,11 @@ describe('oem-agent clone update route', () => {
 
 describe('oem-agent protected model page writes', () => {
   it.each([
+    {
+      method: 'POST',
+      path: '/admin/capture-screenshot',
+      body: { url: 'https://example.test/emkoo', oem_id: 'gac-au' },
+    },
     { method: 'POST', path: '/admin/generate-page/gac-au/emkoo' },
     { method: 'POST', path: '/admin/clone-page/foton-au/tunland' },
     { method: 'POST', path: '/admin/structure-page/gac-au/emkoo' },

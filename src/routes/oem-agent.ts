@@ -384,8 +384,11 @@ app.get('/admin/proxy-html', async (c) => {
  * stores it to R2, and returns the media URL.
  */
 app.post('/admin/capture-screenshot', async (c) => {
-  const body = await c.req.json<{ url: string }>();
+  const body = await c.req.json<{ url: string; oem_id?: string; oemId?: string }>();
   if (!body.url) return c.json({ error: 'url is required' }, 400);
+  const protectedWrite = rejectProtectedModelPageWrite(c, body.oem_id ?? body.oemId);
+  if (protectedWrite) return protectedWrite;
+
   const urlCheck = validateUrl(body.url);
   if (!urlCheck.valid) return c.json({ error: urlCheck.error }, 400);
 
