@@ -2,6 +2,8 @@ import { h } from 'vue'
 import { toast } from 'vue-sonner'
 import { z } from 'zod'
 
+const DEFAULT_WORKER_URL = 'https://oem-agent.adme-dev.workers.dev'
+
 /**
  * Load .env file and validate it against the schema
  * Has this file, it will be loaded automatically by vite and we will be have environment variables available type
@@ -11,8 +13,9 @@ import { z } from 'zod'
 const EnvSchema = z.object({
   // Add your environment variables here, for example:
   // VITE_API_BASE_URL: z.string().url(),
-  VITE_SERVER_API_URL: z.url(),
-  VITE_SERVER_API_PREFIX: z.string(),
+  VITE_SERVER_API_URL: z.url().default(DEFAULT_WORKER_URL),
+  VITE_WORKER_URL: z.url().default(DEFAULT_WORKER_URL),
+  VITE_SERVER_API_PREFIX: z.string().default('/api'),
   VITE_SERVER_API_TIMEOUT: z.coerce.number().default(5000),
 })
 

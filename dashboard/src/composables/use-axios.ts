@@ -6,7 +6,7 @@ import env from '@/utils/env'
 
 export function useAxios() {
   const axiosInstance = axios.create({
-    baseURL: env.VITE_SERVER_API_URL + env.VITE_SERVER_API_PREFIX,
+    baseURL: env.VITE_WORKER_URL + env.VITE_SERVER_API_PREFIX,
     timeout: env.VITE_SERVER_API_TIMEOUT,
   })
 
