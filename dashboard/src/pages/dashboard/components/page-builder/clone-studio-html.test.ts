@@ -671,6 +671,39 @@ describe('buildCloneStudioHtml', () => {
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
+  it('scopes interactivity wiring per region so controls switch the right region (no shared loop var)', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    // Each candidate is wired through a dedicated per-region function call (fresh scope per region),
+    // NOT inline in the loop where a `var regionId`/`var regionEl` would be captured by reference and
+    // resolve to the LAST region by the time a click fires.
+    expect(bridgeScript).toContain('function wireRegion(regionEl)')
+    expect(bridgeScript).toContain('wireRegion(candidates[i])')
+
+    // The enableInteractivity loop body must be a single call into wireRegion — no inline wiring that
+    // could close over the loop variable. Assert the loop does not declare per-region vars itself.
+    const interactivityBlock = bridgeScript.slice(
+      bridgeScript.indexOf('function enableInteractivity()'),
+      bridgeScript.indexOf('function wireRegion('),
+    )
+    expect(interactivityBlock).not.toContain('var regionId')
+    expect(interactivityBlock).not.toContain('wireTabRegion')
+    expect(interactivityBlock).not.toContain('wireCarouselRegion')
+
+    // Per-region handler functions receive regionId/regionEl as params and keep their own current-index
+    // state, so handlers close over per-call values rather than a shared outer var.
+    expect(bridgeScript).toContain('function wireTabRegion(regionId, regionEl)')
+    expect(bridgeScript).toContain('function wireCarouselRegion(regionId, regionEl)')
+    expect(bridgeScript).toContain('function injectControlBar(regionId, regionEl, panelCount)')
+
+    // Bridge-owned controls bypass the document navigation guard so their click handlers actually run.
+    expect(bridgeScript).toContain('function isBridgeOwnedTarget(target)')
+    expect(bridgeScript).toContain('if (isBridgeOwnedTarget(target))')
+
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
   it('injects editable:true by default and keeps editing affordances', () => {
     const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
     expect(html).toContain('window.__CLONE_STUDIO_EDITABLE__ = true')
