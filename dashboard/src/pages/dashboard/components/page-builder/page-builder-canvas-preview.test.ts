@@ -100,6 +100,41 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(disabled).toContain('data-oem-preview-link="true"')
     expect(disabled).toContain('onclick="return false"')
   })
+
+  it('lets the standalone preview host editable canvas menus unless the OEM is write protected', () => {
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    expect(previewSource).toContain('isModelPageWriteProtected')
+    expect(previewSource).toContain(':read-only="isWriteProtectedPage"')
+    expect(previewSource).toContain(':allow-same-origin-sandbox="isWriteProtectedPage"')
+    expect(previewSource).not.toContain(':read-only="true"')
+    expect(previewSource).not.toContain(':allow-same-origin-sandbox="true"')
+    expect(previewSource).toContain('@select-section="selectSection"')
+    expect(previewSource).toContain('@open-editor="openEditor"')
+    expect(previewSource).toContain('@move-section="moveSection"')
+    expect(previewSource).toContain('@duplicate-section="duplicateSection"')
+    expect(previewSource).toContain('@delete-section="deleteSection"')
+    expect(previewSource).toContain('@update-field="onUpdateField"')
+    expect(previewSource).toContain('@select-clone-region="onCloneRegionSelected"')
+    expect(previewSource).toContain('@clone-dom-updated="onCloneDomUpdated"')
+    expect(previewSource).toContain('@clone-region-added="onCloneRegionAdded"')
+    expect(previewSource).toContain('@region-action="onRegionAction"')
+  })
+
+  it('persists edits made from the standalone preview through the existing save paths', () => {
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    expect(previewSource).toContain('async function savePreview()')
+    expect(previewSource).toContain('saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegionsForSave.value)')
+    expect(previewSource).toContain('saveSections()')
+    expect(previewSource).toContain('function onCloneDomUpdated(html: string)')
+    expect(previewSource).toContain('cloneDraftHtml.value = html')
+    expect(previewSource).toContain('addCloneRegion(region)')
+    expect(previewSource).toContain('setRegionHeight(id, value == null ? null : Number(value))')
+    expect(previewSource).toContain('pageBuilderCanvas.value?.duplicateRegion(regionId)')
+    expect(previewSource).toContain('fieldId: `${regionId}:visibility`')
+    expect(previewSource).toContain('<SectionEditorDialog')
+  })
 })
 
 describe('CloneStudioCanvas duplicate-region relay', () => {
