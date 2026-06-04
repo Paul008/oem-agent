@@ -126,7 +126,8 @@ describe('duplicate region wiring through the host layers', () => {
 
     // Page dispatches duplicate and persists the new region
     expect(pageSource).toContain('pageBuilderCanvas.value?.duplicateRegion(regionId)')
-    expect(pageSource).toContain('@clone-region-added="addCloneRegion"')
+    expect(pageSource).toContain('@clone-region-added="onCloneRegionAdded"')
+    expect(pageSource).toContain('function onCloneRegionAdded')
     expect(pageSource).toContain('addCloneRegion,')
     expect(pageSource).toContain("action === 'convert'")
   })

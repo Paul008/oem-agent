@@ -180,6 +180,12 @@ function onCloneDomUpdated(html: string) {
   isDirty.value = true
 }
 
+function onCloneRegionAdded(region: CloneRegion) {
+  if (isWriteProtectedPage.value)
+    return
+  addCloneRegion(region)
+}
+
 function onCloneRegionSelected(region: CloneRegion) {
   selectCloneRegion(region)
   if (isWriteProtectedPage.value)
@@ -206,7 +212,7 @@ function onUpdateField(id: string, field: string, value: any) {
 }
 
 // Structural region actions. `delete`/`hide` map to a visibility patch (the pragmatic delete for a
-// clone). `duplicate`/`convert` are out of scope for now — surface a non-blocking notice.
+// clone). `duplicate` clones the region via the bridge; `convert` is still a placeholder toast.
 function onRegionAction({ action, regionId }: { action: RegionActionId, regionId: string }) {
   if (isWriteProtectedPage.value)
     return
@@ -227,6 +233,7 @@ function onRegionAction({ action, regionId }: { action: RegionActionId, regionId
   }
   if (action === 'convert') {
     toast('Convert coming soon')
+    return
   }
 }
 
@@ -1044,7 +1051,7 @@ watch(
             @update-field="onUpdateField"
             @select-clone-region="onCloneRegionSelected"
             @clone-dom-updated="onCloneDomUpdated"
-            @clone-region-added="addCloneRegion"
+            @clone-region-added="onCloneRegionAdded"
             @region-action="onRegionAction"
           />
         </UiResizablePanel>
