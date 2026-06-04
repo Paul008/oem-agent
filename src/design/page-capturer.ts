@@ -156,6 +156,28 @@ export const CAPTURE_STATIC_CAROUSEL_SAFETY_CSS = `
   flex-shrink: 0 !important;
 }
 `.trim();
+export const CAPTURE_STATIC_MEDIA_FRAME_CSS = `
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip !important;
+}
+
+@media (min-width: 1024px) {
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    max-width: 100% !important;
+  }
+
+  img,
+  video {
+    height: auto !important;
+  }
+}
+`.trim();
 
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
 export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
@@ -1015,6 +1037,7 @@ export class PageCapturer {
         '.tab_contents,.tab-content,.tab-panel,.tab_content,[role="tabpanel"],[class*="tabpanel"]{display:block!important;visibility:visible!important;opacity:1!important;}',
         CAPTURE_STATIC_CLONE_SAFETY_CSS,
         CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
+        CAPTURE_STATIC_MEDIA_FRAME_CSS,
         // Basic resets for iframe context
         'img{max-width:100%;height:auto;} :root{overflow-x:hidden;}',
       ].join('\n');

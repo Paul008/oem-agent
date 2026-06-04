@@ -9,6 +9,7 @@ import {
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
   CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
   CAPTURE_STATIC_CLONE_SAFETY_CSS,
+  CAPTURE_STATIC_MEDIA_FRAME_CSS,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
@@ -173,6 +174,27 @@ describe('CAPTURE_STATIC_CAROUSEL_SAFETY_CSS', () => {
   })
 })
 
+describe('CAPTURE_STATIC_MEDIA_FRAME_CSS', () => {
+  it('clips document-level horizontal overflow', () => {
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('html,')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('body')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/max-width:\s*100%/i)
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/overflow-x:\s*clip\s*!important/i)
+  })
+
+  it('caps common media elements to the clone frame', () => {
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('picture')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('video')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('canvas')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('svg')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/max-width:\s*100%\s*!important/i)
+  })
+
+  it('keeps image and video height proportional', () => {
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/img,[\s\S]*video[\s\S]*height:\s*auto\s*!important/i)
+  })
+})
+
 describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
@@ -217,6 +239,21 @@ describe('PageCapturer persisted carousel safety CSS wiring', () => {
     expect(cloneSafetyUsage).toBeGreaterThan(overrideCssStart)
     expect(carouselSafetyUsage).toBeGreaterThan(cloneSafetyUsage)
     expect(assembledStyle).toBeGreaterThan(carouselSafetyUsage)
+  })
+})
+
+describe('PageCapturer persisted media frame CSS wiring', () => {
+  it('includes media frame CSS after carousel safety CSS in persisted override CSS', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const overrideCssStart = source.indexOf('const overrideCss = [')
+    const carouselSafetyUsage = source.indexOf('CAPTURE_STATIC_CAROUSEL_SAFETY_CSS', overrideCssStart)
+    const mediaFrameUsage = source.indexOf('CAPTURE_STATIC_MEDIA_FRAME_CSS', overrideCssStart)
+    const assembledStyle = source.indexOf('`<style>${overrideCss}</style>`', overrideCssStart)
+
+    expect(overrideCssStart).toBeGreaterThan(-1)
+    expect(carouselSafetyUsage).toBeGreaterThan(overrideCssStart)
+    expect(mediaFrameUsage).toBeGreaterThan(carouselSafetyUsage)
+    expect(assembledStyle).toBeGreaterThan(mediaFrameUsage)
   })
 })
 
