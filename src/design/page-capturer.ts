@@ -59,6 +59,22 @@ export interface DomCaptureResult {
   elementCount: number;
 }
 
+export interface PseudoElementCaptureStyle {
+  display?: string;
+  color?: string;
+  backgroundColor?: string;
+  fontWeight?: string;
+  fontSize?: string;
+  lineHeight?: string;
+  margin?: string;
+  padding?: string;
+  borderRadius?: string;
+  textTransform?: string;
+  letterSpacing?: string;
+  visibility?: string;
+  opacity?: string;
+}
+
 type StoredVehicleModelPage = VehicleModelPage & ModeAwarePage;
 
 const R2_PREFIX = 'pages/definitions';
@@ -98,6 +114,189 @@ export function isCaptureBlockedBySecurityPage(input: { html: string; title?: st
     || haystack.includes('browser check');
 
   return hasCloudflareContext && hasChallengeCopy;
+}
+
+export function normalizePseudoElementContentForCapture(content: string | null | undefined): string | null {
+  const raw = String(content ?? '').trim();
+  if (!raw)
+    return null;
+
+  const lower = raw.toLowerCase();
+  if (
+    lower === 'none'
+    || lower === 'normal'
+    || lower === 'open-quote'
+    || lower === 'close-quote'
+    || lower === 'no-open-quote'
+    || lower === 'no-close-quote'
+    || lower.startsWith('url(')
+    || lower.startsWith('counter(')
+    || lower.startsWith('counters(')
+    || lower.startsWith('attr(')
+  ) {
+    return null;
+  }
+
+  const quote = raw.charAt(0);
+  if ((quote !== '"' && quote !== '\'') || raw.charAt(raw.length - 1) !== quote)
+    return null;
+
+  const value = raw
+    .slice(1, -1)
+    .replace(/\\A\s?/gi, '\n')
+    .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_match, hex) => {
+      const code = Number.parseInt(hex, 16);
+      return Number.isFinite(code) && code > 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : '';
+    })
+    .replace(/\\+(["'\\])/g, '$1')
+    .trim();
+
+  return value ? value : null;
+}
+
+export function pseudoElementInlineStyleForCapture(style: PseudoElementCaptureStyle): string {
+  const out: string[] = [];
+
+  function clean(value: string | undefined): string {
+    return String(value ?? '').trim().replace(/[;<>"']/g, '');
+  }
+
+  function push(prop: string, value: string | undefined, skip: string[] = []) {
+    const cleaned = clean(value);
+    if (!cleaned)
+      return;
+    if (skip.some(v => cleaned.toLowerCase() === v))
+      return;
+    out.push(`${prop}:${cleaned}`);
+  }
+
+  push('display', style.display, ['none']);
+  push('color', style.color);
+  push('background-color', style.backgroundColor, ['transparent', 'rgba(0, 0, 0, 0)']);
+  push('font-weight', style.fontWeight, ['normal', '400']);
+  push('font-size', style.fontSize);
+  push('line-height', style.lineHeight, ['normal']);
+  push('margin', style.margin);
+  push('padding', style.padding);
+  push('border-radius', style.borderRadius, ['0px']);
+  push('text-transform', style.textTransform, ['none']);
+  push('letter-spacing', style.letterSpacing, ['normal', '0px']);
+
+  return out.join(';');
+}
+
+export function materializePseudoElementTextForCapture(): number {
+  function normalizeContent(content: string | null | undefined): string | null {
+    const raw = String(content ?? '').trim();
+    if (!raw)
+      return null;
+
+    const lower = raw.toLowerCase();
+    if (
+      lower === 'none'
+      || lower === 'normal'
+      || lower === 'open-quote'
+      || lower === 'close-quote'
+      || lower === 'no-open-quote'
+      || lower === 'no-close-quote'
+      || lower.startsWith('url(')
+      || lower.startsWith('counter(')
+      || lower.startsWith('counters(')
+      || lower.startsWith('attr(')
+    ) {
+      return null;
+    }
+
+    const quote = raw.charAt(0);
+    if ((quote !== '"' && quote !== '\'') || raw.charAt(raw.length - 1) !== quote)
+      return null;
+
+    const value = raw
+      .slice(1, -1)
+      .replace(/\\A\s?/gi, '\n')
+      .replace(/\\([0-9a-fA-F]{1,6})\s?/g, function (_match, hex) {
+        const code = Number.parseInt(hex, 16);
+        return Number.isFinite(code) && code > 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : '';
+      })
+      .replace(/\\+(["'\\])/g, '$1')
+      .trim();
+
+    return value ? value : null;
+  }
+
+  function inlineStyle(style: CSSStyleDeclaration): string {
+    const out: string[] = [];
+
+    function clean(value: string | undefined): string {
+      return String(value ?? '').trim().replace(/[;<>"']/g, '');
+    }
+
+    function push(prop: string, value: string | undefined, skip: string[] = []) {
+      const cleaned = clean(value);
+      if (!cleaned)
+        return;
+      if (skip.some(v => cleaned.toLowerCase() === v))
+        return;
+      out.push(`${prop}:${cleaned}`);
+    }
+
+    push('display', style.display, ['none']);
+    push('color', style.color);
+    push('background-color', style.backgroundColor, ['transparent', 'rgba(0, 0, 0, 0)']);
+    push('font-weight', style.fontWeight, ['normal', '400']);
+    push('font-size', style.fontSize);
+    push('line-height', style.lineHeight, ['normal']);
+    push('margin', style.margin);
+    push('padding', style.padding);
+    push('border-radius', style.borderRadius, ['0px']);
+    push('text-transform', style.textTransform, ['none']);
+    push('letter-spacing', style.letterSpacing, ['normal', '0px']);
+
+    return out.join(';');
+  }
+
+  function isVisible(style: CSSStyleDeclaration): boolean {
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  let added = 0;
+  document.querySelectorAll('*').forEach((el) => {
+    if (!(el instanceof HTMLElement))
+      return;
+    if (el.hasAttribute('data-oem-pseudo-capture'))
+      return;
+
+    for (const pseudo of ['before', 'after']) {
+      const style = window.getComputedStyle(el, `::${pseudo}`);
+      if (!isVisible(style))
+        continue;
+
+      const text = normalizeContent(style.content);
+      if (!text)
+        continue;
+
+      const existing = el.querySelector(`:scope > [data-oem-pseudo="${pseudo}"][data-oem-pseudo-capture="true"]`);
+      if (existing)
+        continue;
+
+      const span = document.createElement('span');
+      span.setAttribute('data-oem-pseudo', pseudo);
+      span.setAttribute('data-oem-pseudo-capture', 'true');
+      span.textContent = text;
+
+      const styleText = inlineStyle(style);
+      if (styleText)
+        span.setAttribute('style', styleText);
+
+      if (pseudo === 'before')
+        el.insertBefore(span, el.firstChild);
+      else
+        el.appendChild(span);
+      added++;
+    }
+  });
+
+  return added;
 }
 
 function extractStylesheetHref(linkTag: string): string | null {
@@ -841,6 +1040,10 @@ export class PageCapturer {
 
       // Wait for images to finish loading after scroll
       await new Promise(r => setTimeout(r, 2000));
+
+      // Materialize simple CSS ::before/::after text before serializing the DOM. This preserves
+      // OEM badges/labels that would otherwise disappear when Clone Studio strips page CSS scripts.
+      await page.evaluate(materializePseudoElementTextForCapture as any);
 
       // Main DOM capture
       const result = await page.evaluate(() => {

@@ -1,6 +1,44 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildDomCaptureFromHtml, isCaptureBlockedBySecurityPage, normalizeCapturedLazyMedia } from './page-capturer'
+import {
+  buildDomCaptureFromHtml,
+  isCaptureBlockedBySecurityPage,
+  normalizeCapturedLazyMedia,
+  normalizePseudoElementContentForCapture,
+  pseudoElementInlineStyleForCapture,
+} from './page-capturer'
+
+describe('pseudo-element capture helpers', () => {
+  it('keeps only quoted pseudo-element text content', () => {
+    expect(normalizePseudoElementContentForCapture('"New"')).toBe('New')
+    expect(normalizePseudoElementContentForCapture('\'Hybrid\'')).toBe('Hybrid')
+    expect(normalizePseudoElementContentForCapture('"EV \\\\"badge\\\\""')).toBe('EV "badge"')
+    expect(normalizePseudoElementContentForCapture('none')).toBeNull()
+    expect(normalizePseudoElementContentForCapture('normal')).toBeNull()
+    expect(normalizePseudoElementContentForCapture('url("badge.svg")')).toBeNull()
+    expect(normalizePseudoElementContentForCapture('counter(section)')).toBeNull()
+    expect(normalizePseudoElementContentForCapture('attr(data-label)')).toBeNull()
+    expect(normalizePseudoElementContentForCapture('""')).toBeNull()
+  })
+
+  it('serializes a conservative inline style for materialized pseudo text', () => {
+    expect(pseudoElementInlineStyleForCapture({
+      display: 'inline-block',
+      color: 'rgb(255, 255, 255)',
+      backgroundColor: 'rgb(0, 0, 0)',
+      fontWeight: '700',
+      fontSize: '12px',
+      lineHeight: '16px',
+      margin: '0px 4px',
+      padding: '2px 6px',
+      borderRadius: '4px',
+      textTransform: 'uppercase',
+      letterSpacing: '0.2px',
+      visibility: 'visible',
+      opacity: '1',
+    })).toBe('display:inline-block;color:rgb(255, 255, 255);background-color:rgb(0, 0, 0);font-weight:700;font-size:12px;line-height:16px;margin:0px 4px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.2px')
+  })
+})
 
 describe('normalizeCapturedLazyMedia', () => {
   it('restores Toyota responsive lazy image URLs from source data-srcset', () => {
