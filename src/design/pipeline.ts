@@ -26,6 +26,7 @@ import { PageStructurer, type PageStructurerDeps } from './page-structurer';
 import { DesignMemoryManager } from './memory';
 import { SmartPromptBuilder } from './prompt-builder';
 import { UxKnowledgeManager } from './ux-knowledge';
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 // ============================================================================
 // Pipeline Configuration
@@ -131,6 +132,28 @@ export class AdaptivePipeline {
     let screenshotsCaptured = 0;
     let sections: PageSection[] = [];
     let qualityScore = 0;
+
+    if (isModelPageWriteProtected(oemId)) {
+      const message = getModelPageWriteProtectedMessage(oemId);
+      return {
+        success: false,
+        oem_id: oemId,
+        model_slug: modelSlug,
+        steps: [{
+          step: 'clone',
+          status: 'skipped',
+          duration_ms: Date.now() - pipelineStart,
+          details: { reason: message },
+        }],
+        sections: [],
+        quality_score: 0,
+        total_tokens: 0,
+        total_cost_usd: 0,
+        total_duration_ms: Date.now() - pipelineStart,
+        screenshots_captured: 0,
+        error: message,
+      };
+    }
 
     // Log extraction run
     const runId = await this.memoryManager.logExtractionRun({

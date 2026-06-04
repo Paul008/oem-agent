@@ -17,6 +17,7 @@ import { load, type Cheerio, type CheerioAPI } from 'cheerio';
 
 import type { OemId, VehicleModelPage } from '../oem/types';
 import { applyCloneMode, type ModeAwarePage } from './page-modes';
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 // ============================================================================
 // Types
@@ -555,6 +556,15 @@ export class PageCapturer {
     const backend = options.backend ?? 'cloudflare-browser';
 
     try {
+      if (isModelPageWriteProtected(oemId)) {
+        return {
+          success: false,
+          capture_time_ms: Date.now() - startTime,
+          capture_backend: backend,
+          error: getModelPageWriteProtectedMessage(oemId),
+        };
+      }
+
       if (backend === 'scrapling-stealth' && oemId !== 'toyota-au') {
         return {
           success: false,
@@ -1272,6 +1282,11 @@ export class PageCapturer {
     modelSlug: string,
   ): Promise<Map<string, string>> {
     const screenshots = new Map<string, string>();
+
+    if (isModelPageWriteProtected(oemId)) {
+      console.warn(`[PageCapturer] Skipping section screenshots for protected model page writes: ${oemId}/${modelSlug}`);
+      return screenshots;
+    }
 
     const puppeteerModule = await import('@cloudflare/puppeteer');
     const puppeteer = puppeteerModule.default;

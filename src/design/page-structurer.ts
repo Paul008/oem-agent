@@ -24,6 +24,7 @@ import {
   normalizePageModes,
   type ModeAwarePage,
 } from './page-modes';
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 const R2_PREFIX = 'pages/definitions';
 
@@ -179,6 +180,16 @@ export class PageStructurer {
     const startTime = Date.now();
 
     try {
+      if (isModelPageWriteProtected(oemId)) {
+        return {
+          success: false,
+          structuring_time_ms: Date.now() - startTime,
+          sections_extracted: 0,
+          section_types: [],
+          error: getModelPageWriteProtectedMessage(oemId),
+        };
+      }
+
       // 1. Load existing page from R2
       const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
       const obj = await this.r2Bucket.get(latestKey);
@@ -338,6 +349,16 @@ export class PageStructurer {
     const startTime = Date.now();
 
     try {
+      if (isModelPageWriteProtected(oemId)) {
+        return {
+          success: false,
+          structuring_time_ms: Date.now() - startTime,
+          sections_extracted: 0,
+          section_types: [],
+          error: getModelPageWriteProtectedMessage(oemId),
+        };
+      }
+
       const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
       const obj = await this.r2Bucket.get(latestKey);
 

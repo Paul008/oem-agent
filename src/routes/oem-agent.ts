@@ -28,12 +28,7 @@ import { applyCloneEdit } from '../design/page-modes';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
-
-const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = new Set(['foton-au', 'gac-au']);
-
-function isModelPageWriteProtected(oemId: string | null | undefined): boolean {
-  return typeof oemId === 'string' && PROTECTED_MODEL_PAGE_WRITE_OEM_IDS.has(oemId);
-}
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
   if (!isModelPageWriteProtected(oemId)) {
@@ -41,7 +36,7 @@ function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefi
   }
 
   return c.json({
-    error: `${oemId} model pages are protected from admin writes`,
+    error: getModelPageWriteProtectedMessage(oemId),
     oemId,
     protected: true,
   }, 403);

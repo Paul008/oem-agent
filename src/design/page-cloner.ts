@@ -12,6 +12,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { OemId, VehicleModelPage } from '../oem/types';
 import type { DesignMemoryManager } from './memory';
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 // ============================================================================
 // Types
@@ -133,6 +134,14 @@ export class PageCloner {
     const startTime = Date.now();
 
     try {
+      if (isModelPageWriteProtected(oemId)) {
+        return {
+          success: false,
+          clone_time_ms: Date.now() - startTime,
+          error: getModelPageWriteProtectedMessage(oemId),
+        };
+      }
+
       // ================================================================
       // Step 1: Extract content from live OEM page via Puppeteer
       // ================================================================

@@ -11,6 +11,7 @@ import cronDashboardHtml from '../assets/cron-dashboard.html';
 import cronHistoryHtml from '../assets/cron-history.html';
 import { getRunHistory, saveRun, cleanStaleRuns, type JobRun } from '../utils/cron-runs';
 import { CLOUDFLARE_TRIGGERS } from '../scheduled';
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 interface CronJob {
   id: string;
@@ -1141,8 +1142,24 @@ async function executeBrandAmbassador(
 
   let modelsProcessed = 0;
   let modelsSkipped = 0;
+  let protectedOemsSkipped = 0;
 
   for (const oemId of config.pilot_oems) {
+    if (isModelPageWriteProtected(oemId)) {
+      const skipReason = getModelPageWriteProtectedMessage(oemId);
+      console.warn(`[BrandAmbassador] Skipping protected OEM ${oemId}: ${skipReason}`);
+      results.push({
+        oem_id: oemId,
+        model_slug: '*',
+        success: true,
+        generation_time_ms: 0,
+        skipped: true,
+        skip_reason: skipReason,
+      });
+      protectedOemsSkipped++;
+      continue;
+    }
+
     // Get all models for this OEM
     const { data: models } = await supabase
       .from('vehicle_models')
@@ -1207,6 +1224,7 @@ async function executeBrandAmbassador(
     pilot_oems: config.pilot_oems,
     models_processed: modelsProcessed,
     models_skipped: modelsSkipped,
+    protected_oems_skipped: protectedOemsSkipped,
     successful: results.filter(r => r.success && !r.skipped).length,
     failed: results.filter(r => !r.success).length,
     total_cost_usd: totalCost,

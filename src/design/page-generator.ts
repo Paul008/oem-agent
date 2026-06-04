@@ -23,6 +23,7 @@ import { OEM_BRAND_NOTES } from './agent';
 import type { DesignMemoryManager } from './memory';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { allOemIds } from '../oem/registry';
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 
 // ============================================================================
 // Utilities
@@ -1020,6 +1021,15 @@ export class PageGenerator {
     const startTime = Date.now();
     const validationErrors: string[] = [];
 
+    if (isModelPageWriteProtected(oemId)) {
+      return {
+        success: false,
+        generation_time_ms: Date.now() - startTime,
+        validation_errors: validationErrors,
+        error: getModelPageWriteProtectedMessage(oemId),
+      };
+    }
+
     try {
       // Step 1: Assemble database data
       let modelData = await assembleModelData(this.supabase, oemId, modelSlug);
@@ -1339,6 +1349,16 @@ export class PageGenerator {
   ): Promise<import('../oem/types').RegenerationDecision> {
     const finalConfig = { ...DEFAULT_REGENERATION_CONFIG, ...config };
     const checksDone: string[] = [];
+
+    if (isModelPageWriteProtected(oemId)) {
+      checksDone.push('write_protection');
+      return {
+        shouldRegenerate: false,
+        reason: getModelPageWriteProtectedMessage(oemId),
+        priority: 'low',
+        checksDone,
+      };
+    }
 
     // ===== TIER 1: EXISTENCE & AGE CHECKS =====
     checksDone.push('existence');
