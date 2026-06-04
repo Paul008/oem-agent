@@ -62,17 +62,24 @@ Rationale:
 ## Concrete next steps
 
 **A. Same-origin preview (flagged, preview-only)**
-1. Harden the clone sanitizer in the capture/clone path so the rendered body can
-   contain **no** executable script vectors: strip `<script>`, inline event
-   handlers (`on*=`), `javascript:` URLs, `<iframe>`/`<object>`/`<embed>`, and any
-   `srcdoc`. Keep only the Clone Studio bridge injection.
-2. Add a unit test asserting the sanitized body contains none of the above for a
-   script-bearing fixture (mirror the deterministic style used in
-   `clone-studio-html.test.ts`).
-3. Keep `allowSameOriginSandbox` **off by default**; only the preview surface
-   enables it, never the editor save path.
-4. Live-verify on Ford, Kia, GWM, Hyundai, Toyota that `gsap.to` actually advances
-   (controlled before/after, not the throttled audit toggle).
+
+Status (verified 2026-06-04): the sanitizer hardening and the gated flag that this
+section originally called for **already exist and are tested** — the remaining work
+is live verification only.
+
+1. ~~Harden the clone sanitizer~~ **DONE.** `sanitizeCloneStudioHtml` in
+   `clone-studio-html.ts` already strips `<script>`, inline `on*=` handlers,
+   `javascript:` URLs, `<iframe>`/`<object>`/`<embed>`, `srcdoc`, `<base>`, and
+   meta-refresh, and re-sanitizes the body in the bridge before re-emitting it.
+2. ~~Add a unit test~~ **DONE.** `clone-studio-html.test.ts` asserts all of the
+   above are removed for a script-bearing fixture (plus CSS-escape bypasses).
+3. ~~Keep `allowSameOriginSandbox` off by default~~ **DONE.**
+   `cloneStudioIframeSandbox()` defaults to `allow-scripts`; same-origin is opt-in
+   only via the `allowSameOriginSandbox` prop or `VITE_CLONE_STUDIO_SAME_ORIGIN`.
+4. **Remaining (live):** enable the flag on the preview surface and verify on Ford,
+   Kia, GWM, Hyundai, Toyota that `gsap.to` actually advances (controlled
+   before/after, not the throttled audit toggle). One last review: confirm the flag
+   is never enabled on the editor *save* path, only on preview.
 
 **B. Interactive islands (durable)**
 1. Start with carousels and tabs — the two patterns that show up across stacks and
