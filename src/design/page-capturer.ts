@@ -52,6 +52,38 @@ const MAX_IMAGE_DOWNLOADS = 50;
 const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
 
+export function isCaptureBlockedBySecurityPage(input: { html: string; title?: string }): boolean {
+  const haystack = `${input.title ?? ''}\n${input.html}`
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+
+  if (!haystack.trim())
+    return false;
+
+  const highConfidenceSignals = [
+    'performing security verification',
+    'security service to protect against malicious bots',
+    'this page is displayed while the website verifies you are not a bot',
+    'checking if the site connection is secure',
+    'verify you are human',
+    'cf-challenge',
+    'cf-turnstile',
+    'cloudflare turnstile',
+    'challenge-platform',
+  ];
+
+  if (highConfidenceSignals.some(signal => haystack.includes(signal)))
+    return true;
+
+  const hasCloudflareContext = haystack.includes('cloudflare') || haystack.includes('cf-ray');
+  const hasChallengeCopy = haystack.includes('just a moment')
+    || haystack.includes('attention required')
+    || haystack.includes('please stand by')
+    || haystack.includes('browser check');
+
+  return hasCloudflareContext && hasChallengeCopy;
+}
+
 function extractStylesheetHref(linkTag: string): string | null {
   const match = linkTag.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i);
 
@@ -200,7 +232,7 @@ export class PageCapturer {
           success: false,
           capture_time_ms: Date.now() - startTime,
           bot_blocked: true,
-          error: 'Cloudflare challenge detected',
+          error: 'Security verification page detected; existing page was not overwritten',
         };
       }
 
@@ -362,9 +394,11 @@ export class PageCapturer {
       await page.goto(sourceUrl, { waitUntil: 'networkidle2', timeout: 45_000 });
       await new Promise(r => setTimeout(r, 3000));
 
-      // Bot check
+      // Bot/security check. Keep this broad enough to catch OEM-branded challenge pages, not only
+      // small Cloudflare interstitials, so failed captures cannot overwrite good R2 pages.
       const rawHtml = await page.content();
-      if (rawHtml.length < 5000 && (rawHtml.includes('cf-challenge') || rawHtml.includes('Just a moment'))) {
+      const rawTitle = await page.title().catch(() => '');
+      if (isCaptureBlockedBySecurityPage({ html: rawHtml, title: rawTitle })) {
         return { bot_blocked: true };
       }
 
@@ -756,7 +790,12 @@ export class PageCapturer {
         };
       });
 
-      return normalizeCapturedLazyMedia(result, sourceUrl);
+      const normalized = normalizeCapturedLazyMedia(result, sourceUrl);
+      if (isCaptureBlockedBySecurityPage({ html: normalized.html, title: normalized.title })) {
+        return { bot_blocked: true };
+      }
+
+      return normalized;
     } finally {
       await browser.close();
     }
