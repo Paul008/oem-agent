@@ -484,6 +484,14 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     }
   });
 
+  $('img').each((_idx, node) => {
+    const img = $(node);
+    const hasRenderableSource = (img.attr('src') || img.attr('srcset') || '').trim();
+    const hasRecoverableSource = (img.attr('data-src') || img.attr('data-srcset') || img.attr('data-lazy-src') || img.attr('data-original') || '').trim();
+    if (!hasRenderableSource && !hasRecoverableSource)
+      img.remove();
+  });
+
   $('source[srcset]').each((_idx, node) => {
     const source = $(node);
     const srcset = (source.attr('srcset') || '').trim();

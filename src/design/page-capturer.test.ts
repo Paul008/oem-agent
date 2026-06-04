@@ -26,6 +26,26 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.html).toContain(`src="${expectedUrl}"`)
     expect(result.imageUrls).toContain(expectedUrl)
   })
+
+  it('removes image placeholders that have no recoverable source', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <img class="blank-placeholder" alt="">
+          <img class="real-image" src="/-/media/rav4.jpg">
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: [],
+      heroUrl: '',
+      title: 'RAV4',
+      elementCount: 3,
+    }, 'https://www.toyota.com.au/rav4')
+
+    expect(result.html).not.toContain('blank-placeholder')
+    expect(result.html).toContain('real-image')
+    expect(result.imageUrls).toContain('https://www.toyota.com.au/-/media/rav4.jpg')
+  })
 })
 
 describe('isCaptureBlockedBySecurityPage', () => {
