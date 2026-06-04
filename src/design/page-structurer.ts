@@ -24,7 +24,66 @@ import {
   normalizePageModes,
   type ModeAwarePage,
 } from './page-modes';
+import { mapPageToSections, type MapPageResult, type MappedSection } from './section-mapper';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+
+export interface PageMappingPreviewResult {
+  success: boolean;
+  mapping?: MapPageResult;
+  error?: string;
+}
+
+function escapeHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Convert mapper output (which may carry dashboard-only `heading`/`image` types
+ * and parser-only `testimonial`/`stats`) into raw section objects whose `type`
+ * is one of the worker's extractable, persistable section types. The result is
+ * fed through `validateSections` for final field validation + URL resolution.
+ */
+export function mappedSectionsToRawSections(mapped: MappedSection[]): any[] {
+  return mapped.map((m) => {
+    const d = m.data || {};
+    const base = { id: m.id, order: m.order };
+
+    switch (m.type) {
+      case 'heading':
+        return {
+          ...base, type: 'intro',
+          title: d.heading || '',
+          body_html: d.sub_heading ? `<p>${escapeHtml(d.sub_heading)}</p>` : `<p>${escapeHtml(d.heading || '')}</p>`,
+        };
+      case 'image': {
+        const url = d.desktop_image_url || d.url || '';
+        return {
+          ...base, type: 'gallery',
+          images: url ? [{ url, alt: d.alt || '', caption: d.caption || '' }] : [],
+          layout: 'grid',
+        };
+      }
+      case 'testimonial': {
+        const quotes: any[] = Array.isArray(d.testimonials) ? d.testimonials : [];
+        const html = quotes.map(q => `<blockquote>${escapeHtml(q.quote || '')}${q.author ? `<cite>${escapeHtml(q.author)}</cite>` : ''}</blockquote>`).join('\n');
+        return { ...base, type: 'content-block', title: d.title || '', content_html: html || '<p></p>' };
+      }
+      case 'stats': {
+        const stats: any[] = Array.isArray(d.stats) ? d.stats : [];
+        const html = `<ul>${stats.map(s => `<li>${escapeHtml(s.value || '')}${s.label ? ` — ${escapeHtml(s.label)}` : ''}</li>`).join('')}</ul>`;
+        return { ...base, type: 'content-block', title: d.title || '', content_html: html };
+      }
+      default:
+        // hero / intro / gallery / feature-cards / video / cta-banner / content-block pass through.
+        return { ...base, ...d, type: m.type };
+    }
+  });
+}
+
+export interface PageMapAndPersistResult extends PageStructuringResult {
+  mapping_source: 'deterministic' | 'ai';
+}
 
 const R2_PREFIX = 'pages/definitions';
 
@@ -335,6 +394,130 @@ export class PageStructurer {
         error: err.message || String(err),
       };
     }
+  }
+
+  /**
+   * Deterministic-first mapping preview (NON-MUTATING).
+   *
+   * Loads the cloned page HTML and runs the deterministic section mapper,
+   * returning the proposed sections with per-section confidence and a
+   * needs_ai_fallback signal. Does NOT call AI and does NOT write to R2 — this
+   * is the cheap pre-pass that decides whether AI structuring is required.
+   */
+  async previewMapping(oemId: OemId, modelSlug: string): Promise<PageMappingPreviewResult> {
+    try {
+      const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+      const obj = await this.r2Bucket.get(latestKey);
+
+      if (!obj) {
+        return { success: false, error: `No cloned page found at ${latestKey}. Run clone-page first.` };
+      }
+
+      const pageData = normalizePageModes((await obj.json()) as ModeAwareVehicleModelPage);
+      const renderedHtml = getRenderableCloneHtml(pageData);
+
+      if (!renderedHtml) {
+        return { success: false, error: 'Page has no rendered content to map.' };
+      }
+
+      const mapping = mapPageToSections(renderedHtml);
+      return { success: true, mapping };
+    } catch (err: any) {
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+
+  /**
+   * Deterministic-first mapping WITH persistence.
+   *
+   * Runs the deterministic mapper; if confidence is high it converts the mapped
+   * sections to persistable section types, validates them, applies them as the
+   * sections mode (keeping clone mode), and stores to R2 — with NO AI call. If
+   * confidence is low (needs_ai_fallback) it delegates to the AI structurePage.
+   */
+  async mapAndPersist(oemId: OemId, modelSlug: string): Promise<PageMapAndPersistResult> {
+    const startTime = Date.now();
+
+    if (isModelPageWriteProtected(oemId)) {
+      return {
+        success: false, mapping_source: 'deterministic',
+        structuring_time_ms: Date.now() - startTime, sections_extracted: 0, section_types: [],
+        error: getModelPageWriteProtectedMessage(oemId),
+      };
+    }
+
+    const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+    const obj = await this.r2Bucket.get(latestKey);
+    if (!obj) {
+      return {
+        success: false, mapping_source: 'deterministic',
+        structuring_time_ms: Date.now() - startTime, sections_extracted: 0, section_types: [],
+        error: `No cloned page found at ${latestKey}. Run clone-page first.`,
+      };
+    }
+
+    const pageData = normalizePageModes((await obj.json()) as ModeAwareVehicleModelPage);
+    const renderedHtml = getRenderableCloneHtml(pageData);
+    if (!renderedHtml) {
+      return {
+        success: false, mapping_source: 'deterministic',
+        structuring_time_ms: Date.now() - startTime, sections_extracted: 0, section_types: [],
+        error: 'Page has no rendered content to map.',
+      };
+    }
+
+    const mapping = mapPageToSections(renderedHtml);
+
+    // Low confidence → use the AI structurer.
+    if (mapping.needs_ai_fallback) {
+      const aiResult = await this.structurePage(oemId, modelSlug);
+      return { ...aiResult, mapping_source: 'ai' };
+    }
+
+    // High confidence → persist deterministically, no AI cost.
+    pageData.content.rendered = renderedHtml;
+    const rawSections = mappedSectionsToRawSections(mapping.sections);
+    const sections = this.validateSections(rawSections, pageData.source_url);
+
+    if (sections.length === 0) {
+      // Conversion produced nothing usable — fall back to AI rather than failing.
+      const aiResult = await this.structurePage(oemId, modelSlug);
+      return { ...aiResult, mapping_source: 'ai' };
+    }
+
+    const previousVersion = pageData.version || 0;
+    const generatedAt = new Date().toISOString();
+    applySectionsMode(pageData, sections, {
+      mode: 'clone',
+      version: previousVersion,
+      generated_at: generatedAt,
+    });
+    pageData.version = previousVersion + 1;
+    pageData.generated_at = generatedAt;
+
+    const jsonStr = JSON.stringify(pageData);
+    const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
+    await Promise.all([
+      this.r2Bucket.put(latestKey, jsonStr, {
+        httpMetadata: { contentType: 'application/json' },
+        customMetadata: { pipeline: 'mapper-deterministic-v1', oem_id: oemId, model_slug: modelSlug },
+      }),
+      this.r2Bucket.put(versionKey, jsonStr, {
+        httpMetadata: { contentType: 'application/json' },
+        customMetadata: { pipeline: 'mapper-deterministic-v1' },
+      }),
+    ]);
+
+    const sectionTypes = [...new Set(sections.map(s => s.type))] as PageSectionType[];
+    return {
+      success: true,
+      mapping_source: 'deterministic',
+      page: pageData,
+      r2_key: latestKey,
+      structuring_time_ms: Date.now() - startTime,
+      sections_extracted: sections.length,
+      section_types: sectionTypes,
+    };
   }
 
   /**

@@ -345,6 +345,49 @@ export async function structurePage(oemId: string, modelSlug: string, modelOverr
   })
 }
 
+export type CaptureStatus = 'ok' | 'blocked' | 'error'
+
+export interface CaptureDiagnosticsRecord {
+  oem_id: string
+  model_slug: string
+  captured_at: string
+  status: CaptureStatus
+  success: boolean
+  bot_blocked: boolean
+  backend?: string
+  source_url: string
+  final_url?: string
+  capture_time_ms: number
+  html_size_kb?: number
+  elements_captured?: number
+  images_uploaded?: number
+  reason?: string
+}
+
+export interface CaptureDiagnosticsResponse {
+  found: boolean
+  oemId: string
+  modelSlug: string
+  latest?: CaptureDiagnosticsRecord
+  history?: CaptureDiagnosticsRecord[]
+}
+
+/** Read persisted capture diagnostics (latest + recent history). Read-only. */
+export async function fetchCaptureDiagnostics(oemId: string, modelSlug: string): Promise<CaptureDiagnosticsResponse> {
+  return workerFetch(`/api/v1/oem-agent/admin/capture-diagnostics/${oemId}/${modelSlug}`)
+}
+
+/** Deterministic-first mapping preview (non-mutating). */
+export async function mapPagePreview(oemId: string, modelSlug: string) {
+  return workerFetch(`/api/v1/oem-agent/admin/map-page/${oemId}/${modelSlug}`, { method: 'POST' })
+}
+
+/** Deterministic-first mapping WITH persistence (AI fallback when low confidence). */
+export async function mapAndStructurePage(oemId: string, modelSlug: string) {
+  assertModelPageWriteAllowed(oemId)
+  return workerFetch(`/api/v1/oem-agent/admin/map-and-structure/${oemId}/${modelSlug}`, { method: 'POST' })
+}
+
 export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
   assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/update-sections/${oemId}/${modelSlug}`, {
