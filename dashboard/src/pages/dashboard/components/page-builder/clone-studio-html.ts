@@ -1270,22 +1270,143 @@ ${rendered}
         continue
 
       var regionId = ensureRegionId(regionEl)
+      var wired = false
 
       if (kind === 'tabs')
-        wireTabRegion(regionId, regionEl)
+        wired = wireTabRegion(regionId, regionEl)
       else
-        wireCarouselRegion(regionId, regionEl)
+        wired = wireCarouselRegion(regionId, regionEl)
+
+      // slick/swiper inject their arrows via JS, which the sanitizer strips — so a multi-panel region
+      // can have slide panels but NO usable existing controls. When nothing was wired, inject our own
+      // trusted prev/next/dot bar so the panels stay navigable. Only inject for >1 panel.
+      if (!wired && collectPanels(regionEl).length > 1)
+        injectControlBar(regionId, regionEl, collectPanels(regionEl).length)
 
       // Normalize to exactly one visible panel on load (avoids all-visible / all-hidden states).
       switchPanel(regionId, 0)
     }
   }
 
+  function injectControlBar(regionId, regionEl, panelCount) {
+    // Trusted, bridge-owned navigation overlaid on a region whose OEM controls were stripped. Every
+    // node carries data-clone-studio-bridge so getBodyHtml() removes it (defense-in-depth: this only
+    // runs in the read-only preview, which is never serialized). Inline styles only — clone CSS unknown.
+    var state = { index: 0 }
+    var dots = []
+
+    var bar = document.createElement('div')
+    bar.setAttribute('data-clone-studio-bridge', 'true')
+    bar.style.position = 'absolute'
+    bar.style.left = '0'
+    bar.style.right = '0'
+    bar.style.bottom = '8px'
+    bar.style.zIndex = '2147483646'
+    bar.style.display = 'flex'
+    bar.style.alignItems = 'center'
+    bar.style.justifyContent = 'center'
+    bar.style.gap = '8px'
+    bar.style.pointerEvents = 'none'
+
+    if (regionEl.style) {
+      var position = window.getComputedStyle ? window.getComputedStyle(regionEl).position : ''
+      if (position === 'static' || !position)
+        regionEl.style.position = 'relative'
+    }
+
+    function show(index) {
+      var total = collectPanels(regionEl).length
+      if (!total)
+        return
+      var next = index < 0 ? 0 : index > total - 1 ? total - 1 : index
+      state.index = next
+      switchPanel(regionId, next)
+      for (var d = 0; d < dots.length; d++) {
+        if (dots[d])
+          dots[d].style.background = d === next ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.45)'
+      }
+    }
+
+    function makeButton(label) {
+      var button = document.createElement('button')
+      button.setAttribute('data-clone-studio-bridge', 'true')
+      button.setAttribute('type', 'button')
+      button.textContent = label
+      button.style.pointerEvents = 'auto'
+      button.style.cursor = 'pointer'
+      button.style.border = 'none'
+      button.style.width = '32px'
+      button.style.height = '32px'
+      button.style.borderRadius = '999px'
+      button.style.fontSize = '18px'
+      button.style.lineHeight = '1'
+      button.style.color = '#ffffff'
+      button.style.background = 'rgba(15, 23, 42, 0.65)'
+      button.style.boxShadow = '0 0 0 1px rgba(255, 255, 255, 0.4)'
+      return button
+    }
+
+    function suppress(event) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.stopImmediatePropagation)
+        event.stopImmediatePropagation()
+    }
+
+    var prev = makeButton('\\u2039')
+    prev.addEventListener('click', function (event) {
+      suppress(event)
+      show(state.index - 1)
+    }, true)
+
+    var dotRow = document.createElement('div')
+    dotRow.setAttribute('data-clone-studio-bridge', 'true')
+    dotRow.style.display = 'flex'
+    dotRow.style.alignItems = 'center'
+    dotRow.style.gap = '6px'
+
+    for (var i = 0; i < panelCount; i++) {
+      (function (index) {
+        var dot = document.createElement('button')
+        dot.setAttribute('data-clone-studio-bridge', 'true')
+        dot.setAttribute('type', 'button')
+        dot.style.pointerEvents = 'auto'
+        dot.style.cursor = 'pointer'
+        dot.style.border = 'none'
+        dot.style.padding = '0'
+        dot.style.width = '10px'
+        dot.style.height = '10px'
+        dot.style.borderRadius = '999px'
+        dot.style.background = index === 0 ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.45)'
+        dot.style.boxShadow = '0 0 0 1px rgba(15, 23, 42, 0.55)'
+        dot.addEventListener('click', function (event) {
+          suppress(event)
+          show(index)
+        }, true)
+        dots.push(dot)
+        dotRow.appendChild(dot)
+      })(i)
+    }
+
+    var next = makeButton('\\u203a')
+    next.addEventListener('click', function (event) {
+      suppress(event)
+      show(state.index + 1)
+    }, true)
+
+    bar.appendChild(prev)
+    bar.appendChild(dotRow)
+    bar.appendChild(next)
+    regionEl.appendChild(bar)
+
+    return true
+  }
+
   function wireTabRegion(regionId, regionEl) {
     // Tab TRIGGERS: [role="tab"], [aria-controls], or interactive children of [role="tablist"] / .tabs.
     var triggers = tabTriggersFor(regionEl)
     if (!triggers.length)
-      return
+      return false
 
     for (var t = 0; t < triggers.length; t++) {
       triggers[t].addEventListener('click', function (event) {
@@ -1301,6 +1422,8 @@ ${rendered}
         setTabActiveState(triggers, index)
       }, true)
     }
+
+    return true
   }
 
   function wireCarouselRegion(regionId, regionEl) {
@@ -1340,6 +1463,9 @@ ${rendered}
         step(-1)
       }, true)
     }
+
+    // Report whether any real OEM controls were found; when none, the caller injects a trusted bar.
+    return controls.next.length > 0 || controls.prev.length > 0
   }
 
   function interactivityIndexOf(list, node) {
