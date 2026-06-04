@@ -95,6 +95,32 @@ export const CAPTURE_FONT_READY_TIMEOUT_MS = 2_500;
 export const CAPTURE_IMAGE_READY_TIMEOUT_MS = 3_000;
 export const CAPTURE_DOM_QUIET_WINDOW_MS = 250;
 export const CAPTURE_DOM_QUIET_TIMEOUT_MS = 1_500;
+export const CAPTURE_STATIC_CLONE_SAFETY_CSS = `
+img.imgdesktop,
+img.dsktoponly,
+.imgdesktop > img,
+.dsktoponly > img {
+  display: block !important;
+}
+
+img.imgmobile,
+img.mobonly,
+.imgmobile > img,
+.mobonly > img {
+  display: none !important;
+}
+
+.animated,
+.animate__animated,
+.wow,
+.aos-init,
+[data-aos],
+[class*="fadeIn"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+`.trim();
 
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
 export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
@@ -952,6 +978,7 @@ export class PageCapturer {
       const overrideCss = [
         // Force tab panels visible (external CSS hides inactive tabs)
         '.tab_contents,.tab-content,.tab-panel,.tab_content,[role="tabpanel"],[class*="tabpanel"]{display:block!important;visibility:visible!important;opacity:1!important;}',
+        CAPTURE_STATIC_CLONE_SAFETY_CSS,
         // Basic resets for iframe context
         'img{max-width:100%;height:auto;} :root{overflow-x:hidden;}',
       ].join('\n');

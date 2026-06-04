@@ -7,6 +7,7 @@ import {
   CAPTURE_DOM_QUIET_WINDOW_MS,
   CAPTURE_FONT_READY_TIMEOUT_MS,
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
+  CAPTURE_STATIC_CLONE_SAFETY_CSS,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
@@ -120,6 +121,30 @@ describe('waitForCaptureFontsForCapture', () => {
   })
 })
 
+describe('CAPTURE_STATIC_CLONE_SAFETY_CSS', () => {
+  it('forces OEM desktop-only image variants visible', () => {
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('img.imgdesktop')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('.dsktoponly > img')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toMatch(/display:\s*block\s*!important/i)
+  })
+
+  it('keeps OEM mobile-only image variants hidden in desktop clones', () => {
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('img.imgmobile')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('.mobonly > img')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toMatch(/display:\s*none\s*!important/i)
+  })
+
+  it('reveals common scroll-animation classes left hidden by stripped scripts', () => {
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('.animated')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('.animate__animated')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('[data-aos]')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toContain('[class*="fadeIn"]')
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toMatch(/opacity:\s*1\s*!important/i)
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toMatch(/visibility:\s*visible\s*!important/i)
+    expect(CAPTURE_STATIC_CLONE_SAFETY_CSS).toMatch(/transform:\s*none\s*!important/i)
+  })
+})
+
 describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
@@ -136,6 +161,19 @@ describe('PageCapturer readiness wiring', () => {
     expect(fontWait).toBeGreaterThan(imageWait)
     expect(domQuietWait).toBeGreaterThan(fontWait)
     expect(pseudoMaterialize).toBeGreaterThan(domQuietWait)
+  })
+})
+
+describe('PageCapturer persisted clone safety CSS wiring', () => {
+  it('includes the static clone safety CSS in persisted override CSS', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const overrideCssStart = source.indexOf('const overrideCss = [')
+    const safetyCssUsage = source.indexOf('CAPTURE_STATIC_CLONE_SAFETY_CSS', overrideCssStart)
+    const assembledStyle = source.indexOf('`<style>${overrideCss}</style>`', overrideCssStart)
+
+    expect(overrideCssStart).toBeGreaterThan(-1)
+    expect(safetyCssUsage).toBeGreaterThan(overrideCssStart)
+    expect(assembledStyle).toBeGreaterThan(safetyCssUsage)
   })
 })
 
