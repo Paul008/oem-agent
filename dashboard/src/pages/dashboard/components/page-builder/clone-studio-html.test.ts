@@ -6,6 +6,7 @@ import {
   sanitizeCloneStudioUrlForTest,
   serializeCloneStudioBodyForTest,
   stopCloneStudioBlockedEventForTest,
+  stripCloneStudioBridgeNodesForTest,
   stripCloneStudioScaffoldingForTest,
 } from './clone-studio-html'
 
@@ -630,6 +631,27 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('setRegionHeight')
     // Still parses as valid JS.
     expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('strips ALL bridge-marked nodes from serialized HTML (handle div, not just the script)', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    const bridgeScript = extractBridgeScript(html)
+
+    // getBodyHtml must query the broad attribute selector — the old `script[...]` only form leaked the
+    // appended resize handle <div data-clone-studio-bridge> into persisted clone HTML.
+    expect(bridgeScript).toContain("clone.querySelectorAll('[data-clone-studio-bridge]')")
+    expect(bridgeScript).not.toContain("clone.querySelectorAll('script[data-clone-studio-bridge]')")
+
+    // Behavioral: a clone containing a bridge-marked node AND normal content drops only the marked node.
+    const removed: string[] = []
+    const bridgeDiv = { tag: 'div-handle', parentNode: { removeChild: (c: any) => removed.push(c.tag) } }
+    const bridgeScriptEl = { tag: 'script', parentNode: { removeChild: (c: any) => removed.push(c.tag) } }
+    const fakeClone = {
+      querySelectorAll: (selector: string) =>
+        selector === '[data-clone-studio-bridge]' ? [bridgeScriptEl, bridgeDiv] : [],
+    }
+    stripCloneStudioBridgeNodesForTest(fakeClone)
+    expect(removed).toEqual(['script', 'div-handle'])
   })
 
   it('gates the resize handle behind EDITABLE so the read-only preview never shows it', () => {

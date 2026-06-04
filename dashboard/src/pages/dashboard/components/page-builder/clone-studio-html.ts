@@ -236,11 +236,13 @@ ${rendered}
 
   function getBodyHtml() {
     var clone = document.body.cloneNode(true)
-    var bridgeScripts = clone.querySelectorAll('script[data-clone-studio-bridge]')
+    // Strip ALL bridge scaffolding (the injected <script> AND the editor-only resize handle div),
+    // not just script elements — otherwise the handle div leaks into the persisted clone HTML.
+    var bridgeNodes = clone.querySelectorAll('[data-clone-studio-bridge]')
     var markedRegions = clone.querySelectorAll('[data-clone-studio-hover], [data-clone-studio-selected]')
 
-    for (var i = 0; i < bridgeScripts.length; i++)
-      bridgeScripts[i].parentNode.removeChild(bridgeScripts[i])
+    for (var i = 0; i < bridgeNodes.length; i++)
+      bridgeNodes[i].parentNode.removeChild(bridgeNodes[i])
 
     for (var j = 0; j < markedRegions.length; j++) {
       markedRegions[j].removeAttribute('data-clone-studio-hover')
@@ -1457,6 +1459,27 @@ ${rendered}
 
 export function stripCloneStudioScaffoldingForTest(html: string): string {
   return stripCloneStudioScaffolding(html)
+}
+
+interface CloneStudioStrippableNode {
+  querySelectorAll: (selector: string) => ArrayLike<{ parentNode: { removeChild: (child: unknown) => void } | null }>
+}
+
+/**
+ * Mirrors the bridge's getBodyHtml() removal step: strip ALL `[data-clone-studio-bridge]` elements
+ * (the injected script AND the editor-only resize handle div), so neither leaks into serialized
+ * clone HTML. Kept in sync with the inline bridge code by `getBodyHtml queries [data-clone-studio-bridge]`.
+ */
+export function stripCloneStudioBridgeNodesForTest(clone: CloneStudioStrippableNode): string[] {
+  const bridgeNodes = clone.querySelectorAll('[data-clone-studio-bridge]')
+  const queried: string[] = []
+  for (let i = 0; i < bridgeNodes.length; i++) {
+    const node = bridgeNodes[i]
+    if (node.parentNode)
+      node.parentNode.removeChild(node)
+    queried.push('removed')
+  }
+  return queried
 }
 
 export function serializeCloneStudioBodyForTest(html: string): string {
