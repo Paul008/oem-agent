@@ -60,6 +60,7 @@ interface DashboardPageModes extends Record<string, unknown> {
 }
 
 const PAGE_MODE_ORDER: PageMode[] = ['clone', 'sections', 'raw-html', 'generated', 'template']
+const CLONE_HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 const FALLBACK_CLONE_VIEWPORT: CloneViewport = { width: 1280, height: 1080 }
 
 export function normalizeDashboardPageModes<T extends any>(page: T): T {
@@ -140,6 +141,20 @@ export function getCloneHtml(page: DashboardPage | null | undefined): string {
   return ''
 }
 
+export function getCloneStudioHtml(page: DashboardPage | null | undefined): string {
+  const clone = getCloneMode(page)
+  const editedRendered = clone?.edited_rendered
+  if (typeof editedRendered !== 'string' || editedRendered.length === 0) {
+    return getCloneHtml(page)
+  }
+
+  const originalRendered = typeof clone?.rendered === 'string' ? clone.rendered : ''
+  return [
+    ...extractCloneHeadParts(originalRendered),
+    editedRendered,
+  ].filter(part => part.length > 0).join('\n')
+}
+
 export function getCloneRegions(page: DashboardPage | null | undefined): CloneRegion[] {
   const sectionIndex = getCloneMode(page)?.section_index
 
@@ -184,6 +199,10 @@ function extractStylesheetHrefs(html: string): string[] {
       return href?.[1] ?? ''
     })
     .filter(url => /^https?:\/\//i.test(url))
+}
+
+function extractCloneHeadParts(html: string): string[] {
+  return [...html.matchAll(CLONE_HEAD_PART_PATTERN)].map(match => match[0])
 }
 
 function dedupe(values: string[]): string[] {

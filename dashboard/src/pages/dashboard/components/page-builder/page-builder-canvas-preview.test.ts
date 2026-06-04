@@ -97,6 +97,16 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).not.toContain('return 1280')
   })
 
+  it('feeds preserved clone studio source html into the iframe builder', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+    const helperImport = source.indexOf('getCloneStudioHtml')
+    const builderUsage = source.indexOf('rendered: getCloneStudioHtml(options.page)')
+
+    expect(helperImport).toBeGreaterThan(-1)
+    expect(builderUsage).toBeGreaterThan(helperImport)
+    expect(source).not.toContain('rendered: getCloneHtml(options.page)')
+  })
+
   it('keeps Clone Studio same-origin sandboxing behind an explicit flag', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 

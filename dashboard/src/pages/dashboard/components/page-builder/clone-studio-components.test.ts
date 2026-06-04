@@ -60,6 +60,36 @@ describe('Clone Studio components', () => {
     expect(heroHtml).toContain('data-oem-region-id="hero"')
   })
 
+  it('preserves original captured head styles when rendering an edited clone body', () => {
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            rendered: '<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen"><style>.hero { color: red; }</style><main><h1>Original</h1></main>',
+            edited_rendered: '<main data-oem-region-id="hero"><h1>Edited</h1></main>',
+            stylesheet_urls: ['https://cdn.example.test/site.css'],
+          },
+        },
+      },
+    }
+
+    const html = buildCloneStudioFrameHtmlForCanvas({
+      page,
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/',
+      workerBase: '',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = html.slice(0, html.indexOf('</head>'))
+
+    expect(head).toContain('<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen">')
+    expect((head.match(/href="https:\/\/cdn\.example\.test\/site\.css"/g) || []).length).toBe(1)
+    expect(head).toContain('<style>.hero { color: red; }</style>')
+    expect(html).toContain('<h1>Edited</h1>')
+    expect(html).not.toContain('<h1>Original</h1>')
+  })
+
   it('scales a desktop-width clone frame to fit a narrow editor panel without upscaling', () => {
     // 1280px desktop frame in a ~700px panel -> scaled down.
     expect(computeCloneFrameScale(700, 1280)).toBeCloseTo(700 / 1280, 5)

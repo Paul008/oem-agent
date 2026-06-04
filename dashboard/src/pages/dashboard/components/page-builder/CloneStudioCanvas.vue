@@ -1,5 +1,5 @@
 <script lang="ts">
-import { getCloneHtml, getCloneRegions, getCloneStylesheetUrls } from '../../page-builder/page-modes'
+import { getCloneRegions, getCloneStudioHtml, getCloneStylesheetUrls } from '../../page-builder/page-modes'
 import { buildCloneStudioHtml } from './clone-studio-html'
 
 export interface CloneStudioFrameHtmlForCanvasOptions {
@@ -53,7 +53,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     .map(region => ({ id: region.id, height_override: region.height_override }))
 
   return buildCloneStudioHtml({
-    rendered: getCloneHtml(options.page),
+    rendered: getCloneStudioHtml(options.page),
     title: options.title,
     baseHref: options.baseHref || options.workerBase || '/',
     mediaBase: options.workerBase,

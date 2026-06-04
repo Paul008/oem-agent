@@ -7,6 +7,7 @@ import {
   getAvailablePageModes,
   getCloneHtml,
   getCloneRegions,
+  getCloneStudioHtml,
   getCloneStylesheetUrls,
   getCloneViewport,
   getSectionItems,
@@ -163,6 +164,41 @@ describe('dashboard page modes', () => {
     for (const page of invalidPages) {
       expect(getCloneViewport(page)).toEqual({ width: 1280, height: 1080 })
     }
+  })
+
+  it('combines original captured head parts with the edited clone body for Clone Studio', () => {
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            rendered: '<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen"><style>.hero { color: red; }</style><main><h1>Original</h1></main>',
+            edited_rendered: '<main><h1>Edited</h1></main>',
+          },
+        },
+      },
+    }
+
+    const html = getCloneStudioHtml(page)
+
+    expect(html).toContain('<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen">')
+    expect(html).toContain('<style>.hero { color: red; }</style>')
+    expect(html).toContain('<main><h1>Edited</h1></main>')
+    expect(html).not.toContain('<main><h1>Original</h1></main>')
+  })
+
+  it('returns normal clone html for Clone Studio when no edited body exists', () => {
+    const rendered = '<link rel="stylesheet" href="https://cdn.example.test/site.css"><main><h1>Original</h1></main>'
+    const page = {
+      content: {
+        modes: {
+          clone: {
+            rendered,
+          },
+        },
+      },
+    }
+
+    expect(getCloneStudioHtml(page)).toBe(rendered)
   })
 })
 
