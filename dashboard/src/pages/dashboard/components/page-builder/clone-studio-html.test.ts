@@ -640,6 +640,28 @@ describe('buildCloneStudioHtml', () => {
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
+  it('injects trusted prev/next/dot controls for multi-panel carousels/tabs lacking usable controls', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    const interactivityBlock = bridgeScript.slice(bridgeScript.indexOf('function enableInteractivity()'))
+    // A control-bar injector exists and is gated to multi-panel regions (collectPanels length > 1).
+    expect(bridgeScript).toContain('function injectControlBar(')
+    expect(interactivityBlock).toContain('collectPanels(regionEl).length > 1')
+    // It creates prev/next buttons and a dot per panel via document.createElement.
+    expect(bridgeScript).toContain('document.createElement')
+    expect(bridgeScript).toContain('\\u2039') // ‹ prev chevron
+    expect(bridgeScript).toContain('\\u203a') // › next chevron
+    // Every injected node is marked as bridge scaffolding so it never serializes into saved HTML.
+    expect(bridgeScript).toContain("setAttribute('data-clone-studio-bridge', 'true')")
+    // Clicks drive switchPanel + clamp index + suppress navigation/propagation.
+    expect(bridgeScript).toContain('switchPanel')
+    expect(bridgeScript).toContain('stopImmediatePropagation')
+    // The injection is part of the read-only-only interactivity path.
+    expect(bridgeScript).toContain('if (!EDITABLE)')
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
   it('enables interactivity on bridge init for the read-only preview build', () => {
     const html = buildCloneStudioHtml({ rendered: '<main role="tablist"><button role="tab">A</button><button role="tab">B</button><div role="tabpanel">A</div><div role="tabpanel" hidden>B</div></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
     const bridgeScript = extractBridgeScript(html)
