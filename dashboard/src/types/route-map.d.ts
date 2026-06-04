@@ -506,6 +506,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/preview': RouteRecordInfo<
+      '/preview',
+      '/preview',
+      Record<never, never>,
+      Record<never, never>,
+      | '/preview/[slug]'
+    >,
     '/preview/[slug]': RouteRecordInfo<
       '/preview/[slug]',
       '/preview/:slug',
@@ -996,6 +1003,13 @@ declare module 'vue-router/auto-routes' {
         | '/marketing/hello'
       views:
         | never
+    }
+    'src/pages/preview.vue': {
+      routes:
+        | '/preview'
+        | '/preview/[slug]'
+      views:
+        | 'default'
     }
     'src/pages/preview/[slug].vue': {
       routes:
