@@ -268,10 +268,34 @@ export async function generatePage(oemId: string, modelSlug: string, modelOverri
   })
 }
 
-export async function clonePage(oemId: string, modelSlug: string, sourceUrl?: string) {
+export type CloneCaptureBackend = 'cloudflare-browser' | 'scrapling-stealth'
+
+export interface ClonePageOptions {
+  sourceUrl?: string
+  captureBackend?: CloneCaptureBackend
+  capturedHtml?: string
+  capturedTitle?: string
+  finalUrl?: string
+  stylesheetUrls?: string[]
+}
+
+export async function clonePage(oemId: string, modelSlug: string, sourceUrlOrOptions?: string | ClonePageOptions) {
+  const options = typeof sourceUrlOrOptions === 'string'
+    ? { sourceUrl: sourceUrlOrOptions }
+    : sourceUrlOrOptions
   const bodyData: Record<string, unknown> = {}
-  if (sourceUrl)
-    bodyData.source_url = sourceUrl
+  if (options?.sourceUrl)
+    bodyData.source_url = options.sourceUrl
+  if (options?.captureBackend)
+    bodyData.capture_backend = options.captureBackend
+  if (options?.capturedHtml)
+    bodyData.captured_html = options.capturedHtml
+  if (options?.capturedTitle)
+    bodyData.captured_title = options.capturedTitle
+  if (options?.finalUrl)
+    bodyData.final_url = options.finalUrl
+  if (options?.stylesheetUrls)
+    bodyData.stylesheet_urls = options.stylesheetUrls
   const hasBody = Object.keys(bodyData).length > 0
   return workerFetch(`/api/v1/oem-agent/admin/clone-page/${oemId}/${modelSlug}`, {
     method: 'POST',

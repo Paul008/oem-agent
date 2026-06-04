@@ -2360,11 +2360,17 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
 
-  // Accept optional source_url override in body
-  let bodySourceUrl: string | undefined;
+  // Accept optional source_url override and external capture payload in body.
+  let body: {
+    source_url?: string;
+    capture_backend?: string;
+    captured_html?: string;
+    captured_title?: string;
+    final_url?: string;
+    stylesheet_urls?: string[];
+  } = {};
   try {
-    const body = await c.req.json();
-    bodySourceUrl = body?.source_url;
+    body = await c.req.json();
   } catch { /* no body is fine */ }
 
   const supabase = createSupabaseClient({
@@ -2382,7 +2388,7 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
     .eq('slug', dbSlug)
     .single();
 
-  const sourceUrl = bodySourceUrl || data?.source_url;
+  const sourceUrl = body?.source_url || data?.source_url;
   if (!sourceUrl) {
     return c.json({ error: 'No source_url for this model. Provide a source_url in the request body.' }, 400);
   }
@@ -2393,8 +2399,28 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
     browser: c.env.BROWSER!,
   });
 
-  const result = await capturer.captureModelPage(oemId, modelSlug, sourceUrl, data?.name || modelSlug);
-  return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
+  const captureBackend = body.capture_backend === 'scrapling-stealth'
+    ? 'scrapling-stealth'
+    : 'cloudflare-browser';
+  const externalCapture = typeof body.captured_html === 'string' && body.captured_html.trim()
+    ? {
+        html: body.captured_html,
+        title: body.captured_title,
+        finalUrl: body.final_url,
+        stylesheetUrls: Array.isArray(body.stylesheet_urls) ? body.stylesheet_urls : undefined,
+      }
+    : undefined;
+
+  const result = await capturer.captureModelPage(oemId, modelSlug, sourceUrl, data?.name || modelSlug, {
+    backend: captureBackend,
+    externalCapture,
+  });
+  const status = result.success
+    ? 200
+    : result.error?.startsWith('scrapling-stealth capture backend')
+      ? 400
+      : 500;
+  return c.json({ ...result, oemId, modelSlug }, status);
 });
 
 /**

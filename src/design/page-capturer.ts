@@ -13,7 +13,7 @@
  * 5. Result stored as VehicleModelPage in R2
  */
 
-import { load } from 'cheerio';
+import { load, type Cheerio, type CheerioAPI } from 'cheerio';
 
 import type { OemId, VehicleModelPage } from '../oem/types';
 import { applyCloneMode, type ModeAwarePage } from './page-modes';
@@ -27,11 +27,26 @@ export interface PageCaptureResult {
   page?: VehicleModelPage;
   r2_key?: string;
   capture_time_ms: number;
+  capture_backend?: CaptureBackend;
   elements_captured?: number;
   images_uploaded?: number;
   html_size_kb?: number;
   bot_blocked?: boolean;
   error?: string;
+}
+
+export type CaptureBackend = 'cloudflare-browser' | 'scrapling-stealth';
+
+export interface ExternalHtmlCaptureInput {
+  html: string;
+  title?: string;
+  finalUrl?: string;
+  stylesheetUrls?: string[];
+}
+
+export interface PageCaptureOptions {
+  backend?: CaptureBackend;
+  externalCapture?: ExternalHtmlCaptureInput;
 }
 
 export interface DomCaptureResult {
@@ -124,6 +139,290 @@ function normalizeCaptureSrcset(srcset: string, sourceUrl: string, imageUrls: Se
 
 function bestCaptureSrcsetUrl(srcset: string): string {
   return srcset.split(',').pop()?.trim().split(/\s+/)[0] ?? '';
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function stylesheetLinkTag(input: string, sourceUrl: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed)
+    return null;
+
+  const href = trimmed.startsWith('<')
+    ? extractStylesheetHref(trimmed)
+    : trimmed;
+  if (!href)
+    return null;
+
+  const absoluteHref = absolutizeCaptureUrl(href, sourceUrl);
+  if (!absoluteHref || !absoluteHref.startsWith('http'))
+    return null;
+
+  return `<link rel="stylesheet" href="${escapeHtmlAttribute(absoluteHref)}">`;
+}
+
+function collectSrcsetUrls(srcset: string, sourceUrl: string, imageUrls: Set<string>): string {
+  return normalizeCaptureSrcset(srcset, sourceUrl, imageUrls);
+}
+
+function bestElementImageUrl($: CheerioAPI, node: any, sourceUrl: string): string {
+  const el = $(node);
+  const tagName = (node.tagName || node.name || '').toLowerCase();
+
+  if (tagName === 'picture') {
+    const sourceSrcset = (el.find('source[srcset], source[data-srcset]').first().attr('srcset')
+      || el.find('source[srcset], source[data-srcset]').first().attr('data-srcset')
+      || '').trim();
+    if (sourceSrcset) {
+      const best = bestCaptureSrcsetUrl(collectSrcsetUrls(sourceSrcset, sourceUrl, new Set()));
+      if (best)
+        return best;
+    }
+
+    const img = el.find('img').first();
+    const imgSrc = (img.attr('src') || img.attr('data-src') || '').trim();
+    if (imgSrc)
+      return absolutizeCaptureUrl(imgSrc, sourceUrl);
+
+    const imgSrcset = (img.attr('srcset') || img.attr('data-srcset') || '').trim();
+    if (imgSrcset) {
+      const best = bestCaptureSrcsetUrl(collectSrcsetUrls(imgSrcset, sourceUrl, new Set()));
+      if (best)
+        return best;
+    }
+  }
+
+  if (tagName === 'img') {
+    const src = (el.attr('src') || el.attr('data-src') || '').trim();
+    if (src)
+      return absolutizeCaptureUrl(src, sourceUrl);
+
+    const srcset = (el.attr('srcset') || el.attr('data-srcset') || '').trim();
+    if (srcset) {
+      const best = bestCaptureSrcsetUrl(collectSrcsetUrls(srcset, sourceUrl, new Set()));
+      if (best)
+        return best;
+    }
+  }
+
+  return '';
+}
+
+function stripExternalCaptureChrome($: CheerioAPI): void {
+  const stripSelectors = [
+    'script',
+    'noscript',
+    'meta',
+    'base',
+    'link[rel="preload"]',
+    'link[rel="prefetch"]',
+    'link[rel="dns-prefetch"]',
+    'link[rel="preconnect"]',
+    'nav',
+    '[role="navigation"]',
+    '[class*="nav-"]',
+    '[class*="navbar"]',
+    '[class*="site-header"]',
+    '[class*="main-header"]',
+    'footer',
+    '[role="contentinfo"]',
+    '[class*="footer"]',
+    '[id*="footer"]',
+    '[class*="cookie"]',
+    '[class*="consent"]',
+    '[class*="gdpr"]',
+    '[id*="cookie"]',
+    '[id*="consent"]',
+    '[id*="onetrust"]',
+    '[class*="onetrust"]',
+    'iframe',
+    'img[width="1"]',
+    'img[height="1"]',
+    '[class*="tracking"]',
+    '[data-tracking]',
+    'form',
+    '[class*="enquir"]',
+    '[class*="chat"]',
+    '[class*="livechat"]',
+    '[class*="intercom"]',
+    '[class*="modal"]',
+    '[class*="popup"]',
+    'object',
+    'embed',
+    'canvas',
+  ];
+
+  for (const selector of stripSelectors) {
+    try {
+      $(selector).remove();
+    } catch {}
+  }
+
+  $('header').each((_idx, node) => {
+    const header = $(node);
+    if (header.find('nav, [role="navigation"]').length > 0)
+      header.remove();
+  });
+
+  $('[hidden], [aria-hidden="true"]').remove();
+  $('[style]').each((_idx, node) => {
+    const el = $(node);
+    const style = (el.attr('style') || '').toLowerCase();
+    if (/(^|;)\s*display\s*:\s*none\b/.test(style) || /(^|;)\s*visibility\s*:\s*hidden\b/.test(style))
+      el.remove();
+  });
+}
+
+function removeDangerousAttributes($: CheerioAPI, container: Cheerio<any>): void {
+  container.find('*').each((_idx, node) => {
+    const el = $(node);
+    const attrs = node.attribs ?? {};
+    for (const attrName of Object.keys(attrs)) {
+      const lowerName = attrName.toLowerCase();
+      const value = attrs[attrName] ?? '';
+      if (lowerName.startsWith('on')) {
+        el.removeAttr(attrName);
+        continue;
+      }
+      if ((lowerName === 'href' || lowerName === 'src') && value.trim().toLowerCase().startsWith('javascript:')) {
+        el.removeAttr(attrName);
+      }
+    }
+  });
+}
+
+export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceUrl: string): DomCaptureResult | { bot_blocked: true } {
+  if (isCaptureBlockedBySecurityPage({ html: input.html, title: input.title }))
+    return { bot_blocked: true };
+
+  const $ = load(input.html);
+  stripExternalCaptureChrome($);
+
+  const title = (input.title || $('h1').first().text() || $('title').first().text() || '').replace(/\s+/g, ' ').trim();
+  if (isCaptureBlockedBySecurityPage({ html: $.html(), title }))
+    return { bot_blocked: true };
+
+  const stylesheetLinks = new Map<string, string>();
+  for (const url of input.stylesheetUrls ?? []) {
+    const tag = stylesheetLinkTag(url, sourceUrl);
+    const href = tag ? extractStylesheetHref(tag) : null;
+    if (tag && href)
+      stylesheetLinks.set(href, tag);
+  }
+  $('link[rel~="stylesheet"]').each((_idx, node) => {
+    const href = $(node).attr('href') || '';
+    const tag = stylesheetLinkTag(href, sourceUrl);
+    const absoluteHref = tag ? extractStylesheetHref(tag) : null;
+    if (tag && absoluteHref)
+      stylesheetLinks.set(absoluteHref, tag);
+  });
+
+  const containerSelectors = ['main', '[role="main"]', '#content', '#main-content', '.main-content', '.page-content', '.site-content', 'article'];
+  let container: Cheerio<any> = $('body') as Cheerio<any>;
+  for (const selector of containerSelectors) {
+    const candidate = $(selector).first();
+    if (candidate.length > 0 && (candidate.html() || '').length > 1000) {
+      container = candidate as Cheerio<any>;
+      break;
+    }
+  }
+
+  removeDangerousAttributes($, container);
+
+  const imageUrls = new Set<string>();
+
+  container.find('img').each((_idx, node) => {
+    const img = $(node);
+
+    const dataSrc = (img.attr('data-src') || img.attr('data-lazy-src') || img.attr('data-original') || img.attr('data-lazy') || '').trim();
+    if (dataSrc && !(img.attr('src') || '').trim())
+      img.attr('src', dataSrc);
+
+    const srcset = (img.attr('srcset') || img.attr('data-srcset') || '').trim();
+    if (srcset) {
+      const normalizedSrcset = collectSrcsetUrls(srcset, sourceUrl, imageUrls);
+      img.attr('srcset', normalizedSrcset);
+      if (!(img.attr('src') || '').trim()) {
+        const best = bestCaptureSrcsetUrl(normalizedSrcset);
+        if (best)
+          img.attr('src', best);
+      }
+    }
+
+    const src = (img.attr('src') || '').trim();
+    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+      const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
+      img.attr('src', absoluteSrc);
+      imageUrls.add(absoluteSrc);
+    }
+  });
+
+  container.find('source[srcset], source[data-srcset]').each((_idx, node) => {
+    const source = $(node);
+    const srcset = (source.attr('srcset') || source.attr('data-srcset') || '').trim();
+    if (!srcset)
+      return;
+    source.attr('srcset', collectSrcsetUrls(srcset, sourceUrl, imageUrls));
+  });
+
+  container.find('video').each((_idx, node) => {
+    const video = $(node);
+    const poster = (video.attr('poster') || video.attr('data-poster') || '').trim();
+    if (poster) {
+      const absolutePoster = absolutizeCaptureUrl(poster, sourceUrl);
+      video.attr('poster', absolutePoster);
+      imageUrls.add(absolutePoster);
+    }
+    video.find('source').each((_sourceIdx, sourceNode) => {
+      const source = $(sourceNode);
+      const src = (source.attr('src') || source.attr('data-src') || '').trim();
+      if (src)
+        source.attr('src', absolutizeCaptureUrl(src, sourceUrl));
+    });
+    video.attr('autoplay', '');
+    video.attr('muted', '');
+    video.attr('playsinline', '');
+    video.attr('loop', '');
+  });
+
+  container.find('[style]').each((_idx, node) => {
+    const style = $(node).attr('style') || '';
+    const matches = style.matchAll(/url\(["']?([^"')]+)["']?\)/gi);
+    for (const match of matches) {
+      const absoluteUrl = absolutizeCaptureUrl(match[1], sourceUrl);
+      if (absoluteUrl && !absoluteUrl.startsWith('data:') && !absoluteUrl.startsWith('blob:'))
+        imageUrls.add(absoluteUrl);
+    }
+  });
+
+  let heroUrl = '';
+  for (const node of container.find('picture, img').toArray()) {
+    heroUrl = bestElementImageUrl($, node, sourceUrl);
+    if (heroUrl)
+      break;
+  }
+  if (heroUrl)
+    imageUrls.add(heroUrl);
+
+  const result = normalizeCapturedLazyMedia({
+    html: container.html() || '',
+    stylesheetLinks: [...stylesheetLinks.values()],
+    imageUrls: [...imageUrls],
+    heroUrl,
+    title,
+    elementCount: container.find('*').length,
+  }, sourceUrl);
+
+  if (isCaptureBlockedBySecurityPage({ html: result.html, title: result.title }))
+    return { bot_blocked: true };
+
+  return result;
 }
 
 export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: string): DomCaptureResult {
@@ -222,21 +521,44 @@ export class PageCapturer {
     modelSlug: string,
     sourceUrl: string,
     modelName?: string,
+    options: PageCaptureOptions = {},
   ): Promise<PageCaptureResult> {
     const startTime = Date.now();
+    const backend = options.backend ?? 'cloudflare-browser';
 
     try {
-      const capture = await this.captureDom(sourceUrl);
+      if (backend === 'scrapling-stealth' && oemId !== 'toyota-au') {
+        return {
+          success: false,
+          capture_time_ms: Date.now() - startTime,
+          capture_backend: backend,
+          error: 'scrapling-stealth capture backend is currently allowlisted only for toyota-au',
+        };
+      }
+
+      if (backend === 'scrapling-stealth' && !options.externalCapture?.html) {
+        return {
+          success: false,
+          capture_time_ms: Date.now() - startTime,
+          capture_backend: backend,
+          error: 'scrapling-stealth capture backend requires external captured_html input',
+        };
+      }
+
+      const capture = backend === 'scrapling-stealth'
+        ? buildDomCaptureFromHtml(options.externalCapture!, options.externalCapture?.finalUrl || sourceUrl)
+        : await this.captureDom(sourceUrl);
       if ('bot_blocked' in capture) {
         return {
           success: false,
           capture_time_ms: Date.now() - startTime,
+          capture_backend: backend,
           bot_blocked: true,
           error: 'Security verification page detected; existing page was not overwritten',
         };
       }
 
-      console.log(`[PageCapturer] Captured: "${capture.title}", ${capture.elementCount} elements, ${capture.imageUrls.length} images`);
+      console.log(`[PageCapturer] Captured via ${backend}: "${capture.title}", ${capture.elementCount} elements, ${capture.imageUrls.length} images`);
 
       // Download images to R2
       const imageUrls = capture.imageUrls.slice(0, MAX_IMAGE_DOWNLOADS);
@@ -331,11 +653,11 @@ export class PageCapturer {
       await Promise.all([
         this.r2Bucket.put(latestKey, jsonStr, {
           httpMetadata: { contentType: 'application/json' },
-          customMetadata: { pipeline: 'full-page-v1', oem_id: oemId, model_slug: modelSlug },
+          customMetadata: { pipeline: 'full-page-v1', oem_id: oemId, model_slug: modelSlug, capture_backend: backend },
         }),
         this.r2Bucket.put(versionKey, jsonStr, {
           httpMetadata: { contentType: 'application/json' },
-          customMetadata: { pipeline: 'full-page-v1' },
+          customMetadata: { pipeline: 'full-page-v1', capture_backend: backend },
         }),
       ]);
 
@@ -346,6 +668,7 @@ export class PageCapturer {
         page: pageData,
         r2_key: latestKey,
         capture_time_ms: Date.now() - startTime,
+        capture_backend: backend,
         elements_captured: capture.elementCount,
         images_uploaded: urlMapping.size,
         html_size_kb: Math.round(html.length / 1024),

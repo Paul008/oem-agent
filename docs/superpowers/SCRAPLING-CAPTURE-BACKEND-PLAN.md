@@ -78,6 +78,8 @@ wait.
 
 ## Phase 2: Adapter Contract
 
+Status: implemented for externally rendered HTML.
+
 Add a capture backend abstraction around the existing capturer:
 
 ```ts
@@ -87,11 +89,27 @@ type CaptureBackend = 'cloudflare-browser' | 'scrapling-stealth'
 The existing Cloudflare Browser path remains default. Scrapling is selected only when:
 
 - OEM is in an allowlist, initially `toyota-au`
-- normal capture returns `bot_blocked: true`
+- externally rendered HTML is supplied by the operator or an external service
 - an operator explicitly requests the fallback
 
 The adapter should return the same `DomCaptureResult` shape used by `PageCapturer` so URL rewriting,
 image download, stylesheet extraction, mode preservation, and R2 versioning remain unchanged.
+
+Implemented request shape:
+
+```json
+{
+  "source_url": "https://www.toyota.com.au/rav4",
+  "capture_backend": "scrapling-stealth",
+  "captured_html": "<!doctype html>...",
+  "captured_title": "All-New RAV4 2026 | Hybrid & Plug-in Hybrid Electric SUV | Toyota Australia",
+  "final_url": "https://www.toyota.com.au/rav4",
+  "stylesheet_urls": []
+}
+```
+
+The Worker does not run Scrapling or Python. It validates and normalizes the supplied HTML, rejects
+security/challenge pages, then reuses the existing clone persistence path.
 
 ## Phase 3: Production Hardening
 

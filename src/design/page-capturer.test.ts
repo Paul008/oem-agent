@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isCaptureBlockedBySecurityPage, normalizeCapturedLazyMedia } from './page-capturer'
+import { buildDomCaptureFromHtml, isCaptureBlockedBySecurityPage, normalizeCapturedLazyMedia } from './page-capturer'
 
 describe('normalizeCapturedLazyMedia', () => {
   it('restores Toyota responsive lazy image URLs from source data-srcset', () => {
@@ -53,5 +53,63 @@ describe('isCaptureBlockedBySecurityPage', () => {
         </main>
       `,
     })).toBe(false)
+  })
+})
+
+describe('buildDomCaptureFromHtml', () => {
+  it('converts externally rendered HTML into a normalized DOM capture', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `
+        <!doctype html>
+        <html>
+          <head>
+            <title>All-New RAV4</title>
+            <link rel="stylesheet" href="/assets/rav4.css">
+            <script>window.bad = true</script>
+          </head>
+          <body>
+            <nav>Global navigation</nav>
+            <main>
+              <h1>All-New RAV4</h1>
+              <picture>
+                <source data-srcset="/-/media/rav4-hero.jpg 1x, /-/media/rav4-hero@2x.jpg 2x">
+                <img alt="RAV4 hero">
+              </picture>
+              <section style="background-image:url('/-/media/rav4-bg.jpg')">
+                <p>${'Long live recreation. '.repeat(80)}</p>
+              </section>
+            </main>
+          </body>
+        </html>
+      `,
+      stylesheetUrls: ['https://cdn.example.test/toyota-extra.css'],
+    }, 'https://www.toyota.com.au/rav4')
+
+    if ('bot_blocked' in result)
+      throw new Error('Expected external capture to succeed')
+
+    expect(result.title).toBe('All-New RAV4')
+    expect(result.stylesheetLinks).toContain('<link rel="stylesheet" href="https://www.toyota.com.au/assets/rav4.css">')
+    expect(result.stylesheetLinks).toContain('<link rel="stylesheet" href="https://cdn.example.test/toyota-extra.css">')
+    expect(result.html).not.toContain('<script')
+    expect(result.html).not.toContain('<nav')
+    expect(result.html).toContain('srcset="https://www.toyota.com.au/-/media/rav4-hero.jpg 1x, https://www.toyota.com.au/-/media/rav4-hero@2x.jpg 2x"')
+    expect(result.imageUrls).toContain('https://www.toyota.com.au/-/media/rav4-hero@2x.jpg')
+    expect(result.imageUrls).toContain('https://www.toyota.com.au/-/media/rav4-bg.jpg')
+    expect(result.heroUrl).toBe('https://www.toyota.com.au/-/media/rav4-hero@2x.jpg')
+  })
+
+  it('rejects externally rendered security verification pages', () => {
+    expect(buildDomCaptureFromHtml({
+      title: 'www.toyota.com.au',
+      html: `
+        <html>
+          <body>
+            <h2>Performing security verification</h2>
+            <p>This website uses a security service to protect against malicious bots.</p>
+          </body>
+        </html>
+      `,
+    }, 'https://www.toyota.com.au/rav4')).toEqual({ bot_blocked: true })
   })
 })
