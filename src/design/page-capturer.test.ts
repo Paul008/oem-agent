@@ -213,6 +213,20 @@ describe('activateLazyMediaForCapture', () => {
     expect(video.removedAttrs).not.toContain('poster')
   })
 
+  it('resolves direct video data-src attributes before scrolling', () => {
+    const video = createLazyMediaElement({ 'data-src': 'media/rav4-loop.mp4' })
+    const doc = createLazyMediaDocument({
+      videos: [video],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.videoSources).toBe(1)
+    expect(video.src).toBe('https://www.toyota.com.au/media/rav4-loop.mp4')
+    expect(video.attrs.src).toBe('https://www.toyota.com.au/media/rav4-loop.mp4')
+    expect(video.removedAttrs).toContain('data-src')
+  })
+
   it('resolves video source data-src attributes before scrolling', () => {
     const source = createLazyMediaElement({ 'data-src': 'media/rav4-loop.mp4' })
     const absoluteSource = createLazyMediaElement({ 'data-src': 'https://cdn.example.test/rav4.mp4' })
@@ -702,6 +716,35 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.html).not.toContain('subaru-placeholder')
     expect(result.html).toContain('subaru-real')
     expect(result.imageUrls).toContain('https://www.subaru.com.au/media/brz.jpg')
+  })
+
+  it('normalizes direct video sources and queues them for media proxying', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <video class="hero-loop" data-src="/media/rav4-loop.mp4" data-poster="/media/rav4-poster.jpg">
+            <source data-src="/media/rav4-alt.mp4" type="video/mp4">
+          </video>
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: [],
+      heroUrl: '',
+      title: 'RAV4',
+      elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    const videoUrl = 'https://www.toyota.com.au/media/rav4-loop.mp4'
+    const sourceUrl = 'https://www.toyota.com.au/media/rav4-alt.mp4'
+    const posterUrl = 'https://www.toyota.com.au/media/rav4-poster.jpg'
+
+    expect(result.html).toContain(`src="${videoUrl}"`)
+    expect(result.html).toContain(`src="${sourceUrl}"`)
+    expect(result.html).toContain(`poster="${posterUrl}"`)
+    expect(result.imageUrls).toContain(videoUrl)
+    expect(result.imageUrls).toContain(sourceUrl)
+    expect(result.imageUrls).toContain(posterUrl)
   })
 })
 

@@ -328,6 +328,24 @@ export function activateLazyMediaForCapture(options?: {
   });
 
   Array.from(activeDocument.querySelectorAll('video')).forEach((video: any) => {
+    const directDataSrc = typeof video.getAttribute === 'function'
+      ? video.getAttribute('data-src')
+      : null;
+    const directSrc = directDataSrc || (typeof video.getAttribute === 'function'
+      ? video.getAttribute('src')
+      : null) || video.src;
+    if (directSrc && !String(directSrc).startsWith('data:') && !String(directSrc).startsWith('blob:')) {
+      const resolvedSrc = abs(directSrc);
+      if (resolvedSrc && (directDataSrc || resolvedSrc !== directSrc)) {
+        video.src = resolvedSrc;
+        if (typeof video.setAttribute === 'function')
+          video.setAttribute('src', resolvedSrc);
+        result.videoSources++;
+      }
+      if (directDataSrc && typeof video.removeAttribute === 'function')
+        video.removeAttribute('data-src');
+    }
+
     if (typeof video.querySelectorAll === 'function') {
       Array.from(video.querySelectorAll('source')).forEach((source: any) => {
         const value = typeof source.getAttribute === 'function'
@@ -1073,6 +1091,12 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
 
   container.find('video').each((_idx, node) => {
     const video = $(node);
+    const videoSrc = (video.attr('src') || video.attr('data-src') || '').trim();
+    if (videoSrc && !videoSrc.startsWith('data:') && !videoSrc.startsWith('blob:')) {
+      const absoluteVideoSrc = absolutizeCaptureUrl(videoSrc, sourceUrl);
+      video.attr('src', absoluteVideoSrc);
+      imageUrls.add(absoluteVideoSrc);
+    }
     const poster = (video.attr('poster') || video.attr('data-poster') || '').trim();
     if (poster) {
       const absolutePoster = absolutizeCaptureUrl(poster, sourceUrl);
@@ -1082,8 +1106,11 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
     video.find('source').each((_sourceIdx, sourceNode) => {
       const source = $(sourceNode);
       const src = (source.attr('src') || source.attr('data-src') || '').trim();
-      if (src)
-        source.attr('src', absolutizeCaptureUrl(src, sourceUrl));
+      if (src) {
+        const absoluteSourceSrc = absolutizeCaptureUrl(src, sourceUrl);
+        source.attr('src', absoluteSourceSrc);
+        imageUrls.add(absoluteSourceSrc);
+      }
     });
     video.attr('autoplay', '');
     video.attr('muted', '');
@@ -1203,6 +1230,36 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     const srcset = (source.attr('srcset') || '').trim();
     if (srcset)
       source.attr('srcset', normalizeCaptureSrcset(srcset, sourceUrl, imageUrls));
+  });
+
+  $('video').each((_idx, node) => {
+    const video = $(node);
+    const src = (video.attr('src') || video.attr('data-src') || '').trim();
+    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+      const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
+      video.attr('src', absoluteSrc);
+      video.removeAttr('data-src');
+      imageUrls.add(absoluteSrc);
+    }
+
+    const poster = (video.attr('poster') || video.attr('data-poster') || '').trim();
+    if (poster && !poster.startsWith('data:') && !poster.startsWith('blob:')) {
+      const absolutePoster = absolutizeCaptureUrl(poster, sourceUrl);
+      video.attr('poster', absolutePoster);
+      video.removeAttr('data-poster');
+      imageUrls.add(absolutePoster);
+    }
+
+    video.find('source').each((_sourceIdx, sourceNode) => {
+      const source = $(sourceNode);
+      const sourceSrc = (source.attr('src') || source.attr('data-src') || '').trim();
+      if (!sourceSrc || sourceSrc.startsWith('data:') || sourceSrc.startsWith('blob:'))
+        return;
+      const absoluteSourceSrc = absolutizeCaptureUrl(sourceSrc, sourceUrl);
+      source.attr('src', absoluteSourceSrc);
+      source.removeAttr('data-src');
+      imageUrls.add(absoluteSourceSrc);
+    });
   });
 
   const heroUrl = result.heroUrl ? absolutizeCaptureUrl(result.heroUrl, sourceUrl) : result.heroUrl;
@@ -1647,9 +1704,19 @@ export class PageCapturer {
 
         // Resolve data-src on video sources
         document.querySelectorAll('video').forEach(video => {
+          const videoDataSrc = video.getAttribute('data-src');
+          if (videoDataSrc) {
+            video.setAttribute('src', abs(videoDataSrc));
+            video.removeAttribute('data-src');
+          } else {
+            const videoSrc = video.getAttribute('src');
+            if (videoSrc && !videoSrc.startsWith('http') && !videoSrc.startsWith('data:') && !videoSrc.startsWith('blob:')) {
+              video.setAttribute('src', abs(videoSrc));
+            }
+          }
           video.querySelectorAll('source').forEach(source => {
             const dataSrc = source.getAttribute('data-src');
-            if (dataSrc && dataSrc.includes('.mp4')) {
+            if (dataSrc) {
               source.setAttribute('src', abs(dataSrc));
               source.removeAttribute('data-src');
             }
@@ -1791,9 +1858,14 @@ export class PageCapturer {
 
         // Video posters + autoplay setup
         container.querySelectorAll('video').forEach(video => {
+          if (video.src && !video.src.startsWith('data:') && !video.src.startsWith('blob:')) {
+            video.src = abs(video.src);
+            imageUrls.add(video.src);
+          }
           video.querySelectorAll('source').forEach(source => {
-            if (source.src && !source.src.startsWith('data:')) {
+            if (source.src && !source.src.startsWith('data:') && !source.src.startsWith('blob:')) {
               source.src = abs(source.src);
+              imageUrls.add(source.src);
             }
           });
           if (video.poster) {
