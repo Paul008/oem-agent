@@ -296,6 +296,11 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
         if (inline) styleString += (styleString ? ';' : '') + inline;
       }
 
+      // Apply border rules (width, style, color, radius) via dedicated borderTw reader
+      var b = R.borderTw(function(p){ return computed.getPropertyValue(p); });
+      if (b.classes.length) twClasses.push.apply(twClasses, b.classes);
+      if (b.style) styleString += (styleString ? ';' : '') + b.style;
+
       // Remove original classes and inline styles
       cln.removeAttribute('class');
       cln.removeAttribute('style');

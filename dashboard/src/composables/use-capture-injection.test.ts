@@ -13,4 +13,9 @@ describe('buildCaptureInjection uses the extracted rules', () => {
     expect((lateInjection.match(/function cssTw\b/g) || []).length).toBe(1)
     expect((lateInjection.match(/function mapClasses\b/g) || []).length).toBe(1)
   })
+
+  it('wires borderTw into the DOM walker', () => {
+    const { lateInjection } = buildCaptureInjection()
+    expect(lateInjection).toContain('R.borderTw(')
+  })
 })

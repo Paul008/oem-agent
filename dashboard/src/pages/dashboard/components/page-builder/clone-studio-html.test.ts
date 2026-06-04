@@ -775,6 +775,13 @@ describe('sanitizeStyle preserves inline fidelity styles', () => {
     expect(danger).not.toContain('expression(')
     expect(danger).not.toContain('javascript:')
   })
+
+  it('keeps inline border declarations', () => {
+    const safe = sanitizeCloneStudioHtmlForTest(
+      '<div style="border-bottom:1px solid rgb(204, 204, 204)">x</div>'
+    )
+    expect(safe).toContain('border-bottom:1px solid rgb(204, 204, 204)')
+  })
 })
 
 describe('reassignClonedRegionIdsForTest', () => {
