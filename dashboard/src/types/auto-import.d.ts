@@ -19,6 +19,7 @@ declare global {
   const TOOL_DESCRIPTIONS: typeof import('../composables/use-agent-profile').TOOL_DESCRIPTIONS
   const WORKFLOW_METADATA: typeof import('../composables/use-agent-profile').WORKFLOW_METADATA
   const buildCaptureInjection: typeof import('../composables/use-capture-injection').buildCaptureInjection
+  const capturePseudoElementRules: typeof import('../composables/capture-pseudo-elements').capturePseudoElementRules
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
   const customRef: typeof import('vue').customRef

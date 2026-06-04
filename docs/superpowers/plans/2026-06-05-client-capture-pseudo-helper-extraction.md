@@ -16,7 +16,7 @@
 - Add: `dashboard/src/composables/capture-pseudo-elements.test.ts`
 - Add: `dashboard/src/composables/capture-pseudo-elements.ts`
 
-- [ ] **Step 1: Write failing helper tests**
+- [x] **Step 1: Write failing helper tests**
 
 Cover:
 
@@ -28,7 +28,7 @@ Cover:
 - inline style serialization with conservative properties
 - stripping unsafe style characters
 
-- [ ] **Step 2: Run focused helper test and confirm failure**
+- [x] **Step 2: Run focused helper test and confirm failure**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/capture-pseudo-elements.test.ts
@@ -36,7 +36,7 @@ VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode product
 
 Expected: FAIL because the helper module does not exist.
 
-- [ ] **Step 3: Implement `capturePseudoElementRules()`**
+- [x] **Step 3: Implement `capturePseudoElementRules()`**
 
 Keep the exported factory self-contained. Return methods with explicit string keys:
 
@@ -48,7 +48,7 @@ return {
 }
 ```
 
-- [ ] **Step 4: Run focused helper test**
+- [x] **Step 4: Run focused helper test**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/capture-pseudo-elements.test.ts
@@ -62,7 +62,7 @@ Expected: PASS.
 - Modify: `dashboard/src/composables/use-capture-injection.ts`
 - Modify: `dashboard/src/composables/use-capture-injection.test.ts`
 
-- [ ] **Step 1: Update source-regression test**
+- [x] **Step 1: Update source-regression test**
 
 Assert:
 
@@ -72,7 +72,7 @@ Assert:
 - `function capturePseudoElementRules`
 - no leftover inline `function normalizePseudoElementContentForCapture` outside the injected factory count
 
-- [ ] **Step 2: Run focused injection test and confirm failure**
+- [x] **Step 2: Run focused injection test and confirm failure**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/use-capture-injection.test.ts
@@ -80,11 +80,11 @@ VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode product
 
 Expected: FAIL until `use-capture-injection.ts` imports and injects the helper factory.
 
-- [ ] **Step 3: Wire helper factory injection**
+- [x] **Step 3: Wire helper factory injection**
 
 Import `capturePseudoElementRules`, inject it once near `tailwindRules`, remove the inline pseudo helper block, and call `P.materializePseudoElementsForCapture(...)`.
 
-- [ ] **Step 4: Run focused injection test**
+- [x] **Step 4: Run focused injection test**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/use-capture-injection.test.ts
@@ -97,7 +97,7 @@ Expected: PASS.
 **Files:**
 - Verify dashboard and repo.
 
-- [ ] **Step 1: Run verification**
+- [x] **Step 1: Run verification**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/composables/capture-pseudo-elements.test.ts dashboard/src/composables/use-capture-injection.test.ts
