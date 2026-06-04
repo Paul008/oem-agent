@@ -1,7 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { supabase } from '@/lib/supabase'
-import { adaptivePipeline, clonePage, createSubpage, fetchGeneratedPage, fetchGeneratedPages, updateClonePage, updatePageSections } from './worker-api'
+import {
+  adaptivePipeline,
+  clonePage,
+  createSubpage,
+  fetchGeneratedPage,
+  fetchGeneratedPages,
+  importLegacyPage,
+  saveDealerOverrides,
+  updateClonePage,
+  updatePageSections,
+} from './worker-api'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -154,6 +164,8 @@ describe('worker-api protected model page writes', () => {
     ['updateClonePage', () => updateClonePage('gac-au', 'emkoo', { edited_rendered: '<main />' })],
     ['updatePageSections', () => updatePageSections('foton-au', 'tunland', [])],
     ['createSubpage', () => createSubpage('gac-au', 'emkoo', 'specs', 'Specifications', 'specs')],
+    ['saveDealerOverrides', () => saveDealerOverrides('foton-au', 'tunland', { dealer_name: 'Dealer' })],
+    ['importLegacyPage', () => importLegacyPage('gac-au', 'emkoo', undefined, { header: {}, content: {} })],
   ])('blocks %s before making a request', async (_, call) => {
     await expect(call()).rejects.toThrow('protected from dashboard writes')
     expect(fetch).not.toHaveBeenCalled()

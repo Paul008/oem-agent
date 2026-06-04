@@ -220,6 +220,7 @@ export async function saveAsTemplate(name: string, category: string, description
 }
 
 export async function saveDealerOverrides(oemId: string, modelSlug: string, overrides: Record<string, string>): Promise<{ success: boolean }> {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/dealer-overrides/${oemId}/${modelSlug}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -564,6 +565,7 @@ export async function previewLegacyImport(url?: string, json?: any) {
 }
 
 export async function importLegacyPage(oemId: string, modelSlug: string, url?: string, json?: any) {
+  assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/import-legacy/${encodeURIComponent(oemId)}/${encodeURIComponent(modelSlug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

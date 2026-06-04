@@ -3,6 +3,7 @@ import { Camera, Check, Crop, Loader2, MousePointer2, Trash2, X, Zap } from 'luc
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import { buildCaptureInjection } from '@/composables/use-capture-injection'
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 
 import { RAW_HTML_CAPTURE_TYPE, SECTION_CAPTURE_TYPE_OPTIONS } from './section-capture-options'
 
@@ -82,6 +83,10 @@ async function loadPage() {
 
 async function loadScreenshot() {
   try {
+    if (isModelPageWriteProtected(props.oemId)) {
+      throw new Error(getModelPageWriteProtectedMessage(props.oemId ?? 'this OEM'))
+    }
+
     const resp = await fetch(`${props.workerBase}/api/v1/oem-agent/admin/capture-screenshot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
