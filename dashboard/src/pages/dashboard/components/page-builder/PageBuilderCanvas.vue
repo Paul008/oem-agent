@@ -357,7 +357,7 @@ function sectionStyle(section: any): Record<string, string> {
           <div
             v-for="(section, index) in sections"
             :key="section.id"
-            class="relative cursor-pointer transition-all group"
+            class="relative transition-all group"
             :class="[
               selectedSectionId === section.id
                 ? 'ring-2 ring-primary ring-offset-2'

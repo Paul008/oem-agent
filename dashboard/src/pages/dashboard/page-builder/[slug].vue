@@ -679,7 +679,7 @@ watch(
 
         <!-- JSON toggle — inline on xl+ -->
         <UiButton
-          v-if="canShowEditorActions"
+          v-if="canShowEditorActions && !isWriteProtectedPage"
           size="sm"
           :variant="showJson ? 'default' : 'outline'"
           class="hidden xl:inline-flex"
@@ -769,7 +769,7 @@ watch(
             <UiDropdownMenuLabel class="text-[10px] text-muted-foreground">
               View
             </UiDropdownMenuLabel>
-            <UiDropdownMenuItem @select="showJson = !showJson">
+            <UiDropdownMenuItem v-if="!isWriteProtectedPage" @select="showJson = !showJson">
               <Code class="size-3.5 mr-2" />
               {{ showJson ? 'Hide JSON' : 'Show JSON' }}
             </UiDropdownMenuItem>
@@ -901,7 +901,7 @@ watch(
     </div>
 
     <!-- JSON view -->
-    <div v-else-if="canShowEditorActions && showJson" class="flex-1 overflow-hidden">
+    <div v-else-if="canShowEditorActions && !isWriteProtectedPage && showJson" class="flex-1 overflow-hidden">
       <JsonEditorView
         :sections="sections"
         @move-section="moveSection"
