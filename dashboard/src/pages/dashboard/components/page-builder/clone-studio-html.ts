@@ -19,6 +19,12 @@ export interface CloneStudioHtmlOptions {
    * not duplicated.
    */
   stylesheetUrls?: string[]
+  /**
+   * Persisted per-region visible-height crops. Each entry pins a region (by the same id scheme the
+   * bridge assigns via `data-oem-region-id`) to a max-height with `overflow:hidden` so a saved crop
+   * renders on load. Live adjustments arrive separately via `clone-studio:set-height` messages.
+   */
+  regionOverrides?: Array<{ id: string, height_override?: number }>
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -44,6 +50,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   )
   const selectedRegion = safeJson(options.selectedRegionId)
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
+  const regionOverrides = safeJsonValue(normalizeCloneStudioRegionOverrides(options.regionOverrides))
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -172,6 +179,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   </style>
   <script>
     window.__CLONE_STUDIO_SELECTED_REGION__ = ${selectedRegion};
+    window.__CLONE_STUDIO_REGION_OVERRIDES__ = ${regionOverrides};
   </script>
 </head>
 <body>
@@ -186,6 +194,7 @@ ${rendered}
   var MESSAGE_PATCH_FIELD = 'clone-studio:patch-field'
   var MESSAGE_CONTEXT_MENU = 'clone-studio:context-menu'
   var MESSAGE_BEGIN_EDIT = 'clone-studio:begin-edit'
+  var MESSAGE_SET_HEIGHT = 'clone-studio:set-height'
   var activeEdit = null
   var REGION_SELECTOR = '[data-oem-region-id]'
   var selectedRegion = null
@@ -928,6 +937,30 @@ ${rendered}
     return true
   }
 
+  function setRegionHeight(regionId, value) {
+    var el = findRegionById(regionId)
+    if (!el || !el.style)
+      return false
+
+    var height = typeof value === 'number' && value > 0 ? value : 0
+
+    el.style.maxHeight = height ? height + 'px' : ''
+    el.style.overflow = height ? 'hidden' : ''
+
+    return true
+  }
+
+  function applyRegionOverrides(overrides) {
+    if (!overrides || !overrides.length)
+      return
+
+    for (var i = 0; i < overrides.length; i++) {
+      var override = overrides[i]
+      if (override && override.id)
+        setRegionHeight(override.id, override.height_override)
+    }
+  }
+
   function beginInlineEdit(region) {
     if (!region)
       return false
@@ -1090,10 +1123,18 @@ ${rendered}
     if (message.type === MESSAGE_PATCH_FIELD) {
       if (patchField(message))
         post(MESSAGE_DOM_UPDATED, { regionId: message.regionId || message.selectedRegionId || null })
+      return
+    }
+
+    if (message.type === MESSAGE_SET_HEIGHT) {
+      var heightRegionId = message.regionId || message.selectedRegionId || message.id
+      if (setRegionHeight(heightRegionId, message.value))
+        post(MESSAGE_DOM_UPDATED, { regionId: heightRegionId })
     }
   })
 
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
+  applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
   post(MESSAGE_READY)
 })()
 </script>
@@ -1643,6 +1684,29 @@ function createCloneStudioBridgeToken(): string {
 
 function safeJson(value: string | null): string {
   return JSON.stringify(value).replace(/</g, '\\u003C')
+}
+
+function safeJsonValue(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003C')
+}
+
+function normalizeCloneStudioRegionOverrides(
+  overrides: CloneStudioHtmlOptions['regionOverrides'],
+): Array<{ id: string, height_override?: number }> {
+  if (!Array.isArray(overrides))
+    return []
+
+  const normalized: Array<{ id: string, height_override?: number }> = []
+  for (const override of overrides) {
+    if (!override || typeof override.id !== 'string' || !override.id)
+      continue
+
+    const height = override.height_override
+    if (typeof height === 'number' && Number.isFinite(height) && height > 0)
+      normalized.push({ id: override.id, height_override: height })
+  }
+
+  return normalized
 }
 
 function escapeHtmlAttribute(value: string): string {

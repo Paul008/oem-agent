@@ -561,4 +561,9 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('clone-studio:begin-edit')
     expect(html).toContain("setAttribute('contenteditable'")
   })
+
+  it('applies a height_override as max-height + overflow on the region', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok', regionOverrides: [{ id: 'r1', height_override: 320 }] })
+    expect(html).toContain('clone-studio:set-height')
+  })
 })
