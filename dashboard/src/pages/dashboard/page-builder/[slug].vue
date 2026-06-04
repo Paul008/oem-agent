@@ -438,7 +438,7 @@ watch(
   <!-- Full-width layout: -m-4 cancels p-4 from default layout -->
   <div class="-m-4 flex flex-col h-[calc(100vh-4rem)]">
     <!-- Toolbar -->
-    <div class="flex items-center gap-1.5 sm:gap-3 px-2 sm:px-4 py-2 border-b bg-card shrink-0 overflow-hidden">
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 border-b bg-card shrink-0">
       <UiButton
         size="sm"
         variant="ghost"
@@ -449,7 +449,7 @@ watch(
         <span class="hidden sm:inline">Pages</span>
       </UiButton>
 
-      <UiSeparator orientation="vertical" class="h-5 shrink-0" />
+      <UiSeparator orientation="vertical" class="h-5 shrink-0 hidden sm:block" />
 
       <template v-if="page">
         <!-- Subpage breadcrumb -->
@@ -461,13 +461,13 @@ watch(
             {{ parentPageName }}
           </button>
           <ChevronRight class="size-3.5 text-muted-foreground shrink-0" />
-          <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[200px]">{{ subpageDisplayName }}</span>
+          <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[200px] 2xl:max-w-[320px]">{{ subpageDisplayName }}</span>
           <UiBadge variant="secondary" class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shrink-0">
             Subpage
           </UiBadge>
         </template>
         <template v-else>
-          <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[200px] lg:max-w-none">{{ pageTitle }}</span>
+          <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[220px] xl:max-w-[280px] 2xl:max-w-[420px]">{{ pageTitle }}</span>
         </template>
         <UiBadge v-if="page.version" variant="secondary" class="text-[10px] shrink-0">
           v{{ page.version }}
@@ -482,7 +482,7 @@ watch(
         <UiBadge v-else-if="pageWorkflowState === 'cloned'" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
           Cloned
         </UiBadge>
-        <div v-if="canShowModeSwitcher" class="ml-1 hidden md:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
+        <div v-if="canShowModeSwitcher" class="ml-1 hidden lg:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
           <button
             v-for="mode in availableModes"
             :key="mode"
@@ -496,10 +496,10 @@ watch(
         </div>
       </template>
 
-      <div class="flex-1 min-w-0" />
+      <div class="hidden lg:block flex-1 min-w-0" />
 
       <!-- Actions -->
-      <div class="flex items-center gap-1.5 shrink-0">
+      <div class="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5">
         <!-- Undo/Redo — always visible (icon-only, small) -->
         <UiButton
           v-if="canShowSectionActions"
@@ -524,7 +524,7 @@ watch(
           <Redo2 class="size-3.5" />
         </UiButton>
 
-        <!-- === INLINE buttons (xl+ screens) === -->
+        <!-- === INLINE buttons (2xl+ screens) === -->
 
         <!-- Import -->
         <UiButton
@@ -532,7 +532,7 @@ watch(
           size="sm"
           variant="outline"
           title="Import sections from another page"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="showSectionBrowser = true"
         >
           <Import class="size-3.5 mr-1" />
@@ -545,7 +545,7 @@ watch(
           size="sm"
           variant="outline"
           title="Capture sections from a live webpage"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="showCapture = true"
         >
           <MousePointer2 class="size-3.5 mr-1" />
@@ -558,7 +558,7 @@ watch(
           size="sm"
           variant="outline"
           title="Paste sections from clipboard (Ctrl+V)"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="pasteSectionFromClipboard()"
         >
           <ClipboardPaste class="size-3.5 mr-1" />
@@ -571,23 +571,23 @@ watch(
           size="sm"
           :variant="showHistory ? 'default' : 'outline'"
           title="History"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="showHistory = !showHistory"
         >
           <History class="size-3.5 mr-1" />
           History
         </UiButton>
 
-        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden xl:block" />
+        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden 2xl:block" />
 
         <!-- Source URL input for subpages -->
-        <div v-if="canShowSourceUrlInput" class="hidden xl:flex items-center gap-1.5">
+        <div v-if="canShowSourceUrlInput" class="order-last flex basis-full items-center gap-1.5 min-w-0 lg:order-none lg:basis-auto">
           <Globe class="size-3.5 text-muted-foreground shrink-0" />
           <input
             v-model="sourceUrlOverride"
             type="url"
             placeholder="OEM page URL to clone..."
-            class="h-7 w-64 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            class="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring lg:w-64 lg:flex-none"
           >
         </div>
 
@@ -597,7 +597,7 @@ watch(
           size="sm"
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="runClone()"
         >
           <Copy v-if="!cloning" class="size-3.5 mr-1" />
@@ -606,7 +606,7 @@ watch(
         </UiButton>
 
         <!-- AI model selector -->
-        <div v-if="canShowWorkflowActions" class="hidden xl:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
+        <div v-if="canShowWorkflowActions" class="hidden 2xl:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
           <Cpu class="size-3.5 text-violet-500 shrink-0" />
           <UiSelect v-model="selectedModel">
             <UiSelectTrigger class="h-7 w-44 text-xs bg-background">
@@ -626,7 +626,7 @@ watch(
           size="sm"
           :variant="primaryWorkflowAction.key === 'structure' ? 'default' : 'outline'"
           :disabled="structuring || pipelining"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="runStructure(selectedModelOverride)"
         >
           <Sparkles v-if="!structuring" class="size-3.5 mr-1" />
@@ -640,7 +640,7 @@ watch(
           size="sm"
           :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
           :disabled="pipelineActionDisabled"
-          class="hidden xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
+          class="hidden 2xl:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
           @click="runAdaptivePipeline(selectedModelOverride)"
         >
           <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
@@ -648,7 +648,7 @@ watch(
           {{ pipelining ? 'Running...' : primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Pipeline' }}
         </UiButton>
 
-        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden xl:block" />
+        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden 2xl:block" />
 
         <!-- Save — always visible -->
         <UiButton
@@ -664,12 +664,12 @@ watch(
           <span v-if="isDirty" class="ml-1 size-1.5 rounded-full bg-amber-400 inline-block" />
         </UiButton>
 
-        <!-- Source — inline on xl+ -->
+        <!-- Source — inline on 2xl+ -->
         <a
           v-if="canShowEditorActions && page?.source_url"
           :href="page.source_url"
           target="_blank"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
         >
           <UiButton size="sm" variant="outline">
             <ExternalLink class="size-3.5 mr-1" />
@@ -677,22 +677,22 @@ watch(
           </UiButton>
         </a>
 
-        <!-- JSON toggle — inline on xl+ -->
+        <!-- JSON toggle — inline on 2xl+ -->
         <UiButton
           v-if="canShowEditorActions && !isWriteProtectedPage"
           size="sm"
           :variant="showJson ? 'default' : 'outline'"
-          class="hidden xl:inline-flex"
+          class="hidden 2xl:inline-flex"
           @click="showJson = !showJson"
         >
           <Code class="size-3.5 mr-1" />
           JSON
         </UiButton>
 
-        <!-- === OVERFLOW MENU (below xl) === -->
+        <!-- === OVERFLOW MENU (below 2xl) === -->
         <UiDropdownMenu v-if="canShowEditorActions">
           <UiDropdownMenuTrigger as-child>
-            <UiButton size="sm" variant="outline" class="xl:hidden size-8 p-0" title="More actions">
+            <UiButton size="sm" variant="outline" class="2xl:hidden size-8 p-0" title="More actions">
               <Menu class="size-4" />
             </UiButton>
           </UiDropdownMenuTrigger>
@@ -794,10 +794,10 @@ watch(
     </div>
 
     <!-- Workflow Stepper -->
-    <div v-if="canShowEditorActions && page && !loading" class="flex items-center gap-0 px-4 py-2 border-b bg-muted/30 shrink-0">
+    <div v-if="canShowEditorActions && page && !loading" class="flex items-center gap-0 px-4 py-2 border-b bg-muted/30 shrink-0 overflow-x-auto">
       <template v-for="(step, i) in workflowSteps" :key="step.label">
         <div
-          class="flex items-center gap-1.5 text-xs"
+          class="flex items-center gap-1.5 text-xs shrink-0"
           :class="step.active ? 'text-foreground font-medium' : step.done ? 'text-emerald-600' : 'text-muted-foreground'"
         >
           <div
@@ -815,13 +815,13 @@ watch(
         </div>
         <div
           v-if="i < workflowSteps.length - 1"
-          class="w-8 sm:w-12 h-px mx-2"
+          class="w-8 sm:w-12 h-px mx-2 shrink-0"
           :class="step.done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-border'"
         />
       </template>
 
       <!-- Pipeline result summary (shows after pipeline finishes) -->
-      <div v-if="pipelineResult" class="ml-auto flex items-center gap-2 text-xs">
+      <div v-if="pipelineResult" class="ml-auto flex items-center gap-2 text-xs shrink-0">
         <UiBadge
           :variant="pipelineResult.success ? 'default' : 'destructive'"
           class="text-[10px]"
