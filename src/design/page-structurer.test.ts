@@ -218,3 +218,94 @@ describe('PageStructurer page mode integration', () => {
     })
   })
 })
+
+describe('PageStructurer.previewMapping (deterministic-first, non-mutating)', () => {
+  const CLONE_HTML = `<body>
+    <section class="hero"><h1>Mustang</h1><p>Iconic.</p><img src="/media/hero.jpg"><a href="/build">Build</a></section>
+    <section class="grid-blocks">
+      <div class="grid-blocks__block"><img src="/media/a.jpg"><h3>Power</h3></div>
+      <div class="grid-blocks__block"><img src="/media/b.jpg"><h3>Tech</h3></div>
+      <div class="grid-blocks__block"><img src="/media/c.jpg"><h3>Drive</h3></div>
+    </section>
+  </body>`
+
+  function makeClonePage() {
+    return makeBasePage({
+      content: {
+        modes: {
+          clone: {
+            rendered: CLONE_HTML,
+            source_url: SOURCE_URL,
+            captured_at: '2026-06-03T00:00:00.000Z',
+            viewport: { width: 1440, height: 1080 },
+            asset_map: {},
+            stylesheet_urls: [],
+            section_index: [],
+            stripped_selectors: [],
+            warnings: [],
+          },
+        },
+        sections: [],
+      },
+    })
+  }
+
+  it('returns a deterministic mapping with per-section confidence without calling AI or mutating R2', async () => {
+    const bucket = new MemoryR2Bucket({ [LATEST_KEY]: makeClonePage() })
+    const ai = makeAiRouter({})
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    const result = await structurer.previewMapping('ford-au', 'mustang')
+
+    expect(result.success).toBe(true)
+    expect(ai.calls.length).toBe(0) // deterministic only
+    expect(result.mapping!.sections[0].type).toBe('hero')
+    expect(result.mapping!.sections.map(s => s.type)).toContain('feature-cards')
+    expect(result.mapping!.needs_ai_fallback).toBe(false)
+    expect(result.mapping!.sections.every(s => typeof s.confidence === 'number')).toBe(true)
+
+    // Non-mutating: version and stored content unchanged.
+    const stored = bucket.readJson<any>(LATEST_KEY)
+    expect(stored.version).toBe(3)
+  })
+
+  it('flags needs_ai_fallback for opaque pages', async () => {
+    const opaque = makeBasePage({
+      content: {
+        modes: {
+          clone: {
+            rendered: '<body><div class="b1"><p>Lorem ipsum dolor sit amet consectetur adipiscing.</p></div><div class="b2"><p>Sed do eiusmod tempor incididunt ut labore et dolore.</p></div></body>',
+            source_url: SOURCE_URL,
+            captured_at: '2026-06-03T00:00:00.000Z',
+            viewport: { width: 1440, height: 1080 },
+            asset_map: {},
+            stylesheet_urls: [],
+            section_index: [],
+            stripped_selectors: [],
+            warnings: [],
+          },
+        },
+        sections: [],
+      },
+    })
+    const bucket = new MemoryR2Bucket({ [LATEST_KEY]: opaque })
+    const ai = makeAiRouter({})
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    const result = await structurer.previewMapping('ford-au', 'mustang')
+
+    expect(result.success).toBe(true)
+    expect(result.mapping!.needs_ai_fallback).toBe(true)
+  })
+
+  it('returns success=false when no cloned page exists', async () => {
+    const bucket = new MemoryR2Bucket({})
+    const ai = makeAiRouter({})
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    const result = await structurer.previewMapping('ford-au', 'mustang')
+
+    expect(result.success).toBe(false)
+    expect(result.mapping).toBeUndefined()
+  })
+})

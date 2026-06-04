@@ -2435,12 +2435,45 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
     backend: captureBackend,
     externalCapture,
   });
+
+  // Persist capture diagnostics (success AND failure) outside pages/definitions
+  // so failed/blocked captures remain visible for troubleshooting. Best-effort.
+  try {
+    const { buildDiagnosticsRecord, recordCaptureDiagnostics } = await import('../design/capture-diagnostics');
+    const record = buildDiagnosticsRecord({
+      oemId,
+      modelSlug,
+      sourceUrl,
+      capturedAt: new Date().toISOString(),
+      result,
+    });
+    await recordCaptureDiagnostics(c.env.MOLTBOT_BUCKET, record);
+  } catch (err) {
+    console.error('[clone-page] failed to record capture diagnostics:', err);
+  }
+
   const status = result.success
     ? 200
     : result.error?.startsWith('scrapling-stealth capture backend')
       ? 400
       : 500;
   return c.json({ ...result, oemId, modelSlug }, status);
+});
+
+/**
+ * GET /api/v1/oem-agent/admin/capture-diagnostics/:oemId/:modelSlug
+ * Read persisted capture diagnostics (latest + recent history) for a model
+ * page. Surfaces backend, status, source/final URL, timing, and failure reason.
+ */
+app.get('/admin/capture-diagnostics/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+  const { readCaptureDiagnostics } = await import('../design/capture-diagnostics');
+  const diagnostics = await readCaptureDiagnostics(c.env.MOLTBOT_BUCKET, oemId, modelSlug);
+  if (!diagnostics) {
+    return c.json({ found: false, oemId, modelSlug }, 404);
+  }
+  return c.json({ found: true, oemId, modelSlug, ...diagnostics });
 });
 
 /**
@@ -2491,6 +2524,44 @@ app.post('/admin/structure-page/:oemId/:modelSlug', async (c) => {
   const result = await structurer.structurePage(oemId, modelSlug);
 
   return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 500);
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/map-page/:oemId/:modelSlug
+ * Deterministic-first mapping preview (NON-MUTATING). Runs the unified
+ * section mapper over the cloned page HTML and returns proposed sections with
+ * per-section confidence plus a needs_ai_fallback signal. Does not call AI and
+ * does not write to R2 — use this to decide whether AI structuring is needed.
+ */
+app.post('/admin/map-page/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId') as OemId;
+  const modelSlug = c.req.param('modelSlug');
+
+  const { PageStructurer } = await import('../design/page-structurer');
+
+  // Read-only path: no AI router calls are made by previewMapping, but the
+  // constructor requires the dependency shape.
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase);
+
+  const structurer = new PageStructurer({
+    aiRouter,
+    r2Bucket: c.env.MOLTBOT_BUCKET,
+    supabase,
+  });
+
+  const result = await structurer.previewMapping(oemId, modelSlug);
+
+  return c.json({ ...result, oemId, modelSlug }, result.success ? 200 : 404);
 });
 
 /**

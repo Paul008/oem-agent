@@ -24,7 +24,14 @@ import {
   normalizePageModes,
   type ModeAwarePage,
 } from './page-modes';
+import { mapPageToSections, type MapPageResult } from './section-mapper';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+
+export interface PageMappingPreviewResult {
+  success: boolean;
+  mapping?: MapPageResult;
+  error?: string;
+}
 
 const R2_PREFIX = 'pages/definitions';
 
@@ -334,6 +341,37 @@ export class PageStructurer {
         section_types: [],
         error: err.message || String(err),
       };
+    }
+  }
+
+  /**
+   * Deterministic-first mapping preview (NON-MUTATING).
+   *
+   * Loads the cloned page HTML and runs the deterministic section mapper,
+   * returning the proposed sections with per-section confidence and a
+   * needs_ai_fallback signal. Does NOT call AI and does NOT write to R2 — this
+   * is the cheap pre-pass that decides whether AI structuring is required.
+   */
+  async previewMapping(oemId: OemId, modelSlug: string): Promise<PageMappingPreviewResult> {
+    try {
+      const latestKey = `${R2_PREFIX}/${oemId}/${modelSlug}/latest.json`;
+      const obj = await this.r2Bucket.get(latestKey);
+
+      if (!obj) {
+        return { success: false, error: `No cloned page found at ${latestKey}. Run clone-page first.` };
+      }
+
+      const pageData = normalizePageModes((await obj.json()) as ModeAwareVehicleModelPage);
+      const renderedHtml = getRenderableCloneHtml(pageData);
+
+      if (!renderedHtml) {
+        return { success: false, error: 'Page has no rendered content to map.' };
+      }
+
+      const mapping = mapPageToSections(renderedHtml);
+      return { success: true, mapping };
+    } catch (err: any) {
+      return { success: false, error: err.message || String(err) };
     }
   }
 
