@@ -1,5 +1,5 @@
 <script lang="ts">
-import { getCloneHtml, getCloneStylesheetUrls } from '../../page-builder/page-modes'
+import { getCloneHtml, getCloneRegions, getCloneStylesheetUrls } from '../../page-builder/page-modes'
 import { buildCloneStudioHtml } from './clone-studio-html'
 
 export interface CloneStudioFrameHtmlForCanvasOptions {
@@ -34,6 +34,12 @@ export function translateFramePoint(p: { x: number; y: number }, originRect: { l
 }
 
 export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtmlForCanvasOptions): string {
+  // Saved per-region height crops live in section_index (not the rendered HTML), so re-apply them to
+  // the iframe on load — otherwise persisted crops would not render until the user re-set them.
+  const regionOverrides = getCloneRegions(options.page)
+    .filter(region => typeof region.height_override === 'number')
+    .map(region => ({ id: region.id, height_override: region.height_override }))
+
   return buildCloneStudioHtml({
     rendered: getCloneHtml(options.page),
     title: options.title,
@@ -42,6 +48,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     stylesheetUrls: getCloneStylesheetUrls(options.page),
     selectedRegionId: null,
     bridgeToken: options.bridgeToken,
+    regionOverrides,
   })
 }
 </script>

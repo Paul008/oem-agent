@@ -29,6 +29,7 @@ import {
   SECTION_TEMPLATES,
 } from '@/pages/dashboard/components/page-builder/section-templates'
 import {
+  applyRegionHeightOverride,
   getActivePageMode,
   getAvailablePageModes,
   getCloneHtml,
@@ -346,6 +347,21 @@ export function usePageBuilder() {
       byId.set(draft.id, draft)
     return [...byId.values()]
   })
+
+  /**
+   * Set (or clear, with `null`) the visible-height crop for a clone region. The override lives in
+   * section_index (not the rendered HTML), so it is applied to the working save set and upserted as a
+   * draft — drafts win in cloneRegionsForSave, so the change flows through saveClone() and survives
+   * reload (Part B re-applies it to the iframe on load).
+   */
+  function setRegionHeight(regionId: string, height: number | null) {
+    const next = applyRegionHeightOverride(cloneRegionsForSave.value, regionId, height)
+    const updated = next.find(region => region.id === regionId)
+    if (!updated)
+      return
+    upsertCloneRegionDraft(updated)
+    isDirty.value = true
+  }
 
   function deleteSection(id: string) {
     const idx = sections.value.findIndex((s: any) => s.id === id)
@@ -859,6 +875,7 @@ export function usePageBuilder() {
     selectSection,
     setActiveMode,
     selectCloneRegion,
+    setRegionHeight,
     deleteSection,
     moveSection,
     addSection,

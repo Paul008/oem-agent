@@ -243,6 +243,43 @@ describe('usePageBuilder media URL resolution', () => {
     expect(builder.cloneRegionsForSave.value.find(r => r.id === 'r1')?.label).toBe('Hero (re-selected)')
   })
 
+  it('persists a region height override into the save set and clears it on null', () => {
+    const builder = usePageBuilder()
+    builder.page.value = {
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>OEM clone</main>',
+        modes: {
+          clone: {
+            rendered: '<main>OEM clone</main>',
+            section_index: [{
+              id: 'r1',
+              label: 'Hero',
+              selector: 'main',
+              tag: 'main',
+              classes: [],
+              top: 0,
+              height: 800,
+              editable_fields: [],
+            }],
+          },
+        },
+      },
+    }
+
+    expect(builder.isDirty.value).toBe(false)
+
+    builder.setRegionHeight('r1', 400)
+
+    const saved = builder.cloneRegionsForSave.value.find(r => r.id === 'r1')
+    expect(saved?.height_override).toBe(400)
+    expect(builder.isDirty.value).toBe(true)
+
+    builder.setRegionHeight('r1', null)
+    const cleared = builder.cloneRegionsForSave.value.find(r => r.id === 'r1')
+    expect(cleared?.height_override).toBeUndefined()
+  })
+
   it('normalizes resolved worker media URLs before storage', () => {
     const section = {
       id: 'hero-1',

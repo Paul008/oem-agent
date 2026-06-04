@@ -25,6 +25,7 @@ import {
 } from 'lucide-vue-next'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
@@ -39,6 +40,7 @@ import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
 import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
 import type { CloneFieldPatchPayload } from '../components/page-builder/CloneRegionEditor.vue'
+import type { RegionActionId } from '../components/page-builder/region-actions'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
 import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
@@ -113,6 +115,7 @@ const {
   saveCurrentAsRecipe,
   setActiveMode,
   selectCloneRegion,
+  setRegionHeight,
 } = usePageBuilder()
 
 const themeStore = useThemeStore()
@@ -184,6 +187,39 @@ function patchCloneField(payload: CloneFieldPatchPayload) {
   if (isWriteProtectedPage.value)
     return
   pageBuilderCanvas.value?.patchCloneField(payload)
+}
+
+// Canvas emits update-field for both structured sections and clone-region height crops. Height crops
+// live in section_index (via setRegionHeight); everything else is a section field update.
+function onUpdateField(id: string, field: string, value: any) {
+  if (isWriteProtectedPage.value)
+    return
+  if (activeMode.value === 'clone' && field === 'height_override') {
+    setRegionHeight(id, value == null ? null : Number(value))
+    return
+  }
+  updateSection(id, { [field]: value })
+}
+
+// Structural region actions. `delete`/`hide` map to a visibility patch (the pragmatic delete for a
+// clone). `duplicate`/`convert` are out of scope for now — surface a non-blocking notice.
+function onRegionAction({ action, regionId }: { action: RegionActionId, regionId: string }) {
+  if (isWriteProtectedPage.value)
+    return
+  if (action === 'delete' || action === 'hide') {
+    const selector = `[data-oem-region-id="${regionId}"]`
+    patchCloneField({
+      regionId,
+      fieldId: `${regionId}:visibility`,
+      selector,
+      kind: 'visibility',
+      value: false,
+    })
+    return
+  }
+  if (action === 'duplicate' || action === 'convert') {
+    toast('Duplicate / Convert coming soon')
+  }
 }
 
 async function saveActiveMode() {
@@ -997,9 +1033,10 @@ watch(
             @move-section="moveSection"
             @duplicate-section="duplicateSection"
             @delete-section="deleteSection"
-            @update-field="(id: string, field: string, value: any) => updateSection(id, { [field]: value })"
+            @update-field="onUpdateField"
             @select-clone-region="onCloneRegionSelected"
             @clone-dom-updated="onCloneDomUpdated"
+            @region-action="onRegionAction"
           />
         </UiResizablePanel>
 
