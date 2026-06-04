@@ -52,12 +52,16 @@ const props = withDefaults(defineProps<{
   // scaled down to fit the available container.
   frameWidth?: number
   allowSameOriginSandbox?: boolean
+  // When true, the desktop frame scales UP to fill the container width (used by the full-screen
+  // preview so the clone fills the window instead of sitting left-aligned at native width).
+  fitWidth?: boolean
 }>(), {
   title: 'Clone Studio',
   baseHref: '',
   workerBase: '',
   frameWidth: 1280,
   allowSameOriginSandbox: false,
+  fitWidth: false,
 })
 
 const emit = defineEmits<{
@@ -72,8 +76,13 @@ const containerHeight = ref(0)
 let resizeObserver: ResizeObserver | null = null
 const bridgeToken = createBridgeToken()
 
-// Scale the desktop-width frame down to fit the editor panel; never scale up past 1:1.
-const frameScale = computed(() => computeCloneFrameScale(containerWidth.value, props.frameWidth))
+// Scale the desktop-width frame to fit. In the editor we never upscale past 1:1; in fit-width
+// (full-screen preview) we scale up so the clone fills the window instead of leaving a gap.
+const frameScale = computed(() => {
+  if (props.fitWidth && containerWidth.value && props.frameWidth > 0)
+    return containerWidth.value / props.frameWidth
+  return computeCloneFrameScale(containerWidth.value, props.frameWidth)
+})
 const sameOriginSandboxEnabled = computed(() =>
   props.allowSameOriginSandbox || import.meta.env.VITE_CLONE_STUDIO_SAME_ORIGIN === 'true',
 )

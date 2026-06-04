@@ -20,6 +20,8 @@ const props = defineProps<{
   oemId?: string
   modelSlug?: string
   readOnly?: boolean
+  // Full-screen preview: let the desktop clone frame scale up to fill the window width.
+  fitWidth?: boolean
 }>()
 const emit = defineEmits<{
   selectSection: [id: string]
@@ -344,6 +346,7 @@ function sectionStyle(section: any): Record<string, string> {
             :base-href="page?.source_url || workerBase"
             :worker-base="workerBase"
             :frame-width="cloneFrameWidth"
+            :fit-width="fitWidth && previewWidth === 'full'"
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
