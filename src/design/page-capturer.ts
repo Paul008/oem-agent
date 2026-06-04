@@ -187,6 +187,12 @@ export type CaptureScrollSweepStatus = 'complete' | 'max-steps' | 'timeout' | 'u
 export type CaptureFontReadyStatus = 'ready' | 'timeout' | 'unsupported';
 export type CaptureImageReadyStatus = 'ready' | 'timeout' | 'unsupported' | 'no-images';
 export type CaptureDomQuietStatus = 'quiet' | 'timeout' | 'unsupported';
+export type CaptureLazyMediaActivationResult = {
+  imageSources: number;
+  sourceSets: number;
+  backgrounds: number;
+  eagerImages: number;
+};
 
 type CaptureScrollSweepWindow = {
   innerHeight?: number;
@@ -206,6 +212,119 @@ type CaptureMutationObserver = {
 };
 
 type CaptureMutationObserverConstructor = new (callback: () => void) => CaptureMutationObserver;
+
+export function activateLazyMediaForCapture(options?: {
+  doc?: {
+    location?: { href?: string; origin?: string };
+    querySelectorAll?: (selector: string) => ArrayLike<any>;
+  };
+}): CaptureLazyMediaActivationResult {
+  const activeDocument = options?.doc ?? (typeof document !== 'undefined'
+    ? document
+    : undefined);
+  const result: CaptureLazyMediaActivationResult = {
+    imageSources: 0,
+    sourceSets: 0,
+    backgrounds: 0,
+    eagerImages: 0,
+  };
+
+  if (!activeDocument || typeof activeDocument.querySelectorAll !== 'function')
+    return result;
+
+  const baseHref = activeDocument.location?.href || activeDocument.location?.origin || '';
+
+  function abs(url: string): string {
+    const trimmed = String(url || '').trim();
+    if (!trimmed || /^https?:/i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:'))
+      return trimmed;
+    if (trimmed.startsWith('//'))
+      return `https:${trimmed}`;
+
+    try {
+      return new URL(trimmed, baseHref).href;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  function normalizeSrcset(srcset: string): string {
+    return String(srcset || '')
+      .split(',')
+      .map((entry) => {
+        const parts = entry.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0)
+          return '';
+
+        const url = abs(parts.shift() || '');
+        return [url, ...parts].filter(Boolean).join(' ');
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  const lazyImageAttrs = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy', 'data-image-src'];
+
+  Array.from(activeDocument.querySelectorAll('img')).forEach((img: any) => {
+    for (const attr of lazyImageAttrs) {
+      const value = typeof img.getAttribute === 'function' ? img.getAttribute(attr) : null;
+      if (!value)
+        continue;
+
+      const src = abs(value);
+      if (src) {
+        img.src = src;
+        if (typeof img.setAttribute === 'function')
+          img.setAttribute('src', src);
+      }
+      if (typeof img.removeAttribute === 'function')
+        img.removeAttribute(attr);
+      result.imageSources++;
+      break;
+    }
+
+    if (img.loading === 'lazy') {
+      img.loading = 'eager';
+      result.eagerImages++;
+    }
+  });
+
+  Array.from(activeDocument.querySelectorAll('img[data-srcset], source[data-srcset]')).forEach((el: any) => {
+    const value = typeof el.getAttribute === 'function' ? el.getAttribute('data-srcset') : null;
+    if (!value)
+      return;
+
+    const srcset = normalizeSrcset(value);
+    if (srcset) {
+      el.srcset = srcset;
+      if (typeof el.setAttribute === 'function')
+        el.setAttribute('srcset', srcset);
+    }
+    if (typeof el.removeAttribute === 'function')
+      el.removeAttribute('data-srcset');
+    result.sourceSets++;
+  });
+
+  Array.from(activeDocument.querySelectorAll('[data-bg], [data-background-image]')).forEach((el: any) => {
+    const attr = typeof el.getAttribute === 'function' && el.getAttribute('data-bg')
+      ? 'data-bg'
+      : 'data-background-image';
+    const value = typeof el.getAttribute === 'function' ? el.getAttribute(attr) : null;
+    if (!value)
+      return;
+
+    const backgroundUrl = abs(value);
+    if (backgroundUrl) {
+      el.style = el.style || {};
+      el.style.backgroundImage = `url("${backgroundUrl}")`;
+    }
+    if (typeof el.removeAttribute === 'function')
+      el.removeAttribute(attr);
+    result.backgrounds++;
+  });
+
+  return result;
+}
 
 export async function sweepCaptureScrollForCapture(options?: {
   stepDelayMs?: number;
@@ -1312,41 +1431,10 @@ export class PageCapturer {
             });
           } catch {}
         }
-
-        // Resolve lazy-loaded images (common data-* patterns)
-        const LAZY_ATTRS = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy', 'data-image-src'];
-        document.querySelectorAll('img').forEach(img => {
-          for (const attr of LAZY_ATTRS) {
-            const val = img.getAttribute(attr);
-            if (val && val.startsWith('http')) {
-              img.src = val;
-              img.removeAttribute(attr);
-              break;
-            }
-          }
-          // Force lazy images to eager
-          if (img.loading === 'lazy') {
-            img.loading = 'eager';
-          }
-        });
-
-        // Also handle data-srcset
-        document.querySelectorAll('img[data-srcset], source[data-srcset]').forEach(el => {
-          const val = el.getAttribute('data-srcset');
-          if (val) {
-            el.setAttribute('srcset', val);
-          }
-        });
-
-        // Handle data-bg (background images)
-        document.querySelectorAll('[data-bg]').forEach(el => {
-          const bg = el.getAttribute('data-bg');
-          if (bg) {
-            (el as HTMLElement).style.backgroundImage = `url(${bg})`;
-            el.removeAttribute('data-bg');
-          }
-        });
       });
+
+      const lazyMediaActivation = await page.evaluate(activateLazyMediaForCapture as any);
+      console.log(`[PageCapturer] Lazy media activation: images=${lazyMediaActivation.imageSources}, srcsets=${lazyMediaActivation.sourceSets}, backgrounds=${lazyMediaActivation.backgrounds}, eager=${lazyMediaActivation.eagerImages}`);
 
       // Wait a moment for the DOM changes to take effect
       await new Promise(r => setTimeout(r, 500));

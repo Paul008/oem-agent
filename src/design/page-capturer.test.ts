@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  activateLazyMediaForCapture,
   buildDomCaptureFromHtml,
   CAPTURE_DOM_QUIET_TIMEOUT_MS,
   CAPTURE_DOM_QUIET_WINDOW_MS,
@@ -23,6 +24,55 @@ import {
   waitForCaptureFontsForCapture,
   waitForCaptureImagesForCapture,
 } from './page-capturer'
+
+function createLazyMediaElement(attrs: Record<string, string> = {}, props: { loading?: string } = {}) {
+  const element: any = {
+    attrs: { ...attrs },
+    removedAttrs: [] as string[],
+    style: {},
+    loading: props.loading,
+    getAttribute(name: string) {
+      return Object.prototype.hasOwnProperty.call(this.attrs, name) ? this.attrs[name] : null
+    },
+    setAttribute(name: string, value: string) {
+      this.attrs[name] = value
+      if (name === 'src')
+        this.src = value
+      if (name === 'srcset')
+        this.srcset = value
+    },
+    removeAttribute(name: string) {
+      this.removedAttrs.push(name)
+      delete this.attrs[name]
+    },
+  }
+
+  return element
+}
+
+function createLazyMediaDocument(input: {
+  href?: string;
+  images?: any[];
+  srcsetElements?: any[];
+  backgroundElements?: any[];
+}) {
+  return {
+    location: {
+      href: input.href ?? 'https://www.toyota.com.au/rav4',
+      origin: 'https://www.toyota.com.au',
+    },
+    querySelectorAll(selector: string) {
+      if (selector === 'img')
+        return input.images ?? []
+      if (selector === 'img[data-srcset], source[data-srcset]')
+        return input.srcsetElements ?? []
+      if (selector === '[data-bg], [data-background-image]')
+        return input.backgroundElements ?? []
+
+      return []
+    },
+  }
+}
 
 function createScrollSweepWindow(options: {
   innerHeight?: number;
@@ -51,6 +101,78 @@ function createScrollSweepWindow(options: {
 
   return { win, calls }
 }
+
+describe('activateLazyMediaForCapture', () => {
+  it('resolves relative image lazy sources before scrolling', () => {
+    const rootRelative = createLazyMediaElement({ 'data-src': '/-/media/rav4.jpg' })
+    const pageRelative = createLazyMediaElement({ 'data-lazy-src': 'assets/detail.jpg' })
+    const absolute = createLazyMediaElement({ 'data-original': 'https://cdn.example.test/hero.jpg' })
+    const dataUrl = createLazyMediaElement({ 'data-lazy': 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' })
+    const doc = createLazyMediaDocument({
+      images: [rootRelative, pageRelative, absolute, dataUrl],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.imageSources).toBe(4)
+    expect(rootRelative.src).toBe('https://www.toyota.com.au/-/media/rav4.jpg')
+    expect(rootRelative.removedAttrs).toContain('data-src')
+    expect(pageRelative.src).toBe('https://www.toyota.com.au/assets/detail.jpg')
+    expect(pageRelative.removedAttrs).toContain('data-lazy-src')
+    expect(absolute.src).toBe('https://cdn.example.test/hero.jpg')
+    expect(dataUrl.src).toBe('data:image/gif;base64,R0lGODlhAQABAAAAACw=')
+  })
+
+  it('normalizes relative srcset candidates while preserving descriptors', () => {
+    const img = createLazyMediaElement({
+      'data-srcset': '/-/media/rav4.jpg 1x, assets/rav4-2x.jpg 2x',
+    })
+    const source = createLazyMediaElement({
+      'data-srcset': '//cdn.example.test/mobile.jpg 480w, /-/media/mobile-large.jpg 960w',
+    })
+    const doc = createLazyMediaDocument({
+      srcsetElements: [img, source],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.sourceSets).toBe(2)
+    expect(img.srcset).toBe('https://www.toyota.com.au/-/media/rav4.jpg 1x, https://www.toyota.com.au/assets/rav4-2x.jpg 2x')
+    expect(source.srcset).toBe('https://cdn.example.test/mobile.jpg 480w, https://www.toyota.com.au/-/media/mobile-large.jpg 960w')
+    expect(img.removedAttrs).toContain('data-srcset')
+    expect(source.removedAttrs).toContain('data-srcset')
+  })
+
+  it('resolves lazy background image attributes before scrolling', () => {
+    const bg = createLazyMediaElement({ 'data-bg': '/-/media/background.jpg' })
+    const backgroundImage = createLazyMediaElement({ 'data-background-image': 'assets/feature.jpg' })
+    const doc = createLazyMediaDocument({
+      backgroundElements: [bg, backgroundImage],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.backgrounds).toBe(2)
+    expect(bg.style.backgroundImage).toBe('url("https://www.toyota.com.au/-/media/background.jpg")')
+    expect(backgroundImage.style.backgroundImage).toBe('url("https://www.toyota.com.au/assets/feature.jpg")')
+    expect(bg.removedAttrs).toContain('data-bg')
+    expect(backgroundImage.removedAttrs).toContain('data-background-image')
+  })
+
+  it('forces lazy images to eager and counts only changed images', () => {
+    const lazy = createLazyMediaElement({}, { loading: 'lazy' })
+    const eager = createLazyMediaElement({}, { loading: 'eager' })
+    const doc = createLazyMediaDocument({
+      images: [lazy, eager],
+    })
+
+    const result = activateLazyMediaForCapture({ doc })
+
+    expect(result.eagerImages).toBe(1)
+    expect(lazy.loading).toBe('eager')
+    expect(eager.loading).toBe('eager')
+  })
+})
 
 describe('sweepCaptureScrollForCapture', () => {
   it('returns complete and scrolls back to top for a stable page', async () => {
@@ -319,6 +441,7 @@ describe('CAPTURE_STATIC_MEDIA_FRAME_CSS', () => {
 describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const lazyActivation = source.indexOf('page.evaluate(activateLazyMediaForCapture as any)')
     const scrollSweep = source.indexOf('page.evaluate(sweepCaptureScrollForCapture as any')
     const imageWait = source.indexOf('page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS)')
     const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
@@ -333,6 +456,8 @@ describe('PageCapturer readiness wiring', () => {
     expect(CAPTURE_FONT_READY_TIMEOUT_MS).toBe(2500)
     expect(CAPTURE_DOM_QUIET_WINDOW_MS).toBe(250)
     expect(CAPTURE_DOM_QUIET_TIMEOUT_MS).toBe(1500)
+    expect(lazyActivation).toBeGreaterThan(-1)
+    expect(scrollSweep).toBeGreaterThan(lazyActivation)
     expect(scrollSweep).toBeGreaterThan(-1)
     expect(imageWait).toBeGreaterThan(scrollSweep)
     expect(imageWait).toBeGreaterThan(-1)
