@@ -16,7 +16,7 @@
 - Add: `dashboard/src/pages/dashboard/model-pages-status.ts`
 - Test: `dashboard/src/pages/dashboard/model-pages-status.test.ts`
 
-- [ ] **Step 1: Write failing helper tests**
+- [x] **Step 1: Write failing helper tests**
 
 Cover:
 
@@ -29,7 +29,7 @@ Cover:
 - `generated` for loaded pages without sections or clone HTML.
 - Summary counts for cached page detail data.
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/pages/dashboard/model-pages-status.test.ts
@@ -37,7 +37,7 @@ VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode product
 
 Expected: FAIL because the helper does not exist yet.
 
-- [ ] **Step 3: Implement the helper**
+- [x] **Step 3: Implement the helper**
 
 Export:
 
@@ -50,7 +50,7 @@ Export:
 
 Use object guards for payload traversal and keep detection conservative for legacy `content.rendered`: only classify it as clone HTML when it includes the existing stylesheet or Tailwind markers.
 
-- [ ] **Step 4: Run the focused helper test**
+- [x] **Step 4: Run the focused helper test**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/pages/dashboard/model-pages-status.test.ts
@@ -64,7 +64,7 @@ Expected: PASS.
 - Modify: `dashboard/src/pages/dashboard/model-pages.vue`
 - Test: `dashboard/src/pages/dashboard/model-pages-status.test.ts`
 
-- [ ] **Step 1: Add failing source-level integration assertions**
+- [x] **Step 1: Add failing source-level integration assertions**
 
 Assert `model-pages.vue`:
 
@@ -74,7 +74,7 @@ Assert `model-pages.vue`:
 - Uses helper-driven section counts and page status.
 - Renders summary card labels for `Structured Pages`, `Clone-only`, and `Loaded Details`.
 
-- [ ] **Step 2: Run the focused dashboard test and confirm failure**
+- [x] **Step 2: Run the focused dashboard test and confirm failure**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/pages/dashboard/model-pages-status.test.ts
@@ -82,11 +82,11 @@ VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode product
 
 Expected: FAIL until the Vue file imports and uses the helper.
 
-- [ ] **Step 3: Update `model-pages.vue`**
+- [x] **Step 3: Update `model-pages.vue`**
 
 Replace local status detection with the helper. Extend the cached page type enough to include `content.modes`, request mode data during prefetch, update badge styling for the new `unknown` state, and add cached inventory summary cards.
 
-- [ ] **Step 4: Run the focused dashboard test**
+- [x] **Step 4: Run the focused dashboard test**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/pages/dashboard/model-pages-status.test.ts
@@ -99,7 +99,7 @@ Expected: PASS.
 **Files:**
 - Verify dashboard and repo.
 
-- [ ] **Step 1: Run focused and full verification**
+- [x] **Step 1: Run focused and full verification**
 
 ```bash
 VITEST=true CI=1 npx vitest run --config dashboard/vite.config.ts --mode production dashboard/src/pages/dashboard/model-pages-status.test.ts

@@ -10,6 +10,12 @@ import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { OEM_IDS, getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
+import {
+  getGeneratedPageSectionCount,
+  getGeneratedPageStatus,
+  summarizeGeneratedPageStatuses,
+  type GeneratedPageStatus,
+} from './model-pages-status'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
@@ -32,8 +38,9 @@ interface VehicleModelPage {
     }>
   }
   content: {
-    rendered: string
+    rendered?: string
     sections?: any[]
+    modes?: unknown
   }
   form: boolean
   variant_link: string
@@ -441,7 +448,7 @@ async function prefetchPages(items: { oem_id: string, slug: string }[]) {
     return
   const results = await Promise.allSettled(
     toFetch.map(async (item) => {
-      const data = await fetchGeneratedPage(fullSlug(item))
+      const data = await fetchGeneratedPage(fullSlug(item), { includeModes: true })
       return { key: fullSlug(item), data: data as VehicleModelPage }
     }),
   )
@@ -669,8 +676,11 @@ const coverageStats = computed(() => {
 
 // Section count helper
 function sectionCount(model: VehicleModel): number {
-  const p = getModelPageData(model)
-  return p?.content?.sections?.length ?? 0
+  return getGeneratedPageSectionCount(getModelPageData(model))
+}
+
+function pageSectionCount(page: VehicleModelPage | null | undefined): number {
+  return getGeneratedPageSectionCount(page)
 }
 
 // Filter & pagination (for grid view)
@@ -730,6 +740,10 @@ const stats = computed(() => {
   }
 })
 
+const pageStatusStats = computed(() =>
+  summarizeGeneratedPageStatuses([...pageCache.value.values()]),
+)
+
 const oemCounts = computed(() => {
   const counts: Record<string, number> = {}
   for (const s of allSlugs.value) {
@@ -770,30 +784,17 @@ function formatCost(cost: number | undefined) {
   return `$${cost.toFixed(4)}`
 }
 
-function hasStructuredSections(p: VehicleModelPage | null): boolean {
-  return !!(p?.content?.sections?.length)
-}
-
-function isClonedPage(p: VehicleModelPage | null): boolean {
-  if (!p?.content?.rendered)
-    return false
-  return p.content.rendered.includes('tailwindcss.com') || p.content.rendered.includes('<link rel="stylesheet"')
-}
-
-type PageStatus = 'generated' | 'structured' | 'cloned'
+type PageStatus = GeneratedPageStatus
 
 function getPageStatus(p: VehicleModelPage | null): PageStatus {
-  if (hasStructuredSections(p))
-    return 'structured'
-  if (isClonedPage(p))
-    return 'cloned'
-  return 'generated'
+  return getGeneratedPageStatus(p)
 }
 
 const statusConfig: Record<PageStatus, { label: string, color: string }> = {
-  structured: { label: 'Structured', color: 'bg-emerald-600/80' },
-  cloned: { label: 'Cloned', color: 'bg-amber-600/80' },
-  generated: { label: 'Generated', color: 'bg-blue-600/80' },
+  unknown: { label: 'Loading', color: 'bg-muted text-muted-foreground border border-border' },
+  structured: { label: 'Structured', color: 'bg-emerald-600/80 text-white' },
+  cloned: { label: 'Clone-only', color: 'bg-amber-600/80 text-white' },
+  generated: { label: 'Generated', color: 'bg-blue-600/80 text-white' },
 }
 
 function openPageBuilder(item: { oem_id: string, slug: string }) {
@@ -941,7 +942,7 @@ async function handleRefresh() {
 
     <template v-else>
       <!-- Summary Stats -->
-      <div class="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-6">
+      <div class="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-9 mb-6">
         <UiCard>
           <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
             <UiCardTitle class="text-sm font-medium">
@@ -1003,6 +1004,54 @@ async function handleRefresh() {
             </div>
             <p class="text-xs text-muted-foreground">
               Models without pages
+            </p>
+          </UiCardContent>
+        </UiCard>
+        <UiCard>
+          <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+            <UiCardTitle class="text-sm font-medium">
+              Structured Pages
+            </UiCardTitle>
+            <Layers class="size-4 text-emerald-500" />
+          </UiCardHeader>
+          <UiCardContent>
+            <div class="text-2xl font-bold text-emerald-500">
+              {{ pageStatusStats.structured }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Of {{ pageStatusStats.loaded }} loaded
+            </p>
+          </UiCardContent>
+        </UiCard>
+        <UiCard>
+          <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+            <UiCardTitle class="text-sm font-medium">
+              Clone-only
+            </UiCardTitle>
+            <FileText class="size-4 text-amber-500" />
+          </UiCardHeader>
+          <UiCardContent>
+            <div class="text-2xl font-bold text-amber-500">
+              {{ pageStatusStats.cloned }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Awaiting sections
+            </p>
+          </UiCardContent>
+        </UiCard>
+        <UiCard>
+          <UiCardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+            <UiCardTitle class="text-sm font-medium">
+              Loaded Details
+            </UiCardTitle>
+            <Clock class="size-4 text-sky-500" />
+          </UiCardHeader>
+          <UiCardContent>
+            <div class="text-2xl font-bold text-sky-500">
+              {{ pageStatusStats.loaded }}
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ pageStatusStats.unknown }} loading
             </p>
           </UiCardContent>
         </UiCard>
@@ -1205,7 +1254,7 @@ async function handleRefresh() {
                     <!-- Status badge -->
                     <span
                       :class="statusConfig[getPageStatus(getModelPageData(model))].color"
-                      class="text-white text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                      class="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
                     >
                       {{ statusConfig[getPageStatus(getModelPageData(model))].label }}
                     </span>
@@ -1391,9 +1440,9 @@ async function handleRefresh() {
                   </span>
                   <div class="flex-1" />
                   <template v-if="getCustomPageData(cp)">
-                    <span v-if="getCustomPageData(cp)!.content?.sections?.length" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                    <span v-if="pageSectionCount(getCustomPageData(cp))" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
                       <Layers class="size-3" />
-                      {{ getCustomPageData(cp)!.content.sections!.length }}
+                      {{ pageSectionCount(getCustomPageData(cp)) }}
                     </span>
                     <span class="text-[10px] text-muted-foreground shrink-0 w-20 text-right">
                       {{ formatDate(getCustomPageData(cp)!.generated_at) }}
@@ -1487,7 +1536,7 @@ async function handleRefresh() {
               <div class="absolute top-2 right-2 flex gap-1">
                 <span
                   :class="statusConfig[getPageStatus(getPageData(item) ?? null)].color"
-                  class="text-white text-[10px] font-medium px-1.5 py-0.5 rounded"
+                  class="text-[10px] font-medium px-1.5 py-0.5 rounded"
                 >
                   {{ statusConfig[getPageStatus(getPageData(item) ?? null)].label }}
                 </span>
@@ -1516,8 +1565,8 @@ async function handleRefresh() {
             <div class="px-3 py-2 flex items-center justify-between text-[10px] text-muted-foreground border-t">
               <span>{{ formatDate(getPageData(item)?.generated_at) }}</span>
               <div class="flex items-center gap-2">
-                <span v-if="hasStructuredSections(getPageData(item) ?? null)" class="text-emerald-600">
-                  {{ getPageData(item)!.content.sections!.length }} sections
+                <span v-if="pageSectionCount(getPageData(item))" class="text-emerald-600">
+                  {{ pageSectionCount(getPageData(item)) }} sections
                 </span>
                 <a
                   v-if="getPageData(item)?.source_url"
