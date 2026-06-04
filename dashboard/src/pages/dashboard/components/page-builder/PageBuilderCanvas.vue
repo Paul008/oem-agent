@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { AlertCircle, Copy, GripVertical, Monitor, Palette, Pipette, Play, Settings, Smartphone, Tablet, Trash2 } from 'lucide-vue-next'
+import { AlertCircle, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Wand2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
 import type { PageMode } from '../../page-builder/page-modes'
 
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
+import { type RegionAction, type RegionActionId, buildPatchPayload, getRegionActions } from './region-actions'
 import { resolveSectionComponent } from './section-registry'
 
 const props = defineProps<{
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   deleteSection: [id: string]
   selectCloneRegion: [region: any]
   cloneDomUpdated: [html: string]
+  regionAction: [payload: { action: RegionActionId, regionId: string }]
 }>()
 // Responsive preview
 const previewWidth = ref<'full' | 'tablet' | 'mobile'>('full')
@@ -64,6 +66,166 @@ function patchCloneField(payload: Record<string, unknown>) {
 defineExpose({
   patchCloneField,
 })
+
+// ── Clone region context menu ──────────────────────────────────────────────
+// Mirrors the section-mode context menu below, but driven by getRegionActions()
+// off the emitted region payload and routed through the CloneStudioCanvas relay.
+interface CloneMenuRegion { id: string, editable_fields: any, type_hint: any }
+interface CloneMenuState {
+  x: number
+  y: number
+  region: CloneMenuRegion
+  actions: RegionAction[]
+}
+const cloneMenu = ref<CloneMenuState | null>(null)
+// Sub-popover for actions needing input (URL / alt text / colour / height).
+const cloneInput = ref<{ action: RegionActionId, value: string } | null>(null)
+const cloneHasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window
+// Per-region panel index for tab/carousel switching (default 0).
+const clonePanelIndex = ref<Record<string, number>>({})
+
+const cloneMenuGroups = computed<{ group: RegionAction['group'], actions: RegionAction[] }[]>(() => {
+  if (!cloneMenu.value)
+    return []
+  const order: RegionAction['group'][] = ['content', 'layout', 'region']
+  return order
+    .map(group => ({ group, actions: cloneMenu.value!.actions.filter(a => a.group === group) }))
+    .filter(g => g.actions.length > 0)
+})
+
+function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }) {
+  if (props.readOnly)
+    return
+  const region: CloneMenuRegion = { id: menu.regionId, editable_fields: menu.fields, type_hint: menu.typeHint }
+  cloneMenu.value = {
+    x: menu.x,
+    y: menu.y,
+    region,
+    actions: getRegionActions(region as any),
+  }
+  cloneInput.value = null
+}
+
+function closeCloneMenu() {
+  cloneMenu.value = null
+  cloneInput.value = null
+}
+
+function openCloneInput(action: RegionActionId, initial = '') {
+  cloneInput.value = { action, value: initial }
+}
+
+function cloneInputPlaceholder(action: RegionActionId | undefined): string {
+  switch (action) {
+    case 'replace-image': return 'https://image-url…'
+    case 'edit-link': return 'https://…'
+    case 'alt-text': return 'Describe the image…'
+    case 'height': return 'Height in px (blank to clear)'
+    default: return ''
+  }
+}
+
+function submitCloneInput() {
+  const region = cloneMenu.value?.region
+  const input = cloneInput.value
+  if (!region || !input || props.readOnly) {
+    closeCloneMenu()
+    return
+  }
+  const value = input.value.trim()
+  if (input.action === 'height') {
+    const n = value === '' ? null : Number(value)
+    if (n !== null && Number.isNaN(n))
+      return
+    cloneStudioCanvas.value?.setHeight(region.id, n)
+    emit('updateField', region.id, 'height_override', n)
+  }
+  else {
+    const payload = buildPatchPayload(input.action, region as any, value)
+    if (payload)
+      cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+  }
+  closeCloneMenu()
+}
+
+function setCloneBgColor(color: string) {
+  const region = cloneMenu.value?.region
+  if (!region || props.readOnly)
+    return
+  const payload = buildPatchPayload('background', region as any, color)
+  if (payload)
+    cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+}
+
+function onCloneBgColorInput(e: Event) {
+  setCloneBgColor((e.target as HTMLInputElement).value)
+}
+
+async function eyedropCloneBg() {
+  if (!('EyeDropper' in window) || !cloneMenu.value)
+    return
+  try {
+    const dropper = new (window as any).EyeDropper()
+    const result = await dropper.open()
+    if (result?.sRGBHex)
+      setCloneBgColor(result.sRGBHex)
+  }
+  catch { /* cancelled */ }
+  closeCloneMenu()
+}
+
+function runCloneAction(id: RegionActionId) {
+  const region = cloneMenu.value?.region
+  if (!region || props.readOnly)
+    return
+  switch (id) {
+    case 'edit-text':
+      cloneStudioCanvas.value?.beginEdit(region.id)
+      closeCloneMenu()
+      break
+    case 'replace-image':
+      openCloneInput('replace-image')
+      break
+    case 'edit-link':
+      openCloneInput('edit-link')
+      break
+    case 'alt-text':
+      openCloneInput('alt-text')
+      break
+    case 'height':
+      openCloneInput('height')
+      break
+    case 'background':
+      // Inline colour picker rendered in the menu — toggle the input row.
+      openCloneInput('background')
+      break
+    case 'hide': {
+      const payload = buildPatchPayload('hide', region as any)
+      if (payload)
+        cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+      closeCloneMenu()
+      break
+    }
+    case 'next-panel':
+    case 'prev-panel': {
+      const current = clonePanelIndex.value[region.id] ?? 0
+      const next = id === 'next-panel' ? current + 1 : Math.max(0, current - 1)
+      clonePanelIndex.value = { ...clonePanelIndex.value, [region.id]: next }
+      cloneStudioCanvas.value?.switchPanel(region.id, next)
+      closeCloneMenu()
+      break
+    }
+    case 'convert':
+    case 'duplicate':
+    case 'delete':
+      // Parent (Task 9) owns destructive / structural region operations.
+      emit('regionAction', { action: id, regionId: region.id })
+      closeCloneMenu()
+      break
+    default:
+      closeCloneMenu()
+  }
+}
 
 // Preview animation on a section
 async function previewAnimation(sectionId: string, animation: string) {
@@ -350,8 +512,62 @@ function sectionStyle(section: any): Record<string, string> {
             :selected-region-id="selectedCloneRegionId"
             @select-region="emit('selectCloneRegion', $event)"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
+            @context-menu="onCloneContextMenu"
           />
         </div>
+
+        <!-- Clone region right-click context menu (mirrors the section menu below) -->
+        <Teleport v-if="cloneMenu && !props.readOnly" to="body">
+          <div class="fixed inset-0 z-[55]" @click="closeCloneMenu" @contextmenu.prevent="closeCloneMenu" />
+          <div
+            class="fixed z-[56] bg-card border rounded-lg shadow-xl py-1 min-w-[200px]"
+            :style="{ left: `${cloneMenu.x}px`, top: `${cloneMenu.y}px` }"
+            @keydown.escape="closeCloneMenu"
+          >
+            <template v-for="(grp, gi) in cloneMenuGroups" :key="grp.group">
+              <div v-if="gi > 0" class="h-px bg-border my-1" />
+              <template v-for="action in grp.actions" :key="action.id">
+                <button
+                  class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted text-left"
+                  :class="action.id === 'delete' ? 'text-destructive' : ''"
+                  @click="runCloneAction(action.id)"
+                >
+                  <component
+                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert' ? Wand2 : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
+                    class="size-3.5"
+                    :class="action.id === 'delete' ? '' : 'text-muted-foreground'"
+                  />
+                  {{ action.label }}
+                </button>
+                <!-- Inline background colour picker -->
+                <div v-if="action.id === 'background' && cloneInput?.action === 'background'" class="px-3 py-2 flex items-center gap-1.5">
+                  <input type="color" value="#ffffff" class="size-7 rounded cursor-pointer border-0 p-0" @input="onCloneBgColorInput">
+                  <input type="text" placeholder="#000000" class="h-7 w-20 text-xs font-mono px-1.5 border rounded" @change="onCloneBgColorInput">
+                  <button v-if="cloneHasEyeDropper" class="p-1 rounded hover:bg-muted" title="Pick from screen" @click="eyedropCloneBg">
+                    <Pipette class="size-3.5" />
+                  </button>
+                </div>
+                <!-- Inline text/URL/height input for the active action -->
+                <div
+                  v-else-if="cloneInput && cloneInput.action === action.id && action.id !== 'background'"
+                  class="px-3 py-2 flex items-center gap-1.5"
+                >
+                  <input
+                    v-model="cloneInput.value"
+                    :type="action.id === 'height' ? 'number' : action.id === 'alt-text' ? 'text' : 'url'"
+                    :placeholder="cloneInputPlaceholder(cloneInput.action)"
+                    class="h-7 w-44 px-2 text-xs bg-muted rounded border-0 outline-none focus:ring-2 ring-primary"
+                    @keydown.enter="submitCloneInput"
+                    @keydown.escape="closeCloneMenu"
+                  >
+                  <button class="h-7 px-2 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90" @click="submitCloneInput">
+                    Apply
+                  </button>
+                </div>
+              </template>
+            </template>
+          </div>
+        </Teleport>
       </template>
 
       <!-- Structured sections -->

@@ -76,7 +76,6 @@ const emit = defineEmits<{
   selectRegion: [region: any]
   domUpdated: [html: string]
   contextMenu: [menu: { regionId: any, fields: any, typeHint: any, x: number, y: number }]
-  requestEdit: [regionId: string]
 }>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
