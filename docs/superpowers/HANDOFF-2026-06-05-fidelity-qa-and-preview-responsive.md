@@ -2,8 +2,8 @@
 
 > Written 2026-06-05; updated later the same day. Earlier deployed baseline:
 > `https://819d5f51.oem-dashboard.pages.dev`. Later follow-ups added calibrated text-audit
-> filtering plus unpaired mobile typography fallback; check the latest deploy output for the
-> current immutable Cloudflare Pages URL.
+> filtering plus unpaired mobile typography fallback. Latest immutable Cloudflare Pages deployment:
+> `https://4829ee9f.oem-dashboard.pages.dev`.
 
 ## What shipped
 
@@ -91,7 +91,7 @@ Commit: `311fb04 fix(qa): reduce clipped text false positives`
 
 ### 6. Unpaired mobile typography fallback
 
-Commit: follow-up after `311fb04` (`fix(dashboard): scale unpaired mobile text variants`)
+Commit: `a31f71c fix(dashboard): scale unpaired mobile text variants`
 
 - `clone-studio-html.ts` now scales unpaired `onlydesktop` Ford/AEM display typography at mobile
   widths when the real `onlymobile` partner was not captured.
@@ -123,7 +123,7 @@ Deployment:
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main
 ```
 
-Latest Pages URL: `https://819d5f51.oem-dashboard.pages.dev`
+Latest Pages URL: `https://4829ee9f.oem-dashboard.pages.dev`
 
 Production alias check:
 
@@ -138,7 +138,7 @@ Latest warmed QA report:
 ```bash
 node scripts/oem-fidelity-report.mjs \
   --source-url https://www.ford.com.au/showroom/cars/mustang/ \
-  --preview-url 'https://819d5f51.oem-dashboard.pages.dev/preview/ford-au-mustang?view=production' \
+  --preview-url 'https://4829ee9f.oem-dashboard.pages.dev/preview/ford-au-mustang?view=production' \
   --output-dir /private/tmp/oem-fidelity \
   --fail-on none \
   --json
@@ -146,14 +146,14 @@ node scripts/oem-fidelity-report.mjs \
 
 Report path:
 
-`/private/tmp/oem-fidelity/custom-2026-06-05T10-18-52-034Z`
+`/private/tmp/oem-fidelity/custom-2026-06-05T10-34-04-384Z`
 
 Latest result:
 
-- Overall score: `50.2/100` on the stricter warmed baseline.
+- Overall score: `50.8/100` on the stricter warmed baseline.
 - Desktop: source `1440x13039`, preview `1440x11798`, mismatch `63.07%`.
-- Tablet: source `820x13833`, preview `820x14156`, mismatch `54.94%`.
-- Mobile: source `390x11031`, preview `390x11787`, mismatch `71.45%`.
+- Tablet: source `820x13833`, preview `820x12665`, mismatch `52.78%`.
+- Mobile: source `390x11031`, preview `390x11451`, mismatch `63.00%`.
 - Preview network failures: none.
 - Preview broken images: none.
 - Preview clipped-text findings: none after the calibrated text audit.
