@@ -259,17 +259,6 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       }
     }
 
-    @media (min-width: 768px) and (max-width: 1023.98px) {
-      .aem-Grid .richtext [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h3[class*="display3-medium"],
-      .aem-Grid .richtext [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h3 [class*="display3-medium"] {
-        display: inline-block !important;
-        max-width: 10rem !important;
-        font-size: 2.375rem !important;
-        line-height: 2.75rem !important;
-        letter-spacing: 0 !important;
-      }
-    }
-
     /*
      * Scroll-reveal libraries leave content transparent until OEM scripts add final-state classes.
      * Those scripts are stripped in Clone Studio, so keep the static desktop clone readable.

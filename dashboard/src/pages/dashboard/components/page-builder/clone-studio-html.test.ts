@@ -223,7 +223,6 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/\.aem-Grid \.cmp-richtext[\s\S]*width:\s*auto\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.imagevideoTile,[\s\S]*\.aem-Grid \.imageContainer[\s\S]*padding:\s*0\s*!important/i)
     expect(head).toMatch(/\.aem-Grid \.imagevideoTile img[\s\S]*height:\s*auto\s*!important/i)
-    expect(head).toMatch(/@media \(min-width:\s*768px\) and \(max-width:\s*1023\.98px\)[\s\S]*\.aem-Grid \.richtext \[data-clone-studio-responsive-content-variant="desktop"\][\s\S]*h3 \[class\*="display3-medium"\][\s\S]*font-size:\s*2\.375rem\s*!important/i)
 
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('function installResponsiveConfigRules()')
