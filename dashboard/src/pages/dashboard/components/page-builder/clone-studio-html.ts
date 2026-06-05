@@ -2572,6 +2572,11 @@ ${rendered}
       return
 
     var item = accordionItemFor(trigger)
+    if (item && accordionShouldForceStartCollapsed(regionEl, trigger, item)) {
+      setAccordionExpanded(trigger, panel, false)
+      return
+    }
+
     if (item && item.getAttribute && item.getAttribute('data-cmp-expanded') === 'true') {
       setAccordionExpanded(trigger, panel, true)
       return
@@ -2594,6 +2599,18 @@ ${rendered}
 
     if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active')))
       setAccordionExpanded(trigger, panel, true)
+  }
+
+  function accordionShouldForceStartCollapsed(regionEl, trigger, item) {
+    if (!item)
+      return false
+
+    var scope = accordionScopeFor(regionEl, trigger)
+    if (!scope || !scope.getAttribute)
+      return false
+
+    var view = scope.getAttribute('data-view') || ''
+    return /disclosure/i.test(view)
   }
 
   function toggleAccordionPanel(regionEl, trigger) {

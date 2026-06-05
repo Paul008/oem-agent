@@ -40,6 +40,7 @@ describe('parseCliArgs', () => {
 
     expect(options.previewUrl).toBe('https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production');
     expect(options.viewports).toEqual(['desktop', 'tablet', 'mobile']);
+    expect(options.loadLazyMedia).toBe(true);
   });
 
   it('accepts repeated source hide selectors', () => {
@@ -55,6 +56,18 @@ describe('parseCliArgs', () => {
     ]);
 
     expect(options.sourceHideSelectors).toEqual(['header', '.cookie']);
+  });
+
+  it('can disable lazy media warming', () => {
+    const options = parseCliArgs([
+      '--source-url',
+      'https://example.com/source',
+      '--preview-url',
+      'https://example.com/preview',
+      '--no-load-lazy-media',
+    ]);
+
+    expect(options.loadLazyMedia).toBe(false);
   });
 });
 

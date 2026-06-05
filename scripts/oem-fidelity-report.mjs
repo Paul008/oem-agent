@@ -70,6 +70,7 @@ export function parseCliArgs(argv) {
     hideCommonSourceChrome: true,
     sourceHideSelectors: [],
     previewHideSelectors: [],
+    loadLazyMedia: true,
     json: false,
     failOn: 'critical',
     browserExecutable: process.env.PUPPETEER_EXECUTABLE_PATH || '',
@@ -111,6 +112,10 @@ export function parseCliArgs(argv) {
     } else if (arg === '--preview-hide') {
       options.previewHideSelectors.push(readNext(argv, index, arg));
       index++;
+    } else if (arg === '--load-lazy-media') {
+      options.loadLazyMedia = boolArg(argv[index + 1]?.startsWith('--') ? undefined : argv[++index]);
+    } else if (arg === '--no-load-lazy-media') {
+      options.loadLazyMedia = false;
     } else if (arg === '--hide-common-source-chrome') {
       options.hideCommonSourceChrome = boolArg(argv[index + 1]?.startsWith('--') ? undefined : argv[++index]);
     } else if (arg === '--no-common-source-chrome') {
@@ -236,6 +241,36 @@ async function settlePage(page, settleMs) {
   await new Promise(resolve => setTimeout(resolve, settleMs));
 }
 
+async function warmLazyMedia(page, options) {
+  if (!options.loadLazyMedia)
+    return;
+
+  await page.evaluate(async () => {
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    for (const image of document.images) {
+      if (image.getAttribute('loading') === 'lazy')
+        image.setAttribute('loading', 'eager');
+    }
+
+    const root = document.documentElement;
+    const body = document.body;
+    const viewportHeight = window.innerHeight || root.clientHeight || 800;
+    const maxScroll = Math.max(0, Math.max(root.scrollHeight, body?.scrollHeight || 0) - viewportHeight);
+    const step = Math.max(240, Math.round(viewportHeight * 0.75));
+
+    for (let y = 0; y < maxScroll; y += step) {
+      window.scrollTo(0, y);
+      await wait(80);
+    }
+
+    window.scrollTo(0, maxScroll);
+    await wait(160);
+    window.scrollTo(0, 0);
+  }).catch(() => null);
+
+  await settlePage(page, Math.max(250, Math.min(1_000, Math.round(options.settleMs / 2))));
+}
+
 function networkSummary(events) {
   return {
     failed: events.failed.slice(0, 25),
@@ -321,6 +356,8 @@ async function captureTarget(browser, target, viewport, outputDir, options) {
     }
   }
 
+  await warmLazyMedia(page, options);
+
   const audit = await collectAudit(page);
 
   const screenshotPath = join(outputDir, `${target.kind}-${viewport.name}.png`);
@@ -346,6 +383,7 @@ async function captureHtmlTarget(browser, target, viewport, outputDir, options, 
   });
   await prepareTargetPage(page, target, options);
   await settlePage(page, options.settleMs);
+  await warmLazyMedia(page, options);
 
   const audit = await collectAudit(page);
   const screenshotPath = join(outputDir, `${target.kind}-${viewport.name}.png`);
@@ -994,6 +1032,7 @@ function printUsage() {
   console.error('  --output-dir artifacts/oem-fidelity');
   console.error('  --source-hide ".selector"       Hide source-only chrome before capture. Repeatable.');
   console.error('  --preview-hide ".selector"      Hide preview-only chrome before capture. Repeatable.');
+  console.error('  --no-load-lazy-media            Do not scroll/warm lazy images before capture.');
   console.error('  --browser-executable /path      Use an existing Chrome/Chromium executable.');
   console.error('  --no-common-source-chrome       Do not hide common header/nav/cookie selectors.');
   console.error('  --fail-on critical|warning|none');
