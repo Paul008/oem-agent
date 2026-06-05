@@ -24,8 +24,8 @@ handoff is the larger Path-A clone fidelity work.
 
 ## Addendum — Local-only Capture Follow-ups Pending Push
 
-After the deployed follow-ups above, this local branch gained three worker-only capture fixes that
-are **not pushed/deployed yet**:
+After the deployed follow-ups above, this local branch gained eight local commits (worker capture
+fixes plus this doc refresh) that are **not pushed/deployed yet**:
 
 - `5b45d75 fix(capture): normalize recoverable media placeholders` — normalizes lazy background
   attributes, scrubs source-document placeholders from queued media URLs, absolutizes pre-queued
@@ -35,8 +35,18 @@ are **not pushed/deployed yet**:
   placeholders.
 - `706880e fix(capture): drop document placeholders from media` — drops same-origin model-year
   document placeholders such as `/brz/2026` from DOM/media queues and reselects a real hero image.
+- `8cbdafa docs: update capture handoff with local fixes` — records the first local-only capture
+  batch in this handoff.
+- `f847208 fix(capture): filter document placeholders from srcsets` — removes source-document
+  placeholders from `srcset`, inline style URL tokens, and lazy background attributes.
+- `273d86a fix(capture): reject unsafe media urls` — rejects non-HTTP(S) media schemes such as
+  `javascript:` from image/video/srcset/style capture paths while preserving recoverable lazy media.
+- `5993ed9 fix(capture): guard media downloads by protocol` — makes the final media downloader
+  HTTP(S)-only even if a future capture path bypasses normalization.
+- `4e5b460 fix(capture): require http stylesheets` — rejects non-HTTP(S) stylesheet links in both
+  external HTML capture and browser capture stylesheet collection.
 
-Verification after these local commits: `VITEST=true CI=1 npx vitest run` = 444 pass,
+Verification after these local commits: `VITEST=true CI=1 npx vitest run` = 448 pass,
 `npm run typecheck` = pass, `git diff --check` = pass.
 
 ## Three features shipped this session (all live in prod)
