@@ -157,6 +157,8 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('[data-clone-studio-carousel-window-size="2"] .slick-slide')
     expect(head).toContain('[data-clone-studio-carousel-window-size="3"] .slick-slide')
     expect(head).toMatch(/@media \(max-width: 1023\.98px\)[\s\S]*\[data-clone-studio-carousel-window-size\] \.slick-slide[\s\S]*width:\s*100%\s*!important/i)
+    expect(head).toMatch(/@media \(max-width: 1023\.98px\)[\s\S]*\.brandcardComponent \.brandcard-image\.sameheight[\s\S]*aspect-ratio:\s*1\.326 \/ 1\s*!important/i)
+    expect(head).toMatch(/\.brandcardComponent h3\[data-clone-studio-responsive-content-variant="desktop"\][\s\S]*\[class\*="heading3-medium"\][\s\S]*font-size:\s*1\.25rem\s*!important/i)
     // No carousel animation / external script is injected (rAF ticker is throttled in the iframe).
     expect(html).not.toContain('gsap.min.js')
     expect(html).not.toContain('translateX')

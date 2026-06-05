@@ -337,6 +337,19 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         width: 100% !important;
         max-width: 100% !important;
       }
+
+      .brandcardComponent .brandcard-image.sameheight {
+        aspect-ratio: 1.326 / 1 !important;
+        height: auto !important;
+        overflow: hidden !important;
+      }
+
+      .brandcardComponent h3[data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"])[class*="heading3-medium"],
+      .brandcardComponent [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h3[class*="heading3-medium"] {
+        font-size: 1.25rem !important;
+        line-height: 1.5rem !important;
+        letter-spacing: 0 !important;
+      }
     }
 
     /*
