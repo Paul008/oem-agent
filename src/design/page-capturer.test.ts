@@ -965,6 +965,47 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).not.toContain(documentUrl)
     expect(result.heroUrl).toBe(heroUrl)
   })
+
+  it('drops unsafe non-http media URLs while preserving recoverable lazy media', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <img class="unsafe-img" src="javascript:alert(1)" alt="Unsafe">
+          <img class="recoverable-img" src="javascript:alert(2)" data-original="/media/recovered.jpg" alt="Recovered">
+          <picture>
+            <source data-srcset="javascript:alert(3) 1x, /media/srcset-safe.jpg 2x">
+            <img alt="Safe srcset">
+          </picture>
+          <section class="unsafe-style" style="background-image:url('javascript:alert(4)'); mask-image:url('/media/mask.svg')">
+            <p>Unsafe style content</p>
+          </section>
+          <video class="unsafe-video" src="javascript:alert(5)" poster="javascript:alert(6)">
+            <source src="javascript:alert(7)" type="video/mp4">
+          </video>
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: ['javascript:alert(8)'],
+      heroUrl: 'javascript:alert(9)',
+      title: 'RAV4',
+      elementCount: 8,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    const recoveredUrl = 'https://www.toyota.com.au/media/recovered.jpg'
+    const srcsetUrl = 'https://www.toyota.com.au/media/srcset-safe.jpg'
+    const maskUrl = 'https://www.toyota.com.au/media/mask.svg'
+
+    expect(result.html).not.toContain('javascript:')
+    expect(result.html).toContain(`src="${recoveredUrl}"`)
+    expect(result.html).toContain(`srcset="${srcsetUrl} 2x"`)
+    expect(result.html).toContain(maskUrl)
+    expect(result.imageUrls).toContain(recoveredUrl)
+    expect(result.imageUrls).toContain(srcsetUrl)
+    expect(result.imageUrls).toContain(maskUrl)
+    expect(result.imageUrls.some(url => url.startsWith('javascript:'))).toBe(false)
+    expect(result.heroUrl).toBe(recoveredUrl)
+  })
 })
 
 describe('isCaptureBlockedBySecurityPage', () => {

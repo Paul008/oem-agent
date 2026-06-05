@@ -807,6 +807,20 @@ function absolutizeCaptureUrl(url: string, sourceUrl: string): string {
   }
 }
 
+function isDataOrBlobCaptureUrl(url: string): boolean {
+  const lower = url.trim().toLowerCase();
+  return lower.startsWith('data:') || lower.startsWith('blob:');
+}
+
+function isHttpCaptureUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function normalizeCaptureSrcset(srcset: string, sourceUrl: string, imageUrls: Set<string>): string {
   return srcset
     .split(',')
@@ -818,7 +832,11 @@ function normalizeCaptureSrcset(srcset: string, sourceUrl: string, imageUrls: Se
       parts[0] = absolutizeCaptureUrl(parts[0], sourceUrl);
       if (!parts[0] || isLikelyCaptureDocumentUrl(parts[0], sourceUrl))
         return '';
-      if (parts[0] && !parts[0].startsWith('data:') && !parts[0].startsWith('blob:'))
+      if (isDataOrBlobCaptureUrl(parts[0]))
+        return parts.join(' ');
+      if (!isHttpCaptureUrl(parts[0]))
+        return '';
+      if (parts[0])
         imageUrls.add(parts[0]);
 
       return parts.join(' ');
@@ -834,8 +852,10 @@ function normalizeCaptureStyleUrls(style: string, sourceUrl: string, imageUrls: 
       return match;
 
     const absoluteUrl = absolutizeCaptureUrl(rawUrl, sourceUrl);
-    if (!absoluteUrl || absoluteUrl.startsWith('data:') || absoluteUrl.startsWith('blob:'))
+    if (!absoluteUrl || isDataOrBlobCaptureUrl(absoluteUrl))
       return match;
+    if (!isHttpCaptureUrl(absoluteUrl))
+      return '';
     if (isLikelyCaptureDocumentUrl(absoluteUrl, sourceUrl))
       return 'none';
 
@@ -895,7 +915,8 @@ function isNonRenderableCaptureMediaUrl(url: string, sourceUrl: string): boolean
   if (lower.startsWith('data:') || lower.startsWith('blob:'))
     return true;
 
-  return isLikelyCaptureDocumentUrl(trimmed, sourceUrl);
+  const absoluteUrl = absolutizeCaptureUrl(trimmed, sourceUrl);
+  return !isHttpCaptureUrl(absoluteUrl) || isLikelyCaptureDocumentUrl(absoluteUrl, sourceUrl);
 }
 
 function firstCaptureLazyImageSrc(el: Cheerio<any>): string {
@@ -1147,8 +1168,12 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
     }
 
     const src = (img.attr('src') || '').trim();
-    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+    if (src && !isDataOrBlobCaptureUrl(src)) {
       const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
+      if (!isHttpCaptureUrl(absoluteSrc)) {
+        img.removeAttr('src');
+        return;
+      }
       img.attr('src', absoluteSrc);
       imageUrls.add(absoluteSrc);
     }
@@ -1165,24 +1190,36 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
   container.find('video').each((_idx, node) => {
     const video = $(node);
     const videoSrc = (video.attr('src') || video.attr('data-src') || '').trim();
-    if (videoSrc && !videoSrc.startsWith('data:') && !videoSrc.startsWith('blob:')) {
+    if (videoSrc && !isDataOrBlobCaptureUrl(videoSrc)) {
       const absoluteVideoSrc = absolutizeCaptureUrl(videoSrc, sourceUrl);
-      video.attr('src', absoluteVideoSrc);
-      imageUrls.add(absoluteVideoSrc);
+      if (isHttpCaptureUrl(absoluteVideoSrc) && !isLikelyCaptureDocumentUrl(absoluteVideoSrc, sourceUrl)) {
+        video.attr('src', absoluteVideoSrc);
+        imageUrls.add(absoluteVideoSrc);
+      } else {
+        video.removeAttr('src');
+      }
     }
     const poster = (video.attr('poster') || video.attr('data-poster') || '').trim();
-    if (poster) {
+    if (poster && !isDataOrBlobCaptureUrl(poster)) {
       const absolutePoster = absolutizeCaptureUrl(poster, sourceUrl);
-      video.attr('poster', absolutePoster);
-      imageUrls.add(absolutePoster);
+      if (isHttpCaptureUrl(absolutePoster) && !isLikelyCaptureDocumentUrl(absolutePoster, sourceUrl)) {
+        video.attr('poster', absolutePoster);
+        imageUrls.add(absolutePoster);
+      } else {
+        video.removeAttr('poster');
+      }
     }
     video.find('source').each((_sourceIdx, sourceNode) => {
       const source = $(sourceNode);
       const src = (source.attr('src') || source.attr('data-src') || '').trim();
-      if (src) {
+      if (src && !isDataOrBlobCaptureUrl(src)) {
         const absoluteSourceSrc = absolutizeCaptureUrl(src, sourceUrl);
-        source.attr('src', absoluteSourceSrc);
-        imageUrls.add(absoluteSourceSrc);
+        if (isHttpCaptureUrl(absoluteSourceSrc) && !isLikelyCaptureDocumentUrl(absoluteSourceSrc, sourceUrl)) {
+          source.attr('src', absoluteSourceSrc);
+          imageUrls.add(absoluteSourceSrc);
+        } else {
+          source.removeAttr('src');
+        }
       }
     });
     video.attr('autoplay', '');
@@ -1293,8 +1330,12 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     }
 
     const src = (img.attr('src') || '').trim();
-    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+    if (src && !isDataOrBlobCaptureUrl(src)) {
       const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
+      if (!isHttpCaptureUrl(absoluteSrc)) {
+        img.removeAttr('src');
+        return;
+      }
       if (isLikelyCaptureDocumentUrl(absoluteSrc, sourceUrl) && !(img.attr('srcset') || '').trim()) {
         img.remove();
         return;
@@ -1335,6 +1376,10 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       video.attr('src', absoluteSrc);
       video.removeAttr('data-src');
       imageUrls.add(absoluteSrc);
+    } else if (src && !isDataOrBlobCaptureUrl(src)) {
+      video.removeAttr('src');
+      if (recoverableSrc)
+        video.removeAttr('data-src');
     }
 
     const currentPoster = (video.attr('poster') || '').trim();
@@ -1347,6 +1392,10 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       video.attr('poster', absolutePoster);
       video.removeAttr('data-poster');
       imageUrls.add(absolutePoster);
+    } else if (poster && !isDataOrBlobCaptureUrl(poster)) {
+      video.removeAttr('poster');
+      if (recoverablePoster)
+        video.removeAttr('data-poster');
     }
 
     video.find('source').each((_sourceIdx, sourceNode) => {
@@ -1356,8 +1405,15 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       const sourceSrc = recoverableSourceSrc && isNonRenderableCaptureMediaUrl(currentSourceSrc, sourceUrl)
         ? recoverableSourceSrc
         : currentSourceSrc || recoverableSourceSrc;
-      if (!sourceSrc || isNonRenderableCaptureMediaUrl(sourceSrc, sourceUrl))
+      if (!sourceSrc)
         return;
+      if (isNonRenderableCaptureMediaUrl(sourceSrc, sourceUrl)) {
+        if (!isDataOrBlobCaptureUrl(sourceSrc))
+          source.removeAttr('src');
+        if (recoverableSourceSrc)
+          source.removeAttr('data-src');
+        return;
+      }
       const absoluteSourceSrc = absolutizeCaptureUrl(sourceSrc, sourceUrl);
       source.attr('src', absoluteSourceSrc);
       source.removeAttr('data-src');
