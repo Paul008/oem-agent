@@ -1,16 +1,16 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `c8183b9` shipped read-only accordion bridge
-> interactivity. This is a cold-start handoff for continuing Clone Studio preview fidelity,
+> deployed to Cloudflare Pages. Updated after `357ee75` shipped read-only tab-target and gallery
+> bridge interactivity. This is a cold-start handoff for continuing Clone Studio preview fidelity,
 > especially responsive media and dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `c8183b9 feat(dashboard): wire clone preview accordions`.
+  `357ee75 feat(dashboard): wire clone gallery thumbnails`.
 - Latest dashboard deploy from this work:
-  `https://52c49275.oem-dashboard.pages.dev`.
+  `https://9997f433.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -112,6 +112,44 @@ Key files:
 - `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts`
 - `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts`
 
+### 6. Read-Only Tab Target Resolution
+
+The Clone Studio iframe bridge now resolves explicit tab targets before falling back to trigger
+index order.
+
+What changed:
+
+- `enableInteractivity()` includes Bootstrap/data/custom tab triggers.
+- `switchTabPanel()` resolves target panels via `aria-controls`, `href="#panel"`,
+  `data-bs-target`, `data-target`, `data-tab`, and `data-tab-target`.
+- Panel discovery includes ARIA tab panels plus common `data-tab-*` / class-based panels.
+- Generic `[aria-controls]` tab detection filters out accordion-looking disclosure controls unless
+  the control is also explicitly marked as a tab.
+
+Commit:
+
+- `d145bfa feat(dashboard): resolve clone tab targets`
+
+### 7. Read-Only Gallery Thumbnail Switching
+
+The Clone Studio iframe bridge now restores simple static-clone gallery behavior when the source
+markup exposes a clear gallery/thumb pattern.
+
+What changed:
+
+- `classifyRegion()` detects `[data-gallery]`, `.gallery`, gallery class fragments, and thumbnail
+  markers when more than one image is present.
+- `wireGalleryRegion()` marks thumbnail controls as trusted bridge controls and suppresses normal
+  navigation.
+- `switchGalleryImage()` updates the detected main image from explicit full-size thumbnail
+  attributes where available, falling back to the thumbnail image URL.
+- `<picture>` sources are kept in sync with the swapped main image.
+- Active/is-active classes move with the selected thumbnail.
+
+Commit:
+
+- `357ee75 feat(dashboard): wire clone gallery thumbnails`
+
 ## Verification Performed
 
 Commands:
@@ -175,13 +213,13 @@ Recommended split:
    It is useful for server-rendered HTML sprinkles, but this app already has Vue plus a sandbox
    bridge. Alpine would add runtime and persistence ambiguity.
 
-## Completed Work: Tabs And Accordions
+## Completed Work: Tabs, Accordions, Galleries
 
 Current bridge has partial read-only preview interactivity:
 
 - `collectPanels(region)`
 - `switchPanel(regionId, index)`
-- `enableInteractivity()` for tabs/carousels/accordions
+- `enableInteractivity()` for tabs/carousels/accordions/galleries
 - `MESSAGE_SWITCH_PANEL`
 
 The previously recommended accordion slice is now done in `c8183b9`.
@@ -215,12 +253,9 @@ What was implemented:
 The next practical fidelity slice is to restore other static-clone dynamic UI patterns without
 allowing OEM scripts:
 
-1. Broaden tab detection for OEMs that use custom classes rather than ARIA tab roles.
-2. Add lightweight disclosure/dropdown behavior for menus embedded inside body content, while
+1. Add lightweight disclosure/dropdown behavior for menus embedded inside body content, while
    continuing to omit page header/nav in Clone Studio captures.
-3. Consider bridge-side gallery thumbnail switching where the source exposes a clear main image plus
-   thumbnail set.
-4. Keep structured sections in Vue state; keep cloned OEM preview behavior in the trusted vanilla
+2. Keep structured sections in Vue state; keep cloned OEM preview behavior in the trusted vanilla
    bridge; use GSAP only for animation-first sections.
 
 ## Critical Gotchas
