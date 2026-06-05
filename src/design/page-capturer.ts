@@ -824,6 +824,21 @@ function normalizeCaptureSrcset(srcset: string, sourceUrl: string, imageUrls: Se
     .join(', ');
 }
 
+function normalizeCaptureStyleUrls(style: string, sourceUrl: string, imageUrls: Set<string>): string {
+  return String(style || '').replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s][^)]*?))\s*\)/gi, (match, doubleQuoted, singleQuoted, bare) => {
+    const rawUrl = String(doubleQuoted ?? singleQuoted ?? bare ?? '').trim();
+    if (!rawUrl)
+      return match;
+
+    const absoluteUrl = absolutizeCaptureUrl(rawUrl, sourceUrl);
+    if (!absoluteUrl || absoluteUrl.startsWith('data:') || absoluteUrl.startsWith('blob:'))
+      return match;
+
+    imageUrls.add(absoluteUrl);
+    return `url("${absoluteUrl.replace(/"/g, '%22')}")`;
+  });
+}
+
 function bestCaptureSrcsetUrl(srcset: string): string {
   return srcset.split(',').pop()?.trim().split(/\s+/)[0] ?? '';
 }
@@ -1119,13 +1134,11 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
   });
 
   container.find('[style]').each((_idx, node) => {
-    const style = $(node).attr('style') || '';
-    const matches = style.matchAll(/url\(["']?([^"')]+)["']?\)/gi);
-    for (const match of matches) {
-      const absoluteUrl = absolutizeCaptureUrl(match[1], sourceUrl);
-      if (absoluteUrl && !absoluteUrl.startsWith('data:') && !absoluteUrl.startsWith('blob:'))
-        imageUrls.add(absoluteUrl);
-    }
+    const el = $(node);
+    const style = el.attr('style') || '';
+    const normalizedStyle = normalizeCaptureStyleUrls(style, sourceUrl, imageUrls);
+    if (normalizedStyle !== style)
+      el.attr('style', normalizedStyle);
   });
 
   let heroUrl = '';
@@ -1260,6 +1273,14 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       source.removeAttr('data-src');
       imageUrls.add(absoluteSourceSrc);
     });
+  });
+
+  $('[style]').each((_idx, node) => {
+    const el = $(node);
+    const style = el.attr('style') || '';
+    const normalizedStyle = normalizeCaptureStyleUrls(style, sourceUrl, imageUrls);
+    if (normalizedStyle !== style)
+      el.attr('style', normalizedStyle);
   });
 
   const heroUrl = result.heroUrl ? absolutizeCaptureUrl(result.heroUrl, sourceUrl) : result.heroUrl;

@@ -746,6 +746,32 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).toContain(sourceUrl)
     expect(result.imageUrls).toContain(posterUrl)
   })
+
+  it('normalizes inline background URLs so proxy rewriting can find them', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <section class="feature" style="background-image:url('/media/rav4-bg.jpg'); mask-image: url(assets/mask.svg)">
+            <p>Feature content</p>
+          </section>
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: [],
+      heroUrl: '',
+      title: 'RAV4',
+      elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    const backgroundUrl = 'https://www.toyota.com.au/media/rav4-bg.jpg'
+    const maskUrl = 'https://www.toyota.com.au/assets/mask.svg'
+
+    expect(result.html).toContain(backgroundUrl)
+    expect(result.html).toContain(maskUrl)
+    expect(result.imageUrls).toContain(backgroundUrl)
+    expect(result.imageUrls).toContain(maskUrl)
+  })
 })
 
 describe('isCaptureBlockedBySecurityPage', () => {
