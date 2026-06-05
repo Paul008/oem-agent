@@ -1,15 +1,16 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. This is a cold-start handoff for continuing Clone Studio preview
-> fidelity, especially responsive media and tabs/accordions.
+> deployed to Cloudflare Pages. Updated after `c8183b9` shipped read-only accordion bridge
+> interactivity. This is a cold-start handoff for continuing Clone Studio preview fidelity,
+> especially responsive media and dynamic cloned components.
 
 ## Current Production State
 
-- Branch before writing this document: `main`, in sync with `origin/main` at
-  `2451869 fix(dashboard): recover mobile hero clone images`.
+- Branch after the latest update: `main`, in sync with `origin/main` at
+  `c8183b9 feat(dashboard): wire clone preview accordions`.
 - Latest dashboard deploy from this work:
-  `https://1b6b38a8.oem-dashboard.pages.dev`.
+  `https://52c49275.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -88,14 +89,38 @@ It returned `200 image/webp`.
 Key file:
 - `dashboard/src/pages/dashboard/components/sections/SectionHero.vue`
 
+### 5. Read-Only Accordion Interactivity
+
+The Clone Studio iframe bridge now restores common stripped-script accordion behavior in read-only
+preview/production view.
+
+What changed:
+
+- `classifyRegion()` detects AEM/Ford, Bootstrap-like, and ARIA accordion patterns.
+- `enableInteractivity()` includes accordion candidates alongside tabs/carousels.
+- `wireAccordionRegion()` wires trusted click handlers to disclosure controls.
+- `toggleAccordionPanel()` updates `aria-expanded`, `hidden`, inline `display`, and common
+  active/open/show classes.
+- Single-expansion accordions are respected when the source markup advertises it via AEM,
+  generic, or Bootstrap-style attributes.
+- Wired OEM controls get a temporary `data-clone-studio-interactive-control` marker so the
+  document-level navigation blocker does not swallow their capture-phase click handlers.
+- The temporary marker is stripped from `getBodyHtml()` / `getRegionHtml()` serialization paths.
+
+Key files:
+
+- `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts`
+- `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts`
+
 ## Verification Performed
 
 Commands:
 
 ```bash
 pnpm run test:dashboard -- dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts dashboard/src/pages/dashboard/components/sections/section-hero.test.ts
+CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts
 pnpm run typecheck
-CI=1 pnpm --dir dashboard build
+CI=1 pnpm -C dashboard build
 git diff --check
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main
 ```
@@ -103,6 +128,7 @@ pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --br
 Results:
 
 - Dashboard tests passed: 32 files, 294 tests.
+- Focused Clone Studio bridge tests passed: 58 tests.
 - TypeScript check passed.
 - Dashboard production build passed.
 - Whitespace check passed.
@@ -149,38 +175,53 @@ Recommended split:
    It is useful for server-rendered HTML sprinkles, but this app already has Vue plus a sandbox
    bridge. Alpine would add runtime and persistence ambiguity.
 
-## Next Work: Tabs And Accordions
+## Completed Work: Tabs And Accordions
 
 Current bridge has partial read-only preview interactivity:
 
 - `collectPanels(region)`
 - `switchPanel(regionId, index)`
-- `enableInteractivity()` for tabs/carousels
+- `enableInteractivity()` for tabs/carousels/accordions
 - `MESSAGE_SWITCH_PANEL`
 
-Next practical slice:
+The previously recommended accordion slice is now done in `c8183b9`.
 
-1. Extend `enableInteractivity()` to handle accordions, not just tabs/carousels.
-2. Detect common patterns:
+What was implemented:
+
+1. `enableInteractivity()` handles accordions, not just tabs/carousels.
+2. Common accordion patterns are detected:
    - ARIA: `[aria-expanded]`, `[aria-controls]`, `[role="button"]`, `[role="tab"]`,
      `[role="tabpanel"]`.
    - AEM/Ford: `[data-cmp-is="accordion"]`, `[data-cmp-hook-accordion]`,
      `.cmp-accordion__button`, `.cmp-accordion__title`, `.accordion-disclosure`.
    - Bootstrap-like: `.accordion`, `.accordion-item`, `.accordion-button`, `.collapse`.
    - Generic: `.tab-content`, `.tab-pane`, `.tabs`, `.tab`, `.active`, `.is-active`.
-3. Implement a bridge function such as `toggleAccordionPanel(region, trigger)` that:
+3. `toggleAccordionPanel(region, trigger)`:
    - toggles `aria-expanded`,
    - sets/removes `hidden`,
    - updates inline `display`,
    - adds/removes active/open classes,
    - respects single-expansion accordions when detectable.
-4. Keep it preview-only for read-only production preview unless editor needs panel stepping.
-5. Add tests in `clone-studio-html.test.ts` that assert the bridge contains:
+4. It remains preview-only for read-only production preview; editor click-selection is unaffected.
+5. Tests in `clone-studio-html.test.ts` assert the bridge contains:
    - accordion detection selectors,
    - a toggle function,
    - `aria-expanded` handling,
    - `hidden`/`display` handling,
-   - no broad selector that toggles entire page regions.
+   - trusted-control bypass markers.
+
+## Next Work: Richer Dynamic Components
+
+The next practical fidelity slice is to restore other static-clone dynamic UI patterns without
+allowing OEM scripts:
+
+1. Broaden tab detection for OEMs that use custom classes rather than ARIA tab roles.
+2. Add lightweight disclosure/dropdown behavior for menus embedded inside body content, while
+   continuing to omit page header/nav in Clone Studio captures.
+3. Consider bridge-side gallery thumbnail switching where the source exposes a clear main image plus
+   thumbnail set.
+4. Keep structured sections in Vue state; keep cloned OEM preview behavior in the trusted vanilla
+   bridge; use GSAP only for animation-first sections.
 
 ## Critical Gotchas
 
@@ -238,7 +279,7 @@ Next practical slice:
 ```bash
 pnpm run test:dashboard -- dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts
 pnpm run typecheck
-CI=1 pnpm --dir dashboard build
+CI=1 pnpm -C dashboard build
 ```
 
 7. Deploy dashboard-only with:
@@ -246,4 +287,3 @@ CI=1 pnpm --dir dashboard build
 ```bash
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main
 ```
-
