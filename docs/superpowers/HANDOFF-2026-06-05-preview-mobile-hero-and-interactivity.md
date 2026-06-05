@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `2dfdc7c` shipped quick selected-region text color
-> editing, after the link/media-library and read-only dynamic bridge work. This is a cold-start
-> handoff for continuing Clone Studio preview fidelity, especially responsive media and dynamic
-> cloned components.
+> deployed to Cloudflare Pages. Updated after `d835778` shipped mobile-safe Clone Studio toolbar
+> overflow, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
+> dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `2dfdc7c feat(dashboard): add clone toolbar text color`.
+  `d835778 fix(dashboard): keep clone toolbar usable on mobile`.
 - Latest dashboard deploy from this work:
-  `https://712be4a6.oem-dashboard.pages.dev`.
+  `https://62afac09.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -246,6 +246,22 @@ What changed:
 Commit:
 
 - `2dfdc7c feat(dashboard): add clone toolbar text color`
+
+### 13. Mobile-Safe Clone Toolbar Overflow
+
+The selected-region quick edit bubble now stays usable on narrow screens after the toolbar gained
+text, image, link, alignment, weight, text color, and background controls.
+
+What changed:
+
+- `PageBuilderCanvas.vue` changed the toolbar from clipped overflow to horizontal scrolling.
+- Scrollbars are hidden visually while the controls remain reachable by touch/trackpad.
+- Direct toolbar controls are forced to `shrink-0` so icons do not collapse into unusable targets.
+- The link-edit inline URL mode shares the same scroll container behavior.
+
+Commit:
+
+- `d835778 fix(dashboard): keep clone toolbar usable on mobile`
 
 ## Verification Performed
 
