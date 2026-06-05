@@ -1,8 +1,9 @@
 # Handoff - OEM fidelity QA + Ford Mustang responsive preview fixes
 
-> Written 2026-06-05. Current `main` is pushed to `origin/main` at `39f0071` and the dashboard is
-> deployed to Cloudflare Pages production. Latest immutable Pages deployment:
-> `https://819d5f51.oem-dashboard.pages.dev`.
+> Written 2026-06-05; updated later the same day. Earlier deployed baseline:
+> `https://819d5f51.oem-dashboard.pages.dev`. Later follow-ups added calibrated text-audit
+> filtering plus unpaired mobile typography fallback; check the latest deploy output for the
+> current immutable Cloudflare Pages URL.
 
 ## What shipped
 
@@ -75,15 +76,44 @@ Commit: `39f0071 fix(dashboard): collapse Ford disclosure accordions`
 - Clone Studio bridge now starts AEM `data-view="disclosure"` accordions collapsed, matching Ford's
   live mobile Disclosures block, while leaving normal FAQ accordion behavior intact.
 
+### 5. Calibrated text overflow audit
+
+Commit: `311fb04 fix(qa): reduce clipped text false positives`
+
+- `scripts/oem-fidelity-report.mjs` now audits clipped text only on meaningful text-bearing nodes.
+- Wrapper-only overflow such as Slick tracks or `div.contentHolder` no longer creates false clipped
+  text findings.
+- Latest warmed Ford run after this calibration reported:
+  - no clipped-text findings
+  - no broken images
+  - no preview network failures
+  - remaining findings were full-page visual/page-size mismatch only.
+
+### 6. Unpaired mobile typography fallback
+
+Commit: follow-up after `311fb04` (`fix(dashboard): scale unpaired mobile text variants`)
+
+- `clone-studio-html.ts` now scales unpaired `onlydesktop` Ford/AEM display typography at mobile
+  widths when the real `onlymobile` partner was not captured.
+- Paired responsive content is untouched: desktop text still hides when a mobile sibling exists.
+- The fallback targets the cases observed in the Ford Mustang preview drift:
+  - `display1-medium` hero text -> mobile heading scale
+  - `display2-medium` feature headlines -> mobile heading scale
+  - `display3-medium` h2/h3 headline blocks -> title/heading scale by context
+  - gray `body3` captions -> caption scale
+- `dashboard/vite.config.ts` explicitly sets `VueRouter({ watch: !isProduction })` so normal
+  production builds do not start route watchers and hit local `EMFILE` file-descriptor limits.
+
 ## Latest verification
 
 Commands run and passing:
 
 ```bash
 pnpm exec vitest run scripts/oem-fidelity-report.test.mjs
+pnpm run test:dashboard -- clone-studio-html
 pnpm run test:dashboard
 pnpm run typecheck
-env CHOKIDAR_USEPOLLING=1 pnpm -C dashboard build
+pnpm --dir dashboard build
 git diff --check
 ```
 

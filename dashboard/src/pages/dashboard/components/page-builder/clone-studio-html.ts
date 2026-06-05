@@ -187,6 +187,54 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) {
         display: block !important;
       }
+
+      /*
+       * When mobile-only OEM text was not captured, the remaining desktop wrapper still carries
+       * desktop-oriented Ford/AEM display classes. Scale those unpaired blocks to the source mobile
+       * typography family without changing paired responsive content.
+       */
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"])[class*="display1-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h1[class*="display1-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h1 [class*="display1-medium"] {
+        font-size: 1.75rem !important;
+        line-height: 2.125rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"])[class*="display2-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="display2-medium"] {
+        font-size: 2.125rem !important;
+        line-height: 2.5rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h2[class*="display3-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h2 [class*="display3-medium"] {
+        font-size: 1.5rem !important;
+        line-height: 2rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h3[class*="display3-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h3 [class*="display3-medium"] {
+        font-size: 1.75rem !important;
+        line-height: 2.125rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h2[class*="heading1-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h2 [class*="heading1-medium"] {
+        font-size: 1.5rem !important;
+        line-height: 2rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="body3-regular-gray5"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="body3-medium-gray5"] {
+        font-size: 0.625rem !important;
+        line-height: 1rem !important;
+        letter-spacing: 0 !important;
+      }
     }
 
     /*

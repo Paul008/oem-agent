@@ -257,6 +257,10 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('[data-clone-studio-responsive-content-variant="mobile"]')
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*display:\s*block\s*!important/i)
     expect(head).toMatch(/responsive-content-variant="desktop"\]\[data-clone-studio-responsive-content-paired="true"\][\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)\[class\*="display1-medium"\][\s\S]*font-size:\s*1\.75rem\s*!important/i)
+    expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*\[class\*="display2-medium"\][\s\S]*font-size:\s*2\.125rem\s*!important/i)
+    expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*h3 \[class\*="display3-medium"\][\s\S]*font-size:\s*1\.75rem\s*!important/i)
+    expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*h2 \[class\*="heading1-medium"\][\s\S]*font-size:\s*1\.5rem\s*!important/i)
 
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('function markResponsiveContentVariants()')

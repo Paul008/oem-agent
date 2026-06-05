@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       VueRouter({
         exclude: RouteGenerateExclude,
+        watch: !isProduction,
         ...(shouldWriteGeneratedTypes ? { dts: routeMapDtsPath } : { dts: false }),
       }),
       vue(),
