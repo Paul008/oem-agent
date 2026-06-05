@@ -925,6 +925,46 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).toContain(lazyBgUrl)
     expect(result.imageUrls).toContain(lazyBackgroundImageUrl)
   })
+
+  it('drops document placeholder URLs from srcset and background styles', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <picture>
+            <source data-srcset="/brz/2026 1x, /media/brz-hero.jpg 2x">
+            <img alt="BRZ hero">
+          </picture>
+          <section class="document-bg" style="background-image:url('/brz/2026'); mask-image:url('/media/mask.svg')">
+            <p>BRZ content</p>
+          </section>
+          <section class="lazy-document-bg" data-bg="/brz/2026">
+            <p>Lazy document background</p>
+          </section>
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: [],
+      heroUrl: '',
+      title: 'BRZ',
+      elementCount: 6,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.subaru.com.au/brz')
+
+    const heroUrl = 'https://www.subaru.com.au/media/brz-hero.jpg'
+    const maskUrl = 'https://www.subaru.com.au/media/mask.svg'
+    const documentUrl = 'https://www.subaru.com.au/brz/2026'
+
+    expect(result.html).toContain(`srcset="${heroUrl} 2x"`)
+    expect(result.html).toContain(`src="${heroUrl}"`)
+    expect(result.html).toContain('background-image:none')
+    expect(result.html).toContain(maskUrl)
+    expect(result.html).not.toContain(documentUrl)
+    expect(result.html).not.toContain('data-bg=')
+    expect(result.imageUrls).toContain(heroUrl)
+    expect(result.imageUrls).toContain(maskUrl)
+    expect(result.imageUrls).not.toContain(documentUrl)
+    expect(result.heroUrl).toBe(heroUrl)
+  })
 })
 
 describe('isCaptureBlockedBySecurityPage', () => {

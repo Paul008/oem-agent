@@ -816,6 +816,8 @@ function normalizeCaptureSrcset(srcset: string, sourceUrl: string, imageUrls: Se
         return '';
 
       parts[0] = absolutizeCaptureUrl(parts[0], sourceUrl);
+      if (!parts[0] || isLikelyCaptureDocumentUrl(parts[0], sourceUrl))
+        return '';
       if (parts[0] && !parts[0].startsWith('data:') && !parts[0].startsWith('blob:'))
         imageUrls.add(parts[0]);
 
@@ -834,6 +836,8 @@ function normalizeCaptureStyleUrls(style: string, sourceUrl: string, imageUrls: 
     const absoluteUrl = absolutizeCaptureUrl(rawUrl, sourceUrl);
     if (!absoluteUrl || absoluteUrl.startsWith('data:') || absoluteUrl.startsWith('blob:'))
       return match;
+    if (isLikelyCaptureDocumentUrl(absoluteUrl, sourceUrl))
+      return 'none';
 
     imageUrls.add(absoluteUrl);
     return `url("${absoluteUrl.replace(/"/g, '%22')}")`;
@@ -1366,12 +1370,11 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     const backgroundUrl = (el.attr('data-bg') || el.attr('data-background-image') || '').trim();
     if (backgroundUrl) {
       const absoluteBackgroundUrl = absolutizeCaptureUrl(backgroundUrl, sourceUrl);
-      if (absoluteBackgroundUrl) {
+      if (absoluteBackgroundUrl && !isNonRenderableCaptureMediaUrl(absoluteBackgroundUrl, sourceUrl)) {
         const currentStyle = (el.attr('style') || '').trim();
         const separator = currentStyle && !currentStyle.endsWith(';') ? '; ' : '';
         el.attr('style', `${currentStyle}${separator}background-image:url("${absoluteBackgroundUrl.replace(/"/g, '%22')}")`);
-        if (!absoluteBackgroundUrl.startsWith('data:') && !absoluteBackgroundUrl.startsWith('blob:'))
-          imageUrls.add(absoluteBackgroundUrl);
+        imageUrls.add(absoluteBackgroundUrl);
       }
     }
     el.removeAttr('data-bg');
