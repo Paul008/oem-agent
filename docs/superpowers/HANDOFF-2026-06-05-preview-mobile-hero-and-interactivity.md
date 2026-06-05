@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `6916f68` shipped the quick selected-region image
-> replacement button, after the read-only tab-target, accordion, gallery, and dropdown/disclosure
+> deployed to Cloudflare Pages. Updated after `6faa9b5` shipped current-model defaulting in the
+> media library, after the quick selected-region image replacement button and read-only dynamic
 > bridge work. This is a cold-start handoff for continuing Clone Studio preview fidelity,
 > especially responsive media and dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `6916f68 feat(dashboard): add clone toolbar image replacement`.
+  `6faa9b5 feat(dashboard): default media library to current model`.
 - Latest dashboard deploy from this work:
-  `https://53d90bbf.oem-dashboard.pages.dev`.
+  `https://29abfff9.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -192,6 +192,23 @@ Commit:
 
 - `6916f68 feat(dashboard): add clone toolbar image replacement`
 
+### 10. Media Library Current-Model Default
+
+The image replacement media dialog remains OEM-scoped, but now preselects the active model when
+matching uploaded media exists.
+
+What changed:
+
+- `MediaLibraryDialog.vue` still loads the OEM media library so editors can switch to any model.
+- After the library loads, `defaultLibraryModelFilter()` selects `props.modelSlug` only if one or
+  more uploaded media items match that model.
+- If there is no current-model match, the dialog keeps showing all OEM media.
+- Portal/DAM assets already auto-detect the closest parsed model separately.
+
+Commit:
+
+- `6faa9b5 feat(dashboard): default media library to current model`
+
 ## Verification Performed
 
 Commands:
@@ -210,7 +227,7 @@ Results:
 
 - Dashboard tests passed: 32 files, 294 tests.
 - Focused Clone Studio bridge tests passed: 58 tests.
-- Focused Page Builder canvas preview tests passed: 25 tests.
+- Focused Page Builder canvas preview tests passed: 26 tests.
 - TypeScript check passed.
 - Dashboard production build passed.
 - Whitespace check passed.
