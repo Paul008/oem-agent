@@ -68,6 +68,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('kind: \'style\'')
     expect(source).toContain('patchCloneStyle(\'text-align\', \'left\')')
     expect(source).toContain('patchCloneStyle(\'font-weight\', \'700\')')
+    expect(source).toContain('patchCloneStyle(\'color\', (e.target as HTMLInputElement).value)')
     expect(source).toContain('buildPatchPayload(\'edit-link\', region as any, cloneToolbarLinkValue.value.trim())')
     expect(source).toContain('@click="quickCloneReplaceImage"')
     expect(source).toContain('@click="quickCloneEditLink"')
@@ -83,6 +84,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('title="Align center"')
     expect(source).toContain('title="Align right"')
     expect(source).toContain('title="Bold"')
+    expect(source).toContain('title="Text color"')
     expect(source).toContain('title="Background color"')
   })
 

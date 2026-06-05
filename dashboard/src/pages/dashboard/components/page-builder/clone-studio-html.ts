@@ -1237,6 +1237,13 @@ ${rendered}
       if (value !== 'normal' && value !== '400' && value !== '500' && value !== '600' && value !== '700' && value !== 'bold')
         return
       target.style.fontWeight = value
+      return
+    }
+
+    if (property === 'color') {
+      if (!isPlausibleCssColor(value))
+        return
+      target.style.color = value
     }
   }
 

@@ -269,7 +269,7 @@ function submitCloneToolbarLink() {
   cancelCloneToolbarLink()
 }
 
-function patchCloneStyle(property: 'text-align' | 'font-weight', value: string) {
+function patchCloneStyle(property: 'text-align' | 'font-weight' | 'color', value: string) {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly || !cloneToolbarHasText.value)
     return
@@ -292,6 +292,10 @@ function setCloneToolbarBgColor(color: string) {
 
 function onCloneToolbarBgColorInput(e: Event) {
   setCloneToolbarBgColor((e.target as HTMLInputElement).value)
+}
+
+function onCloneToolbarTextColorInput(e: Event) {
+  patchCloneStyle('color', (e.target as HTMLInputElement).value)
 }
 
 function openCloneMediaLibrary(region: CloneMenuRegion) {
@@ -865,6 +869,14 @@ watch(
                 <Bold class="size-3.5" />
               </button>
               <div class="h-5 w-px bg-border" />
+              <label
+                class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                :class="!cloneToolbarHasText && 'pointer-events-none opacity-40'"
+                title="Text color"
+              >
+                <Type class="size-3.5" />
+                <input type="color" value="#111827" class="sr-only" :disabled="!cloneToolbarHasText" @input="onCloneToolbarTextColorInput">
+              </label>
               <label
                 class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 title="Background color"
