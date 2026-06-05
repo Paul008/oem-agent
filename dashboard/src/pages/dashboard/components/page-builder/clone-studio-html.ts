@@ -3409,11 +3409,85 @@ ${rendered}
 
     var nextSel = '.swiper-button-next, .slick-next, .brand-next, [aria-label*="next" i], [class*="next"]'
     var prevSel = '.swiper-button-prev, .slick-prev, .brand-previous, [aria-label*="prev" i], [aria-label*="previous" i], [class*="prev"], [class*="previous"]'
+    var scopes = carouselControlScopes(regionEl)
+    var next = []
+    var prev = []
+
+    for (var i = 0; i < scopes.length; i++) {
+      var scope = scopes[i]
+      if (!scope || !scope.querySelectorAll)
+        continue
+
+      var nextNodes = scope.querySelectorAll(nextSel)
+      for (var n = 0; n < nextNodes.length; n++)
+        addUniqueInteractivityNode(next, nextNodes[n])
+
+      var prevNodes = scope.querySelectorAll(prevSel)
+      for (var p = 0; p < prevNodes.length; p++)
+        addUniqueInteractivityNode(prev, prevNodes[p])
+    }
 
     return {
-      next: Array.prototype.slice.call(regionEl.querySelectorAll(nextSel)),
-      prev: Array.prototype.slice.call(regionEl.querySelectorAll(prevSel))
+      next: next,
+      prev: prev
     }
+  }
+
+  function carouselControlScopes(regionEl) {
+    var scopes = [regionEl]
+
+    addSiblingCarouselControlScopes(scopes, regionEl)
+
+    var parent = regionEl.parentElement
+    var depth = 0
+    while (parent && depth < 3) {
+      var slideCount = parent.querySelectorAll ? parent.querySelectorAll('.slick-slide, .swiper-slide, .splide__slide, .carousel-item').length : 0
+      if (slideCount > collectPanels(regionEl).length)
+        break
+
+      addUniqueInteractivityNode(scopes, parent)
+      addSiblingCarouselControlScopes(scopes, parent)
+
+      parent = parent.parentElement
+      depth++
+    }
+
+    return scopes
+  }
+
+  function addSiblingCarouselControlScopes(scopes, node) {
+    if (!node)
+      return
+
+    var previous = node.previousElementSibling
+    var prevSteps = 0
+    while (previous && prevSteps < 2) {
+      if (isCarouselScopeBoundary(previous))
+        break
+      addUniqueInteractivityNode(scopes, previous)
+      previous = previous.previousElementSibling
+      prevSteps++
+    }
+
+    var next = node.nextElementSibling
+    var nextSteps = 0
+    while (next && nextSteps < 2) {
+      if (isCarouselScopeBoundary(next))
+        break
+      addUniqueInteractivityNode(scopes, next)
+      next = next.nextElementSibling
+      nextSteps++
+    }
+  }
+
+  function isCarouselScopeBoundary(node) {
+    if (!node)
+      return false
+
+    if (classifyRegion(node) === 'carousel')
+      return true
+
+    return !!(node.querySelector && node.querySelector('.slick-slide, .swiper-slide, .splide__slide, .carousel-item'))
   }
 
   function setTabActiveState(triggers, activeIndex) {

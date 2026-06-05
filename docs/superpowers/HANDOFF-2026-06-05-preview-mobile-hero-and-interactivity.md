@@ -487,6 +487,8 @@ What is now implemented in `clone-studio-html.ts`:
 - Ford brand-card wrappers default to a 3-card desktop window when no source active count is usable.
 - Mobile viewport collapses carousels to one card at a time.
 - `.brand-next` and `.brand-previous` are treated as real carousel controls.
+- Ford/Slick controls can sit as siblings outside `.brandcard-wrapper`; the bridge now searches a
+  bounded nearby scope so those real controls are wired before falling back to bridge-owned controls.
 - Existing Ford/Slick classes, `hidden`, `aria-hidden`, and `slick-current` are updated when moving
   slides.
 - A resize handler recomputes the active carousel window after iframe viewport changes.

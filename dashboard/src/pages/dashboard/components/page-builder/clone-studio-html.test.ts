@@ -875,6 +875,9 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function setPanelWindowVisibility(panels, targetIndex, windowSize)')
     expect(bridgeScript).toContain('function refreshCarouselWindows()')
     expect(bridgeScript).toContain('function installCarouselResizeHandler()')
+    expect(bridgeScript).toContain('function carouselControlScopes(regionEl)')
+    expect(bridgeScript).toContain('function addSiblingCarouselControlScopes(scopes, node)')
+    expect(bridgeScript).toContain('function isCarouselScopeBoundary(node)')
     expect(bridgeScript).toContain('window.addEventListener(\'resize\'')
     expect(bridgeScript).toContain('carouselActiveIndex(panels)')
     expect(bridgeScript).toContain('panel.classList.add(\'slick-active\')')
@@ -882,6 +885,46 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('setCarouselControlDisabled')
     expect(bridgeScript).not.toContain('Alpine.start')
     expect(bridgeScript).not.toContain('x-data')
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('finds Ford/Slick controls when they are sibling nodes outside the slider wrapper', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <section class="brandcardComponent">
+            <div class="brandcard-wrapper slick-initialized slick-slider">
+              <div class="slick-list draggable">
+                <div class="slick-track">
+                  <div class="slick-slide slick-current slick-active" data-slick-index="0" aria-hidden="false">One</div>
+                  <div class="slick-slide slick-active" data-slick-index="1" aria-hidden="false">Two</div>
+                  <div class="slick-slide" data-slick-index="2" aria-hidden="true">Three</div>
+                  <div class="slick-slide" data-slick-index="3" aria-hidden="true">Four</div>
+                </div>
+              </div>
+            </div>
+            <div class="slick-controls showControl">
+              <button class="brand-previous slick-arrow slick-disabled" aria-disabled="true">Previous</button>
+              <button class="brand-next slick-arrow" aria-disabled="false">Next</button>
+            </div>
+          </section>
+        </main>
+      `,
+      title: 't',
+      baseHref: '/',
+      selectedRegionId: null,
+      bridgeToken: 'tok',
+      editable: false,
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('addSiblingCarouselControlScopes(scopes, regionEl)')
+    expect(bridgeScript).toContain('addSiblingCarouselControlScopes(scopes, parent)')
+    expect(bridgeScript).toContain('node.nextElementSibling')
+    expect(bridgeScript).toContain('node.previousElementSibling')
+    expect(bridgeScript).toContain('slideCount > collectPanels(regionEl).length')
+    expect(bridgeScript).toContain('addUniqueInteractivityNode(next, nextNodes[n])')
+    expect(bridgeScript).toContain('addUniqueInteractivityNode(prev, prevNodes[p])')
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
