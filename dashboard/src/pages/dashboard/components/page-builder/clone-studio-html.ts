@@ -3638,6 +3638,7 @@ ${rendered}
       // (html/bodyHtml from getBodyHtml()), matching every other parent-initiated dom-updated post.
       post(MESSAGE_DOM_UPDATED, {
         regionId: edit.regionId,
+        region: regionPayload(edit.el),
         kind: 'text',
         committed: true
       })
@@ -3750,15 +3751,20 @@ ${rendered}
     }
 
     if (message.type === MESSAGE_PATCH_FIELD) {
-      if (patchField(message))
-        post(MESSAGE_DOM_UPDATED, { regionId: message.regionId || message.selectedRegionId || null })
+      var patchedRegionId = message.regionId || message.selectedRegionId || null
+      if (patchField(message)) {
+        var patchedRegion = findRegionById(patchedRegionId)
+        post(MESSAGE_DOM_UPDATED, { regionId: patchedRegionId, region: regionPayload(patchedRegion) })
+      }
       return
     }
 
     if (message.type === MESSAGE_SET_HEIGHT) {
       var heightRegionId = message.regionId || message.selectedRegionId || message.id
-      if (setRegionHeight(heightRegionId, message.value))
-        post(MESSAGE_DOM_UPDATED, { regionId: heightRegionId })
+      if (setRegionHeight(heightRegionId, message.value)) {
+        var heightRegion = findRegionById(heightRegionId)
+        post(MESSAGE_DOM_UPDATED, { regionId: heightRegionId, region: regionPayload(heightRegion) })
+      }
       return
     }
 

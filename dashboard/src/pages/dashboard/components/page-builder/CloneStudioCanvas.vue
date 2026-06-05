@@ -214,6 +214,8 @@ function onMessage(event: MessageEvent) {
     const html = typeof data.bodyHtml === 'string' ? data.bodyHtml : data.html
     if (typeof html === 'string')
       emit('domUpdated', html)
+    if (data.region && typeof data.region === 'object')
+      emit('selectRegion', enrichRegionForHost(data.region))
     if (data.newRegion && typeof data.newRegion === 'object')
       emit('regionAdded', data.newRegion)
     return

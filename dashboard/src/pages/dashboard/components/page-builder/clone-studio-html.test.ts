@@ -722,8 +722,21 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function finishInlineEdit(commit)')
     const commitBlock = bridgeScript.slice(bridgeScript.indexOf('function finishInlineEdit(commit)'))
     expect(commitBlock).toContain('post(MESSAGE_DOM_UPDATED, {')
+    expect(commitBlock).toContain('region: regionPayload(edit.el)')
     // It must NOT post the unhandled patch-field upward from the commit path.
     expect(commitBlock).not.toContain('post(MESSAGE_PATCH_FIELD')
+  })
+
+  it('returns refreshed region payloads after quick clone patches', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('var patchedRegionId = message.regionId || message.selectedRegionId || null')
+    expect(bridgeScript).toContain('var patchedRegion = findRegionById(patchedRegionId)')
+    expect(bridgeScript).toContain('post(MESSAGE_DOM_UPDATED, { regionId: patchedRegionId, region: regionPayload(patchedRegion) })')
+    expect(bridgeScript).toContain('var heightRegion = findRegionById(heightRegionId)')
+    expect(bridgeScript).toContain('post(MESSAGE_DOM_UPDATED, { regionId: heightRegionId, region: regionPayload(heightRegion) })')
+    expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
   it('patchField handles alt and background kinds without clobbering text', () => {

@@ -418,6 +418,17 @@ describe('cloneStudioCanvas duplicate-region relay', () => {
     expect(source).toContain('emit(\'selectRegion\', enrichRegionForHost(data.region))')
   })
 
+  it('refreshes the selected clone region when dom-updated returns a region payload', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+    const domUpdatedStart = source.indexOf('if (data.type === \'clone-studio:dom-updated\')')
+    const domUpdatedEnd = source.indexOf('if (data.type === \'clone-studio:region-height\')', domUpdatedStart)
+    const domUpdatedBlock = source.slice(domUpdatedStart, domUpdatedEnd)
+
+    expect(domUpdatedBlock).toContain('emit(\'domUpdated\', html)')
+    expect(domUpdatedBlock).toContain('if (data.region && typeof data.region === \'object\')')
+    expect(domUpdatedBlock).toContain('emit(\'selectRegion\', enrichRegionForHost(data.region))')
+  })
+
   it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 

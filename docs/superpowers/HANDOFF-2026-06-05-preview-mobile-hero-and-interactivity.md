@@ -499,6 +499,15 @@ Regression coverage in `clone-studio-html.test.ts` asserts the Ford/Slick select
 responsive carousel-window helpers are present. A Ford-ish fixture verifies this is a vanilla bridge
 path, not Alpine (`Alpine.start`, `x-data`, etc. are not emitted).
 
+## Completed Work: Clone Edit Bubble Refresh
+
+The selected-region quick toolbar already supports text editing, text alignment, normal/bold weight,
+text/background colour, image replacement through the OEM-scoped media library, alt text, links,
+height crop, panel navigation, duplicate/convert/hide/delete. The bridge now also returns a fresh
+`regionPayload()` after inline text commits, quick field patches, and height changes. `CloneStudioCanvas`
+uses that `dom-updated.region` payload to re-emit the selected region with updated host coordinates
+and editable field metadata, so the bubble does not keep stale image/link/alt data after an edit.
+
 ## Completed Work: Tabs, Accordions, Galleries, Dropdowns
 
 Current bridge has partial read-only preview interactivity:
