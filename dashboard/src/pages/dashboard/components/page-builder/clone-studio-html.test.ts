@@ -176,7 +176,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/visibility:\s*visible\s*!important/i)
   })
 
-  it('keeps desktop images as the mobile fallback while revealing mobile variants', () => {
+  it('uses desktop images on desktop and mobile images on mobile when a pair exists', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"><img class="imgmobile mobonly" src="/media/pages/assets/ford-au/mustang/hero-mobile.webp"></picture></main>',
       title: 'Mustang',
@@ -188,10 +188,30 @@ describe('buildCloneStudioHtml', () => {
     const head = html.slice(0, html.indexOf('</head>'))
     expect(head).toMatch(/img\.imgdesktop[\s\S]*display:\s*block\s*!important/i)
     expect(head).toMatch(/img\.imgmobile[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toContain('[data-clone-studio-responsive-variant="desktop"][data-clone-studio-responsive-paired="true"]')
     expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgmobile[\s\S]*display:\s*block\s*!important/i)
-    expect(head).not.toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgdesktop[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*data-clone-studio-responsive-variant="desktop"[\s\S]*display:\s*none\s*!important/i)
     expect(head).toContain('dsktoponly')
     expect(head).toContain('mobonly')
+
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('function markResponsiveImageVariants()')
+    expect(bridgeScript).toContain('data-clone-studio-responsive-variant')
+    expect(bridgeScript).toContain('data-clone-studio-responsive-paired')
+    expect(bridgeScript).toContain('markResponsiveImageVariants()')
+  })
+
+  it('strips preview-only responsive image markers from serialized saved HTML', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><img data-clone-studio-responsive-variant="desktop" data-clone-studio-responsive-paired="true" class="imgdesktop" src="/hero.webp"></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      selectedRegionId: null,
+    })
+
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('function stripResponsiveVariantMarkers(root)')
+    expect(bridgeScript).toContain('stripResponsiveVariantMarkers(clone)')
   })
 
   it('leaves absolute media URLs and non-proxied relative paths untouched', () => {
