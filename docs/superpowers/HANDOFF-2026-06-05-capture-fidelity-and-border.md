@@ -22,6 +22,23 @@ This handoff predates later work on the same branch. Current `main` includes:
 The resolved bullets below are retained as historical context. The remaining frontier from this
 handoff is the larger Path-A clone fidelity work.
 
+## Addendum — Local-only Capture Follow-ups Pending Push
+
+After the deployed follow-ups above, this local branch gained three worker-only capture fixes that
+are **not pushed/deployed yet**:
+
+- `5b45d75 fix(capture): normalize recoverable media placeholders` — normalizes lazy background
+  attributes, scrubs source-document placeholders from queued media URLs, absolutizes pre-queued
+  media URLs, and reselects stale placeholder `heroUrl` values from the normalized DOM.
+- `e270858 fix(capture): recover placeholder video media` — promotes real `data-src` /
+  `data-poster` URLs when video `src`, child source `src`, or poster values are data/blob
+  placeholders.
+- `706880e fix(capture): drop document placeholders from media` — drops same-origin model-year
+  document placeholders such as `/brz/2026` from DOM/media queues and reselects a real hero image.
+
+Verification after these local commits: `VITEST=true CI=1 npx vitest run` = 444 pass,
+`npm run typecheck` = pass, `git diff --check` = pass.
+
 ## Three features shipped this session (all live in prod)
 
 ### 1. Clone Studio "Duplicate region" action
