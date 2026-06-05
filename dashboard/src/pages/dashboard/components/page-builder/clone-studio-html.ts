@@ -369,6 +369,7 @@ ${rendered}
     stripResponsiveVariantMarkers(clone)
     stripResponsiveContentMarkers(clone)
     stripResponsiveConfigMarkers(clone)
+    stripInteractivityControlMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.innerHTML))
   }
@@ -399,6 +400,7 @@ ${rendered}
     stripResponsiveVariantMarkers(clone)
     stripResponsiveContentMarkers(clone)
     stripResponsiveConfigMarkers(clone)
+    stripInteractivityControlMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.outerHTML || ''))
   }
@@ -434,6 +436,18 @@ ${rendered}
     var nodes = root.querySelectorAll('[data-clone-studio-responsive-config-id]')
     for (var i = 0; i < nodes.length; i++)
       nodes[i].removeAttribute('data-clone-studio-responsive-config-id')
+  }
+
+  function stripInteractivityControlMarkers(root) {
+    if (!root || !root.querySelectorAll)
+      return
+
+    if (root.removeAttribute)
+      root.removeAttribute('data-clone-studio-interactive-control')
+
+    var nodes = root.querySelectorAll('[data-clone-studio-interactive-control]')
+    for (var i = 0; i < nodes.length; i++)
+      nodes[i].removeAttribute('data-clone-studio-interactive-control')
   }
 
   function stripPreviewScaffolding(html) {
@@ -954,6 +968,11 @@ ${rendered}
       || (element.querySelector && element.querySelector('[role="tablist"]'))
     if (hasTablist)
       return 'tabs'
+
+    var hasAccordion = matchesAny(element, '[data-cmp-is="accordion"], .accordion, [class*="accordion"]')
+      || (element.querySelector && element.querySelector('[data-cmp-is="accordion"], .accordion, [class*="accordion"], .cmp-accordion__button, .accordion-button, [aria-expanded][aria-controls]'))
+    if (hasAccordion)
+      return 'accordion'
 
     var looksTabbish = /(^|\\s|-)tabs?($|\\s|-)/i.test(className)
       || matchesAny(element, '[class*="tab"]')
@@ -1911,10 +1930,10 @@ ${rendered}
   }
 
   function enableInteractivity() {
-    // Trusted, event-driven navigation for tabs/carousels in the read-only preview. OEM scripts are
+    // Trusted, event-driven navigation for tabs/carousels/accordions in the read-only preview. OEM scripts are
     // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
-    // primitive (switchPanel). No timers/auto-advance — those are throttled in the sandbox.
-    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"]')
+    // primitive (switchPanel) or accordion toggles. No timers/auto-advance — those are throttled in the sandbox.
+    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
 
     // Wire each region inside its OWN function call so every click handler closes over per-call
     // params (regionId/regionEl/kind) -- never a shared loop var. With ES5 var, a loop variable is
@@ -1927,7 +1946,7 @@ ${rendered}
 
   function wireRegion(regionEl) {
     var kind = classifyRegion(regionEl)
-    if (kind !== 'tabs' && kind !== 'carousel')
+    if (kind !== 'tabs' && kind !== 'carousel' && kind !== 'accordion')
       return
 
     var regionId = ensureRegionId(regionEl)
@@ -1935,8 +1954,13 @@ ${rendered}
 
     if (kind === 'tabs')
       wired = wireTabRegion(regionId, regionEl)
+    else if (kind === 'accordion')
+      wired = wireAccordionRegion(regionId, regionEl)
     else
       wired = wireCarouselRegion(regionId, regionEl)
+
+    if (kind === 'accordion')
+      return
 
     // slick/swiper inject their arrows via JS, which the sanitizer strips — so a multi-panel region
     // can have slide panels but NO usable existing controls. When nothing was wired, inject our own
@@ -2069,6 +2093,7 @@ ${rendered}
       return false
 
     for (var t = 0; t < triggers.length; t++) {
+      markInteractivityControl(triggers[t])
       triggers[t].addEventListener('click', function (event) {
         event.preventDefault()
         event.stopPropagation()
@@ -2105,6 +2130,7 @@ ${rendered}
     }
 
     for (var n = 0; n < controls.next.length; n++) {
+      markInteractivityControl(controls.next[n])
       controls.next[n].addEventListener('click', function (event) {
         event.preventDefault()
         event.stopPropagation()
@@ -2115,6 +2141,7 @@ ${rendered}
     }
 
     for (var p = 0; p < controls.prev.length; p++) {
+      markInteractivityControl(controls.prev[p])
       controls.prev[p].addEventListener('click', function (event) {
         event.preventDefault()
         event.stopPropagation()
@@ -2126,6 +2153,243 @@ ${rendered}
 
     // Report whether any real OEM controls were found; when none, the caller injects a trusted bar.
     return controls.next.length > 0 || controls.prev.length > 0
+  }
+
+  function wireAccordionRegion(regionId, regionEl) {
+    // Accordion TRIGGERS: ARIA disclosures, AEM cmp-accordion buttons, Bootstrap buttons, or common
+    // accordion item controls. The regionId param keeps the same wire* signature used by other kinds.
+    var triggers = accordionTriggersFor(regionEl)
+    if (!triggers.length)
+      return false
+
+    for (var a = 0; a < triggers.length; a++) {
+      markInteractivityControl(triggers[a])
+      normalizeAccordionTrigger(regionEl, triggers[a])
+      triggers[a].addEventListener('click', function (event) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.stopImmediatePropagation)
+          event.stopImmediatePropagation()
+
+        toggleAccordionPanel(regionEl, event.currentTarget)
+      }, true)
+    }
+
+    return true
+  }
+
+  function accordionTriggersFor(regionEl) {
+    if (!regionEl || !regionEl.querySelectorAll)
+      return []
+
+    var selector = '[aria-expanded][aria-controls], .cmp-accordion__button, .accordion-button, [data-cmp-hook-accordion="button"], [role="button"][aria-controls]'
+    var triggers = []
+
+    if (regionEl.matches && regionEl.matches(selector))
+      triggers.push(regionEl)
+
+    var explicit = regionEl.querySelectorAll(selector)
+    for (var i = 0; i < explicit.length; i++) {
+      if (interactivityIndexOf(triggers, explicit[i]) === -1)
+        triggers.push(explicit[i])
+    }
+
+    var items = regionEl.querySelectorAll('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item]')
+    for (var j = 0; j < items.length; j++) {
+      var controls = items[j].querySelectorAll('button, a, [role="button"]')
+      for (var c = 0; c < controls.length; c++) {
+        if (interactivityIndexOf(triggers, controls[c]) !== -1)
+          continue
+        if (accordionPanelFor(regionEl, controls[c])) {
+          triggers.push(controls[c])
+          break
+        }
+      }
+    }
+
+    return triggers
+  }
+
+  function normalizeAccordionTrigger(regionEl, trigger) {
+    var panel = accordionPanelFor(regionEl, trigger)
+    if (!panel)
+      return
+
+    if (trigger.hasAttribute && trigger.hasAttribute('aria-expanded')) {
+      setAccordionExpanded(trigger, panel, trigger.getAttribute('aria-expanded') === 'true')
+      return
+    }
+
+    if (panel.hasAttribute && panel.hasAttribute('hidden')) {
+      setAccordionExpanded(trigger, panel, false)
+      return
+    }
+
+    if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active')))
+      setAccordionExpanded(trigger, panel, true)
+  }
+
+  function toggleAccordionPanel(regionEl, trigger) {
+    var panel = accordionPanelFor(regionEl, trigger)
+    if (!panel)
+      return false
+
+    var shouldOpen = !isAccordionExpanded(trigger, panel)
+    if (shouldOpen && accordionSingleExpansion(regionEl, trigger))
+      closeOtherAccordionPanels(regionEl, trigger)
+
+    setAccordionExpanded(trigger, panel, shouldOpen)
+    return true
+  }
+
+  function accordionPanelFor(regionEl, trigger) {
+    if (!trigger)
+      return null
+
+    var controls = trigger.getAttribute ? trigger.getAttribute('aria-controls') : ''
+    if (controls) {
+      var controlId = String(controls).split(/\\s+/)[0]
+      var controlled = document.getElementById ? document.getElementById(controlId) : null
+      if (controlled)
+        return controlled
+    }
+
+    var item = accordionItemFor(trigger)
+    if (item && item.querySelector) {
+      var panel = item.querySelector('.cmp-accordion__panel, [data-cmp-hook-accordion="panel"], .accordion-collapse, .collapse, .accordion-panel, .accordion-content, [role="region"]')
+      if (panel)
+        return panel
+    }
+
+    var next = trigger.nextElementSibling
+    if (next)
+      return next
+
+    return null
+  }
+
+  function accordionItemFor(trigger) {
+    if (!trigger || !trigger.closest)
+      return null
+
+    return trigger.closest('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item]')
+  }
+
+  function accordionSingleExpansion(regionEl, trigger) {
+    if (!regionEl || !regionEl.getAttribute)
+      return false
+
+    if (regionEl.getAttribute('data-cmp-single-expansion') === 'true'
+      || regionEl.getAttribute('data-accordion-single') === 'true'
+      || regionEl.getAttribute('data-single-expansion') === 'true')
+      return true
+
+    var panel = accordionPanelFor(regionEl, trigger)
+    return !!(panel && panel.getAttribute && (panel.getAttribute('data-bs-parent') || panel.getAttribute('data-parent')))
+  }
+
+  function closeOtherAccordionPanels(regionEl, activeTrigger) {
+    var triggers = accordionTriggersFor(regionEl)
+    var activePanel = accordionPanelFor(regionEl, activeTrigger)
+
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i] === activeTrigger)
+        continue
+
+      var panel = accordionPanelFor(regionEl, triggers[i])
+      if (!panel || panel === activePanel)
+        continue
+
+      setAccordionExpanded(triggers[i], panel, false)
+    }
+  }
+
+  function isAccordionExpanded(trigger, panel) {
+    if (trigger && trigger.getAttribute && trigger.getAttribute('aria-expanded') === 'true')
+      return true
+
+    if (!panel)
+      return false
+
+    if (panel.hasAttribute && panel.hasAttribute('hidden'))
+      return false
+    if (panel.getAttribute && panel.getAttribute('aria-hidden') === 'true')
+      return false
+    if (panel.style && panel.style.display === 'none')
+      return false
+    if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active')))
+      return true
+
+    return false
+  }
+
+  function setAccordionExpanded(trigger, panel, expanded) {
+    if (trigger && trigger.setAttribute)
+      trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+
+    if (trigger && trigger.classList) {
+      if (expanded) {
+        trigger.classList.add('active')
+        trigger.classList.add('is-active')
+        trigger.classList.add('open')
+        trigger.classList.remove('collapsed')
+      }
+      else {
+        trigger.classList.remove('active')
+        trigger.classList.remove('is-active')
+        trigger.classList.remove('open')
+        trigger.classList.add('collapsed')
+      }
+    }
+
+    var item = accordionItemFor(trigger)
+    if (item && item.classList) {
+      if (expanded) {
+        item.classList.add('active')
+        item.classList.add('is-active')
+        item.classList.add('open')
+      }
+      else {
+        item.classList.remove('active')
+        item.classList.remove('is-active')
+        item.classList.remove('open')
+      }
+    }
+
+    if (!panel)
+      return
+
+    if (expanded) {
+      panel.removeAttribute('hidden')
+      if (panel.setAttribute)
+        panel.setAttribute('aria-hidden', 'false')
+      if (panel.style)
+        panel.style.display = ''
+      if (panel.classList) {
+        panel.classList.add('show')
+        panel.classList.add('open')
+        panel.classList.add('active')
+        panel.classList.add('is-active')
+      }
+    }
+    else {
+      panel.setAttribute('hidden', 'hidden')
+      if (panel.setAttribute)
+        panel.setAttribute('aria-hidden', 'true')
+      if (panel.style)
+        panel.style.display = 'none'
+      if (panel.classList) {
+        panel.classList.remove('show')
+        panel.classList.remove('open')
+        panel.classList.remove('active')
+        panel.classList.remove('is-active')
+      }
+    }
+  }
+
+  function markInteractivityControl(element) {
+    if (element && element.setAttribute)
+      element.setAttribute('data-clone-studio-interactive-control', 'true')
   }
 
   function interactivityIndexOf(list, node) {
@@ -2284,11 +2548,12 @@ ${rendered}
   }
 
   function isBridgeOwnedTarget(target) {
-    // Trusted bridge-injected controls (prev/next/dot bar, etc.) carry data-clone-studio-bridge.
-    // The document-level navigation guard runs at capture phase BEFORE the control's own capture-phase
-    // click handler, so without this exemption stopImmediatePropagation() would swallow the click and
-    // the control would never switch the panel. Let bridge-owned targets through untouched.
-    return !!(target && target.closest && target.closest('[data-clone-studio-bridge]'))
+    // Trusted bridge-injected controls (prev/next/dot bar, etc.) carry data-clone-studio-bridge;
+    // trusted OEM controls wired by the read-only interactivity layer carry
+    // data-clone-studio-interactive-control. The document-level navigation guard runs at capture
+    // phase BEFORE the control's own capture-phase click handler, so without this exemption
+    // stopImmediatePropagation() would swallow the click and the control would never switch/toggle.
+    return !!(target && target.closest && target.closest('[data-clone-studio-bridge], [data-clone-studio-interactive-control]'))
   }
 
   function handleNavigationEvent(event) {
