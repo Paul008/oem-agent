@@ -91,6 +91,7 @@ const R2_SCREENSHOTS_PREFIX = 'screenshots';
 const MAX_IMAGE_DOWNLOADS = 50;
 const MAX_SECTION_SCREENSHOTS = 15;
 const IMAGE_DOWNLOAD_TIMEOUT = 8_000;
+const CAPTURE_LAZY_IMAGE_SRC_ATTRS = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy', 'data-image-src'] as const;
 export const CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS = 300;
 export const CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS = 500;
 export const CAPTURE_SCROLL_SWEEP_TIMEOUT_MS = 10_000;
@@ -858,6 +859,24 @@ function normalizeComparableUrl(url: string): string {
   }
 }
 
+function isNonRenderableCaptureImageUrl(url: string, sourceUrl: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed)
+    return true;
+
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('data:') || lower.startsWith('blob:'))
+    return true;
+
+  return normalizeComparableUrl(absolutizeCaptureUrl(trimmed, sourceUrl)) === normalizeComparableUrl(sourceUrl);
+}
+
+function firstCaptureLazyImageSrc(el: Cheerio<any>): string {
+  return CAPTURE_LAZY_IMAGE_SRC_ATTRS
+    .map(attrName => (el.attr(attrName) || '').trim())
+    .find(Boolean) || '';
+}
+
 function escapeHtmlAttribute(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -903,6 +922,18 @@ function collectSrcsetUrls(srcset: string, sourceUrl: string, imageUrls: Set<str
   return normalizeCaptureSrcset(srcset, sourceUrl, imageUrls);
 }
 
+function bestImageSrcUrl(el: Cheerio<any>, sourceUrl: string): string {
+  const src = (el.attr('src') || '').trim();
+  const lazySrc = firstCaptureLazyImageSrc(el);
+  if (lazySrc && isNonRenderableCaptureImageUrl(src, sourceUrl))
+    return absolutizeCaptureUrl(lazySrc, sourceUrl);
+
+  if (src && !isNonRenderableCaptureImageUrl(src, sourceUrl))
+    return absolutizeCaptureUrl(src, sourceUrl);
+
+  return '';
+}
+
 function bestElementImageUrl($: CheerioAPI, node: any, sourceUrl: string): string {
   const el = $(node);
   const tagName = (node.tagName || node.name || '').toLowerCase();
@@ -918,9 +949,9 @@ function bestElementImageUrl($: CheerioAPI, node: any, sourceUrl: string): strin
     }
 
     const img = el.find('img').first();
-    const imgSrc = (img.attr('src') || img.attr('data-src') || '').trim();
+    const imgSrc = bestImageSrcUrl(img as Cheerio<any>, sourceUrl);
     if (imgSrc)
-      return absolutizeCaptureUrl(imgSrc, sourceUrl);
+      return imgSrc;
 
     const imgSrcset = (img.attr('srcset') || img.attr('data-srcset') || '').trim();
     if (imgSrcset) {
@@ -931,9 +962,9 @@ function bestElementImageUrl($: CheerioAPI, node: any, sourceUrl: string): strin
   }
 
   if (tagName === 'img') {
-    const src = (el.attr('src') || el.attr('data-src') || '').trim();
+    const src = bestImageSrcUrl(el, sourceUrl);
     if (src)
-      return absolutizeCaptureUrl(src, sourceUrl);
+      return src;
 
     const srcset = (el.attr('srcset') || el.attr('data-srcset') || '').trim();
     if (srcset) {
@@ -1073,7 +1104,7 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
   container.find('img').each((_idx, node) => {
     const img = $(node);
 
-    const dataSrc = (img.attr('data-src') || img.attr('data-lazy-src') || img.attr('data-original') || img.attr('data-lazy') || '').trim();
+    const dataSrc = firstCaptureLazyImageSrc(img as Cheerio<any>);
     if (dataSrc && !(img.attr('src') || '').trim())
       img.attr('src', dataSrc);
 
@@ -1168,9 +1199,13 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
 
 export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: string): DomCaptureResult {
   const $ = load(result.html, {}, false);
-  const imageUrls = new Set(result.imageUrls.filter(Boolean));
   const comparableSourceUrl = normalizeComparableUrl(sourceUrl);
-  const lazyImageSrcAttrs = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy', 'data-image-src'];
+  const imageUrls = new Set<string>();
+  for (const url of result.imageUrls) {
+    const absoluteUrl = absolutizeCaptureUrl(url.trim(), sourceUrl);
+    if (absoluteUrl && !isNonRenderableCaptureImageUrl(absoluteUrl, sourceUrl))
+      imageUrls.add(absoluteUrl);
+  }
 
   $('source[data-srcset], img[data-srcset]').each((_idx, node) => {
     const el = $(node);
@@ -1225,9 +1260,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
 
     const currentSrc = (img.attr('src') || '').trim();
     const currentSrcLower = currentSrc.toLowerCase();
-    const recoverableSrc = lazyImageSrcAttrs
-      .map(attrName => (img.attr(attrName) || '').trim())
-      .find(Boolean);
+    const recoverableSrc = firstCaptureLazyImageSrc(img as Cheerio<any>);
     if (
       recoverableSrc
       && (
@@ -1238,7 +1271,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       )
     ) {
       img.attr('src', recoverableSrc);
-      for (const attrName of lazyImageSrcAttrs)
+      for (const attrName of CAPTURE_LAZY_IMAGE_SRC_ATTRS)
         img.removeAttr(attrName);
     }
 
@@ -1252,7 +1285,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       img.attr('src', absoluteSrc);
       imageUrls.add(absoluteSrc);
       if (recoverableSrc && normalizeComparableUrl(absoluteSrc) === normalizeComparableUrl(absolutizeCaptureUrl(recoverableSrc, sourceUrl))) {
-        for (const attrName of lazyImageSrcAttrs)
+        for (const attrName of CAPTURE_LAZY_IMAGE_SRC_ATTRS)
           img.removeAttr(attrName);
       }
     }
@@ -1261,7 +1294,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   $('img').each((_idx, node) => {
     const img = $(node);
     const hasRenderableSource = (img.attr('src') || img.attr('srcset') || '').trim();
-    const hasRecoverableSource = (img.attr('data-srcset') || lazyImageSrcAttrs.map(attrName => (img.attr(attrName) || '').trim()).find(Boolean) || '').trim();
+    const hasRecoverableSource = (img.attr('data-srcset') || firstCaptureLazyImageSrc(img as Cheerio<any>)).trim();
     if (!hasRenderableSource && !hasRecoverableSource)
       img.remove();
   });
@@ -1303,6 +1336,23 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     });
   });
 
+  $('[data-bg], [data-background-image]').each((_idx, node) => {
+    const el = $(node);
+    const backgroundUrl = (el.attr('data-bg') || el.attr('data-background-image') || '').trim();
+    if (backgroundUrl) {
+      const absoluteBackgroundUrl = absolutizeCaptureUrl(backgroundUrl, sourceUrl);
+      if (absoluteBackgroundUrl) {
+        const currentStyle = (el.attr('style') || '').trim();
+        const separator = currentStyle && !currentStyle.endsWith(';') ? '; ' : '';
+        el.attr('style', `${currentStyle}${separator}background-image:url("${absoluteBackgroundUrl.replace(/"/g, '%22')}")`);
+        if (!absoluteBackgroundUrl.startsWith('data:') && !absoluteBackgroundUrl.startsWith('blob:'))
+          imageUrls.add(absoluteBackgroundUrl);
+      }
+    }
+    el.removeAttr('data-bg');
+    el.removeAttr('data-background-image');
+  });
+
   $('[style]').each((_idx, node) => {
     const el = $(node);
     const style = el.attr('style') || '';
@@ -1311,8 +1361,16 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       el.attr('style', normalizedStyle);
   });
 
-  const heroUrl = result.heroUrl ? absolutizeCaptureUrl(result.heroUrl, sourceUrl) : result.heroUrl;
-  if (heroUrl && !heroUrl.startsWith('data:') && !heroUrl.startsWith('blob:'))
+  let heroUrl = result.heroUrl ? absolutizeCaptureUrl(result.heroUrl, sourceUrl) : result.heroUrl;
+  if (!heroUrl || isNonRenderableCaptureImageUrl(heroUrl, sourceUrl)) {
+    heroUrl = '';
+    for (const node of $('picture, img').toArray()) {
+      heroUrl = bestElementImageUrl($, node, sourceUrl);
+      if (heroUrl)
+        break;
+    }
+  }
+  if (heroUrl && !isNonRenderableCaptureImageUrl(heroUrl, sourceUrl))
     imageUrls.add(heroUrl);
 
   return {

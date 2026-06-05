@@ -716,7 +716,29 @@ describe('normalizeCapturedLazyMedia', () => {
 
     expect(result.html).not.toContain('subaru-placeholder')
     expect(result.html).toContain('subaru-real')
+    expect(result.imageUrls).not.toContain('https://www.subaru.com.au/brz/2026')
     expect(result.imageUrls).toContain('https://www.subaru.com.au/media/brz.jpg')
+  })
+
+  it('normalizes pre-queued image URLs before returning the media list', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: '<main><p>RAV4 content</p></main>',
+      stylesheetLinks: [],
+      imageUrls: [
+        '/media/prequeued.jpg',
+        'data:image/gif;base64,R0lGODlhAQABAAAAACw=',
+        'https://www.toyota.com.au/rav4',
+      ],
+      heroUrl: '',
+      title: 'RAV4',
+      elementCount: 2,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    expect(result.imageUrls).toContain('https://www.toyota.com.au/media/prequeued.jpg')
+    expect(result.imageUrls).not.toContain('/media/prequeued.jpg')
+    expect(result.imageUrls).not.toContain('data:image/gif;base64,R0lGODlhAQABAAAAACw=')
+    expect(result.imageUrls).not.toContain('https://www.toyota.com.au/rav4')
   })
 
   it('promotes remaining lazy image data-src attributes to renderable src values', () => {
@@ -749,6 +771,30 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).toContain(lateUrl)
     expect(result.imageUrls).toContain(realUrl)
     expect(result.imageUrls).toContain(transparentUrl)
+  })
+
+  it('reselects stale page-placeholder hero URLs from normalized image sources', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <img class="page-placeholder-hero" src="https://www.toyota.com.au/rav4" data-original="/media/rav4-hero.jpg" alt="RAV4 hero">
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: ['https://www.toyota.com.au/rav4'],
+      heroUrl: 'https://www.toyota.com.au/rav4',
+      title: 'RAV4',
+      elementCount: 2,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    const heroUrl = 'https://www.toyota.com.au/media/rav4-hero.jpg'
+
+    expect(result.heroUrl).toBe(heroUrl)
+    expect(result.html).toContain(`src="${heroUrl}"`)
+    expect(result.html).not.toContain('data-original=')
+    expect(result.imageUrls).toContain(heroUrl)
+    expect(result.imageUrls).not.toContain('https://www.toyota.com.au/rav4')
   })
 
   it('normalizes direct video sources and queues them for media proxying', () => {
@@ -787,6 +833,12 @@ describe('normalizeCapturedLazyMedia', () => {
           <section class="feature" style="background-image:url('/media/rav4-bg.jpg'); mask-image: url(assets/mask.svg)">
             <p>Feature content</p>
           </section>
+          <section class="lazy-bg" data-bg="/media/rav4-lazy-bg.jpg">
+            <p>Lazy background content</p>
+          </section>
+          <section class="lazy-background-image" data-background-image="assets/rav4-background-image.jpg">
+            <p>Lazy background image content</p>
+          </section>
         </main>
       `,
       stylesheetLinks: [],
@@ -799,11 +851,19 @@ describe('normalizeCapturedLazyMedia', () => {
 
     const backgroundUrl = 'https://www.toyota.com.au/media/rav4-bg.jpg'
     const maskUrl = 'https://www.toyota.com.au/assets/mask.svg'
+    const lazyBgUrl = 'https://www.toyota.com.au/media/rav4-lazy-bg.jpg'
+    const lazyBackgroundImageUrl = 'https://www.toyota.com.au/assets/rav4-background-image.jpg'
 
     expect(result.html).toContain(backgroundUrl)
     expect(result.html).toContain(maskUrl)
+    expect(result.html).toContain(lazyBgUrl)
+    expect(result.html).toContain(lazyBackgroundImageUrl)
+    expect(result.html).not.toContain('data-bg=')
+    expect(result.html).not.toContain('data-background-image=')
     expect(result.imageUrls).toContain(backgroundUrl)
     expect(result.imageUrls).toContain(maskUrl)
+    expect(result.imageUrls).toContain(lazyBgUrl)
+    expect(result.imageUrls).toContain(lazyBackgroundImageUrl)
   })
 })
 
@@ -944,6 +1004,39 @@ describe('buildDomCaptureFromHtml', () => {
     expect(result.html).not.toContain('data-image-src=')
     expect(result.imageUrls).toContain(lazyUrl)
     expect(result.imageUrls).toContain(dataImageUrl)
+  })
+
+  it('uses recoverable lazy image sources when selecting external capture hero images', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `
+        <!doctype html>
+        <html>
+          <body>
+            <main>
+              <h1>All-New RAV4</h1>
+              <img
+                class="external-placeholder-hero"
+                src="https://www.toyota.com.au/rav4"
+                data-original="/-/media/rav4-real-hero.jpg"
+                alt="RAV4 hero"
+              >
+              <section>${'Vehicle content. '.repeat(80)}</section>
+            </main>
+          </body>
+        </html>
+      `,
+    }, 'https://www.toyota.com.au/rav4')
+
+    if ('bot_blocked' in result)
+      throw new Error('Expected external capture to succeed')
+
+    const heroUrl = 'https://www.toyota.com.au/-/media/rav4-real-hero.jpg'
+
+    expect(result.heroUrl).toBe(heroUrl)
+    expect(result.html).toContain(`src="${heroUrl}"`)
+    expect(result.html).not.toContain('data-original=')
+    expect(result.imageUrls).toContain(heroUrl)
+    expect(result.imageUrls).not.toContain('https://www.toyota.com.au/rav4')
   })
 
   it('preserves safe stylesheet link attributes in external captures', () => {
