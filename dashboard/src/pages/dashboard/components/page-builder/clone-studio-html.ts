@@ -2579,6 +2579,11 @@ ${rendered}
       return
     }
 
+    if (item && accordionShouldStartCollapsed(regionEl, trigger, item)) {
+      setAccordionExpanded(trigger, panel, false)
+      return
+    }
+
     if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active')))
       setAccordionExpanded(trigger, panel, true)
   }
@@ -2589,8 +2594,9 @@ ${rendered}
       return false
 
     var shouldOpen = !isAccordionExpanded(trigger, panel)
-    if (shouldOpen && accordionSingleExpansion(regionEl, trigger))
-      closeOtherAccordionPanels(regionEl, trigger)
+    var scope = accordionScopeFor(regionEl, trigger)
+    if (shouldOpen && accordionSingleExpansion(scope, trigger))
+      closeOtherAccordionPanels(scope, trigger)
 
     setAccordionExpanded(trigger, panel, shouldOpen)
     return true
@@ -2627,6 +2633,43 @@ ${rendered}
       return null
 
     return trigger.closest('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item], .accordion-disclosure')
+  }
+
+  function accordionScopeFor(regionEl, trigger) {
+    if (trigger && trigger.closest) {
+      var scoped = trigger.closest('.cmp-disclosure-accordion, [data-cmp-is="accordion"], [data-cmp-single-expansion], [data-accordion-single], [data-single-expansion], .accordion')
+      if (scoped)
+        return scoped
+    }
+
+    return regionEl
+  }
+
+  function accordionVisualBlockFor(trigger, item) {
+    if (!trigger || !trigger.closest)
+      return null
+
+    var block = trigger.closest('.block')
+    if (block && (!item || item.contains(block)))
+      return block
+
+    return null
+  }
+
+  function accordionShouldStartCollapsed(regionEl, trigger, item) {
+    if (!item)
+      return false
+
+    if (item.getAttribute && item.getAttribute('data-cmp-expanded') === 'true')
+      return false
+
+    var scope = accordionScopeFor(regionEl, trigger)
+    if (!scope || !scope.getAttribute)
+      return false
+
+    var desktop = scope.getAttribute('data-expand-collapse-option-desktop') || ''
+    var mobile = scope.getAttribute('data-expand-collapse-option-mobile') || ''
+    return /collapseall/i.test(desktop) || /collapseall/i.test(mobile)
   }
 
   function accordionSingleExpansion(regionEl, trigger) {
@@ -2700,6 +2743,7 @@ ${rendered}
     }
 
     var item = accordionItemFor(trigger)
+    var visualBlock = accordionVisualBlockFor(trigger, item)
     if (item && item.classList) {
       if (expanded) {
         item.classList.add('active')
@@ -2710,6 +2754,18 @@ ${rendered}
         item.classList.remove('active')
         item.classList.remove('is-active')
         item.classList.remove('open')
+      }
+    }
+    if (visualBlock && visualBlock.classList) {
+      if (expanded) {
+        visualBlock.classList.add('active')
+        visualBlock.classList.add('is-active')
+        visualBlock.classList.add('open')
+      }
+      else {
+        visualBlock.classList.remove('active')
+        visualBlock.classList.remove('is-active')
+        visualBlock.classList.remove('open')
       }
     }
     if (item && item.setAttribute)
@@ -2723,7 +2779,7 @@ ${rendered}
       if (panel.setAttribute)
         panel.setAttribute('aria-hidden', 'false')
       if (panel.style)
-        panel.style.display = ''
+        panel.style.removeProperty('display')
       if (panel.classList) {
         panel.classList.add('show')
         panel.classList.add('open')
@@ -2736,7 +2792,7 @@ ${rendered}
       if (panel.setAttribute)
         panel.setAttribute('aria-hidden', 'true')
       if (panel.style)
-        panel.style.display = 'none'
+        panel.style.setProperty('display', 'none', 'important')
       if (panel.classList) {
         panel.classList.remove('show')
         panel.classList.remove('open')

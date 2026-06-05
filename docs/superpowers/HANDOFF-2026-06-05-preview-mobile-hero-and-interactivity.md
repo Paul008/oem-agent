@@ -526,8 +526,13 @@ What was implemented:
    - updates inline `display`,
    - adds/removes active/open classes,
    - respects single-expansion accordions when detectable.
-4. It remains preview-only for read-only production preview; editor click-selection is unaffected.
-5. Tests in `clone-studio-html.test.ts` assert the bridge contains:
+4. Ford FAQ accordions use an inner `.block` wrapper for visual open state and may attach
+   `data-cmp-single-expansion` / `collapseall` settings on the parent section rather than the item
+   currently being wired. The bridge now toggles that inner block, finds the nearest accordion root
+   for single-expansion, collapses non-expanded Ford items on init, and writes collapsed panel
+   display as `display: none !important` so captured inline fidelity styles cannot override it.
+5. It remains preview-only for read-only production preview; editor click-selection is unaffected.
+6. Tests in `clone-studio-html.test.ts` assert the bridge contains:
    - accordion detection selectors,
    - a toggle function,
    - `aria-expanded` handling,
