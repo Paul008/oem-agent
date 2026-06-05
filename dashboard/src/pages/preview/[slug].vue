@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { ExternalLink, Loader2, Lock, Save } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { ExternalLink, Eye, Loader2, Lock, Pencil, Save } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
@@ -17,8 +17,10 @@ import SectionEditorDialog from '@/pages/dashboard/components/page-builder/Secti
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
+type PreviewView = 'edit' | 'production'
 
 const route = useRoute()
+const router = useRouter()
 const {
   page,
   loading,
@@ -63,9 +65,18 @@ const pageSlug = computed(() => (route.params as { slug?: string }).slug ?? '')
 const builderUrl = computed(() => pageSlug.value ? `/dashboard/page-builder/${pageSlug.value}` : '/dashboard/model-pages')
 const isWriteProtectedPage = computed(() => isModelPageWriteProtected(oemId.value))
 const writeProtectedMessage = computed(() => getModelPageWriteProtectedMessage(page.value?.name ?? oemId.value))
+const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))
+const isProductionView = computed(() => previewView.value === 'production')
+const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value)
+const canEditPreview = computed(() => !previewReadOnly.value)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((section: any) => section.id === editorSectionId.value) ?? null : null,
 )
+
+function normalizePreviewView(value: unknown): PreviewView {
+  const raw = Array.isArray(value) ? value[0] : value
+  return raw === 'production' ? 'production' : 'edit'
+}
 
 onMounted(async () => {
   const slug = pageSlug.value
@@ -73,9 +84,26 @@ onMounted(async () => {
     await loadPage(slug)
 })
 
+watch(
+  () => route.query.view,
+  value => {
+    previewView.value = normalizePreviewView(value)
+  },
+)
+
+function setPreviewView(view: PreviewView) {
+  previewView.value = view
+  const query = { ...route.query }
+  if (view === 'production')
+    query.view = 'production'
+  else
+    delete query.view
+  void router.replace({ query })
+}
+
 function openEditor(id: string) {
   selectSection(id)
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
   editorSectionId.value = id
 }
@@ -85,21 +113,21 @@ function closeEditor() {
 }
 
 function updateEditorSection(updates: Record<string, any>) {
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
   if (editorSectionId.value)
     updateSection(editorSectionId.value, updates)
 }
 
 function onCloneDomUpdated(html: string) {
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
   cloneDraftHtml.value = html
   isDirty.value = true
 }
 
 function onCloneRegionAdded(region: CloneRegion) {
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
   addCloneRegion(region)
 }
@@ -109,13 +137,13 @@ function onCloneRegionSelected(region: CloneRegion) {
 }
 
 function patchCloneField(payload: Record<string, unknown>) {
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
   pageBuilderCanvas.value?.patchCloneField(payload)
 }
 
 function onUpdateField(id: string, field: string, value: any) {
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
   if (activeMode.value === 'clone' && field === 'height_override') {
     setRegionHeight(id, value == null ? null : Number(value))
@@ -125,7 +153,7 @@ function onUpdateField(id: string, field: string, value: any) {
 }
 
 function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
-  if (isWriteProtectedPage.value)
+  if (previewReadOnly.value)
     return
 
   if (action === 'delete' || action === 'hide') {
@@ -158,6 +186,11 @@ function onRegionAction({ action, regionId, html }: { action: RegionActionId, re
 }
 
 async function savePreview() {
+  if (isProductionView.value) {
+    toast.error('Switch to Edit view to save changes')
+    return
+  }
+
   if (isWriteProtectedPage.value) {
     toast.error(writeProtectedMessage.value)
     return
@@ -191,13 +224,35 @@ async function savePreview() {
 
     <div v-else-if="page" class="h-screen">
       <div class="fixed right-2 top-2 z-[70] flex max-w-[calc(100vw-1rem)] items-center gap-1.5 rounded-lg border bg-background/95 px-1.5 py-1.5 shadow-lg backdrop-blur sm:right-3 sm:top-3 sm:gap-2 sm:px-2">
+        <div class="inline-flex h-8 items-center rounded-md border bg-muted/40 p-0.5">
+          <button
+            type="button"
+            class="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium transition-colors"
+            :class="previewView === 'edit' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            title="Edit preview"
+            @click="setPreviewView('edit')"
+          >
+            <Pencil class="size-3.5" />
+            <span class="hidden sm:inline">Edit</span>
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium transition-colors"
+            :class="previewView === 'production' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            title="Production view"
+            @click="setPreviewView('production')"
+          >
+            <Eye class="size-3.5" />
+            <span class="hidden sm:inline">Production</span>
+          </button>
+        </div>
         <div
-          v-if="isWriteProtectedPage"
+          v-if="previewReadOnly"
           class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
-          :title="writeProtectedMessage"
+          :title="isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage"
         >
           <Lock class="size-3.5" />
-          Read-only
+          {{ isProductionView ? 'Production' : 'Read-only' }}
         </div>
         <div v-else class="hidden items-center gap-1.5 px-1 text-xs text-muted-foreground sm:flex">
           <span
@@ -207,7 +262,7 @@ async function savePreview() {
           {{ isDirty ? 'Unsaved' : 'Saved' }}
         </div>
         <button
-          v-if="!isWriteProtectedPage"
+          v-if="canEditPreview"
           type="button"
           class="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           :disabled="saving || !isDirty"
@@ -240,9 +295,9 @@ async function savePreview() {
         :worker-base="WORKER_BASE"
         :oem-id="oemId"
         :model-slug="modelSlug"
-        :read-only="isWriteProtectedPage"
+        :read-only="previewReadOnly"
         :fit-width="true"
-        :allow-same-origin-sandbox="isWriteProtectedPage"
+        :allow-same-origin-sandbox="previewReadOnly"
         :auto-responsive-preview="true"
         :hide-preview-chrome="true"
         @select-section="selectSection"
@@ -258,7 +313,7 @@ async function savePreview() {
       />
 
       <SectionEditorDialog
-        v-if="editorSection && !isWriteProtectedPage"
+        v-if="editorSection && canEditPreview"
         :section="editorSection"
         :regenerating="regenerating"
         :oem-id="oemId"

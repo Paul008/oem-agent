@@ -172,6 +172,8 @@ describe('pageBuilderCanvas preview mode', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
     expect(previewSource).toContain('max-w-[calc(100vw-1rem)]')
+    expect(previewSource).toContain('<span class="hidden sm:inline">Edit</span>')
+    expect(previewSource).toContain('<span class="hidden sm:inline">Production</span>')
     expect(previewSource).toContain('<span class="hidden sm:inline">Save</span>')
     expect(previewSource).toContain('<span class="hidden sm:inline">Builder</span>')
   })
@@ -206,12 +208,14 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(disabled).toContain('onclick="return false"')
   })
 
-  it('lets the standalone preview host editable canvas menus unless the OEM is write protected', () => {
+  it('lets the standalone preview host editable canvas menus unless the view is read-only', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
     expect(previewSource).toContain('isModelPageWriteProtected')
-    expect(previewSource).toContain(':read-only="isWriteProtectedPage"')
-    expect(previewSource).toContain(':allow-same-origin-sandbox="isWriteProtectedPage"')
+    expect(previewSource).toContain('const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value)')
+    expect(previewSource).toContain('const canEditPreview = computed(() => !previewReadOnly.value)')
+    expect(previewSource).toContain(':read-only="previewReadOnly"')
+    expect(previewSource).toContain(':allow-same-origin-sandbox="previewReadOnly"')
     expect(previewSource).not.toContain(':read-only="true"')
     expect(previewSource).not.toContain(':allow-same-origin-sandbox="true"')
     expect(previewSource).toContain('@select-section="selectSection"')
@@ -224,6 +228,23 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(previewSource).toContain('@clone-dom-updated="onCloneDomUpdated"')
     expect(previewSource).toContain('@clone-region-added="onCloneRegionAdded"')
     expect(previewSource).toContain('@region-action="onRegionAction"')
+  })
+
+  it('adds a production view to the standalone preview that disables edit/save paths', () => {
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    expect(previewSource).toContain('type PreviewView = \'edit\' | \'production\'')
+    expect(previewSource).toContain('const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))')
+    expect(previewSource).toContain('function normalizePreviewView(value: unknown): PreviewView')
+    expect(previewSource).toContain('return raw === \'production\' ? \'production\' : \'edit\'')
+    expect(previewSource).toContain('function setPreviewView(view: PreviewView)')
+    expect(previewSource).toContain('query.view = \'production\'')
+    expect(previewSource).toContain('delete query.view')
+    expect(previewSource).toContain('@click="setPreviewView(\'edit\')"')
+    expect(previewSource).toContain('@click="setPreviewView(\'production\')"')
+    expect(previewSource).toContain('Switch to Edit view to save changes')
+    expect(previewSource).toContain('v-if="canEditPreview"')
+    expect(previewSource).toContain('v-if="editorSection && canEditPreview"')
   })
 
   it('persists edits made from the standalone preview through the existing save paths', () => {
