@@ -306,6 +306,40 @@ function submitCloneToolbarAlt() {
   cancelCloneToolbarAlt()
 }
 
+function clearCloneToolbarSelection() {
+  cancelCloneToolbarLink()
+  cancelCloneToolbarAlt()
+  cloneToolbarRegion.value = null
+  emit('selectCloneRegion', null)
+}
+
+function quickCloneHideRegion() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  const payload = buildPatchPayload('hide', region as any)
+  if (payload)
+    cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+  clearCloneToolbarSelection()
+}
+
+function quickCloneDuplicateRegion() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  cancelCloneToolbarLink()
+  cancelCloneToolbarAlt()
+  emit('regionAction', { action: 'duplicate', regionId: region.id, html: region.html })
+}
+
+function quickCloneDeleteRegion() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  emit('regionAction', { action: 'delete', regionId: region.id, html: region.html })
+  clearCloneToolbarSelection()
+}
+
 function patchCloneStyle(property: 'text-align' | 'font-weight' | 'color', value: string) {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly || !cloneToolbarHasText.value)
@@ -955,6 +989,28 @@ watch(
                 <Palette class="size-3.5" />
                 <input type="color" value="#ffffff" class="sr-only" @input="onCloneToolbarBgColorInput">
               </label>
+              <div class="h-5 w-px bg-border" />
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Duplicate region"
+                @click="quickCloneDuplicateRegion"
+              >
+                <Copy class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Hide region"
+                @click="quickCloneHideRegion"
+              >
+                <EyeOff class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-destructive transition-colors hover:bg-destructive/10"
+                title="Delete region"
+                @click="quickCloneDeleteRegion"
+              >
+                <Trash2 class="size-3.5" />
+              </button>
             </template>
           </div>
         </Teleport>
