@@ -4,7 +4,7 @@
 > `https://819d5f51.oem-dashboard.pages.dev`. Later follow-ups added calibrated text-audit
 > filtering, unpaired mobile typography fallback, tablet layout/config replay fixes, and final
 > production deployment. Latest immutable Cloudflare Pages deployment:
-> `https://d037c285.oem-dashboard.pages.dev`.
+> `https://f53d6e87.oem-dashboard.pages.dev`.
 
 ## What shipped
 
@@ -156,6 +156,33 @@ Reverted experiment:
   - Mobile mismatch improved to `57.54%`
   - No preview broken images, network failures, or clipped-text findings.
 
+### 9. Ford brandcard responsive target + sameheight normalization
+
+Commits:
+
+- `231abdc fix(dashboard): retarget brandcard responsive config`
+- `eadf853 fix(dashboard): normalize Ford brandcard mobile cards`
+
+- Ford stores the mobile padding config on `.brandcardComponent`, but the live source applies the
+  resolved padding to `.brandcard-holder`. `responsiveConfigTarget()` now retargets that specific
+  replay to `.brandcard-holder`.
+- The retarget fixed holder geometry but exposed a second issue: saved clone cards retained fixed
+  `.brandcard-image.sameheight` heights from the captured state. At tablet this compressed model
+  cards; at phone widths it could over-expand news/model cards.
+- The bridge CSS now scopes a Ford/AEM brandcard sameheight fallback below desktop:
+  - `.brandcardComponent .brandcard-image.sameheight` uses `aspect-ratio: 1.326 / 1`, `height:auto`,
+    and `overflow:hidden`
+  - unpaired `.brandcardComponent h3.heading3-medium` desktop fallback scales to the mobile
+    `20px/24px` heading size
+- Focused deployed probe against `https://f53d6e87.oem-dashboard.pages.dev` at `820x1180`:
+  - Source Mustang News slide: `x=41`, `w=739`, `h=782`; preview: `x=41`, `w=754`, `h=793`
+  - Source Mustang Models slide: `x=41`, `w=739`, `h=758`; preview: `x=41`, `w=754`, `h=769`
+  - Holder padding now matches source: `131.188px 32.7969px 164px`
+- Full QA score recovered from the intermediate bad deploy (`53.2`) to `55.1`, but remains slightly
+  below the prior `55.7` because the accidental extra carousel height had been helping full-page
+  mobile/scroll alignment. Keep the current code unless the next pass explicitly optimizes only for
+  raw full-page score rather than local component fidelity.
+
 ## Latest verification
 
 Commands run and passing:
@@ -175,7 +202,7 @@ Deployment:
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main
 ```
 
-Latest Pages URL: `https://d037c285.oem-dashboard.pages.dev`
+Latest Pages URL: `https://f53d6e87.oem-dashboard.pages.dev`
 
 Production alias check:
 
@@ -190,7 +217,7 @@ Latest warmed QA report:
 ```bash
 node scripts/oem-fidelity-report.mjs \
   --source-url https://www.ford.com.au/showroom/cars/mustang/ \
-  --preview-url 'https://d037c285.oem-dashboard.pages.dev/preview/ford-au-mustang?view=production' \
+  --preview-url 'https://f53d6e87.oem-dashboard.pages.dev/preview/ford-au-mustang?view=production' \
   --output-dir /private/tmp/oem-fidelity \
   --fail-on none \
   --json
@@ -198,14 +225,14 @@ node scripts/oem-fidelity-report.mjs \
 
 Report path:
 
-`/private/tmp/oem-fidelity/custom-2026-06-05T18-07-29-954Z`
+`/private/tmp/oem-fidelity/custom-2026-06-05T18-52-19-421Z`
 
 Latest result:
 
-- Overall score: `55.7/100` on the stricter warmed baseline.
+- Overall score: `55.1/100` on the stricter warmed baseline.
 - Desktop: source `1440x13039`, preview `1440x11798`, mismatch `63.07%`.
-- Tablet: source `820x13833`, preview `820x12627`, mismatch `36.61%`.
-- Mobile: source `390x11031`, preview `390x11220`, mismatch `57.54%`.
+- Tablet: source `820x13833`, preview `820x12643`, mismatch `38.51%`.
+- Mobile: source `390x11031`, preview `390x10606`, mismatch `61.18%`.
 - Preview network failures: none.
 - Preview broken images: none.
 - Preview clipped-text findings: none after the calibrated text audit.
@@ -229,10 +256,12 @@ Latest result:
 
 Recommended next slice:
 
-1. Improve carousel/card normalization:
-   - lower Ford card/news/model sections still account for much of the diff
-   - compare source/preview active card counts and initial slide state
-   - keep existing bridge controls, but make initial visible windows closer to Ford source
+1. Improve lower-page/footer and residual carousel alignment:
+   - current brandcard card dimensions are locally close after `eadf853`
+   - source still carries footer/legal blocks and lower-page disclosure/footer state that the clone
+     does not match, especially on mobile
+   - next quick probe should compare the bottom 1500px and decide whether to normalize footer/legal
+     capture, exclude chrome/footer from QA, or accept that delta as out of scope
 2. Add optional real AI review:
    - `--ai-review` could send screenshots + `ai-review-prompt.md` to the configured model
    - store `ai-review.json` beside `report.json`
