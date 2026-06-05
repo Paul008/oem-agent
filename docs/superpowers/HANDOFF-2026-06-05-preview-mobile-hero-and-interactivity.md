@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `e5379c2` shipped quick Clone Studio toolbar convert
-> action, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> deployed to Cloudflare Pages. Updated after `edbc0a1` shipped edge-aware Clone Studio toolbar
+> positioning, after the quick edit/media-library and read-only dynamic bridge work. This is a
 > cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
 > dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `e5379c2 feat(dashboard): add clone toolbar convert action`.
+  `edbc0a1 fix(dashboard): keep clone toolbar within viewport`.
 - Latest dashboard deploy from this work:
-  `https://8f9fe3c5.oem-dashboard.pages.dev`.
+  `https://a003d87e.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -358,6 +358,23 @@ What changed:
 Commit:
 
 - `e5379c2 feat(dashboard): add clone toolbar convert action`
+
+### 19. Edge-Aware Clone Toolbar Positioning
+
+The selected-region quick edit bubble now adapts its anchor near viewport edges.
+
+What changed:
+
+- `PageBuilderCanvas.vue` tracks the current viewport width/height for toolbar positioning.
+- The toolbar still centers under normal selections, but left-aligns near the left edge and
+  right-aligns near the right edge instead of always using `translateX(-50%)`.
+- The top position is clamped with a small gutter so the bubble does not render outside the visible
+  viewport.
+- The viewport tracker updates on resize and when a clone region is selected.
+
+Commit:
+
+- `edbc0a1 fix(dashboard): keep clone toolbar within viewport`
 
 ## Verification Performed
 
