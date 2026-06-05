@@ -984,8 +984,8 @@ ${rendered}
     if (hasDropdown && !isPageChromeInteractivityRegion(element))
       return 'dropdown'
 
-    var hasAccordion = matchesAny(element, '[data-cmp-is="accordion"], .accordion, [class*="accordion"]')
-      || (element.querySelector && element.querySelector('[data-cmp-is="accordion"], .accordion, [class*="accordion"], .cmp-accordion__button, .accordion-button, [aria-expanded][aria-controls]'))
+    var hasAccordion = matchesAny(element, '[data-cmp-is="accordion"], .accordion, [class*="accordion"], [class*="accordian"], [data-cmp-hook-accordion="item"], [data-cmp-hook-accordion="panel"]')
+      || (element.querySelector && element.querySelector('[data-cmp-is="accordion"], .accordion, [class*="accordion"], [class*="accordian"], .cmp-accordion__button, .cmp-accordion__title, .accordion-button, [aria-expanded][aria-controls], [data-cmp-hook-accordion="item"], [data-cmp-hook-accordion="panel"]'))
     if (hasAccordion)
       return 'accordion'
 
@@ -1963,7 +1963,7 @@ ${rendered}
     // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
     // primitive (switchPanel), disclosure toggles, or image swaps. No timers/auto-advance — those are
     // throttled in the sandbox.
-    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [data-gallery], .gallery, [class*="gallery"], [data-thumbnail], [data-thumb], [class*="thumb"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"], [aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
+    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [data-gallery], .gallery, [class*="gallery"], [data-thumbnail], [data-thumb], [class*="thumb"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"], [aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [class*="accordian"], [data-cmp-hook-accordion="item"], [data-cmp-hook-accordion="panel"], [aria-expanded][aria-controls]')
 
     // Wire each region inside its OWN function call so every click handler closes over per-call
     // params (regionId/regionEl/kind) -- never a shared loop var. With ES5 var, a loop variable is
@@ -2277,7 +2277,7 @@ ${rendered}
     if (!regionEl || !regionEl.querySelectorAll)
       return []
 
-    var selector = '[aria-expanded][aria-controls], .cmp-accordion__button, .accordion-button, [data-cmp-hook-accordion="button"], [role="button"][aria-controls]'
+    var selector = '[aria-expanded][aria-controls], .cmp-accordion__button, .cmp-accordion__title, .accordion-button, .trigger.disclosure, [class*="accordion-title"], [class*="accordion__title"], [data-cmp-hook-accordion="button"], [role="button"][aria-controls]'
     var triggers = []
 
     if (regionEl.matches && regionEl.matches(selector))
@@ -2289,9 +2289,9 @@ ${rendered}
         triggers.push(explicit[i])
     }
 
-    var items = regionEl.querySelectorAll('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item]')
+    var items = regionEl.querySelectorAll('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item], .accordion-disclosure')
     for (var j = 0; j < items.length; j++) {
-      var controls = items[j].querySelectorAll('button, a, [role="button"]')
+      var controls = items[j].querySelectorAll('button, a, [role="button"], .cmp-accordion__title, .trigger.disclosure, [class*="accordion-title"], [class*="accordion__title"], .accordion-heading-wrapper h1, .accordion-heading-wrapper h2, .accordion-heading-wrapper h3, .accordion-heading-wrapper h4, .accordion-heading-wrapper h5, .accordion-heading-wrapper h6')
       for (var c = 0; c < controls.length; c++) {
         if (interactivityIndexOf(triggers, controls[c]) !== -1)
           continue
@@ -2309,6 +2309,12 @@ ${rendered}
     var panel = accordionPanelFor(regionEl, trigger)
     if (!panel)
       return
+
+    var item = accordionItemFor(trigger)
+    if (item && item.getAttribute && item.getAttribute('data-cmp-expanded') === 'true') {
+      setAccordionExpanded(trigger, panel, true)
+      return
+    }
 
     if (trigger.hasAttribute && trigger.hasAttribute('aria-expanded')) {
       setAccordionExpanded(trigger, panel, trigger.getAttribute('aria-expanded') === 'true')
@@ -2367,7 +2373,7 @@ ${rendered}
     if (!trigger || !trigger.closest)
       return null
 
-    return trigger.closest('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item]')
+    return trigger.closest('.cmp-accordion__item, .accordion-item, [data-cmp-hook-accordion="item"], [data-accordion-item], .accordion-disclosure')
   }
 
   function accordionSingleExpansion(regionEl, trigger) {
@@ -2414,6 +2420,9 @@ ${rendered}
       return false
     if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active')))
       return true
+    var item = accordionItemFor(trigger)
+    if (item && item.getAttribute && item.getAttribute('data-cmp-expanded') === 'true')
+      return true
 
     return false
   }
@@ -2450,6 +2459,8 @@ ${rendered}
         item.classList.remove('open')
       }
     }
+    if (item && item.setAttribute)
+      item.setAttribute('data-cmp-expanded', expanded ? 'true' : 'false')
 
     if (!panel)
       return

@@ -831,6 +831,37 @@ describe('buildCloneStudioHtml', () => {
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
+  it('wires Ford AEM disclosure-heading accordions in read-only preview', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <section class="accordion">
+            <div class="accordion-disclosure" data-cmp-hook-accordion="item" data-cmp-expanded="true">
+              <div class="block disclosure-block">
+                <h4 class="cmp-accordion__title trigger disclosure">Disclosures</h4>
+                <div data-cmp-hook-accordion="panel" class="content" role="region">Disclosure copy</div>
+              </div>
+            </div>
+          </section>
+        </main>
+      `,
+      title: 't',
+      baseHref: '/',
+      selectedRegionId: null,
+      bridgeToken: 'tok',
+      editable: false,
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('.cmp-accordion__title')
+    expect(bridgeScript).toContain('.trigger.disclosure')
+    expect(bridgeScript).toContain('[class*="accordian"]')
+    expect(bridgeScript).toContain('data-cmp-expanded')
+    expect(bridgeScript).toContain('.accordion-disclosure')
+    expect(bridgeScript).toContain('[data-cmp-hook-accordion="panel"]')
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
   it('injects trusted prev/next/dot controls for multi-panel carousels/tabs lacking usable controls', () => {
     const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
     const bridgeScript = extractBridgeScript(html)
