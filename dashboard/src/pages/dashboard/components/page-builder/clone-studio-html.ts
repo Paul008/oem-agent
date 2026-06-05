@@ -222,6 +222,13 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         letter-spacing: 0 !important;
       }
 
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) p[class*="heading3-medium"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) p [class*="heading3-medium"] {
+        font-size: 1rem !important;
+        line-height: 1.5rem !important;
+        letter-spacing: 0 !important;
+      }
+
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h2[class*="heading1-medium"],
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) h2 [class*="heading1-medium"] {
         font-size: 1.5rem !important;
