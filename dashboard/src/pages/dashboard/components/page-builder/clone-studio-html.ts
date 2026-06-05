@@ -99,33 +99,25 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
 
     /*
      * OEM responsive image classes (e.g. AEM .imgdesktop/.imgmobile) are often toggled by scripts
-     * that the clone strips for safety. Tie them to the clone iframe viewport so public previews use
-     * the same desktop/mobile assets the OEM page would choose.
+     * that the clone strips for safety. Keep desktop variants visible as the reliable fallback; only
+     * reveal mobile variants on mobile. Do not globally hide desktop variants on mobile because many
+     * captured clones do not retain a usable mobile counterpart.
      */
-    @media (min-width: 1024px) {
-      img.imgdesktop,
-      img.dsktoponly,
-      .imgdesktop > img,
-      .dsktoponly > img {
-        display: block !important;
-      }
+    img.imgdesktop,
+    img.dsktoponly,
+    .imgdesktop > img,
+    .dsktoponly > img {
+      display: block !important;
+    }
 
-      img.imgmobile,
-      img.mobonly,
-      .imgmobile > img,
-      .mobonly > img {
-        display: none !important;
-      }
+    img.imgmobile,
+    img.mobonly,
+    .imgmobile > img,
+    .mobonly > img {
+      display: none !important;
     }
 
     @media (max-width: 1023.98px) {
-      img.imgdesktop,
-      img.dsktoponly,
-      .imgdesktop > img,
-      .dsktoponly > img {
-        display: none !important;
-      }
-
       img.imgmobile,
       img.mobonly,
       .imgmobile > img,

@@ -173,7 +173,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/visibility:\s*visible\s*!important/i)
   })
 
-  it('uses iframe breakpoints for OEM desktop and mobile image classes hidden by stripped scripts', () => {
+  it('keeps desktop images as the mobile fallback while revealing mobile variants', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"><img class="imgmobile mobonly" src="/media/pages/assets/ford-au/mustang/hero-mobile.webp"></picture></main>',
       title: 'Mustang',
@@ -183,10 +183,10 @@ describe('buildCloneStudioHtml', () => {
     })
 
     const head = html.slice(0, html.indexOf('</head>'))
-    expect(head).toMatch(/@media \(min-width:\s*1024px\)[\s\S]*img\.imgdesktop[\s\S]*display:\s*block\s*!important/i)
-    expect(head).toMatch(/@media \(min-width:\s*1024px\)[\s\S]*img\.imgmobile[\s\S]*display:\s*none\s*!important/i)
-    expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgdesktop[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/img\.imgdesktop[\s\S]*display:\s*block\s*!important/i)
+    expect(head).toMatch(/img\.imgmobile[\s\S]*display:\s*none\s*!important/i)
     expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgmobile[\s\S]*display:\s*block\s*!important/i)
+    expect(head).not.toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgdesktop[\s\S]*display:\s*none\s*!important/i)
     expect(head).toContain('dsktoponly')
     expect(head).toContain('mobonly')
   })
