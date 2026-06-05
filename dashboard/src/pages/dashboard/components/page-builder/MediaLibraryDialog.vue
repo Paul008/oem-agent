@@ -23,6 +23,7 @@ const { fetchPortalAssetsPage, fetchParsedModels, thumbnailUrl } = usePortalAsse
 
 type Tab = 'library' | 'portal'
 const tab = ref<Tab>('library')
+type LibraryScope = 'model' | 'oem'
 
 // ── Library (R2 uploads — existing behaviour) ──
 const items = ref<MediaItem[]>([])
@@ -31,6 +32,7 @@ const cursor = ref<string | null>(null)
 const loadingMore = ref(false)
 const search = ref('')
 const filterModel = ref('')
+const libraryScope = ref<LibraryScope>('model')
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -41,13 +43,26 @@ const modelSlugs = computed(() => {
 
 const filteredItems = computed(() => {
   let result = items.value
-  if (filterModel.value)
+  if (libraryScope.value === 'oem' && filterModel.value)
     result = result.filter(i => i.modelSlug === filterModel.value)
   if (search.value) {
     const q = search.value.toLowerCase()
     result = result.filter(i => i.filename.toLowerCase().includes(q))
   }
   return result
+})
+
+const libraryScopeModelLabel = computed(() => props.modelSlug || 'Current model')
+const librarySearchPlaceholder = computed(() => libraryScope.value === 'model'
+  ? `Search ${libraryScopeModelLabel.value} media...`
+  : 'Search all OEM media...'
+)
+const libraryEmptyText = computed(() => {
+  if (items.value.length > 0)
+    return 'No matching files'
+  return libraryScope.value === 'model'
+    ? `No media uploaded for ${libraryScopeModelLabel.value}`
+    : `No media uploaded for ${props.oemId}`
 })
 
 // ── Portal Assets (DAM-backed) ──
@@ -60,6 +75,7 @@ const portalFilterModel = ref<string>('') // blank = all
 const portalFilterType = ref<string>('IMAGE') // default to images for page-builder use
 const portalSearch = ref('')
 const PORTAL_PAGE_SIZE = 60
+let resettingLibrary = false
 
 // Best-effort match between a model slug (e.g. "ranger") and our parsed_model
 // values (e.g. "ranger", "ranger-hybrid", "ranger-raptor"). Pick the most
@@ -111,18 +127,40 @@ watch(() => props.open, async (val) => {
     return
   tab.value = 'library'
   // Library
-  items.value = []
-  cursor.value = null
-  search.value = ''
-  filterModel.value = ''
-  await fetchItems()
-  filterModel.value = defaultLibraryModelFilter(props.modelSlug, items.value)
+  resettingLibrary = true
+  try {
+    items.value = []
+    cursor.value = null
+    search.value = ''
+    filterModel.value = ''
+    libraryScope.value = props.modelSlug ? 'model' : 'oem'
+    await fetchItems()
+    filterModel.value = libraryScope.value === 'oem'
+      ? defaultLibraryModelFilter(props.modelSlug, items.value)
+      : ''
+  }
+  finally {
+    resettingLibrary = false
+  }
   // Portal (prep — loads on first tab switch to avoid unnecessary queries)
   portalRows.value = []
   portalPage.value = 1
   portalSearch.value = ''
   portalFilterType.value = 'IMAGE'
   await loadPortalFilters()
+})
+
+watch(libraryScope, async () => {
+  if (resettingLibrary || !props.open || tab.value !== 'library')
+    return
+  items.value = []
+  cursor.value = null
+  search.value = ''
+  filterModel.value = ''
+  await fetchItems()
+  filterModel.value = libraryScope.value === 'oem'
+    ? defaultLibraryModelFilter(props.modelSlug, items.value)
+    : ''
 })
 
 // Refetch portal when filters change (after first visit)
@@ -155,7 +193,9 @@ watch(tab, async (t) => {
 async function fetchItems() {
   loading.value = true
   try {
-    const res = await listMedia(props.oemId)
+    const res = await listMedia(props.oemId, libraryScope.value === 'model' && props.modelSlug
+      ? { modelSlug: props.modelSlug }
+      : undefined)
     items.value = res.items
     cursor.value = res.cursor
   }
@@ -172,7 +212,10 @@ async function loadMore() {
     return
   loadingMore.value = true
   try {
-    const res = await listMedia(props.oemId, { cursor: cursor.value })
+    const res = await listMedia(props.oemId, {
+      cursor: cursor.value,
+      ...(libraryScope.value === 'model' && props.modelSlug ? { modelSlug: props.modelSlug } : {}),
+    })
     items.value = [...items.value, ...res.items]
     cursor.value = res.cursor
   }
@@ -292,17 +335,33 @@ function goPortal(delta: number) {
 
       <!-- LIBRARY TAB -->
       <template v-if="tab === 'library'">
-        <div class="flex items-center gap-2 px-4 py-2 border-b shrink-0">
+        <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b shrink-0">
+          <div class="inline-flex rounded-md border bg-background p-0.5">
+            <button
+              class="rounded px-2.5 py-1 text-xs font-medium transition"
+              :class="libraryScope === 'model' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+              @click="libraryScope = 'model'"
+            >
+              {{ libraryScopeModelLabel }}
+            </button>
+            <button
+              class="rounded px-2.5 py-1 text-xs font-medium transition"
+              :class="libraryScope === 'oem' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+              @click="libraryScope = 'oem'"
+            >
+              All {{ oemId }}
+            </button>
+          </div>
           <div class="relative flex-1">
             <Search class="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input
               v-model="search"
               type="text"
-              placeholder="Search by filename..."
+              :placeholder="librarySearchPlaceholder"
               class="w-full text-sm bg-background border rounded-md pl-7 pr-2 py-1.5"
             >
           </div>
-          <select v-model="filterModel" class="text-sm bg-background border rounded-md px-2 py-1.5 min-w-[140px]">
+          <select v-if="libraryScope === 'oem'" v-model="filterModel" class="text-sm bg-background border rounded-md px-2 py-1.5 min-w-[140px]">
             <option value="">
               All models
             </option>
@@ -324,7 +383,7 @@ function goPortal(delta: number) {
           <div v-else-if="filteredItems.length === 0" class="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <ImageIcon class="size-8 mb-2" />
             <p class="text-sm">
-              {{ items.length === 0 ? 'No media uploaded yet' : 'No matching files' }}
+              {{ libraryEmptyText }}
             </p>
           </div>
           <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3">

@@ -218,20 +218,23 @@ Commit:
 
 ### 10. Media Library Current-Model Default
 
-The image replacement media dialog remains OEM-scoped, but now preselects the active model when
-matching uploaded media exists.
+The image replacement media dialog remains OEM-scoped, but now starts with uploaded media for the
+active model and keeps an explicit switch to all uploaded media for the same OEM.
 
 What changed:
 
-- `MediaLibraryDialog.vue` still loads the OEM media library so editors can switch to any model.
-- After the library loads, `defaultLibraryModelFilter()` selects `props.modelSlug` only if one or
-  more uploaded media items match that model.
-- If there is no current-model match, the dialog keeps showing all OEM media.
+- `MediaLibraryDialog.vue` uses `listMedia(oemId, { modelSlug })` by default when a model slug is
+  present, so replace-image workflows open on the current model's uploaded media first.
+- A compact scope switch lets editors move between the current model and all uploaded media for the
+  OEM.
+- When the all-OEM scope is active, `defaultLibraryModelFilter()` still preselects `props.modelSlug`
+  if one or more uploaded media items match that model.
 - Portal/DAM assets already auto-detect the closest parsed model separately.
 
 Commit:
 
 - `6faa9b5 feat(dashboard): default media library to current model`
+- Current continuation: scope toggle and model-first query refinement.
 
 ### 11. Quick Clone Toolbar Link Editing
 

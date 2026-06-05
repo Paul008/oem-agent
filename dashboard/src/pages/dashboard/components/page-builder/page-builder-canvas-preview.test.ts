@@ -167,9 +167,24 @@ describe('pageBuilderCanvas preview mode', () => {
 
     expect(source).toContain('function defaultLibraryModelFilter(modelSlug: string, mediaItems: MediaItem[]): string')
     expect(source).toContain('return mediaItems.some(item => item.modelSlug === modelSlug) ? modelSlug : \'\'')
-    expect(source).toContain('filterModel.value = defaultLibraryModelFilter(props.modelSlug, items.value)')
+    expect(source).toContain('libraryScope.value === \'oem\'')
+    expect(source).toContain('defaultLibraryModelFilter(props.modelSlug, items.value)')
     expect(source).toContain('<option value="">')
     expect(source).toContain('All models')
+  })
+
+  it('loads current-model media first while keeping an all-OEM media scope', () => {
+    const source = readFileSync(new URL('./MediaLibraryDialog.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('type LibraryScope = \'model\' | \'oem\'')
+    expect(source).toContain('const libraryScope = ref<LibraryScope>(\'model\')')
+    expect(source).toContain('libraryScope.value = props.modelSlug ? \'model\' : \'oem\'')
+    expect(source).toContain('listMedia(props.oemId, libraryScope.value === \'model\' && props.modelSlug')
+    expect(source).toContain('modelSlug: props.modelSlug')
+    expect(source).toContain('@click="libraryScope = \'model\'"')
+    expect(source).toContain('@click="libraryScope = \'oem\'"')
+    expect(source).toContain('All {{ oemId }}')
+    expect(source).toContain('v-if="libraryScope === \'oem\'"')
   })
 
   it('clears clone drafts and section editor state on mode and page changes', () => {
