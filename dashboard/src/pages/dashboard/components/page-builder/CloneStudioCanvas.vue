@@ -164,8 +164,10 @@ function enrichRegionForHost(region: any): any {
     return region
 
   const rect = iframe.value?.getBoundingClientRect() ?? { left: 0, top: 0 }
-  const left = Number(region.left) || 0
-  const top = Number(region.top) || 0
+  const viewportLeft = Number(region.viewport_left)
+  const viewportTop = Number(region.viewport_top)
+  const left = Number.isFinite(viewportLeft) ? viewportLeft : Number(region.left) || 0
+  const top = Number.isFinite(viewportTop) ? viewportTop : Number(region.top) || 0
   const width = Number(region.width) || 0
   const height = Number(region.height) || 0
   const pt = translateFramePoint(

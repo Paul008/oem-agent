@@ -823,6 +823,8 @@ ${rendered}
       tag: String(element.tagName || '').toLowerCase(),
       type_hint: classifyRegion(element),
       classes: element.getAttribute ? element.getAttribute('class') || '' : '',
+      viewport_left: rect.left || 0,
+      viewport_top: rect.top || 0,
       left: (rect.left || 0) + (window.scrollX || 0),
       top: (rect.top || 0) + (window.scrollY || 0),
       width: rect.width || 0,

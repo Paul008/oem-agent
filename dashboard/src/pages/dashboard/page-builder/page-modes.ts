@@ -14,6 +14,8 @@ export interface CloneRegion {
   selector: string
   tag: string
   classes: string[]
+  viewport_left?: number
+  viewport_top?: number
   left?: number
   top: number
   width?: number
