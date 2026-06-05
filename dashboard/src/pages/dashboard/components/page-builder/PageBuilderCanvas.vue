@@ -93,6 +93,15 @@ function syncResponsivePreviewWidth() {
   previewWidth.value = responsivePreviewWidth(autoResponsiveViewportWidth.value)
 }
 
+function syncCloneToolbarViewport() {
+  if (typeof window === 'undefined')
+    return
+  cloneToolbarViewport.value = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }
+}
+
 function setPreviewWidth(mode: PreviewWidth) {
   previewWidthManuallySelected.value = true
   previewWidth.value = mode
@@ -152,6 +161,10 @@ const cloneToolbarAltEditing = ref(false)
 const cloneToolbarAltValue = ref('')
 const cloneToolbarHeightEditing = ref(false)
 const cloneToolbarHeightValue = ref('')
+const cloneToolbarViewport = ref({ width: 1024, height: 768 })
+const cloneToolbarEdgeThreshold = 168
+const cloneToolbarVerticalGutter = 8
+const cloneToolbarApproxHeight = 48
 
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
@@ -164,11 +177,24 @@ const cloneToolbarVisible = computed(() => Boolean(
   && cloneToolbarRegion.value
   && props.selectedCloneRegionId === cloneToolbarRegion.value.id,
 ))
-const cloneToolbarStyle = computed<Record<string, string>>(() => ({
-  left: `${cloneToolbarRegion.value?.toolbar_x ?? 0}px`,
-  top: `${cloneToolbarRegion.value?.toolbar_y ?? 0}px`,
-  transform: 'translateX(-50%)',
-}))
+const cloneToolbarStyle = computed<Record<string, string>>(() => {
+  const x = Number(cloneToolbarRegion.value?.toolbar_x) || 0
+  const y = Number(cloneToolbarRegion.value?.toolbar_y) || 0
+  const viewportWidth = cloneToolbarViewport.value.width || 1024
+  const viewportHeight = cloneToolbarViewport.value.height || 768
+  const left = Math.min(Math.max(x, cloneToolbarVerticalGutter), Math.max(cloneToolbarVerticalGutter, viewportWidth - cloneToolbarVerticalGutter))
+  const top = Math.min(Math.max(y, cloneToolbarVerticalGutter), Math.max(cloneToolbarVerticalGutter, viewportHeight - cloneToolbarApproxHeight))
+  const transform = x < cloneToolbarEdgeThreshold
+    ? 'translateX(0)'
+    : x > viewportWidth - cloneToolbarEdgeThreshold
+      ? 'translateX(-100%)'
+      : 'translateX(-50%)'
+  return {
+    left: `${left}px`,
+    top: `${top}px`,
+    transform,
+  }
+})
 
 const cloneMenuGroups = computed<{ group: RegionAction['group'], actions: RegionAction[] }[]>(() => {
   if (!cloneMenu.value)
@@ -193,6 +219,7 @@ function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, h
 }
 
 function onCloneRegionSelected(region: any) {
+  syncCloneToolbarViewport()
   cancelCloneToolbarLink()
   cancelCloneToolbarAlt()
   cancelCloneToolbarHeight()
@@ -832,13 +859,18 @@ function sectionStyle(section: any): Record<string, string> {
 
 onMounted(() => {
   syncResponsivePreviewWidth()
-  if (typeof window !== 'undefined')
+  syncCloneToolbarViewport()
+  if (typeof window !== 'undefined') {
     window.addEventListener('resize', syncResponsivePreviewWidth)
+    window.addEventListener('resize', syncCloneToolbarViewport)
+  }
 })
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined')
+  if (typeof window !== 'undefined') {
     window.removeEventListener('resize', syncResponsivePreviewWidth)
+    window.removeEventListener('resize', syncCloneToolbarViewport)
+  }
 })
 
 watch(

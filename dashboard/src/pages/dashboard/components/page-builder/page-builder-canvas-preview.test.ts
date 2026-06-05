@@ -54,6 +54,7 @@ describe('pageBuilderCanvas preview mode', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
     expect(source).toContain('const cloneToolbarRegion = ref<CloneMenuRegion | null>(null)')
+    expect(source).toContain('const cloneToolbarViewport = ref({ width: 1024, height: 768 })')
     expect(source).toContain('const cloneToolbarVisible = computed')
     expect(source).toContain('const cloneToolbarHasImage = computed')
     expect(source).toContain('const cloneToolbarHasLink = computed')
@@ -64,7 +65,13 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('overflow-x-auto overflow-y-hidden')
     expect(source).toContain('[scrollbar-width:none]')
     expect(source).toContain('[&>button]:shrink-0')
+    expect(source).toContain('function syncCloneToolbarViewport')
+    expect(source).toContain('window.innerHeight')
+    expect(source).toContain('x < cloneToolbarEdgeThreshold')
+    expect(source).toContain('translateX(0)')
+    expect(source).toContain('translateX(-100%)')
     expect(source).toContain('function onCloneRegionSelected(region: any)')
+    expect(source).toContain('syncCloneToolbarViewport()')
     expect(source).toContain('function hasCloneImageField')
     expect(source).toContain('function hasCloneLinkField')
     expect(source).toContain('function hasClonePanelControls')
@@ -134,6 +141,8 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('title="Hide region"')
     expect(source).toContain('title="Delete region"')
     expect(source).toContain('title="Background color"')
+    expect(source).toContain('window.addEventListener(\'resize\', syncCloneToolbarViewport)')
+    expect(source).toContain('window.removeEventListener(\'resize\', syncCloneToolbarViewport)')
   })
 
   it('opens the OEM-scoped media library for clone image replacement', () => {
