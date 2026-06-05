@@ -1,16 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `357ee75` shipped read-only tab-target and gallery
-> bridge interactivity. This is a cold-start handoff for continuing Clone Studio preview fidelity,
-> especially responsive media and dynamic cloned components.
+> deployed to Cloudflare Pages. Updated after `0c58266` shipped read-only tab-target, accordion,
+> gallery, and dropdown/disclosure bridge interactivity. This is a cold-start handoff for
+> continuing Clone Studio preview fidelity, especially responsive media and dynamic cloned
+> components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `357ee75 feat(dashboard): wire clone gallery thumbnails`.
+  `0c58266 feat(dashboard): wire clone dropdown toggles`.
 - Latest dashboard deploy from this work:
-  `https://9997f433.oem-dashboard.pages.dev`.
+  `https://4c603528.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -150,6 +151,29 @@ Commit:
 
 - `357ee75 feat(dashboard): wire clone gallery thumbnails`
 
+### 8. Read-Only Dropdown / Disclosure Toggles
+
+The Clone Studio iframe bridge now restores simple dropdown and disclosure behavior for embedded
+body content without enabling OEM page chrome scripts.
+
+What changed:
+
+- `classifyRegion()` detects explicit dropdown/disclosure/menu patterns, including
+  `[data-dropdown]`, `[data-disclosure]`, `[data-menu]`, `.dropdown`, `[aria-haspopup]`,
+  `[data-bs-toggle="dropdown"]`, and related trigger attributes.
+- Header/navigation chrome is skipped through `isPageChromeInteractivityRegion()` so captured page
+  nav does not become an editable preview dependency.
+- `isDropdownTrigger()` filters out tab and accordion controls so the bridge behaviors stay
+  disjoint.
+- `wireDropdownRegion()` marks trusted dropdown controls and intercepts read-only clicks.
+- `toggleDropdownPanel()` updates `aria-expanded`, `hidden`, `aria-hidden`, inline `display`, and
+  common `show`/`open`/`active`/`is-active`/`collapsed` classes.
+- Opening one dropdown closes other dropdown panels in the same detected region.
+
+Commit:
+
+- `0c58266 feat(dashboard): wire clone dropdown toggles`
+
 ## Verification Performed
 
 Commands:
@@ -213,16 +237,16 @@ Recommended split:
    It is useful for server-rendered HTML sprinkles, but this app already has Vue plus a sandbox
    bridge. Alpine would add runtime and persistence ambiguity.
 
-## Completed Work: Tabs, Accordions, Galleries
+## Completed Work: Tabs, Accordions, Galleries, Dropdowns
 
 Current bridge has partial read-only preview interactivity:
 
 - `collectPanels(region)`
 - `switchPanel(regionId, index)`
-- `enableInteractivity()` for tabs/carousels/accordions/galleries
+- `enableInteractivity()` for tabs/carousels/accordions/galleries/dropdowns
 - `MESSAGE_SWITCH_PANEL`
 
-The previously recommended accordion slice is now done in `c8183b9`.
+The previously recommended accordion and dropdown slices are now done in `c8183b9` and `0c58266`.
 
 What was implemented:
 
@@ -250,12 +274,13 @@ What was implemented:
 
 ## Next Work: Richer Dynamic Components
 
-The next practical fidelity slice is to restore other static-clone dynamic UI patterns without
-allowing OEM scripts:
+The next practical fidelity slice is broader UAT and targeted hardening rather than a new runtime:
 
-1. Add lightweight disclosure/dropdown behavior for menus embedded inside body content, while
-   continuing to omit page header/nav in Clone Studio captures.
-2. Keep structured sections in Vue state; keep cloned OEM preview behavior in the trusted vanilla
+1. Validate tabs, accordions, galleries, and dropdowns against at least one second OEM clone with
+   real dynamic body content.
+2. Add fixture-level behavioral tests for a minimal generated dropdown/gallery DOM if future edits
+   make the bridge harder to reason about from string-contract tests alone.
+3. Keep structured sections in Vue state; keep cloned OEM preview behavior in the trusted vanilla
    bridge; use GSAP only for animation-first sections.
 
 ## Critical Gotchas
@@ -307,8 +332,10 @@ allowing OEM scripts:
    - recovered mobile hero is visible,
    - lower gallery mobile variants still render,
    - unpaired desktop-only sections remain visible.
-4. Implement accordion bridge behavior in a narrow test-backed slice.
-5. Manually UAT at least Ford Mustang and one non-Ford page with a real accordion/tab group.
+4. Manually UAT at least Ford Mustang and one non-Ford page with real tab, accordion, gallery, and
+   dropdown/disclosure body content.
+5. If the next issue is another stripped-script pattern, keep the change narrow and add a
+   string-contract regression test in `clone-studio-html.test.ts`.
 6. Run:
 
 ```bash
