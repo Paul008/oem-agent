@@ -770,7 +770,7 @@ watch(
         <!-- Compact quick-edit toolbar for the selected Clone Studio region. -->
         <Teleport v-if="cloneToolbarVisible && cloneToolbarRegion" to="body">
           <div
-            class="fixed z-[54] flex max-w-[calc(100vw-16px)] items-center gap-1 overflow-hidden rounded-md border bg-background/95 p-1 shadow-lg backdrop-blur"
+            class="fixed z-[54] flex max-w-[calc(100vw-16px)] items-center gap-1 overflow-x-auto overflow-y-hidden rounded-md border bg-background/95 p-1 shadow-lg backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:shrink-0 [&>div]:shrink-0 [&>input]:shrink-0 [&>label]:shrink-0 [&>svg]:shrink-0"
             :style="cloneToolbarStyle"
             @click.stop
             @contextmenu.stop.prevent
