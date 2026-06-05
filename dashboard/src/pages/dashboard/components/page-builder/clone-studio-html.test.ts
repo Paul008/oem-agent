@@ -276,9 +276,33 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).not.toContain('.hero, section, div')
   })
 
+  it('recovers a missing Ford AEM mobile hero image from source metadata', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><picture><img class="imgdesktop" src="/media/pages/assets/ford-au/mustang/overview-hero-banner-desktop-new.webp" data-image-url="/content/dam/Ford/au/nameplate/mustang/overview/billboards/overview-hero-banner-desktop-new.webp" alt="Mustang"></picture></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('var BASE_HREF = "https://www.ford.com.au/showroom/cars/mustang/"')
+    expect(bridgeScript).toContain('var MEDIA_BASE = "https://oem-agent.adme-dev.workers.dev"')
+    expect(bridgeScript).toContain('function recoverMissingResponsiveImagePairs()')
+    expect(bridgeScript).toContain('source.replace(/-desktop-new')
+    expect(bridgeScript).toContain('-new-mbl$1$2')
+    expect(bridgeScript).toContain("return 'ford-au'")
+    expect(bridgeScript).toContain("MEDIA_BASE + '/media/' + oemId + '/' + encoded")
+    expect(bridgeScript).toContain('recoverMissingResponsiveImagePairs()')
+
+    const body = extractInitialBody(html)
+    expect(body).toContain('overview-hero-banner-desktop-new.webp')
+    expect(body).not.toContain('overview-hero-banner-new-mbl.webp')
+  })
+
   it('strips preview-only responsive image markers from serialized saved HTML', () => {
     const html = buildCloneStudioHtml({
-      rendered: '<main><img data-clone-studio-responsive-variant="desktop" data-clone-studio-responsive-paired="true" class="imgdesktop" src="/hero.webp"></main>',
+      rendered: '<main><img data-clone-studio-responsive-variant="desktop" data-clone-studio-responsive-paired="true" data-clone-studio-responsive-recovering="true" data-clone-studio-generated-responsive-image="true" class="imgdesktop" src="/hero.webp"></main>',
       title: 'Mustang',
       baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
       selectedRegionId: null,
@@ -291,6 +315,8 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('stripResponsiveVariantMarkers(clone)')
     expect(bridgeScript).toContain('stripResponsiveContentMarkers(clone)')
     expect(bridgeScript).toContain('stripResponsiveConfigMarkers(clone)')
+    expect(bridgeScript).toContain('data-clone-studio-generated-responsive-image')
+    expect(bridgeScript).toContain("removeAttribute('data-clone-studio-responsive-recovering')")
   })
 
   it('leaves absolute media URLs and non-proxied relative paths untouched', () => {

@@ -229,13 +229,22 @@ const isExpired = computed(() => {
       autoplay muted loop playsinline
       class="absolute inset-0 w-full h-full object-cover"
     />
-    <img
+    <picture
       v-else-if="section.desktop_image_url"
-      :src="section.desktop_image_url"
-      :alt="section.heading || ''"
-      class="absolute inset-0 w-full h-full object-cover"
-      :class="isFullImage ? 'object-top' : ''"
+      class="absolute inset-0 block w-full h-full"
     >
+      <source
+        v-if="section.mobile_image_url"
+        :srcset="section.mobile_image_url"
+        media="(max-width: 767px)"
+      >
+      <img
+        :src="section.desktop_image_url"
+        :alt="section.heading || ''"
+        class="w-full h-full object-cover"
+        :class="isFullImage ? 'object-top' : ''"
+      >
+    </picture>
     <ImageOverlay
       v-if="section.desktop_image_url"
       :current-url="section.desktop_image_url"

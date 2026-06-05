@@ -130,8 +130,10 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
 
     img.imgmobile,
     img.mobonly,
+    img.mobileonly,
     .imgmobile,
     .mobonly,
+    .mobileonly,
     [data-clone-studio-responsive-variant="mobile"] {
       display: none !important;
     }
@@ -139,8 +141,10 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     @media (max-width: 1023.98px) {
       img.imgmobile,
       img.mobonly,
+      img.mobileonly,
       .imgmobile,
       .mobonly,
+      .mobileonly,
       [data-clone-studio-responsive-variant="mobile"] {
         display: block !important;
       }
@@ -305,6 +309,8 @@ ${rendered}
 <script data-clone-studio-bridge="true">
 (function () {
   var BRIDGE_TOKEN = ${bridgeToken}
+  var BASE_HREF = ${safeJson(options.baseHref || '')}
+  var MEDIA_BASE = ${safeJson(mediaBase)}
   var EDITABLE = window.__CLONE_STUDIO_EDITABLE__ !== false
   var MESSAGE_READY = 'clone-studio:ready'
   var MESSAGE_SELECT = 'clone-studio:select'
@@ -401,10 +407,12 @@ ${rendered}
     if (!root || !root.querySelectorAll)
       return
 
-    var nodes = root.querySelectorAll('[data-clone-studio-responsive-variant], [data-clone-studio-responsive-paired]')
+    var nodes = root.querySelectorAll('[data-clone-studio-responsive-variant], [data-clone-studio-responsive-paired], [data-clone-studio-responsive-recovering], [data-clone-studio-generated-responsive-image]')
     for (var i = 0; i < nodes.length; i++) {
       nodes[i].removeAttribute('data-clone-studio-responsive-variant')
       nodes[i].removeAttribute('data-clone-studio-responsive-paired')
+      nodes[i].removeAttribute('data-clone-studio-responsive-recovering')
+      nodes[i].removeAttribute('data-clone-studio-generated-responsive-image')
     }
   }
 
@@ -1465,7 +1473,7 @@ ${rendered}
   }
 
   function isResponsiveMobileImage(node) {
-    return !!node && node.classList && (node.classList.contains('imgmobile') || node.classList.contains('mobonly'))
+    return !!node && node.classList && (node.classList.contains('imgmobile') || node.classList.contains('mobonly') || node.classList.contains('mobileonly'))
   }
 
   function markResponsiveImageVariants() {
@@ -1515,6 +1523,219 @@ ${rendered}
       desktopNodes[d].setAttribute('data-clone-studio-responsive-paired', 'true')
     for (var m = 0; m < mobileNodes.length; m++)
       mobileNodes[m].setAttribute('data-clone-studio-responsive-paired', 'true')
+  }
+
+  function recoverMissingResponsiveImagePairs() {
+    var desktopNodes = document.querySelectorAll('[data-clone-studio-responsive-variant="desktop"]:not([data-clone-studio-responsive-paired="true"])')
+    for (var i = 0; i < desktopNodes.length; i++) {
+      var desktopNode = desktopNodes[i]
+      var parent = desktopNode.parentNode
+      if (!parent || !parent.querySelectorAll || desktopNode.getAttribute('data-clone-studio-responsive-recovering') === 'true')
+        continue
+      if (parent.querySelector('[data-clone-studio-responsive-variant="mobile"], .imgmobile, .mobonly, .mobileonly'))
+        continue
+
+      var candidates = mobileImageCandidatesFor(desktopNode)
+      if (candidates.length)
+        installRecoveredMobileImage(desktopNode, candidates)
+    }
+  }
+
+  function mobileImageCandidatesFor(desktopNode) {
+    var candidates = []
+    var explicitAttrs = [
+      'data-mobile-image-url',
+      'data-image-mobile-url',
+      'data-mobile-src',
+      'data-src-mobile',
+      'data-mob-src',
+      'data-mob-image-url',
+      'data-mobile',
+      'data-small-src'
+    ]
+
+    for (var i = 0; i < explicitAttrs.length; i++)
+      addResponsiveImageCandidate(candidates, desktopNode.getAttribute(explicitAttrs[i]))
+
+    var source = responsiveDesktopSource(desktopNode)
+    if (source) {
+      addDerivedResponsiveImageCandidate(candidates, source, source.replace(/-desktop-new(\\.[a-z0-9]+)([?#].*)?$/i, '-new-mbl$1$2'))
+      addDerivedResponsiveImageCandidate(candidates, source, source.replace(/-desktop(\\.[a-z0-9]+)([?#].*)?$/i, '-mobile$1$2'))
+      addDerivedResponsiveImageCandidate(candidates, source, source.replace(/desktop/ig, 'mobile'))
+    }
+
+    return candidates
+  }
+
+  function responsiveDesktopSource(desktopNode) {
+    var attrs = ['data-image-url', 'data-src', 'data-lazy-src', 'data-original', 'data-lazy', 'src']
+    for (var i = 0; i < attrs.length; i++) {
+      var value = desktopNode.getAttribute(attrs[i])
+      if (value && String(value).trim())
+        return String(value).trim()
+    }
+    return ''
+  }
+
+  function addResponsiveImageCandidate(candidates, value) {
+    var candidate = String(value || '').trim()
+    if (!candidate)
+      return
+    for (var i = 0; i < candidates.length; i++) {
+      if (candidates[i] === candidate)
+        return
+    }
+    candidates.push(candidate)
+  }
+
+  function addDerivedResponsiveImageCandidate(candidates, source, value) {
+    var candidate = String(value || '').trim()
+    if (!candidate || candidate === String(source || '').trim())
+      return
+    addResponsiveImageCandidate(candidates, candidate)
+  }
+
+  function installRecoveredMobileImage(desktopNode, candidates) {
+    var index = 0
+    desktopNode.setAttribute('data-clone-studio-responsive-recovering', 'true')
+
+    function tryNextCandidate() {
+      if (index >= candidates.length) {
+        desktopNode.removeAttribute('data-clone-studio-responsive-recovering')
+        return
+      }
+
+      var sourceCandidate = candidates[index++]
+      var mobileUrl = proxiedResponsiveImageUrl(sourceCandidate)
+      if (!mobileUrl) {
+        tryNextCandidate()
+        return
+      }
+
+      var probe = new Image()
+      probe.onload = function () {
+        if (!desktopNode.parentNode)
+          return
+
+        var mobileNode = desktopNode.cloneNode(false)
+        mobileNode.setAttribute('src', mobileUrl)
+        mobileNode.setAttribute('data-image-url', sourceCandidate)
+        mobileNode.setAttribute('data-clone-studio-responsive-variant', 'mobile')
+        mobileNode.setAttribute('data-clone-studio-responsive-paired', 'true')
+        mobileNode.setAttribute('data-clone-studio-generated-responsive-image', 'true')
+        mobileNode.removeAttribute('srcset')
+        mobileNode.removeAttribute('sizes')
+        mobileNode.removeAttribute('data-clone-studio-responsive-recovering')
+        mobileNode.setAttribute('class', recoveredMobileClassName(desktopNode))
+
+        desktopNode.setAttribute('data-clone-studio-responsive-paired', 'true')
+        desktopNode.removeAttribute('data-clone-studio-responsive-recovering')
+        if (desktopNode.nextSibling)
+          desktopNode.parentNode.insertBefore(mobileNode, desktopNode.nextSibling)
+        else
+          desktopNode.parentNode.appendChild(mobileNode)
+        markResponsivePairInContainer(desktopNode.parentNode)
+      }
+      probe.onerror = tryNextCandidate
+      probe.src = mobileUrl
+    }
+
+    tryNextCandidate()
+  }
+
+  function recoveredMobileClassName(desktopNode) {
+    var className = String(desktopNode.getAttribute('class') || '')
+      .replace(/\\bimgdesktop\\b/g, '')
+      .replace(/\\bdsktoponly\\b/g, '')
+      .replace(/\\s+/g, ' ')
+      .trim()
+
+    if (!/(^|\\s)imgmobile(\\s|$)/.test(className))
+      className = (className ? className + ' ' : '') + 'imgmobile'
+
+    return className
+  }
+
+  function proxiedResponsiveImageUrl(rawUrl) {
+    var absolute = absoluteCloneStudioUrl(rawUrl)
+    if (!absolute)
+      return ''
+
+    if (/^https?:\\/\\//i.test(absolute)) {
+      if (MEDIA_BASE && absolute.indexOf(MEDIA_BASE + '/media/') === 0)
+        return sanitizeUrl(absolute, 'media')
+
+      var oemId = mediaProxyOemIdForUrl(absolute)
+      var encoded = encodeBase64Url(absolute)
+      if (MEDIA_BASE && oemId && encoded)
+        return MEDIA_BASE + '/media/' + oemId + '/' + encoded
+    }
+
+    return sanitizeUrl(absolute, 'media')
+  }
+
+  function absoluteCloneStudioUrl(rawUrl) {
+    var value = String(rawUrl || '').trim()
+    if (!value)
+      return ''
+    if (/^(?:data|blob):/i.test(value))
+      return ''
+
+    try {
+      return new URL(value, BASE_HREF || document.baseURI || window.location.href).href
+    }
+    catch (_error) {
+      return value
+    }
+  }
+
+  function mediaProxyOemIdForUrl(url) {
+    try {
+      var host = new URL(url).hostname.toLowerCase()
+      if (host === 'www.ford.com.au' || host === 'www.gpas-cache.ford.com')
+        return 'ford-au'
+      if (host === 'www.hyundai.com')
+        return 'hyundai-au'
+      if (host === 'www.mazda.com.au')
+        return 'mazda-au'
+      if (host === 'www.isuzuute.com.au' || host === 'cdn-iua.dataweavers.io')
+        return 'isuzu-au'
+      if (host === 'www.kia.com' || host === 'kia.com')
+        return 'kia-au'
+      if (host === 'www.nissan.com.au' || host === 'www-asia.nissan-cdn.net' || host === 'ms-prd.apn.mediaserver.heliosnissan.net')
+        return 'nissan-au'
+      if (host === 'www.subaru.com.au' || host === 'cdn-image-handler.oem-production.subaru.com.au')
+        return 'subaru-au'
+      if (host === 'www.gwmanz.com')
+        return 'gwm-au'
+      if (host === 'www.suzuki.com.au' || host === 'cdn.suzuki.com.au')
+        return 'suzuki-au'
+      if (host === 'www.renault.com.au')
+        return 'renault-au'
+      if (host === 'www.fotonaustralia.com.au')
+        return 'foton-au'
+      if (host === 'www.gacgroup.com' || host === 'eu-www-resouce-cdn.gacgroup.com' || host === 'eu-www-resource-cdn.gacgroup.com')
+        return 'gac-au'
+      if (host === 'kgm.com.au' || host === 'payloadb.therefinerydesign.com')
+        return 'kgm-au'
+      if (host === 'www.mitsubishi-motors.com.au' || host === 'configurator.mitsubishi-motors.com.au')
+        return 'mitsubishi-au'
+    }
+    catch (_error) {}
+
+    return ''
+  }
+
+  function encodeBase64Url(value) {
+    try {
+      return btoa(unescape(encodeURIComponent(String(value))))
+        .replace(/\\+/g, '-')
+        .replace(/\\//g, '_')
+        .replace(/=+$/g, '')
+    }
+    catch (_error) {
+      return ''
+    }
   }
 
   function isResponsiveDesktopContent(node) {
@@ -2198,6 +2419,7 @@ ${rendered}
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
   applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
   markResponsiveImageVariants()
+  recoverMissingResponsiveImagePairs()
   markResponsiveContentVariants()
   installResponsiveConfigRules()
 
