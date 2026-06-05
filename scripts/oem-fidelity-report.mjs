@@ -522,9 +522,40 @@ async function collectAudit(page) {
       });
     }
 
+    const TEXT_AUDIT_SELECTOR = 'p, span, a, button, h1, h2, h3, h4, h5, h6, li, label, summary, small, strong, em, figcaption, blockquote, td, th';
+
+    function hasDirectText(element) {
+      return [...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE && String(node.textContent || '').replace(/\s+/g, ' ').trim().length > 2);
+    }
+
+    function hasVisibleTextChild(element) {
+      return [...element.children].some(child => visible(child) && textContent(child).length > 2);
+    }
+
+    function isTextAuditElement(element) {
+      if (element.matches && element.matches(TEXT_AUDIT_SELECTOR))
+        return true;
+      return hasDirectText(element) && !hasVisibleTextChild(element);
+    }
+
+    function hasMeaningfulTextOverflow(element) {
+      const widthOverflow = element.scrollWidth - element.clientWidth;
+      const heightOverflow = element.scrollHeight - element.clientHeight;
+      const widthThreshold = Math.max(8, Math.round(element.clientWidth * 0.02));
+      const heightThreshold = Math.max(10, Math.round(element.clientHeight * 0.08));
+      const style = getComputedStyle(element);
+
+      if (widthOverflow > widthThreshold)
+        return true;
+      if (heightOverflow > heightThreshold && style.overflowY !== 'visible')
+        return true;
+
+      return false;
+    }
+
     const clippedText = [...document.querySelectorAll('body *')]
-      .filter(element => visible(element) && textContent(element).length > 12)
-      .filter(element => element.scrollWidth > element.clientWidth + 2 || element.scrollHeight > element.clientHeight + 2)
+      .filter(element => visible(element) && isTextAuditElement(element) && textContent(element).length > 12)
+      .filter(hasMeaningfulTextOverflow)
       .map(element => ({
         selector: selectorFor(element),
         text: textContent(element).slice(0, 120),

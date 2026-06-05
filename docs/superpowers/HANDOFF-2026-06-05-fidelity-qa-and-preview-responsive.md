@@ -116,16 +116,17 @@ node scripts/oem-fidelity-report.mjs \
 
 Report path:
 
-`/private/tmp/oem-fidelity/custom-2026-06-05T09-24-50-887Z`
+`/private/tmp/oem-fidelity/custom-2026-06-05T10-18-52-034Z`
 
 Latest result:
 
-- Overall score: `25.5/100` on the stricter warmed baseline.
+- Overall score: `50.2/100` on the stricter warmed baseline.
 - Desktop: source `1440x13039`, preview `1440x11798`, mismatch `63.07%`.
 - Tablet: source `820x13833`, preview `820x14156`, mismatch `54.94%`.
 - Mobile: source `390x11031`, preview `390x11787`, mismatch `71.45%`.
 - Preview network failures: none.
 - Preview broken images: none.
+- Preview clipped-text findings: none after the calibrated text audit.
 - Ford mobile Disclosures block is now collapsed in preview.
 
 ## Important interpretation notes
@@ -133,9 +134,10 @@ Latest result:
 - The QA score is intentionally strict and full-page pixel diff is noisy. It currently penalizes:
   - intentional saved-content differences such as preview using `Enquire` where Ford source uses
     `Compare`
-  - tiny line-height/clientHeight differences reported as clipped text
   - source footer/header behavior and lazy-load timing differences
   - carousel/card state differences below the fold
+- Clipped-text detection is now scoped to real text-bearing elements and meaningful overflow, so
+  wrapper nodes and tiny line-height/clientHeight drift no longer pollute the findings.
 - Use the generated `ai-review-prompt.md` plus screenshots for vision review. The script does not
   yet call a model directly; it prepares the prompt/artifacts for an AI reviewer.
 - The warmed baseline should be the default going forward. Comparing new runs to pre-warm reports is
@@ -145,18 +147,15 @@ Latest result:
 
 Recommended next slice:
 
-1. Tighten clipped-text detection to reduce false positives:
-   - ignore huge containers whose children are the real text nodes
-   - require a meaningful overflow threshold, not 2-4px line-height drift
-   - report text elements separately from layout wrappers
-2. Improve carousel/card normalization:
-   - desktop/tablet Slick tracks still produce width/height clipped-text findings
+1. Improve carousel/card normalization:
    - lower Ford card/news/model sections still account for much of the diff
-3. Add optional real AI review:
+   - compare source/preview active card counts and initial slide state
+   - keep existing bridge controls, but make initial visible windows closer to Ford source
+2. Add optional real AI review:
    - `--ai-review` could send screenshots + `ai-review-prompt.md` to the configured model
    - store `ai-review.json` beside `report.json`
    - make the AI output advisory, not the CI gate
-4. Broaden the QA matrix beyond Ford Mustang:
+3. Broaden the QA matrix beyond Ford Mustang:
    - run against one Hyundai/Kia/Mazda model page and one non-AEM OEM page
    - keep `--fail-on none` until baseline thresholds are calibrated
 

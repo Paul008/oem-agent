@@ -35,7 +35,7 @@ The dashboard `/preview/*` route is intentionally public with editing disabled i
 - failed image/font/stylesheet/script requests
 - visible broken images
 - root horizontal overflow and overflowing elements
-- clipped text
+- clipped text on real text-bearing elements with meaningful overflow
 - low contrast visible text samples
 - page height/width mismatch
 - largest-image desktop/mobile reuse, which catches missing mobile art direction in hero and large media blocks
