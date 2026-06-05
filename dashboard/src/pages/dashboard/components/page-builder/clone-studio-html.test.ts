@@ -161,6 +161,45 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/img,[\s\S]*picture[\s\S]*max-width:\s*100%\s*!important/i)
   })
 
+  it('stacks AEM split-grid blocks on phone widths and restores mobile data-config spacing', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <div class="aem-Grid aem-Grid--12 aem-Grid--default--12 aem-Grid--phone--12">
+            <div class="imagevideoTile aem-GridColumn aem-GridColumn--default--12 aem-GridColumn--phone--12">
+              <div class="cmp-image" data-config="{&quot;mobilePadding&quot;:{&quot;paddingBy&quot;:&quot;px&quot;,&quot;paddingTop&quot;:&quot;0&quot;,&quot;paddingRight&quot;:&quot;0&quot;,&quot;paddingBottom&quot;:&quot;0&quot;,&quot;paddingLeft&quot;:&quot;0&quot;},&quot;mobileMargin&quot;:{&quot;marginBy&quot;:&quot;px&quot;,&quot;marginTop&quot;:&quot;0&quot;,&quot;marginRight&quot;:&quot;0&quot;,&quot;marginBottom&quot;:&quot;0&quot;,&quot;marginLeft&quot;:&quot;0&quot;}}">
+                <div class="imageContainer" style="padding: 0 0 0 7%"><img class="imgdesktop" src="/mustang.webp" alt="The roar of a true sports car"></div>
+              </div>
+            </div>
+            <div class="richtext aem-GridColumn aem-GridColumn--default--7 aem-GridColumn--offset--default--5 aem-GridColumn--phone--12 aem-GridColumn--offset--phone--0" style="padding: 3% 0 0 3%; margin: 0 4% 0 0; background-color: rgb(6, 111, 239);">
+              <div class="cmp-richtext" data-mobilebg="#066FEF" data-rightroundmob="false" data-config="{&quot;mobilePadding&quot;:{&quot;paddingBy&quot;:&quot;%&quot;,&quot;paddingTop&quot;:&quot;5&quot;,&quot;paddingRight&quot;:&quot;15&quot;,&quot;paddingBottom&quot;:&quot;10&quot;,&quot;paddingLeft&quot;:&quot;5&quot;},&quot;mobileMargin&quot;:{&quot;marginBy&quot;:&quot;%&quot;,&quot;marginTop&quot;:&quot;4&quot;,&quot;marginRight&quot;:&quot;4&quot;,&quot;marginBottom&quot;:&quot;0&quot;,&quot;marginLeft&quot;:&quot;4&quot;}}">
+                <h3>The roar of a true sports car</h3>
+              </div>
+            </div>
+          </div>
+        </main>
+      `,
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toMatch(/@media \(max-width:\s*767\.98px\)[\s\S]*\.aem-Grid > \[class\*="aem-GridColumn"\][\s\S]*width:\s*100%\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid > \[class\*="aem-GridColumn--offset--"\][\s\S]*margin-left:\s*0\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid > \.imagevideoTile,[\s\S]*\.aem-Grid \.imageContainer[\s\S]*padding:\s*0\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid \.imagevideoTile img[\s\S]*height:\s*auto\s*!important/i)
+
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('function installResponsiveConfigRules()')
+    expect(bridgeScript).toContain('function responsiveSpacingDeclaration(prop, config)')
+    expect(bridgeScript).toContain('function responsiveBackgroundDeclaration(element)')
+    expect(bridgeScript).toContain('data-clone-studio-responsive-config-id')
+    expect(bridgeScript).toContain('data-clone-studio-responsive-config-style')
+    expect(bridgeScript).toContain('style.textContent = \'@media (max-width: 767.98px){\' + rules.join(\'\') + \'}\'')
+    expect(bridgeScript).toContain('installResponsiveConfigRules()')
+  })
+
   it('reveals common scroll-animation classes left transparent when OEM scripts are stripped', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><div class="txt fadeInUp animated" style="opacity: 0">Sportage feature copy</div></main>',
@@ -213,7 +252,9 @@ describe('buildCloneStudioHtml', () => {
 
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('function stripResponsiveVariantMarkers(root)')
+    expect(bridgeScript).toContain('function stripResponsiveConfigMarkers(root)')
     expect(bridgeScript).toContain('stripResponsiveVariantMarkers(clone)')
+    expect(bridgeScript).toContain('stripResponsiveConfigMarkers(clone)')
   })
 
   it('leaves absolute media URLs and non-proxied relative paths untouched', () => {

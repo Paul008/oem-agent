@@ -209,6 +209,57 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       flex-shrink: 0 !important;
     }
 
+    /*
+     * AEM pages store mobile column behaviour in framework CSS/JS. When the cloned page is shown
+     * without OEM scripts, phone-width split blocks can retain desktop floats/offsets. Keep this
+     * scoped to narrow frames and AEM grid columns so desktop fidelity is unchanged.
+     */
+    @media (max-width: 767.98px) {
+      .aem-Grid {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      .aem-Grid > [class*="aem-GridColumn"] {
+        float: none !important;
+        clear: both !important;
+        left: auto !important;
+        right: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+
+      .aem-Grid > [class*="aem-GridColumn--offset--"] {
+        margin-left: 0 !important;
+      }
+
+      .aem-Grid > .imagevideoTile,
+      .aem-Grid > .richtext,
+      .aem-Grid .cmp-image,
+      .aem-Grid .cmp-richtext,
+      .aem-Grid .imageContainer {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      .aem-Grid > .imagevideoTile,
+      .aem-Grid > .richtext,
+      .aem-Grid .imageContainer {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .aem-Grid .imagevideoTile img {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
+
     @media (min-width: 1024px) {
       img,
       video {
@@ -283,6 +334,7 @@ ${rendered}
     }
 
     stripResponsiveVariantMarkers(clone)
+    stripResponsiveConfigMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.innerHTML))
   }
@@ -311,6 +363,7 @@ ${rendered}
     }
 
     stripResponsiveVariantMarkers(clone)
+    stripResponsiveConfigMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.outerHTML || ''))
   }
@@ -324,6 +377,15 @@ ${rendered}
       nodes[i].removeAttribute('data-clone-studio-responsive-variant')
       nodes[i].removeAttribute('data-clone-studio-responsive-paired')
     }
+  }
+
+  function stripResponsiveConfigMarkers(root) {
+    if (!root || !root.querySelectorAll)
+      return
+
+    var nodes = root.querySelectorAll('[data-clone-studio-responsive-config-id]')
+    for (var i = 0; i < nodes.length; i++)
+      nodes[i].removeAttribute('data-clone-studio-responsive-config-id')
   }
 
   function stripPreviewScaffolding(html) {
@@ -1415,6 +1477,119 @@ ${rendered}
       mobileNodes[m].setAttribute('data-clone-studio-responsive-paired', 'true')
   }
 
+  function responsiveConfigValue(value, unit) {
+    var raw = String(value == null ? '' : value).trim()
+    if (!raw)
+      return ''
+    if (/^-?\\d+(?:\\.\\d+)?(?:px|%|rem|em|vh|vw)$/i.test(raw))
+      return raw
+    if (!/^-?\\d+(?:\\.\\d+)?$/.test(raw))
+      return ''
+    return raw + unit
+  }
+
+  function responsiveSpacingDeclaration(prop, config) {
+    if (!config)
+      return ''
+
+    var prefix = prop === 'padding' ? 'padding' : 'margin'
+    var unit = config[prefix + 'By'] === '%' ? '%' : 'px'
+    var top = responsiveConfigValue(config[prefix + 'Top'], unit)
+    var right = responsiveConfigValue(config[prefix + 'Right'], unit)
+    var bottom = responsiveConfigValue(config[prefix + 'Bottom'], unit)
+    var left = responsiveConfigValue(config[prefix + 'Left'], unit)
+
+    if (!top && !right && !bottom && !left)
+      return ''
+
+    return prop + ':' + (top || '0') + ' ' + (right || '0') + ' ' + (bottom || '0') + ' ' + (left || '0') + ' !important;'
+  }
+
+  function responsiveBackgroundDeclaration(element) {
+    if (!element || !element.getAttribute)
+      return ''
+
+    var color = element.getAttribute('data-mobilebg')
+    if (!color || !isPlausibleCssColor(color))
+      return ''
+
+    return 'background-color:' + color + ' !important;'
+  }
+
+  function responsiveRadiusDeclaration(element) {
+    if (!element || !element.getAttribute)
+      return ''
+
+    var left = element.getAttribute('data-leftroundmob')
+    var right = element.getAttribute('data-rightroundmob')
+    if (left !== 'false' && right !== 'false')
+      return ''
+
+    var declarations = []
+    if (left === 'false') {
+      declarations.push('border-top-left-radius:0 !important;')
+      declarations.push('border-bottom-left-radius:0 !important;')
+    }
+    if (right === 'false') {
+      declarations.push('border-top-right-radius:0 !important;')
+      declarations.push('border-bottom-right-radius:0 !important;')
+    }
+    return declarations.join('')
+  }
+
+  function installResponsiveConfigRules() {
+    if (!document || !document.querySelectorAll)
+      return
+
+    var previous = document.querySelector('[data-clone-studio-responsive-config-style]')
+    if (previous && previous.parentNode)
+      previous.parentNode.removeChild(previous)
+
+    var nodes = document.querySelectorAll('[data-config]')
+    var rules = []
+    var generated = 1
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i]
+      var raw = node.getAttribute('data-config')
+      if (!raw)
+        continue
+
+      var config = null
+      try { config = JSON.parse(raw) }
+      catch (_error) { config = null }
+      if (!config)
+        continue
+
+      var declarations = [
+        responsiveSpacingDeclaration('padding', config.mobilePadding),
+        responsiveSpacingDeclaration('margin', config.mobileMargin),
+        responsiveBackgroundDeclaration(node),
+        responsiveRadiusDeclaration(node)
+      ].filter(Boolean).join('')
+
+      if (!declarations)
+        continue
+
+      var id = node.getAttribute('data-clone-studio-responsive-config-id')
+      if (!id) {
+        id = String(generated++)
+        node.setAttribute('data-clone-studio-responsive-config-id', id)
+      }
+
+      rules.push('[data-clone-studio-responsive-config-id="' + id + '"]{' + declarations + '}')
+    }
+
+    if (!rules.length)
+      return
+
+    var style = document.createElement('style')
+    style.setAttribute('data-clone-studio-responsive-config-style', 'true')
+    style.setAttribute('data-clone-studio-bridge', 'true')
+    style.textContent = '@media (max-width: 767.98px){' + rules.join('') + '}'
+    document.head.appendChild(style)
+  }
+
   function enableInteractivity() {
     // Trusted, event-driven navigation for tabs/carousels in the read-only preview. OEM scripts are
     // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
@@ -1924,6 +2099,7 @@ ${rendered}
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
   applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
   markResponsiveImageVariants()
+  installResponsiveConfigRules()
 
   // Read-only preview only: make tabs/carousels clickable via the trusted bridge layer. The editor
   // (EDITABLE) is unaffected — it keeps click for region selection and the context-menu panel actions.
