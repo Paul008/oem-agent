@@ -2,8 +2,9 @@
 
 > Written 2026-06-05; updated later the same day. Earlier deployed baseline:
 > `https://819d5f51.oem-dashboard.pages.dev`. Later follow-ups added calibrated text-audit
-> filtering plus unpaired mobile typography fallback. Latest immutable Cloudflare Pages deployment:
-> `https://4829ee9f.oem-dashboard.pages.dev`.
+> filtering, unpaired mobile typography fallback, tablet layout/config replay fixes, and final
+> production deployment. Latest immutable Cloudflare Pages deployment:
+> `https://d037c285.oem-dashboard.pages.dev`.
 
 ## What shipped
 
@@ -104,6 +105,57 @@ Commit: `a31f71c fix(dashboard): scale unpaired mobile text variants`
 - `dashboard/vite.config.ts` explicitly sets `VueRouter({ watch: !isProduction })` so normal
   production builds do not start route watchers and hit local `EMFILE` file-descriptor limits.
 
+### 7. Bridge style refresh + tablet-inclusive AEM layout
+
+Commits:
+
+- `1f0f9ee fix(dashboard): scale unpaired mobile subtitles`
+- `676cbdd fix(dashboard): refresh clone bridge styles`
+- `0a7d988 fix(dashboard): match unpaired subtitle nodes`
+- `348b9b1 fix(dashboard): apply clone mobile layout on tablet`
+
+- Bridge styles now carry `data-clone-studio-bridge-style="2026-06-05-responsive-text-v3"`.
+- Saved clone heads drop stale generated Clone Studio bridge styles containing private
+  `data-clone-studio-*` markers, so old bridge CSS does not survive into new previews.
+- Ford hero subtitle fallback selector now self-targets unpaired desktop `p.heading3-medium`,
+  matching the actual saved node shape.
+- Ford/AEM mobile-layout replay now runs through `1023.98px`, not only phone widths:
+  - carousel slide windows become one-up on tablet
+  - AEM split-grid offset/overflow reset applies on tablet
+  - dynamic `data-config` mobile spacing replay applies on tablet
+- Result after `348b9b1` deploy (`https://df41ccca.oem-dashboard.pages.dev`):
+  - Overall score: `52.9`
+  - Tablet mismatch improved from `62.25%` to `45.82%`
+  - Mobile stayed stable at `58.63%`
+
+### 8. AEM richtext mobile config replay target
+
+Kept commits:
+
+- `1df4984 fix(dashboard): target AEM richtext responsive config`
+- `dec13b6 fix(dashboard): strengthen AEM config replay selector`
+
+Reverted experiment:
+
+- `9d234dc fix(dashboard): match AEM tablet heading fallback`
+- `b86cc2b Revert "fix(dashboard): match AEM tablet heading fallback"`
+
+- Ford stores mobile spacing for the blue richtext/stat panels on the inner `.cmp-richtext`
+  `data-config`, but the live source resolves the percentage padding/margins on the owning
+  `.richtext.aem-GridColumn` wrapper.
+- `installResponsiveConfigRules()` now retargets `.cmp-richtext[data-config]` replay to that AEM
+  grid-column wrapper.
+- Generated config selectors now include `.aem-Grid [data-clone-studio-responsive-config-id="..."]`
+  so the replayed rule beats the bridge's own AEM safety reset specificity.
+- The tablet heading-size experiment made the local text anchor closer but worsened the full-page
+  QA score (`55.5` overall, tablet `37.17%`), so it was reverted. Do not repeat that exact
+  typography override unless it is paired with a column-width fix and validated by full QA.
+- Result after final deploy (`https://d037c285.oem-dashboard.pages.dev`):
+  - Overall score: `55.7`
+  - Tablet mismatch improved to `36.61%`
+  - Mobile mismatch improved to `57.54%`
+  - No preview broken images, network failures, or clipped-text findings.
+
 ## Latest verification
 
 Commands run and passing:
@@ -123,7 +175,7 @@ Deployment:
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main
 ```
 
-Latest Pages URL: `https://4829ee9f.oem-dashboard.pages.dev`
+Latest Pages URL: `https://d037c285.oem-dashboard.pages.dev`
 
 Production alias check:
 
@@ -138,7 +190,7 @@ Latest warmed QA report:
 ```bash
 node scripts/oem-fidelity-report.mjs \
   --source-url https://www.ford.com.au/showroom/cars/mustang/ \
-  --preview-url 'https://4829ee9f.oem-dashboard.pages.dev/preview/ford-au-mustang?view=production' \
+  --preview-url 'https://d037c285.oem-dashboard.pages.dev/preview/ford-au-mustang?view=production' \
   --output-dir /private/tmp/oem-fidelity \
   --fail-on none \
   --json
@@ -146,14 +198,14 @@ node scripts/oem-fidelity-report.mjs \
 
 Report path:
 
-`/private/tmp/oem-fidelity/custom-2026-06-05T10-34-04-384Z`
+`/private/tmp/oem-fidelity/custom-2026-06-05T18-07-29-954Z`
 
 Latest result:
 
-- Overall score: `50.8/100` on the stricter warmed baseline.
+- Overall score: `55.7/100` on the stricter warmed baseline.
 - Desktop: source `1440x13039`, preview `1440x11798`, mismatch `63.07%`.
-- Tablet: source `820x13833`, preview `820x12665`, mismatch `52.78%`.
-- Mobile: source `390x11031`, preview `390x11451`, mismatch `63.00%`.
+- Tablet: source `820x13833`, preview `820x12627`, mismatch `36.61%`.
+- Mobile: source `390x11031`, preview `390x11220`, mismatch `57.54%`.
 - Preview network failures: none.
 - Preview broken images: none.
 - Preview clipped-text findings: none after the calibrated text audit.
@@ -185,6 +237,9 @@ Recommended next slice:
    - `--ai-review` could send screenshots + `ai-review-prompt.md` to the configured model
    - store `ai-review.json` beside `report.json`
    - make the AI output advisory, not the CI gate
+   - Cloudflare Dynamic Workers are worth considering for isolated on-demand QA/code-mode workers:
+     run generated comparison/review code with scoped bindings, logs, network controls, and limits
+     instead of pushing all artifacts through a model prompt.
 3. Broaden the QA matrix beyond Ford Mustang:
    - run against one Hyundai/Kia/Mazda model page and one non-AEM OEM page
    - keep `--fail-on none` until baseline thresholds are calibrated
