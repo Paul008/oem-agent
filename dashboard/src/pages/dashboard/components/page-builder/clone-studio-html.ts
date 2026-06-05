@@ -157,6 +157,33 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     }
 
     /*
+     * OEM text variants sometimes keep the only available copy inside onlydesktop wrappers while
+     * the mobile equivalent is absent from the captured HTML. Hide desktop text on mobile only when
+     * the bridge finds a real paired mobile text node.
+     */
+    [data-clone-studio-responsive-content-variant="desktop"] {
+      display: block !important;
+    }
+
+    [data-clone-studio-responsive-content-variant="mobile"] {
+      display: none !important;
+    }
+
+    @media (max-width: 1023.98px) {
+      [data-clone-studio-responsive-content-variant="mobile"] {
+        display: block !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"][data-clone-studio-responsive-content-paired="true"] {
+        display: none !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) {
+        display: block !important;
+      }
+    }
+
+    /*
      * Scroll-reveal libraries leave content transparent until OEM scripts add final-state classes.
      * Those scripts are stripped in Clone Studio, so keep the static desktop clone readable.
      */
@@ -334,6 +361,7 @@ ${rendered}
     }
 
     stripResponsiveVariantMarkers(clone)
+    stripResponsiveContentMarkers(clone)
     stripResponsiveConfigMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.innerHTML))
@@ -363,6 +391,7 @@ ${rendered}
     }
 
     stripResponsiveVariantMarkers(clone)
+    stripResponsiveContentMarkers(clone)
     stripResponsiveConfigMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.outerHTML || ''))
@@ -376,6 +405,17 @@ ${rendered}
     for (var i = 0; i < nodes.length; i++) {
       nodes[i].removeAttribute('data-clone-studio-responsive-variant')
       nodes[i].removeAttribute('data-clone-studio-responsive-paired')
+    }
+  }
+
+  function stripResponsiveContentMarkers(root) {
+    if (!root || !root.querySelectorAll)
+      return
+
+    var nodes = root.querySelectorAll('[data-clone-studio-responsive-content-variant], [data-clone-studio-responsive-content-paired]')
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].removeAttribute('data-clone-studio-responsive-content-variant')
+      nodes[i].removeAttribute('data-clone-studio-responsive-content-paired')
     }
   }
 
@@ -1477,6 +1517,65 @@ ${rendered}
       mobileNodes[m].setAttribute('data-clone-studio-responsive-paired', 'true')
   }
 
+  function isResponsiveDesktopContent(node) {
+    return !!node && node.classList && (
+      node.classList.contains('onlydesktop')
+      || node.classList.contains('onlyDesktop')
+    )
+  }
+
+  function isResponsiveMobileContent(node) {
+    return !!node && node.classList && (
+      node.classList.contains('onlymobile')
+      || node.classList.contains('onlyMobile')
+    )
+  }
+
+  function markResponsiveContentVariants() {
+    var candidates = document.querySelectorAll('.onlydesktop, .onlyDesktop, .onlymobile, .onlyMobile')
+    for (var i = 0; i < candidates.length; i++) {
+      var node = candidates[i]
+
+      if (isResponsiveDesktopContent(node))
+        node.setAttribute('data-clone-studio-responsive-content-variant', 'desktop')
+      else if (isResponsiveMobileContent(node))
+        node.setAttribute('data-clone-studio-responsive-content-variant', 'mobile')
+    }
+
+    var variants = document.querySelectorAll('[data-clone-studio-responsive-content-variant]')
+    for (var v = 0; v < variants.length; v++) {
+      var parent = variants[v].parentNode
+      if (isLocalResponsiveContentPairContainer(parent))
+        markResponsiveContentPairInContainer(parent)
+    }
+  }
+
+  function isLocalResponsiveContentPairContainer(container) {
+    if (!container || !container.querySelectorAll)
+      return false
+
+    var tag = container.tagName ? String(container.tagName).toLowerCase() : ''
+    if (tag === 'body' || tag === 'html' || tag === 'main' || tag === 'section')
+      return false
+
+    return container.querySelectorAll('[data-clone-studio-responsive-content-variant]').length <= 6
+  }
+
+  function markResponsiveContentPairInContainer(container) {
+    if (!container || !container.querySelectorAll)
+      return
+
+    var desktopNodes = container.querySelectorAll('[data-clone-studio-responsive-content-variant="desktop"]')
+    var mobileNodes = container.querySelectorAll('[data-clone-studio-responsive-content-variant="mobile"]')
+    if (!desktopNodes.length || !mobileNodes.length)
+      return
+
+    for (var d = 0; d < desktopNodes.length; d++)
+      desktopNodes[d].setAttribute('data-clone-studio-responsive-content-paired', 'true')
+    for (var m = 0; m < mobileNodes.length; m++)
+      mobileNodes[m].setAttribute('data-clone-studio-responsive-content-paired', 'true')
+  }
+
   function responsiveConfigValue(value, unit) {
     var raw = String(value == null ? '' : value).trim()
     if (!raw)
@@ -2099,6 +2198,7 @@ ${rendered}
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
   applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
   markResponsiveImageVariants()
+  markResponsiveContentVariants()
   installResponsiveConfigRules()
 
   // Read-only preview only: make tabs/carousels clickable via the trusted bridge layer. The editor

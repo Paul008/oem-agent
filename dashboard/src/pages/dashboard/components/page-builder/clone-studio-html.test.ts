@@ -200,6 +200,40 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('installResponsiveConfigRules()')
   })
 
+  it('keeps unpaired desktop-only text visible on mobile while preserving paired content variants', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <div class="cmp-richtext">
+            <div class="onlydesktop"><h3>The roar of a true sports car</h3><p>5.0L V8</p></div>
+          </div>
+          <div class="cmp-richtext">
+            <div class="onlydesktop"><p>Desktop copy</p></div>
+            <div class="onlymobile"><p>Mobile copy</p></div>
+          </div>
+        </main>
+      `,
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toContain('[data-clone-studio-responsive-content-variant="desktop"]')
+    expect(head).toContain('[data-clone-studio-responsive-content-variant="mobile"]')
+    expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*display:\s*block\s*!important/i)
+    expect(head).toMatch(/responsive-content-variant="desktop"\]\[data-clone-studio-responsive-content-paired="true"\][\s\S]*display:\s*none\s*!important/i)
+
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('function markResponsiveContentVariants()')
+    expect(bridgeScript).toContain('function isResponsiveDesktopContent(node)')
+    expect(bridgeScript).toContain('function isResponsiveMobileContent(node)')
+    expect(bridgeScript).toContain('function markResponsiveContentPairInContainer(container)')
+    expect(bridgeScript).toContain('data-clone-studio-responsive-content-variant')
+    expect(bridgeScript).toContain('data-clone-studio-responsive-content-paired')
+    expect(bridgeScript).toContain('markResponsiveContentVariants()')
+  })
+
   it('reveals common scroll-animation classes left transparent when OEM scripts are stripped', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><div class="txt fadeInUp animated" style="opacity: 0">Sportage feature copy</div></main>',
@@ -252,8 +286,10 @@ describe('buildCloneStudioHtml', () => {
 
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('function stripResponsiveVariantMarkers(root)')
+    expect(bridgeScript).toContain('function stripResponsiveContentMarkers(root)')
     expect(bridgeScript).toContain('function stripResponsiveConfigMarkers(root)')
     expect(bridgeScript).toContain('stripResponsiveVariantMarkers(clone)')
+    expect(bridgeScript).toContain('stripResponsiveContentMarkers(clone)')
     expect(bridgeScript).toContain('stripResponsiveConfigMarkers(clone)')
   })
 
