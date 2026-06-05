@@ -400,6 +400,14 @@ function quickCloneDuplicateRegion() {
   emit('regionAction', { action: 'duplicate', regionId: region.id, html: region.html })
 }
 
+function quickCloneConvertRegion() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  emit('regionAction', { action: 'convert', regionId: region.id, html: region.html })
+  clearCloneToolbarSelection()
+}
+
 function quickCloneDeleteRegion() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
@@ -1115,6 +1123,13 @@ watch(
                 @click="quickCloneDuplicateRegion"
               >
                 <Copy class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Convert to editable section"
+                @click="quickCloneConvertRegion"
+              >
+                <Wand2 class="size-3.5" />
               </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
