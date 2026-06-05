@@ -718,6 +718,33 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).toContain('https://www.subaru.com.au/media/brz.jpg')
   })
 
+  it('promotes remaining lazy image data-src attributes to renderable src values', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <img class="late-lazy" data-src="/media/rav4-late.jpg" alt="RAV4 late-loaded image">
+          <img class="page-placeholder" src="https://www.toyota.com.au/rav4" data-original="/media/rav4-real.jpg" alt="RAV4 real image">
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: [],
+      heroUrl: '',
+      title: 'RAV4',
+      elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    const lateUrl = 'https://www.toyota.com.au/media/rav4-late.jpg'
+    const realUrl = 'https://www.toyota.com.au/media/rav4-real.jpg'
+
+    expect(result.html).toContain(`src="${lateUrl}"`)
+    expect(result.html).toContain(`src="${realUrl}"`)
+    expect(result.html).not.toContain('data-src=')
+    expect(result.html).not.toContain('data-original=')
+    expect(result.imageUrls).toContain(lateUrl)
+    expect(result.imageUrls).toContain(realUrl)
+  })
+
   it('normalizes direct video sources and queues them for media proxying', () => {
     const result = normalizeCapturedLazyMedia({
       html: `

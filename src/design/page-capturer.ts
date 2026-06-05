@@ -1170,6 +1170,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   const $ = load(result.html, {}, false);
   const imageUrls = new Set(result.imageUrls.filter(Boolean));
   const comparableSourceUrl = normalizeComparableUrl(sourceUrl);
+  const lazyImageSrcAttrs = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy', 'data-image-src'];
 
   $('source[data-srcset], img[data-srcset]').each((_idx, node) => {
     const el = $(node);
@@ -1218,6 +1219,22 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       }
     }
 
+    const currentSrc = (img.attr('src') || '').trim();
+    const recoverableSrc = lazyImageSrcAttrs
+      .map(attrName => (img.attr(attrName) || '').trim())
+      .find(Boolean);
+    if (
+      recoverableSrc
+      && (
+        !currentSrc
+        || normalizeComparableUrl(absolutizeCaptureUrl(currentSrc, sourceUrl)) === comparableSourceUrl
+      )
+    ) {
+      img.attr('src', recoverableSrc);
+      for (const attrName of lazyImageSrcAttrs)
+        img.removeAttr(attrName);
+    }
+
     const src = (img.attr('src') || '').trim();
     if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
       const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
@@ -1233,7 +1250,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   $('img').each((_idx, node) => {
     const img = $(node);
     const hasRenderableSource = (img.attr('src') || img.attr('srcset') || '').trim();
-    const hasRecoverableSource = (img.attr('data-src') || img.attr('data-srcset') || img.attr('data-lazy-src') || img.attr('data-original') || '').trim();
+    const hasRecoverableSource = (img.attr('data-srcset') || lazyImageSrcAttrs.map(attrName => (img.attr(attrName) || '').trim()).find(Boolean) || '').trim();
     if (!hasRenderableSource && !hasRecoverableSource)
       img.remove();
   });
