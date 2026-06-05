@@ -1220,6 +1220,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     }
 
     const currentSrc = (img.attr('src') || '').trim();
+    const currentSrcLower = currentSrc.toLowerCase();
     const recoverableSrc = lazyImageSrcAttrs
       .map(attrName => (img.attr(attrName) || '').trim())
       .find(Boolean);
@@ -1227,6 +1228,8 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       recoverableSrc
       && (
         !currentSrc
+        || currentSrcLower.startsWith('data:')
+        || currentSrcLower.startsWith('blob:')
         || normalizeComparableUrl(absolutizeCaptureUrl(currentSrc, sourceUrl)) === comparableSourceUrl
       )
     ) {

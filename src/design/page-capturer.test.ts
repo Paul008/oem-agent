@@ -724,6 +724,7 @@ describe('normalizeCapturedLazyMedia', () => {
         <main>
           <img class="late-lazy" data-src="/media/rav4-late.jpg" alt="RAV4 late-loaded image">
           <img class="page-placeholder" src="https://www.toyota.com.au/rav4" data-original="/media/rav4-real.jpg" alt="RAV4 real image">
+          <img class="transparent-placeholder" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-lazy-src="/media/rav4-transparent.jpg" alt="RAV4 transparent placeholder">
         </main>
       `,
       stylesheetLinks: [],
@@ -736,13 +737,17 @@ describe('normalizeCapturedLazyMedia', () => {
 
     const lateUrl = 'https://www.toyota.com.au/media/rav4-late.jpg'
     const realUrl = 'https://www.toyota.com.au/media/rav4-real.jpg'
+    const transparentUrl = 'https://www.toyota.com.au/media/rav4-transparent.jpg'
 
     expect(result.html).toContain(`src="${lateUrl}"`)
     expect(result.html).toContain(`src="${realUrl}"`)
+    expect(result.html).toContain(`src="${transparentUrl}"`)
     expect(result.html).not.toContain('data-src=')
+    expect(result.html).not.toContain('data-lazy-src=')
     expect(result.html).not.toContain('data-original=')
     expect(result.imageUrls).toContain(lateUrl)
     expect(result.imageUrls).toContain(realUrl)
+    expect(result.imageUrls).toContain(transparentUrl)
   })
 
   it('normalizes direct video sources and queues them for media proxying', () => {
