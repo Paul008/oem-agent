@@ -492,10 +492,13 @@ describe('CAPTURE_STATIC_CAROUSEL_SAFETY_CSS', () => {
 
 describe('CAPTURE_STATIC_MEDIA_FRAME_CSS', () => {
   it('clips document-level horizontal overflow', () => {
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/\*,[\s\S]*\*::before,[\s\S]*\*::after[\s\S]*box-sizing:\s*border-box/i)
     expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('html,')
     expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toContain('body')
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/min-width:\s*0/i)
     expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/max-width:\s*100%/i)
     expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/overflow-x:\s*clip\s*!important/i)
+    expect(CAPTURE_STATIC_MEDIA_FRAME_CSS).toMatch(/overflow-wrap:\s*anywhere/i)
   })
 
   it('caps common media elements to the clone frame', () => {

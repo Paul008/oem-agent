@@ -15,6 +15,11 @@ describe('tailwindRules (characterization — current behavior)', () => {
     expect(R.cssTw('background-color', 'rgba(0, 0, 0, 0.5)')).toEqual(['bg-[rgba(0,0,0,0.5)]'])
     expect(R.cssTw('color', 'rgba(255, 255, 255, 0.75)')).toEqual(['text-[rgba(255,255,255,0.75)]'])
   })
+  it('keeps exact foreground/background colors inline for dynamic captured HTML', () => {
+    expect(R.styleTw('color', 'rgb(26, 26, 26)')).toBe('color:rgb(26, 26, 26)')
+    expect(R.styleTw('background-color', 'rgba(0, 0, 0, 0.5)')).toBe('background-color:rgba(0, 0, 0, 0.5)')
+    expect(R.styleTw('background-color', 'rgba(0, 0, 0, 0)')).toBe('')
+  })
   it('spacing → scale or exact arbitrary', () => {
     expect(R.cssTw('padding-top', '16px')).toEqual(['pt-4'])
     expect(R.cssTw('padding-top', '37px')).toEqual(['pt-[37px]'])
@@ -72,6 +77,31 @@ describe('newly-emitted Tailwind props', () => {
   it('font-weight: arbitrary fallback for unmapped weights', () => {
     expect(R.cssTw('font-weight', '700')).toEqual(['font-bold'])
     expect(R.cssTw('font-weight', '350')).toEqual(['font-[350]'])
+  })
+})
+
+describe('responsive inline fallbacks', () => {
+  it('keeps small copy fixed but clamps large display text for mobile', () => {
+    expect(R.styleTw('font-size', '17px')).toBe('')
+    expect(R.styleTw('font-size', '36px')).toBe('font-size:clamp(24px,5vw,36px)')
+    expect(R.styleTw('font-size', '60px')).toBe('font-size:clamp(28px,6vw,60px)')
+    expect(R.styleTw('font-size', '92.5px')).toBe('font-size:clamp(32px,8vw,92.5px)')
+  })
+
+  it('keeps fixed captured lengths inside the current viewport', () => {
+    expect(R.styleTw('width', '1440px')).toBe('width:min(100%,1440px)')
+    expect(R.styleTw('min-width', '720px')).toBe('min-width:min(100%,720px)')
+    expect(R.styleTw('max-width', '1180px')).toBe('max-width:min(100%,1180px)')
+    expect(R.styleTw('min-height', '900px')).toBe('min-height:min(100svh,900px)')
+  })
+
+  it('preserves background and object sizing fidelity that affects responsive media crops', () => {
+    expect(R.styleTw('background-size', 'cover')).toBe('background-size:cover')
+    expect(R.styleTw('background-position', 'center center')).toBe('background-position:center center')
+    expect(R.styleTw('background-repeat', 'no-repeat')).toBe('background-repeat:no-repeat')
+    expect(R.styleTw('object-position', '45% 50%')).toBe('object-position:45% 50%')
+    expect(R.styleTw('background-repeat', 'repeat')).toBe('')
+    expect(R.styleTw('object-position', '50% 50%')).toBe('')
   })
 })
 

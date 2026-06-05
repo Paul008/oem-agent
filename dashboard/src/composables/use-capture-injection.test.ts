@@ -19,6 +19,15 @@ describe('buildCaptureInjection uses the extracted rules', () => {
     expect(lateInjection).toContain('R.borderTw(')
   })
 
+  it('collects responsive background/media sizing props for Tailwind HTML capture', () => {
+    const { lateInjection } = buildCaptureInjection()
+    expect(lateInjection).toContain("'background-size'")
+    expect(lateInjection).toContain("'background-position'")
+    expect(lateInjection).toContain("'background-repeat'")
+    expect(lateInjection).toContain("'aspect-ratio'")
+    expect(lateInjection).toContain("'object-position'")
+  })
+
   it('materializes simple pseudo-element text in clean and Tailwind capture output', () => {
     const { lateInjection } = buildCaptureInjection()
 

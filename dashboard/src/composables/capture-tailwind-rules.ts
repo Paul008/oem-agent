@@ -15,6 +15,27 @@ export function tailwindRules() {
     var m: Record<number, string>={12:'xs',14:'sm',16:'base',18:'lg',20:'xl',24:'2xl',30:'3xl',36:'4xl',48:'5xl',60:'6xl'};
     return m[px] ? m[px] : '['+px+'px]';
   }
+  function pxText(px: number): string {
+    return String(Math.round(px * 100) / 100) + 'px';
+  }
+  function responsiveFontSize(px: number): string {
+    if (isNaN(px) || px < 24) return '';
+    var min = 20;
+    var vw = 4;
+    if (px >= 72) { min = 32; vw = 8; }
+    else if (px >= 48) { min = 28; vw = 6; }
+    else if (px >= 32) { min = 24; vw = 5; }
+    return 'font-size:clamp(' + min + 'px,' + vw + 'vw,' + pxText(px) + ')';
+  }
+  function responsiveLength(prop: string, val: string): string {
+    var px = parseFloat(val);
+    if (isNaN(px) || px <= 0 || val.indexOf('px') < 0) return '';
+    if (prop === 'width') return 'width:min(100%,' + pxText(px) + ')';
+    if (prop === 'min-width') return 'min-width:min(100%,' + pxText(px) + ')';
+    if (prop === 'max-width') return 'max-width:min(100%,' + pxText(px) + ')';
+    if (prop === 'min-height') return 'min-height:min(100svh,' + pxText(px) + ')';
+    return '';
+  }
   function rgbHex(rgb: string): string {
     var m=rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/); if(!m)return rgb;
     return '#'+[m[1],m[2],m[3]].map(function(n){return parseInt(n).toString(16).padStart(2,'0')}).join('');
@@ -200,9 +221,30 @@ export function tailwindRules() {
   }
 
   // styleTw: inline-style escape hatch for un-tokenizable CSS props.
-  var INLINE_STYLE_PROPS: Record<string, number> = { 'box-shadow':1, 'background-image':1, 'transform':1, 'filter':1, 'backdrop-filter':1, 'clip-path':1, 'mask':1 };
+  var INLINE_STYLE_PROPS: Record<string, number> = {
+    'color':1,
+    'background-color':1,
+    'box-shadow':1,
+    'background-image':1,
+    'background-size':1,
+    'background-position':1,
+    'background-repeat':1,
+    'object-position':1,
+    'aspect-ratio':1,
+    'transform':1,
+    'filter':1,
+    'backdrop-filter':1,
+    'clip-path':1,
+    'mask':1
+  };
   function styleTw(prop: string, val: string): string {
     if (!val || val === 'none' || val === 'normal' || val === 'auto' || val === 'rgba(0, 0, 0, 0)') return '';
+    var dynamicLength = responsiveLength(prop, val);
+    if (dynamicLength) return dynamicLength;
+    if (prop === 'font-size') return responsiveFontSize(parseFloat(val));
+    if (prop === 'background-position' && (val === '0% 0%' || val === '0px 0px')) return '';
+    if (prop === 'background-repeat' && val === 'repeat') return '';
+    if (prop === 'object-position' && val === '50% 50%') return '';
     if (!INLINE_STYLE_PROPS[prop]) return '';
     return prop + ':' + val;
   }

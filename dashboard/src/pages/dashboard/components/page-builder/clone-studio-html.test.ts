@@ -145,7 +145,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/\.swiper-slide,[\s\S]*\.splide__slide[\s\S]*width:\s*100%\s*!important/i)
   })
 
-  it('clips document-level horizontal overflow and caps media to the desktop frame', () => {
+  it('clips document-level horizontal overflow and caps media to the responsive frame', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><div class="article-wrapper"><picture><img src="/hero.jpg"></picture></div></main>',
       title: 'i30',
@@ -154,7 +154,10 @@ describe('buildCloneStudioHtml', () => {
     })
 
     const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toMatch(/\*,[\s\S]*\*::before,[\s\S]*\*::after[\s\S]*box-sizing:\s*border-box/i)
+    expect(head).toMatch(/html,[\s\S]*body[\s\S]*min-width:\s*0/i)
     expect(head).toMatch(/html,[\s\S]*body[\s\S]*overflow-x:\s*clip\s*!important/i)
+    expect(head).toMatch(/body[\s\S]*overflow-wrap:\s*anywhere/i)
     expect(head).toMatch(/img,[\s\S]*picture[\s\S]*max-width:\s*100%\s*!important/i)
   })
 

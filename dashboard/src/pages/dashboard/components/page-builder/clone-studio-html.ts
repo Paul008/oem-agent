@@ -73,15 +73,32 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       background: #ffffff;
     }
 
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
       min-height: 100%;
       margin: 0;
+      overflow-wrap: anywhere;
     }
 
     html,
     body {
+      width: 100%;
+      min-width: 0;
       max-width: 100%;
       overflow-x: clip !important;
+    }
+
+    img,
+    picture,
+    video,
+    canvas,
+    svg {
+      max-width: 100% !important;
     }
 
     [data-clone-studio-hover] {
@@ -180,14 +197,6 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     }
 
     @media (min-width: 1024px) {
-      img,
-      picture,
-      video,
-      canvas,
-      svg {
-        max-width: 100% !important;
-      }
-
       img,
       video {
         height: auto !important;

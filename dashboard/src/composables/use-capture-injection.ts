@@ -260,7 +260,8 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
     'position','top','right','bottom','left','z-index',
     'color','background-color','font-family','font-size','font-weight','font-style',
     'line-height','letter-spacing','text-align','text-transform','text-decoration',
-    'border-radius','box-shadow','background-image','transform','filter','backdrop-filter','clip-path','mask',
+    'border-radius','box-shadow','background-image','background-size','background-position','background-repeat',
+    'transform','filter','backdrop-filter','clip-path','mask','aspect-ratio',
     'object-fit','object-position','overflow','opacity'];
 
   function tailwindHtml(el) {

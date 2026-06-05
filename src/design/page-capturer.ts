@@ -162,21 +162,33 @@ export const CAPTURE_STATIC_CAROUSEL_SAFETY_CSS = `
 }
 `.trim();
 export const CAPTURE_STATIC_MEDIA_FRAME_CSS = `
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   overflow-x: clip !important;
 }
 
-@media (min-width: 1024px) {
-  img,
-  picture,
-  video,
-  canvas,
-  svg {
-    max-width: 100% !important;
-  }
+body {
+  overflow-wrap: anywhere;
+}
 
+img,
+picture,
+video,
+canvas,
+svg {
+  max-width: 100% !important;
+}
+
+@media (min-width: 1024px) {
   img,
   video {
     height: auto !important;
