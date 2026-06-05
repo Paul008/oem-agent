@@ -147,6 +147,8 @@ const cloneMediaLibraryOpen = ref(false)
 const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)
 const cloneToolbarLinkEditing = ref(false)
 const cloneToolbarLinkValue = ref('')
+const cloneToolbarAltEditing = ref(false)
+const cloneToolbarAltValue = ref('')
 
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
@@ -187,8 +189,8 @@ function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, h
 }
 
 function onCloneRegionSelected(region: any) {
-  cloneToolbarLinkEditing.value = false
-  cloneToolbarLinkValue.value = ''
+  cancelCloneToolbarLink()
+  cancelCloneToolbarAlt()
 
   if (region && region.id) {
     cloneToolbarRegion.value = {
@@ -231,6 +233,14 @@ function cloneLinkValue(region: CloneMenuRegion | null | undefined): string {
   return typeof link?.value === 'string' ? link.value : ''
 }
 
+function cloneImageAltValue(region: CloneMenuRegion | null | undefined): string {
+  const fields = Array.isArray(region?.editable_fields) ? region.editable_fields : []
+  const image = fields.find((field: any) => String(field?.kind || '') === 'image')
+  const alt = typeof image?.alt === 'string' ? image.alt.trim() : ''
+  const label = typeof image?.label === 'string' ? image.label.trim() : ''
+  return alt || (label && label !== 'Image' ? label : '')
+}
+
 function quickCloneEdit() {
   if (!cloneToolbarRegion.value || props.readOnly || !cloneToolbarHasText.value)
     return
@@ -244,10 +254,20 @@ function quickCloneReplaceImage() {
   openCloneMediaLibrary(region)
 }
 
+function quickCloneEditAlt() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasImage.value)
+    return
+  cancelCloneToolbarLink()
+  cloneToolbarAltValue.value = cloneImageAltValue(region)
+  cloneToolbarAltEditing.value = true
+}
+
 function quickCloneEditLink() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly || !cloneToolbarHasLink.value)
     return
+  cancelCloneToolbarAlt()
   cloneToolbarLinkValue.value = cloneLinkValue(region)
   cloneToolbarLinkEditing.value = true
 }
@@ -267,6 +287,23 @@ function submitCloneToolbarLink() {
   if (payload)
     cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
   cancelCloneToolbarLink()
+}
+
+function cancelCloneToolbarAlt() {
+  cloneToolbarAltEditing.value = false
+  cloneToolbarAltValue.value = ''
+}
+
+function submitCloneToolbarAlt() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasImage.value) {
+    cancelCloneToolbarAlt()
+    return
+  }
+  const payload = buildPatchPayload('alt-text', region as any, cloneToolbarAltValue.value.trim())
+  if (payload)
+    cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+  cancelCloneToolbarAlt()
 }
 
 function patchCloneStyle(property: 'text-align' | 'font-weight' | 'color', value: string) {
@@ -302,6 +339,7 @@ function openCloneMediaLibrary(region: CloneMenuRegion) {
   if (props.readOnly || !cloneHasMediaContext.value)
     return
   cancelCloneToolbarLink()
+  cancelCloneToolbarAlt()
   cloneMediaTargetRegion.value = region
   cloneMediaLibraryOpen.value = true
   closeCloneMenu()
@@ -801,6 +839,31 @@ watch(
                 <X class="size-3.5" />
               </button>
             </template>
+            <template v-else-if="cloneToolbarAltEditing">
+              <Type class="mx-1 size-3.5 shrink-0 text-muted-foreground" />
+              <input
+                v-model="cloneToolbarAltValue"
+                type="text"
+                placeholder="Image alt text..."
+                class="h-8 w-56 max-w-[calc(100vw-112px)] rounded-md border bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-primary"
+                @keydown.enter="submitCloneToolbarAlt"
+                @keydown.escape="cancelCloneToolbarAlt"
+              >
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Apply alt text"
+                @click="submitCloneToolbarAlt"
+              >
+                <Check class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Cancel"
+                @click="cancelCloneToolbarAlt"
+              >
+                <X class="size-3.5" />
+              </button>
+            </template>
             <template v-else>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
@@ -817,6 +880,14 @@ watch(
                 @click="quickCloneReplaceImage"
               >
                 <Image class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Edit image alt text"
+                :disabled="!cloneToolbarHasImage"
+                @click="quickCloneEditAlt"
+              >
+                <Type class="size-3.5" />
               </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
