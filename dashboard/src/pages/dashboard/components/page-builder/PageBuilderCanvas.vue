@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2 } from 'lucide-vue-next'
+import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
@@ -145,9 +145,12 @@ const clonePanelIndex = ref<Record<string, number>>({})
 const cloneToolbarRegion = ref<CloneMenuRegion | null>(null)
 const cloneMediaLibraryOpen = ref(false)
 const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)
+const cloneToolbarLinkEditing = ref(false)
+const cloneToolbarLinkValue = ref('')
 
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
+const cloneToolbarHasLink = computed(() => hasCloneLinkField(cloneToolbarRegion.value))
 const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))
 const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
@@ -184,6 +187,9 @@ function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, h
 }
 
 function onCloneRegionSelected(region: any) {
+  cloneToolbarLinkEditing.value = false
+  cloneToolbarLinkValue.value = ''
+
   if (region && region.id) {
     cloneToolbarRegion.value = {
       id: region.id,
@@ -214,6 +220,17 @@ function hasCloneImageField(region: CloneMenuRegion | null | undefined): boolean
   return fields.some((field: any) => String(field?.kind || '') === 'image')
 }
 
+function hasCloneLinkField(region: CloneMenuRegion | null | undefined): boolean {
+  const fields = Array.isArray(region?.editable_fields) ? region.editable_fields : []
+  return fields.some((field: any) => String(field?.kind || '') === 'link')
+}
+
+function cloneLinkValue(region: CloneMenuRegion | null | undefined): string {
+  const fields = Array.isArray(region?.editable_fields) ? region.editable_fields : []
+  const link = fields.find((field: any) => String(field?.kind || '') === 'link')
+  return typeof link?.value === 'string' ? link.value : ''
+}
+
 function quickCloneEdit() {
   if (!cloneToolbarRegion.value || props.readOnly || !cloneToolbarHasText.value)
     return
@@ -225,6 +242,31 @@ function quickCloneReplaceImage() {
   if (!region || props.readOnly || !cloneToolbarHasImage.value || !cloneHasMediaContext.value)
     return
   openCloneMediaLibrary(region)
+}
+
+function quickCloneEditLink() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasLink.value)
+    return
+  cloneToolbarLinkValue.value = cloneLinkValue(region)
+  cloneToolbarLinkEditing.value = true
+}
+
+function cancelCloneToolbarLink() {
+  cloneToolbarLinkEditing.value = false
+  cloneToolbarLinkValue.value = ''
+}
+
+function submitCloneToolbarLink() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasLink.value) {
+    cancelCloneToolbarLink()
+    return
+  }
+  const payload = buildPatchPayload('edit-link', region as any, cloneToolbarLinkValue.value.trim())
+  if (payload)
+    cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+  cancelCloneToolbarLink()
 }
 
 function patchCloneStyle(property: 'text-align' | 'font-weight', value: string) {
@@ -255,6 +297,7 @@ function onCloneToolbarBgColorInput(e: Event) {
 function openCloneMediaLibrary(region: CloneMenuRegion) {
   if (props.readOnly || !cloneHasMediaContext.value)
     return
+  cancelCloneToolbarLink()
   cloneMediaTargetRegion.value = region
   cloneMediaLibraryOpen.value = true
   closeCloneMenu()
@@ -729,72 +772,107 @@ watch(
             @contextmenu.stop.prevent
             @mousedown.stop
           >
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Edit text"
-              :disabled="!cloneToolbarHasText"
-              @click="quickCloneEdit"
-            >
-              <Type class="size-3.5" />
-            </button>
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Replace image"
-              :disabled="!cloneToolbarHasImage || !cloneHasMediaContext"
-              @click="quickCloneReplaceImage"
-            >
-              <Image class="size-3.5" />
-            </button>
-            <div class="h-5 w-px bg-border" />
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Align left"
-              :disabled="!cloneToolbarHasText"
-              @click="patchCloneStyle('text-align', 'left')"
-            >
-              <AlignLeft class="size-3.5" />
-            </button>
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Align center"
-              :disabled="!cloneToolbarHasText"
-              @click="patchCloneStyle('text-align', 'center')"
-            >
-              <AlignCenter class="size-3.5" />
-            </button>
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Align right"
-              :disabled="!cloneToolbarHasText"
-              @click="patchCloneStyle('text-align', 'right')"
-            >
-              <AlignRight class="size-3.5" />
-            </button>
-            <div class="h-5 w-px bg-border" />
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Normal weight"
-              :disabled="!cloneToolbarHasText"
-              @click="patchCloneStyle('font-weight', '400')"
-            >
-              <Type class="size-3.5" />
-            </button>
-            <button
-              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              title="Bold"
-              :disabled="!cloneToolbarHasText"
-              @click="patchCloneStyle('font-weight', '700')"
-            >
-              <Bold class="size-3.5" />
-            </button>
-            <div class="h-5 w-px bg-border" />
-            <label
-              class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="Background color"
-            >
-              <Palette class="size-3.5" />
-              <input type="color" value="#ffffff" class="sr-only" @input="onCloneToolbarBgColorInput">
-            </label>
+            <template v-if="cloneToolbarLinkEditing">
+              <Link class="mx-1 size-3.5 shrink-0 text-muted-foreground" />
+              <input
+                v-model="cloneToolbarLinkValue"
+                type="url"
+                placeholder="https://..."
+                class="h-8 w-56 max-w-[calc(100vw-112px)] rounded-md border bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-primary"
+                @keydown.enter="submitCloneToolbarLink"
+                @keydown.escape="cancelCloneToolbarLink"
+              >
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Apply link"
+                @click="submitCloneToolbarLink"
+              >
+                <Check class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Cancel"
+                @click="cancelCloneToolbarLink"
+              >
+                <X class="size-3.5" />
+              </button>
+            </template>
+            <template v-else>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Edit text"
+                :disabled="!cloneToolbarHasText"
+                @click="quickCloneEdit"
+              >
+                <Type class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Replace image"
+                :disabled="!cloneToolbarHasImage || !cloneHasMediaContext"
+                @click="quickCloneReplaceImage"
+              >
+                <Image class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Edit link"
+                :disabled="!cloneToolbarHasLink"
+                @click="quickCloneEditLink"
+              >
+                <Link class="size-3.5" />
+              </button>
+              <div class="h-5 w-px bg-border" />
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Align left"
+                :disabled="!cloneToolbarHasText"
+                @click="patchCloneStyle('text-align', 'left')"
+              >
+                <AlignLeft class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Align center"
+                :disabled="!cloneToolbarHasText"
+                @click="patchCloneStyle('text-align', 'center')"
+              >
+                <AlignCenter class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Align right"
+                :disabled="!cloneToolbarHasText"
+                @click="patchCloneStyle('text-align', 'right')"
+              >
+                <AlignRight class="size-3.5" />
+              </button>
+              <div class="h-5 w-px bg-border" />
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Normal weight"
+                :disabled="!cloneToolbarHasText"
+                @click="patchCloneStyle('font-weight', '400')"
+              >
+                <Type class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title="Bold"
+                :disabled="!cloneToolbarHasText"
+                @click="patchCloneStyle('font-weight', '700')"
+              >
+                <Bold class="size-3.5" />
+              </button>
+              <div class="h-5 w-px bg-border" />
+              <label
+                class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Background color"
+              >
+                <Palette class="size-3.5" />
+                <input type="color" value="#ffffff" class="sr-only" @input="onCloneToolbarBgColorInput">
+              </label>
+            </template>
           </div>
         </Teleport>
 
