@@ -964,6 +964,11 @@ ${rendered}
     if (matchesAny(element, '.swiper, .slick, [class*="carousel"], [class*="slider"]'))
       return 'carousel'
 
+    var hasGallery = matchesAny(element, '[data-gallery], .gallery, [class*="gallery"]')
+      || (element.querySelector && element.querySelector('[data-gallery], .gallery, [class*="gallery"], [data-thumbnail], [data-thumb], [class*="thumb"]'))
+    if (hasGallery && galleryImagesFor(element).length > 1)
+      return 'gallery'
+
     var hasTablist = matchesAny(element, '[role="tablist"]')
       || (element.querySelector && element.querySelector('[role="tablist"]'))
     if (hasTablist)
@@ -1942,10 +1947,11 @@ ${rendered}
   }
 
   function enableInteractivity() {
-    // Trusted, event-driven navigation for tabs/carousels/accordions in the read-only preview. OEM scripts are
+    // Trusted, event-driven navigation for tabs/carousels/accordions/galleries in the read-only preview. OEM scripts are
     // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
-    // primitive (switchPanel) or accordion toggles. No timers/auto-advance — those are throttled in the sandbox.
-    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
+    // primitive (switchPanel), accordion toggles, or image swaps. No timers/auto-advance — those are
+    // throttled in the sandbox.
+    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [data-gallery], .gallery, [class*="gallery"], [data-thumbnail], [data-thumb], [class*="thumb"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
 
     // Wire each region inside its OWN function call so every click handler closes over per-call
     // params (regionId/regionEl/kind) -- never a shared loop var. With ES5 var, a loop variable is
@@ -1958,7 +1964,7 @@ ${rendered}
 
   function wireRegion(regionEl) {
     var kind = classifyRegion(regionEl)
-    if (kind !== 'tabs' && kind !== 'carousel' && kind !== 'accordion')
+    if (kind !== 'tabs' && kind !== 'carousel' && kind !== 'accordion' && kind !== 'gallery')
       return
 
     var regionId = ensureRegionId(regionEl)
@@ -1968,10 +1974,12 @@ ${rendered}
       wired = wireTabRegion(regionId, regionEl)
     else if (kind === 'accordion')
       wired = wireAccordionRegion(regionId, regionEl)
+    else if (kind === 'gallery')
+      wired = wireGalleryRegion(regionId, regionEl)
     else
       wired = wireCarouselRegion(regionId, regionEl)
 
-    if (kind === 'accordion')
+    if (kind === 'accordion' || kind === 'gallery')
       return
 
     // slick/swiper inject their arrows via JS, which the sanitizer strips — so a multi-panel region
@@ -2181,6 +2189,28 @@ ${rendered}
 
     // Report whether any real OEM controls were found; when none, the caller injects a trusted bar.
     return controls.next.length > 0 || controls.prev.length > 0
+  }
+
+  function wireGalleryRegion(regionId, regionEl) {
+    // Gallery thumbnails drive a main-image swap in read-only preview. The regionId param keeps the
+    // same wire* signature used by other kinds; gallery swapping is local to regionEl.
+    var parts = galleryPartsFor(regionEl)
+    if (!parts.main || !parts.items.length)
+      return false
+
+    for (var g = 0; g < parts.items.length; g++) {
+      markInteractivityControl(parts.items[g].control)
+      parts.items[g].control.addEventListener('click', function (event) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.stopImmediatePropagation)
+          event.stopImmediatePropagation()
+
+        switchGalleryImage(regionEl, event.currentTarget)
+      }, true)
+    }
+
+    return true
   }
 
   function wireAccordionRegion(regionId, regionEl) {
@@ -2418,6 +2448,254 @@ ${rendered}
   function markInteractivityControl(element) {
     if (element && element.setAttribute)
       element.setAttribute('data-clone-studio-interactive-control', 'true')
+  }
+
+  function galleryImagesFor(regionEl) {
+    if (!regionEl || !regionEl.querySelectorAll)
+      return []
+
+    var found = regionEl.querySelectorAll('img')
+    var images = []
+    for (var i = 0; i < found.length; i++) {
+      if (found[i] && found[i].getAttribute && imageSourceFor(found[i]))
+        images.push(found[i])
+    }
+
+    return images
+  }
+
+  function galleryPartsFor(regionEl) {
+    var images = galleryImagesFor(regionEl)
+    var main = galleryMainImageFor(regionEl, images)
+    var items = []
+
+    for (var i = 0; i < images.length; i++) {
+      var image = images[i]
+      if (image === main)
+        continue
+
+      var control = galleryControlFor(image)
+      if (!control)
+        control = image
+
+      if (!isGalleryThumbnail(regionEl, image, control))
+        continue
+
+      addUniqueGalleryItem(items, control, image)
+    }
+
+    if (!items.length && matchesAny(regionEl, '[data-gallery], .gallery, [class*="gallery"]')) {
+      for (var j = 0; j < images.length; j++) {
+        if (images[j] === main)
+          continue
+        addUniqueGalleryItem(items, galleryControlFor(images[j]) || images[j], images[j])
+      }
+    }
+
+    return { main: main, items: items }
+  }
+
+  function addUniqueGalleryItem(items, control, image) {
+    if (!control || !image)
+      return
+
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].control === control)
+        return
+    }
+
+    items.push({ control: control, image: image })
+  }
+
+  function galleryMainImageFor(regionEl, images) {
+    if (!images || !images.length)
+      return null
+
+    var explicit = regionEl && regionEl.querySelector ? regionEl.querySelector('[data-gallery-main] img, img[data-gallery-main], .gallery-main img, .gallery__main img, [class*="gallery-main"] img, [class*="main-image"] img, img[class*="main-image"]') : null
+    if (explicit)
+      return explicit
+
+    var best = images[0]
+    var bestArea = -1
+    for (var i = 0; i < images.length; i++) {
+      var image = images[i]
+      var area = imageNaturalArea(image)
+      if (area > bestArea) {
+        best = image
+        bestArea = area
+      }
+    }
+
+    return best
+  }
+
+  function imageNaturalArea(image) {
+    if (!image)
+      return 0
+
+    var width = Number(image.naturalWidth || image.getAttribute('width') || 0)
+    var height = Number(image.naturalHeight || image.getAttribute('height') || 0)
+    if (width > 0 && height > 0)
+      return width * height
+
+    if (image.getBoundingClientRect) {
+      var rect = image.getBoundingClientRect()
+      return (rect.width || 0) * (rect.height || 0)
+    }
+
+    return 0
+  }
+
+  function galleryControlFor(image) {
+    if (!image || !image.closest)
+      return image
+
+    var control = image.closest('a, button, [role="button"], [data-gallery-thumb], [data-thumbnail], [data-thumb], [class*="thumb"]') || image
+    if (control !== image && control.querySelectorAll && control.querySelectorAll('img').length > 1)
+      return image
+
+    return control
+  }
+
+  function isGalleryThumbnail(regionEl, image, control) {
+    if (!image)
+      return false
+
+    if (matchesAny(image, '[data-gallery-thumb], [data-thumbnail], [data-thumb], [class*="thumb"]')
+      || matchesAny(control, '[data-gallery-thumb], [data-thumbnail], [data-thumb], [class*="thumb"]'))
+      return true
+
+    return matchesAny(regionEl, '[data-gallery], .gallery, [class*="gallery"]')
+  }
+
+  function switchGalleryImage(regionEl, control) {
+    var parts = galleryPartsFor(regionEl)
+    if (!parts.main)
+      return false
+
+    var thumb = galleryImageFromControl(control)
+    if (!thumb)
+      return false
+
+    var url = galleryUrlFor(control, thumb)
+    if (!url)
+      return false
+
+    setMainGalleryImage(parts.main, url, thumb)
+    setGalleryActiveState(parts.items, control)
+    return true
+  }
+
+  function galleryImageFromControl(control) {
+    if (!control)
+      return null
+    if (String(control.tagName || '').toLowerCase() === 'img')
+      return control
+    if (control.querySelector)
+      return control.querySelector('img')
+    return null
+  }
+
+  function galleryUrlFor(control, image) {
+    var controlUrl = galleryUrlFromAttributes(control, true)
+    if (controlUrl)
+      return controlUrl
+
+    var imageUrl = galleryUrlFromAttributes(image, false)
+    if (imageUrl)
+      return imageUrl
+
+    return imageSourceFor(image)
+  }
+
+  function galleryUrlFromAttributes(element, hrefAllowed) {
+    if (!element || !element.getAttribute)
+      return ''
+
+    var attrs = ['data-full-src', 'data-full', 'data-large-src', 'data-large', 'data-image', 'data-image-url', 'data-src', 'data-gallery-src']
+    for (var i = 0; i < attrs.length; i++) {
+      var value = element.getAttribute(attrs[i])
+      if (value && looksGalleryImageUrl(value))
+        return value
+    }
+
+    if (hrefAllowed) {
+      var href = element.getAttribute('href')
+      if (href && looksGalleryImageUrl(href))
+        return href
+    }
+
+    return ''
+  }
+
+  function imageSourceFor(image) {
+    if (!image || !image.getAttribute)
+      return ''
+
+    return image.currentSrc
+      || image.getAttribute('src')
+      || image.getAttribute('data-src')
+      || image.getAttribute('data-image-url')
+      || ''
+  }
+
+  function looksGalleryImageUrl(value) {
+    var url = String(value || '').trim()
+    if (!url || url === '#' || /^javascript:/i.test(url))
+      return false
+
+    return /\.(avif|gif|jpe?g|png|svg|webp)(\\?|#|$)/i.test(url)
+      || /\\/media\\//i.test(url)
+      || /\\/content\\/dam\\//i.test(url)
+      || /^data:image\\//i.test(url)
+  }
+
+  function setMainGalleryImage(main, url, thumb) {
+    if (!main || !main.setAttribute)
+      return
+
+    main.setAttribute('src', url)
+    main.removeAttribute('srcset')
+    main.removeAttribute('sizes')
+
+    var alt = thumb && thumb.getAttribute ? thumb.getAttribute('alt') : ''
+    if (alt)
+      main.setAttribute('alt', alt)
+
+    var picture = main.parentNode && String(main.parentNode.tagName || '').toLowerCase() === 'picture' ? main.parentNode : null
+    if (picture && picture.querySelectorAll) {
+      var sources = picture.querySelectorAll('source')
+      for (var i = 0; i < sources.length; i++) {
+        sources[i].setAttribute('srcset', url)
+        sources[i].removeAttribute('sizes')
+      }
+    }
+  }
+
+  function setGalleryActiveState(items, activeControl) {
+    for (var i = 0; i < items.length; i++) {
+      var control = items[i].control
+      var image = items[i].image
+      var active = control === activeControl
+
+      setGalleryNodeActive(control, active)
+      if (image !== control)
+        setGalleryNodeActive(image, active)
+    }
+  }
+
+  function setGalleryNodeActive(node, active) {
+    if (!node || !node.classList)
+      return
+
+    if (active) {
+      node.classList.add('active')
+      node.classList.add('is-active')
+    }
+    else {
+      node.classList.remove('active')
+      node.classList.remove('is-active')
+    }
   }
 
   function interactivityIndexOf(list, node) {
@@ -2818,7 +3096,7 @@ ${rendered}
   markResponsiveContentVariants()
   installResponsiveConfigRules()
 
-  // Read-only preview only: make tabs/carousels clickable via the trusted bridge layer. The editor
+  // Read-only preview only: make dynamic clone widgets clickable via the trusted bridge layer. The editor
   // (EDITABLE) is unaffected — it keeps click for region selection and the context-menu panel actions.
   if (!EDITABLE)
     enableInteractivity()

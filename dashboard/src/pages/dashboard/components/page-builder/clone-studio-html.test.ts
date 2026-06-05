@@ -762,7 +762,7 @@ describe('buildCloneStudioHtml', () => {
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
-  it('wires trusted click-navigation for tabs/carousels/accordions only in read-only preview', () => {
+  it('wires trusted click-navigation for tabs/carousels/accordions/galleries only in read-only preview', () => {
     const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
     const bridgeScript = extractBridgeScript(html)
 
@@ -790,6 +790,15 @@ describe('buildCloneStudioHtml', () => {
     expect(interactivityBlock).toContain('swiper-button-prev')
     expect(interactivityBlock).toContain('slick-next')
     expect(interactivityBlock).toContain('slick-prev')
+    // Gallery thumbnail controls are detected and swap the main image without OEM scripts.
+    expect(interactivityBlock).toContain('[data-gallery]')
+    expect(interactivityBlock).toContain('[data-thumbnail]')
+    expect(interactivityBlock).toContain('function wireGalleryRegion(regionId, regionEl)')
+    expect(interactivityBlock).toContain('function switchGalleryImage(regionEl, control)')
+    expect(interactivityBlock).toContain('function setMainGalleryImage(main, url, thumb)')
+    expect(interactivityBlock).toContain('main.setAttribute(\'src\', url)')
+    expect(interactivityBlock).toContain('sources[i].setAttribute(\'srcset\', url)')
+    expect(interactivityBlock).toContain('function setGalleryActiveState(items, activeControl)')
     // Accordion disclosures are detected and click-wired without relying on stripped OEM scripts.
     expect(interactivityBlock).toContain('[data-cmp-is="accordion"]')
     expect(interactivityBlock).toContain('function wireAccordionRegion(regionId, regionEl)')
@@ -860,6 +869,7 @@ describe('buildCloneStudioHtml', () => {
     expect(interactivityBlock).not.toContain('wireTabRegion')
     expect(interactivityBlock).not.toContain('wireCarouselRegion')
     expect(interactivityBlock).not.toContain('wireAccordionRegion')
+    expect(interactivityBlock).not.toContain('wireGalleryRegion')
 
     // Per-region handler functions receive regionId/regionEl as params and keep their own current-index
     // state, so handlers close over per-call values rather than a shared outer var.
@@ -867,6 +877,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function switchTabPanel(regionId, regionEl, trigger, index)')
     expect(bridgeScript).toContain('function wireCarouselRegion(regionId, regionEl)')
     expect(bridgeScript).toContain('function wireAccordionRegion(regionId, regionEl)')
+    expect(bridgeScript).toContain('function wireGalleryRegion(regionId, regionEl)')
     expect(bridgeScript).toContain('function injectControlBar(regionId, regionEl, panelCount)')
 
     // Bridge-owned controls bypass the document navigation guard so their click handlers actually run.
@@ -874,6 +885,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('if (isBridgeOwnedTarget(target))')
     expect(bridgeScript).toContain('markInteractivityControl(triggers[t])')
     expect(bridgeScript).toContain('markInteractivityControl(triggers[a])')
+    expect(bridgeScript).toContain('markInteractivityControl(parts.items[g].control)')
 
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
