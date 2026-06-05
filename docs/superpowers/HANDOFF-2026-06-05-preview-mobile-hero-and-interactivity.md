@@ -2,16 +2,16 @@
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
 > deployed to Cloudflare Pages. Updated after `edbc0a1` shipped edge-aware Clone Studio toolbar
-> positioning, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> positioning, and after `9de8bd5` shipped Ford/AEM disclosure-heading accordion support. This is a
 > cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
 > dynamic cloned components.
 
 ## Current Production State
 
-- Branch after the latest update: `main`, in sync with `origin/main` at
-  `edbc0a1 fix(dashboard): keep clone toolbar within viewport`.
+- Branch after the latest dashboard-code update: `main`, in sync with `origin/main` at
+  `9de8bd5 fix(dashboard): wire Ford disclosure accordions`.
 - Latest dashboard deploy from this work:
-  `https://a003d87e.oem-dashboard.pages.dev`.
+  `https://f77601ad.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -112,6 +112,30 @@ Key files:
 
 - `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts`
 - `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts`
+
+### 5a. Ford/AEM Disclosure-Heading Accordion Variant
+
+The Ford Mustang clone's bottom "Disclosures" block is an AEM accordion variant, but the trigger is
+not a button. The captured markup uses a heading:
+
+```html
+<div class="accordion-disclosure" data-cmp-hook-accordion="item" data-cmp-expanded="true">
+  <h4 class="cmp-accordion__title trigger disclosure">Disclosures</h4>
+  <div data-cmp-hook-accordion="panel" class="content" role="region">...</div>
+</div>
+```
+
+Commit `9de8bd5` added support for this shape:
+
+- accordion classification now includes `data-cmp-hook-accordion` item/panel markers and Ford's
+  misspelled `accordian` class fragments;
+- trigger discovery now includes `.cmp-accordion__title`, `.trigger.disclosure`, and heading
+  triggers inside `.accordion-heading-wrapper`;
+- `data-cmp-expanded` is used as source state and updated when the bridge toggles the panel;
+- the exact disclosure-heading pattern is covered in `clone-studio-html.test.ts`.
+
+This keeps the Mustang bottom disclosure working in production preview without loading Alpine or
+restoring stripped OEM scripts.
 
 ### 6. Read-Only Tab Target Resolution
 
