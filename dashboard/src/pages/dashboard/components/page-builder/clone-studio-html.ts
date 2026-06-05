@@ -969,6 +969,11 @@ ${rendered}
     if (hasTablist)
       return 'tabs'
 
+    var hasTabControls = matchesAny(element, '[data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target]')
+      || (element.querySelector && element.querySelector('[data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target]'))
+    if (hasTabControls && tabPanelsFor(element).length > 1)
+      return 'tabs'
+
     var hasAccordion = matchesAny(element, '[data-cmp-is="accordion"], .accordion, [class*="accordion"]')
       || (element.querySelector && element.querySelector('[data-cmp-is="accordion"], .accordion, [class*="accordion"], .cmp-accordion__button, .accordion-button, [aria-expanded][aria-controls]'))
     if (hasAccordion)
@@ -977,7 +982,7 @@ ${rendered}
     var looksTabbish = /(^|\\s|-)tabs?($|\\s|-)/i.test(className)
       || matchesAny(element, '[class*="tab"]')
     if (looksTabbish) {
-      var panels = element.querySelectorAll ? element.querySelectorAll('[role="tabpanel"], .tab-content, .tab-pane') : []
+      var panels = tabPanelsFor(element)
       if (panels.length > 1)
         return 'tabs'
     }
@@ -1459,6 +1464,13 @@ ${rendered}
 
     var targetIndex = typeof index === 'number' && index >= 0 && index < panels.length ? index : 0
 
+    return setPanelVisibility(panels, targetIndex)
+  }
+
+  function setPanelVisibility(panels, targetIndex) {
+    if (!panels || !panels.length)
+      return false
+
     for (var i = 0; i < panels.length; i++) {
       var panel = panels[i]
       if (!panel)
@@ -1933,7 +1945,7 @@ ${rendered}
     // Trusted, event-driven navigation for tabs/carousels/accordions in the read-only preview. OEM scripts are
     // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
     // primitive (switchPanel) or accordion toggles. No timers/auto-advance — those are throttled in the sandbox.
-    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
+    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
 
     // Wire each region inside its OWN function call so every click handler closes over per-call
     // params (regionId/regionEl/kind) -- never a shared loop var. With ES5 var, a loop variable is
@@ -2103,12 +2115,28 @@ ${rendered}
         var index = interactivityIndexOf(triggers, event.currentTarget)
         if (index < 0)
           index = 0
-        switchPanel(regionId, index)
-        setTabActiveState(triggers, index)
+        var activeIndex = switchTabPanel(regionId, regionEl, event.currentTarget, index)
+        if (activeIndex < 0)
+          activeIndex = index
+        setTabActiveState(triggers, activeIndex)
       }, true)
     }
 
     return true
+  }
+
+  function switchTabPanel(regionId, regionEl, trigger, index) {
+    var panels = tabPanelsFor(regionEl)
+    if (!panels.length)
+      return switchPanel(regionId, index) ? index : -1
+
+    var targetPanel = tabTargetPanel(regionEl, trigger)
+    var targetIndex = targetPanel ? interactivityIndexOf(panels, targetPanel) : -1
+    if (targetIndex < 0)
+      targetIndex = typeof index === 'number' && index >= 0 && index < panels.length ? index : 0
+
+    setPanelVisibility(panels, targetIndex)
+    return targetIndex
   }
 
   function wireCarouselRegion(regionId, regionEl) {
@@ -2400,25 +2428,127 @@ ${rendered}
     return -1
   }
 
+  function addUniqueInteractivityNode(list, node) {
+    if (node && interactivityIndexOf(list, node) === -1)
+      list.push(node)
+  }
+
+  function tabPanelsFor(regionEl) {
+    if (!regionEl || !regionEl.querySelectorAll)
+      return []
+
+    var panelSelector = '[role="tabpanel"], .tab-pane, [data-tab-panel], [data-tab-content], [data-tab-id], [class*="tab-panel"], [class*="tabpanel"]'
+    var scopes = [regionEl]
+    if (regionEl.parentNode && regionEl.parentNode.querySelectorAll)
+      scopes.push(regionEl.parentNode)
+
+    var panels = []
+    for (var s = 0; s < scopes.length; s++) {
+      var found = scopes[s].querySelectorAll(panelSelector)
+      for (var i = 0; i < found.length; i++)
+        addUniqueInteractivityNode(panels, found[i])
+      if (panels.length)
+        return panels
+    }
+
+    return panels
+  }
+
+  function tabTargetPanel(regionEl, trigger) {
+    var targetValue = tabTargetValue(trigger)
+    if (!targetValue)
+      return null
+
+    return findTabPanelByTarget(regionEl, targetValue)
+  }
+
+  function tabTargetValue(trigger) {
+    if (!trigger || !trigger.getAttribute)
+      return ''
+
+    var value = trigger.getAttribute('aria-controls')
+      || trigger.getAttribute('data-tab-target')
+      || trigger.getAttribute('data-bs-target')
+      || trigger.getAttribute('data-target')
+      || trigger.getAttribute('href')
+      || trigger.getAttribute('data-tab')
+      || ''
+
+    return String(value || '').trim()
+  }
+
+  function findTabPanelByTarget(regionEl, value) {
+    if (!value)
+      return null
+
+    var raw = String(value).split(/\\s+/)[0]
+    var hashIndex = raw.indexOf('#')
+    if (hashIndex > 0)
+      raw = raw.slice(hashIndex)
+    var id = raw.charAt(0) === '#' ? raw.slice(1) : raw
+
+    if (id && raw.charAt(0) !== '.' && raw.charAt(0) !== '[') {
+      var byId = document.getElementById ? document.getElementById(id) : null
+      if (byId)
+        return byId
+    }
+
+    var scopes = [regionEl]
+    if (regionEl && regionEl.parentNode && regionEl.parentNode.querySelector)
+      scopes.push(regionEl.parentNode)
+
+    if (raw.charAt(0) === '#' || raw.charAt(0) === '.' || raw.charAt(0) === '[') {
+      for (var s = 0; s < scopes.length; s++) {
+        try {
+          var selected = scopes[s].querySelector(raw)
+          if (selected)
+            return selected
+        }
+        catch (_selectorError) {}
+      }
+    }
+
+    var attrSelector = '[data-tab-panel="' + escapeAttributeSelectorValue(id) + '"], [data-tab-content="' + escapeAttributeSelectorValue(id) + '"], [data-tab-id="' + escapeAttributeSelectorValue(id) + '"]'
+    for (var a = 0; a < scopes.length; a++) {
+      try {
+        var attrMatch = scopes[a].querySelector(attrSelector)
+        if (attrMatch)
+          return attrMatch
+      }
+      catch (_attrError) {}
+    }
+
+    return null
+  }
+
   function tabTriggersFor(regionEl) {
     if (!regionEl || !regionEl.querySelectorAll)
       return []
 
-    // Prefer explicit ARIA tabs, then aria-controls owners, then interactive children of a tablist/.tabs.
-    var explicit = regionEl.querySelectorAll('[role="tab"], [aria-controls]')
-    if (explicit.length)
-      return Array.prototype.slice.call(explicit)
+    // Prefer explicit ARIA/data tabs, then interactive children of tab lists.
+    var explicit = regionEl.querySelectorAll('[role="tab"], [aria-controls], [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target]')
+    var explicitTriggers = []
+    for (var e = 0; e < explicit.length; e++) {
+      var explicitTrigger = explicit[e]
+      var explicitlyTab = matchesAny(explicitTrigger, '[role="tab"], [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [class*="tab"]')
+      var looksAccordion = matchesAny(explicitTrigger, '[aria-expanded][aria-controls], .accordion-button, .cmp-accordion__button, [data-cmp-hook-accordion="button"]')
+      if (looksAccordion && !explicitlyTab)
+        continue
+      addUniqueInteractivityNode(explicitTriggers, explicitTrigger)
+    }
+    if (explicitTriggers.length)
+      return explicitTriggers
 
-    var lists = regionEl.querySelectorAll('[role="tablist"], .tabs, [class*="tab"]')
+    var lists = regionEl.querySelectorAll('[role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist')
     var triggers = []
-    var listEls = lists.length ? Array.prototype.slice.call(lists) : (regionEl.matches && regionEl.matches('[role="tablist"], .tabs, [class*="tab"]') ? [regionEl] : [])
+    var listEls = lists.length ? Array.prototype.slice.call(lists) : (regionEl.matches && regionEl.matches('[role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist') ? [regionEl] : [])
 
     for (var i = 0; i < listEls.length; i++) {
-      var children = listEls[i].querySelectorAll('button, a, li, [class*="tab"]')
+      var children = listEls[i].querySelectorAll('button, a, li, [role="tab"], [data-tab], [data-tab-target], [class*="tab"]')
       for (var j = 0; j < children.length; j++) {
         var child = children[j]
         // Skip the panels themselves; only collect tab-like controls.
-        if (matchesAny(child, '[role="tabpanel"], .tab-content, .tab-pane'))
+        if (matchesAny(child, '[role="tabpanel"], .tab-content, .tab-pane, [data-tab-panel], [data-tab-content], [class*="tab-panel"], [class*="tabpanel"]'))
           continue
         if (interactivityIndexOf(triggers, child) === -1)
           triggers.push(child)

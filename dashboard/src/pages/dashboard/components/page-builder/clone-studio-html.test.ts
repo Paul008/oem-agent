@@ -777,6 +777,13 @@ describe('buildCloneStudioHtml', () => {
     // Tab triggers: role=tab / aria-controls / tablist children are detected and click-wired.
     expect(interactivityBlock).toContain('[role="tab"]')
     expect(interactivityBlock).toContain('aria-controls')
+    expect(interactivityBlock).toContain('[data-bs-toggle="tab"]')
+    expect(interactivityBlock).toContain('[data-tab-target]')
+    expect(interactivityBlock).toContain('function switchTabPanel(regionId, regionEl, trigger, index)')
+    expect(interactivityBlock).toContain('function tabTargetPanel(regionEl, trigger)')
+    expect(interactivityBlock).toContain('function findTabPanelByTarget(regionEl, value)')
+    expect(interactivityBlock).toContain('document.getElementById(id)')
+    expect(interactivityBlock).toContain('data-tab-panel')
     expect(interactivityBlock).toContain('addEventListener(\'click\'')
     // Carousel next/prev controls are detected.
     expect(interactivityBlock).toContain('swiper-button-next')
@@ -857,6 +864,7 @@ describe('buildCloneStudioHtml', () => {
     // Per-region handler functions receive regionId/regionEl as params and keep their own current-index
     // state, so handlers close over per-call values rather than a shared outer var.
     expect(bridgeScript).toContain('function wireTabRegion(regionId, regionEl)')
+    expect(bridgeScript).toContain('function switchTabPanel(regionId, regionEl, trigger, index)')
     expect(bridgeScript).toContain('function wireCarouselRegion(regionId, regionEl)')
     expect(bridgeScript).toContain('function wireAccordionRegion(regionId, regionEl)')
     expect(bridgeScript).toContain('function injectControlBar(regionId, regionEl, panelCount)')
