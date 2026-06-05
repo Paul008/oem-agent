@@ -129,6 +129,7 @@ interface CloneMenuRegion {
   html?: string
   toolbar_x?: number
   toolbar_y?: number
+  height?: number
 }
 interface CloneMenuState {
   x: number
@@ -149,6 +150,8 @@ const cloneToolbarLinkEditing = ref(false)
 const cloneToolbarLinkValue = ref('')
 const cloneToolbarAltEditing = ref(false)
 const cloneToolbarAltValue = ref('')
+const cloneToolbarHeightEditing = ref(false)
+const cloneToolbarHeightValue = ref('')
 
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
@@ -191,6 +194,7 @@ function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, h
 function onCloneRegionSelected(region: any) {
   cancelCloneToolbarLink()
   cancelCloneToolbarAlt()
+  cancelCloneToolbarHeight()
 
   if (region && region.id) {
     cloneToolbarRegion.value = {
@@ -200,6 +204,7 @@ function onCloneRegionSelected(region: any) {
       html: region.html,
       toolbar_x: Number(region.toolbar_x) || 0,
       toolbar_y: Number(region.toolbar_y) || 0,
+      height: Number(region.height) || 0,
     }
   }
   else {
@@ -259,6 +264,7 @@ function quickCloneEditAlt() {
   if (!region || props.readOnly || !cloneToolbarHasImage.value)
     return
   cancelCloneToolbarLink()
+  cancelCloneToolbarHeight()
   cloneToolbarAltValue.value = cloneImageAltValue(region)
   cloneToolbarAltEditing.value = true
 }
@@ -268,6 +274,7 @@ function quickCloneEditLink() {
   if (!region || props.readOnly || !cloneToolbarHasLink.value)
     return
   cancelCloneToolbarAlt()
+  cancelCloneToolbarHeight()
   cloneToolbarLinkValue.value = cloneLinkValue(region)
   cloneToolbarLinkEditing.value = true
 }
@@ -306,9 +313,42 @@ function submitCloneToolbarAlt() {
   cancelCloneToolbarAlt()
 }
 
+function quickCloneEditHeight() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  cancelCloneToolbarLink()
+  cancelCloneToolbarAlt()
+  const height = Math.round(Number(region.height) || 0)
+  cloneToolbarHeightValue.value = height > 0 ? String(height) : ''
+  cloneToolbarHeightEditing.value = true
+}
+
+function cancelCloneToolbarHeight() {
+  cloneToolbarHeightEditing.value = false
+  cloneToolbarHeightValue.value = ''
+}
+
+function submitCloneToolbarHeight() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly) {
+    cancelCloneToolbarHeight()
+    return
+  }
+  const value = cloneToolbarHeightValue.value.trim()
+  const n = value === '' ? null : Number(value)
+  if (n !== null && Number.isNaN(n))
+    return
+  cloneStudioCanvas.value?.setHeight(region.id, n)
+  emit('updateField', region.id, 'height_override', n)
+  cloneToolbarRegion.value = { ...region, height: n ?? 0 }
+  cancelCloneToolbarHeight()
+}
+
 function clearCloneToolbarSelection() {
   cancelCloneToolbarLink()
   cancelCloneToolbarAlt()
+  cancelCloneToolbarHeight()
   cloneToolbarRegion.value = null
   emit('selectCloneRegion', null)
 }
@@ -329,6 +369,7 @@ function quickCloneDuplicateRegion() {
     return
   cancelCloneToolbarLink()
   cancelCloneToolbarAlt()
+  cancelCloneToolbarHeight()
   emit('regionAction', { action: 'duplicate', regionId: region.id, html: region.html })
 }
 
@@ -374,6 +415,7 @@ function openCloneMediaLibrary(region: CloneMenuRegion) {
     return
   cancelCloneToolbarLink()
   cancelCloneToolbarAlt()
+  cancelCloneToolbarHeight()
   cloneMediaTargetRegion.value = region
   cloneMediaLibraryOpen.value = true
   closeCloneMenu()
@@ -898,6 +940,32 @@ watch(
                 <X class="size-3.5" />
               </button>
             </template>
+            <template v-else-if="cloneToolbarHeightEditing">
+              <Ruler class="mx-1 size-3.5 shrink-0 text-muted-foreground" />
+              <input
+                v-model="cloneToolbarHeightValue"
+                type="number"
+                min="0"
+                placeholder="Height px"
+                class="h-8 w-32 max-w-[calc(100vw-112px)] rounded-md border bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-primary"
+                @keydown.enter="submitCloneToolbarHeight"
+                @keydown.escape="cancelCloneToolbarHeight"
+              >
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Apply height"
+                @click="submitCloneToolbarHeight"
+              >
+                <Check class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Cancel"
+                @click="cancelCloneToolbarHeight"
+              >
+                <X class="size-3.5" />
+              </button>
+            </template>
             <template v-else>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
@@ -990,6 +1058,13 @@ watch(
                 <input type="color" value="#ffffff" class="sr-only" @input="onCloneToolbarBgColorInput">
               </label>
               <div class="h-5 w-px bg-border" />
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Set visible height"
+                @click="quickCloneEditHeight"
+              >
+                <Ruler class="size-3.5" />
+              </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 title="Duplicate region"
