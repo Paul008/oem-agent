@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `d835778` shipped mobile-safe Clone Studio toolbar
-> overflow, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> deployed to Cloudflare Pages. Updated after `ca12d3e` shipped quick Clone Studio toolbar alt-text
+> editing, after the quick edit/media-library and read-only dynamic bridge work. This is a
 > cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
 > dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `d835778 fix(dashboard): keep clone toolbar usable on mobile`.
+  `ca12d3e feat(dashboard): add clone toolbar alt text editing`.
 - Latest dashboard deploy from this work:
-  `https://62afac09.oem-dashboard.pages.dev`.
+  `https://355ef906.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -263,6 +263,26 @@ Commit:
 
 - `d835778 fix(dashboard): keep clone toolbar usable on mobile`
 
+### 14. Quick Clone Toolbar Alt Text Editing
+
+The selected-region quick edit bubble now exposes image alt-text editing directly, not only through
+the right-click context menu.
+
+What changed:
+
+- `PageBuilderCanvas.vue` detects selected clone regions with editable image fields and shows a
+  compact alt-text button beside image replacement.
+- Clicking the alt-text button switches the same mobile-safe toolbar into an inline text row with
+  apply/cancel icon buttons.
+- The submitted value uses the existing `buildPatchPayload('alt-text', ...)` mutation path, so it
+  reuses the Clone Studio iframe bridge's `kind: 'alt'` handling.
+- Opening link edit, media replacement, or selecting a different clone region cancels any pending
+  alt-text edit state.
+
+Commit:
+
+- `ca12d3e feat(dashboard): add clone toolbar alt text editing`
+
 ## Verification Performed
 
 Commands:
@@ -286,6 +306,8 @@ Results:
 - Dashboard production build passed.
 - Whitespace check passed.
 - Cloudflare Pages deploy completed.
+- Production alias check returned HTTP 200 for
+  `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 
 Browser verification:
 
