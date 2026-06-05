@@ -91,6 +91,16 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('@select="onCloneMediaLibrarySelect"')
   })
 
+  it('defaults the media library upload tab to the current model when matching media exists', () => {
+    const source = readFileSync(new URL('./MediaLibraryDialog.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('function defaultLibraryModelFilter(modelSlug: string, mediaItems: MediaItem[]): string')
+    expect(source).toContain('return mediaItems.some(item => item.modelSlug === modelSlug) ? modelSlug : \'\'')
+    expect(source).toContain('filterModel.value = defaultLibraryModelFilter(props.modelSlug, items.value)')
+    expect(source).toContain('<option value="">')
+    expect(source).toContain('All models')
+  })
+
   it('clears clone drafts and section editor state on mode and page changes', () => {
     const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
 

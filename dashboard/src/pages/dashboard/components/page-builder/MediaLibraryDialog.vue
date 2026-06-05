@@ -75,6 +75,12 @@ function autoDetectParsedModel(slug: string | null | undefined, options: string[
   return contains ?? ''
 }
 
+function defaultLibraryModelFilter(modelSlug: string, mediaItems: MediaItem[]): string {
+  if (!modelSlug)
+    return ''
+  return mediaItems.some(item => item.modelSlug === modelSlug) ? modelSlug : ''
+}
+
 async function loadPortalFilters() {
   portalParsedModels.value = await fetchParsedModels(props.oemId)
   portalFilterModel.value = autoDetectParsedModel(props.modelSlug, portalParsedModels.value)
@@ -110,6 +116,7 @@ watch(() => props.open, async (val) => {
   search.value = ''
   filterModel.value = ''
   await fetchItems()
+  filterModel.value = defaultLibraryModelFilter(props.modelSlug, items.value)
   // Portal (prep — loads on first tab switch to avoid unnecessary queries)
   portalRows.value = []
   portalPage.value = 1
