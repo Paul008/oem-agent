@@ -979,6 +979,11 @@ ${rendered}
     if (hasTabControls && tabPanelsFor(element).length > 1)
       return 'tabs'
 
+    var hasDropdown = matchesAny(element, '[data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"], [aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger]')
+      || (element.querySelector && element.querySelector('[data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"], [aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger]'))
+    if (hasDropdown && !isPageChromeInteractivityRegion(element))
+      return 'dropdown'
+
     var hasAccordion = matchesAny(element, '[data-cmp-is="accordion"], .accordion, [class*="accordion"]')
       || (element.querySelector && element.querySelector('[data-cmp-is="accordion"], .accordion, [class*="accordion"], .cmp-accordion__button, .accordion-button, [aria-expanded][aria-controls]'))
     if (hasAccordion)
@@ -1947,11 +1952,11 @@ ${rendered}
   }
 
   function enableInteractivity() {
-    // Trusted, event-driven navigation for tabs/carousels/accordions/galleries in the read-only preview. OEM scripts are
+    // Trusted, event-driven navigation for tabs/carousels/accordions/galleries/dropdowns in the read-only preview. OEM scripts are
     // stripped by the sanitizer, so we wire CLICK navigation against the bridge's own panel-switching
-    // primitive (switchPanel), accordion toggles, or image swaps. No timers/auto-advance — those are
+    // primitive (switchPanel), disclosure toggles, or image swaps. No timers/auto-advance — those are
     // throttled in the sandbox.
-    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [data-gallery], .gallery, [class*="gallery"], [data-thumbnail], [data-thumb], [class*="thumb"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
+    var candidates = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"], [data-gallery], .gallery, [class*="gallery"], [data-thumbnail], [data-thumb], [class*="thumb"], [role="tablist"], .tabs, [class*="tab"], [data-tabs], .nav-tabs, .tab-list, .tablist, [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], [data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"], [aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger], [data-cmp-is="accordion"], .accordion, [class*="accordion"], [aria-expanded][aria-controls]')
 
     // Wire each region inside its OWN function call so every click handler closes over per-call
     // params (regionId/regionEl/kind) -- never a shared loop var. With ES5 var, a loop variable is
@@ -1964,7 +1969,7 @@ ${rendered}
 
   function wireRegion(regionEl) {
     var kind = classifyRegion(regionEl)
-    if (kind !== 'tabs' && kind !== 'carousel' && kind !== 'accordion' && kind !== 'gallery')
+    if (kind !== 'tabs' && kind !== 'carousel' && kind !== 'accordion' && kind !== 'gallery' && kind !== 'dropdown')
       return
 
     var regionId = ensureRegionId(regionEl)
@@ -1976,10 +1981,12 @@ ${rendered}
       wired = wireAccordionRegion(regionId, regionEl)
     else if (kind === 'gallery')
       wired = wireGalleryRegion(regionId, regionEl)
+    else if (kind === 'dropdown')
+      wired = wireDropdownRegion(regionId, regionEl)
     else
       wired = wireCarouselRegion(regionId, regionEl)
 
-    if (kind === 'accordion' || kind === 'gallery')
+    if (kind === 'accordion' || kind === 'gallery' || kind === 'dropdown')
       return
 
     // slick/swiper inject their arrows via JS, which the sanitizer strips — so a multi-panel region
@@ -2207,6 +2214,29 @@ ${rendered}
           event.stopImmediatePropagation()
 
         switchGalleryImage(regionEl, event.currentTarget)
+      }, true)
+    }
+
+    return true
+  }
+
+  function wireDropdownRegion(regionId, regionEl) {
+    // Dropdown/disclosure TRIGGERS: explicit dropdown toggles only. This intentionally skips page
+    // header/nav chrome and does not wire broad [aria-expanded] controls that may be accordions.
+    var triggers = dropdownTriggersFor(regionEl)
+    if (!triggers.length)
+      return false
+
+    for (var d = 0; d < triggers.length; d++) {
+      markInteractivityControl(triggers[d])
+      normalizeDropdownTrigger(regionEl, triggers[d])
+      triggers[d].addEventListener('click', function (event) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.stopImmediatePropagation)
+          event.stopImmediatePropagation()
+
+        toggleDropdownPanel(regionEl, event.currentTarget)
       }, true)
     }
 
@@ -2448,6 +2478,272 @@ ${rendered}
   function markInteractivityControl(element) {
     if (element && element.setAttribute)
       element.setAttribute('data-clone-studio-interactive-control', 'true')
+  }
+
+  function isPageChromeInteractivityRegion(element) {
+    if (!element || !element.closest)
+      return false
+
+    return !!element.closest('header, nav, [role="navigation"]')
+  }
+
+  function dropdownTriggersFor(regionEl) {
+    if (!regionEl || !regionEl.querySelectorAll)
+      return []
+
+    var selector = '[aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger], .dropdown-toggle, [class*="dropdown-toggle"]'
+    var triggers = []
+
+    if (regionEl.matches && regionEl.matches(selector) && isDropdownTrigger(regionEl))
+      triggers.push(regionEl)
+
+    var explicit = regionEl.querySelectorAll(selector)
+    for (var i = 0; i < explicit.length; i++) {
+      if (isDropdownTrigger(explicit[i]))
+        addUniqueInteractivityNode(triggers, explicit[i])
+    }
+
+    var containers = regionEl.querySelectorAll('[data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"]')
+    for (var c = 0; c < containers.length; c++) {
+      if (isPageChromeInteractivityRegion(containers[c]))
+        continue
+      var controls = containers[c].querySelectorAll('button, a, [role="button"]')
+      for (var j = 0; j < controls.length; j++) {
+        if (isDropdownTrigger(controls[j]) || dropdownPanelFor(containers[c], controls[j])) {
+          addUniqueInteractivityNode(triggers, controls[j])
+          break
+        }
+      }
+    }
+
+    return triggers
+  }
+
+  function isDropdownTrigger(trigger) {
+    if (!trigger || !trigger.getAttribute)
+      return false
+
+    if (isPageChromeInteractivityRegion(trigger))
+      return false
+
+    if (matchesAny(trigger, '[role="tab"], [data-bs-toggle="tab"], [data-toggle="tab"], [data-tab], [data-tab-target], .accordion-button, .cmp-accordion__button, [data-cmp-hook-accordion="button"]'))
+      return false
+
+    if (matchesAny(trigger, '[aria-haspopup], [data-bs-toggle="dropdown"], [data-toggle="dropdown"], [data-dropdown-trigger], [data-disclosure-trigger], [data-menu-trigger], .dropdown-toggle, [class*="dropdown-toggle"]'))
+      return true
+
+    return false
+  }
+
+  function normalizeDropdownTrigger(regionEl, trigger) {
+    var panel = dropdownPanelFor(regionEl, trigger)
+    if (!panel)
+      return
+
+    if (trigger.hasAttribute && trigger.hasAttribute('aria-expanded')) {
+      setDropdownExpanded(trigger, panel, trigger.getAttribute('aria-expanded') === 'true')
+      return
+    }
+
+    if (panel.hasAttribute && panel.hasAttribute('hidden')) {
+      setDropdownExpanded(trigger, panel, false)
+      return
+    }
+
+    if (panel.getAttribute && panel.getAttribute('aria-hidden') === 'true') {
+      setDropdownExpanded(trigger, panel, false)
+      return
+    }
+
+    if (panel.style && panel.style.display === 'none') {
+      setDropdownExpanded(trigger, panel, false)
+      return
+    }
+
+    if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active'))) {
+      setDropdownExpanded(trigger, panel, true)
+      return
+    }
+
+    setDropdownExpanded(trigger, panel, false)
+  }
+
+  function toggleDropdownPanel(regionEl, trigger) {
+    var panel = dropdownPanelFor(regionEl, trigger)
+    if (!panel)
+      return false
+
+    var shouldOpen = !isDropdownExpanded(trigger, panel)
+    if (shouldOpen)
+      closeOtherDropdownPanels(regionEl, trigger)
+
+    setDropdownExpanded(trigger, panel, shouldOpen)
+    return true
+  }
+
+  function dropdownPanelFor(regionEl, trigger) {
+    if (!trigger)
+      return null
+
+    var target = dropdownTargetValue(trigger)
+    if (target) {
+      var targeted = findDropdownPanelByTarget(regionEl, target)
+      if (targeted)
+        return targeted
+    }
+
+    var container = dropdownContainerFor(trigger)
+    if (container && container.querySelector) {
+      var panel = container.querySelector('[data-dropdown-menu], [data-disclosure-panel], [data-menu-panel], .dropdown-menu, [class*="dropdown-menu"], [role="menu"], [class*="submenu"]')
+      if (panel && panel !== trigger)
+        return panel
+    }
+
+    var next = trigger.nextElementSibling
+    if (next && matchesAny(next, '[data-dropdown-menu], [data-disclosure-panel], [data-menu-panel], .dropdown-menu, [class*="dropdown-menu"], [role="menu"], [class*="submenu"], ul, ol, div'))
+      return next
+
+    return null
+  }
+
+  function dropdownTargetValue(trigger) {
+    if (!trigger || !trigger.getAttribute)
+      return ''
+
+    var value = trigger.getAttribute('aria-controls')
+      || trigger.getAttribute('aria-owns')
+      || trigger.getAttribute('data-dropdown-target')
+      || trigger.getAttribute('data-disclosure-target')
+      || trigger.getAttribute('data-menu-target')
+      || trigger.getAttribute('data-bs-target')
+      || trigger.getAttribute('data-target')
+      || trigger.getAttribute('href')
+      || ''
+
+    return String(value || '').trim()
+  }
+
+  function findDropdownPanelByTarget(regionEl, value) {
+    if (!value)
+      return null
+
+    var raw = String(value).split(/\\s+/)[0]
+    var hashIndex = raw.indexOf('#')
+    if (hashIndex > 0)
+      raw = raw.slice(hashIndex)
+    var id = raw.charAt(0) === '#' ? raw.slice(1) : raw
+
+    if (id && raw.charAt(0) !== '.' && raw.charAt(0) !== '[') {
+      var byId = document.getElementById ? document.getElementById(id) : null
+      if (byId)
+        return byId
+    }
+
+    var scopes = [regionEl]
+    if (regionEl && regionEl.parentNode && regionEl.parentNode.querySelector)
+      scopes.push(regionEl.parentNode)
+
+    if (raw.charAt(0) === '#' || raw.charAt(0) === '.' || raw.charAt(0) === '[') {
+      for (var s = 0; s < scopes.length; s++) {
+        try {
+          var selected = scopes[s].querySelector(raw)
+          if (selected)
+            return selected
+        }
+        catch (_selectorError) {}
+      }
+    }
+
+    return null
+  }
+
+  function dropdownContainerFor(trigger) {
+    if (!trigger || !trigger.closest)
+      return null
+
+    return trigger.closest('[data-dropdown], [data-disclosure], [data-menu], .dropdown, [class*="dropdown"]')
+  }
+
+  function closeOtherDropdownPanels(regionEl, activeTrigger) {
+    var triggers = dropdownTriggersFor(regionEl)
+
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i] === activeTrigger)
+        continue
+
+      var panel = dropdownPanelFor(regionEl, triggers[i])
+      if (!panel)
+        continue
+
+      setDropdownExpanded(triggers[i], panel, false)
+    }
+  }
+
+  function isDropdownExpanded(trigger, panel) {
+    if (trigger && trigger.getAttribute && trigger.getAttribute('aria-expanded') === 'true')
+      return true
+
+    if (!panel)
+      return false
+
+    if (panel.hasAttribute && panel.hasAttribute('hidden'))
+      return false
+    if (panel.getAttribute && panel.getAttribute('aria-hidden') === 'true')
+      return false
+    if (panel.style && panel.style.display === 'none')
+      return false
+    if (panel.classList && (panel.classList.contains('show') || panel.classList.contains('open') || panel.classList.contains('active') || panel.classList.contains('is-active')))
+      return true
+
+    return false
+  }
+
+  function setDropdownExpanded(trigger, panel, expanded) {
+    if (trigger && trigger.setAttribute)
+      trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+
+    setDropdownNodeExpanded(trigger, expanded)
+    setDropdownNodeExpanded(dropdownContainerFor(trigger), expanded)
+
+    if (!panel)
+      return
+
+    if (expanded) {
+      panel.removeAttribute('hidden')
+      if (panel.setAttribute)
+        panel.setAttribute('aria-hidden', 'false')
+      if (panel.style)
+        panel.style.display = ''
+    }
+    else {
+      panel.setAttribute('hidden', 'hidden')
+      if (panel.setAttribute)
+        panel.setAttribute('aria-hidden', 'true')
+      if (panel.style)
+        panel.style.display = 'none'
+    }
+
+    setDropdownNodeExpanded(panel, expanded)
+  }
+
+  function setDropdownNodeExpanded(node, expanded) {
+    if (!node || !node.classList)
+      return
+
+    if (expanded) {
+      node.classList.add('show')
+      node.classList.add('open')
+      node.classList.add('active')
+      node.classList.add('is-active')
+      node.classList.remove('collapsed')
+    }
+    else {
+      node.classList.remove('show')
+      node.classList.remove('open')
+      node.classList.remove('active')
+      node.classList.remove('is-active')
+      node.classList.add('collapsed')
+    }
   }
 
   function galleryImagesFor(regionEl) {
