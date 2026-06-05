@@ -18,6 +18,7 @@ import {
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
+  PageCapturer,
   pseudoElementInlineStyleForCapture,
   sweepCaptureScrollForCapture,
   waitForCaptureDomQuietForCapture,
@@ -615,6 +616,42 @@ describe('PageCapturer stylesheet link attribute wiring', () => {
     expect(integrityAttr).toBeGreaterThan(crossoriginAttr)
     expect(referrerPolicyAttr).toBeGreaterThan(integrityAttr)
     expect(styleSheetFallback).toBeGreaterThan(referrerPolicyAttr)
+  })
+})
+
+describe('PageCapturer media downloader', () => {
+  it('does not fetch non-http media URLs', async () => {
+    const originalFetch = globalThis.fetch
+    const fetchCalls: string[] = []
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      fetchCalls.push(String(input))
+      throw new Error('fetch should not be called for non-http media URLs')
+    }) as typeof fetch
+
+    try {
+      const capturer = new PageCapturer({
+        r2Bucket: {
+          put: async () => {
+            throw new Error('R2 should not be written for non-http media URLs')
+          },
+        } as any,
+        browser: {} as any,
+      })
+
+      const result = await (capturer as unknown as {
+        downloadImages: (oemId: string, modelSlug: string, imageUrls: string[]) => Promise<Map<string, string>>
+      }).downloadImages('toyota-au', 'rav4', [
+        'javascript:alert(1)',
+        'ftp://example.test/image.jpg',
+        'data:image/png;base64,abc',
+        'blob:https://example.test/image',
+      ])
+
+      expect(result.size).toBe(0)
+      expect(fetchCalls).toEqual([])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })
 

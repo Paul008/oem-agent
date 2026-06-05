@@ -2155,7 +2155,12 @@ export class PageCapturer {
     };
 
     const uniqueUrls = [...new Set(imageUrls)].filter(url => {
-      try { new URL(url); return true; } catch { return false; }
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        return false;
+      }
     });
 
     console.log(`[PageCapturer] Downloading ${uniqueUrls.length} images for ${oemId}/${modelSlug}`);
