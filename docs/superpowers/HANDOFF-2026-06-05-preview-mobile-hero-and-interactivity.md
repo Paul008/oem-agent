@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `ca12d3e` shipped quick Clone Studio toolbar alt-text
-> editing, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> deployed to Cloudflare Pages. Updated after `17109c8` shipped quick Clone Studio toolbar region
+> actions, after the quick edit/media-library and read-only dynamic bridge work. This is a
 > cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
 > dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `ca12d3e feat(dashboard): add clone toolbar alt text editing`.
+  `17109c8 feat(dashboard): add clone toolbar region actions`.
 - Latest dashboard deploy from this work:
-  `https://355ef906.oem-dashboard.pages.dev`.
+  `https://8c6d4ac2.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -282,6 +282,26 @@ What changed:
 Commit:
 
 - `ca12d3e feat(dashboard): add clone toolbar alt text editing`
+
+### 15. Quick Clone Toolbar Region Actions
+
+The selected-region quick edit bubble now exposes common region-level actions directly.
+
+What changed:
+
+- `PageBuilderCanvas.vue` adds duplicate, hide, and delete icon buttons after the text/image/style
+  controls.
+- Duplicate emits the existing `regionAction` path, so the parent page still owns the structural
+  clone-region operation and the bridge still handles the actual duplicate DOM message.
+- Hide uses the existing `buildPatchPayload('hide', ...)` visibility patch path.
+- Delete emits the existing `regionAction` delete path, which maps to the current pragmatic
+  clone-region delete behavior: visibility off rather than a new hard-delete implementation.
+- Hide/delete clear the selected toolbar state so the bubble does not remain anchored to a hidden
+  region.
+
+Commit:
+
+- `17109c8 feat(dashboard): add clone toolbar region actions`
 
 ## Verification Performed
 
