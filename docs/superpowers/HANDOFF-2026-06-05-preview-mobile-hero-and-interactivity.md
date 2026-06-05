@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `d70b8d9` shipped quick Clone Studio toolbar visible
-> height editing, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> deployed to Cloudflare Pages. Updated after `5623872` shipped quick Clone Studio toolbar panel
+> switching, after the quick edit/media-library and read-only dynamic bridge work. This is a
 > cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
 > dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `d70b8d9 feat(dashboard): add clone toolbar height editing`.
+  `5623872 feat(dashboard): add clone toolbar panel switching`.
 - Latest dashboard deploy from this work:
-  `https://6dd55275.oem-dashboard.pages.dev`.
+  `https://281217f3.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -321,6 +321,24 @@ What changed:
 Commit:
 
 - `d70b8d9 feat(dashboard): add clone toolbar height editing`
+
+### 17. Quick Clone Toolbar Panel Switching
+
+The selected-region quick edit bubble now exposes previous/next panel controls for cloned tabs and
+carousels.
+
+What changed:
+
+- `PageBuilderCanvas.vue` detects selected clone regions with `type_hint` of `tabs` or `carousel`.
+- Previous/next chevron buttons appear only for those panel-capable clone regions.
+- The buttons reuse the existing `clonePanelIndex` state and `CloneStudioCanvas.switchPanel()`
+  bridge message already used by the right-click menu.
+- Opening the panel controls cancels any pending inline link, alt-text, or height edit state before
+  switching panels.
+
+Commit:
+
+- `5623872 feat(dashboard): add clone toolbar panel switching`
 
 ## Verification Performed
 
