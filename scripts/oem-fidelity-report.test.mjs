@@ -128,6 +128,10 @@ describe('renderMarkdownReport', () => {
             mismatchPercent: 0.1,
             sourceSize: { width: 10, height: 10 },
             previewSize: { width: 10, height: 10 },
+            segments: [
+              { yStart: 0, yEnd: 1000, mismatchPercent: 0.1 },
+              { yStart: 1000, yEnd: 2000, mismatchPercent: 0.25 },
+            ],
             diffPath: '/tmp/report/diff-desktop.png',
           },
           source: { screenshotPath: '/tmp/report/source-desktop.png' },
@@ -137,6 +141,7 @@ describe('renderMarkdownReport', () => {
     };
 
     expect(renderMarkdownReport(report)).toContain('Overall score: 88/100');
+    expect(renderMarkdownReport(report)).toContain('1000-2000px 25.0%');
     expect(renderMarkdownReport(report)).toContain('diff-desktop.png');
   });
 });

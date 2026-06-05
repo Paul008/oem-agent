@@ -23,8 +23,8 @@ Output goes to `artifacts/oem-fidelity/<slug>-<timestamp>/`:
 
 - `source-*.png` and `preview-*.png` viewport screenshots
 - `diff-*.png` red visual mismatch overlays
-- `report.json` machine-readable results
-- `report.md` human-readable report
+- `report.json` machine-readable results, including 1000px vertical visual-diff bands
+- `report.md` human-readable report with the worst visual-diff bands per viewport
 - `ai-review-prompt.md` prompt for a vision model reviewer
 
 The dashboard `/preview/*` route is intentionally public with editing disabled in `?view=production` so the QA runner can capture the same read-only preview that a customer-facing page would use. Authenticated builder routes remain protected.
@@ -32,6 +32,7 @@ The dashboard `/preview/*` route is intentionally public with editing disabled i
 ## What It Checks
 
 - screenshot mismatch percentage for desktop, tablet, and mobile
+- worst 1000px vertical diff bands, so full-page mismatch can be traced to page regions
 - failed image/font/stylesheet/script requests
 - visible broken images
 - root horizontal overflow and overflowing elements

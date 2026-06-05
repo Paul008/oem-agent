@@ -672,11 +672,22 @@ async function compareScreenshots(browser, sourcePath, previewPath, diffPath, th
     diffCanvas.height = height;
     const diffContext = diffCanvas.getContext('2d');
     const diff = diffContext.createImageData(width, height);
+    const segmentHeight = 1000;
+    const segments = Array.from({ length: Math.max(1, Math.ceil(height / segmentHeight)) }, (_, segmentIndex) => ({
+      yStart: segmentIndex * segmentHeight,
+      yEnd: Math.min(height, (segmentIndex + 1) * segmentHeight),
+      comparedPixels: 0,
+      diffPixels: 0,
+    }));
 
     let diffPixels = 0;
     let totalDelta = 0;
     const limit = Math.round(threshold * 255);
     for (let index = 0; index < source.data.data.length; index += 4) {
+      const pixelIndex = index / 4;
+      const segment = segments[Math.min(segments.length - 1, Math.floor(Math.floor(pixelIndex / width) / segmentHeight))];
+      segment.comparedPixels++;
+
       const dr = Math.abs(source.data.data[index] - preview.data.data[index]);
       const dg = Math.abs(source.data.data[index + 1] - preview.data.data[index + 1]);
       const db = Math.abs(source.data.data[index + 2] - preview.data.data[index + 2]);
@@ -686,6 +697,7 @@ async function compareScreenshots(browser, sourcePath, previewPath, diffPath, th
 
       if (delta > limit) {
         diffPixels++;
+        segment.diffPixels++;
         diff.data[index] = 255;
         diff.data[index + 1] = 32;
         diff.data[index + 2] = 32;
@@ -709,6 +721,10 @@ async function compareScreenshots(browser, sourcePath, previewPath, diffPath, th
       diffPixels,
       mismatchPercent: width && height ? diffPixels / (width * height) : 1,
       averageChannelDelta: width && height ? totalDelta / (width * height) : 255,
+      segments: segments.map(segment => ({
+        ...segment,
+        mismatchPercent: segment.comparedPixels ? segment.diffPixels / segment.comparedPixels : 0,
+      })),
       diffDataUrl: diffCanvas.toDataURL('image/png'),
     };
   }, {
@@ -892,6 +908,21 @@ function renderFindingSamples(samples = []) {
   return samples.slice(0, 3).map(sample => `    ${JSON.stringify(sample)}`).join('\n');
 }
 
+function worstSegments(pair, count = 3) {
+  return [...(pair.diff.segments || [])]
+    .sort((a, b) => b.mismatchPercent - a.mismatchPercent)
+    .slice(0, count);
+}
+
+function renderSegmentSummary(pair) {
+  const segments = worstSegments(pair);
+  if (!segments.length)
+    return 'n/a';
+  return segments
+    .map(segment => `${segment.yStart}-${segment.yEnd}px ${(segment.mismatchPercent * 100).toFixed(1)}%`)
+    .join('; ');
+}
+
 export function renderMarkdownReport(report) {
   const lines = [
     '# OEM Fidelity Report',
@@ -904,12 +935,12 @@ export function renderMarkdownReport(report) {
     '',
     '## Viewports',
     '',
-    '| Viewport | Score | Mismatch | Source Size | Preview Size | Diff |',
-    '| --- | ---: | ---: | --- | --- | --- |',
+    '| Viewport | Score | Mismatch | Worst Bands | Source Size | Preview Size | Diff |',
+    '| --- | ---: | ---: | --- | --- | --- | --- |',
   ];
 
   for (const pair of report.pairs) {
-    lines.push(`| ${pair.viewport} | ${pair.score} | ${(pair.diff.mismatchPercent * 100).toFixed(2)}% | ${pair.diff.sourceSize.width}x${pair.diff.sourceSize.height} | ${pair.diff.previewSize.width}x${pair.diff.previewSize.height} | ${relativeArtifact(pair.diff.diffPath, report.outputDir)} |`);
+    lines.push(`| ${pair.viewport} | ${pair.score} | ${(pair.diff.mismatchPercent * 100).toFixed(2)}% | ${renderSegmentSummary(pair)} | ${pair.diff.sourceSize.width}x${pair.diff.sourceSize.height} | ${pair.diff.previewSize.width}x${pair.diff.previewSize.height} | ${relativeArtifact(pair.diff.diffPath, report.outputDir)} |`);
   }
 
   lines.push('', '## Findings', '');
@@ -960,6 +991,9 @@ export function renderAiReviewPrompt(report) {
     '',
     `Source URL: ${report.sourceUrl}`,
     `Preview URL: ${report.previewUrl}`,
+    '',
+    'Worst visual-diff bands:',
+    ...report.pairs.flatMap(pair => worstSegments(pair).map(segment => `- ${pair.viewport} y=${segment.yStart}-${segment.yEnd}px mismatch ${(segment.mismatchPercent * 100).toFixed(1)}%`)),
     '',
     'Artifacts:',
     ...report.pairs.flatMap(pair => [
