@@ -407,6 +407,8 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain("kind: 'button'")
     expect(bridgeScript).toContain("kind: 'visibility'")
     expect(bridgeScript).toContain('getBoundingClientRect')
+    expect(bridgeScript).toContain('left: (rect.left || 0) + (window.scrollX || 0)')
+    expect(bridgeScript).toContain('width: rect.width || 0')
   })
 
   it('uses message.html for html patch-field messages', () => {
@@ -597,6 +599,19 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain("kind === 'background'")
     expect(bridgeScript).toContain('backgroundColor')
     expect(bridgeScript).toContain('isPlausibleCssColor')
+  })
+
+  it('patchField handles whitelisted text style kinds without accepting arbitrary CSS', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok' })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('function patchTextStyle(target, message)')
+    expect(bridgeScript).toContain("kind === 'style'")
+    expect(bridgeScript).toContain("property === 'text-align'")
+    expect(bridgeScript).toContain("property === 'font-weight'")
+    expect(bridgeScript).toContain("target.style.textAlign = value")
+    expect(bridgeScript).toContain("target.style.fontWeight = value")
+    expect(bridgeScript).not.toContain('setProperty(property')
   })
 
   it('locks the bridge read-only when built with editable:false', () => {

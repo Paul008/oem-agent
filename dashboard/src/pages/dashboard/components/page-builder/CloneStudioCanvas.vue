@@ -159,6 +159,34 @@ function createBridgeToken(): string {
   return `clone-studio-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+function enrichRegionForHost(region: any): any {
+  if (!region || typeof region !== 'object')
+    return region
+
+  const rect = iframe.value?.getBoundingClientRect() ?? { left: 0, top: 0 }
+  const left = Number(region.left) || 0
+  const top = Number(region.top) || 0
+  const width = Number(region.width) || 0
+  const height = Number(region.height) || 0
+  const pt = translateFramePoint(
+    { x: left + width / 2, y: top + height + 8 },
+    rect,
+    frameScale.value,
+  )
+  const viewportWidth = window.innerWidth || 0
+  const viewportHeight = window.innerHeight || 0
+  const toolbarHalfWidth = 172
+  const minX = Math.min(toolbarHalfWidth, Math.max(8, viewportWidth / 2))
+  const maxX = Math.max(minX, viewportWidth - toolbarHalfWidth)
+  const maxY = Math.max(8, viewportHeight - 56)
+
+  return {
+    ...region,
+    toolbar_x: Math.min(maxX, Math.max(minX, pt.x)),
+    toolbar_y: Math.min(maxY, Math.max(8, pt.y)),
+  }
+}
+
 function onMessage(event: MessageEvent) {
   const data = event.data
   const source = event.source
@@ -176,7 +204,7 @@ function onMessage(event: MessageEvent) {
     return
 
   if (data.type === 'clone-studio:select-region' && data.region) {
-    emit('selectRegion', data.region)
+    emit('selectRegion', enrichRegionForHost(data.region))
     return
   }
 

@@ -814,7 +814,7 @@ ${rendered}
       return null
 
     var id = ensureRegionId(element)
-    var rect = element.getBoundingClientRect ? element.getBoundingClientRect() : { top: 0, height: 0 }
+    var rect = element.getBoundingClientRect ? element.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 }
 
     return {
       id: id,
@@ -823,7 +823,9 @@ ${rendered}
       tag: String(element.tagName || '').toLowerCase(),
       type_hint: classifyRegion(element),
       classes: element.getAttribute ? element.getAttribute('class') || '' : '',
+      left: (rect.left || 0) + (window.scrollX || 0),
       top: (rect.top || 0) + (window.scrollY || 0),
+      width: rect.width || 0,
       height: rect.height || 0,
       editable_fields: extractFields(element)
     }
@@ -1024,6 +1026,27 @@ ${rendered}
     }
   }
 
+  function patchTextStyle(target, message) {
+    if (!target || !target.style)
+      return
+
+    var property = String(message.property || '').trim().toLowerCase()
+    var value = String(message.value == null ? '' : message.value).trim().toLowerCase()
+
+    if (property === 'text-align') {
+      if (value !== 'left' && value !== 'center' && value !== 'right')
+        return
+      target.style.textAlign = value
+      return
+    }
+
+    if (property === 'font-weight') {
+      if (value !== 'normal' && value !== '400' && value !== '500' && value !== '600' && value !== '700' && value !== 'bold')
+        return
+      target.style.fontWeight = value
+    }
+  }
+
   function patchField(message) {
     var region = findRegionById(message.regionId || message.selectedRegionId)
     var kind = message.kind || message.fieldKind || message.typeHint || null
@@ -1045,6 +1068,8 @@ ${rendered}
       patchLink(target, value, message)
     else if (kind === 'visibility')
       patchVisibility(target, value)
+    else if (kind === 'style')
+      patchTextStyle(target, message)
     else if (kind === 'html')
       target.innerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? '' : value)
     else

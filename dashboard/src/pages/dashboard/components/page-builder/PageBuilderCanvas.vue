@@ -1,12 +1,14 @@
 <script lang="ts" setup>
-import { AlertCircle, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Wand2 } from 'lucide-vue-next'
+import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import { getCloneViewport, type CloneRegion, type PageMode } from '../../page-builder/page-modes'
+import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
+import type { RegionAction, RegionActionId } from './region-actions'
 
+import { getCloneViewport } from '../../page-builder/page-modes'
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
-import { type RegionAction, type RegionActionId, buildPatchPayload, getRegionActions } from './region-actions'
+import { buildPatchPayload, getRegionActions } from './region-actions'
 import { resolveSectionComponent } from './section-registry'
 
 const props = defineProps<{
@@ -82,7 +84,14 @@ defineExpose({
 // ── Clone region context menu ──────────────────────────────────────────────
 // Mirrors the section-mode context menu below, but driven by getRegionActions()
 // off the emitted region payload and routed through the CloneStudioCanvas relay.
-interface CloneMenuRegion { id: string, editable_fields: any, type_hint: any, html?: string }
+interface CloneMenuRegion {
+  id: string
+  editable_fields: any[]
+  type_hint: any
+  html?: string
+  toolbar_x?: number
+  toolbar_y?: number
+}
 interface CloneMenuState {
   x: number
   y: number
@@ -95,6 +104,20 @@ const cloneInput = ref<{ action: RegionActionId, value: string } | null>(null)
 const cloneHasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window
 // Per-region panel index for tab/carousel switching (default 0).
 const clonePanelIndex = ref<Record<string, number>>({})
+const cloneToolbarRegion = ref<CloneMenuRegion | null>(null)
+
+const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
+const cloneToolbarVisible = computed(() => Boolean(
+  showCloneFrame.value
+  && !props.readOnly
+  && cloneToolbarRegion.value
+  && props.selectedCloneRegionId === cloneToolbarRegion.value.id,
+))
+const cloneToolbarStyle = computed<Record<string, string>>(() => ({
+  left: `${cloneToolbarRegion.value?.toolbar_x ?? 0}px`,
+  top: `${cloneToolbarRegion.value?.toolbar_y ?? 0}px`,
+  transform: 'translateX(-50%)',
+}))
 
 const cloneMenuGroups = computed<{ group: RegionAction['group'], actions: RegionAction[] }[]>(() => {
   if (!cloneMenu.value)
@@ -108,7 +131,7 @@ const cloneMenuGroups = computed<{ group: RegionAction['group'], actions: Region
 function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, html?: string, x: number, y: number }) {
   if (props.readOnly)
     return
-  const region: CloneMenuRegion = { id: menu.regionId, editable_fields: menu.fields, type_hint: menu.typeHint, html: menu.html }
+  const region: CloneMenuRegion = { id: menu.regionId, editable_fields: Array.isArray(menu.fields) ? menu.fields : [], type_hint: menu.typeHint, html: menu.html }
   cloneMenu.value = {
     x: menu.x,
     y: menu.y,
@@ -116,6 +139,63 @@ function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, h
     actions: getRegionActions(region as any),
   }
   cloneInput.value = null
+}
+
+function onCloneRegionSelected(region: any) {
+  if (region && region.id) {
+    cloneToolbarRegion.value = {
+      id: region.id,
+      editable_fields: Array.isArray(region.editable_fields) ? region.editable_fields : [],
+      type_hint: region.type_hint,
+      html: region.html,
+      toolbar_x: Number(region.toolbar_x) || 0,
+      toolbar_y: Number(region.toolbar_y) || 0,
+    }
+  }
+  else {
+    cloneToolbarRegion.value = null
+  }
+
+  emit('selectCloneRegion', region)
+}
+
+function hasCloneTextField(region: CloneMenuRegion | null | undefined): boolean {
+  const fields = Array.isArray(region?.editable_fields) ? region.editable_fields : []
+  return fields.some((field: any) => {
+    const kind = String(field?.kind || '')
+    return kind === 'text' || kind === 'html' || kind === 'button'
+  })
+}
+
+function quickCloneEdit() {
+  if (!cloneToolbarRegion.value || props.readOnly || !cloneToolbarHasText.value)
+    return
+  cloneStudioCanvas.value?.beginEdit(cloneToolbarRegion.value.id)
+}
+
+function patchCloneStyle(property: 'text-align' | 'font-weight', value: string) {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasText.value)
+    return
+  cloneStudioCanvas.value?.patchField({
+    regionId: region.id,
+    kind: 'style',
+    property,
+    value,
+  })
+}
+
+function setCloneToolbarBgColor(color: string) {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  const payload = buildPatchPayload('background', region as any, color)
+  if (payload)
+    cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+}
+
+function onCloneToolbarBgColorInput(e: Event) {
+  setCloneToolbarBgColor((e.target as HTMLInputElement).value)
 }
 
 function closeCloneMenu() {
@@ -471,7 +551,6 @@ function sectionStyle(section: any): Record<string, string> {
     style.overflow = 'hidden'
   return style
 }
-
 </script>
 
 <template>
@@ -532,13 +611,83 @@ function sectionStyle(section: any): Record<string, string> {
             :editable="!readOnly"
             :allow-same-origin-sandbox="allowSameOriginSandbox"
             :selected-region-id="selectedCloneRegionId"
-            @select-region="emit('selectCloneRegion', $event)"
+            @select-region="onCloneRegionSelected"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
             @region-added="!props.readOnly && emit('cloneRegionAdded', $event)"
             @region-height="onRegionHeight"
             @context-menu="onCloneContextMenu"
           />
         </div>
+
+        <!-- Compact quick-edit toolbar for the selected Clone Studio region. -->
+        <Teleport v-if="cloneToolbarVisible && cloneToolbarRegion" to="body">
+          <div
+            class="fixed z-[54] flex max-w-[calc(100vw-16px)] items-center gap-1 overflow-hidden rounded-md border bg-background/95 p-1 shadow-lg backdrop-blur"
+            :style="cloneToolbarStyle"
+            @click.stop
+            @contextmenu.stop.prevent
+            @mousedown.stop
+          >
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Edit text"
+              :disabled="!cloneToolbarHasText"
+              @click="quickCloneEdit"
+            >
+              <Type class="size-3.5" />
+            </button>
+            <div class="h-5 w-px bg-border" />
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Align left"
+              :disabled="!cloneToolbarHasText"
+              @click="patchCloneStyle('text-align', 'left')"
+            >
+              <AlignLeft class="size-3.5" />
+            </button>
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Align center"
+              :disabled="!cloneToolbarHasText"
+              @click="patchCloneStyle('text-align', 'center')"
+            >
+              <AlignCenter class="size-3.5" />
+            </button>
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Align right"
+              :disabled="!cloneToolbarHasText"
+              @click="patchCloneStyle('text-align', 'right')"
+            >
+              <AlignRight class="size-3.5" />
+            </button>
+            <div class="h-5 w-px bg-border" />
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Normal weight"
+              :disabled="!cloneToolbarHasText"
+              @click="patchCloneStyle('font-weight', '400')"
+            >
+              <Type class="size-3.5" />
+            </button>
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Bold"
+              :disabled="!cloneToolbarHasText"
+              @click="patchCloneStyle('font-weight', '700')"
+            >
+              <Bold class="size-3.5" />
+            </button>
+            <div class="h-5 w-px bg-border" />
+            <label
+              class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Background color"
+            >
+              <Palette class="size-3.5" />
+              <input type="color" value="#ffffff" class="sr-only" @input="onCloneToolbarBgColorInput">
+            </label>
+          </div>
+        </Teleport>
 
         <!-- Clone region right-click context menu (mirrors the section menu below) -->
         <Teleport v-if="cloneMenu && !props.readOnly" to="body">

@@ -50,6 +50,24 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(pageSource).toContain('@patch-field="patchCloneField"')
   })
 
+  it('renders a compact clone selection toolbar for quick text styling', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('const cloneToolbarRegion = ref<CloneMenuRegion | null>(null)')
+    expect(source).toContain('const cloneToolbarVisible = computed')
+    expect(source).toContain('function onCloneRegionSelected(region: any)')
+    expect(source).toContain('function patchCloneStyle')
+    expect(source).toContain("kind: 'style'")
+    expect(source).toContain("patchCloneStyle('text-align', 'left')")
+    expect(source).toContain("patchCloneStyle('font-weight', '700')")
+    expect(source).toContain('@select-region="onCloneRegionSelected"')
+    expect(source).toContain('title="Align left"')
+    expect(source).toContain('title="Align center"')
+    expect(source).toContain('title="Align right"')
+    expect(source).toContain('title="Bold"')
+    expect(source).toContain('title="Background color"')
+  })
+
   it('clears clone drafts and section editor state on mode and page changes', () => {
     const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
 
@@ -221,6 +239,16 @@ describe('PageBuilderCanvas preview mode', () => {
 })
 
 describe('CloneStudioCanvas duplicate-region relay', () => {
+  it('enriches selected clone regions with toolbar viewport coordinates', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('function enrichRegionForHost(region: any): any')
+    expect(source).toContain('translateFramePoint(')
+    expect(source).toContain('toolbar_x:')
+    expect(source).toContain('toolbar_y:')
+    expect(source).toContain("emit('selectRegion', enrichRegionForHost(data.region))")
+  })
+
   it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 

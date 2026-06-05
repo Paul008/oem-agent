@@ -14,12 +14,16 @@ export interface CloneRegion {
   selector: string
   tag: string
   classes: string[]
+  left?: number
   top: number
+  width?: number
   height: number
+  toolbar_x?: number
+  toolbar_y?: number
   type_hint?: string
   editable_fields: CloneEditableField[]
-  height_override?: number;
-  panel_index?: number;
+  height_override?: number
+  panel_index?: number
 }
 
 export interface CloneViewport {
