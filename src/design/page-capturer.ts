@@ -1179,6 +1179,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       return;
 
     el.attr('srcset', normalizeCaptureSrcset(srcset, sourceUrl, imageUrls));
+    el.removeAttr('data-srcset');
   });
 
   $('picture').each((_idx, node) => {
@@ -1197,8 +1198,11 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     const normalizedSrcset = normalizeCaptureSrcset(fallbackSrcset, sourceUrl, imageUrls);
     if (source.length > 0 && !(source.attr('srcset') || '').trim())
       source.attr('srcset', normalizedSrcset);
+    if (source.length > 0)
+      source.removeAttr('data-srcset');
     if (!(img.attr('srcset') || '').trim())
       img.attr('srcset', normalizedSrcset);
+    img.removeAttr('data-srcset');
     if (!(img.attr('src') || '').trim()) {
       const best = bestCaptureSrcsetUrl(normalizedSrcset);
       if (best)

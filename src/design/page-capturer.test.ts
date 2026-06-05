@@ -673,6 +673,7 @@ describe('normalizeCapturedLazyMedia', () => {
 
     expect(result.html).toContain(`srcset="${expectedUrl}"`)
     expect(result.html).toContain(`src="${expectedUrl}"`)
+    expect(result.html).not.toContain('data-srcset=')
     expect(result.imageUrls).toContain(expectedUrl)
   })
 
