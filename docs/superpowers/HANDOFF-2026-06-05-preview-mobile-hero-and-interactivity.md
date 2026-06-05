@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `5623872` shipped quick Clone Studio toolbar panel
-> switching, after the quick edit/media-library and read-only dynamic bridge work. This is a
+> deployed to Cloudflare Pages. Updated after `e5379c2` shipped quick Clone Studio toolbar convert
+> action, after the quick edit/media-library and read-only dynamic bridge work. This is a
 > cold-start handoff for continuing Clone Studio preview fidelity, especially responsive media and
 > dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `5623872 feat(dashboard): add clone toolbar panel switching`.
+  `e5379c2 feat(dashboard): add clone toolbar convert action`.
 - Latest dashboard deploy from this work:
-  `https://281217f3.oem-dashboard.pages.dev`.
+  `https://8f9fe3c5.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -339,6 +339,25 @@ What changed:
 Commit:
 
 - `5623872 feat(dashboard): add clone toolbar panel switching`
+
+### 18. Quick Clone Toolbar Convert Action
+
+The selected-region quick edit bubble now exposes the convert-to-section action directly.
+
+What changed:
+
+- `PageBuilderCanvas.vue` adds a Wand button beside duplicate/hide/delete region actions.
+- Clicking it emits the existing `regionAction` path with `action: 'convert'` and the selected
+  region HTML.
+- The parent dashboard editor and standalone preview already convert that HTML with
+  `buildRawHtmlSectionFromCloneRegion()`, add the raw editable section, and switch to structured
+  sections mode.
+- The toolbar selection is cleared after conversion so the bubble does not remain anchored to the
+  clone region while the editor changes modes.
+
+Commit:
+
+- `e5379c2 feat(dashboard): add clone toolbar convert action`
 
 ## Verification Performed
 
