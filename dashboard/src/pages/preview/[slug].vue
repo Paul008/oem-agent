@@ -244,6 +244,7 @@ async function savePreview() {
         :fit-width="true"
         :allow-same-origin-sandbox="isWriteProtectedPage"
         :auto-responsive-preview="true"
+        :hide-preview-chrome="true"
         @select-section="selectSection"
         @open-editor="openEditor"
         @move-section="moveSection"

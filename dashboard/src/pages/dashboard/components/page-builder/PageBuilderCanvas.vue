@@ -32,6 +32,9 @@ const props = defineProps<{
   // Standalone previews should render the actual responsive frame for the viewer's device. The
   // builder keeps manual device switching so a narrow editor panel can still inspect desktop.
   autoResponsivePreview?: boolean
+  // Standalone preview route only: hide builder chrome so the page reads like the OEM page while
+  // keeping selection/edit affordances available inside the clone frame.
+  hidePreviewChrome?: boolean
 }>()
 const emit = defineEmits<{
   selectSection: [id: string]
@@ -50,16 +53,24 @@ type PreviewWidth = 'full' | 'tablet' | 'mobile'
 
 const previewWidth = ref<PreviewWidth>('full')
 const previewWidthManuallySelected = ref(false)
+const autoResponsiveViewportWidth = ref<number | null>(null)
 const previewWidthClass: Record<PreviewWidth, string> = {
   full: 'w-full',
   tablet: 'max-w-[768px] mx-auto',
   mobile: 'max-w-[375px] mx-auto',
 }
+const previewFrameClass = computed(() => {
+  if (props.autoResponsivePreview && !previewWidthManuallySelected.value)
+    return 'w-full'
+  return previewWidthClass[previewWidth.value]
+})
 // Viewport width the cloned OEM page renders at, so its responsive CSS resolves to the intended
 // device layout. 'full' uses a desktop width (scaled to fit the panel); tablet/mobile match the
 // constrained container so they render at native device width.
 const cloneViewport = computed(() => getCloneViewport(props.page))
 const cloneFrameWidth = computed(() => {
+  if (props.autoResponsivePreview && !previewWidthManuallySelected.value && autoResponsiveViewportWidth.value)
+    return autoResponsiveViewportWidth.value
   if (previewWidth.value === 'tablet')
     return 768
   if (previewWidth.value === 'mobile')
@@ -78,7 +89,8 @@ function responsivePreviewWidth(width: number): PreviewWidth {
 function syncResponsivePreviewWidth() {
   if (!props.autoResponsivePreview || previewWidthManuallySelected.value || typeof window === 'undefined')
     return
-  previewWidth.value = responsivePreviewWidth(window.innerWidth)
+  autoResponsiveViewportWidth.value = window.innerWidth
+  previewWidth.value = responsivePreviewWidth(autoResponsiveViewportWidth.value)
 }
 
 function setPreviewWidth(mode: PreviewWidth) {
@@ -630,9 +642,9 @@ watch(
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-muted/30">
+  <div class="h-full flex flex-col" :class="hidePreviewChrome ? 'bg-background' : 'bg-muted/30'">
     <!-- Preview mode and responsive controls -->
-    <div v-if="showStructuredPreview || showCloneFrame" class="flex items-center justify-between gap-2 py-1.5 px-2 border-b bg-card shrink-0">
+    <div v-if="!hidePreviewChrome && (showStructuredPreview || showCloneFrame)" class="flex items-center justify-between gap-2 py-1.5 px-2 border-b bg-card shrink-0">
       <div class="min-w-0 text-xs font-medium text-muted-foreground">
         {{ readOnly ? 'Preview' : (activeMode === 'clone' ? 'Clone Studio' : 'Section Builder') }}
       </div>
@@ -674,8 +686,8 @@ watch(
             This page is cloned but not structured. Click <strong>Structure</strong> to extract sections.
           </p>
         </div>
-        <div class="h-full min-h-[720px] transition-all duration-300 bg-white" :class="previewWidthClass[previewWidth]">
-          <!-- Clone Studio srcdoc preserves the legacy static preview image intent: oem-static-clone-shim .imgdesktop .dsktoponly -->
+        <div class="h-full min-h-[720px] transition-all duration-300 bg-white" :class="previewFrameClass">
+          <!-- Clone Studio srcdoc preserves responsive OEM image classes such as .imgdesktop/.imgmobile. -->
           <CloneStudioCanvas
             ref="cloneStudioCanvas"
             :page="page"
@@ -830,7 +842,7 @@ watch(
 
       <!-- Structured sections -->
       <template v-else-if="showStructuredPreview">
-        <div class="space-y-0 transition-all duration-300" :class="previewWidthClass[previewWidth]">
+        <div class="space-y-0 transition-all duration-300" :class="previewFrameClass">
           <div
             v-for="(section, index) in sections"
             :key="section.id"

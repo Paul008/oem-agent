@@ -173,9 +173,9 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/visibility:\s*visible\s*!important/i)
   })
 
-  it('force-shows OEM desktop-only image classes hidden by stripped responsive scripts', () => {
+  it('uses iframe breakpoints for OEM desktop and mobile image classes hidden by stripped scripts', () => {
     const html = buildCloneStudioHtml({
-      rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"></picture></main>',
+      rendered: '<main><picture><img class="imgdesktop dsktoponly" src="/media/pages/assets/ford-au/mustang/hero.webp"><img class="imgmobile mobonly" src="/media/pages/assets/ford-au/mustang/hero-mobile.webp"></picture></main>',
       title: 'Mustang',
       baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
       mediaBase: 'https://oem-agent.adme-dev.workers.dev',
@@ -183,8 +183,12 @@ describe('buildCloneStudioHtml', () => {
     })
 
     const head = html.slice(0, html.indexOf('</head>'))
-    expect(head).toMatch(/img\.imgdesktop[\s\S]*display:\s*block\s*!important/i)
+    expect(head).toMatch(/@media \(min-width:\s*1024px\)[\s\S]*img\.imgdesktop[\s\S]*display:\s*block\s*!important/i)
+    expect(head).toMatch(/@media \(min-width:\s*1024px\)[\s\S]*img\.imgmobile[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgdesktop[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*img\.imgmobile[\s\S]*display:\s*block\s*!important/i)
     expect(head).toContain('dsktoponly')
+    expect(head).toContain('mobonly')
   })
 
   it('leaves absolute media URLs and non-proxied relative paths untouched', () => {
@@ -401,11 +405,11 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('clone-region-')
     expect(bridgeScript).toContain('editable_fields')
     expect(bridgeScript).toContain('region: regionPayload(selectedRegion)')
-    expect(bridgeScript).toContain("kind: 'text'")
-    expect(bridgeScript).toContain("kind: 'image'")
-    expect(bridgeScript).toContain("kind: 'link'")
-    expect(bridgeScript).toContain("kind: 'button'")
-    expect(bridgeScript).toContain("kind: 'visibility'")
+    expect(bridgeScript).toContain('kind: \'text\'')
+    expect(bridgeScript).toContain('kind: \'image\'')
+    expect(bridgeScript).toContain('kind: \'link\'')
+    expect(bridgeScript).toContain('kind: \'button\'')
+    expect(bridgeScript).toContain('kind: \'visibility\'')
     expect(bridgeScript).toContain('getBoundingClientRect')
     expect(bridgeScript).toContain('viewport_left: rect.left || 0')
     expect(bridgeScript).toContain('viewport_top: rect.top || 0')
@@ -423,7 +427,7 @@ describe('buildCloneStudioHtml', () => {
     })
     const bridgeScript = extractBridgeScript(html)
 
-    expect(bridgeScript).toContain("target.innerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? '' : value)")
+    expect(bridgeScript).toContain('target.innerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? \'\' : value)')
   })
 
   it('scrolls parent-selected regions into view', () => {
@@ -436,7 +440,7 @@ describe('buildCloneStudioHtml', () => {
     })
     const bridgeScript = extractBridgeScript(html)
 
-    expect(bridgeScript).toContain("scrollIntoView({ behavior: 'smooth', block: 'center' })")
+    expect(bridgeScript).toContain('scrollIntoView({ behavior: \'smooth\', block: \'center\' })')
     expect(bridgeScript).toContain('selectRegion(targetRegion, true, true)')
   })
 
@@ -520,9 +524,9 @@ describe('buildCloneStudioHtml', () => {
       selectedRegionId: null,
     })
 
-    expect(html).toContain("document.addEventListener('submit'")
-    expect(html).toContain("'auxclick'")
-    expect(html).toContain("'dblclick'")
+    expect(html).toContain('document.addEventListener(\'submit\'')
+    expect(html).toContain('\'auxclick\'')
+    expect(html).toContain('\'dblclick\'')
     expect(html).toContain('isNavigationElement')
     expect(html).toContain('stopBlockedEvent')
     expect(html).toContain('stopImmediatePropagation')
@@ -558,14 +562,14 @@ describe('buildCloneStudioHtml', () => {
 
   it('bridge wires a contextmenu listener that posts clone-studio:context-menu', () => {
     const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
-    expect(html).toContain("addEventListener('contextmenu'")
+    expect(html).toContain('addEventListener(\'contextmenu\'')
     expect(html).toContain('clone-studio:context-menu')
   })
 
   it('bridge enables contenteditable on a begin-edit message and commits text', () => {
     const html = buildCloneStudioHtml({ rendered: '<main><section class="hero"><h1>X</h1></section></main>', title: 't', baseHref: '/', mediaBase: '/', stylesheetUrls: [], selectedRegionId: null, bridgeToken: 'tok' })
     expect(html).toContain('clone-studio:begin-edit')
-    expect(html).toContain("setAttribute('contenteditable'")
+    expect(html).toContain('setAttribute(\'contenteditable\'')
   })
 
   it('applies a height_override as max-height + overflow on the region', () => {
@@ -595,10 +599,10 @@ describe('buildCloneStudioHtml', () => {
     const bridgeScript = extractBridgeScript(html)
 
     // alt branch: set the img alt attribute, never textContent.
-    expect(bridgeScript).toContain("kind === 'alt'")
-    expect(bridgeScript).toContain("setAttribute('alt'")
+    expect(bridgeScript).toContain('kind === \'alt\'')
+    expect(bridgeScript).toContain('setAttribute(\'alt\'')
     // background branch: set backgroundColor on the region container, guarded by a colour check.
-    expect(bridgeScript).toContain("kind === 'background'")
+    expect(bridgeScript).toContain('kind === \'background\'')
     expect(bridgeScript).toContain('backgroundColor')
     expect(bridgeScript).toContain('isPlausibleCssColor')
   })
@@ -608,11 +612,11 @@ describe('buildCloneStudioHtml', () => {
     const bridgeScript = extractBridgeScript(html)
 
     expect(bridgeScript).toContain('function patchTextStyle(target, message)')
-    expect(bridgeScript).toContain("kind === 'style'")
-    expect(bridgeScript).toContain("property === 'text-align'")
-    expect(bridgeScript).toContain("property === 'font-weight'")
-    expect(bridgeScript).toContain("target.style.textAlign = value")
-    expect(bridgeScript).toContain("target.style.fontWeight = value")
+    expect(bridgeScript).toContain('kind === \'style\'')
+    expect(bridgeScript).toContain('property === \'text-align\'')
+    expect(bridgeScript).toContain('property === \'font-weight\'')
+    expect(bridgeScript).toContain('target.style.textAlign = value')
+    expect(bridgeScript).toContain('target.style.fontWeight = value')
     expect(bridgeScript).not.toContain('setProperty(property')
   })
 
@@ -624,7 +628,7 @@ describe('buildCloneStudioHtml', () => {
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('var EDITABLE = window.__CLONE_STUDIO_EDITABLE__ !== false')
     // dblclick inline edit and context-menu emit are guarded by EDITABLE.
-    expect(bridgeScript).toContain("if (EDITABLE && event.type === 'dblclick')")
+    expect(bridgeScript).toContain('if (EDITABLE && event.type === \'dblclick\')')
     expect(bridgeScript).toContain('if (!EDITABLE)')
     // Still parses as valid JS.
     expect(() => new Function(bridgeScript)).not.toThrow()
@@ -645,7 +649,7 @@ describe('buildCloneStudioHtml', () => {
     // Tab triggers: role=tab / aria-controls / tablist children are detected and click-wired.
     expect(interactivityBlock).toContain('[role="tab"]')
     expect(interactivityBlock).toContain('aria-controls')
-    expect(interactivityBlock).toContain("addEventListener('click'")
+    expect(interactivityBlock).toContain('addEventListener(\'click\'')
     // Carousel next/prev controls are detected.
     expect(interactivityBlock).toContain('swiper-button-next')
     expect(interactivityBlock).toContain('swiper-button-prev')
@@ -671,7 +675,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('\\u2039') // ‹ prev chevron
     expect(bridgeScript).toContain('\\u203a') // › next chevron
     // Every injected node is marked as bridge scaffolding so it never serializes into saved HTML.
-    expect(bridgeScript).toContain("setAttribute('data-clone-studio-bridge', 'true')")
+    expect(bridgeScript).toContain('setAttribute(\'data-clone-studio-bridge\', \'true\')')
     // Clicks drive switchPanel + clamp index + suppress navigation/propagation.
     expect(bridgeScript).toContain('switchPanel')
     expect(bridgeScript).toContain('stopImmediatePropagation')
@@ -732,7 +736,7 @@ describe('buildCloneStudioHtml', () => {
     const bridgeScript = extractBridgeScript(html)
 
     // Handle message constant + cursor affordance present.
-    expect(bridgeScript).toContain("var MESSAGE_REGION_HEIGHT = 'clone-studio:region-height'")
+    expect(bridgeScript).toContain('var MESSAGE_REGION_HEIGHT = \'clone-studio:region-height\'')
     expect(bridgeScript).toContain('ns-resize')
     // Drag release persists via the region-height message; double-click clears (height null).
     expect(bridgeScript).toContain('post(MESSAGE_REGION_HEIGHT')
@@ -749,8 +753,8 @@ describe('buildCloneStudioHtml', () => {
 
     // getBodyHtml must query the broad attribute selector — the old `script[...]` only form leaked the
     // appended resize handle <div data-clone-studio-bridge> into persisted clone HTML.
-    expect(bridgeScript).toContain("clone.querySelectorAll('[data-clone-studio-bridge]')")
-    expect(bridgeScript).not.toContain("clone.querySelectorAll('script[data-clone-studio-bridge]')")
+    expect(bridgeScript).toContain('clone.querySelectorAll(\'[data-clone-studio-bridge]\')')
+    expect(bridgeScript).not.toContain('clone.querySelectorAll(\'script[data-clone-studio-bridge]\')')
 
     // Behavioral: a clone containing a bridge-marked node AND normal content drops only the marked node.
     const removed: string[] = []
@@ -780,14 +784,14 @@ describe('buildCloneStudioHtml', () => {
 describe('sanitizeStyle preserves inline fidelity styles', () => {
   it('keeps box-shadow, gradient and transform; strips js/expression', () => {
     const safe = sanitizeCloneStudioHtmlForTest(
-      '<div style="box-shadow:0 4px 12px rgba(0,0,0,0.3);background-image:linear-gradient(180deg,#000,rgba(0,0,0,0));transform:translateX(-50%)">x</div>'
+      '<div style="box-shadow:0 4px 12px rgba(0,0,0,0.3);background-image:linear-gradient(180deg,#000,rgba(0,0,0,0));transform:translateX(-50%)">x</div>',
     )
     expect(safe).toContain('box-shadow:0 4px 12px rgba(0,0,0,0.3)')
     expect(safe).toContain('linear-gradient(180deg,#000,rgba(0,0,0,0))')
     expect(safe).toContain('transform:translateX(-50%)')
 
     const danger = sanitizeCloneStudioHtmlForTest(
-      '<div style="width:expression(alert(1));background:url(javascript:alert(1))">x</div>'
+      '<div style="width:expression(alert(1));background:url(javascript:alert(1))">x</div>',
     )
     expect(danger).not.toContain('expression(')
     expect(danger).not.toContain('javascript:')
@@ -795,7 +799,7 @@ describe('sanitizeStyle preserves inline fidelity styles', () => {
 
   it('keeps inline border declarations', () => {
     const safe = sanitizeCloneStudioHtmlForTest(
-      '<div style="border-bottom:1px solid rgb(204, 204, 204)">x</div>'
+      '<div style="border-bottom:1px solid rgb(204, 204, 204)">x</div>',
     )
     expect(safe).toContain('border-bottom:1px solid rgb(204, 204, 204)')
   })
@@ -840,7 +844,7 @@ describe('buildCloneStudioHtml duplicate-region bridge handler', () => {
     expect(bridge).toContain('clone-studio:duplicate-region')
     expect(bridge).toContain('cloneNode(true)')
     expect(bridge).toContain('insertBefore')
-    expect(bridge).toContain("querySelectorAll('[data-oem-region-id]')")
+    expect(bridge).toContain('querySelectorAll(\'[data-oem-region-id]\')')
     expect(bridge).toContain('newRegion')
   })
 })

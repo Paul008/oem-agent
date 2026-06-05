@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { disableClonePreviewNavigation } from './clone-preview-html'
 
-describe('PageBuilderCanvas preview mode', () => {
+describe('pageBuilderCanvas preview mode', () => {
   it('keeps cloned OEM HTML available when extracted sections also exist', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
@@ -18,18 +18,18 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(cloneFrame).toBeGreaterThan(-1)
     expect(structuredPreview).toBeGreaterThan(cloneFrame)
     expect(legacyClonedBranch).toBe(-1)
-    expect(source).toContain("props.activeMode === 'clone'")
-    expect(source).toContain("props.activeMode === 'sections'")
+    expect(source).toContain('props.activeMode === \'clone\'')
+    expect(source).toContain('props.activeMode === \'sections\'')
   })
 
   it('keeps clone mode active when a structured section is selected', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
     expect(source).toContain('activeMode')
-    expect(source).toContain("activeMode === 'clone'")
-    expect(source).toContain("activeMode === 'sections'")
+    expect(source).toContain('activeMode === \'clone\'')
+    expect(source).toContain('activeMode === \'sections\'')
     expect(source).not.toContain('() => props.selectedSectionId')
-    expect(source).not.toContain("previewMode.value = 'sections'")
+    expect(source).not.toContain('previewMode.value = \'sections\'')
   })
 
   it('forwards clone editor patch payloads into the Clone Studio iframe', () => {
@@ -57,9 +57,9 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).toContain('const cloneToolbarVisible = computed')
     expect(source).toContain('function onCloneRegionSelected(region: any)')
     expect(source).toContain('function patchCloneStyle')
-    expect(source).toContain("kind: 'style'")
-    expect(source).toContain("patchCloneStyle('text-align', 'left')")
-    expect(source).toContain("patchCloneStyle('font-weight', '700')")
+    expect(source).toContain('kind: \'style\'')
+    expect(source).toContain('patchCloneStyle(\'text-align\', \'left\')')
+    expect(source).toContain('patchCloneStyle(\'font-weight\', \'700\')')
     expect(source).toContain('@select-region="onCloneRegionSelected"')
     expect(source).toContain('title="Align left"')
     expect(source).toContain('title="Align center"')
@@ -71,13 +71,13 @@ describe('PageBuilderCanvas preview mode', () => {
   it('opens the OEM-scoped media library for clone image replacement', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
 
-    expect(source).toContain("import MediaLibraryDialog from './MediaLibraryDialog.vue'")
+    expect(source).toContain('import MediaLibraryDialog from \'./MediaLibraryDialog.vue\'')
     expect(source).toContain('const cloneMediaLibraryOpen = ref(false)')
     expect(source).toContain('const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)')
     expect(source).toContain('const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))')
     expect(source).toContain('function openCloneMediaLibrary(region: CloneMenuRegion)')
-    expect(source).toContain("buildPatchPayload('replace-image', region as any, url)")
-    expect(source).toContain("case 'replace-image':")
+    expect(source).toContain('buildPatchPayload(\'replace-image\', region as any, url)')
+    expect(source).toContain('case \'replace-image\':')
     expect(source).toContain('openCloneMediaLibrary(region)')
     expect(source).toContain('<MediaLibraryDialog')
     expect(source).toContain(':oem-id="oemId || \'\'"')
@@ -88,12 +88,12 @@ describe('PageBuilderCanvas preview mode', () => {
   it('clears clone drafts and section editor state on mode and page changes', () => {
     const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
 
-    expect(pageSource).toContain("if (mode !== 'clone')")
+    expect(pageSource).toContain('if (mode !== \'clone\')')
     expect(pageSource).toContain('cloneDraftHtml.value = null')
     expect(pageSource).toContain('cloneEditorOpen.value = false')
     expect(pageSource).toContain('cloneDraftHtml.value = cloneHtml.value')
     expect(pageSource).toContain('closeEditor()')
-    expect(pageSource).toContain("() => page.value?.id ?? page.value?.slug")
+    expect(pageSource).toContain('() => page.value?.id ?? page.value?.slug')
   })
 
   it('keeps unsaved clone draft HTML when clone save fails', () => {
@@ -108,12 +108,15 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(saveSource.indexOf('if (saved)')).toBeLessThan(saveSource.indexOf('cloneDraftHtml.value = null'))
   })
 
-  it('keeps desktop-only cloned OEM images visible in the static iframe preview', () => {
-    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+  it('keeps responsive OEM image classes tied to the clone iframe viewport', () => {
+    const source = readFileSync(new URL('./clone-studio-html.ts', import.meta.url), 'utf8')
 
-    expect(source).toContain('oem-static-clone-shim')
+    expect(source).toContain('@media (min-width: 1024px)')
+    expect(source).toContain('@media (max-width: 1023.98px)')
     expect(source).toContain('.imgdesktop')
+    expect(source).toContain('.imgmobile')
     expect(source).toContain('.dsktoponly')
+    expect(source).toContain('.mobonly')
   })
 
   it('uses captured clone viewport metadata for the full clone frame width', () => {
@@ -121,8 +124,8 @@ describe('PageBuilderCanvas preview mode', () => {
     const helperImport = source.indexOf('getCloneViewport')
     const viewportComputed = source.indexOf('const cloneViewport = computed(() => getCloneViewport(props.page))')
     const fullWidthBranch = source.indexOf('return cloneViewport.value.width')
-    const tabletBranch = source.indexOf("if (previewWidth.value === 'tablet')")
-    const mobileBranch = source.indexOf("if (previewWidth.value === 'mobile')")
+    const tabletBranch = source.indexOf('if (previewWidth.value === \'tablet\')')
+    const mobileBranch = source.indexOf('if (previewWidth.value === \'mobile\')')
 
     expect(helperImport).toBeGreaterThan(-1)
     expect(viewportComputed).toBeGreaterThan(helperImport)
@@ -138,15 +141,31 @@ describe('PageBuilderCanvas preview mode', () => {
 
     expect(source).toContain('autoResponsivePreview?: boolean')
     expect(source).toContain('const previewWidthManuallySelected = ref(false)')
+    expect(source).toContain('const autoResponsiveViewportWidth = ref<number | null>(null)')
+    expect(source).toContain('const previewFrameClass = computed')
+    expect(source).toContain('return \'w-full\'')
+    expect(source).toContain('return previewWidthClass[previewWidth.value]')
+    expect(source).toContain('return autoResponsiveViewportWidth.value')
     expect(source).toContain('function responsivePreviewWidth(width: number): PreviewWidth')
-    expect(source).toContain("if (width < 640)")
-    expect(source).toContain("return 'mobile'")
-    expect(source).toContain("if (width < 1024)")
-    expect(source).toContain("return 'tablet'")
+    expect(source).toContain('if (width < 640)')
+    expect(source).toContain('return \'mobile\'')
+    expect(source).toContain('if (width < 1024)')
+    expect(source).toContain('return \'tablet\'')
     expect(source).toContain('window.addEventListener(\'resize\', syncResponsivePreviewWidth)')
     expect(source).toContain('function setPreviewWidth(mode: PreviewWidth)')
     expect(source).toContain('previewWidthManuallySelected.value = true')
     expect(previewSource).toContain(':auto-responsive-preview="true"')
+    expect(previewSource).toContain(':hide-preview-chrome="true"')
+  })
+
+  it('hides builder chrome in standalone previews while keeping builder controls available elsewhere', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('hidePreviewChrome?: boolean')
+    expect(source).toContain(':class="hidePreviewChrome ? \'bg-background\' : \'bg-muted/30\'"')
+    expect(source).toContain('v-if="!hidePreviewChrome && (showStructuredPreview || showCloneFrame)"')
+    expect(previewSource).toContain(':hide-preview-chrome="true"')
   })
 
   it('keeps standalone preview controls compact on mobile screens', () => {
@@ -280,7 +299,7 @@ describe('PageBuilderCanvas preview mode', () => {
   })
 })
 
-describe('CloneStudioCanvas duplicate-region relay', () => {
+describe('cloneStudioCanvas duplicate-region relay', () => {
   it('enriches selected clone regions with toolbar viewport coordinates', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 
@@ -288,16 +307,16 @@ describe('CloneStudioCanvas duplicate-region relay', () => {
     expect(source).toContain('translateFramePoint(')
     expect(source).toContain('toolbar_x:')
     expect(source).toContain('toolbar_y:')
-    expect(source).toContain("emit('selectRegion', enrichRegionForHost(data.region))")
+    expect(source).toContain('emit(\'selectRegion\', enrichRegionForHost(data.region))')
   })
 
   it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 
     expect(source).toContain('regionAdded: [region: CloneRegion]')
-    expect(source).toContain("type: 'clone-studio:duplicate-region'")
+    expect(source).toContain('type: \'clone-studio:duplicate-region\'')
     expect(source).toContain('duplicateRegion,')
-    expect(source).toContain("emit('regionAdded', data.newRegion)")
+    expect(source).toContain('emit(\'regionAdded\', data.newRegion)')
   })
 })
 
@@ -309,10 +328,10 @@ describe('clone region conversion wiring', () => {
 
     expect(bridgeSource).toContain('function getRegionHtml(element)')
     expect(bridgeSource).toContain('regionHtml: getRegionHtml(region)')
-    expect(cloneCanvasSource).toContain("html: typeof data.regionHtml === 'string' ? data.regionHtml : ''")
+    expect(cloneCanvasSource).toContain('html: typeof data.regionHtml === \'string\' ? data.regionHtml : \'\'')
     expect(canvasSource).toContain('html?: string')
     expect(canvasSource).toContain('html: menu.html')
-    expect(canvasSource).toContain("emit('regionAction', { action: id, regionId: region.id, html: region.html })")
+    expect(canvasSource).toContain('emit(\'regionAction\', { action: id, regionId: region.id, html: region.html })')
   })
 
   it('converts clone region HTML into raw content-block sections in builder and preview', () => {
@@ -324,9 +343,9 @@ describe('clone region conversion wiring', () => {
       expect(source).toContain('addSectionFromLiveData')
       expect(source).toContain('setActiveMode')
       expect(source).toContain('const section = buildRawHtmlSectionFromCloneRegion(html)')
-      expect(source).toContain("toast.error('Region HTML is not available')")
+      expect(source).toContain('toast.error(\'Region HTML is not available\')')
       expect(source).toContain('addSectionFromLiveData(section)')
-      expect(source).toContain("setActiveMode('sections')")
+      expect(source).toContain('setActiveMode(\'sections\')')
     }
   })
 })
@@ -340,13 +359,13 @@ describe('duplicate region wiring through the host layers', () => {
     expect(canvasSource).toContain('cloneRegionAdded: [region: CloneRegion]')
     expect(canvasSource).toContain('cloneStudioCanvas.value?.duplicateRegion(regionId)')
     expect(canvasSource).toContain('duplicateRegion,')
-    expect(canvasSource).toContain("@region-added=\"!props.readOnly && emit('cloneRegionAdded', $event)\"")
+    expect(canvasSource).toContain('@region-added="!props.readOnly && emit(\'cloneRegionAdded\', $event)"')
 
     // Page dispatches duplicate and persists the new region
     expect(pageSource).toContain('pageBuilderCanvas.value?.duplicateRegion(regionId)')
     expect(pageSource).toContain('@clone-region-added="onCloneRegionAdded"')
     expect(pageSource).toContain('function onCloneRegionAdded')
     expect(pageSource).toContain('addCloneRegion,')
-    expect(pageSource).toContain("action === 'convert'")
+    expect(pageSource).toContain('action === \'convert\'')
   })
 })

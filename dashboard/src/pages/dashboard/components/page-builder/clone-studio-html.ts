@@ -98,22 +98,40 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     }
 
     /*
-     * OEM responsive image classes (e.g. AEM .imgdesktop / .dsktoponly) are hidden by default and
-     * revealed by OEM scripts that the clone strips for safety. The editor renders at desktop width,
-     * so force the desktop variants visible and keep mobile-only variants hidden to avoid duplicates.
+     * OEM responsive image classes (e.g. AEM .imgdesktop/.imgmobile) are often toggled by scripts
+     * that the clone strips for safety. Tie them to the clone iframe viewport so public previews use
+     * the same desktop/mobile assets the OEM page would choose.
      */
-    img.imgdesktop,
-    img.dsktoponly,
-    .imgdesktop > img,
-    .dsktoponly > img {
-      display: block !important;
+    @media (min-width: 1024px) {
+      img.imgdesktop,
+      img.dsktoponly,
+      .imgdesktop > img,
+      .dsktoponly > img {
+        display: block !important;
+      }
+
+      img.imgmobile,
+      img.mobonly,
+      .imgmobile > img,
+      .mobonly > img {
+        display: none !important;
+      }
     }
 
-    img.imgmobile,
-    img.mobonly,
-    .imgmobile > img,
-    .mobonly > img {
-      display: none !important;
+    @media (max-width: 1023.98px) {
+      img.imgdesktop,
+      img.dsktoponly,
+      .imgdesktop > img,
+      .dsktoponly > img {
+        display: none !important;
+      }
+
+      img.imgmobile,
+      img.mobonly,
+      .imgmobile > img,
+      .mobonly > img {
+        display: block !important;
+      }
     }
 
     /*
