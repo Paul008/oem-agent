@@ -329,7 +329,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       max-width: 33.333333% !important;
     }
 
-    @media (max-width: 767.98px) {
+    @media (max-width: 1023.98px) {
       [data-clone-studio-carousel-window-size] .slick-slide,
       [data-clone-studio-carousel-window-size] .swiper-slide,
       [data-clone-studio-carousel-window-size] .splide__slide,
@@ -341,10 +341,10 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
 
     /*
      * AEM pages store mobile column behaviour in framework CSS/JS. When the cloned page is shown
-     * without OEM scripts, phone-width split blocks can retain desktop floats/offsets. Keep this
-     * scoped to narrow frames and AEM grid columns so desktop fidelity is unchanged.
+     * without OEM scripts, mobile/tablet split blocks can retain desktop floats/offsets. Keep this
+     * scoped below desktop and to AEM grid columns so desktop fidelity is unchanged.
      */
-    @media (max-width: 767.98px) {
+    @media (max-width: 1023.98px) {
       .aem-Grid {
         width: 100% !important;
         max-width: 100% !important;
@@ -1627,10 +1627,10 @@ ${rendered}
 
   function isMobileCarouselViewport() {
     if (window.matchMedia) {
-      try { return window.matchMedia('(max-width: 767.98px)').matches }
+      try { return window.matchMedia('(max-width: 1023.98px)').matches }
       catch (_error) {}
     }
-    return (window.innerWidth || 0) > 0 && (window.innerWidth || 0) < 768
+    return (window.innerWidth || 0) > 0 && (window.innerWidth || 0) < 1024
   }
 
   function carouselWindowSize(regionEl, panels) {
@@ -2232,7 +2232,7 @@ ${rendered}
     var style = document.createElement('style')
     style.setAttribute('data-clone-studio-responsive-config-style', 'true')
     style.setAttribute('data-clone-studio-bridge', 'true')
-    style.textContent = '@media (max-width: 767.98px){' + rules.join('') + '}'
+    style.textContent = '@media (max-width: 1023.98px){' + rules.join('') + '}'
     document.head.appendChild(style)
   }
 

@@ -156,7 +156,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('display: flex !important')
     expect(head).toContain('[data-clone-studio-carousel-window-size="2"] .slick-slide')
     expect(head).toContain('[data-clone-studio-carousel-window-size="3"] .slick-slide')
-    expect(head).toMatch(/@media \(max-width: 767\.98px\)[\s\S]*\[data-clone-studio-carousel-window-size\] \.slick-slide[\s\S]*width:\s*100%\s*!important/i)
+    expect(head).toMatch(/@media \(max-width: 1023\.98px\)[\s\S]*\[data-clone-studio-carousel-window-size\] \.slick-slide[\s\S]*width:\s*100%\s*!important/i)
     // No carousel animation / external script is injected (rAF ticker is throttled in the iframe).
     expect(html).not.toContain('gsap.min.js')
     expect(html).not.toContain('translateX')
@@ -194,7 +194,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/img,[\s\S]*picture[\s\S]*max-width:\s*100%\s*!important/i)
   })
 
-  it('stacks AEM split-grid blocks on phone widths and restores mobile data-config spacing', () => {
+  it('stacks AEM split-grid blocks below desktop and restores mobile data-config spacing', () => {
     const html = buildCloneStudioHtml({
       rendered: `
         <main>
@@ -218,7 +218,7 @@ describe('buildCloneStudioHtml', () => {
     })
 
     const head = html.slice(0, html.indexOf('</head>'))
-    expect(head).toMatch(/@media \(max-width:\s*767\.98px\)[\s\S]*\.aem-Grid > \[class\*="aem-GridColumn"\][\s\S]*width:\s*100%\s*!important/i)
+    expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*\.aem-Grid > \[class\*="aem-GridColumn"\][\s\S]*width:\s*100%\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \[class\*="aem-GridColumn--offset--"\][\s\S]*margin-left:\s*0\s*!important/i)
     expect(head).toMatch(/\.aem-Grid \.cmp-richtext[\s\S]*width:\s*auto\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.imagevideoTile,[\s\S]*\.aem-Grid \.imageContainer[\s\S]*padding:\s*0\s*!important/i)
@@ -230,7 +230,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function responsiveBackgroundDeclaration(element)')
     expect(bridgeScript).toContain('data-clone-studio-responsive-config-id')
     expect(bridgeScript).toContain('data-clone-studio-responsive-config-style')
-    expect(bridgeScript).toContain('style.textContent = \'@media (max-width: 767.98px){\' + rules.join(\'\') + \'}\'')
+    expect(bridgeScript).toContain('style.textContent = \'@media (max-width: 1023.98px){\' + rules.join(\'\') + \'}\'')
     expect(bridgeScript).toContain('installResponsiveConfigRules()')
   })
 
@@ -871,6 +871,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function initializeCarouselWindowSize(regionEl)')
     expect(bridgeScript).toContain('data-clone-studio-carousel-window-size')
     expect(bridgeScript).toContain('isMobileCarouselViewport')
+    expect(bridgeScript).toContain('window.matchMedia(\'(max-width: 1023.98px)\')')
     // Gallery thumbnail controls are detected and swap the main image without OEM scripts.
     expect(interactivityBlock).toContain('[data-gallery]')
     expect(interactivityBlock).toContain('[data-thumbnail]')
