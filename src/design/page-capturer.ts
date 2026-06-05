@@ -795,7 +795,7 @@ function extractHtmlAttribute(tag: string, attrName: string): string | null {
 
 function absolutizeCaptureUrl(url: string, sourceUrl: string): string {
   const trimmed = url.trim();
-  if (!trimmed || trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('blob:'))
+  if (!trimmed || /^https?:/i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:'))
     return trimmed;
   if (trimmed.startsWith('//'))
     return `https:${trimmed}`;
@@ -947,7 +947,7 @@ function stylesheetLinkTag(input: string, sourceUrl: string): string | null {
     return null;
 
   const absoluteHref = absolutizeCaptureUrl(href, sourceUrl);
-  if (!absoluteHref || !absoluteHref.startsWith('http'))
+  if (!absoluteHref || !isHttpCaptureUrl(absoluteHref))
     return null;
 
   const attrs: Array<[string, string]> = [
@@ -1946,7 +1946,9 @@ export class PageCapturer {
         document.querySelectorAll('link[rel~="stylesheet"]').forEach(link => {
           const htmlLink = link as HTMLLinkElement;
           const href = htmlLink.href;
-          if (!href || !href.startsWith('http') || seenHrefs.has(href))
+          let parsedHref: URL | null = null;
+          try { parsedHref = href ? new URL(href) : null; } catch {}
+          if (!parsedHref || (parsedHref.protocol !== 'http:' && parsedHref.protocol !== 'https:') || seenHrefs.has(href))
             return;
 
           const attrs: Array<[string, string]> = [

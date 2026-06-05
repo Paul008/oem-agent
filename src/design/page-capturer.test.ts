@@ -1253,6 +1253,45 @@ describe('buildDomCaptureFromHtml', () => {
     expect(result.stylesheetLinks.join('\n')).not.toContain('data-track')
   })
 
+  it('rejects non-http stylesheet links in external captures', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `
+        <!doctype html>
+        <html>
+          <head>
+            <title>RAV4</title>
+            <link rel="stylesheet" href="javascript:alert(1)">
+            <link rel="stylesheet" href="ftp://cdn.example.test/rav4.css">
+            <link rel="stylesheet" href="httpx://cdn.example.test/rav4.css">
+            <link rel="stylesheet" href="//cdn.example.test/protocol-relative.css">
+          </head>
+          <body>
+            <main>
+              <h1>RAV4</h1>
+              <p>${'Hybrid SUV. '.repeat(120)}</p>
+            </main>
+          </body>
+        </html>
+      `,
+      stylesheetUrls: [
+        'javascript:alert(2)',
+        'ftp://cdn.example.test/extra.css',
+        'https://cdn.example.test/extra.css',
+      ],
+    }, 'https://www.toyota.com.au/rav4')
+
+    if ('bot_blocked' in result)
+      throw new Error('Expected external capture to succeed')
+
+    const stylesheetHtml = result.stylesheetLinks.join('\n')
+
+    expect(result.stylesheetLinks).toContain('<link rel="stylesheet" href="https://cdn.example.test/protocol-relative.css">')
+    expect(result.stylesheetLinks).toContain('<link rel="stylesheet" href="https://cdn.example.test/extra.css">')
+    expect(stylesheetHtml).not.toContain('javascript:')
+    expect(stylesheetHtml).not.toContain('ftp://')
+    expect(stylesheetHtml).not.toContain('httpx://')
+  })
+
   it('rejects externally rendered security verification pages', () => {
     expect(buildDomCaptureFromHtml({
       title: 'www.toyota.com.au',
