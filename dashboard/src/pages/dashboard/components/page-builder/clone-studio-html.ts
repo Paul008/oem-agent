@@ -300,9 +300,14 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       .aem-Grid > .imagevideoTile,
       .aem-Grid > .richtext,
       .aem-Grid .cmp-image,
-      .aem-Grid .cmp-richtext,
       .aem-Grid .imageContainer {
         width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      .aem-Grid .cmp-richtext {
+        width: auto !important;
         max-width: 100% !important;
         min-width: 0 !important;
       }
@@ -1727,7 +1732,7 @@ ${rendered}
   }
 
   function markResponsiveImageVariants() {
-    var candidates = document.querySelectorAll('.imgdesktop, .dsktoponly, .imgmobile, .mobonly')
+    var candidates = document.querySelectorAll('.imgdesktop, .dsktoponly, .imgmobile, .mobonly, .mobileonly')
     for (var i = 0; i < candidates.length; i++) {
       var node = candidates[i]
 
@@ -1812,6 +1817,7 @@ ${rendered}
       addDerivedResponsiveImageCandidate(candidates, source, source.replace(/-desktop-new(\\.[a-z0-9]+)([?#].*)?$/i, '-new-mbl$1$2'))
       addDerivedResponsiveImageCandidate(candidates, source, source.replace(/-desktop(\\.[a-z0-9]+)([?#].*)?$/i, '-mobile$1$2'))
       addDerivedResponsiveImageCandidate(candidates, source, source.replace(/desktop/ig, 'mobile'))
+      addResponsiveImageCandidate(candidates, source)
     }
 
     return candidates

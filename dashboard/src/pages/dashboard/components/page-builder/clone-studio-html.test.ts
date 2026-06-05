@@ -220,6 +220,7 @@ describe('buildCloneStudioHtml', () => {
     const head = html.slice(0, html.indexOf('</head>'))
     expect(head).toMatch(/@media \(max-width:\s*767\.98px\)[\s\S]*\.aem-Grid > \[class\*="aem-GridColumn"\][\s\S]*width:\s*100%\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \[class\*="aem-GridColumn--offset--"\][\s\S]*margin-left:\s*0\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid \.cmp-richtext[\s\S]*width:\s*auto\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.imagevideoTile,[\s\S]*\.aem-Grid \.imageContainer[\s\S]*padding:\s*0\s*!important/i)
     expect(head).toMatch(/\.aem-Grid \.imagevideoTile img[\s\S]*height:\s*auto\s*!important/i)
 
@@ -306,6 +307,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('data-clone-studio-responsive-variant')
     expect(bridgeScript).toContain('data-clone-studio-responsive-paired')
     expect(bridgeScript).toContain('markResponsiveImageVariants()')
+    expect(bridgeScript).toContain('.imgdesktop, .dsktoponly, .imgmobile, .mobonly, .mobileonly')
     expect(bridgeScript).not.toContain('.hero, section, div')
   })
 
@@ -324,6 +326,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function recoverMissingResponsiveImagePairs()')
     expect(bridgeScript).toContain('source.replace(/-desktop-new')
     expect(bridgeScript).toContain('-new-mbl$1$2')
+    expect(bridgeScript).toContain('addResponsiveImageCandidate(candidates, source)')
     expect(bridgeScript).toContain("return 'ford-au'")
     expect(bridgeScript).toContain("MEDIA_BASE + '/media/' + oemId + '/' + encoded")
     expect(bridgeScript).toContain('recoverMissingResponsiveImagePairs()')
