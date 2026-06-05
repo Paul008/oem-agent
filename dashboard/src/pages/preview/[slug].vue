@@ -4,13 +4,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
+import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
+
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { buildRawHtmlSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
-import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
-import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
 // Standalone, chrome-free preview of a model page as the builder renders it.
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
@@ -189,7 +190,7 @@ async function savePreview() {
     </div>
 
     <div v-else-if="page" class="h-screen">
-      <div class="fixed right-3 top-3 z-[70] flex items-center gap-2 rounded-lg border bg-background/95 px-2 py-1.5 shadow-lg backdrop-blur">
+      <div class="fixed right-2 top-2 z-[70] flex max-w-[calc(100vw-1rem)] items-center gap-1.5 rounded-lg border bg-background/95 px-1.5 py-1.5 shadow-lg backdrop-blur sm:right-3 sm:top-3 sm:gap-2 sm:px-2">
         <div
           v-if="isWriteProtectedPage"
           class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
@@ -215,7 +216,7 @@ async function savePreview() {
         >
           <Loader2 v-if="saving" class="size-3.5 animate-spin" />
           <Save v-else class="size-3.5" />
-          Save
+          <span class="hidden sm:inline">Save</span>
         </button>
         <a
           class="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted"
@@ -223,7 +224,7 @@ async function savePreview() {
           title="Open full builder"
         >
           <ExternalLink class="size-3.5" />
-          Builder
+          <span class="hidden sm:inline">Builder</span>
         </a>
       </div>
 
@@ -242,6 +243,7 @@ async function savePreview() {
         :read-only="isWriteProtectedPage"
         :fit-width="true"
         :allow-same-origin-sandbox="isWriteProtectedPage"
+        :auto-responsive-preview="true"
         @select-section="selectSection"
         @open-editor="openEditor"
         @move-section="moveSection"

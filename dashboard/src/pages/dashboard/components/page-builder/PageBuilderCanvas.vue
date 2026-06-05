@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
 import type { RegionAction, RegionActionId } from './region-actions'
@@ -29,6 +29,9 @@ const props = defineProps<{
   // Full-screen preview only: enables allow-same-origin in the iframe sandbox so timers and
   // permitted clone interactivity run at full speed. Never set this in the editor.
   allowSameOriginSandbox?: boolean
+  // Standalone previews should render the actual responsive frame for the viewer's device. The
+  // builder keeps manual device switching so a narrow editor panel can still inspect desktop.
+  autoResponsivePreview?: boolean
 }>()
 const emit = defineEmits<{
   selectSection: [id: string]
@@ -43,8 +46,11 @@ const emit = defineEmits<{
   regionAction: [payload: { action: RegionActionId, regionId: string, html?: string }]
 }>()
 // Responsive preview
-const previewWidth = ref<'full' | 'tablet' | 'mobile'>('full')
-const previewWidthClass: Record<string, string> = {
+type PreviewWidth = 'full' | 'tablet' | 'mobile'
+
+const previewWidth = ref<PreviewWidth>('full')
+const previewWidthManuallySelected = ref(false)
+const previewWidthClass: Record<PreviewWidth, string> = {
   full: 'w-full',
   tablet: 'max-w-[768px] mx-auto',
   mobile: 'max-w-[375px] mx-auto',
@@ -60,6 +66,25 @@ const cloneFrameWidth = computed(() => {
     return 375
   return cloneViewport.value.width
 })
+
+function responsivePreviewWidth(width: number): PreviewWidth {
+  if (width < 640)
+    return 'mobile'
+  if (width < 1024)
+    return 'tablet'
+  return 'full'
+}
+
+function syncResponsivePreviewWidth() {
+  if (!props.autoResponsivePreview || previewWidthManuallySelected.value || typeof window === 'undefined')
+    return
+  previewWidth.value = responsivePreviewWidth(window.innerWidth)
+}
+
+function setPreviewWidth(mode: PreviewWidth) {
+  previewWidthManuallySelected.value = true
+  previewWidth.value = mode
+}
 
 const showCloneFrame = computed(() => props.activeMode === 'clone' && props.isCloned)
 const showStructuredPreview = computed(() => props.activeMode === 'sections' && props.isStructured && props.sections.length > 0)
@@ -583,6 +608,25 @@ function sectionStyle(section: any): Record<string, string> {
     style.overflow = 'hidden'
   return style
 }
+
+onMounted(() => {
+  syncResponsivePreviewWidth()
+  if (typeof window !== 'undefined')
+    window.addEventListener('resize', syncResponsivePreviewWidth)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined')
+    window.removeEventListener('resize', syncResponsivePreviewWidth)
+})
+
+watch(
+  () => props.autoResponsivePreview,
+  () => {
+    previewWidthManuallySelected.value = false
+    syncResponsivePreviewWidth()
+  },
+)
 </script>
 
 <template>
@@ -598,7 +642,7 @@ function sectionStyle(section: any): Record<string, string> {
           class="p-1.5 rounded-md transition-colors"
           :class="previewWidth === 'full' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
           title="Desktop"
-          @click="previewWidth = 'full'"
+          @click="setPreviewWidth('full')"
         >
           <Monitor class="size-3.5" />
         </button>
@@ -606,7 +650,7 @@ function sectionStyle(section: any): Record<string, string> {
           class="p-1.5 rounded-md transition-colors"
           :class="previewWidth === 'tablet' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
           title="Tablet (768px)"
-          @click="previewWidth = 'tablet'"
+          @click="setPreviewWidth('tablet')"
         >
           <Tablet class="size-3.5" />
         </button>
@@ -614,7 +658,7 @@ function sectionStyle(section: any): Record<string, string> {
           class="p-1.5 rounded-md transition-colors"
           :class="previewWidth === 'mobile' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
           title="Mobile (375px)"
-          @click="previewWidth = 'mobile'"
+          @click="setPreviewWidth('mobile')"
         >
           <Smartphone class="size-3.5" />
         </button>

@@ -132,6 +132,31 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).not.toContain('return 1280')
   })
 
+  it('auto-selects mobile and tablet frames for standalone responsive previews', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('autoResponsivePreview?: boolean')
+    expect(source).toContain('const previewWidthManuallySelected = ref(false)')
+    expect(source).toContain('function responsivePreviewWidth(width: number): PreviewWidth')
+    expect(source).toContain("if (width < 640)")
+    expect(source).toContain("return 'mobile'")
+    expect(source).toContain("if (width < 1024)")
+    expect(source).toContain("return 'tablet'")
+    expect(source).toContain('window.addEventListener(\'resize\', syncResponsivePreviewWidth)')
+    expect(source).toContain('function setPreviewWidth(mode: PreviewWidth)')
+    expect(source).toContain('previewWidthManuallySelected.value = true')
+    expect(previewSource).toContain(':auto-responsive-preview="true"')
+  })
+
+  it('keeps standalone preview controls compact on mobile screens', () => {
+    const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
+
+    expect(previewSource).toContain('max-w-[calc(100vw-1rem)]')
+    expect(previewSource).toContain('<span class="hidden sm:inline">Save</span>')
+    expect(previewSource).toContain('<span class="hidden sm:inline">Builder</span>')
+  })
+
   it('feeds preserved clone studio source html into the iframe builder', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
     const helperImport = source.indexOf('getCloneStudioHtml')
