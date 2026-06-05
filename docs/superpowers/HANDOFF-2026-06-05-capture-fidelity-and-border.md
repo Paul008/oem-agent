@@ -47,7 +47,9 @@ fixes plus this doc refresh) that are **not pushed/deployed yet**:
   external HTML capture and browser capture stylesheet collection.
 
 Verification after these local commits: `VITEST=true CI=1 npx vitest run` = 448 pass,
-`npm run typecheck` = pass, `git diff --check` = pass.
+`npm run typecheck` = pass, `git diff --check` = pass. Dashboard verification also passes:
+`CI=1 npx vitest run --config dashboard/vite.config.ts --mode production` = 276 pass,
+`pnpm --dir dashboard exec vue-tsc -b` = pass.
 
 ## Three features shipped this session (all live in prod)
 
