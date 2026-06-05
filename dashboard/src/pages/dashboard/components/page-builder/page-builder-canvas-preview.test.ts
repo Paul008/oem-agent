@@ -159,6 +159,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('<MediaLibraryDialog')
     expect(source).toContain(':oem-id="oemId || \'\'"')
     expect(source).toContain(':model-slug="modelSlug || \'\'"')
+    expect(source).toContain('media-kind="image"')
     expect(source).toContain('@select="onCloneMediaLibrarySelect"')
   })
 
@@ -166,7 +167,7 @@ describe('pageBuilderCanvas preview mode', () => {
     const source = readFileSync(new URL('./MediaLibraryDialog.vue', import.meta.url), 'utf8')
 
     expect(source).toContain('function defaultLibraryModelFilter(modelSlug: string, mediaItems: MediaItem[]): string')
-    expect(source).toContain('return mediaItems.some(item => item.modelSlug === modelSlug) ? modelSlug : \'\'')
+    expect(source).toContain('return mediaItems.some(item => item.modelSlug === modelSlug && matchesMediaKind(item.contentType)) ? modelSlug : \'\'')
     expect(source).toContain('libraryScope.value === \'oem\'')
     expect(source).toContain('defaultLibraryModelFilter(props.modelSlug, items.value)')
     expect(source).toContain('<option value="">')
@@ -185,6 +186,24 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('@click="libraryScope = \'oem\'"')
     expect(source).toContain('All {{ oemId }}')
     expect(source).toContain('v-if="libraryScope === \'oem\'"')
+  })
+
+  it('restricts clone image replacement media to image assets', () => {
+    const source = readFileSync(new URL('./MediaLibraryDialog.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('mediaKind?: \'all\' | \'image\' | \'video\'')
+    expect(source).toContain('const mediaKind = computed(() => props.mediaKind || \'all\')')
+    expect(source).toContain('function matchesMediaKind(contentType: string | null | undefined): boolean')
+    expect(source).toContain('mediaKind.value === \'image\'')
+    expect(source).toContain('startsWith(\'image/\')')
+    expect(source).toContain('let result = items.value.filter(item => matchesMediaKind(item.contentType))')
+    expect(source).toContain('if (!matchesMediaKind(item.contentType))')
+    expect(source).toContain('if (!matchesMediaKind(file.type))')
+    expect(source).toContain(':accept="uploadAccept"')
+    expect(source).toContain('function portalAssetMatchesMediaKind(asset: PortalAsset): boolean')
+    expect(source).toContain('asset.asset_type === \'IMAGE\'')
+    expect(source).toContain('const portalTypeOptions = computed<PortalTypeOption[]>')
+    expect(source).toContain('portalFilterType.value = defaultPortalFilterType()')
   })
 
   it('clears clone drafts and section editor state on mode and page changes', () => {

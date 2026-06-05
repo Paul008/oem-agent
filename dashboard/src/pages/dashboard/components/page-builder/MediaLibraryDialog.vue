@@ -12,6 +12,7 @@ const props = defineProps<{
   open: boolean
   oemId: string
   modelSlug: string
+  mediaKind?: 'all' | 'image' | 'video'
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +25,7 @@ const { fetchPortalAssetsPage, fetchParsedModels, thumbnailUrl } = usePortalAsse
 type Tab = 'library' | 'portal'
 const tab = ref<Tab>('library')
 type LibraryScope = 'model' | 'oem'
+type PortalTypeOption = { value: string, label: string }
 
 // ── Library (R2 uploads — existing behaviour) ──
 const items = ref<MediaItem[]>([])
@@ -35,14 +37,37 @@ const filterModel = ref('')
 const libraryScope = ref<LibraryScope>('model')
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const mediaKind = computed(() => props.mediaKind || 'all')
+const uploadAccept = computed(() => {
+  if (mediaKind.value === 'image')
+    return 'image/jpeg,image/png,image/webp,image/gif'
+  if (mediaKind.value === 'video')
+    return 'video/mp4,video/webm'
+  return 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm'
+})
+const uploadLabel = computed(() => {
+  if (mediaKind.value === 'image')
+    return 'Upload image'
+  if (mediaKind.value === 'video')
+    return 'Upload video'
+  return 'Upload'
+})
+
+function matchesMediaKind(contentType: string | null | undefined): boolean {
+  if (mediaKind.value === 'image')
+    return String(contentType || '').startsWith('image/')
+  if (mediaKind.value === 'video')
+    return String(contentType || '').startsWith('video/')
+  return true
+}
 
 const modelSlugs = computed(() => {
-  const slugs = new Set(items.value.map(i => i.modelSlug).filter(Boolean))
+  const slugs = new Set(items.value.filter(item => matchesMediaKind(item.contentType)).map(i => i.modelSlug).filter(Boolean))
   return Array.from(slugs).sort()
 })
 
 const filteredItems = computed(() => {
-  let result = items.value
+  let result = items.value.filter(item => matchesMediaKind(item.contentType))
   if (libraryScope.value === 'oem' && filterModel.value)
     result = result.filter(i => i.modelSlug === filterModel.value)
   if (search.value) {
@@ -94,7 +119,37 @@ function autoDetectParsedModel(slug: string | null | undefined, options: string[
 function defaultLibraryModelFilter(modelSlug: string, mediaItems: MediaItem[]): string {
   if (!modelSlug)
     return ''
-  return mediaItems.some(item => item.modelSlug === modelSlug) ? modelSlug : ''
+  return mediaItems.some(item => item.modelSlug === modelSlug && matchesMediaKind(item.contentType)) ? modelSlug : ''
+}
+
+function defaultPortalFilterType(): string {
+  if (mediaKind.value === 'video')
+    return 'VIDEO'
+  if (mediaKind.value === 'all')
+    return 'IMAGE'
+  return 'IMAGE'
+}
+
+const portalTypeOptions = computed<PortalTypeOption[]>(() => {
+  if (mediaKind.value === 'image')
+    return [{ value: 'IMAGE', label: 'Images' }]
+  if (mediaKind.value === 'video')
+    return [{ value: 'VIDEO', label: 'Videos' }]
+  return [
+    { value: '', label: 'Any type' },
+    { value: 'IMAGE', label: 'Images' },
+    { value: 'VIDEO', label: 'Videos' },
+    { value: 'DOCUMENT', label: 'Documents' },
+    { value: 'TEMPLATE', label: 'Templates' },
+  ]
+})
+
+function portalAssetMatchesMediaKind(asset: PortalAsset): boolean {
+  if (mediaKind.value === 'image')
+    return asset.asset_type === 'IMAGE'
+  if (mediaKind.value === 'video')
+    return asset.asset_type === 'VIDEO'
+  return true
 }
 
 async function loadPortalFilters() {
@@ -146,7 +201,7 @@ watch(() => props.open, async (val) => {
   portalRows.value = []
   portalPage.value = 1
   portalSearch.value = ''
-  portalFilterType.value = 'IMAGE'
+  portalFilterType.value = defaultPortalFilterType()
   await loadPortalFilters()
 })
 
@@ -228,11 +283,15 @@ async function loadMore() {
 }
 
 function selectLibraryItem(item: MediaItem) {
+  if (!matchesMediaKind(item.contentType))
+    return
   emit('select', item.url)
   emit('update:open', false)
 }
 
 function selectPortalAsset(a: PortalAsset) {
+  if (!portalAssetMatchesMediaKind(a))
+    return
   emit('select', a.cdn_url)
   emit('update:open', false)
 }
@@ -260,6 +319,10 @@ async function handleUpload(e: Event) {
   const file = input.files?.[0]
   if (!file)
     return
+  if (!matchesMediaKind(file.type)) {
+    input.value = ''
+    return
+  }
   uploading.value = true
   try {
     const result = await uploadMedia(props.oemId, props.modelSlug, file)
@@ -298,7 +361,7 @@ function goPortal(delta: number) {
   <input
     ref="fileInput"
     type="file"
-    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+    :accept="uploadAccept"
     class="hidden"
     @change="handleUpload"
   >
@@ -372,7 +435,7 @@ function goPortal(delta: number) {
           <UiButton size="sm" variant="outline" :disabled="uploading" @click="openUploadPicker">
             <Loader2 v-if="uploading" class="size-3.5 mr-1 animate-spin" />
             <Upload v-else class="size-3.5 mr-1" />
-            Upload
+            {{ uploadLabel }}
           </UiButton>
         </div>
 
@@ -437,20 +500,8 @@ function goPortal(delta: number) {
             </option>
           </select>
           <select v-model="portalFilterType" class="text-sm bg-background border rounded-md px-2 py-1.5 min-w-[110px]">
-            <option value="">
-              Any type
-            </option>
-            <option value="IMAGE">
-              Images
-            </option>
-            <option value="VIDEO">
-              Videos
-            </option>
-            <option value="DOCUMENT">
-              Documents
-            </option>
-            <option value="TEMPLATE">
-              Templates
+            <option v-for="option in portalTypeOptions" :key="option.value || 'any'" :value="option.value">
+              {{ option.label }}
             </option>
           </select>
         </div>

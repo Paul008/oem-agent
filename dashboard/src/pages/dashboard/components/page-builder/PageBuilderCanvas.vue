@@ -1239,6 +1239,7 @@ watch(
           :open="cloneMediaLibraryOpen"
           :oem-id="oemId || ''"
           :model-slug="modelSlug || ''"
+          media-kind="image"
           @update:open="onCloneMediaLibraryOpenChange"
           @select="onCloneMediaLibrarySelect"
         />

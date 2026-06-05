@@ -235,6 +235,10 @@ Commit:
 
 - `6faa9b5 feat(dashboard): default media library to current model`
 - Current continuation: scope toggle and model-first query refinement.
+- Current continuation: clone image replacement passes `media-kind="image"` so the shared media
+  dialog filters uploaded media, upload MIME types, and portal/DAM type options to image assets for
+  that workflow. The shared dialog remains backward-compatible for section property fields that do
+  not pass a media kind.
 
 ### 11. Quick Clone Toolbar Link Editing
 
