@@ -859,7 +859,7 @@ function normalizeComparableUrl(url: string): string {
   }
 }
 
-function isNonRenderableCaptureImageUrl(url: string, sourceUrl: string): boolean {
+function isNonRenderableCaptureMediaUrl(url: string, sourceUrl: string): boolean {
   const trimmed = url.trim();
   if (!trimmed)
     return true;
@@ -925,10 +925,10 @@ function collectSrcsetUrls(srcset: string, sourceUrl: string, imageUrls: Set<str
 function bestImageSrcUrl(el: Cheerio<any>, sourceUrl: string): string {
   const src = (el.attr('src') || '').trim();
   const lazySrc = firstCaptureLazyImageSrc(el);
-  if (lazySrc && isNonRenderableCaptureImageUrl(src, sourceUrl))
+  if (lazySrc && isNonRenderableCaptureMediaUrl(src, sourceUrl))
     return absolutizeCaptureUrl(lazySrc, sourceUrl);
 
-  if (src && !isNonRenderableCaptureImageUrl(src, sourceUrl))
+  if (src && !isNonRenderableCaptureMediaUrl(src, sourceUrl))
     return absolutizeCaptureUrl(src, sourceUrl);
 
   return '';
@@ -1203,7 +1203,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   const imageUrls = new Set<string>();
   for (const url of result.imageUrls) {
     const absoluteUrl = absolutizeCaptureUrl(url.trim(), sourceUrl);
-    if (absoluteUrl && !isNonRenderableCaptureImageUrl(absoluteUrl, sourceUrl))
+    if (absoluteUrl && !isNonRenderableCaptureMediaUrl(absoluteUrl, sourceUrl))
       imageUrls.add(absoluteUrl);
   }
 
@@ -1308,16 +1308,24 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
 
   $('video').each((_idx, node) => {
     const video = $(node);
-    const src = (video.attr('src') || video.attr('data-src') || '').trim();
-    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+    const currentSrc = (video.attr('src') || '').trim();
+    const recoverableSrc = (video.attr('data-src') || '').trim();
+    const src = recoverableSrc && isNonRenderableCaptureMediaUrl(currentSrc, sourceUrl)
+      ? recoverableSrc
+      : currentSrc || recoverableSrc;
+    if (src && !isNonRenderableCaptureMediaUrl(src, sourceUrl)) {
       const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
       video.attr('src', absoluteSrc);
       video.removeAttr('data-src');
       imageUrls.add(absoluteSrc);
     }
 
-    const poster = (video.attr('poster') || video.attr('data-poster') || '').trim();
-    if (poster && !poster.startsWith('data:') && !poster.startsWith('blob:')) {
+    const currentPoster = (video.attr('poster') || '').trim();
+    const recoverablePoster = (video.attr('data-poster') || '').trim();
+    const poster = recoverablePoster && isNonRenderableCaptureMediaUrl(currentPoster, sourceUrl)
+      ? recoverablePoster
+      : currentPoster || recoverablePoster;
+    if (poster && !isNonRenderableCaptureMediaUrl(poster, sourceUrl)) {
       const absolutePoster = absolutizeCaptureUrl(poster, sourceUrl);
       video.attr('poster', absolutePoster);
       video.removeAttr('data-poster');
@@ -1326,8 +1334,12 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
 
     video.find('source').each((_sourceIdx, sourceNode) => {
       const source = $(sourceNode);
-      const sourceSrc = (source.attr('src') || source.attr('data-src') || '').trim();
-      if (!sourceSrc || sourceSrc.startsWith('data:') || sourceSrc.startsWith('blob:'))
+      const currentSourceSrc = (source.attr('src') || '').trim();
+      const recoverableSourceSrc = (source.attr('data-src') || '').trim();
+      const sourceSrc = recoverableSourceSrc && isNonRenderableCaptureMediaUrl(currentSourceSrc, sourceUrl)
+        ? recoverableSourceSrc
+        : currentSourceSrc || recoverableSourceSrc;
+      if (!sourceSrc || isNonRenderableCaptureMediaUrl(sourceSrc, sourceUrl))
         return;
       const absoluteSourceSrc = absolutizeCaptureUrl(sourceSrc, sourceUrl);
       source.attr('src', absoluteSourceSrc);
@@ -1362,7 +1374,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   });
 
   let heroUrl = result.heroUrl ? absolutizeCaptureUrl(result.heroUrl, sourceUrl) : result.heroUrl;
-  if (!heroUrl || isNonRenderableCaptureImageUrl(heroUrl, sourceUrl)) {
+  if (!heroUrl || isNonRenderableCaptureMediaUrl(heroUrl, sourceUrl)) {
     heroUrl = '';
     for (const node of $('picture, img').toArray()) {
       heroUrl = bestElementImageUrl($, node, sourceUrl);
@@ -1370,7 +1382,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
         break;
     }
   }
-  if (heroUrl && !isNonRenderableCaptureImageUrl(heroUrl, sourceUrl))
+  if (heroUrl && !isNonRenderableCaptureMediaUrl(heroUrl, sourceUrl))
     imageUrls.add(heroUrl);
 
   return {

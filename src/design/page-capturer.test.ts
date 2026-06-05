@@ -826,6 +826,43 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).toContain(posterUrl)
   })
 
+  it('recovers lazy video sources when placeholder media URLs are already present', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <video
+            class="placeholder-video"
+            src="data:video/mp4;base64,AAAA"
+            data-src="/media/rav4-loop.mp4"
+            poster="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+            data-poster="/media/rav4-poster.jpg"
+          >
+            <source src="blob:https://www.toyota.com.au/temporary" data-src="/media/rav4-alt.mp4" type="video/mp4">
+          </video>
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: [],
+      heroUrl: '',
+      title: 'RAV4',
+      elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.toyota.com.au/rav4')
+
+    const videoUrl = 'https://www.toyota.com.au/media/rav4-loop.mp4'
+    const sourceUrl = 'https://www.toyota.com.au/media/rav4-alt.mp4'
+    const posterUrl = 'https://www.toyota.com.au/media/rav4-poster.jpg'
+
+    expect(result.html).toContain(`src="${videoUrl}"`)
+    expect(result.html).toContain(`src="${sourceUrl}"`)
+    expect(result.html).toContain(`poster="${posterUrl}"`)
+    expect(result.html).not.toContain('data-src=')
+    expect(result.html).not.toContain('data-poster=')
+    expect(result.imageUrls).toContain(videoUrl)
+    expect(result.imageUrls).toContain(sourceUrl)
+    expect(result.imageUrls).toContain(posterUrl)
+  })
+
   it('normalizes inline background URLs so proxy rewriting can find them', () => {
     const result = normalizeCapturedLazyMedia({
       html: `
