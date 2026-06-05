@@ -859,6 +859,29 @@ function normalizeComparableUrl(url: string): string {
   }
 }
 
+function isLikelyCaptureDocumentUrl(url: string, sourceUrl: string): boolean {
+  const absoluteUrl = absolutizeCaptureUrl(url, sourceUrl);
+  if (normalizeComparableUrl(absoluteUrl) === normalizeComparableUrl(sourceUrl))
+    return true;
+
+  try {
+    const parsed = new URL(absoluteUrl);
+    const source = new URL(sourceUrl);
+    if (parsed.origin !== source.origin)
+      return false;
+
+    const sourcePath = source.pathname.replace(/\/+$/, '') || '/';
+    const path = parsed.pathname.replace(/\/+$/, '') || '/';
+    if (sourcePath === '/' || !path.startsWith(`${sourcePath}/`))
+      return false;
+
+    const extraPath = path.slice(sourcePath.length + 1);
+    return /^\d{4}(?:\/.*)?$/.test(extraPath);
+  } catch {
+    return false;
+  }
+}
+
 function isNonRenderableCaptureMediaUrl(url: string, sourceUrl: string): boolean {
   const trimmed = url.trim();
   if (!trimmed)
@@ -868,7 +891,7 @@ function isNonRenderableCaptureMediaUrl(url: string, sourceUrl: string): boolean
   if (lower.startsWith('data:') || lower.startsWith('blob:'))
     return true;
 
-  return normalizeComparableUrl(absolutizeCaptureUrl(trimmed, sourceUrl)) === normalizeComparableUrl(sourceUrl);
+  return isLikelyCaptureDocumentUrl(trimmed, sourceUrl);
 }
 
 function firstCaptureLazyImageSrc(el: Cheerio<any>): string {
@@ -1199,7 +1222,6 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
 
 export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: string): DomCaptureResult {
   const $ = load(result.html, {}, false);
-  const comparableSourceUrl = normalizeComparableUrl(sourceUrl);
   const imageUrls = new Set<string>();
   for (const url of result.imageUrls) {
     const absoluteUrl = absolutizeCaptureUrl(url.trim(), sourceUrl);
@@ -1259,17 +1281,8 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     }
 
     const currentSrc = (img.attr('src') || '').trim();
-    const currentSrcLower = currentSrc.toLowerCase();
     const recoverableSrc = firstCaptureLazyImageSrc(img as Cheerio<any>);
-    if (
-      recoverableSrc
-      && (
-        !currentSrc
-        || currentSrcLower.startsWith('data:')
-        || currentSrcLower.startsWith('blob:')
-        || normalizeComparableUrl(absolutizeCaptureUrl(currentSrc, sourceUrl)) === comparableSourceUrl
-      )
-    ) {
+    if (recoverableSrc && isNonRenderableCaptureMediaUrl(currentSrc, sourceUrl)) {
       img.attr('src', recoverableSrc);
       for (const attrName of CAPTURE_LAZY_IMAGE_SRC_ATTRS)
         img.removeAttr(attrName);
@@ -1278,7 +1291,7 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
     const src = (img.attr('src') || '').trim();
     if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
       const absoluteSrc = absolutizeCaptureUrl(src, sourceUrl);
-      if (normalizeComparableUrl(absoluteSrc) === comparableSourceUrl && !(img.attr('srcset') || '').trim()) {
+      if (isLikelyCaptureDocumentUrl(absoluteSrc, sourceUrl) && !(img.attr('srcset') || '').trim()) {
         img.remove();
         return;
       }

@@ -720,6 +720,29 @@ describe('normalizeCapturedLazyMedia', () => {
     expect(result.imageUrls).toContain('https://www.subaru.com.au/media/brz.jpg')
   })
 
+  it('removes same-origin model-year document placeholders from media URLs', () => {
+    const result = normalizeCapturedLazyMedia({
+      html: `
+        <main>
+          <img class="subaru-year-placeholder" src="https://www.subaru.com.au/brz/2026">
+          <img class="subaru-real" src="/media/brz.jpg">
+        </main>
+      `,
+      stylesheetLinks: [],
+      imageUrls: ['https://www.subaru.com.au/brz/2026'],
+      heroUrl: 'https://www.subaru.com.au/brz/2026',
+      title: 'BRZ',
+      elementCount: 3,
+      viewport: { width: 1440, height: 1080 },
+    }, 'https://www.subaru.com.au/brz')
+
+    expect(result.html).not.toContain('subaru-year-placeholder')
+    expect(result.html).toContain('subaru-real')
+    expect(result.heroUrl).toBe('https://www.subaru.com.au/media/brz.jpg')
+    expect(result.imageUrls).not.toContain('https://www.subaru.com.au/brz/2026')
+    expect(result.imageUrls).toContain('https://www.subaru.com.au/media/brz.jpg')
+  })
+
   it('normalizes pre-queued image URLs before returning the media list', () => {
     const result = normalizeCapturedLazyMedia({
       html: '<main><p>RAV4 content</p></main>',
