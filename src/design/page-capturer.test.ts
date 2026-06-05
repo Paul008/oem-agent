@@ -915,6 +915,37 @@ describe('buildDomCaptureFromHtml', () => {
     expect(result.heroUrl).toBe('https://www.toyota.com.au/-/media/rav4-hero@2x.jpg')
   })
 
+  it('removes consumed lazy image attributes from external captures', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `
+        <!doctype html>
+        <html>
+          <body>
+            <main>
+              <h1>All-New RAV4</h1>
+              <img class="external-lazy" data-src="/-/media/rav4-lazy.jpg" alt="RAV4 lazy">
+              <img class="external-data-image" data-image-src="/-/media/rav4-data-image.jpg" alt="RAV4 data image">
+              <section>${'Vehicle content. '.repeat(80)}</section>
+            </main>
+          </body>
+        </html>
+      `,
+    }, 'https://www.toyota.com.au/rav4')
+
+    if ('bot_blocked' in result)
+      throw new Error('Expected external capture to succeed')
+
+    const lazyUrl = 'https://www.toyota.com.au/-/media/rav4-lazy.jpg'
+    const dataImageUrl = 'https://www.toyota.com.au/-/media/rav4-data-image.jpg'
+
+    expect(result.html).toContain(`src="${lazyUrl}"`)
+    expect(result.html).toContain(`src="${dataImageUrl}"`)
+    expect(result.html).not.toContain('data-src=')
+    expect(result.html).not.toContain('data-image-src=')
+    expect(result.imageUrls).toContain(lazyUrl)
+    expect(result.imageUrls).toContain(dataImageUrl)
+  })
+
   it('preserves safe stylesheet link attributes in external captures', () => {
     const result = buildDomCaptureFromHtml({
       html: `

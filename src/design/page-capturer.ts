@@ -1251,6 +1251,10 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
       }
       img.attr('src', absoluteSrc);
       imageUrls.add(absoluteSrc);
+      if (recoverableSrc && normalizeComparableUrl(absoluteSrc) === normalizeComparableUrl(absolutizeCaptureUrl(recoverableSrc, sourceUrl))) {
+        for (const attrName of lazyImageSrcAttrs)
+          img.removeAttr(attrName);
+      }
     }
   });
 
