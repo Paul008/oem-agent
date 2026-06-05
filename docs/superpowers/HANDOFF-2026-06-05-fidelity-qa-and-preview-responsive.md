@@ -10,7 +10,10 @@
 
 ### 1. Automated OEM fidelity QA report
 
-Commit: `350929b feat(dashboard): add OEM fidelity QA report`
+Commits:
+
+- `350929b feat(dashboard): add OEM fidelity QA report`
+- `5e9fd67 feat(qa): report worst visual diff bands`
 
 - Root script: `pnpm qa:fidelity` -> `node scripts/oem-fidelity-report.mjs`.
 - Captures source and preview at desktop/tablet/mobile with Puppeteer/Chrome.
@@ -19,6 +22,8 @@ Commit: `350929b feat(dashboard): add OEM fidelity QA report`
   - `report.json`
   - `report.md`
   - `ai-review-prompt.md`
+- `report.json` and `report.md` now include 1000px vertical diff bands. Use the worst bands to
+  identify which page region is actually driving a full-page mismatch.
 - Checks:
   - network failures / bad responses
   - broken visible images
@@ -225,7 +230,7 @@ node scripts/oem-fidelity-report.mjs \
 
 Report path:
 
-`/private/tmp/oem-fidelity/custom-2026-06-05T18-52-19-421Z`
+`/private/tmp/oem-fidelity/custom-2026-06-05T18-59-11-875Z`
 
 Latest result:
 
@@ -233,6 +238,10 @@ Latest result:
 - Desktop: source `1440x13039`, preview `1440x11798`, mismatch `63.07%`.
 - Tablet: source `820x13833`, preview `820x12643`, mismatch `38.51%`.
 - Mobile: source `390x11031`, preview `390x10606`, mismatch `61.18%`.
+- Worst bands from the latest report:
+  - desktop: `10000-11000px 83.0%`, `9000-10000px 81.9%`, `2000-3000px 77.2%`
+  - tablet: `9000-10000px 69.4%`, `8000-9000px 58.2%`, `7000-8000px 56.3%`
+  - mobile: `8000-9000px 83.7%`, `7000-8000px 82.9%`, `5000-6000px 82.1%`
 - Preview network failures: none.
 - Preview broken images: none.
 - Preview clipped-text findings: none after the calibrated text audit.
