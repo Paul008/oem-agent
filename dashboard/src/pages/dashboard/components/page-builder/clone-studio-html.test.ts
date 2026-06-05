@@ -260,7 +260,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)\[class\*="display1-medium"\][\s\S]*font-size:\s*1\.75rem\s*!important/i)
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*\[class\*="display2-medium"\][\s\S]*font-size:\s*2\.125rem\s*!important/i)
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*h3 \[class\*="display3-medium"\][\s\S]*font-size:\s*1\.75rem\s*!important/i)
-    expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*p\[class\*="heading3-medium"\][\s\S]*font-size:\s*1rem\s*!important/i)
+    expect(head).toMatch(/p\[data-clone-studio-responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)\[class\*="heading3-medium"\][\s\S]*font-size:\s*1rem\s*!important/i)
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*h2 \[class\*="heading1-medium"\][\s\S]*font-size:\s*1\.5rem\s*!important/i)
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*\[class\*="heading1-medium"\][\s\S]*font-size:\s*1\.5rem\s*!important/i)
     expect(head).toMatch(/responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\)[\s\S]*\[class\*="body1-regular"\][\s\S]*font-size:\s*0\.875rem\s*!important/i)

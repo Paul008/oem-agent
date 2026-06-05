@@ -223,6 +223,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         letter-spacing: 0 !important;
       }
 
+      p[data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"])[class*="heading3-medium"],
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) p[class*="heading3-medium"],
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) p [class*="heading3-medium"] {
         font-size: 1rem !important;
