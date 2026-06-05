@@ -85,6 +85,35 @@ describe('buildCloneStudioHtml', () => {
     expect((head.match(/rel="stylesheet"/g) || []).length).toBeGreaterThanOrEqual(2)
   })
 
+  it('proxies OEM stylesheet links through the media worker when mediaBase is available', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      stylesheetUrls: ['https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-nameplates.min.css'],
+      selectedRegionId: null,
+    })
+
+    const head = extractDocumentHead(html)
+    expect(head).toContain('href="https://oem-agent.adme-dev.workers.dev/media/ford-au/')
+    expect(head).not.toContain('href="https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-nameplates.min.css"')
+  })
+
+  it('proxies preserved style-block asset URLs through the media worker', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<style>.hero{background-image:url("/content/dam/Ford/au/nameplate/mustang/hero.webp")}</style><main><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://www.ford.com.au/showroom/cars/mustang/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const head = extractDocumentHead(html)
+    expect(head).toContain('url("https://oem-agent.adme-dev.workers.dev/media/ford-au/')
+    expect(head).not.toContain('/content/dam/Ford/au/nameplate/mustang/hero.webp')
+  })
+
   it('does not duplicate stylesheet links already present in the captured head', () => {
     const html = buildCloneStudioHtml({
       rendered: '<link rel="stylesheet" href="https://www.ford.com.au/site.css"><main><h1>Mustang</h1></main>',

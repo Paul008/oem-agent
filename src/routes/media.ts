@@ -13,6 +13,7 @@
 
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
+import { encodeUrl } from '../utils/image-proxy';
 
 const media = new Hono<AppEnv>();
 
@@ -128,7 +129,7 @@ function decodeUrl(encoded: string): string {
 }
 
 // Re-export encodeUrl from utils for existing consumers.
-export { encodeUrl } from '../utils/image-proxy';
+export { encodeUrl };
 
 /**
  * Resolve a possibly-relative URL for a given OEM.
@@ -137,6 +138,31 @@ function resolveUrl(raw: string, oemId: string): string | null {
   if (raw.startsWith('http')) return raw;
   const base = OEM_URL_BASES[oemId];
   return base ? base + raw : null;
+}
+
+function isCssUrlRewritable(rawUrl: string): boolean {
+  const trimmed = rawUrl.trim();
+  return !!trimmed
+    && !trimmed.startsWith('#')
+    && !/^(?:data|blob|javascript|mailto|tel):/i.test(trimmed);
+}
+
+export function rewriteCssAssetUrlsForMediaProxy(css: string, stylesheetUrl: string, oemId: string): string {
+  return String(css ?? '').replace(/url\((["']?)([^"')]+)\1\)/gi, (match, quote: string, rawUrl: string) => {
+    const value = rawUrl.trim();
+    if (!isCssUrlRewritable(value))
+      return match;
+
+    let absolute: string;
+    try {
+      absolute = new URL(value, stylesheetUrl).href;
+    } catch {
+      return match;
+    }
+
+    const proxied = `/media/${oemId}/${encodeUrl(absolute)}`;
+    return `url(${quote || '"'}${proxied}${quote || '"'})`;
+  });
 }
 
 // GET /media/fonts/:oemId/:filename — serve OEM fonts from R2
@@ -283,7 +309,7 @@ media.get('/:oemId/:encodedUrl', async (c) => {
 
   // Build headers for OEM origin
   const headers: Record<string, string> = {
-    Accept: 'image/webp,image/avif,image/png,image/jpeg,image/*,*/*',
+    Accept: 'text/css,font/woff2,font/woff,font/ttf,application/font-woff,application/octet-stream,image/webp,image/avif,image/png,image/jpeg,image/*,*/*',
     ...OEM_HEADERS[oemId],
   };
 
@@ -296,11 +322,18 @@ media.get('/:oemId/:encodedUrl', async (c) => {
   // Build cacheable response
   const respHeaders = new Headers();
   const ct = originResp.headers.get('content-type');
-  if (ct) respHeaders.set('Content-Type', ct);
+  const isCss = (ct ?? '').toLowerCase().includes('text/css') || /\.css(?:[?#]|$)/i.test(resolved);
+  if (isCss)
+    respHeaders.set('Content-Type', 'text/css; charset=utf-8');
+  else if (ct)
+    respHeaders.set('Content-Type', ct);
   respHeaders.set('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
   respHeaders.set('Access-Control-Allow-Origin', '*');
 
-  const response = new Response(originResp.body, { status: 200, headers: respHeaders });
+  const body = isCss
+    ? rewriteCssAssetUrlsForMediaProxy(await originResp.text(), resolved, oemId)
+    : originResp.body;
+  const response = new Response(body, { status: 200, headers: respHeaders });
 
   // Store in edge cache (non-blocking — don't delay the response)
   c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));

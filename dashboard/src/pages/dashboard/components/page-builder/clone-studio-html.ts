@@ -45,9 +45,11 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const mediaBase = normalizeCloneStudioMediaBase(options.mediaBase)
   const { bodyHtml, headParts } = extractHeadParts(options.rendered)
   const sanitizedHeadParts = sanitizeCloneStudioHeadParts(headParts)
-    .map(part => rewriteProxiedMediaUrls(part, mediaBase))
   const stylesheetLinkTags = buildOemStylesheetLinkTags(options.stylesheetUrls, sanitizedHeadParts)
   sanitizedHeadParts.push(...stylesheetLinkTags)
+  const proxiedHeadParts = sanitizedHeadParts
+    .map(part => proxyCloneStudioHeadAssetUrls(part, options.baseHref, mediaBase))
+    .map(part => rewriteProxiedMediaUrls(part, mediaBase))
   const rendered = rewriteProxiedMediaUrls(
     stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(
       stripSourceDocumentImagePlaceholders(bodyHtml, options.baseHref),
@@ -66,7 +68,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="${escapeHtmlAttribute(options.baseHref)}">
   <title>${escapeHtmlText(options.title)}</title>
-  ${sanitizedHeadParts.join('\n  ')}
+  ${proxiedHeadParts.join('\n  ')}
   <style>
     html {
       min-height: 100%;
@@ -3924,6 +3926,100 @@ function rewriteProxiedMediaUrls(html: string, mediaBase: string): string {
   // Match `/media/` only at a value boundary (start, whitespace, quote, paren, comma, `;` from
   // an escaped quote, or `=`) so it never matches `//media` or `host/media/` inside an absolute URL.
   return String(html).replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${mediaBase}/media/`)
+}
+
+function proxyCloneStudioHeadAssetUrls(html: string, baseHref: string, mediaBase: string): string {
+  if (!mediaBase)
+    return html
+
+  if (/^<link\b/i.test(html)) {
+    return html.replace(/\bhref=(["'])(.*?)\1/i, (match: string, quote: string, rawUrl: string) => {
+      const proxied = proxyCloneStudioExternalAssetUrl(rawUrl, baseHref, mediaBase)
+      return proxied ? `href=${quote}${escapeHtmlAttribute(proxied)}${quote}` : match
+    })
+  }
+
+  if (/^<style\b/i.test(html)) {
+    return html.replace(/url\((["']?)([^"')]+)\1\)/gi, (match: string, quote: string, rawUrl: string) => {
+      const proxied = proxyCloneStudioExternalAssetUrl(rawUrl, baseHref, mediaBase)
+      return proxied ? `url(${quote || '"'}${proxied}${quote || '"'})` : match
+    })
+  }
+
+  return html
+}
+
+function proxyCloneStudioExternalAssetUrl(rawUrl: string, baseHref: string, mediaBase: string): string {
+  const value = String(rawUrl ?? '').trim()
+  if (!value || /^(?:data|blob|javascript|mailto|tel):/i.test(value) || value.startsWith('#'))
+    return ''
+
+  let absolute: string
+  try {
+    absolute = new URL(value, baseHref || undefined).href
+  }
+  catch {
+    return ''
+  }
+
+  if (absolute.startsWith(`${mediaBase}/media/`))
+    return absolute
+
+  const oemId = cloneStudioMediaProxyOemIdForUrl(absolute)
+  const encoded = encodeCloneStudioBase64Url(absolute)
+  if (!oemId || !encoded)
+    return ''
+
+  return `${mediaBase}/media/${oemId}/${encoded}`
+}
+
+function cloneStudioMediaProxyOemIdForUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    if (host === 'www.ford.com.au' || host === 'www.gpas-cache.ford.com')
+      return 'ford-au'
+    if (host === 'www.hyundai.com')
+      return 'hyundai-au'
+    if (host === 'www.mazda.com.au')
+      return 'mazda-au'
+    if (host === 'www.isuzuute.com.au' || host === 'cdn-iua.dataweavers.io')
+      return 'isuzu-au'
+    if (host === 'www.kia.com' || host === 'kia.com')
+      return 'kia-au'
+    if (host === 'www.nissan.com.au' || host === 'www-asia.nissan-cdn.net' || host === 'ms-prd.apn.mediaserver.heliosnissan.net')
+      return 'nissan-au'
+    if (host === 'www.subaru.com.au' || host === 'cdn-image-handler.oem-production.subaru.com.au')
+      return 'subaru-au'
+    if (host === 'www.gwmanz.com')
+      return 'gwm-au'
+    if (host === 'www.suzuki.com.au' || host === 'cdn.suzuki.com.au')
+      return 'suzuki-au'
+    if (host === 'www.renault.com.au')
+      return 'renault-au'
+    if (host === 'www.fotonaustralia.com.au')
+      return 'foton-au'
+    if (host === 'www.gacgroup.com' || host === 'eu-www-resouce-cdn.gacgroup.com' || host === 'eu-www-resource-cdn.gacgroup.com')
+      return 'gac-au'
+    if (host === 'kgm.com.au' || host === 'payloadb.therefinerydesign.com')
+      return 'kgm-au'
+    if (host === 'www.mitsubishi-motors.com.au' || host === 'configurator.mitsubishi-motors.com.au')
+      return 'mitsubishi-au'
+  }
+  catch {}
+
+  return ''
+}
+
+function encodeCloneStudioBase64Url(value: string): string {
+  try {
+    return btoa(unescape(encodeURIComponent(String(value))))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '')
+  }
+  catch {
+    return ''
+  }
 }
 
 function stripSourceDocumentImagePlaceholders(html: string, baseHref: string): string {
