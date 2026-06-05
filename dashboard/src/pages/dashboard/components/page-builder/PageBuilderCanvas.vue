@@ -8,6 +8,7 @@ import type { RegionAction, RegionActionId } from './region-actions'
 import { getCloneViewport } from '../../page-builder/page-modes'
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
+import MediaLibraryDialog from './MediaLibraryDialog.vue'
 import { buildPatchPayload, getRegionActions } from './region-actions'
 import { resolveSectionComponent } from './section-registry'
 
@@ -105,8 +106,11 @@ const cloneHasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in wind
 // Per-region panel index for tab/carousel switching (default 0).
 const clonePanelIndex = ref<Record<string, number>>({})
 const cloneToolbarRegion = ref<CloneMenuRegion | null>(null)
+const cloneMediaLibraryOpen = ref(false)
+const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)
 
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
+const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))
 const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
   && !props.readOnly
@@ -198,6 +202,31 @@ function onCloneToolbarBgColorInput(e: Event) {
   setCloneToolbarBgColor((e.target as HTMLInputElement).value)
 }
 
+function openCloneMediaLibrary(region: CloneMenuRegion) {
+  if (props.readOnly || !cloneHasMediaContext.value)
+    return
+  cloneMediaTargetRegion.value = region
+  cloneMediaLibraryOpen.value = true
+  closeCloneMenu()
+}
+
+function onCloneMediaLibraryOpenChange(open: boolean) {
+  cloneMediaLibraryOpen.value = open
+  if (!open)
+    cloneMediaTargetRegion.value = null
+}
+
+function onCloneMediaLibrarySelect(url: string) {
+  const region = cloneMediaTargetRegion.value
+  if (!region || props.readOnly)
+    return
+  const payload = buildPatchPayload('replace-image', region as any, url)
+  if (payload)
+    cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
+  cloneMediaLibraryOpen.value = false
+  cloneMediaTargetRegion.value = null
+}
+
 function closeCloneMenu() {
   cloneMenu.value = null
   cloneInput.value = null
@@ -284,7 +313,10 @@ function runCloneAction(id: RegionActionId) {
       closeCloneMenu()
       break
     case 'replace-image':
-      openCloneInput('replace-image')
+      if (cloneHasMediaContext.value)
+        openCloneMediaLibrary(region)
+      else
+        openCloneInput('replace-image')
       break
     case 'edit-link':
       openCloneInput('edit-link')
@@ -741,6 +773,15 @@ function sectionStyle(section: any): Record<string, string> {
             </template>
           </div>
         </Teleport>
+
+        <MediaLibraryDialog
+          v-if="cloneHasMediaContext"
+          :open="cloneMediaLibraryOpen"
+          :oem-id="oemId || ''"
+          :model-slug="modelSlug || ''"
+          @update:open="onCloneMediaLibraryOpenChange"
+          @select="onCloneMediaLibrarySelect"
+        />
       </template>
 
       <!-- Structured sections -->

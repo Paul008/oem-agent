@@ -68,6 +68,23 @@ describe('PageBuilderCanvas preview mode', () => {
     expect(source).toContain('title="Background color"')
   })
 
+  it('opens the OEM-scoped media library for clone image replacement', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain("import MediaLibraryDialog from './MediaLibraryDialog.vue'")
+    expect(source).toContain('const cloneMediaLibraryOpen = ref(false)')
+    expect(source).toContain('const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)')
+    expect(source).toContain('const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))')
+    expect(source).toContain('function openCloneMediaLibrary(region: CloneMenuRegion)')
+    expect(source).toContain("buildPatchPayload('replace-image', region as any, url)")
+    expect(source).toContain("case 'replace-image':")
+    expect(source).toContain('openCloneMediaLibrary(region)')
+    expect(source).toContain('<MediaLibraryDialog')
+    expect(source).toContain(':oem-id="oemId || \'\'"')
+    expect(source).toContain(':model-slug="modelSlug || \'\'"')
+    expect(source).toContain('@select="onCloneMediaLibrarySelect"')
+  })
+
   it('clears clone drafts and section editor state on mode and page changes', () => {
     const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
 
