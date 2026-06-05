@@ -489,6 +489,22 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('color: red')
   })
 
+  it('drops stale generated Clone Studio bridge styles from saved clone heads', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<style>.stale-clone-bridge { color: red; } [data-clone-studio-responsive-content-variant="desktop"] { display: block; }</style><style>.oem-style { color: blue; }</style><main><p>Mustang</p></main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = extractDocumentHead(html)
+
+    expect(head).toContain('data-clone-studio-bridge-style="2026-06-05-responsive-text-v3"')
+    expect(head).toContain('p[class*="heading3-medium"]')
+    expect(head).toContain('.oem-style')
+    expect(head).not.toContain('.stale-clone-bridge')
+  })
+
   it('sanitizes escaped CSS bypasses in extracted head styles', () => {
     const html = buildCloneStudioHtml({
       rendered: '<style>@\\69mport url("/evil.css"); .hero { color: blue; width: e\\78pression(alert(1)); background: url(ja\\76ascript:alert(2)); mask-image: url(data:image/s\\76g+xml;base64,abc); }</style><main>Mustang</main>',

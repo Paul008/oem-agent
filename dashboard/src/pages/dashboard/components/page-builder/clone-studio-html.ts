@@ -40,6 +40,7 @@ const LINK_URL_ATTRIBUTE_NAMES = new Set(['href', 'action', 'formaction', 'cite'
 const MEDIA_URL_ATTRIBUTE_NAMES = new Set(['src', 'poster', 'data', 'xlink:href'])
 const SAFE_HEAD_LINK_REL_NAMES = new Set(['stylesheet', 'preconnect', 'dns-prefetch', 'preload'])
 const SAFE_HEAD_PRELOAD_AS_NAMES = new Set(['style', 'font', 'image'])
+const CLONE_STUDIO_BRIDGE_STYLE_VERSION = '2026-06-05-responsive-text-v3'
 
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const mediaBase = normalizeCloneStudioMediaBase(options.mediaBase)
@@ -69,7 +70,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   <base href="${escapeHtmlAttribute(options.baseHref)}">
   <title>${escapeHtmlText(options.title)}</title>
   ${proxiedHeadParts.join('\n  ')}
-  <style>
+  <style data-clone-studio-bridge-style="${CLONE_STUDIO_BRIDGE_STYLE_VERSION}">
     html {
       min-height: 100%;
       background: #ffffff;
@@ -4218,10 +4219,17 @@ function sanitizeCloneStudioHeadPart(part: string): string {
   if (/^<link\b/i.test(part))
     return sanitizeCloneStudioHeadLink(part)
 
-  if (/^<style\b/i.test(part))
+  if (/^<style\b/i.test(part)) {
+    if (isStoredCloneStudioBridgeStyle(part))
+      return ''
     return sanitizeCloneStudioHeadStyle(part)
+  }
 
   return ''
+}
+
+function isStoredCloneStudioBridgeStyle(part: string): boolean {
+  return /^<style\b/i.test(part) && /data-clone-studio-/i.test(part)
 }
 
 function sanitizeCloneStudioHeadLink(part: string): string {
