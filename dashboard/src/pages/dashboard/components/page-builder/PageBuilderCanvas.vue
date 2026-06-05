@@ -147,6 +147,7 @@ const cloneMediaLibraryOpen = ref(false)
 const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)
 
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
+const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
 const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))
 const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
@@ -208,10 +209,22 @@ function hasCloneTextField(region: CloneMenuRegion | null | undefined): boolean 
   })
 }
 
+function hasCloneImageField(region: CloneMenuRegion | null | undefined): boolean {
+  const fields = Array.isArray(region?.editable_fields) ? region.editable_fields : []
+  return fields.some((field: any) => String(field?.kind || '') === 'image')
+}
+
 function quickCloneEdit() {
   if (!cloneToolbarRegion.value || props.readOnly || !cloneToolbarHasText.value)
     return
   cloneStudioCanvas.value?.beginEdit(cloneToolbarRegion.value.id)
+}
+
+function quickCloneReplaceImage() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasImage.value || !cloneHasMediaContext.value)
+    return
+  openCloneMediaLibrary(region)
 }
 
 function patchCloneStyle(property: 'text-align' | 'font-weight', value: string) {
@@ -723,6 +736,14 @@ watch(
               @click="quickCloneEdit"
             >
               <Type class="size-3.5" />
+            </button>
+            <button
+              class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              title="Replace image"
+              :disabled="!cloneToolbarHasImage || !cloneHasMediaContext"
+              @click="quickCloneReplaceImage"
+            >
+              <Image class="size-3.5" />
             </button>
             <div class="h-5 w-px bg-border" />
             <button
