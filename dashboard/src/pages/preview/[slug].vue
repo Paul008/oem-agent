@@ -223,7 +223,7 @@ async function savePreview() {
     </div>
 
     <div v-else-if="page" class="h-screen">
-      <div class="fixed right-2 top-2 z-[70] flex max-w-[calc(100vw-1rem)] items-center gap-1.5 rounded-lg border bg-background/95 px-1.5 py-1.5 shadow-lg backdrop-blur sm:right-3 sm:top-3 sm:gap-2 sm:px-2">
+      <div data-oem-preview-toolbar="true" class="fixed right-2 top-2 z-[70] flex max-w-[calc(100vw-1rem)] items-center gap-1.5 rounded-lg border bg-background/95 px-1.5 py-1.5 shadow-lg backdrop-blur sm:right-3 sm:top-3 sm:gap-2 sm:px-2">
         <div class="inline-flex h-8 items-center rounded-md border bg-muted/40 p-0.5">
           <button
             type="button"
@@ -335,4 +335,5 @@ async function savePreview() {
 <route lang="yaml">
 meta:
   layout: false
+  auth: false
 </route>

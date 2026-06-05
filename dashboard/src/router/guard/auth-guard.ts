@@ -13,9 +13,10 @@ export function authGuard(router: Router) {
     }
 
     const isAuthRoute = to.path.startsWith('/auth')
+    const isPublicRoute = to.meta.auth === false
 
     // Not logged in and trying to access protected route → redirect to sign-in
-    if (!authStore.isLogin && !isAuthRoute) {
+    if (!authStore.isLogin && !isAuthRoute && !isPublicRoute) {
       return {
         path: '/auth/sign-in',
         query: { redirect: to.fullPath },
