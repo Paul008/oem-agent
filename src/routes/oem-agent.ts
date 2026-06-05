@@ -4230,7 +4230,7 @@ app.post('/admin/tokens/apply-crawled', async (c) => {
 
 /**
  * POST /api/v1/oem-agent/admin/recipes/generate-component
- * Generate an Alpine.js + Tailwind component from a recipe using AI.
+ * Generate a static Tailwind component from a recipe using AI.
  */
 app.post('/admin/recipes/generate-component', async (c) => {
   const body = await c.req.json<{ oem_id: string; recipe: any; thumbnail_base64?: string }>();

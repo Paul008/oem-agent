@@ -136,10 +136,10 @@ describe('ComponentGenerator', () => {
     });
 
     it('preserves multiline template content', () => {
-      const template = '<div x-data="{open: false}">\n  <button @click="open = !open">Toggle</button>\n</div>';
+      const template = '<details open>\n  <summary>Toggle</summary>\n  <p>Content</p>\n</details>';
       const html = buildHtml('accordion', template, 'Accordion');
       expect(html).toContain(template);
-      expect(html.split('\n').length).toBe(4); // comment + 3 template lines
+      expect(html.split('\n').length).toBe(5); // comment + 4 template lines
     });
   });
 
@@ -150,7 +150,7 @@ describe('ComponentGenerator', () => {
     it('returns success with r2_key and template on valid AI response', async () => {
       mockRoute.mockResolvedValue({
         content: JSON.stringify({
-          template: '<div x-data="{}">Bespoke</div>',
+          template: '<section>Bespoke</section>',
           description: 'Test component',
         }),
         usage: { total_tokens: 1200 },
@@ -164,7 +164,7 @@ describe('ComponentGenerator', () => {
 
       expect(result.success).toBe(true);
       expect(result.r2_key).toMatch(/^components\/kia-au\/bespoke-feature-cards-\d+\.html$/);
-      expect(result.template_html).toBe('<div x-data="{}">Bespoke</div>');
+      expect(result.template_html).toBe('<section>Bespoke</section>');
       expect(result.tokens_used).toBe(1200);
       expect(result.cost_usd).toBeCloseTo(1200 * 0.000009, 6);
       expect(result.error).toBeUndefined();

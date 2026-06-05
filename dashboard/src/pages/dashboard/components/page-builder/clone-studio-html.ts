@@ -226,6 +226,7 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     .swiper-wrapper,
     .splide__list,
     .carousel-inner {
+      display: flex !important;
       width: 100% !important;
       max-width: 100% !important;
       transform: none !important;
@@ -238,6 +239,32 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       width: 100% !important;
       max-width: 100% !important;
       flex-shrink: 0 !important;
+    }
+
+    [data-clone-studio-carousel-window-size="2"] .slick-slide,
+    [data-clone-studio-carousel-window-size="2"] .swiper-slide,
+    [data-clone-studio-carousel-window-size="2"] .splide__slide,
+    [data-clone-studio-carousel-window-size="2"] .carousel-item {
+      width: 50% !important;
+      max-width: 50% !important;
+    }
+
+    [data-clone-studio-carousel-window-size="3"] .slick-slide,
+    [data-clone-studio-carousel-window-size="3"] .swiper-slide,
+    [data-clone-studio-carousel-window-size="3"] .splide__slide,
+    [data-clone-studio-carousel-window-size="3"] .carousel-item {
+      width: 33.333333% !important;
+      max-width: 33.333333% !important;
+    }
+
+    @media (max-width: 767.98px) {
+      [data-clone-studio-carousel-window-size] .slick-slide,
+      [data-clone-studio-carousel-window-size] .swiper-slide,
+      [data-clone-studio-carousel-window-size] .splide__slide,
+      [data-clone-studio-carousel-window-size] .carousel-item {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
     }
 
     /*
@@ -331,6 +358,7 @@ ${rendered}
   var selectedRegion = null
   var hoverRegion = null
   var generatedRegionId = 1
+  var carouselResizeTimer = null
 
   function post(type, extra) {
     var bodyHtml = getBodyHtml()
@@ -1484,6 +1512,133 @@ ${rendered}
     return setPanelVisibility(panels, targetIndex)
   }
 
+  function initializeCarouselWindowSize(regionEl) {
+    var panels = collectPanels(regionEl)
+    if (!regionEl || !regionEl.setAttribute || !panels.length)
+      return 1
+
+    var count = detectedCarouselWindowSize(regionEl, panels)
+    regionEl.setAttribute('data-clone-studio-carousel-window-size', String(count))
+    return count
+  }
+
+  function detectedCarouselWindowSize(regionEl, panels) {
+    if (!panels || !panels.length)
+      return 1
+
+    if (isMobileCarouselViewport())
+      return 1
+
+    var active = 0
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i]
+      if (!panel)
+        continue
+      if ((panel.classList && panel.classList.contains('slick-active'))
+        || (panel.getAttribute && panel.getAttribute('aria-hidden') === 'false'))
+        active++
+    }
+
+    if (active > 1)
+      return Math.max(1, Math.min(active, 3, panels.length))
+
+    if (regionEl && regionEl.classList && (regionEl.classList.contains('brandcard-wrapper') || regionEl.classList.contains('brandcard-carousel')))
+      return Math.min(3, panels.length)
+
+    return 1
+  }
+
+  function isMobileCarouselViewport() {
+    if (window.matchMedia) {
+      try { return window.matchMedia('(max-width: 767.98px)').matches }
+      catch (_error) {}
+    }
+    return (window.innerWidth || 0) > 0 && (window.innerWidth || 0) < 768
+  }
+
+  function carouselWindowSize(regionEl, panels) {
+    if (isMobileCarouselViewport())
+      return 1
+
+    var stored = regionEl && regionEl.getAttribute ? Number(regionEl.getAttribute('data-clone-studio-carousel-window-size') || 0) : 0
+    if (stored > 0)
+      return Math.max(1, Math.min(stored, panels.length || stored))
+
+    return initializeCarouselWindowSize(regionEl)
+  }
+
+  function switchCarouselPanels(regionId, regionEl, index) {
+    var region = regionEl || findRegionById(regionId)
+    if (!region)
+      return false
+
+    var panels = collectPanels(region)
+    if (!panels.length)
+      return false
+
+    var windowSize = carouselWindowSize(region, panels)
+    var maxIndex = Math.max(0, panels.length - windowSize)
+    var targetIndex = typeof index === 'number' && index >= 0 ? index : 0
+    if (targetIndex > maxIndex)
+      targetIndex = maxIndex
+
+    return setPanelWindowVisibility(panels, targetIndex, windowSize)
+  }
+
+  function carouselActiveIndex(panels) {
+    if (!panels || !panels.length)
+      return 0
+
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i]
+      if (panel && panel.classList && panel.classList.contains('slick-current'))
+        return i
+    }
+
+    for (var j = 0; j < panels.length; j++) {
+      var candidate = panels[j]
+      if (!candidate)
+        continue
+
+      if (candidate.classList && (candidate.classList.contains('slick-active') || candidate.classList.contains('active') || candidate.classList.contains('is-active')))
+        return j
+      if (candidate.getAttribute && candidate.getAttribute('aria-hidden') === 'false')
+        return j
+    }
+
+    return 0
+  }
+
+  function installCarouselResizeHandler() {
+    if (window.__CLONE_STUDIO_CAROUSEL_RESIZE_BOUND__)
+      return
+
+    window.__CLONE_STUDIO_CAROUSEL_RESIZE_BOUND__ = true
+    window.addEventListener('resize', function () {
+      if (carouselResizeTimer)
+        window.clearTimeout(carouselResizeTimer)
+      carouselResizeTimer = window.setTimeout(refreshCarouselWindows, 120)
+    }, false)
+  }
+
+  function refreshCarouselWindows() {
+    carouselResizeTimer = null
+    var regions = document.querySelectorAll('.swiper, .slick, [class*="carousel"], [class*="slider"]')
+
+    for (var i = 0; i < regions.length; i++) {
+      if (classifyRegion(regions[i]) !== 'carousel')
+        continue
+
+      var panels = collectPanels(regions[i])
+      if (!panels.length)
+        continue
+
+      regions[i].removeAttribute('data-clone-studio-carousel-window-size')
+      initializeCarouselWindowSize(regions[i])
+      switchCarouselPanels(ensureRegionId(regions[i]), regions[i], carouselActiveIndex(panels))
+    }
+  }
+
   function setPanelVisibility(panels, targetIndex) {
     if (!panels || !panels.length)
       return false
@@ -1509,6 +1664,51 @@ ${rendered}
         if (panel.classList) {
           panel.classList.remove('is-active')
           panel.classList.remove('active')
+        }
+      }
+    }
+
+    return true
+  }
+
+  function setPanelWindowVisibility(panels, targetIndex, windowSize) {
+    if (!panels || !panels.length)
+      return false
+
+    var count = Math.max(1, Math.min(windowSize || 1, panels.length))
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i]
+      if (!panel)
+        continue
+
+      var active = i >= targetIndex && i < targetIndex + count
+      if (active) {
+        panel.removeAttribute('hidden')
+        if (panel.setAttribute)
+          panel.setAttribute('aria-hidden', 'false')
+        if (panel.style)
+          panel.style.display = ''
+        if (panel.classList) {
+          panel.classList.add('is-active')
+          panel.classList.add('active')
+          panel.classList.add('slick-active')
+          if (i === targetIndex)
+            panel.classList.add('slick-current')
+          else
+            panel.classList.remove('slick-current')
+        }
+      }
+      else {
+        panel.setAttribute('hidden', 'hidden')
+        if (panel.setAttribute)
+          panel.setAttribute('aria-hidden', 'true')
+        if (panel.style)
+          panel.style.display = 'none'
+        if (panel.classList) {
+          panel.classList.remove('is-active')
+          panel.classList.remove('active')
+          panel.classList.remove('slick-active')
+          panel.classList.remove('slick-current')
         }
       }
     }
@@ -1972,6 +2172,8 @@ ${rendered}
     // wireRegion() gives each region a fresh scope, so the captured values are stable.
     for (var i = 0; i < candidates.length; i++)
       wireRegion(candidates[i])
+
+    installCarouselResizeHandler()
   }
 
   function wireRegion(regionEl) {
@@ -2002,6 +2204,12 @@ ${rendered}
     if (!wired && collectPanels(regionEl).length > 1)
       injectControlBar(regionId, regionEl, collectPanels(regionEl).length)
 
+    if (kind === 'carousel') {
+      initializeCarouselWindowSize(regionEl)
+      switchCarouselPanels(regionId, regionEl, 0)
+      return
+    }
+
     // Normalize to exactly one visible panel on load (avoids all-visible / all-hidden states).
     switchPanel(regionId, 0)
   }
@@ -2012,6 +2220,14 @@ ${rendered}
     // runs in the read-only preview, which is never serialized). Inline styles only — clone CSS unknown.
     var state = { index: 0 }
     var dots = []
+    var isCarousel = classifyRegion(regionEl) === 'carousel'
+    var positionCount = panelCount
+
+    if (isCarousel) {
+      var initialPanels = collectPanels(regionEl)
+      var initialWindowSize = carouselWindowSize(regionEl, initialPanels)
+      positionCount = Math.max(1, initialPanels.length - initialWindowSize + 1)
+    }
 
     var bar = document.createElement('div')
     bar.setAttribute('data-clone-studio-bridge', 'true')
@@ -2033,12 +2249,19 @@ ${rendered}
     }
 
     function show(index) {
-      var total = collectPanels(regionEl).length
+      var panels = collectPanels(regionEl)
+      var total = panels.length
       if (!total)
         return
-      var next = index < 0 ? 0 : index > total - 1 ? total - 1 : index
+      var maxIndex = total - 1
+      if (isCarousel)
+        maxIndex = Math.max(0, total - carouselWindowSize(regionEl, panels))
+      var next = index < 0 ? 0 : index > maxIndex ? maxIndex : index
       state.index = next
-      switchPanel(regionId, next)
+      if (isCarousel)
+        switchCarouselPanels(regionId, regionEl, next)
+      else
+        switchPanel(regionId, next)
       for (var d = 0; d < dots.length; d++) {
         if (dots[d])
           dots[d].style.background = d === next ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.45)'
@@ -2083,7 +2306,7 @@ ${rendered}
     dotRow.style.alignItems = 'center'
     dotRow.style.gap = '6px'
 
-    for (var i = 0; i < panelCount; i++) {
+    for (var i = 0; i < positionCount; i++) {
       (function (index) {
         var dot = document.createElement('button')
         dot.setAttribute('data-clone-studio-bridge', 'true')
@@ -2162,21 +2385,26 @@ ${rendered}
   }
 
   function wireCarouselRegion(regionId, regionEl) {
-    // Carousel next/prev controls drive switchPanel; index clamped within collectPanels length.
+    // Carousel next/prev controls drive a responsive panel window; desktop can retain the source
+    // multi-card active count while mobile collapses to a single card.
     var controls = carouselControlsFor(regionEl)
     var state = { index: 0 }
+    initializeCarouselWindowSize(regionEl)
 
     function step(delta) {
       var total = collectPanels(regionEl).length
       if (!total)
         return
+      var windowSize = carouselWindowSize(regionEl, collectPanels(regionEl))
+      var maxIndex = Math.max(0, total - windowSize)
       var next = state.index + delta
       if (next < 0)
         next = 0
-      if (next > total - 1)
-        next = total - 1
+      if (next > maxIndex)
+        next = maxIndex
       state.index = next
-      switchPanel(regionId, next)
+      switchCarouselPanels(regionId, regionEl, next)
+      setCarouselControlState(controls, state.index, maxIndex)
     }
 
     for (var n = 0; n < controls.next.length; n++) {
@@ -2201,8 +2429,33 @@ ${rendered}
       }, true)
     }
 
+    setCarouselControlState(controls, 0, Math.max(0, collectPanels(regionEl).length - carouselWindowSize(regionEl, collectPanels(regionEl))))
     // Report whether any real OEM controls were found; when none, the caller injects a trusted bar.
     return controls.next.length > 0 || controls.prev.length > 0
+  }
+
+  function setCarouselControlState(controls, index, maxIndex) {
+    if (!controls)
+      return
+
+    for (var n = 0; n < controls.next.length; n++)
+      setCarouselControlDisabled(controls.next[n], index >= maxIndex)
+
+    for (var p = 0; p < controls.prev.length; p++)
+      setCarouselControlDisabled(controls.prev[p], index <= 0)
+  }
+
+  function setCarouselControlDisabled(control, disabled) {
+    if (!control || !control.setAttribute)
+      return
+
+    control.setAttribute('aria-disabled', disabled ? 'true' : 'false')
+    if (control.classList) {
+      if (disabled)
+        control.classList.add('slick-disabled')
+      else
+        control.classList.remove('slick-disabled')
+    }
   }
 
   function wireGalleryRegion(regionId, regionEl) {
@@ -3154,8 +3407,8 @@ ${rendered}
     if (!regionEl || !regionEl.querySelectorAll)
       return { next: [], prev: [] }
 
-    var nextSel = '.swiper-button-next, .slick-next, [aria-label*="next" i], [class*="next"]'
-    var prevSel = '.swiper-button-prev, .slick-prev, [aria-label*="prev" i], [class*="prev"]'
+    var nextSel = '.swiper-button-next, .slick-next, .brand-next, [aria-label*="next" i], [class*="next"]'
+    var prevSel = '.swiper-button-prev, .slick-prev, .brand-previous, [aria-label*="prev" i], [aria-label*="previous" i], [class*="prev"], [class*="previous"]'
 
     return {
       next: Array.prototype.slice.call(regionEl.querySelectorAll(nextSel)),

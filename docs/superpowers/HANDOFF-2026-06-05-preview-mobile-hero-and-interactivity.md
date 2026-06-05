@@ -467,6 +467,36 @@ Recommended split:
    It is useful for server-rendered HTML sprinkles, but this app already has Vue plus a sandbox
    bridge. Alpine would add runtime and persistence ambiguity.
 
+## Completed Work: Ford/Slick Responsive Carousel
+
+Context: Ford Mustang source page `https://www.ford.com.au/showroom/cars/mustang/` includes a
+Slick-style brand-card slideshow near the bottom of the cloned template. The copied HTML retains
+Slick classes (`slick-slide`, `slick-active`, `slick-current`) and Ford controls
+(`brand-previous`, `brand-next`), but the actual OEM script is stripped from the preview iframe.
+
+Decision: do not load Alpine.js for this copied clone. The clone body is sanitized, rendered inside
+an iframe, and not compiled as Vue/Alpine markup. Adding Alpine inside arbitrary copied OEM HTML
+would create a second runtime and still would not revive existing Ford/Slick state unless we mapped
+the DOM manually. The trusted iframe bridge is the right place for this behavior.
+
+What is now implemented in `clone-studio-html.ts`:
+
+- Slick/Swiper/Splide/Bootstrap carousel tracks are forced to `display:flex` so desktop multi-card
+  windows can render as rows after OEM JS/CSS transforms are removed.
+- Desktop window size is detected from the source active slide count, capped at 3 cards.
+- Ford brand-card wrappers default to a 3-card desktop window when no source active count is usable.
+- Mobile viewport collapses carousels to one card at a time.
+- `.brand-next` and `.brand-previous` are treated as real carousel controls.
+- Existing Ford/Slick classes, `hidden`, `aria-hidden`, and `slick-current` are updated when moving
+  slides.
+- A resize handler recomputes the active carousel window after iframe viewport changes.
+- The bridge-owned fallback control bar now counts valid carousel window positions rather than raw
+  slide count.
+
+Regression coverage in `clone-studio-html.test.ts` asserts the Ford/Slick selectors and the
+responsive carousel-window helpers are present. A Ford-ish fixture verifies this is a vanilla bridge
+path, not Alpine (`Alpine.start`, `x-data`, etc. are not emitted).
+
 ## Completed Work: Tabs, Accordions, Galleries, Dropdowns
 
 Current bridge has partial read-only preview interactivity:
@@ -551,6 +581,10 @@ The next practical fidelity slice is broader UAT and targeted hardening rather t
   - media proxy allowlist and OEM fetch headers.
 - `src/routes/oem-agent.ts`
   - media upload/list endpoints and page routes.
+- `src/design/component-generator.ts`
+  - bespoke AI component prompt. Raw snippets are now static Tailwind HTML only.
+- `src/design/page-generator.ts`
+  - generated page body prompt. Raw generated HTML must not emit Alpine/Vue directives or scripts.
 
 ## Resume Checklist
 
@@ -564,17 +598,23 @@ The next practical fidelity slice is broader UAT and targeted hardening rather t
    - unpaired desktop-only sections remain visible.
 4. Manually UAT at least Ford Mustang and one non-Ford page with real tab, accordion, gallery, and
    dropdown/disclosure body content.
-5. If the next issue is another stripped-script pattern, keep the change narrow and add a
+5. For the Ford Mustang lower slideshow, verify:
+   - desktop shows the source multi-card window,
+   - mobile shows one card at a time,
+   - `brand-next` / `brand-previous` move the window,
+   - no Alpine runtime is required.
+6. If the next issue is another stripped-script pattern, keep the change narrow and add a
    string-contract regression test in `clone-studio-html.test.ts`.
-6. Run:
+7. Run:
 
 ```bash
 pnpm run test:dashboard -- dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts
+CI=1 pnpm exec vitest run src/design/component-generator.test.ts --pool forks --maxWorkers=1 --minWorkers=1
 pnpm run typecheck
-CI=1 pnpm -C dashboard build
+env CHOKIDAR_USEPOLLING=1 pnpm -C dashboard build
 ```
 
-7. Deploy dashboard-only with:
+8. Deploy dashboard-only with:
 
 ```bash
 pnpm exec wrangler pages deploy dashboard/dist --project-name oem-dashboard --branch main

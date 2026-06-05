@@ -124,6 +124,10 @@ describe('buildCloneStudioHtml', () => {
     const head = html.slice(0, html.indexOf('</head>'))
     expect(head).toContain('.slick-list,')
     expect(head).toMatch(/\.slick-list,[\s\S]*overflow:\s*hidden\s*!important/i)
+    expect(head).toContain('display: flex !important')
+    expect(head).toContain('[data-clone-studio-carousel-window-size="2"] .slick-slide')
+    expect(head).toContain('[data-clone-studio-carousel-window-size="3"] .slick-slide')
+    expect(head).toMatch(/@media \(max-width: 767\.98px\)[\s\S]*\[data-clone-studio-carousel-window-size\] \.slick-slide[\s\S]*width:\s*100%\s*!important/i)
     // No carousel animation / external script is injected (rAF ticker is throttled in the iframe).
     expect(html).not.toContain('gsap.min.js')
     expect(html).not.toContain('translateX')
@@ -793,6 +797,12 @@ describe('buildCloneStudioHtml', () => {
     expect(interactivityBlock).toContain('swiper-button-prev')
     expect(interactivityBlock).toContain('slick-next')
     expect(interactivityBlock).toContain('slick-prev')
+    expect(interactivityBlock).toContain('brand-next')
+    expect(interactivityBlock).toContain('brand-previous')
+    expect(bridgeScript).toContain('function switchCarouselPanels(regionId, regionEl, index)')
+    expect(bridgeScript).toContain('function initializeCarouselWindowSize(regionEl)')
+    expect(bridgeScript).toContain('data-clone-studio-carousel-window-size')
+    expect(bridgeScript).toContain('isMobileCarouselViewport')
     // Gallery thumbnail controls are detected and swap the main image without OEM scripts.
     expect(interactivityBlock).toContain('[data-gallery]')
     expect(interactivityBlock).toContain('[data-thumbnail]')
@@ -828,6 +838,50 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('data-clone-studio-interactive-control')
     expect(bridgeScript).toContain('[data-clone-studio-bridge], [data-clone-studio-interactive-control]')
     // Read-only build still parses.
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('supports Ford/Slick multi-card carousel windows without Alpine', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <div class="brandcard-wrapper slick-initialized slick-slider">
+            <div class="slick-list draggable">
+              <div class="slick-track">
+                <div class="slick-slide slick-current slick-active" data-slick-index="0" aria-hidden="false">One</div>
+                <div class="slick-slide slick-active" data-slick-index="1" aria-hidden="false">Two</div>
+                <div class="slick-slide" data-slick-index="2" aria-hidden="true">Three</div>
+              </div>
+            </div>
+            <div class="slick-controls showControl">
+              <button class="brand-previous slick-arrow slick-disabled" aria-disabled="true">Previous</button>
+              <button class="brand-next slick-arrow" aria-disabled="false">Next</button>
+            </div>
+          </div>
+        </main>
+      `,
+      title: 't',
+      baseHref: '/',
+      selectedRegionId: null,
+      bridgeToken: 'tok',
+      editable: false,
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('function detectedCarouselWindowSize(regionEl, panels)')
+    expect(bridgeScript).toContain('panel.classList.contains(\'slick-active\')')
+    expect(bridgeScript).toContain('Math.min(active, 3, panels.length)')
+    expect(bridgeScript).toContain('regionEl.setAttribute(\'data-clone-studio-carousel-window-size\', String(count))')
+    expect(bridgeScript).toContain('function setPanelWindowVisibility(panels, targetIndex, windowSize)')
+    expect(bridgeScript).toContain('function refreshCarouselWindows()')
+    expect(bridgeScript).toContain('function installCarouselResizeHandler()')
+    expect(bridgeScript).toContain('window.addEventListener(\'resize\'')
+    expect(bridgeScript).toContain('carouselActiveIndex(panels)')
+    expect(bridgeScript).toContain('panel.classList.add(\'slick-active\')')
+    expect(bridgeScript).toContain('panel.classList.add(\'slick-current\')')
+    expect(bridgeScript).toContain('setCarouselControlDisabled')
+    expect(bridgeScript).not.toContain('Alpine.start')
+    expect(bridgeScript).not.toContain('x-data')
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 

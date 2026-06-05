@@ -1,8 +1,8 @@
 /**
- * Component Generator — Bespoke Alpine.js HTML Generation via Claude
+ * Component Generator — Bespoke static HTML generation via Claude
  *
  * For the ~10% of sections that don't fit any of the standard templates,
- * generates custom HTML with Alpine.js directives and Tailwind CSS.
+ * generates custom HTML with Tailwind CSS.
  *
  * Input: section data + screenshot + brand profile
  * Output: HTML stored in R2 at components/{oemId}/bespoke-{timestamp}.html
@@ -40,8 +40,7 @@ export class ComponentGenerator {
   }
 
   /**
-   * Generate a bespoke Alpine.js HTML component for a section that
-   * doesn't fit any standard template.
+   * Generate a bespoke static HTML component for a section that doesn't fit any standard template.
    */
   async generateComponent(
     oemId: OemId,
@@ -65,8 +64,8 @@ export class ComponentGenerator {
       const prompt = `You are an HTML component generator for the ${oemName} automotive website.
 
 ## Task
-Generate an HTML snippet with Alpine.js directives and Tailwind CSS that renders the following section data.
-The section data is embedded directly in the HTML via Alpine.js x-data attributes.
+Generate a static HTML snippet with Tailwind CSS that renders the following section data.
+This snippet is injected with v-html in the dashboard, so framework directives are not compiled.
 
 ## Brand Context
 ${brandContext}
@@ -81,18 +80,18 @@ ${JSON.stringify(section, null, 2)}
 ## CRITICAL Rules
 1. Use Tailwind CSS classes only (no custom CSS)
 2. Make it responsive (mobile-first)
-3. Use Alpine.js directives for interactivity (x-data, x-show, @click, :src, x-text, x-for)
+3. Do NOT use Alpine, Vue, Svelte, React, inline scripts, or framework directives
 4. **ONLY use images from the OEM Images list above. NEVER use unsplash, pexels, or stock photos. NEVER show vehicles from other brands.**
 5. If no OEM images are available, use solid color backgrounds (brand primary/secondary) instead of placeholder images
 6. Use the OEM's brand name "${oemName}" in all heading text — never mention other car brands
 7. Match the OEM's brand colors exactly where possible
-8. Keep the component self-contained — all data inline in x-data, no external API calls
-9. Add \`style="display:none;"\` on elements with x-show that start hidden (prevents FOUC)
+8. Keep the component self-contained — no external API calls, no timers, no runtime dependencies
+9. For interactive-feeling sections, use native HTML only: \`details/summary\` for accordions, links for lightbox fallbacks, and horizontal \`overflow-x-auto snap-x\` rows for slideshow/gallery/carousel layouts
 
 ## Output Format
 Return a JSON object:
 {
-  "template": "<div x-data=\\"{...}\\" class=\\"...\\">[HTML with Alpine.js directives]</div>",
+  "template": "<section class=\\"...\\">[Static HTML with Tailwind classes]</section>",
   "description": "Brief description of what this component renders",
   "config_schema": {
     "property_name": { "type": "string|number|boolean|select|color", "label": "Human Label", "default": "value", "options": ["only for select type"] }
@@ -106,12 +105,12 @@ The config_schema should describe every editable property in the component — t
 - "select": dropdown (layout options, alignment, size presets)
 - "color": color input (background, text, accent colors)
 
-The template should use Alpine.js syntax:
-- \`x-text="label"\` for dynamic text content
-- \`:src="imageUrl"\` for dynamic attributes
-- \`x-show="condition"\` for conditional display
-- \`x-for="item in items"\` with \`<template>\` wrapper for lists
-- \`@click="handler"\` for click interactions`;
+The template must be valid static HTML:
+- Put real text directly in the markup
+- Put real image URLs directly in \`src\` attributes
+- Use semantic buttons/links only when they have a real destination or native behavior
+- Use \`details\` and \`summary\` for expandable content
+- Never emit \`x-data\`, \`x-show\`, \`x-for\`, \`x-text\`, \`@click\`, \`:src\`, \`:class\`, or \`:style\``;
 
       const response = await this.aiRouter.route({
         taskType: 'bespoke_component',
