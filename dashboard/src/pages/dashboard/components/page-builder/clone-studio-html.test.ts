@@ -233,6 +233,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function responsiveBackgroundDeclaration(element)')
     expect(bridgeScript).toContain('data-clone-studio-responsive-config-id')
     expect(bridgeScript).toContain('data-clone-studio-responsive-config-style')
+    expect(bridgeScript).toContain(',.aem-Grid [data-clone-studio-responsive-config-id="')
     expect(bridgeScript).toContain('style.textContent = \'@media (max-width: 1023.98px){\' + rules.join(\'\') + \'}\'')
     expect(bridgeScript).toContain('installResponsiveConfigRules()')
   })

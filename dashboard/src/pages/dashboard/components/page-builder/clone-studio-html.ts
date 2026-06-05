@@ -2237,7 +2237,7 @@ ${rendered}
         target.setAttribute('data-clone-studio-responsive-config-id', id)
       }
 
-      rules.push('[data-clone-studio-responsive-config-id="' + id + '"]{' + declarations + '}')
+      rules.push('[data-clone-studio-responsive-config-id="' + id + '"],.aem-Grid [data-clone-studio-responsive-config-id="' + id + '"]{' + declarations + '}')
     }
 
     if (!rules.length)
