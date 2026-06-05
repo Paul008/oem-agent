@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `6faa9b5` shipped current-model defaulting in the
-> media library, after the quick selected-region image replacement button and read-only dynamic
-> bridge work. This is a cold-start handoff for continuing Clone Studio preview fidelity,
-> especially responsive media and dynamic cloned components.
+> deployed to Cloudflare Pages. Updated after `16576f3` shipped quick selected-region link editing,
+> after the media-library and read-only dynamic bridge work. This is a cold-start handoff for
+> continuing Clone Studio preview fidelity, especially responsive media and dynamic cloned
+> components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `6faa9b5 feat(dashboard): default media library to current model`.
+  `16576f3 feat(dashboard): add clone toolbar link editing`.
 - Latest dashboard deploy from this work:
-  `https://29abfff9.oem-dashboard.pages.dev`.
+  `https://4cd3c500.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -208,6 +208,25 @@ What changed:
 Commit:
 
 - `6faa9b5 feat(dashboard): default media library to current model`
+
+### 11. Quick Clone Toolbar Link Editing
+
+The selected-region quick edit bubble now exposes link/button URL editing directly.
+
+What changed:
+
+- `PageBuilderCanvas.vue` detects whether the selected clone region has an editable link field.
+- A compact link button appears beside the text/image buttons.
+- Clicking it switches the toolbar into a mobile-safe inline URL row with apply/cancel icon
+  buttons, rather than trying to fit every control at once.
+- The submitted URL uses the same `buildPatchPayload('edit-link', ...)` mutation path as the
+  existing right-click context menu.
+- Selecting a different clone region or opening the media library cancels the inline link edit
+  state.
+
+Commit:
+
+- `16576f3 feat(dashboard): add clone toolbar link editing`
 
 ## Verification Performed
 
