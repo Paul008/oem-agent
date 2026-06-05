@@ -196,9 +196,11 @@ describe('buildCloneStudioHtml', () => {
 
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('function markResponsiveImageVariants()')
+    expect(bridgeScript).toContain('function isLocalResponsivePairContainer(container)')
     expect(bridgeScript).toContain('data-clone-studio-responsive-variant')
     expect(bridgeScript).toContain('data-clone-studio-responsive-paired')
     expect(bridgeScript).toContain('markResponsiveImageVariants()')
+    expect(bridgeScript).not.toContain('.hero, section, div')
   })
 
   it('strips preview-only responsive image markers from serialized saved HTML', () => {

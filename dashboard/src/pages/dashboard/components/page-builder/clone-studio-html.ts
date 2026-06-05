@@ -1366,33 +1366,38 @@ ${rendered}
     return !!node && node.classList && (node.classList.contains('imgmobile') || node.classList.contains('mobonly'))
   }
 
-  function findResponsiveVariantTarget(node) {
-    if (!node)
-      return null
-    if (node.tagName && String(node.tagName).toLowerCase() === 'img')
-      return node
-    if (node.querySelector)
-      return node.querySelector('img')
-    return null
-  }
-
   function markResponsiveImageVariants() {
     var candidates = document.querySelectorAll('.imgdesktop, .dsktoponly, .imgmobile, .mobonly')
     for (var i = 0; i < candidates.length; i++) {
       var node = candidates[i]
-      var target = findResponsiveVariantTarget(node)
-      if (!target)
-        target = node
 
       if (isResponsiveDesktopImage(node))
-        target.setAttribute('data-clone-studio-responsive-variant', 'desktop')
+        node.setAttribute('data-clone-studio-responsive-variant', 'desktop')
       else if (isResponsiveMobileImage(node))
-        target.setAttribute('data-clone-studio-responsive-variant', 'mobile')
+        node.setAttribute('data-clone-studio-responsive-variant', 'mobile')
     }
 
-    var containers = document.querySelectorAll('picture, [data-picture], .picture, .cmp-image, .image, .hero, section, div')
+    var variants = document.querySelectorAll('[data-clone-studio-responsive-variant]')
+    for (var v = 0; v < variants.length; v++) {
+      var parent = variants[v].parentNode
+      if (isLocalResponsivePairContainer(parent))
+        markResponsivePairInContainer(parent)
+    }
+
+    var containers = document.querySelectorAll('picture, [data-picture], .picture, .cmp-image, .responsive-image, [class*="responsive-image"], [class*="responsiveImage"], [class*="picture"]')
     for (var c = 0; c < containers.length; c++)
       markResponsivePairInContainer(containers[c])
+  }
+
+  function isLocalResponsivePairContainer(container) {
+    if (!container || !container.querySelectorAll)
+      return false
+
+    var tag = container.tagName ? String(container.tagName).toLowerCase() : ''
+    if (tag === 'body' || tag === 'html' || tag === 'main' || tag === 'section')
+      return false
+
+    return container.querySelectorAll('[data-clone-studio-responsive-variant]').length <= 4
   }
 
   function markResponsivePairInContainer(container) {
