@@ -156,6 +156,7 @@ const cloneToolbarHeightValue = ref('')
 const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.value))
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
 const cloneToolbarHasLink = computed(() => hasCloneLinkField(cloneToolbarRegion.value))
+const cloneToolbarHasPanels = computed(() => hasClonePanelControls(cloneToolbarRegion.value))
 const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))
 const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
@@ -230,6 +231,11 @@ function hasCloneImageField(region: CloneMenuRegion | null | undefined): boolean
 function hasCloneLinkField(region: CloneMenuRegion | null | undefined): boolean {
   const fields = Array.isArray(region?.editable_fields) ? region.editable_fields : []
   return fields.some((field: any) => String(field?.kind || '') === 'link')
+}
+
+function hasClonePanelControls(region: CloneMenuRegion | null | undefined): boolean {
+  const typeHint = String(region?.type_hint || '')
+  return typeHint === 'tabs' || typeHint === 'carousel'
 }
 
 function cloneLinkValue(region: CloneMenuRegion | null | undefined): string {
@@ -343,6 +349,27 @@ function submitCloneToolbarHeight() {
   emit('updateField', region.id, 'height_override', n)
   cloneToolbarRegion.value = { ...region, height: n ?? 0 }
   cancelCloneToolbarHeight()
+}
+
+function quickCloneSwitchPanel(direction: 'next' | 'prev') {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly || !cloneToolbarHasPanels.value)
+    return
+  cancelCloneToolbarLink()
+  cancelCloneToolbarAlt()
+  cancelCloneToolbarHeight()
+  const current = clonePanelIndex.value[region.id] ?? 0
+  const next = direction === 'next' ? current + 1 : Math.max(0, current - 1)
+  clonePanelIndex.value = { ...clonePanelIndex.value, [region.id]: next }
+  cloneStudioCanvas.value?.switchPanel(region.id, next)
+}
+
+function quickClonePreviousPanel() {
+  quickCloneSwitchPanel('prev')
+}
+
+function quickCloneNextPanel() {
+  quickCloneSwitchPanel('next')
 }
 
 function clearCloneToolbarSelection() {
@@ -1057,6 +1084,23 @@ watch(
                 <Palette class="size-3.5" />
                 <input type="color" value="#ffffff" class="sr-only" @input="onCloneToolbarBgColorInput">
               </label>
+              <template v-if="cloneToolbarHasPanels">
+                <div class="h-5 w-px bg-border" />
+                <button
+                  class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Previous panel"
+                  @click="quickClonePreviousPanel"
+                >
+                  <ChevronLeft class="size-3.5" />
+                </button>
+                <button
+                  class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Next panel"
+                  @click="quickCloneNextPanel"
+                >
+                  <ChevronRight class="size-3.5" />
+                </button>
+              </template>
               <div class="h-5 w-px bg-border" />
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
