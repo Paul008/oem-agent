@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `0c58266` shipped read-only tab-target, accordion,
-> gallery, and dropdown/disclosure bridge interactivity. This is a cold-start handoff for
-> continuing Clone Studio preview fidelity, especially responsive media and dynamic cloned
-> components.
+> deployed to Cloudflare Pages. Updated after `6916f68` shipped the quick selected-region image
+> replacement button, after the read-only tab-target, accordion, gallery, and dropdown/disclosure
+> bridge work. This is a cold-start handoff for continuing Clone Studio preview fidelity,
+> especially responsive media and dynamic cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `0c58266 feat(dashboard): wire clone dropdown toggles`.
+  `6916f68 feat(dashboard): add clone toolbar image replacement`.
 - Latest dashboard deploy from this work:
-  `https://4c603528.oem-dashboard.pages.dev`.
+  `https://53d90bbf.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -174,6 +174,24 @@ Commit:
 
 - `0c58266 feat(dashboard): wire clone dropdown toggles`
 
+### 9. Quick Clone Toolbar Image Replacement
+
+The selected-region quick edit bubble now exposes image replacement directly, not only through the
+right-click context menu.
+
+What changed:
+
+- `PageBuilderCanvas.vue` detects whether the selected clone region has an editable image field.
+- A compact image button appears in the selected-region toolbar next to the text edit button.
+- Clicking it opens the existing `MediaLibraryDialog`, scoped by `oemId` and `modelSlug`.
+- The same dialog supports current uploaded media, upload, and portal/DAM assets.
+- The button is disabled when the selected region has no image field or the page lacks OEM/model
+  media context.
+
+Commit:
+
+- `6916f68 feat(dashboard): add clone toolbar image replacement`
+
 ## Verification Performed
 
 Commands:
@@ -181,6 +199,7 @@ Commands:
 ```bash
 pnpm run test:dashboard -- dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts dashboard/src/pages/dashboard/components/sections/section-hero.test.ts
 CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts
+CI=1 pnpm exec vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1 dashboard/src/pages/dashboard/components/page-builder/page-builder-canvas-preview.test.ts
 pnpm run typecheck
 CI=1 pnpm -C dashboard build
 git diff --check
@@ -191,6 +210,7 @@ Results:
 
 - Dashboard tests passed: 32 files, 294 tests.
 - Focused Clone Studio bridge tests passed: 58 tests.
+- Focused Page Builder canvas preview tests passed: 25 tests.
 - TypeScript check passed.
 - Dashboard production build passed.
 - Whitespace check passed.
