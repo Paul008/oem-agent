@@ -226,6 +226,9 @@ describe('buildCloneStudioHtml', () => {
 
     const bridgeScript = extractBridgeScript(html)
     expect(bridgeScript).toContain('function installResponsiveConfigRules()')
+    expect(bridgeScript).toContain('function responsiveConfigTarget(node)')
+    expect(bridgeScript).toContain('node.closest(\'.richtext[class*="aem-GridColumn"]\')')
+    expect(bridgeScript).toContain('var target = responsiveConfigTarget(node)')
     expect(bridgeScript).toContain('function responsiveSpacingDeclaration(prop, config)')
     expect(bridgeScript).toContain('function responsiveBackgroundDeclaration(element)')
     expect(bridgeScript).toContain('data-clone-studio-responsive-config-id')

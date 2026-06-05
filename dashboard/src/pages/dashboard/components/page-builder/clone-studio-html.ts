@@ -2183,6 +2183,19 @@ ${rendered}
     return declarations.join('')
   }
 
+  function responsiveConfigTarget(node) {
+    if (!node || !node.closest || !node.classList)
+      return node
+
+    if (node.classList.contains('cmp-richtext')) {
+      var richtextColumn = node.closest('.richtext[class*="aem-GridColumn"]')
+      if (richtextColumn)
+        return richtextColumn
+    }
+
+    return node
+  }
+
   function installResponsiveConfigRules() {
     if (!document || !document.querySelectorAll)
       return
@@ -2217,10 +2230,11 @@ ${rendered}
       if (!declarations)
         continue
 
-      var id = node.getAttribute('data-clone-studio-responsive-config-id')
+      var target = responsiveConfigTarget(node)
+      var id = target.getAttribute('data-clone-studio-responsive-config-id')
       if (!id) {
         id = String(generated++)
-        node.setAttribute('data-clone-studio-responsive-config-id', id)
+        target.setAttribute('data-clone-studio-responsive-config-id', id)
       }
 
       rules.push('[data-clone-studio-responsive-config-id="' + id + '"]{' + declarations + '}')
