@@ -229,6 +229,19 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         letter-spacing: 0 !important;
       }
 
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="heading1-medium"] {
+        font-size: 1.5rem !important;
+        line-height: 2rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="body1-regular"],
+      [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="body1-medium"] {
+        font-size: 0.875rem !important;
+        line-height: 1.5rem !important;
+        letter-spacing: 0 !important;
+      }
+
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="body3-regular-gray5"],
       [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) [class*="body3-medium-gray5"] {
         font-size: 0.625rem !important;
