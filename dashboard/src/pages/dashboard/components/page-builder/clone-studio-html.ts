@@ -2193,6 +2193,12 @@ ${rendered}
         return richtextColumn
     }
 
+    if (node.classList.contains('brandcardComponent')) {
+      var brandcardHolder = node.querySelector('.brandcard-holder')
+      if (brandcardHolder)
+        return brandcardHolder
+    }
+
     return node
   }
 

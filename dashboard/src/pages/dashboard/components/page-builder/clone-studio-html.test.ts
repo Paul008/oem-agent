@@ -228,6 +228,8 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('function installResponsiveConfigRules()')
     expect(bridgeScript).toContain('function responsiveConfigTarget(node)')
     expect(bridgeScript).toContain('node.closest(\'.richtext[class*="aem-GridColumn"]\')')
+    expect(bridgeScript).toContain('node.classList.contains(\'brandcardComponent\')')
+    expect(bridgeScript).toContain('node.querySelector(\'.brandcard-holder\')')
     expect(bridgeScript).toContain('var target = responsiveConfigTarget(node)')
     expect(bridgeScript).toContain('function responsiveSpacingDeclaration(prop, config)')
     expect(bridgeScript).toContain('function responsiveBackgroundDeclaration(element)')
