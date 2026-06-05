@@ -1,17 +1,17 @@
 # Handoff - Clone Studio preview mobile hero + dynamic components
 
 > Written 2026-06-05 after commit `2451869` was pushed to `origin/main` and the dashboard was
-> deployed to Cloudflare Pages. Updated after `16576f3` shipped quick selected-region link editing,
-> after the media-library and read-only dynamic bridge work. This is a cold-start handoff for
-> continuing Clone Studio preview fidelity, especially responsive media and dynamic cloned
-> components.
+> deployed to Cloudflare Pages. Updated after `2dfdc7c` shipped quick selected-region text color
+> editing, after the link/media-library and read-only dynamic bridge work. This is a cold-start
+> handoff for continuing Clone Studio preview fidelity, especially responsive media and dynamic
+> cloned components.
 
 ## Current Production State
 
 - Branch after the latest update: `main`, in sync with `origin/main` at
-  `16576f3 feat(dashboard): add clone toolbar link editing`.
+  `2dfdc7c feat(dashboard): add clone toolbar text color`.
 - Latest dashboard deploy from this work:
-  `https://4cd3c500.oem-dashboard.pages.dev`.
+  `https://712be4a6.oem-dashboard.pages.dev`.
 - Production alias under test:
   `https://oem-dashboard.pages.dev/preview/ford-au-mustang?view=production`.
 - No worker/container deploy was needed for the latest fix; this was dashboard-only.
@@ -227,6 +227,25 @@ What changed:
 Commit:
 
 - `16576f3 feat(dashboard): add clone toolbar link editing`
+
+### 12. Quick Clone Toolbar Text Color
+
+The selected-region quick edit bubble now exposes foreground text color editing.
+
+What changed:
+
+- `PageBuilderCanvas.vue` adds a text color picker beside the existing weight and background
+  controls.
+- The picker sends a `kind: 'style'`, `property: 'color'` patch through the existing Clone Studio
+  iframe bridge.
+- `clone-studio-html.ts` now whitelists `color` in `patchTextStyle()`, guarded by
+  `isPlausibleCssColor()` rather than accepting arbitrary style properties.
+- The bridge still avoids `setProperty(property, ...)`, so only explicit style properties can be
+  patched from the toolbar.
+
+Commit:
+
+- `2dfdc7c feat(dashboard): add clone toolbar text color`
 
 ## Verification Performed
 
