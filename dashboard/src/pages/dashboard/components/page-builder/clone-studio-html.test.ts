@@ -223,6 +223,9 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/@media \(max-width:\s*1023\.98px\)[\s\S]*\.aem-Grid > \[class\*="aem-GridColumn"\][\s\S]*width:\s*100%\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \[class\*="aem-GridColumn--offset--"\][\s\S]*margin-left:\s*0\s*!important/i)
     expect(head).toMatch(/\.aem-Grid \.cmp-richtext[\s\S]*width:\s*auto\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid > \.richtext\.aem-GridColumn--default--12 \.cmp-richtext h2:has\(\[class\*="display3-medium"\]\)[\s\S]*line-height:\s*2rem\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid > \.richtext\.aem-GridColumn--default--12 \.cmp-richtext p:has\(\[class\*="body1-regular-black"\]\)[\s\S]*font-size:\s*0\.75rem\s*!important/i)
+    expect(head).toMatch(/\.aem-Grid > \.richtext\.aem-GridColumn--default--12 \.cmp-richtext p \[class\*="body1-regular-black"\][\s\S]*line-height:\s*1rem\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.imagevideoTile,[\s\S]*\.aem-Grid \.imageContainer[\s\S]*padding:\s*0\s*!important/i)
     expect(head).toMatch(/\.aem-Grid \.imagevideoTile img[\s\S]*height:\s*auto\s*!important/i)
 

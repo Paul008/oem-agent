@@ -395,6 +395,31 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         min-width: 0 !important;
       }
 
+      .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext h2:has([class*="display3-medium"]) {
+        line-height: 2rem !important;
+      }
+
+      .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext h2 [class*="display3-medium"] {
+        font-size: 1.5rem !important;
+        line-height: 2rem !important;
+        letter-spacing: 0 !important;
+      }
+
+      .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext p:has([class*="body1-regular-black"]),
+      .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext p:has([class*="body1-medium-black"]) {
+        font-size: 0.75rem !important;
+        line-height: 1rem !important;
+        margin: 12px 0 !important;
+        letter-spacing: 0 !important;
+      }
+
+      .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext p [class*="body1-regular-black"],
+      .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext p [class*="body1-medium-black"] {
+        font-size: 0.75rem !important;
+        line-height: 1rem !important;
+        letter-spacing: 0 !important;
+      }
+
       .aem-Grid > .imagevideoTile,
       .aem-Grid > .richtext,
       .aem-Grid .imageContainer {
