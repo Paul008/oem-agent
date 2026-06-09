@@ -318,6 +318,22 @@ export function useOemData() {
     return ((data ?? []) as Product[]).filter(product => product.availability !== 'discontinued')
   }
 
+  async function fetchProductsForModel(oemId: string, modelSlug: string) {
+    if (!oemId || !modelSlug)
+      return [] as Product[]
+
+    const { data, error: err } = await supabase
+      .from('products')
+      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, price_qualifier, price_raw_string, availability, key_features, specs_json, meta_json, created_at, updated_at, last_seen_at, vehicle_models!inner(slug)')
+      .eq('oem_id', oemId)
+      .like('vehicle_models.slug', `${modelSlug}%`)
+    if (err)
+      throw err
+
+    const rows = (data ?? []) as (Product & { vehicle_models?: { slug?: string } })[]
+    return rows.filter(product => product.availability !== 'discontinued')
+  }
+
   async function fetchOffers() {
     const { data, error: err } = await supabase
       .from('offers')
@@ -575,6 +591,7 @@ export function useOemData() {
     fetchPriceChangeDates,
     fetchVehicleModels,
     fetchProducts,
+    fetchProductsForModel,
     fetchOffers,
     fetchOffersByProducts,
     fetchBanners,

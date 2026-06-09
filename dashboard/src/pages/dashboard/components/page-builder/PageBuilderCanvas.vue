@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronLeft, ChevronRight, Copy, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2, X } from 'lucide-vue-next'
+import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronLeft, ChevronRight, Copy, Database, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
@@ -435,6 +435,14 @@ function quickCloneConvertRegion() {
   clearCloneToolbarSelection()
 }
 
+function quickCloneBindCatalog() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  emit('regionAction', { action: 'bind-catalog', regionId: region.id, html: region.html })
+  clearCloneToolbarSelection()
+}
+
 function quickCloneDeleteRegion() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
@@ -603,6 +611,10 @@ function runCloneAction(id: RegionActionId) {
     case 'background':
       // Inline colour picker rendered in the menu — toggle the input row.
       openCloneInput('background')
+      break
+    case 'bind-catalog':
+      emit('regionAction', { action: id, regionId: region.id, html: region.html })
+      closeCloneMenu()
       break
     case 'hide': {
       const payload = buildPatchPayload('hide', region as any)
@@ -1165,6 +1177,13 @@ watch(
               </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Bind model catalog data"
+                @click="quickCloneBindCatalog"
+              >
+                <Database class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 title="Hide region"
                 @click="quickCloneHideRegion"
               >
@@ -1198,7 +1217,7 @@ watch(
                   @click="runCloneAction(action.id)"
                 >
                   <component
-                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert' ? Wand2 : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
+                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert' ? Wand2 : action.id === 'bind-catalog' ? Database : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
                     class="size-3.5"
                     :class="action.id === 'delete' ? '' : 'text-muted-foreground'"
                   />

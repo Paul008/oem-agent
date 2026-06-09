@@ -46,13 +46,17 @@ import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vu
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
-import { buildRawHtmlSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildRawHtmlSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
 import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, needsDestructiveActionConfirmation, shouldShowSourceUrlInput } from './page-workflow'
 
 const route = useRoute()
 const router = useRouter()
-const { fetchOems } = useOemData()
+const {
+  fetchOems,
+  fetchProductsForModel,
+  fetchVariantColors,
+} = useOemData()
 
 const {
   page,
@@ -145,6 +149,9 @@ const selectedCloneRegion = computed(() => {
     return selectedCloneRegionData.value
   return cloneRegions.value.find(region => region.id === selectedCloneRegionId.value) ?? null
 })
+const catalogModelSlug = computed(() =>
+  parentModelSlug.value || (modelSlug.value.includes('--') ? modelSlug.value.split('--')[0] : modelSlug.value),
+)
 
 function openEditor(id: string) {
   selectSection(id)
@@ -214,7 +221,7 @@ function onUpdateField(id: string, field: string, value: any) {
 
 // Structural region actions. `delete`/`hide` map to a visibility patch (the pragmatic delete for a
 // clone). `duplicate` clones the region via the bridge; `convert` stages a raw editable section.
-function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
+async function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
   if (isWriteProtectedPage.value)
     return
   if (action === 'delete' || action === 'hide') {
@@ -243,6 +250,40 @@ function onRegionAction({ action, regionId, html }: { action: RegionActionId, re
     cloneEditorOpen.value = false
     toast.success('Region converted to editable section')
     return
+  }
+  if (action === 'bind-catalog') {
+    if (!oemId.value) {
+      toast.error('Model context is required to bind catalog data')
+      return
+    }
+    if (!catalogModelSlug.value) {
+      toast.error('Model slug is not available for this page')
+      return
+    }
+    try {
+      const products = await fetchProductsForModel(oemId.value, catalogModelSlug.value)
+      if (!products.length) {
+        toast.error(`No catalog products found for ${catalogModelSlug.value}`)
+        return
+      }
+      const productIds = products.map(product => product.id)
+      const variantColors = productIds.length ? await fetchVariantColors(productIds) : []
+      const sectionsToInsert = buildCatalogSectionsFromModel({
+        oemId: oemId.value,
+        modelSlug: catalogModelSlug.value,
+        regionId,
+        products,
+        variantColors,
+      })
+      for (const section of sectionsToInsert)
+        addSectionFromLiveData(section)
+      setActiveMode('sections')
+      cloneEditorOpen.value = false
+      toast.success('Model catalog data added to page sections')
+    }
+    catch (error: any) {
+      toast.error(`Failed to bind catalog data: ${error?.message || 'Unknown error'}`)
+    }
   }
 }
 

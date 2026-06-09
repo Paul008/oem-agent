@@ -2,7 +2,7 @@ import type { CloneRegion } from '../../page-builder/page-modes'
 
 export type RegionActionId =
   | 'edit-text' | 'replace-image' | 'alt-text' | 'edit-link' | 'background'
-  | 'height' | 'convert' | 'hide' | 'duplicate' | 'delete'
+  | 'height' | 'bind-catalog' | 'convert' | 'hide' | 'duplicate' | 'delete'
   | 'next-panel' | 'prev-panel'
 
 export interface RegionAction { id: RegionActionId; label: string; group: 'content' | 'layout' | 'region' }
@@ -22,6 +22,7 @@ export function getRegionActions(region: CloneRegion): RegionAction[] {
   }
   if (hasKind(region, 'link')) out.push({ id: 'edit-link', label: 'Edit link / button…', group: 'content' })
   out.push({ id: 'background', label: 'Background colour…', group: 'content' })
+  out.push({ id: 'bind-catalog', label: 'Bind to model catalog data…', group: 'content' })
   if (region.type_hint === 'tabs' || region.type_hint === 'carousel') {
     out.push({ id: 'next-panel', label: 'Next panel', group: 'layout' })
     out.push({ id: 'prev-panel', label: 'Previous panel', group: 'layout' })

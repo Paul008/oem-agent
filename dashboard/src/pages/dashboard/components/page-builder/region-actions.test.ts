@@ -7,6 +7,7 @@ describe('getRegionActions', () => {
   it('always offers colour, height, convert, hide, duplicate, delete', () => {
     const ids = getRegionActions(base).map(a => a.id)
     expect(ids).toEqual(expect.arrayContaining(['background', 'height', 'convert', 'hide', 'duplicate', 'delete']))
+    expect(ids).toContain('bind-catalog')
   })
 
   it('offers edit-text only when the region has a text field', () => {
