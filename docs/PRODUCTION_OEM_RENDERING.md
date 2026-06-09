@@ -49,6 +49,8 @@ GET /api/v1/oem-agent/pages/:slug/production-manifest
 
 4. Render the returned HTML in the external application.
 
+External apps can use `HEAD` on `html_url` to validate cache state without downloading the full HTML body. The `HEAD` response returns the same validation headers as `GET /production-html`.
+
 Browser consumers can read the artifact validation headers from the `production-html` response:
 
 ```txt

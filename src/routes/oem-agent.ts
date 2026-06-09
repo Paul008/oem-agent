@@ -94,6 +94,18 @@ async function buildProductionCloneArtifact(page: any, origin: string) {
   };
 }
 
+function productionCloneHtmlHeaders(page: any, artifact: { bytes: number; sha256: string; etag: string }) {
+  return {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+    'ETag': artifact.etag,
+    'X-OEM-Content-Bytes': String(artifact.bytes),
+    'X-OEM-Content-SHA256': artifact.sha256,
+    'X-OEM-Page-Mode': 'clone',
+    'X-OEM-Page-Version': String(page?.version ?? ''),
+  };
+}
+
 function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
   if (!isModelPageWriteProtected(oemId)) {
     return null;
@@ -2143,15 +2155,35 @@ app.get('/pages/:slug/production-html', async (c) => {
   }
 
   return new Response(artifact.body, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
-      'ETag': artifact.etag,
-      'X-OEM-Content-Bytes': String(artifact.bytes),
-      'X-OEM-Content-SHA256': artifact.sha256,
-      'X-OEM-Page-Mode': 'clone',
-      'X-OEM-Page-Version': String(page?.version ?? ''),
-    },
+    headers: productionCloneHtmlHeaders(page, artifact),
+  });
+});
+
+/**
+ * HEAD /api/v1/oem-agent/pages/:slug/production-html
+ * Return production clone metadata without downloading the HTML body.
+ */
+app.on('HEAD', '/pages/:slug/production-html', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return new Response(null, { status: 400 });
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return new Response(null, { status: 404 });
+  }
+
+  const page = await obj.json() as any;
+  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin);
+  if (!artifact) {
+    return new Response(null, { status: 409 });
+  }
+
+  return new Response(null, {
+    headers: productionCloneHtmlHeaders(page, artifact),
   });
 });
 

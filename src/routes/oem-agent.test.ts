@@ -113,6 +113,47 @@ describe('oem-agent production HTML route', () => {
     expect(await response.text()).toBe('<main>Original Mustang Clone</main>');
   });
 
+  it('returns production HTML metadata on HEAD without downloading the body', async () => {
+    const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+    const pageData = {
+      active_mode: 'clone',
+      version: 11,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main><img src="/media/pages/assets/mitsubishi-au/outlander/head.jpg">Outlander Clone</main>',
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-html', {
+      method: 'HEAD',
+    }, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    const expectedHtml = '<main><img src="http://localhost/media/pages/assets/mitsubishi-au/outlander/head.jpg">Outlander Clone</main>';
+    const expectedSha = await sha256Hex(expectedHtml);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('text/html');
+    expect(response.headers.get('X-OEM-Page-Mode')).toBe('clone');
+    expect(response.headers.get('X-OEM-Page-Version')).toBe('11');
+    expect(response.headers.get('X-OEM-Content-Bytes')).toBe(String(new TextEncoder().encode(expectedHtml).byteLength));
+    expect(response.headers.get('X-OEM-Content-SHA256')).toBe(expectedSha);
+    expect(response.headers.get('ETag')).toBe(`"sha256-${expectedSha}"`);
+    expect(await response.text()).toBe('');
+  });
+
   it('does not silently serve structured sections when clone HTML is missing', async () => {
     const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
     const pageData = {
