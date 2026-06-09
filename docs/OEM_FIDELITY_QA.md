@@ -2,6 +2,8 @@
 
 The first enterprise QA layer is a deterministic visual fidelity report. It compares the live OEM page against the dashboard production preview across desktop, tablet, and mobile, then writes screenshots, diff overlays, machine findings, and an AI-review prompt.
 
+For customer-facing integrations, the production artifact is the Worker HTML endpoint documented in [Production OEM Rendering](./PRODUCTION_OEM_RENDERING.md). The dashboard preview is the QA surface for that artifact, not the external website embed target.
+
 ## Run
 
 ```bash
@@ -27,7 +29,7 @@ Output goes to `artifacts/oem-fidelity/<slug>-<timestamp>/`:
 - `report.md` human-readable report with the worst visual-diff bands per viewport
 - `ai-review-prompt.md` prompt for a vision model reviewer
 
-The dashboard `/preview/*` route is intentionally public with editing disabled in `?view=production` so the QA runner can capture the same read-only preview that a customer-facing page would use. Authenticated builder routes remain protected.
+The dashboard `/preview/*` route is intentionally public with editing disabled in `?view=production` so the QA runner can capture the same read-only artifact shape without builder chrome. Authenticated builder routes remain protected.
 
 ## What It Checks
 
