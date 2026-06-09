@@ -32,6 +32,7 @@ import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './ga
 import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy } from './routes';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
+import { shouldAttachSandboxForPath } from './sandbox-paths';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
 
@@ -231,6 +232,11 @@ app.use('*', async (c, next) => {
 
 // Middleware: Initialize sandbox for all requests
 app.use('*', async (c, next) => {
+  const pathname = new URL(c.req.url).pathname;
+  if (!shouldAttachSandboxForPath(pathname)) {
+    return next();
+  }
+
   const options = buildSandboxOptions(c.env);
   const sandbox = getSandbox(c.env.Sandbox, 'moltbot-v2', options);
   c.set('sandbox', sandbox);
