@@ -46,4 +46,19 @@ describe('buildCaptureInjection uses the extracted rules', () => {
     expect(convertIndex).toBeGreaterThan(-1)
     expect(tailwindPseudoIndex).toBeGreaterThan(convertIndex)
   })
+
+  it('collects lazy-loaded and inline video URLs for smarter capture', () => {
+    const { lateInjection } = buildCaptureInjection()
+
+    expect(lateInjection).toContain('isTrustedVideoUrl')
+    expect(lateInjection).toContain('video[data-src]')
+    expect(lateInjection).toContain('video[data-poster]')
+    expect(lateInjection).toContain('source[data-src]')
+    expect(lateInjection).toContain('source[data-srcset]')
+    expect(lateInjection).toContain('iframe')
+    expect(lateInjection).toContain('a[data-video]')
+    expect(lateInjection).toContain('a[data-videourl]')
+    expect(lateInjection).toContain('data-videourl')
+    expect(lateInjection).toContain('iframe[src],iframe[data-src]')
+  })
 })

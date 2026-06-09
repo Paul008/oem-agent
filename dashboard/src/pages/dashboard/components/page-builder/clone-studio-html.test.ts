@@ -482,6 +482,18 @@ describe('buildCloneStudioHtml', () => {
     expect(body).not.toContain('javascript:')
   })
 
+  it('keeps trusted video iframes while removing non-video iframe payload', () => {
+    const html = sanitizeCloneStudioHtmlForTest(
+      '<main><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="video"></iframe><iframe srcdoc="<script>alert(1)</script>"></iframe><iframe src="/safe/frame"></iframe></main>',
+    )
+
+    expect(html).toContain('<iframe')
+    expect(html).toContain('youtube.com/embed')
+    expect(html).not.toContain('src="/safe/frame"')
+    expect(html).not.toContain('srcdoc')
+    expect(html).not.toContain('script')
+  })
+
   it('sanitizes extracted head link and style fragments before inserting srcdoc head', () => {
     const html = buildCloneStudioHtml({
       rendered: '<link rel="stylesheet" href="javascript:alert(1)" onload="alert(2)"><link rel="modulepreload" href="/app.js"><link rel="preload" as="script" href="/app.js"><style onload="alert(3)">@import url("https://evil.test/a.css"); .hero { background: url(data:image/svg+xml;base64,abc); color: red; behavior: expression(alert(4)); }</style><main>Mustang</main>',
@@ -730,6 +742,8 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('isNavigationElement')
     expect(html).toContain('stopBlockedEvent')
     expect(html).toContain('stopImmediatePropagation')
+    expect(html).toContain('isMediaInteractionElement')
+    expect(html).toContain('[data-video]')
   })
 
   it('suppresses default behavior and propagation for blocked events', () => {

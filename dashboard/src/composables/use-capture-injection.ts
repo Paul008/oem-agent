@@ -204,21 +204,71 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
   function extractImageUrls(el) {
     var urls = [];
     var base = document.location.origin;
-    el.querySelectorAll('img[src],source[srcset],video[poster]').forEach(function(node) {
+
+    function addUrl(url) {
+      if (!url) return;
+      if (url.startsWith('/') && !url.startsWith('//')) url = base + url;
+      if (url.startsWith('http')) urls.push(url);
+    }
+
+    function addSrcset(url) {
+      if (!url) return;
+      var first = url.split(',')[0].trim().split(/\s+/)[0];
+      if (first) addUrl(first);
+    }
+
+    function isTrustedVideoUrl(url) {
+      if (!url) return false;
+      var lower = url.toLowerCase();
+      if (lower.indexOf('javascript:') === 0) return false;
+      if (lower.indexOf('data:video') === 0) return true;
+      if (lower.indexOf('blob:') === 0) return false;
+      if (/\\.(mp4|webm|mkv|mov|m4v|ogv|ogg|avi|flv|m3u8|mpd)([?#]|$)/i.test(url)) return true;
+      return /youtube\\.com|youtu\\.be|vimeo\\.com|player\\.vimeo\\.com|dailymotion\\.com|brightcove|wistia\\.net|wistia\\.com/i.test(lower);
+    }
+
+    el.querySelectorAll('img[src], source[src], source[srcset], source[data-src], source[data-srcset], video[src], video[data-src], video[poster], video[data-poster], source').forEach(function(node) {
       var src = node.getAttribute('src') || '';
       if (src) {
-        if (src.startsWith('/') && !src.startsWith('//')) src = base + src;
-        if (src.startsWith('http')) urls.push(src);
+        if (node.tagName === 'VIDEO' && isTrustedVideoUrl(src)) addUrl(src);
+        else addUrl(src);
       }
       var srcset = node.getAttribute('srcset') || '';
       if (srcset) {
-        srcset.split(',').forEach(function(entry) {
-          var u = entry.trim().split(/\\s+/)[0];
-          if (u.startsWith('/') && !u.startsWith('//')) u = base + u;
-          if (u.startsWith('http')) urls.push(u);
-        });
+        addSrcset(srcset);
+      }
+      var dataSrc = node.getAttribute('data-src') || '';
+      var dataPoster = node.getAttribute('data-poster') || '';
+      var dataSrcset = node.getAttribute('data-srcset') || '';
+      if (dataSrc) addUrl(dataSrc);
+      if (dataPoster) addUrl(dataPoster);
+      if (dataSrcset) addSrcset(dataSrcset);
+    });
+
+    // Capture lightbox/video patterns that are common on OEM pages.
+    el.querySelectorAll('a[data-video], a[data-video-url], a[data-videourl], a[data-videosrc], a[href]').forEach(function(node) {
+      var href = node.getAttribute('href');
+      if (href && isTrustedVideoUrl(href) && (href.startsWith('http') || href.startsWith('/')))
+        addUrl(href);
+
+      var videoData = node.getAttribute('data-video') || '';
+      var videoUrl = node.getAttribute('data-video-url') || '';
+      var videoUrlAlt = node.getAttribute('data-videourl') || '';
+      var videoSource = node.getAttribute('data-videosrc') || '';
+      var values = [videoData, videoUrl, videoUrlAlt, videoSource];
+      for (var i = 0; i < values.length; i++) {
+        if (values[i] && isTrustedVideoUrl(values[i]))
+          addUrl(values[i]);
       }
     });
+
+    // Keep trusted video iframes (e.g. YouTube/Vimeo) so inline video capture can identify them.
+    el.querySelectorAll('iframe').forEach(function(node) {
+      var iframeSrc = node.getAttribute('src') || node.getAttribute('data-src') || node.getAttribute('data-video-url') || '';
+      if (isTrustedVideoUrl(iframeSrc))
+        addUrl(iframeSrc);
+    });
+
     el.querySelectorAll('*').forEach(function(node) {
       var bg = window.getComputedStyle(node).backgroundImage;
       if (bg && bg !== 'none') {
@@ -276,7 +326,7 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
         if (attrs[a].name.startsWith('on')) node.removeAttribute(attrs[a].name);
       }
     });
-    clone.querySelectorAll('iframe,object,embed,form').forEach(function(s) { s.remove(); });
+    clone.querySelectorAll('object,embed,form').forEach(function(s) { s.remove(); });
 
     function convert(src, cln) {
       var computed = window.getComputedStyle(src);
@@ -330,11 +380,26 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
 
     // Fix relative URLs
     var base = document.location.origin;
-    clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
-      ['src','srcset','poster','href'].forEach(function(attr) {
+    clone.querySelectorAll('img[src],source[srcset],source[data-src],source[data-srcset],video[src],video[data-src],video[data-poster],iframe[src],iframe[data-src],video,source,a[href],a[data-video],a[data-video-url],a[data-videourl],a[data-videosrc]').forEach(function(node) {
+      ['src','srcset','data-src','data-srcset','poster','data-poster','href'].forEach(function(attr) {
         var v = node.getAttribute(attr);
         if (v && v.startsWith('/') && !v.startsWith('//')) node.setAttribute(attr, base + v);
       });
+    });
+
+    clone.querySelectorAll('video').forEach(function(node) {
+      if (node.closest && node.closest('iframe')) return;
+      var src = node.getAttribute('src') || '';
+      if (!src && node.getAttribute('data-src')) node.setAttribute('src', base + node.getAttribute('data-src'));
+    });
+
+    clone.querySelectorAll('iframe').forEach(function(node) {
+      var src = node.getAttribute('src');
+      var dataSrc = node.getAttribute('data-src');
+      if (src && src.startsWith('/') && !src.startsWith('//')) node.setAttribute('src', base + src);
+      if (dataSrc && dataSrc.startsWith('/') && !dataSrc.startsWith('//')) node.setAttribute('data-src', base + dataSrc);
+      if (!isTrustedVideoUrl(src || dataSrc || ''))
+        node.remove();
     });
     return clone.outerHTML;
   }
@@ -349,10 +414,15 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
     });
     clone.removeAttribute('style');
     clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+    clone.querySelectorAll('iframe').forEach(function(node) {
+      var src = node.getAttribute('src') || node.getAttribute('data-src') || '';
+      if (!isTrustedVideoUrl(src)) node.remove();
+    });
+    clone.querySelectorAll('script, object, embed, base, meta, link').forEach(function(s) { s.remove(); });
     P.materializePseudoElementsForCapture(el, clone, false);
     var base = document.location.origin;
-    clone.querySelectorAll('img[src],source[srcset],video[src],video[poster],a[href]').forEach(function(node) {
-      ['src','srcset','poster','href'].forEach(function(attr) {
+    clone.querySelectorAll('img[src],source[srcset],source[data-src],source[data-srcset],video[src],video[data-src],video[data-poster],iframe[src],iframe[data-src],video,source,a[href],a[data-video],a[data-video-url],a[data-videourl],a[data-videosrc]').forEach(function(node) {
+      ['src','srcset','data-src','data-srcset','poster','data-poster','href'].forEach(function(attr) {
         var v = node.getAttribute(attr);
         if (v && v.startsWith('/') && !v.startsWith('//')) {
           node.setAttribute(attr, base + v);

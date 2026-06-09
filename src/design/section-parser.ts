@@ -72,6 +72,22 @@ function extractHeading(html: string): string {
   return match ? stripHtml(match[1]) : ''
 }
 
+/** Extract poster image URL from a video element */
+function extractVideoPoster(html: string): string {
+  const videoTag = html.match(/<video[^>]*>/i)?.[0]
+  if (!videoTag) return ''
+
+  const getUrlFromTag = (tagHtml: string, attributeNames: string[]): string => {
+    for (const name of attributeNames) {
+      const directMatch = tagHtml.match(new RegExp(`\\b${name}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i'))
+      if (directMatch) return directMatch[2] || directMatch[3] || directMatch[4] || ''
+    }
+    return ''
+  }
+
+  return getUrlFromTag(videoTag, ['data-poster', 'poster']) || extractFirstImgSrc(videoTag)
+}
+
 /** Extract all headings from HTML */
 function extractAllHeadings(html: string): string[] {
   const headings: string[] = []
@@ -164,15 +180,67 @@ function findRepeatingChildren(html: string): string[] {
 
 /** Extract a video URL from HTML */
 function extractVideoUrl(html: string): string {
-  // Check for video src
-  const videoSrc = html.match(/<video[^>]*\bsrc="([^"]+)"/)
-  if (videoSrc) return videoSrc[1]
-  // Check for source inside video
-  const sourceSrc = html.match(/<source[^>]*\bsrc="([^"]+)"/)
-  if (sourceSrc) return sourceSrc[1]
-  // Check for iframe (YouTube/Vimeo)
-  const iframeSrc = html.match(/<iframe[^>]*\bsrc="([^"]+)"/)
-  if (iframeSrc) return iframeSrc[1]
+  function getUrlFromTag(tagHtml: string, attributeNames: string[]): string {
+    for (const name of attributeNames) {
+      const directMatch = tagHtml.match(new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))
+      if (directMatch) return directMatch[2] || directMatch[3] || directMatch[4] || ''
+    }
+    return ''
+  }
+
+  function getFirstFromSrcset(srcset: string | undefined): string {
+    if (!srcset) return ''
+    const match = srcset.split(',')[0]?.trim().split(/\s+/)[0]
+    return match ? match.trim() : ''
+  }
+
+  function isVideoUrl(candidate: string): boolean {
+    if (!candidate) return false
+    const lower = candidate.toLowerCase()
+    if (lower.startsWith('javascript:') || lower.startsWith('blob:'))
+      return false
+    if (lower.startsWith('data:video')) return true
+    if (/\.(mp4|webm|mkv|mov|m4v|ogv|ogg|avi|flv|m3u8|mpd)([?#]|$)/i.test(candidate))
+      return true
+    return /(youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|dailymotion\.com|brightcove|wistia\.net|wistia\.com)/i.test(lower)
+  }
+
+  const tags = html.matchAll(/<(video|source|iframe|a)\b[^>]*>/gi)
+  for (const match of tags) {
+    const tag = (match[1] || '').toLowerCase()
+    const tagHtml = match[0]
+
+    if (tag === 'video') {
+      const src = getUrlFromTag(tagHtml, ['data-src', 'src', 'data-video-url', 'data-videourl', 'data-videosrc'])
+      if (isVideoUrl(src)) return src
+      const poster = getUrlFromTag(tagHtml, ['poster', 'data-poster'])
+      if (isVideoUrl(poster)) return poster
+      const mutedSource = getUrlFromTag(tagHtml, ['data-srcset', 'srcset'])
+      if (isVideoUrl(getFirstFromSrcset(mutedSource))) return getFirstFromSrcset(mutedSource)
+    }
+
+    if (tag === 'source') {
+      const src = getUrlFromTag(tagHtml, ['data-src', 'src', 'data-video-url'])
+      if (isVideoUrl(src)) return src
+      const srcset = getUrlFromTag(tagHtml, ['srcset', 'data-srcset'])
+      const candidate = getFirstFromSrcset(srcset)
+      if (isVideoUrl(candidate)) return candidate
+    }
+
+    if (tag === 'iframe') {
+      const src = getUrlFromTag(tagHtml, ['data-src', 'src', 'data-video-url', 'data-videourl'])
+      if (isVideoUrl(src)) return src
+    }
+
+    if (tag === 'a') {
+      const href = getUrlFromTag(tagHtml, ['href'])
+      if (isVideoUrl(href) && (href.startsWith('http') || href.startsWith('/'))) return href
+
+      const lightboxVideo = getUrlFromTag(tagHtml, ['data-video', 'data-video-url', 'data-videourl', 'data-videosrc'])
+      if (isVideoUrl(lightboxVideo)) return lightboxVideo
+    }
+  }
+
   return ''
 }
 
@@ -347,7 +415,7 @@ function detectVideo(html: string, classes: string): ParsedSection | null {
     data: {
       title: extractHeading(html) || '',
       video_url: videoUrl,
-      poster_url: extractFirstImgSrc(html) || '',
+      poster_url: extractVideoPoster(html) || '',
     },
   }
 }

@@ -1193,6 +1193,16 @@ ${rendered}
     return !!target.closest('a, area, img[usemap], map, button, form, input[type="submit"], input[type="image"], input[type="button"], [role="button"], [onclick], [data-oem-preview-link]')
   }
 
+  function isMediaInteractionElement(target) {
+    if (!target || !target.closest)
+      return false
+
+    return !!(
+      target.closest('video') ||
+      target.closest('[data-video], [data-video-url], [data-videourl], [data-videosrc], [data-lightbox], [data-fancybox], [data-gallery], [href*="youtube"], [href*="youtu.be"], [href*="vimeo"]')
+    )
+  }
+
   function setHoverRegion(region) {
     if (hoverRegion === region)
       return
@@ -3933,7 +3943,7 @@ ${rendered}
     // data-clone-studio-interactive-control. The document-level navigation guard runs at capture
     // phase BEFORE the control's own capture-phase click handler, so without this exemption
     // stopImmediatePropagation() would swallow the click and the control would never switch/toggle.
-    return !!(target && target.closest && target.closest('[data-clone-studio-bridge], [data-clone-studio-interactive-control]'))
+    return !!(target && target.closest && (target.closest('[data-clone-studio-bridge], [data-clone-studio-interactive-control]') || isMediaInteractionElement(target)))
   }
 
   function handleNavigationEvent(event) {
@@ -4668,10 +4678,16 @@ function sanitizeCloneStudioHtml(value: unknown): string {
 function sanitizeCloneStudioHtmlWithDom(value: unknown): string {
   const parser = new DOMParser()
   const doc = parser.parseFromString(`<body>${String(value ?? '')}</body>`, 'text/html')
-  const removable = doc.body.querySelectorAll('script, iframe, object, embed, base, meta, link')
+  const removable = doc.body.querySelectorAll('script, object, embed, base, meta, link')
 
   for (const element of Array.from(removable))
     element.parentNode?.removeChild(element)
+
+  for (const iframe of Array.from(doc.body.querySelectorAll('iframe'))) {
+    const src = iframe.getAttribute('src') || iframe.getAttribute('data-src') || ''
+    if (!isCloneStudioTrustedVideoIframe(src))
+      iframe.parentNode?.removeChild(iframe)
+  }
 
   for (const element of Array.from(doc.body.querySelectorAll('*')))
     sanitizeCloneStudioElementAttributes(element)
@@ -4723,8 +4739,10 @@ function isCloneStudioMediaUrlAttribute(name: string): boolean {
 
 function sanitizeCloneStudioHtmlFallback(value: unknown): string {
   let html = String(value ?? '')
-  html = html.replace(/<\s*(script|iframe|object|embed)\b[\s\S]*?<\/\s*\1\s*>/gi, '')
-  html = html.replace(/<\s*(script|iframe|object|embed|base|meta|link)\b[^>]*\/?\s*>/gi, '')
+  html = html.replace(/<\s*(script|object|embed)\b[\s\S]*?<\/\s*\1\s*>/gi, '')
+  html = html.replace(/<\s*(script|object|embed|base|meta|link)\b[^>]*\/?\s*>/gi, '')
+  html = html.replace(/<\s*iframe\b[^>]*>[\s\S]*?<\/\s*iframe\s*>/gi, (match: string) => (isCloneStudioTrustedIframeMarkup(match) ? match : ''))
+  html = html.replace(/<\s*iframe\b[^>]*\/?\s*>/gi, (match: string) => (isCloneStudioTrustedIframeMarkup(match) ? match : ''))
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
   html = html.replace(/<script\b[^>]*\/?\s*>/gi, '')
   html = html.replace(/\son[a-z0-9:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
@@ -4743,6 +4761,37 @@ function sanitizeCloneStudioHtmlFallback(value: unknown): string {
   })
 
   return html
+}
+
+function isCloneStudioVideoUrl(url: string): boolean {
+  if (!url) return false
+
+  const lower = url.toLowerCase()
+
+  if (lower.startsWith('javascript:') || lower.startsWith('blob:'))
+    return false
+
+  if (lower.startsWith('data:video'))
+    return true
+
+  if (/\.(mp4|webm|mkv|mov|m4v|ogv|ogg|avi|flv|m3u8|mpd)([?#]|$)/i.test(url))
+    return true
+
+  return /(youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|dailymotion\.com|brightcove|wistia\.net|wistia\.com)/i.test(lower)
+}
+
+function isCloneStudioTrustedVideoIframe(src: string): boolean {
+  const normalized = sanitizeCloneStudioUrl(src, 'media')
+  return isCloneStudioVideoUrl(normalized)
+}
+
+function isCloneStudioTrustedIframeMarkup(html: string): boolean {
+  const extractAttr = (name: string): string => {
+    const match = html.match(new RegExp(`\\b${name}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i'))
+    return match?.[2] ?? match?.[3] ?? match?.[4] ?? ''
+  }
+  const src = extractAttr('src') || extractAttr('data-src') || extractAttr('data-video-url') || extractAttr('data-videourl')
+  return isCloneStudioTrustedVideoIframe(src)
 }
 
 function stopCloneStudioBlockedEvent(event: CloneStudioBlockedEventForTest): void {
