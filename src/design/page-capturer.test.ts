@@ -189,6 +189,73 @@ describe('external-html capture backend', () => {
   })
 })
 
+describe('buildDomCaptureFromHtml', () => {
+  it('preserves in-page tab navigation while stripping site navigation', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `<!doctype html>
+        <html>
+          <head><title>Outlander</title></head>
+          <body>
+            <header><nav class="site-nav"><a href="/showroom">Showroom</a></nav></header>
+            <main>
+              <section>
+                <h3>Make Your Mark.</h3>
+                <div class="contenttabs">
+                  <div class="nav nav-tabs">
+                    <button>ES</button>
+                    <button>LS</button>
+                    <button>Black Edition</button>
+                  </div>
+                  <div class="tab-content">
+                    <div class="tab-pane active"><h3>ES</h3><p>The Outlander ES is ready.</p></div>
+                  </div>
+                </div>
+              </section>
+            </main>
+          </body>
+        </html>`,
+      title: 'Outlander',
+      finalUrl: 'https://www.mitsubishi-motors.com.au/vehicles/outlander.html',
+    }, 'https://www.mitsubishi-motors.com.au/vehicles/outlander.html')
+
+    expect('bot_blocked' in result).toBe(false)
+    if ('bot_blocked' in result)
+      return
+
+    expect(result.html).toContain('class="nav nav-tabs"')
+    expect(result.html).toContain('Black Edition')
+    expect(result.html).not.toContain('site-nav')
+    expect(result.html).not.toContain('Showroom')
+  })
+
+  it('preserves materialized data-url images from external browser captures', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `<!doctype html>
+        <html>
+          <head><title>Outlander</title></head>
+          <body>
+            <main>
+              <section>
+                <h3>Make Your Mark.</h3>
+                <img class="colour-selector__image" src="data:image/png;base64,AAAA" alt="">
+                <p>The Outlander ES is ready.</p>
+              </section>
+            </main>
+          </body>
+        </html>`,
+      title: 'Outlander',
+      finalUrl: 'https://www.mitsubishi-motors.com.au/vehicles/outlander.html',
+    }, 'https://www.mitsubishi-motors.com.au/vehicles/outlander.html')
+
+    expect('bot_blocked' in result).toBe(false)
+    if ('bot_blocked' in result)
+      return
+
+    expect(result.html).toContain('src="data:image/png;base64,AAAA"')
+    expect(result.imageUrls).not.toContain('data:image/png;base64,AAAA')
+  })
+})
+
 describe('activateLazyMediaForCapture', () => {
   it('resolves relative image lazy sources before scrolling', () => {
     const rootRelative = createLazyMediaElement({ 'data-src': '/-/media/rav4.jpg' })

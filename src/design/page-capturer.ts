@@ -1064,7 +1064,6 @@ function stripExternalCaptureChrome($: CheerioAPI): void {
     'link[rel="preconnect"]',
     'nav',
     '[role="navigation"]',
-    '[class*="nav-"]',
     '[class*="navbar"]',
     '[class*="site-header"]',
     '[class*="main-header"]',
