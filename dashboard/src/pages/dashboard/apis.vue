@@ -21,6 +21,13 @@ interface DiscoveredApi {
   call_count: number
   error_count: number
   created_at: string
+  schema_json: {
+    label?: string
+    operation?: string
+    note?: string
+    source_role?: string
+    capabilities?: string[]
+  } | null
 }
 
 const { fetchOems } = useOemData()
@@ -31,6 +38,7 @@ const loading = ref(true)
 const loadError = ref<string | null>(null)
 const filterOem = ref('all')
 const filterDataType = ref('all')
+const showLowValue = ref(false)
 
 onMounted(async () => {
   try {
@@ -52,6 +60,8 @@ onMounted(async () => {
 
 const filtered = computed(() => {
   return apis.value.filter((a) => {
+    if (!showLowValue.value && isLowValueApi(a))
+      return false
     if (filterOem.value !== 'all' && a.oem_id !== filterOem.value)
       return false
     if (filterDataType.value !== 'all' && a.data_type !== filterDataType.value)
@@ -68,7 +78,8 @@ const stats = computed(() => {
   const highValue = apis.value.filter(a => a.reliability_score >= 0.7).length
   const verified = apis.value.filter(a => a.status === 'verified').length
   const oemsWithApis = new Set(apis.value.map(a => a.oem_id)).size
-  return { total: apis.value.length, highValue, verified, oemsWithApis }
+  const lowValueHidden = apis.value.filter(isLowValueApi).length
+  return { total: apis.value.length, highValue, verified, oemsWithApis, lowValueHidden }
 })
 
 function oemName(id: string) {
@@ -96,11 +107,70 @@ function statusBadge(status: string) {
 function shortenUrl(url: string) {
   try {
     const u = new URL(url)
-    return u.pathname + u.search
+    return u.pathname + u.search + u.hash
   }
   catch {
     return url
   }
+}
+
+function apiLabel(api: DiscoveredApi) {
+  return api.schema_json?.label || api.schema_json?.operation || shortenUrl(api.url)
+}
+
+function apiDescription(api: DiscoveredApi) {
+  const pieces = [
+    api.schema_json?.operation,
+    api.schema_json?.source_role?.replace(/_/g, ' '),
+    api.schema_json?.note,
+  ].filter(Boolean)
+  return pieces.length ? pieces.join(' - ') : api.url
+}
+
+function dataTypeLabel(api: DiscoveredApi) {
+  const operation = api.schema_json?.operation
+  if (api.data_type && operation)
+    return `${api.data_type} / ${operation}`
+  if (api.data_type)
+    return api.data_type
+  if (operation)
+    return operation
+  try {
+    const hash = new URL(api.url).hash.replace(/^#/, '')
+    return hash || 'other'
+  }
+  catch {
+    return 'other'
+  }
+}
+
+function isLowValueApi(api: DiscoveredApi) {
+  if (api.schema_json?.label || api.schema_json?.operation)
+    return false
+  if (api.data_type && api.data_type !== 'other')
+    return false
+
+  let host = ''
+  try {
+    host = new URL(api.url).hostname.toLowerCase()
+  }
+  catch {
+    host = ''
+  }
+
+  const telemetryHosts = [
+    'demdex.net',
+    'omtrdc.net',
+    'adobedc.net',
+    'adobedtm.com',
+    'doubleclick.net',
+    'google-analytics.com',
+    'mpc2-prod-24-is5qnl632q-uw.a.run.app',
+  ]
+  if (telemetryHosts.some(domain => host === domain || host.endsWith(`.${domain}`)))
+    return true
+
+  return !api.data_type && Number(api.reliability_score || 0) < 0.5
 }
 </script>
 
@@ -193,7 +263,13 @@ function shortenUrl(url: string) {
           </UiSelectItem>
         </UiSelectContent>
       </UiSelect>
+      <UiButton variant="outline" size="sm" @click="showLowValue = !showLowValue">
+        {{ showLowValue ? 'Hide low-value' : 'Show low-value' }}
+      </UiButton>
       <span class="text-sm text-muted-foreground">{{ filtered.length }} APIs</span>
+      <span v-if="!showLowValue && stats.lowValueHidden" class="text-xs text-muted-foreground">
+        {{ stats.lowValueHidden }} low-value rows hidden
+      </span>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center h-64">
@@ -233,8 +309,16 @@ function shortenUrl(url: string) {
               <UiTableCell class="font-medium text-sm">
                 {{ oemName(api.oem_id) }}
               </UiTableCell>
-              <UiTableCell class="text-xs text-muted-foreground max-w-[350px] truncate font-mono">
-                {{ shortenUrl(api.url) }}
+              <UiTableCell class="max-w-[420px]">
+                <div class="text-xs font-medium truncate">
+                  {{ apiLabel(api) }}
+                </div>
+                <div class="text-[11px] text-muted-foreground truncate font-mono">
+                  {{ shortenUrl(api.url) }}
+                </div>
+                <div class="text-[11px] text-muted-foreground truncate">
+                  {{ apiDescription(api) }}
+                </div>
               </UiTableCell>
               <UiTableCell>
                 <UiBadge variant="outline" class="text-xs">
@@ -242,8 +326,8 @@ function shortenUrl(url: string) {
                 </UiBadge>
               </UiTableCell>
               <UiTableCell>
-                <UiBadge v-if="api.data_type" variant="secondary" class="text-xs">
-                  {{ api.data_type }}
+                <UiBadge v-if="api.data_type || api.schema_json?.operation" variant="secondary" class="text-xs">
+                  {{ dataTypeLabel(api) }}
                 </UiBadge>
                 <span v-else class="text-muted-foreground">-</span>
               </UiTableCell>

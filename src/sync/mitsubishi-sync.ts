@@ -37,6 +37,106 @@ const BROCHURES: Record<string, string> = {
   asx: `${OEM_SITE}/content/dam/mmal/pdfs/vehicle-brochures/25MY%20ASX%20Brochure.pdf`,
 };
 
+const MITSUBISHI_API_DOCS = `# Mitsubishi Motors Australia API Architecture
+
+## Canonical Source
+
+Mitsubishi Australia exposes a Magento GraphQL storefront at \`https://store.mitsubishi-motors.com.au/graphql\`. OEM Agent treats this as the canonical Mitsubishi source for catalog data.
+
+Dealer-facing endpoints such as \`/api/wp/v2/catalog\`, \`/api/wp/v2/models\`, and \`/api/wp/v2/variants\` are downstream Supabase projections. They should not be treated as the upstream Mitsubishi source API.
+
+## Endpoint
+
+| URL | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| \`https://store.mitsubishi-motors.com.au/graphql\` | POST | Bearer storefront token | Introspection is disabled. Requests should send \`Origin: https://www.mitsubishi-motors.com.au\` and \`Referer: https://www.mitsubishi-motors.com.au/\`. |
+
+The storefront token currently used by the dealer theme and OEM Agent is the public Magento bearer token captured from Mitsubishi's site.
+
+## Operations Used By OEM Agent
+
+### GetVehiclesInRange
+
+Fetches model families by category UID and returns configurable vehicle products. OEM Agent uses this for models, variants, colours, interiors, state pricing, and offers.
+
+Variables:
+
+\`\`\`json
+{ "ids": ["NTMz", "NTUz", "NDM2", "NTQx", "NTAz"] }
+\`\`\`
+
+Category UID map:
+
+| Model | UID |
+| --- | --- |
+| ASX | \`NTMz\` |
+| Outlander / Outlander PHEV | \`NTUz\` |
+| Eclipse Cross / Eclipse Cross PHEV | \`NDM2\` |
+| Triton | \`NTQx\` |
+| Pajero Sport | \`NTAz\` |
+
+Important fields:
+
+| GraphQL field | Supabase target |
+| --- | --- |
+| \`categories.items[].name/year/url_key\` | \`vehicle_models.name\`, \`model_year\`, \`slug\`, \`source_url\`, \`configurator_url\` |
+| \`products.items[].body_style/fuel_type/drive_type/transmission/seats\` | \`products.body_type\`, \`fuel_type\`, \`drive\`, \`transmission\`, \`seats\` |
+| \`variants[].product.sku/name/image/exterior_code/interior_code/option_pack\` | \`products.external_key\`, \`variant_code\`, \`primary_image_r2_key\`, \`meta_json\` |
+| \`configurable_options[exterior_code]\` | \`variant_colors\`, \`oem_color_palette\` |
+| \`configurable_options[interior_code]\` | \`variant_interiors\` |
+| \`variants[].product.offer.private/business/mmba.price\` | \`variant_pricing\`, \`products.price_amount\`, \`products.price_qualifier\` |
+| \`variants[].product.offer.*\` | \`offers\`, \`offer_products\` |
+| \`compatible_accessories[].sku\` | Accessory SKU queue for \`GetProductsBySkuList\` |
+
+### GetProductsBySkuList
+
+Fetches accessory product detail by SKU batches collected from \`compatible_accessories\`.
+
+Important fields:
+
+| GraphQL field | Supabase target |
+| --- | --- |
+| \`sku\`, \`name\`, \`url_key\` | \`accessories.external_key\`, \`name\`, \`slug\`, \`part_number\` |
+| \`accessory_group\`, \`categories\` | \`accessories.category\`, \`meta_json.categories\` |
+| \`price_range.minimum_price\` | \`accessories.price\` |
+| \`description.html\`, \`short_description.html\` | \`accessories.description_html\`, \`meta_json.disclaimer\` |
+| \`media_gallery\`, \`media_gallery_entries\`, \`image\` | \`accessories.image_url\`, \`meta_json.media_gallery\` |
+
+Accessory rows are linked to models through \`accessory_models\` using the compatible accessory SKUs discovered in the vehicle operation.
+
+## AEM Asset Endpoints
+
+Mitsubishi accessory imagery is better resolved through AEM asset folder JSON when GraphQL images are placeholders.
+
+| URL pattern | Purpose |
+| --- | --- |
+| \`https://www.mitsubishi-motors.com.au/api/assets/mmal/accessories/{model}/{year}.json?limit=10000\` | Model/year accessory image lookup |
+| \`https://www.mitsubishi-motors.com.au/api/assets/mmal/accessories/general.json?limit=10000\` | Shared accessory image fallback |
+
+The sync matches images to accessory SKUs and stores the image source in \`accessories.meta_json.image_source\`.
+
+## Brochure And PDF Spec Flow
+
+The Mitsubishi sync writes current brochure URLs onto \`vehicle_models.brochure_url\` for ASX, Eclipse Cross, Outlander, Pajero Sport, and Triton. The PDF embedding and spec extraction flow consumes those model-level brochure URLs through \`pdf_embeddings\` and \`vehicle_models.extracted_specs\`.
+
+## Current Sync Contract
+
+\`executeAllOemSync()\` runs \`syncMitsubishiGraphql()\` during the daily \`oem-data-sync\` cron. The expected Mitsubishi outputs are:
+
+- \`vehicle_models\`: active model families with brochure URLs and configurator URLs.
+- \`products\`: one row per GraphQL variant SKU.
+- \`variant_colors\`: exterior paint options from \`configurable_options.exterior_code\`.
+- \`variant_interiors\`: interior trim options from \`configurable_options.interior_code\`.
+- \`variant_pricing\`: state driveaway pricing from offer price blocks.
+- \`offers\` and \`offer_products\`: private, business, and MMBA offer records linked to products.
+- \`accessories\` and \`accessory_models\`: compatible accessory catalog and model links.
+- \`discovered_apis\`: source API documentation rows for dashboard visibility.
+
+## Legacy App Notes
+
+The Mornington Mitsubishi legacy app contains a newer GraphQL client in \`src/services/offer-test-single.js\` with the same endpoint, token, category UID mapping, and state pricing concepts. Older legacy services still call WordPress/CDN endpoints; those should not be copied into OEM Agent as source-of-truth catalog ingestion.
+`;
+
 export interface MitsubishiSyncResult {
   products: number;
   colors: number;
@@ -863,6 +963,7 @@ async function upsertAccessories(
 }
 
 async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
+  const now = new Date().toISOString();
   const rows = [
     {
       oem_id: OEM_ID,
@@ -872,19 +973,83 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
       response_type: 'json',
       sample_request_headers: {
         'Content-Type': 'application/json',
+        Authorization: 'Bearer <public-storefront-token>',
         Origin: OEM_SITE,
         Referer: `${OEM_SITE}/`,
       },
-      sample_request_body: 'GetVehiclesInRange / GetProductsBySkuList GraphQL operations',
+      sample_request_body: 'GetVehiclesInRange GraphQL operation with category_uid ids for ASX, Outlander, Eclipse Cross, Triton, and Pajero Sport',
       data_type: 'products',
       schema_json: {
-        capabilities: ['variants', 'colors', 'interiors', 'pricing', 'offers', 'compatible_accessories'],
-        operations: ['GetVehiclesInRange', 'GetProductsBySkuList'],
+        label: 'Mitsubishi GraphQL catalog',
+        operation: 'GetVehiclesInRange',
+        source_role: 'canonical_source',
+        auth: 'Public Magento storefront bearer token',
+        capabilities: ['models', 'variants', 'colors', 'interiors', 'state_pricing', 'offers', 'compatible_accessory_skus', 'brochure_links'],
+        maps_to_tables: ['vehicle_models', 'products', 'variant_colors', 'variant_interiors', 'variant_pricing', 'offers', 'offer_products'],
         category_uids: CATEGORY_IDS,
+        source_code: 'src/sync/mitsubishi-sync.ts',
+        note: 'Canonical Mitsubishi catalog operation used by daily oem-data-sync. Dealer API endpoints are downstream Supabase projections.',
       },
       reliability_score: 0.95,
       status: 'verified',
-      last_successful_call: new Date().toISOString(),
+      last_successful_call: now,
+      call_count: 1,
+      error_count: 0,
+    },
+    {
+      oem_id: OEM_ID,
+      url: `${GRAPHQL_URL}#get-products-by-sku-list`,
+      method: 'POST',
+      content_type: 'application/json',
+      response_type: 'json',
+      sample_request_headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer <public-storefront-token>',
+        Origin: OEM_SITE,
+        Referer: `${OEM_SITE}/`,
+      },
+      sample_request_body: 'GetProductsBySkuList GraphQL operation with compatible accessory SKUs collected from vehicle variants',
+      data_type: 'accessories',
+      schema_json: {
+        label: 'Mitsubishi GraphQL accessories',
+        operation: 'GetProductsBySkuList',
+        source_role: 'canonical_source',
+        auth: 'Public Magento storefront bearer token',
+        capabilities: ['accessory_catalog', 'accessory_pricing', 'accessory_images', 'accessory_categories', 'model_links'],
+        maps_to_tables: ['accessories', 'accessory_models'],
+        note: 'Accessory SKUs are discovered from GetVehiclesInRange compatible_accessories and hydrated in SKU batches.',
+      },
+      reliability_score: 0.95,
+      status: 'verified',
+      last_successful_call: now,
+      call_count: 1,
+      error_count: 0,
+    },
+    {
+      oem_id: OEM_ID,
+      url: `${GRAPHQL_URL}#category-uids`,
+      method: 'POST',
+      content_type: 'application/json',
+      response_type: 'json',
+      sample_request_headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer <public-storefront-token>',
+        Origin: OEM_SITE,
+        Referer: `${OEM_SITE}/`,
+      },
+      sample_request_body: 'categories(filters: { category_uid: { in: [...] } })',
+      data_type: 'config',
+      schema_json: {
+        label: 'Mitsubishi GraphQL category UID map',
+        operation: 'categories',
+        source_role: 'source_config',
+        category_uids: CATEGORY_IDS,
+        model_slugs: Object.keys(BROCHURES),
+        note: 'Stable category UIDs used to request Mitsubishi model families from the Magento GraphQL storefront.',
+      },
+      reliability_score: 0.95,
+      status: 'verified',
+      last_successful_call: now,
       call_count: 1,
       error_count: 0,
     },
@@ -895,10 +1060,18 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
       content_type: 'application/json',
       response_type: 'json',
       data_type: 'accessories',
-      schema_json: { capabilities: ['accessory_images', 'model_year_image_fallback'], template_params: ['model', 'year'] },
+      schema_json: {
+        label: 'Mitsubishi AEM accessory images',
+        operation: 'AEM model/year asset folder',
+        source_role: 'image_enrichment',
+        capabilities: ['accessory_images', 'model_year_image_fallback'],
+        template_params: ['model', 'year'],
+        maps_to_tables: ['accessories'],
+        note: 'Used when GraphQL accessory images are placeholders or missing.',
+      },
       reliability_score: 0.85,
       status: 'verified',
-      last_successful_call: new Date().toISOString(),
+      last_successful_call: now,
       call_count: 1,
       error_count: 0,
     },
@@ -909,10 +1082,17 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
       content_type: 'application/json',
       response_type: 'json',
       data_type: 'accessories',
-      schema_json: { capabilities: ['shared_accessory_images', 'sku_image_fallback'] },
+      schema_json: {
+        label: 'Mitsubishi AEM shared accessory images',
+        operation: 'AEM general asset folder',
+        source_role: 'image_enrichment',
+        capabilities: ['shared_accessory_images', 'sku_image_fallback'],
+        maps_to_tables: ['accessories'],
+        note: 'Shared accessory image fallback matched by accessory SKU.',
+      },
       reliability_score: 0.8,
       status: 'verified',
-      last_successful_call: new Date().toISOString(),
+      last_successful_call: now,
       call_count: 1,
       error_count: 0,
     },
@@ -923,10 +1103,16 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
       content_type: 'text/html',
       response_type: 'html',
       data_type: 'offers',
-      schema_json: { capabilities: ['offer_hero_banners', 'mobile_banners', 'offer_cards'] },
+      schema_json: {
+        label: 'Mitsubishi public offers page',
+        operation: 'offers.html',
+        source_role: 'presentation_enrichment',
+        capabilities: ['offer_hero_banners', 'mobile_banners', 'offer_cards'],
+        note: 'Presentation source for hero/offer imagery. Structured pricing and offer records come from GraphQL.',
+      },
       reliability_score: 0.75,
       status: 'verified',
-      last_successful_call: new Date().toISOString(),
+      last_successful_call: now,
       call_count: 1,
       error_count: 0,
     },
@@ -934,6 +1120,41 @@ async function seedDiscoveredApis(supabase: SupabaseClient): Promise<number> {
 
   const { error } = await supabase.from('discovered_apis').upsert(rows, { onConflict: 'oem_id,url' });
   if (error) throw error;
+
+  const { error: staleAliasError } = await supabase
+    .from('discovered_apis')
+    .update({
+      status: 'stale',
+      schema_json: {
+        label: 'Mitsubishi GraphQL legacy alias',
+        source_role: 'legacy_alias',
+        note: 'Replaced by canonical Mitsubishi GraphQL operation rows seeded by syncMitsubishiGraphql().',
+      },
+    })
+    .eq('oem_id', OEM_ID)
+    .in('url', [
+      `${GRAPHQL_URL}#products`,
+      `${GRAPHQL_URL}#categories`,
+    ]);
+  if (staleAliasError) throw new Error(`Mitsubishi stale API alias cleanup: ${staleAliasError.message}`);
+
+  const { data: existing, error: docLookupError } = await supabase
+    .from('oems')
+    .select('config_json')
+    .eq('id', OEM_ID)
+    .single();
+  if (docLookupError) throw new Error(`Mitsubishi API doc lookup: ${docLookupError.message}`);
+
+  const configJson = {
+    ...(existing?.config_json || {}),
+    api_docs: MITSUBISHI_API_DOCS,
+  };
+  const { error: docError } = await supabase
+    .from('oems')
+    .update({ config_json: configJson })
+    .eq('id', OEM_ID);
+  if (docError) throw new Error(`Mitsubishi API doc update: ${docError.message}`);
+
   return rows.length;
 }
 
