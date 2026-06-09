@@ -10,7 +10,7 @@ interface PageSection {
   [key: string]: any
 }
 
-defineProps<{ sections: PageSection[] }>()
+defineProps<{ sections: PageSection[], oemId?: string, modelSlug?: string }>()
 </script>
 
 <template>
@@ -21,6 +21,8 @@ defineProps<{ sections: PageSection[] }>()
           :is="resolveSectionComponent(section, { context: 'display' })"
           v-if="resolveSectionComponent(section, { context: 'display' })"
           :section="section"
+          :oem-id="oemId"
+          :model-slug="modelSlug"
         />
         <div
           v-else

@@ -5,7 +5,7 @@ export type PageSectionType
     | 'testimonial' | 'comparison-table' | 'stats' | 'logo-strip' | 'embed'
     | 'pricing-table' | 'sticky-bar' | 'countdown' | 'finance-calculator'
     | 'image' | 'image-showcase' | 'card-grid' | 'split-content' | 'media'
-    | 'pinned-scroll'
+    | 'pinned-scroll' | 'variant-color-explorer'
 
 export interface SectionTemplate {
   id: string
@@ -113,6 +113,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'split-content': () => ({ title: '', body_html: '', image_url: '', image_position: 'right', layout: 'contained', background: '' }),
   'media': () => ({ title: '', images: [{ url: '', alt: '', caption: '' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
   'pinned-scroll': () => ({ title: '', background_image: '', background_image_mobile: '', cards: [{ image: '', mobile_image: '', caption: '', title_bg: '', content_bg: '' }], mobile_layout: 'carousel', animation: 'none' }),
+  'variant-color-explorer': () => ({ data_source: 'database', oem_id: '', model_slug: '', eyebrow: 'Petrol Range', heading: 'Make Your Mark.', cta_text: 'Build your own', cta_url: '', variants: [] }),
 }
 
 export const SECTION_TEMPLATES: SectionTemplate[] = [
@@ -200,6 +201,9 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { id: 'embed-configurator', name: '3D Configurator', description: 'Embedded vehicle configurator or 3D viewer', type: 'embed', data: { title: 'Build Your Own', embed_url: '', embed_type: 'iframe', aspect_ratio: '16:9' } },
   { id: 'embed-virtual-tour', name: 'Virtual Showroom', description: 'Embedded 360 virtual tour', type: 'embed', data: { title: 'Virtual Showroom', embed_url: '', embed_type: 'iframe', aspect_ratio: '16:9' } },
 
+  // Bound catalog
+  { id: 'variant-color-explorer-bound', name: 'Variant + Colour Explorer', description: 'Database-bound variant tabs with colour swatches and vehicle imagery', type: 'variant-color-explorer', data: { data_source: 'database', eyebrow: 'Petrol Range', heading: 'Make Your Mark.', cta_text: 'Build your own' } },
+
   // Pricing Table
   { id: 'pricing-variants', name: 'Variant Pricing', description: 'Side-by-side trim/variant pricing cards', type: 'pricing-table', data: { title: 'Choose Your Variant', tiers: [{ name: 'Base', price: '$29,990', price_suffix: 'Drive Away', features: ['2.0L Engine', 'Apple CarPlay', '17" Alloys'], cta_text: 'Enquire', cta_url: '#' }, { name: 'Sport', price: '$34,990', price_suffix: 'Drive Away', features: ['2.0L Turbo', 'Leather Seats', '19" Alloys', 'Sunroof'], cta_text: 'Enquire', cta_url: '#', highlighted: true, badge_text: 'Most Popular' }, { name: 'GT', price: '$42,990', price_suffix: 'Drive Away', features: ['2.5L Turbo', 'Full Leather', '20" Alloys', 'Head-Up Display', 'Bose Audio'], cta_text: 'Enquire', cta_url: '#' }] } },
   { id: 'pricing-simple', name: 'Simple Price List', description: 'Clean price list with CTA', type: 'pricing-table', data: { title: 'Pricing', tiers: [{ name: 'Model', price: 'From $XX,XXX', features: [], cta_text: 'Get Quote', cta_url: '#' }] } },
@@ -263,6 +267,7 @@ export const SECTION_TYPE_INFO: Record<PageSectionType, { label: string, descrip
   'split-content': { label: 'Split Content', description: 'Text with optional image — left, right, or background' },
   'media': { label: 'Media', description: 'Images, gallery, video, or embed' },
   'pinned-scroll': { label: 'Pinned Scroll', description: 'Pinned image sequence with scrolling content cards' },
+  'variant-color-explorer': { label: 'Variant + Colour Explorer', description: 'Database-bound variant tabs and colour selector' },
 }
 
 export const SECTION_SPLITTABLE_FIELDS: Partial<Record<PageSectionType, string>> = {
@@ -317,6 +322,7 @@ export const SECTION_RECIPE_PATTERNS: Partial<Record<PageSectionType, SectionRec
   'finance-calculator': { pattern: 'utility', variant: 'calculator' },
   'accordion': { pattern: 'utility', variant: 'accordion' },
   'map': { pattern: 'utility', variant: 'map' },
+  'variant-color-explorer': { pattern: 'data-display', variant: 'variant-color-explorer' },
 }
 
 export function getSectionRecipePattern(type: string | null | undefined): SectionRecipePattern {

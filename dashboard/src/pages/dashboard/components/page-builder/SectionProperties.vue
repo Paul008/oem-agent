@@ -942,6 +942,59 @@ function onMediaLibrarySelect(url: string) {
       </div>
     </template>
 
+    <!-- ===== VARIANT + COLOUR EXPLORER ===== -->
+    <template v-else-if="sectionType === 'variant-color-explorer'">
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Data Source</label>
+          <UiSelect :model-value="section.data_source || 'database'" @update:model-value="update('data_source', $event)">
+            <UiSelectTrigger class="h-8 text-xs">
+              <UiSelectValue />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="database">
+                Database
+              </UiSelectItem>
+              <UiSelectItem value="manual">
+                Manual fallback
+              </UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">OEM override</label>
+            <UiInput :model-value="section.oem_id || ''" class="h-8 text-xs" :placeholder="oemId || 'mitsubishi-au'" @update:model-value="update('oem_id', $event)" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">Model slug override</label>
+            <UiInput :model-value="section.model_slug || ''" class="h-8 text-xs" :placeholder="modelSlug || 'outlander'" @update:model-value="update('model_slug', $event)" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Eyebrow</label>
+          <UiInput :model-value="section.eyebrow || ''" class="h-8 text-xs" @update:model-value="update('eyebrow', $event)" />
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Heading</label>
+          <UiInput :model-value="section.heading || ''" class="h-8 text-xs" @update:model-value="update('heading', $event)" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">CTA Text</label>
+            <UiInput :model-value="section.cta_text || ''" class="h-8 text-xs" @update:model-value="update('cta_text', $event)" />
+          </div>
+          <div>
+            <label class="text-xs text-muted-foreground mb-1 block">CTA URL</label>
+            <UiInput :model-value="section.cta_url || ''" class="h-8 text-xs" @update:model-value="update('cta_url', $event)" />
+          </div>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          Uses catalog products and variant colours for the selected model. Manual variants are used only when database data is unavailable or data source is manual.
+        </p>
+      </div>
+    </template>
+
     <!-- ===== SPECS GRID ===== -->
     <template v-else-if="sectionType === 'specs-grid'">
       <div class="space-y-3">

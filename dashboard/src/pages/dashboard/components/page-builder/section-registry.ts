@@ -36,6 +36,7 @@ const SectionCardGrid = defineAsyncComponent(() => import('../sections/SectionCa
 const SectionSplitContent = defineAsyncComponent(() => import('../sections/SectionSplitContent.vue'))
 const SectionMedia = defineAsyncComponent(() => import('../sections/SectionMedia.vue'))
 const SectionPinnedScroll = defineAsyncComponent(() => import('../sections/SectionPinnedScroll.vue'))
+const SectionVariantColorExplorer = defineAsyncComponent(() => import('../sections/SectionVariantColorExplorer.vue'))
 
 const baseSectionComponentMap = {
   'hero': SectionHero,
@@ -69,6 +70,7 @@ const baseSectionComponentMap = {
   'split-content': SectionSplitContent,
   'media': SectionMedia,
   'pinned-scroll': SectionPinnedScroll,
+  'variant-color-explorer': SectionVariantColorExplorer,
 } satisfies Record<PageSectionType, SectionComponent>
 
 const displaySectionComponentOverrides = {

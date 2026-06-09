@@ -53,6 +53,7 @@ export const SECTION_TYPE_ICONS: Partial<Record<PageSectionType, Component>> = {
   'split-content': Columns3,
   'media': Images,
   'pinned-scroll': PanelBottom,
+  'variant-color-explorer': Palette,
 }
 
 export function getSectionTypeIcon(type: string | null | undefined): Component {

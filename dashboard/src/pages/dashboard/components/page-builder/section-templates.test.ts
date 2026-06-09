@@ -205,6 +205,7 @@ describe('section recipe metadata', () => {
       'specs-grid': { pattern: 'data-display', variant: 'specs-accordion' },
       'comparison-table': { pattern: 'data-display', variant: 'comparison' },
       'color-picker': { pattern: 'data-display', variant: 'color-picker' },
+      'variant-color-explorer': { pattern: 'data-display', variant: 'variant-color-explorer' },
       'cta-banner': { pattern: 'action-bar', variant: 'banner' },
       'sticky-bar': { pattern: 'action-bar', variant: 'sticky' },
       'enquiry-form': { pattern: 'action-bar', variant: 'form' },
