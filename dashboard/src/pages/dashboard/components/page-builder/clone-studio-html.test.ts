@@ -744,6 +744,8 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('stopImmediatePropagation')
     expect(html).toContain('isMediaInteractionElement')
     expect(html).toContain('[data-video]')
+    expect(html).toContain('[data-media][data-source-id]')
+    expect(html).toContain('.play-video')
   })
 
   it('suppresses default behavior and propagation for blocked events', () => {

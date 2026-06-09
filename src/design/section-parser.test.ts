@@ -30,4 +30,12 @@ describe('section-parser video detection', () => {
     expect(result.type).toBe('video')
     expect(result.data.video_url).toBe('/assets/car-loop.mp4')
   })
+
+  it('detects Mitsubishi online-media provider blocks', () => {
+    const result = parseSection('<section><div class="onlinemedia" data-source-id="yQ_qNCe98OI" data-media="youtube"><picture><source srcset="/content/dam/mmal/discovery-mitsubishi/45-year-anniversary/Luke%20McGregor%20PLAY.jpg"><img class="lazyload" data-src="/content/dam/mmal/discovery-mitsubishi/45-year-anniversary/Luke%20McGregor%20PLAY.jpg"></picture><a href="#" class="play-video disabled"></a></div><p>Along for the Ride</p></section>')
+
+    expect(result.type).toBe('video')
+    expect(result.data.video_url).toBe('https://www.youtube.com/watch?v=yQ_qNCe98OI')
+    expect(result.data.poster_url).toBe('/content/dam/mmal/discovery-mitsubishi/45-year-anniversary/Luke%20McGregor%20PLAY.jpg')
+  })
 })

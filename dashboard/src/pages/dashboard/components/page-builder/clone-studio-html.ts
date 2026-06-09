@@ -1199,7 +1199,7 @@ ${rendered}
 
     return !!(
       target.closest('video') ||
-      target.closest('[data-video], [data-video-url], [data-videourl], [data-videosrc], [data-lightbox], [data-fancybox], [data-gallery], [href*="youtube"], [href*="youtu.be"], [href*="vimeo"]')
+      target.closest('.onlinemedia, .play-video, [data-media][data-source-id], [data-video], [data-video-url], [data-videourl], [data-videosrc], [data-lightbox], [data-fancybox], [data-gallery], [href*="youtube"], [href*="youtu.be"], [href*="vimeo"]')
     )
   }
 

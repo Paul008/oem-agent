@@ -60,5 +60,7 @@ describe('buildCaptureInjection uses the extracted rules', () => {
     expect(lateInjection).toContain('a[data-videourl]')
     expect(lateInjection).toContain('data-videourl')
     expect(lateInjection).toContain('iframe[src],iframe[data-src]')
+    expect(lateInjection).toContain('providerVideoUrl')
+    expect(lateInjection).toContain('[data-media][data-source-id]')
   })
 })

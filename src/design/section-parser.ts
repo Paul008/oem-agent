@@ -55,6 +55,24 @@ function extractFirstImgSrc(html: string): string {
   return match[1]
 }
 
+/** Extract the first image-like media URL, including lazy image and picture sources. */
+function extractFirstMediaImageUrl(html: string): string {
+  const imgTag = html.match(/<img\b[^>]*>/i)?.[0] || ''
+  const sourceTag = html.match(/<source\b[^>]*>/i)?.[0] || ''
+
+  const getUrlFromTag = (tagHtml: string, attributeNames: string[]): string => {
+    for (const name of attributeNames) {
+      const directMatch = tagHtml.match(new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))
+      if (directMatch) return directMatch[2] || directMatch[3] || directMatch[4] || ''
+    }
+    return ''
+  }
+
+  const firstFromSrcset = (srcset: string): string => srcset.split(',')[0]?.trim().split(/\s+/)[0] || ''
+  return getUrlFromTag(imgTag, ['src', 'data-src', 'data-original', 'data-lazy'])
+    || firstFromSrcset(getUrlFromTag(sourceTag, ['srcset', 'data-srcset']))
+}
+
 /** Extract all img src URLs from an HTML fragment */
 function extractAllImgSrcs(html: string): string[] {
   const urls: string[] = []
@@ -205,6 +223,28 @@ function extractVideoUrl(html: string): string {
     return /(youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|dailymotion\.com|brightcove|wistia\.net|wistia\.com)/i.test(lower)
   }
 
+  function providerVideoUrl(media: string, sourceId: string): string {
+    const normalizedMedia = media.trim().toLowerCase()
+    const normalizedSourceId = sourceId.trim()
+    if (!normalizedSourceId)
+      return ''
+    if (normalizedMedia === 'youtube' || normalizedMedia === 'yt')
+      return `https://www.youtube.com/watch?v=${normalizedSourceId}`
+    if (normalizedMedia === 'vimeo')
+      return `https://vimeo.com/${normalizedSourceId}`
+    return ''
+  }
+
+  const mediaEmbedTags = html.matchAll(/<[^>]*\bdata-(?:media|source-id)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>/gi)
+  for (const match of mediaEmbedTags) {
+    const tagHtml = match[0]
+    const media = getUrlFromTag(tagHtml, ['data-media'])
+    const sourceId = getUrlFromTag(tagHtml, ['data-source-id'])
+    const url = providerVideoUrl(media, sourceId)
+    if (isVideoUrl(url))
+      return url
+  }
+
   const tags = html.matchAll(/<(video|source|iframe|a)\b[^>]*>/gi)
   for (const match of tags) {
     const tag = (match[1] || '').toLowerCase()
@@ -238,6 +278,11 @@ function extractVideoUrl(html: string): string {
 
       const lightboxVideo = getUrlFromTag(tagHtml, ['data-video', 'data-video-url', 'data-videourl', 'data-videosrc'])
       if (isVideoUrl(lightboxVideo)) return lightboxVideo
+
+      const media = getUrlFromTag(tagHtml, ['data-media'])
+      const sourceId = getUrlFromTag(tagHtml, ['data-source-id'])
+      const providerUrl = providerVideoUrl(media, sourceId)
+      if (isVideoUrl(providerUrl)) return providerUrl
     }
   }
 
@@ -415,7 +460,7 @@ function detectVideo(html: string, classes: string): ParsedSection | null {
     data: {
       title: extractHeading(html) || '',
       video_url: videoUrl,
-      poster_url: extractVideoPoster(html) || '',
+      poster_url: extractVideoPoster(html) || extractFirstMediaImageUrl(html),
     },
   }
 }

@@ -223,8 +223,17 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
       if (lower.indexOf('javascript:') === 0) return false;
       if (lower.indexOf('data:video') === 0) return true;
       if (lower.indexOf('blob:') === 0) return false;
-      if (/\\.(mp4|webm|mkv|mov|m4v|ogv|ogg|avi|flv|m3u8|mpd)([?#]|$)/i.test(url)) return true;
-      return /youtube\\.com|youtu\\.be|vimeo\\.com|player\\.vimeo\\.com|dailymotion\\.com|brightcove|wistia\\.net|wistia\\.com/i.test(lower);
+      if (/\.(mp4|webm|mkv|mov|m4v|ogv|ogg|avi|flv|m3u8|mpd)([?#]|$)/i.test(url)) return true;
+      return /youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|dailymotion\.com|brightcove|wistia\.net|wistia\.com/i.test(lower);
+    }
+
+    function providerVideoUrl(media, sourceId) {
+      media = (media || '').toLowerCase();
+      sourceId = sourceId || '';
+      if (!sourceId) return '';
+      if (media === 'youtube' || media === 'yt') return 'https://www.youtube.com/watch?v=' + sourceId;
+      if (media === 'vimeo') return 'https://vimeo.com/' + sourceId;
+      return '';
     }
 
     el.querySelectorAll('img[src], source[src], source[srcset], source[data-src], source[data-srcset], video[src], video[data-src], video[poster], video[data-poster], source').forEach(function(node) {
@@ -260,6 +269,13 @@ export function buildCaptureInjection(): { earlyStub: string, lateInjection: str
         if (values[i] && isTrustedVideoUrl(values[i]))
           addUrl(values[i]);
       }
+    });
+
+    // Mitsubishi/AEM online-media blocks store provider + id instead of a direct iframe src.
+    el.querySelectorAll('[data-media][data-source-id]').forEach(function(node) {
+      var providerUrl = providerVideoUrl(node.getAttribute('data-media'), node.getAttribute('data-source-id'));
+      if (isTrustedVideoUrl(providerUrl))
+        addUrl(providerUrl);
     });
 
     // Keep trusted video iframes (e.g. YouTube/Vimeo) so inline video capture can identify them.
