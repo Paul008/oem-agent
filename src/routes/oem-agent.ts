@@ -25,6 +25,7 @@ import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/regist
 import type { AiProvider, OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
 import { applyCloneEdit } from '../design/page-modes';
+import { scopeProductionCloneHtml, type ScopeProductionCloneDiagnostics } from '../design/production-css-scope';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
@@ -76,13 +77,33 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function buildProductionCloneArtifact(page: any, origin: string) {
+interface ProductionCloneArtifact {
+  body: string;
+  bytes: number;
+  sha256: string;
+  etag: string;
+  scope: ScopeProductionCloneDiagnostics | null;
+}
+
+async function buildProductionCloneArtifact(
+  page: any,
+  origin: string,
+  slugParts?: { oemId: string; modelSlug: string },
+): Promise<ProductionCloneArtifact | null> {
   const html = getProductionCloneHtml(page);
   if (!html) {
     return null;
   }
 
-  const body = absoluteMediaUrls(html, origin);
+  const absoluteHtml = absoluteMediaUrls(html, origin);
+  const baseUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
+  const scoped = slugParts
+    ? await scopeProductionCloneHtml(absoluteHtml, {
+        ...slugParts,
+        baseUrl: typeof baseUrl === 'string' ? baseUrl : undefined,
+      })
+    : { html: absoluteHtml, diagnostics: null };
+  const body = scoped.html;
   const bytes = new TextEncoder().encode(body).byteLength;
   const sha256 = await sha256Hex(body);
 
@@ -91,10 +112,11 @@ async function buildProductionCloneArtifact(page: any, origin: string) {
     bytes,
     sha256,
     etag: `"sha256-${sha256}"`,
+    scope: scoped.diagnostics,
   };
 }
 
-function productionCloneHtmlHeaders(page: any, artifact: { bytes: number; sha256: string; etag: string }) {
+function productionCloneHtmlHeaders(page: any, artifact: ProductionCloneArtifact) {
   return {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
@@ -103,6 +125,7 @@ function productionCloneHtmlHeaders(page: any, artifact: { bytes: number; sha256
     'X-OEM-Content-SHA256': artifact.sha256,
     'X-OEM-Page-Mode': 'clone',
     'X-OEM-Page-Version': String(page?.version ?? ''),
+    'X-OEM-CSS-Scope': artifact.scope?.scopeSelector ?? '',
   };
 }
 
@@ -2145,7 +2168,7 @@ app.get('/pages/:slug/production-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin);
+  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed);
   if (!artifact) {
     return c.json({
       error: 'Production clone HTML is not available for this page',
@@ -2177,7 +2200,7 @@ app.on('HEAD', '/pages/:slug/production-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin);
+  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed);
   if (!artifact) {
     return new Response(null, { status: 409 });
   }
@@ -2206,7 +2229,7 @@ app.get('/pages/:slug/production-manifest', async (c) => {
 
   const page = await obj.json() as any;
   const origin = new URL(c.req.url).origin;
-  const artifact = await buildProductionCloneArtifact(page, origin);
+  const artifact = await buildProductionCloneArtifact(page, origin, parsed);
   if (!artifact) {
     return c.json({
       error: 'Production clone HTML is not available for this page',
@@ -2226,6 +2249,14 @@ app.get('/pages/:slug/production-manifest', async (c) => {
     html_bytes: artifact.bytes,
     html_sha256: artifact.sha256,
     etag: artifact.etag,
+    scope: artifact.scope ? {
+      selector: artifact.scope.scopeSelector,
+      style_tags_scoped: artifact.scope.styleTagsScoped,
+      external_stylesheets_scoped: artifact.scope.externalStylesheetsScoped,
+      external_stylesheets_blocked: artifact.scope.externalStylesheetsBlocked,
+      rules_scoped: artifact.scope.rulesScoped,
+      rules_skipped: artifact.scope.rulesSkipped,
+    } : null,
     updated_at: page?.updated_at ?? null,
     generated_at: page?.generated_at ?? null,
   }, 200, {

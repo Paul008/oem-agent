@@ -16,6 +16,10 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function scopedHtml(oemId: string, modelSlug: string, innerHtml: string): string {
+  return `<div class="oem-production-scope" data-oem-id="${oemId}" data-model-slug="${modelSlug}">${innerHtml}</div>`;
+}
+
 function throwingBucket() {
   return {
     get() {
@@ -110,7 +114,7 @@ describe('oem-agent production HTML route', () => {
     } as never);
 
     expect(response.status).toBe(200);
-    expect(await response.text()).toBe('<main>Original Mustang Clone</main>');
+    expect(await response.text()).toBe(scopedHtml('ford-au', 'mustang', '<main>Original Mustang Clone</main>'));
   });
 
   it('returns production HTML metadata on HEAD without downloading the body', async () => {
@@ -141,13 +145,18 @@ describe('oem-agent production HTML route', () => {
       DEV_MODE: 'true',
     } as never);
 
-    const expectedHtml = '<main><img src="http://localhost/media/pages/assets/mitsubishi-au/outlander/head.jpg">Outlander Clone</main>';
+    const expectedHtml = scopedHtml(
+      'mitsubishi-au',
+      'outlander',
+      '<main><img src="http://localhost/media/pages/assets/mitsubishi-au/outlander/head.jpg">Outlander Clone</main>',
+    );
     const expectedSha = await sha256Hex(expectedHtml);
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toContain('text/html');
     expect(response.headers.get('X-OEM-Page-Mode')).toBe('clone');
     expect(response.headers.get('X-OEM-Page-Version')).toBe('11');
+    expect(response.headers.get('X-OEM-CSS-Scope')).toBe('.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"]');
     expect(response.headers.get('X-OEM-Content-Bytes')).toBe(String(new TextEncoder().encode(expectedHtml).byteLength));
     expect(response.headers.get('X-OEM-Content-SHA256')).toBe(expectedSha);
     expect(response.headers.get('ETag')).toBe(`"sha256-${expectedSha}"`);
@@ -217,7 +226,11 @@ describe('oem-agent production HTML route', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('Cache-Control')).toContain('max-age=300');
 
-    const expectedHtml = '<main><img src="http://localhost/media/pages/assets/mitsubishi-au/outlander/hero.jpg">Make Your Mark.</main>';
+    const expectedHtml = scopedHtml(
+      'mitsubishi-au',
+      'outlander',
+      '<main><img src="http://localhost/media/pages/assets/mitsubishi-au/outlander/hero.jpg">Make Your Mark.</main>',
+    );
     const expectedSha = await sha256Hex(expectedHtml);
     const body = await response.json() as Record<string, unknown>;
 
@@ -232,6 +245,14 @@ describe('oem-agent production HTML route', () => {
       html_bytes: new TextEncoder().encode(expectedHtml).byteLength,
       html_sha256: expectedSha,
       etag: `"sha256-${expectedSha}"`,
+      scope: {
+        selector: '.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"]',
+        style_tags_scoped: 0,
+        external_stylesheets_scoped: 0,
+        external_stylesheets_blocked: 0,
+        rules_scoped: 0,
+        rules_skipped: 0,
+      },
       updated_at: '2026-06-09T01:02:03.000Z',
       generated_at: '2026-06-08T01:02:03.000Z',
     });
