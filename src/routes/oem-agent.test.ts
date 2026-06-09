@@ -285,7 +285,32 @@ describe('oem-agent Tailwind recipe compiler route', () => {
             text: 'PETROL RANGE Make Your Mark. ES LS White Key Features Build your own',
             attributes: { class: 'range-selector colour-picker' },
             computed_style: { display: 'grid', color: 'rgb(0, 0, 0)', 'font-size': '20px' },
-            children: [],
+            children: [
+              {
+                path: '0.0',
+                tag: 'button',
+                text: 'ES',
+                attributes: { class: 'tab active', 'aria-selected': 'true' },
+                computed_style: { 'font-weight': '700' },
+                children: [],
+              },
+              {
+                path: '0.1',
+                tag: 'button',
+                text: 'White',
+                attributes: { class: 'colour-swatch active' },
+                computed_style: { 'background-color': 'rgb(255, 255, 255)' },
+                children: [],
+              },
+              {
+                path: '0.2',
+                tag: 'img',
+                text: '',
+                attributes: { src: 'https://example.test/outlander-white.png' },
+                computed_style: {},
+                children: [],
+              },
+            ],
           },
         },
       }),
@@ -298,6 +323,18 @@ describe('oem-agent Tailwind recipe compiler route', () => {
     expect(body.result.section.oem_id).toBe('mitsubishi-au');
     expect(body.result.section.model_slug).toBe('outlander');
     expect(body.result.section.heading).toBe('Make Your Mark.');
+    expect(body.result.section.fallback_image_url).toBe('https://example.test/outlander-white.png');
+    expect(body.result.section.variants).toEqual([
+      {
+        title: 'ES',
+        description: '',
+        image_url: 'https://example.test/outlander-white.png',
+        key_features: [],
+        colors: [
+          { name: 'White', hero_image_url: 'https://example.test/outlander-white.png', hex: 'rgb(255, 255, 255)' },
+        ],
+      },
+    ]);
   });
 
   it('rejects invalid Tailwind recipe artifacts', async () => {
