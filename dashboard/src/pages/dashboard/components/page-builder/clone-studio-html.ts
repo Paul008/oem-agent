@@ -440,6 +440,12 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         margin: 0 !important;
         line-height: 0 !important;
       }
+
+      .brandcardComponent.white > .brandcard-holder:has(> .brandcard-wrapper):not(:has(> .brandcard-wrapper > *)) {
+        padding: 20px 16px !important;
+        min-height: 0 !important;
+        height: auto !important;
+      }
     }
 
     @media (min-width: 1024px) {

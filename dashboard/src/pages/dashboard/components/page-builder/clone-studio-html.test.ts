@@ -227,6 +227,7 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/\.aem-Grid > \.richtext\.aem-GridColumn--default--12 \.cmp-richtext p:has\(\[class\*="body1-regular-black"\]\)[\s\S]*font-size:\s*0\.75rem\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.richtext\.aem-GridColumn--default--12 \.cmp-richtext p \[class\*="body1-regular-black"\][\s\S]*line-height:\s*1rem\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.richtext \.richtext-read-more > \[data-clone-studio-responsive-content-variant="desktop"\]:not\(\[data-clone-studio-responsive-content-paired="true"\]\) > p:nth-of-type\(n\+4\)[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/\.brandcardComponent\.white > \.brandcard-holder:has\(> \.brandcard-wrapper\):not\(:has\(> \.brandcard-wrapper > \*\)\)[\s\S]*padding:\s*20px 16px\s*!important/i)
     expect(head).toMatch(/\.aem-Grid > \.imagevideoTile,[\s\S]*\.aem-Grid \.imageContainer[\s\S]*padding:\s*0\s*!important/i)
     expect(head).toMatch(/\.aem-Grid \.imagevideoTile img[\s\S]*height:\s*auto\s*!important/i)
 
