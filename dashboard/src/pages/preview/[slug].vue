@@ -7,9 +7,10 @@ import { toast } from 'vue-sonner'
 import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
 import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
+import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
-import { buildRawHtmlSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildRawHtmlSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 
@@ -71,6 +72,10 @@ const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductio
 const canEditPreview = computed(() => !previewReadOnly.value)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((section: any) => section.id === editorSectionId.value) ?? null : null,
+)
+const { fetchProductsForModel, fetchVariantColors } = useOemData()
+const catalogModelSlug = computed(() =>
+  modelSlug.value.includes('--') ? modelSlug.value.split('--')[0] : modelSlug.value,
 )
 
 function normalizePreviewView(value: unknown): PreviewView {
@@ -152,7 +157,7 @@ function onUpdateField(id: string, field: string, value: any) {
   updateSection(id, { [field]: value })
 }
 
-function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
+async function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
   if (previewReadOnly.value)
     return
 
@@ -182,6 +187,40 @@ function onRegionAction({ action, regionId, html }: { action: RegionActionId, re
     addSectionFromLiveData(section)
     setActiveMode('sections')
     toast.success('Region converted to editable section')
+  }
+
+  if (action === 'bind-catalog') {
+    if (!oemId.value) {
+      toast.error('Model context is required to bind catalog data')
+      return
+    }
+    if (!catalogModelSlug.value) {
+      toast.error('Model slug is not available for this page')
+      return
+    }
+    try {
+      const products = await fetchProductsForModel(oemId.value, catalogModelSlug.value)
+      if (!products.length) {
+        toast.error(`No catalog products found for ${catalogModelSlug.value}`)
+        return
+      }
+      const productIds = products.map(product => product.id)
+      const variantColors = productIds.length ? await fetchVariantColors(productIds) : []
+      const sectionsToInsert = buildCatalogSectionsFromModel({
+        oemId: oemId.value,
+        modelSlug: catalogModelSlug.value,
+        regionId,
+        products,
+        variantColors,
+      })
+      for (const section of sectionsToInsert)
+        addSectionFromLiveData(section)
+      setActiveMode('sections')
+      toast.success('Model catalog data added to page sections')
+    }
+    catch (error: any) {
+      toast.error(`Failed to bind catalog data: ${error?.message || 'Unknown error'}`)
+    }
   }
 }
 
