@@ -1492,6 +1492,34 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   };
 }
 
+export function prioritizeCaptureImageUrls(
+  imageUrls: string[],
+  options: { heroUrl?: string; limit?: number } = {},
+): string[] {
+  const limit = options.limit ?? imageUrls.length;
+  const heroUrl = options.heroUrl || '';
+  const unique = [...new Set(imageUrls)];
+
+  function priority(url: string): number {
+    const lower = url.toLowerCase();
+    if (heroUrl && url === heroUrl)
+      return 0;
+    if (lower.includes('hero') || lower.includes('header') || lower.includes('banner'))
+      return 1;
+    if (lower.includes('background') || lower.includes('bg'))
+      return 2;
+    if (/(^|[-_/])showroom([-_/]|$)/i.test(lower))
+      return 3;
+    return 4;
+  }
+
+  return unique
+    .map((url, index) => ({ url, index, priority: priority(url) }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .slice(0, Math.max(0, limit))
+    .map(item => item.url);
+}
+
 // ============================================================================
 // PageCapturer Class
 // ============================================================================
@@ -1559,7 +1587,10 @@ export class PageCapturer {
       console.log(`[PageCapturer] Captured via ${backend}: "${capture.title}", ${capture.elementCount} elements, ${capture.imageUrls.length} images`);
 
       // Download images to R2
-      const imageUrls = capture.imageUrls.slice(0, MAX_IMAGE_DOWNLOADS);
+      const imageUrls = prioritizeCaptureImageUrls(capture.imageUrls, {
+        heroUrl: capture.heroUrl,
+        limit: MAX_IMAGE_DOWNLOADS,
+      });
       const urlMapping = await this.downloadImages(oemId, modelSlug, imageUrls);
 
       // Rewrite image URLs in HTML
@@ -1570,11 +1601,11 @@ export class PageCapturer {
 
       const heroUrl = urlMapping.get(capture.heroUrl) || capture.heroUrl;
 
-      // Assemble: stylesheet links + tab/reset overrides + cleaned HTML body
+      // Assemble: stylesheet links + static clone safety overrides + cleaned HTML body
       const stylesheetHtml = capture.stylesheetLinks.join('\n');
       const overrideCss = [
-        // Force tab panels visible (external CSS hides inactive tabs)
-        '.tab_contents,.tab-content,.tab-panel,.tab_content,[role="tabpanel"],[class*="tabpanel"]{display:block!important;visibility:visible!important;opacity:1!important;}',
+        // Keep tab containers paintable without overriding active/inactive panel state.
+        '.tab_contents,.tab-content,.tab_content{visibility:visible!important;opacity:1!important;}',
         CAPTURE_STATIC_CLONE_SAFETY_CSS,
         CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
         CAPTURE_STATIC_MEDIA_FRAME_CSS,

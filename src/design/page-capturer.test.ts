@@ -19,6 +19,7 @@ import {
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   PageCapturer,
+  prioritizeCaptureImageUrls,
   pseudoElementInlineStyleForCapture,
   sweepCaptureScrollForCapture,
   waitForCaptureDomQuietForCapture,
@@ -629,6 +630,19 @@ describe('PageCapturer persisted clone safety CSS wiring', () => {
     expect(safetyCssUsage).toBeGreaterThan(overrideCssStart)
     expect(assembledStyle).toBeGreaterThan(safetyCssUsage)
   })
+
+  it('does not force inactive tab panels visible in visual clones', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const overrideCssStart = source.indexOf('const overrideCss = [')
+    const overrideCssEnd = source.indexOf("].join('\\n')", overrideCssStart)
+    const overrideCssSource = source.slice(overrideCssStart, overrideCssEnd)
+
+    expect(overrideCssStart).toBeGreaterThan(-1)
+    expect(overrideCssEnd).toBeGreaterThan(overrideCssStart)
+    expect(overrideCssSource).not.toContain('[role="tabpanel"]')
+    expect(overrideCssSource).not.toContain('[class*="tabpanel"]')
+    expect(overrideCssSource).not.toMatch(/tab-panel[^'"]*display:\s*block\s*!important/i)
+  })
 })
 
 describe('PageCapturer persisted carousel safety CSS wiring', () => {
@@ -728,6 +742,23 @@ describe('PageCapturer media downloader', () => {
     } finally {
       globalThis.fetch = originalFetch
     }
+  })
+})
+
+describe('prioritizeCaptureImageUrls', () => {
+  it('keeps hero and showroom banner assets inside the download cap', () => {
+    const filler = Array.from({ length: 55 }, (_, index) => `https://www.mitsubishi-motors.com.au/vehicles/asx/_jcr_content/article/par/image_${index}.coreimg.jpeg/mma3444-25my-asx-showroom-gallery-${index}.jpeg`)
+    const desktopHero = 'https://www.mitsubishi-motors.com.au/content/dam/mmal/vehicles/asx/25my/showroom/MIT0313_10_10_10%20Website%20Header%20Banner_1920x900px_ASX.jpg'
+    const mobileHero = 'https://www.mitsubishi-motors.com.au/content/dam/mmal/vehicles/asx/25my/showroom/MIT0313_10_10_10%20Website%20Header%20Banner_1080x1920px_ASX.jpg'
+
+    const prioritized = prioritizeCaptureImageUrls([...filler, desktopHero, mobileHero], {
+      heroUrl: desktopHero,
+      limit: 50,
+    })
+
+    expect(prioritized).toHaveLength(50)
+    expect(prioritized).toContain(desktopHero)
+    expect(prioritized).toContain(mobileHero)
   })
 })
 
