@@ -4,12 +4,14 @@ import { readFileSync } from 'node:fs';
 const targets = JSON.parse(readFileSync(new URL('./mitsubishi-clone-targets.json', import.meta.url), 'utf8'));
 const args = new Set(process.argv.slice(2));
 const baseUrlArg = process.argv.find(arg => arg.startsWith('--base-url='));
+const authTokenArg = process.argv.find(arg => arg.startsWith('--auth-token='));
 const slugArg = process.argv.find(arg => arg.startsWith('--slug='));
 const baseUrl = (baseUrlArg?.split('=').slice(1).join('=') || process.env.OEM_AGENT_BASE_URL || '').replace(/\/$/, '');
+const authToken = authTokenArg?.split('=').slice(1).join('=') || process.env.OEM_AGENT_AUTH_TOKEN || '';
 const selectedSlug = slugArg?.split('=').slice(1).join('=');
 
 if (!baseUrl) {
-  console.error('Usage: node scripts/clone-mitsubishi-pages.mjs --base-url=https://<worker-api-origin> [--slug=asx] [--continue-on-error]');
+  console.error('Usage: node scripts/clone-mitsubishi-pages.mjs --base-url=https://<worker-api-origin> [--auth-token=token] [--slug=asx] [--continue-on-error]');
   process.exit(1);
 }
 
@@ -25,9 +27,12 @@ if (!selectedTargets.length) {
 const results = [];
 for (const target of selectedTargets) {
   const endpoint = `${baseUrl}/api/v1/oem-agent/admin/clone-page/${target.oemId}/${target.modelSlug}`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken)
+    headers.Authorization = `Bearer ${authToken}`;
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ source_url: target.sourceUrl }),
   });
   const body = await response.json().catch(() => ({}));

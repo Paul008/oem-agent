@@ -36,7 +36,7 @@ export interface PageCaptureResult {
   error?: string;
 }
 
-export type CaptureBackend = 'cloudflare-browser' | 'scrapling-stealth';
+export type CaptureBackend = 'cloudflare-browser' | 'scrapling-stealth' | 'external-html';
 
 export interface ExternalHtmlCaptureInput {
   html: string;
@@ -578,11 +578,21 @@ export async function waitForCaptureFontsForCapture(
 }
 
 export function isCaptureBlockedBySecurityPage(input: { html: string; title?: string }): boolean {
-  const haystack = `${input.title ?? ''}\n${input.html}`
+  const rawHaystack = `${input.title ?? ''}\n${input.html}`
     .replace(/\s+/g, ' ')
     .toLowerCase();
+  let visibleHaystack = rawHaystack;
+  try {
+    const $ = load(input.html);
+    $('script, style, noscript, template').remove();
+    visibleHaystack = `${input.title ?? ''}\n${$('body').text() || $.text()}`
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  } catch {
+    visibleHaystack = rawHaystack;
+  }
 
-  if (!haystack.trim())
+  if (!visibleHaystack.trim() && !rawHaystack.trim())
     return false;
 
   const highConfidenceSignals = [
@@ -591,20 +601,25 @@ export function isCaptureBlockedBySecurityPage(input: { html: string; title?: st
     'this page is displayed while the website verifies you are not a bot',
     'checking if the site connection is secure',
     'verify you are human',
+  ];
+
+  if (highConfidenceSignals.some(signal => visibleHaystack.includes(signal)))
+    return true;
+
+  const rawChallengeSignals = [
     'cf-challenge',
     'cf-turnstile',
     'cloudflare turnstile',
     'challenge-platform',
   ];
-
-  if (highConfidenceSignals.some(signal => haystack.includes(signal)))
+  if (rawChallengeSignals.some(signal => rawHaystack.includes(signal)))
     return true;
 
-  const hasCloudflareContext = haystack.includes('cloudflare') || haystack.includes('cf-ray');
-  const hasChallengeCopy = haystack.includes('just a moment')
-    || haystack.includes('attention required')
-    || haystack.includes('please stand by')
-    || haystack.includes('browser check');
+  const hasCloudflareContext = visibleHaystack.includes('cloudflare') || rawHaystack.includes('cf-ray');
+  const hasChallengeCopy = visibleHaystack.includes('just a moment')
+    || visibleHaystack.includes('attention required')
+    || visibleHaystack.includes('please stand by')
+    || visibleHaystack.includes('browser check');
 
   return hasCloudflareContext && hasChallengeCopy;
 }
@@ -1519,16 +1534,16 @@ export class PageCapturer {
         };
       }
 
-      if (backend === 'scrapling-stealth' && !options.externalCapture?.html) {
+      if ((backend === 'scrapling-stealth' || backend === 'external-html') && !options.externalCapture?.html) {
         return {
           success: false,
           capture_time_ms: Date.now() - startTime,
           capture_backend: backend,
-          error: 'scrapling-stealth capture backend requires external captured_html input',
+          error: `${backend} capture backend requires external captured_html input`,
         };
       }
 
-      const capture = backend === 'scrapling-stealth'
+      const capture = backend === 'scrapling-stealth' || backend === 'external-html'
         ? buildDomCaptureFromHtml(options.externalCapture!, options.externalCapture?.finalUrl || sourceUrl)
         : await this.captureDom(sourceUrl);
       if ('bot_blocked' in capture) {

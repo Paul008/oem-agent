@@ -115,6 +115,79 @@ function createScrollSweepWindow(options: {
   return { win, calls }
 }
 
+function createMemoryBucket() {
+  const writes = new Map<string, string>()
+
+  return {
+    writes,
+    bucket: {
+      async get() {
+        return null
+      },
+      async put(key: string, value: string) {
+        writes.set(key, value)
+        return null
+      },
+    },
+    browser: {} as any,
+  }
+}
+
+function externalHtmlPage() {
+  const body = Array.from({ length: 80 }, (_, index) => `<p>External Mitsubishi capture paragraph ${index}</p>`).join('')
+  return `<!doctype html><html><head><title>Mitsubishi ASX</title><link rel="stylesheet" href="/etc.clientlibs/mmal/site.css"></head><body><main><h1>Mitsubishi ASX</h1>${body}</main></body></html>`
+}
+
+describe('external-html capture backend', () => {
+  it('requires external captured_html input', async () => {
+    const { bucket, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+
+    const result = await capturer.captureModelPage(
+      'mitsubishi-au',
+      'asx',
+      'https://www.mitsubishi-motors.com.au/vehicles/asx.html',
+      'ASX',
+      { backend: 'external-html' },
+    )
+
+    expect(result.success).toBe(false)
+    expect(result.capture_backend).toBe('external-html')
+    expect(result.error).toBe('external-html capture backend requires external captured_html input')
+  })
+
+  it('stores Mitsubishi pages from externally captured browser HTML', async () => {
+    const { bucket, browser, writes } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+
+    const result = await capturer.captureModelPage(
+      'mitsubishi-au',
+      'asx',
+      'https://www.mitsubishi-motors.com.au/vehicles/asx.html',
+      'ASX',
+      {
+        backend: 'external-html',
+        externalCapture: {
+          html: externalHtmlPage(),
+          title: 'Mitsubishi ASX',
+          finalUrl: 'https://www.mitsubishi-motors.com.au/vehicles/asx.html',
+          stylesheetUrls: ['https://www.mitsubishi-motors.com.au/etc.clientlibs/mmal/site.css'],
+        },
+      },
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.capture_backend).toBe('external-html')
+    expect(result.r2_key).toBe('pages/definitions/mitsubishi-au/asx/latest.json')
+    const stored = writes.get('pages/definitions/mitsubishi-au/asx/latest.json')
+    expect(stored).toBeDefined()
+    const page = JSON.parse(stored!)
+    expect(page.active_mode).toBe('clone')
+    expect(page.content.modes.clone.rendered).toContain('Mitsubishi ASX')
+    expect(page.content.modes.clone.source_url).toBe('https://www.mitsubishi-motors.com.au/vehicles/asx.html')
+  })
+})
+
 describe('activateLazyMediaForCapture', () => {
   it('resolves relative image lazy sources before scrolling', () => {
     const rootRelative = createLazyMediaElement({ 'data-src': '/-/media/rav4.jpg' })
@@ -1071,6 +1144,27 @@ describe('isCaptureBlockedBySecurityPage', () => {
           <p>Long live recreation</p>
           <img src="https://www.toyota.com.au/-/media/toyota/main-site/vehicle-hubs/rav4/bep/2026/hero.jpg">
         </main>
+      `,
+    })).toBe(false)
+  })
+
+  it('does not flag model pages that mention security verification only inside scripts', () => {
+    expect(isCaptureBlockedBySecurityPage({
+      title: 'ASX Small SUV Specifications | Mitsubishi Motors Australia Ltd',
+      html: `
+        <html>
+          <body>
+            <main>
+              <h1>ASX</h1>
+              <p>THE ASX FACTOR HAS ARRIVED</p>
+              <p>The Mitsubishi ASX has arrived with sleek styling and smart safety tech.</p>
+            </main>
+            <script>
+              window.copy = "Performing security verification";
+              window.vendor = "security service to protect against malicious bots";
+            </script>
+          </body>
+        </html>
       `,
     })).toBe(false)
   })

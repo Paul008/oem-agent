@@ -2421,8 +2421,8 @@ app.post('/admin/clone-page/:oemId/:modelSlug', async (c) => {
     browser: c.env.BROWSER!,
   });
 
-  const captureBackend = body.capture_backend === 'scrapling-stealth'
-    ? 'scrapling-stealth'
+  const captureBackend = body.capture_backend === 'scrapling-stealth' || body.capture_backend === 'external-html'
+    ? body.capture_backend
     : 'cloudflare-browser';
   const externalCapture = typeof body.captured_html === 'string' && body.captured_html.trim()
     ? {
