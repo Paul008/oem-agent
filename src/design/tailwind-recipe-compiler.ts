@@ -20,6 +20,11 @@ interface ExplorerVariantFallback {
   colors: ExplorerColorFallback[];
 }
 
+interface CtaFallback {
+  text: string;
+  url: string;
+}
+
 function hasVariantPickerSignals(artifact: TailwindRecipeArtifact): boolean {
   const text = artifact.root.text.toLowerCase();
   const classes = artifact.root.attributes.class?.toLowerCase() || '';
@@ -31,6 +36,11 @@ function hasVariantPickerSignals(artifact: TailwindRecipeArtifact): boolean {
 function extractHeading(text: string): string {
   const match = text.match(/Make Your Mark\./i);
   return match ? match[0] : 'Make Your Mark.';
+}
+
+function extractEyebrow(text: string): string {
+  const match = cleanText(text).match(/\b([A-Z0-9][A-Z0-9 &+-]{1,28}\s+RANGE)\b/);
+  return match ? match[1] : 'PETROL RANGE';
 }
 
 function cleanText(value: string): string {
@@ -122,6 +132,23 @@ function extractFeatureItems(artifact: TailwindRecipeArtifact): string[] {
     .slice(0, 8);
 }
 
+function extractCta(artifact: TailwindRecipeArtifact): CtaFallback {
+  const cta = walkNodes(artifact.root).find((node) => {
+    const text = cleanText(node.text);
+    const signal = nodeSignal(node);
+    const hasHref = typeof node.attributes.href === 'string' && node.attributes.href.length > 0;
+    return text.length > 0
+      && text.length <= 48
+      && (/build|configure|price|own|enquire/i.test(text) || /primary|cta/.test(signal) || hasHref)
+      && (node.tag === 'a' || node.tag === 'button' || hasHref);
+  });
+
+  return {
+    text: cleanText(cta?.text || '') || 'Build your own',
+    url: cta?.attributes.href || '',
+  };
+}
+
 function buildVariantFallbacks(artifact: TailwindRecipeArtifact): { fallbackImageUrl: string; variants: ExplorerVariantFallback[] } {
   const fallbackImageUrl = extractImageUrl(artifact);
   const features = extractFeatureItems(artifact);
@@ -145,6 +172,7 @@ export function compileTailwindRecipe(artifact: TailwindRecipeArtifact): Tailwin
 
   if (hasVariantPickerSignals(artifact)) {
     const fallback = buildVariantFallbacks(artifact);
+    const cta = extractCta(artifact);
     return {
       section_type: 'variant-color-explorer',
       section: {
@@ -152,10 +180,10 @@ export function compileTailwindRecipe(artifact: TailwindRecipeArtifact): Tailwin
         oem_id: artifact.oem_id,
         model_slug: artifact.model_slug,
         data_source: 'database',
-        eyebrow: 'PETROL RANGE',
+        eyebrow: extractEyebrow(artifact.root.text),
         heading: extractHeading(artifact.root.text),
-        cta_text: 'Build your own',
-        cta_url: '',
+        cta_text: cta.text,
+        cta_url: cta.url,
         fallback_image_url: fallback.fallbackImageUrl,
         variants: fallback.variants,
         _tailwind_recipe: {

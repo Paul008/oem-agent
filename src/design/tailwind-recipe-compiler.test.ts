@@ -142,6 +142,38 @@ describe('compileTailwindRecipe', () => {
     expect(result.section.fallback_image_url).toBe('https://example.test/outlander-es-white.png');
   });
 
+  it('preserves captured range label and CTA target', () => {
+    const result = compileTailwindRecipe({
+      ...outlanderArtifact,
+      root: {
+        ...outlanderArtifact.root,
+        text: 'PHEV RANGE Make Your Mark. ES White Key Features Configure yours',
+        children: [
+          {
+            path: '0.0',
+            tag: 'button',
+            text: 'ES',
+            attributes: { class: 'tab active', 'aria-selected': 'true' },
+            computed_style: {},
+            children: [],
+          },
+          {
+            path: '0.1',
+            tag: 'a',
+            text: 'Configure yours',
+            attributes: { class: 'button primary', href: '/vehicles/outlander/build-and-price.html' },
+            computed_style: {},
+            children: [],
+          },
+        ],
+      },
+    });
+
+    expect(result.section.eyebrow).toBe('PHEV RANGE');
+    expect(result.section.cta_text).toBe('Configure yours');
+    expect(result.section.cta_url).toBe('/vehicles/outlander/build-and-price.html');
+  });
+
   it('falls back to content-block for unknown regions', () => {
     const result = compileTailwindRecipe({
       ...outlanderArtifact,
