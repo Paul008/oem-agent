@@ -49,6 +49,17 @@ GET /api/v1/oem-agent/pages/:slug/production-manifest
 
 4. Render the returned HTML in the external application.
 
+Browser consumers can read the artifact validation headers from the `production-html` response:
+
+```txt
+X-OEM-Content-Bytes
+X-OEM-Content-SHA256
+X-OEM-Page-Mode
+X-OEM-Page-Version
+```
+
+These headers are exposed through CORS for external app integrations.
+
 ## Production Mode Rules
 
 - `mode: "clone"` is the production baseline.

@@ -206,6 +206,14 @@ app.use('*', cors({
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'CF-Access-Jwt-Assertion'],
+  exposeHeaders: [
+    'Content-Length',
+    'ETag',
+    'X-OEM-Content-Bytes',
+    'X-OEM-Content-SHA256',
+    'X-OEM-Page-Mode',
+    'X-OEM-Page-Version',
+  ],
 }));
 
 // Middleware: Log every request
