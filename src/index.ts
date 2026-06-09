@@ -32,7 +32,7 @@ import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './ga
 import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy } from './routes';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
-import { shouldAttachSandboxForPath } from './sandbox-paths';
+import { isProductionArtifactPath, shouldAttachSandboxForPath } from './sandbox-paths';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
 
@@ -284,6 +284,12 @@ app.use('*', async (c, next) => {
 
   // Skip validation for debug routes (they have their own enable check)
   if (url.pathname.startsWith('/debug')) {
+    return next();
+  }
+
+  // Production page artifacts are static R2-backed output for external sites.
+  // They must not depend on OpenClaw gateway or AI provider configuration.
+  if (isProductionArtifactPath(url.pathname)) {
     return next();
   }
 

@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldAttachSandboxForPath } from './sandbox-paths';
+import { isProductionArtifactPath, shouldAttachSandboxForPath } from './sandbox-paths';
+
+describe('isProductionArtifactPath', () => {
+  it.each([
+    '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-html',
+    '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-manifest',
+  ])('matches external production artifact endpoint %s', (pathname) => {
+    expect(isProductionArtifactPath(pathname)).toBe(true);
+  });
+
+  it.each([
+    '/api/v1/oem-agent/pages/mitsubishi-au-outlander',
+    '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-json',
+    '/api/oem-agent/pages/mitsubishi-au-outlander/production-html',
+    '/media/pages/assets/mitsubishi-au/outlander/hero.jpg',
+  ])('does not match non-artifact path %s', (pathname) => {
+    expect(isProductionArtifactPath(pathname)).toBe(false);
+  });
+});
 
 describe('shouldAttachSandboxForPath', () => {
   it.each([
