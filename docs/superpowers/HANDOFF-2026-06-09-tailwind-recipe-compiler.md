@@ -1,0 +1,20 @@
+# Tailwind Recipe Compiler Handoff
+
+## Shipped
+
+- Added Tailwind recipe artifact types.
+- Added computed-style normalization with an allowlist.
+- Added deterministic CSS declaration to Tailwind candidate mapping.
+- Added first-pass recipe compiler that recognizes the Mitsubishi Outlander variant/colour picker and emits a `variant-color-explorer` section draft.
+
+## Verification
+
+- Focused Vitest tests passed for recipe types, style normalization, declaration mapping, and compiler output.
+- `pnpm run typecheck` passed.
+
+## Next Slice
+
+- Wire Clone Studio selected-region capture to produce `TailwindRecipeArtifact`.
+- Add persisted draft recipe preview in the dashboard.
+- Add Playwright visual QA comparing the generated Mitsubishi pilot section against the OEM reference at desktop, tablet, and mobile.
+- Evaluate `css-to-tailwindcss` as a mapper enhancement once the internal mapper shape is stable.
