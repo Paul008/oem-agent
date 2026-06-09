@@ -26,6 +26,8 @@ import type { AiProvider, OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
 import { applyCloneEdit } from '../design/page-modes';
 import { scopeProductionCloneHtml, type ScopeProductionCloneDiagnostics } from '../design/production-css-scope';
+import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
+import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
@@ -732,6 +734,29 @@ app.post('/admin/smart-capture', async (c) => {
   } catch (e: any) {
     return c.json({ error: e.message || 'Section parsing failed' }, 500);
   }
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/compile-tailwind-recipe
+ *
+ * Converts a selected Clone Studio region artifact into a structured section draft.
+ * This is non-mutating: callers decide whether to preview, save, or discard the draft.
+ */
+app.post('/admin/compile-tailwind-recipe', async (c) => {
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  const artifact = body?.artifact ?? body;
+  if (!isTailwindRecipeArtifact(artifact)) {
+    return c.json({ success: false, error: 'Invalid Tailwind recipe artifact' }, 400);
+  }
+
+  const result = compileTailwindRecipe(artifact);
+  return c.json({ success: true, result });
 });
 
 /**

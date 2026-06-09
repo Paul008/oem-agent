@@ -260,6 +260,60 @@ describe('oem-agent production HTML route', () => {
   });
 });
 
+describe('oem-agent Tailwind recipe compiler route', () => {
+  const env = {
+    MOLTBOT_BUCKET: {},
+    SUPABASE_URL: 'https://supabase.test',
+    SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+    DEV_MODE: 'true',
+  } as never;
+
+  it('compiles a captured Mitsubishi region artifact into a section draft', async () => {
+    const response = await oemAgentApp.request('/admin/compile-tailwind-recipe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        artifact: {
+          oem_id: 'mitsubishi-au',
+          model_slug: 'outlander',
+          source_url: 'https://www.mitsubishi-motors.com.au/vehicles/outlander.html',
+          region_id: 'outlander-variant-picker',
+          viewport: { name: 'desktop', width: 1440, height: 1200 },
+          root: {
+            path: '0',
+            tag: 'section',
+            text: 'PETROL RANGE Make Your Mark. ES LS White Key Features Build your own',
+            attributes: { class: 'range-selector colour-picker' },
+            computed_style: { display: 'grid', color: 'rgb(0, 0, 0)', 'font-size': '20px' },
+            children: [],
+          },
+        },
+      }),
+    }, env);
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.result.section_type).toBe('variant-color-explorer');
+    expect(body.result.section.oem_id).toBe('mitsubishi-au');
+    expect(body.result.section.model_slug).toBe('outlander');
+    expect(body.result.section.heading).toBe('Make Your Mark.');
+  });
+
+  it('rejects invalid Tailwind recipe artifacts', async () => {
+    const response = await oemAgentApp.request('/admin/compile-tailwind-recipe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifact: { root: null } }),
+    }, env);
+
+    expect(response.status).toBe(400);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('Invalid Tailwind recipe artifact');
+  });
+});
+
 describe('oem-agent clone update route', () => {
   it.each([
     {
