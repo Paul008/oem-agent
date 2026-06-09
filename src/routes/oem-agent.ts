@@ -70,6 +70,30 @@ function absoluteMediaUrls(html: string, origin: string): string {
   return html.replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${base}/media/`);
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function buildProductionCloneArtifact(page: any, origin: string) {
+  const html = getProductionCloneHtml(page);
+  if (!html) {
+    return null;
+  }
+
+  const body = absoluteMediaUrls(html, origin);
+  const bytes = new TextEncoder().encode(body).byteLength;
+  const sha256 = await sha256Hex(body);
+
+  return {
+    body,
+    bytes,
+    sha256,
+    etag: `"sha256-${sha256}"`,
+  };
+}
+
 function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
   if (!isModelPageWriteProtected(oemId)) {
     return null;
@@ -2109,8 +2133,8 @@ app.get('/pages/:slug/production-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const html = getProductionCloneHtml(page);
-  if (!html) {
+  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin);
+  if (!artifact) {
     return c.json({
       error: 'Production clone HTML is not available for this page',
       slug,
@@ -2118,14 +2142,62 @@ app.get('/pages/:slug/production-html', async (c) => {
     }, 409);
   }
 
-  const body = absoluteMediaUrls(html, new URL(c.req.url).origin);
-  return new Response(body, {
+  return new Response(artifact.body, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+      'ETag': artifact.etag,
+      'X-OEM-Content-Bytes': String(artifact.bytes),
+      'X-OEM-Content-SHA256': artifact.sha256,
       'X-OEM-Page-Mode': 'clone',
       'X-OEM-Page-Version': String(page?.version ?? ''),
     },
+  });
+});
+
+/**
+ * GET /api/v1/oem-agent/pages/:slug/production-manifest
+ * Return production clone metadata without downloading the full HTML artifact.
+ */
+app.get('/pages/:slug/production-manifest', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  const page = await obj.json() as any;
+  const origin = new URL(c.req.url).origin;
+  const artifact = await buildProductionCloneArtifact(page, origin);
+  if (!artifact) {
+    return c.json({
+      error: 'Production clone HTML is not available for this page',
+      slug,
+      active_mode: page?.active_mode ?? null,
+    }, 409);
+  }
+
+  return c.json({
+    slug,
+    oem_id: parsed.oemId,
+    model_slug: parsed.modelSlug,
+    mode: 'clone',
+    active_mode: page?.active_mode ?? null,
+    version: page?.version ?? null,
+    html_url: `${origin}/api/v1/oem-agent/pages/${slug}/production-html`,
+    html_bytes: artifact.bytes,
+    html_sha256: artifact.sha256,
+    etag: artifact.etag,
+    updated_at: page?.updated_at ?? null,
+    generated_at: page?.generated_at ?? null,
+  }, 200, {
+    'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
   });
 });
 

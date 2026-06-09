@@ -10,6 +10,12 @@ function jsonObject(value: unknown) {
   };
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function throwingBucket() {
   return {
     get() {
@@ -66,10 +72,15 @@ describe('oem-agent production HTML route', () => {
     expect(response.headers.get('X-OEM-Page-Version')).toBe('12');
 
     const html = await response.text();
+    const expectedSha = await sha256Hex(html);
+
     expect(html).toContain('Edited Clone');
     expect(html).not.toContain('Original Clone');
     expect(html).not.toContain('Structured renderer');
     expect(html).toContain('http://localhost/media/pages/assets/mitsubishi-au/outlander/edited.jpg');
+    expect(response.headers.get('X-OEM-Content-Bytes')).toBe(String(new TextEncoder().encode(html).byteLength));
+    expect(response.headers.get('X-OEM-Content-SHA256')).toBe(expectedSha);
+    expect(response.headers.get('ETag')).toBe(`"sha256-${expectedSha}"`);
   });
 
   it('falls back to original clone HTML when no edited clone exists', async () => {
@@ -132,6 +143,58 @@ describe('oem-agent production HTML route', () => {
     expect(response.status).toBe(409);
     const body = await response.json() as { error: string };
     expect(body.error).toContain('Production clone HTML is not available');
+  });
+
+  it('returns a production manifest for linked apps without serving the HTML body', async () => {
+    const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+    const pageData = {
+      active_mode: 'clone',
+      version: 10,
+      updated_at: '2026-06-09T01:02:03.000Z',
+      generated_at: '2026-06-08T01:02:03.000Z',
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main><img src="/media/pages/assets/mitsubishi-au/outlander/hero.jpg">Make Your Mark.</main>',
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-manifest', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toContain('max-age=300');
+
+    const expectedHtml = '<main><img src="http://localhost/media/pages/assets/mitsubishi-au/outlander/hero.jpg">Make Your Mark.</main>';
+    const expectedSha = await sha256Hex(expectedHtml);
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(body).toMatchObject({
+      slug: 'mitsubishi-au-outlander',
+      oem_id: 'mitsubishi-au',
+      model_slug: 'outlander',
+      mode: 'clone',
+      active_mode: 'clone',
+      version: 10,
+      html_url: 'http://localhost/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-html',
+      html_bytes: new TextEncoder().encode(expectedHtml).byteLength,
+      html_sha256: expectedSha,
+      etag: `"sha256-${expectedSha}"`,
+      updated_at: '2026-06-09T01:02:03.000Z',
+      generated_at: '2026-06-08T01:02:03.000Z',
+    });
+    expect(JSON.stringify(body)).not.toContain('Make Your Mark.');
   });
 });
 
