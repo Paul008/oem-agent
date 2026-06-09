@@ -4,6 +4,7 @@ import {
   buildResponsiveImageFindings,
   imageIdentityKey,
   parseCliArgs,
+  pngDimensions,
   renderMarkdownReport,
   scoreCapturePair,
 } from './oem-fidelity-report.mjs';
@@ -74,6 +75,18 @@ describe('parseCliArgs', () => {
 describe('imageIdentityKey', () => {
   it('unwraps proxied media URLs and normalizes viewport suffixes', () => {
     expect(imageIdentityKey('https://oem-dashboard.pages.dev/media?url=https%3A%2F%2Fcdn.example.com%2Fhero-mobile.jpg')).toBe('hero-mobile.jpg');
+  });
+});
+
+describe('pngDimensions', () => {
+  it('reads width and height from a PNG header', () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAQAAABeK7cBAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64');
+
+    expect(pngDimensions(png)).toEqual({ width: 2, height: 3 });
+  });
+
+  it('returns zero dimensions for non-PNG data', () => {
+    expect(pngDimensions(Buffer.from('not a png'))).toEqual({ width: 0, height: 0 });
   });
 });
 

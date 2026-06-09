@@ -31,6 +31,11 @@ const STABILIZE_CSS = [
   'html,body{caret-color:transparent!important}',
 ].join('\n');
 
+const ONE_BY_ONE_RED_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+  'base64',
+);
+
 const COMMON_SOURCE_CHROME_SELECTORS = [
   'header',
   'nav',
@@ -57,6 +62,18 @@ function readNext(argv, index, arg) {
   if (!value || value.startsWith('--'))
     throw new Error(`${arg} requires a value`);
   return value;
+}
+
+export function pngDimensions(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 24)
+    return { width: 0, height: 0 };
+  const signature = buffer.subarray(0, 8).toString('hex');
+  if (signature !== '89504e470d0a1a0a')
+    return { width: 0, height: 0 };
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+  };
 }
 
 export function parseCliArgs(argv) {
@@ -641,7 +658,9 @@ async function compareScreenshots(browser, sourcePath, previewPath, diffPath, th
     readFile(sourcePath),
     readFile(previewPath),
   ]);
-  const result = await page.evaluate(async ({ sourcePath, previewPath, threshold }) => {
+  let result;
+  try {
+    result = await page.evaluate(async ({ sourcePath, previewPath, threshold }) => {
     async function loadImage(path) {
       const image = new Image();
       image.src = path;
@@ -727,11 +746,28 @@ async function compareScreenshots(browser, sourcePath, previewPath, diffPath, th
       })),
       diffDataUrl: diffCanvas.toDataURL('image/png'),
     };
-  }, {
-    sourcePath: `data:image/png;base64,${sourceBuffer.toString('base64')}`,
-    previewPath: `data:image/png;base64,${previewBuffer.toString('base64')}`,
-    threshold,
-  });
+    }, {
+      sourcePath: `data:image/png;base64,${sourceBuffer.toString('base64')}`,
+      previewPath: `data:image/png;base64,${previewBuffer.toString('base64')}`,
+      threshold,
+    });
+  } catch (error) {
+    await page.close();
+    await writeFile(diffPath, ONE_BY_ONE_RED_PNG);
+    return {
+      width: 0,
+      height: 0,
+      sourceSize: pngDimensions(sourceBuffer),
+      previewSize: pngDimensions(previewBuffer),
+      comparedPixels: 0,
+      diffPixels: 0,
+      mismatchPercent: 1,
+      averageChannelDelta: 255,
+      segments: [],
+      diffPath,
+      decodeError: error instanceof Error ? error.message : String(error),
+    };
+  }
   await page.close();
 
   const base64 = result.diffDataUrl.replace(/^data:image\/png;base64,/, '');
@@ -742,6 +778,16 @@ async function compareScreenshots(browser, sourcePath, previewPath, diffPath, th
 
 export function buildCaptureFindings(pair) {
   const findings = [];
+  if (pair.diff.decodeError) {
+    findings.push({
+      severity: 'critical',
+      viewport: pair.viewport,
+      target: 'comparison',
+      type: 'screenshot-decode-failed',
+      message: `${pair.viewport} screenshot comparison failed to decode one or both PNG artifacts.`,
+      samples: [{ error: pair.diff.decodeError }],
+    });
+  }
   for (const capture of [pair.source, pair.preview]) {
     const label = `${capture.target}/${capture.viewport}`;
     if (capture.network.failedCount > 0) {

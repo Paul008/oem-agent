@@ -282,10 +282,88 @@ Recommended next slice:
    - run against one Hyundai/Kia/Mazda model page and one non-AEM OEM page
    - keep `--fail-on none` until baseline thresholds are calibrated
 
+## 2026-06-09 Mitsubishi baseline
+
+Mitsubishi is now the second Clone Studio fidelity brand.
+
+What changed:
+
+- Added repeatable target manifest and runners:
+  - `scripts/mitsubishi-clone-targets.json`
+  - `scripts/clone-mitsubishi-pages.mjs`
+  - `scripts/run-mitsubishi-fidelity.mjs`
+- Added `capture_backend: "external-html"` in the worker capture path.
+  - Purpose: allow a real authenticated browser capture to feed Clone Studio when Cloudflare Browser
+    receives a security-verification page.
+  - `scrapling-stealth` remains Toyota-only; `external-html` is not Scrapling.
+- Narrowed security-page detection so normal model pages are not rejected because vendor scripts
+  contain bot-verification copy.
+- Hardened `scripts/oem-fidelity-report.mjs` so very large PNG decode failures write a structured
+  `screenshot-decode-failed` finding instead of aborting the whole report.
+
+Deployment and clone status:
+
+- Worker deployed after external HTML support:
+  - Version: `fae66ebd-6134-4dc0-a704-5ee87489fffe`
+  - URL: `https://oem-agent.adme-dev.workers.dev`
+- Five Mitsubishi pages cloned to R2 through browser-captured external HTML:
+  - ASX: `pages/definitions/mitsubishi-au/asx/latest.json`
+  - Outlander: `pages/definitions/mitsubishi-au/outlander/latest.json`
+  - Eclipse Cross: `pages/definitions/mitsubishi-au/eclipse-cross/latest.json`
+  - Triton: `pages/definitions/mitsubishi-au/triton/latest.json`
+  - Pajero Sport: `pages/definitions/mitsubishi-au/pajero-sport/latest.json`
+
+Current dashboard preview origin used for baseline:
+
+`https://bc9f2486.oem-dashboard.pages.dev`
+
+Baseline command:
+
+```bash
+node scripts/run-mitsubishi-fidelity.mjs \
+  --preview-origin=https://bc9f2486.oem-dashboard.pages.dev \
+  --continue-on-error
+```
+
+Latest full baseline reports:
+
+| Model | Source | Score | Findings | Report |
+| --- | --- | ---: | ---: | --- |
+| ASX | `https://www.mitsubishi-motors.com.au/vehicles/asx.html` | `41.5/100` | `13` | `/private/tmp/oem-fidelity/mitsubishi/custom-2026-06-09T01-51-12-720Z` |
+| Outlander | `https://www.mitsubishi-motors.com.au/vehicles/outlander.html` | `41.3/100` | `16` | `/private/tmp/oem-fidelity/mitsubishi/custom-2026-06-09T01-52-25-480Z` |
+| Eclipse Cross | `https://www.mitsubishi-motors.com.au/vehicles/eclipse-cross.html` | `42.5/100` | `14` | `/private/tmp/oem-fidelity/mitsubishi/custom-2026-06-09T01-53-31-988Z` |
+| Triton | `https://www.mitsubishi-motors.com.au/vehicles/triton.html` | `44.7/100` | `10` | `/private/tmp/oem-fidelity/mitsubishi/custom-2026-06-09T01-54-40-294Z` |
+| Pajero Sport | `https://www.mitsubishi-motors.com.au/vehicles/pajero-sport.html` | `46.0/100` | `11` | `/private/tmp/oem-fidelity/mitsubishi/custom-2026-06-09T01-55-42-989Z` |
+
+Observed Mitsubishi-specific fidelity issues:
+
+- Direct Mitsubishi responsive image URLs can remain in cloned markup and abort during preview
+  screenshot capture, especially hero/mobile art direction URLs.
+- The media proxy returns `403` for a Google Material Icons font URL captured through Mitsubishi CSS.
+- Preview heights are consistently taller than source. ASX example from first successful report:
+  source mobile `390x14018`, preview mobile `390x15289`.
+- Footer/widget state differs from source; source mobile footer accordions and preview static DOM state
+  are not yet normalized.
+- Large desktop PNG comparisons can hit browser image decode limits. The QA fallback now records this
+  as a critical finding instead of losing the whole report.
+
+Recommended next Mitsubishi fixes:
+
+1. Normalize or proxy Mitsubishi responsive `srcset`/`picture` URLs during external HTML capture so
+   mobile hero and AEM `coreimg` candidates do not leak back to the live site.
+2. Fix media proxy handling for third-party font assets or exclude Material Icons font failures from
+   critical preview findings when icons render acceptably.
+3. Compare source/preview lower-page widget state and decide whether footer accordions should be
+   collapsed, expanded, or hidden from model-page fidelity gates.
+4. Re-run the full Mitsubishi matrix after each generic Clone Studio bridge change to ensure Ford
+   improvements do not regress non-Ford AEM captures.
+
 ## Files to inspect first
 
 - QA runner: `scripts/oem-fidelity-report.mjs`
 - QA tests: `scripts/oem-fidelity-report.test.mjs`
+- Mitsubishi target manifest: `scripts/mitsubishi-clone-targets.json`
+- Mitsubishi runners: `scripts/clone-mitsubishi-pages.mjs`, `scripts/run-mitsubishi-fidelity.mjs`
 - Clone preview bridge/CSS: `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts`
 - Bridge tests: `dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts`
 - Worker media proxy CSS rewriting: `src/routes/media.ts`

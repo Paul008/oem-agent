@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 const targets = JSON.parse(readFileSync(new URL('./mitsubishi-clone-targets.json', import.meta.url), 'utf8'));
 const deployArg = process.argv.find(arg => arg.startsWith('--preview-origin='));
 const slugArg = process.argv.find(arg => arg.startsWith('--slug='));
+const continueOnError = process.argv.includes('--continue-on-error');
 const previewOrigin = (deployArg?.split('=').slice(1).join('=') || process.env.OEM_DASHBOARD_PREVIEW_ORIGIN || '').replace(/\/$/, '');
 const selectedSlug = slugArg?.split('=').slice(1).join('=');
 const selectedTargets = selectedSlug ? targets.filter(target => target.modelSlug === selectedSlug) : targets;
@@ -36,6 +37,6 @@ for (const target of selectedTargets) {
     'critical',
   ], { stdio: 'inherit' });
 
-  if (result.status !== 0)
+  if (result.status !== 0 && !continueOnError)
     process.exit(result.status || 1);
 }
