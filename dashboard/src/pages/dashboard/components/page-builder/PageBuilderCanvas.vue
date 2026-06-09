@@ -237,6 +237,7 @@ function onCloneRegionSelected(region: any) {
       editable_fields: Array.isArray(region.editable_fields) ? region.editable_fields : [],
       type_hint: region.type_hint,
       html: region.html,
+      tailwindRecipeArtifact: region.tailwindRecipeArtifact,
       toolbar_x: Number(region.toolbar_x) || 0,
       toolbar_y: Number(region.toolbar_y) || 0,
       height: Number(region.height) || 0,

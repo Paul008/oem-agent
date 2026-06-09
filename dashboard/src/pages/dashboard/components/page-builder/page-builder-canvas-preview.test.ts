@@ -481,6 +481,8 @@ describe('clone region conversion wiring', () => {
 
     expect(bridgeSource).toContain('function getRegionHtml(element)')
     expect(bridgeSource).toContain('function getTailwindRecipeArtifact(element)')
+    expect(bridgeSource).toContain('html: getRegionHtml(element)')
+    expect(bridgeSource).toContain('tailwindRecipeArtifact: getTailwindRecipeArtifact(element)')
     expect(bridgeSource).toContain('regionHtml: getRegionHtml(region)')
     expect(bridgeSource).toContain('tailwindRecipeArtifact: getTailwindRecipeArtifact(region)')
     expect(cloneCanvasSource).toContain('html: typeof data.regionHtml === \'string\' ? data.regionHtml : \'\'')
@@ -489,6 +491,7 @@ describe('clone region conversion wiring', () => {
     expect(canvasSource).toContain('tailwindRecipeArtifact?: any')
     expect(canvasSource).toContain('html: menu.html')
     expect(canvasSource).toContain('tailwindRecipeArtifact: menu.tailwindRecipeArtifact')
+    expect(canvasSource).toContain('tailwindRecipeArtifact: region.tailwindRecipeArtifact')
     expect(canvasSource).toContain('emit(\'regionAction\', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
   })
 
