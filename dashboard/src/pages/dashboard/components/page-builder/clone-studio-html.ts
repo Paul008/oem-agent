@@ -419,20 +419,20 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         letter-spacing: 0 !important;
       }
 
-      .aem-Grid > .richtext .cmp-richtext p[class*="body1-regular-black"],
-      .aem-Grid > .richtext .cmp-richtext p[class*="body1-medium-black"],
-      .aem-Grid > .richtext .cmp-richtext p:has([class*="body1-regular-black"]),
-      .aem-Grid > .richtext .cmp-richtext p:has([class*="body1-medium-black"]) {
+      .aem-Grid .richtext .cmp-richtext p[class*="body1-regular-black"],
+      .aem-Grid .richtext .cmp-richtext p[class*="body1-medium-black"],
+      .aem-Grid .richtext .cmp-richtext p:has([class*="body1-regular-black"]),
+      .aem-Grid .richtext .cmp-richtext p:has([class*="body1-medium-black"]) {
         font-size: 0.75rem !important;
         line-height: 1rem !important;
         margin: 12px 0 !important;
         letter-spacing: 0 !important;
       }
 
-      .aem-Grid > .richtext .cmp-richtext p[class*="body1-regular-black"] a,
-      .aem-Grid > .richtext .cmp-richtext p[class*="body1-medium-black"] a,
-      .aem-Grid > .richtext .cmp-richtext p [class*="body1-regular-black"],
-      .aem-Grid > .richtext .cmp-richtext p [class*="body1-medium-black"] {
+      .aem-Grid .richtext .cmp-richtext p[class*="body1-regular-black"] a,
+      .aem-Grid .richtext .cmp-richtext p[class*="body1-medium-black"] a,
+      .aem-Grid .richtext .cmp-richtext p [class*="body1-regular-black"],
+      .aem-Grid .richtext .cmp-richtext p [class*="body1-medium-black"] {
         font-size: 0.75rem !important;
         line-height: 1rem !important;
         letter-spacing: 0 !important;
