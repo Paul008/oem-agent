@@ -327,7 +327,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('data-clone-studio-responsive-variant')
     expect(bridgeScript).toContain('data-clone-studio-responsive-paired')
     expect(bridgeScript).toContain('markResponsiveImageVariants()')
-    expect(bridgeScript).toContain('.imgdesktop, .dsktoponly, .imgmobile, .mobonly, .mobileonly')
+    expect(bridgeScript).toContain('querySelectorAll(\'img, source\'')
     expect(bridgeScript).not.toContain('.hero, section, div')
   })
 

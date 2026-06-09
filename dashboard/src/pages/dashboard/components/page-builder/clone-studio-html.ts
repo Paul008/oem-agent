@@ -1851,15 +1851,65 @@ ${rendered}
   }
 
   function isResponsiveDesktopImage(node) {
-    return !!node && node.classList && (node.classList.contains('imgdesktop') || node.classList.contains('dsktoponly'))
+    if (!node || !node.classList)
+      return false
+
+    var className = String(node.getAttribute('class') || '').toLowerCase()
+    var source = responsiveDesktopSource(node)
+    var sourceName = String(source || '').toLowerCase()
+
+    if (node.classList.contains('imgdesktop') || node.classList.contains('dsktoponly'))
+      return true
+    if (node.classList.contains('desktop-only') || node.classList.contains('desktoponly') || node.classList.contains('onlydesktop'))
+      return true
+    if (node.classList.contains('pc-only') || node.classList.contains('only-pc') || node.classList.contains('show-desktop') || node.classList.contains('showfordesktop'))
+      return true
+    if (/(^|\\s)desktop(-|_)?(only|onlyview|onlyview-only)?($|\\s)/i.test(className))
+      return true
+    if (/(^|\\s)(show|hide)-(for-)?(md|lg|xl|xxl|desktop|desktop-only)($|\\s)/i.test(className))
+      return true
+    if (/(^|\\s)hidden-mobile($|\\s)/i.test(className))
+      return true
+    if (/-desktop(?:[-_]|\\.|\\d|$)/i.test(sourceName)
+      || /(?:^|[\\/_-])desktop(?:[\\/_-]|$)/i.test(sourceName)
+      || /desktop-new/i.test(sourceName)
+      || /desktopv/i.test(sourceName))
+      return true
+
+    return false
   }
 
   function isResponsiveMobileImage(node) {
-    return !!node && node.classList && (node.classList.contains('imgmobile') || node.classList.contains('mobonly') || node.classList.contains('mobileonly'))
+    if (!node || !node.classList)
+      return false
+
+    var className = String(node.getAttribute('class') || '').toLowerCase()
+    var source = responsiveDesktopSource(node)
+    var sourceName = String(source || '').toLowerCase()
+
+    if (node.classList.contains('imgmobile') || node.classList.contains('mobonly') || node.classList.contains('mobileonly'))
+      return true
+    if (node.classList.contains('mobile-only') || node.classList.contains('mobileonly') || node.classList.contains('onlymobile'))
+      return true
+    if (node.classList.contains('show-mobile') || node.classList.contains('showformobile') || node.classList.contains('show-for-mobile'))
+      return true
+    if (/(^|\\s)mobile(-|_)?(only|onlyview|onlyview-only)?($|\\s)/i.test(className))
+      return true
+    if (/(^|\\s)(show|hide)-(for-)?(sm|md|mobile|mobile-only)($|\\s)/i.test(className))
+      return true
+    if (/(^|\\s)hidden-desktop($|\\s)/i.test(className))
+      return true
+    if (/-mobile(?:[-_]|\\.|\\d|$)/i.test(sourceName)
+      || /(?:^|[\\/_-])mobile(?:[\\/_-]|$)/i.test(sourceName)
+      || /mobile-new/i.test(sourceName)
+      || /mobilev/i.test(sourceName))
+      return true
+
+    return false
   }
 
   function markResponsiveImageVariants() {
-    var candidates = document.querySelectorAll('.imgdesktop, .dsktoponly, .imgmobile, .mobonly, .mobileonly')
+    var candidates = document.querySelectorAll('img, source')
     for (var i = 0; i < candidates.length; i++) {
       var node = candidates[i]
 
@@ -1939,6 +1989,11 @@ ${rendered}
     for (var i = 0; i < explicitAttrs.length; i++)
       addResponsiveImageCandidate(candidates, desktopNode.getAttribute(explicitAttrs[i]))
 
+    addResponsiveImageCandidateFromSrcset(candidates, desktopNode.getAttribute('srcset'))
+    addResponsiveImageCandidateFromSrcset(candidates, desktopNode.getAttribute('data-srcset'))
+    addResponsiveImageCandidateFromSrcset(candidates, desktopNode.getAttribute('data-lazy-srcset'))
+    addResponsiveImageCandidateFromPictureSource(candidates, desktopNode)
+
     var source = responsiveDesktopSource(desktopNode)
     if (source) {
       addDerivedResponsiveImageCandidate(candidates, source, source.replace(/-desktop-new(\\.[a-z0-9]+)([?#].*)?$/i, '-new-mbl$1$2'))
@@ -1969,6 +2024,53 @@ ${rendered}
         return
     }
     candidates.push(candidate)
+  }
+
+  function addResponsiveImageCandidateFromSrcset(candidates, value) {
+    if (!value)
+      return
+
+    var rawSrcset = String(value).trim()
+    if (!rawSrcset)
+      return
+
+    var parts = rawSrcset.split(',')
+    for (var i = 0; i < parts.length; i++) {
+      var segment = String(parts[i] || '').trim()
+      if (!segment)
+        continue
+      var sourceOnly = segment.split(/\\s+/)[0]
+      addResponsiveImageCandidate(candidates, sourceOnly)
+    }
+  }
+
+  function addResponsiveImageCandidateFromPictureSource(candidates, node) {
+    var picture
+    if (!node || !node.parentNode)
+      return
+
+    if (node.closest)
+      picture = node.closest('picture')
+
+    if (!picture || !picture.querySelectorAll)
+      return
+
+    var sources = picture.querySelectorAll('source')
+    for (var i = 0; i < sources.length; i++) {
+      var source = sources[i]
+      if (!source || !source.getAttribute)
+        continue
+
+      var media = String(source.getAttribute('media') || '').toLowerCase()
+      var srcset = source.getAttribute('srcset')
+      if (!srcset)
+        continue
+
+      if (media && (media.indexOf('max-width') === -1 && media.indexOf('max-device-width') === -1 && media.indexOf('mobile') === -1))
+        continue
+
+      addResponsiveImageCandidateFromSrcset(candidates, srcset)
+    }
   }
 
   function addDerivedResponsiveImageCandidate(candidates, source, value) {
