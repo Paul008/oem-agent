@@ -395,6 +395,20 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         min-width: 0 !important;
       }
 
+      .aem-Grid > .imagevideoTile,
+      .aem-Grid > .richtext,
+      .aem-Grid .imageContainer {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .aem-Grid .imagevideoTile img {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
+
+    @media (max-width: 639.98px) {
       .aem-Grid > .richtext.aem-GridColumn--default--12 .cmp-richtext h2:has([class*="display3-medium"]) {
         line-height: 2rem !important;
       }
@@ -418,18 +432,6 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         font-size: 0.75rem !important;
         line-height: 1rem !important;
         letter-spacing: 0 !important;
-      }
-
-      .aem-Grid > .imagevideoTile,
-      .aem-Grid > .richtext,
-      .aem-Grid .imageContainer {
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-
-      .aem-Grid .imagevideoTile img {
-        width: 100% !important;
-        height: auto !important;
       }
     }
 
