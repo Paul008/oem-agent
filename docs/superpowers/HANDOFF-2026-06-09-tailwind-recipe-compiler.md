@@ -11,6 +11,7 @@
 - Added dashboard API helper `compileTailwindRecipeArtifact()`.
 - Updated builder and standalone preview clone-region conversion to try the Tailwind recipe compiler first, then fall back to raw HTML content blocks.
 - Enriched the Mitsubishi `variant-color-explorer` compiler output with captured manual fallback data: variant tabs, colour labels, swatch colours, first vehicle image, and feature items.
+- Preserved captured variant-picker metadata: range eyebrow text and CTA text/URL are now extracted from the region instead of hard-coded.
 - Hardened the dashboard `variant-color-explorer` renderer so catalog variants remain authoritative while captured fallback data fills missing images, features, and swatches.
 
 ## Verification
@@ -19,6 +20,7 @@
 - Dashboard Clone Studio and worker API tests passed for artifact threading and compile helper wiring.
 - `pnpm run typecheck` passed.
 - Latest verification also passed `pnpm test -- --run` and `pnpm run test:dashboard` after adding manual fallback extraction.
+- Metadata extraction verification passed with `pnpm test -- --run` and `pnpm run typecheck`.
 - Dashboard fallback merge verification passed with `pnpm run test:dashboard` and `pnpm run typecheck`.
 
 ## Next Slice
