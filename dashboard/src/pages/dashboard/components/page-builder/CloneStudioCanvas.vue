@@ -9,6 +9,8 @@ export interface CloneStudioFrameHtmlForCanvasOptions {
   workerBase: string
   selectedRegionId: string | null
   bridgeToken: string
+  oemId?: string
+  modelSlug?: string
   editable?: boolean
 }
 
@@ -61,6 +63,8 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     selectedRegionId: null,
     bridgeToken: options.bridgeToken,
     regionOverrides,
+    oemId: options.oemId,
+    modelSlug: options.modelSlug,
     editable: options.editable !== false,
   })
 }
@@ -80,6 +84,8 @@ const props = withDefaults(defineProps<{
   // resolves to the intended device layout instead of the narrow editor panel width. The frame is
   // scaled down to fit the available container.
   frameWidth?: number
+  oemId?: string
+  modelSlug?: string
   allowSameOriginSandbox?: boolean
   // When true, the desktop frame scales UP to fill the container width (used by the full-screen
   // preview so the clone fills the window instead of sitting left-aligned at native width).
@@ -101,7 +107,7 @@ const emit = defineEmits<{
   selectRegion: [region: any]
   domUpdated: [html: string]
   regionAdded: [region: CloneRegion]
-  contextMenu: [menu: { regionId: any, fields: any, typeHint: any, html: string, x: number, y: number }]
+  contextMenu: [menu: { regionId: any, fields: any, typeHint: any, html: string, tailwindRecipeArtifact?: any, x: number, y: number }]
   regionHeight: [payload: { regionId: any, height: number | null }]
 }>()
 
@@ -148,6 +154,8 @@ const frameHtml = computed(() => buildCloneStudioFrameHtmlForCanvas({
   workerBase: props.workerBase,
   selectedRegionId: props.selectedRegionId,
   bridgeToken,
+  oemId: props.oemId,
+  modelSlug: props.modelSlug,
   editable: props.editable,
 }))
 
@@ -242,6 +250,7 @@ function onMessage(event: MessageEvent) {
       fields: data.fields,
       typeHint: data.typeHint,
       html: typeof data.regionHtml === 'string' ? data.regionHtml : '',
+      tailwindRecipeArtifact: data.tailwindRecipeArtifact,
       x: pt.x,
       y: pt.y,
     })

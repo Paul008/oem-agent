@@ -31,6 +31,9 @@ export interface CloneStudioHtmlOptions {
    * Defaults to true (the editor leaves it enabled).
    */
   editable?: boolean
+  /** OEM/model context used by Tailwind recipe capture artifacts. */
+  oemId?: string
+  modelSlug?: string
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -472,6 +475,8 @@ ${rendered}
   var BRIDGE_TOKEN = ${bridgeToken}
   var BASE_HREF = ${safeJson(options.baseHref || '')}
   var MEDIA_BASE = ${safeJson(mediaBase)}
+  var OEM_ID = ${safeJson(options.oemId || '')}
+  var MODEL_SLUG = ${safeJson(options.modelSlug || '')}
   var EDITABLE = window.__CLONE_STUDIO_EDITABLE__ !== false
   var MESSAGE_READY = 'clone-studio:ready'
   var MESSAGE_SELECT = 'clone-studio:select'
@@ -565,6 +570,102 @@ ${rendered}
     stripInteractivityControlMarkers(clone)
 
     return sanitizeHtml(stripPreviewScaffolding(clone.outerHTML || ''))
+  }
+
+  function getTailwindRecipeArtifact(element) {
+    if (!element)
+      return null
+
+    var regionId = ensureRegionId(element)
+    return {
+      oem_id: OEM_ID,
+      model_slug: MODEL_SLUG,
+      source_url: BASE_HREF,
+      region_id: regionId || '',
+      viewport: {
+        name: tailwindRecipeViewportName(),
+        width: window.innerWidth || document.documentElement.clientWidth || 0,
+        height: window.innerHeight || document.documentElement.clientHeight || 0
+      },
+      root: tailwindRecipeNode(element, '0', 0)
+    }
+  }
+
+  function tailwindRecipeViewportName() {
+    var width = window.innerWidth || document.documentElement.clientWidth || 0
+    if (width < 640)
+      return 'mobile'
+    if (width < 1024)
+      return 'tablet'
+    return 'desktop'
+  }
+
+  function tailwindRecipeNode(element, path, depth) {
+    var children = []
+    if (depth < 5 && element && element.children) {
+      var childIndex = 0
+      for (var i = 0; i < element.children.length && childIndex < 40; i++) {
+        var child = element.children[i]
+        if (!child || child.hasAttribute && child.hasAttribute('data-clone-studio-bridge'))
+          continue
+        children.push(tailwindRecipeNode(child, path + '.' + childIndex, depth + 1))
+        childIndex++
+      }
+    }
+
+    return {
+      path: path,
+      tag: String(element.tagName || '').toLowerCase(),
+      text: String(element.textContent || '').replace(/\\s+/g, ' ').trim(),
+      attributes: tailwindRecipeAttributes(element),
+      computed_style: tailwindRecipeComputedStyle(element),
+      children: children
+    }
+  }
+
+  function tailwindRecipeAttributes(element) {
+    var attrs = {}
+    if (!element || !element.attributes)
+      return attrs
+
+    for (var i = 0; i < element.attributes.length; i++) {
+      var attr = element.attributes[i]
+      if (!attr || /^data-clone-studio-/i.test(attr.name))
+        continue
+      attrs[attr.name] = attr.value
+    }
+
+    return attrs
+  }
+
+  function tailwindRecipeComputedStyle(element) {
+    var styles = {}
+    if (!element || !window.getComputedStyle)
+      return styles
+
+    var computed = window.getComputedStyle(element)
+    var props = [
+      'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index',
+      'width', 'min-width', 'max-width', 'height', 'min-height', 'max-height',
+      'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+      'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+      'gap', 'row-gap', 'column-gap', 'grid-template-columns', 'grid-template-rows',
+      'align-items', 'justify-content', 'justify-items', 'align-self', 'justify-self',
+      'flex-direction', 'flex-wrap', 'font-family', 'font-size', 'font-weight',
+      'line-height', 'letter-spacing', 'text-align', 'text-transform', 'color',
+      'background-color', 'background-image', 'background-size', 'background-position',
+      'border', 'border-width', 'border-color', 'border-style', 'border-radius',
+      'box-shadow', 'opacity', 'overflow', 'object-fit', 'object-position',
+      'transform', 'visibility'
+    ]
+
+    for (var i = 0; i < props.length; i++) {
+      var value = computed.getPropertyValue(props[i])
+      if (value)
+        styles[props[i]] = value
+    }
+
+    return styles
   }
 
   function stripResponsiveVariantMarkers(root) {
@@ -4006,6 +4107,7 @@ ${rendered}
       fields: payload ? payload.editable_fields : extractFields(region),
       typeHint: payload ? payload.type_hint : classifyRegion(region),
       regionHtml: getRegionHtml(region),
+      tailwindRecipeArtifact: getTailwindRecipeArtifact(region),
       x: event.clientX,
       y: event.clientY
     })

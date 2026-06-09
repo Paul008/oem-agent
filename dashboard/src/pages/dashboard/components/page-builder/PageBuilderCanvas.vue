@@ -46,7 +46,7 @@ const emit = defineEmits<{
   selectCloneRegion: [region: any]
   cloneDomUpdated: [html: string]
   cloneRegionAdded: [region: CloneRegion]
-  regionAction: [payload: { action: RegionActionId, regionId: string, html?: string }]
+  regionAction: [payload: { action: RegionActionId, regionId: string, html?: string, tailwindRecipeArtifact?: any }]
 }>()
 // Responsive preview
 type PreviewWidth = 'full' | 'tablet' | 'mobile'
@@ -136,6 +136,7 @@ interface CloneMenuRegion {
   editable_fields: any[]
   type_hint: any
   html?: string
+  tailwindRecipeArtifact?: any
   toolbar_x?: number
   toolbar_y?: number
   height?: number
@@ -205,10 +206,16 @@ const cloneMenuGroups = computed<{ group: RegionAction['group'], actions: Region
     .filter(g => g.actions.length > 0)
 })
 
-function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, html?: string, x: number, y: number }) {
+function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, html?: string, tailwindRecipeArtifact?: any, x: number, y: number }) {
   if (props.readOnly)
     return
-  const region: CloneMenuRegion = { id: menu.regionId, editable_fields: Array.isArray(menu.fields) ? menu.fields : [], type_hint: menu.typeHint, html: menu.html }
+  const region: CloneMenuRegion = {
+    id: menu.regionId,
+    editable_fields: Array.isArray(menu.fields) ? menu.fields : [],
+    type_hint: menu.typeHint,
+    html: menu.html,
+    tailwindRecipeArtifact: menu.tailwindRecipeArtifact,
+  }
   cloneMenu.value = {
     x: menu.x,
     y: menu.y,
@@ -424,14 +431,14 @@ function quickCloneDuplicateRegion() {
   cancelCloneToolbarLink()
   cancelCloneToolbarAlt()
   cancelCloneToolbarHeight()
-  emit('regionAction', { action: 'duplicate', regionId: region.id, html: region.html })
+  emit('regionAction', { action: 'duplicate', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
 }
 
 function quickCloneConvertRegion() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
     return
-  emit('regionAction', { action: 'convert', regionId: region.id, html: region.html })
+  emit('regionAction', { action: 'convert', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
   clearCloneToolbarSelection()
 }
 
@@ -439,7 +446,7 @@ function quickCloneBindCatalog() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
     return
-  emit('regionAction', { action: 'bind-catalog', regionId: region.id, html: region.html })
+  emit('regionAction', { action: 'bind-catalog', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
   clearCloneToolbarSelection()
 }
 
@@ -447,7 +454,7 @@ function quickCloneDeleteRegion() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
     return
-  emit('regionAction', { action: 'delete', regionId: region.id, html: region.html })
+  emit('regionAction', { action: 'delete', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
   clearCloneToolbarSelection()
 }
 
@@ -613,7 +620,7 @@ function runCloneAction(id: RegionActionId) {
       openCloneInput('background')
       break
     case 'bind-catalog':
-      emit('regionAction', { action: id, regionId: region.id, html: region.html })
+      emit('regionAction', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
       closeCloneMenu()
       break
     case 'hide': {
@@ -636,7 +643,7 @@ function runCloneAction(id: RegionActionId) {
     case 'duplicate':
     case 'delete':
       // Parent (Task 9) owns destructive / structural region operations.
-      emit('regionAction', { action: id, regionId: region.id, html: region.html })
+      emit('regionAction', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
       closeCloneMenu()
       break
     default:
@@ -947,6 +954,8 @@ watch(
             :title="page?.name || 'Clone Studio'"
             :base-href="page?.source_url || workerBase"
             :worker-base="workerBase"
+            :oem-id="oemId"
+            :model-slug="modelSlug"
             :frame-width="cloneFrameWidth"
             :fit-width="fitWidth && previewWidth === 'full'"
             :editable="!readOnly"
