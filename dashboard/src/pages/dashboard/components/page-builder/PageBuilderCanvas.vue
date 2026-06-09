@@ -170,7 +170,7 @@ const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
 const cloneToolbarHasLink = computed(() => hasCloneLinkField(cloneToolbarRegion.value))
 const cloneToolbarHasPanels = computed(() => hasClonePanelControls(cloneToolbarRegion.value))
-const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))
+const cloneHasMediaContext = computed(() => Boolean(props.oemId))
 const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
   && !props.readOnly

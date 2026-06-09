@@ -151,7 +151,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('import MediaLibraryDialog from \'./MediaLibraryDialog.vue\'')
     expect(source).toContain('const cloneMediaLibraryOpen = ref(false)')
     expect(source).toContain('const cloneMediaTargetRegion = ref<CloneMenuRegion | null>(null)')
-    expect(source).toContain('const cloneHasMediaContext = computed(() => Boolean(props.oemId && props.modelSlug))')
+    expect(source).toContain('const cloneHasMediaContext = computed(() => Boolean(props.oemId))')
     expect(source).toContain('function openCloneMediaLibrary(region: CloneMenuRegion)')
     expect(source).toContain('buildPatchPayload(\'replace-image\', region as any, url)')
     expect(source).toContain('case \'replace-image\':')
