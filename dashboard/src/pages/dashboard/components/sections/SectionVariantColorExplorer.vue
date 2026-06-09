@@ -36,6 +36,7 @@ const props = defineProps<{
     heading?: string
     cta_text?: string
     cta_url?: string
+    fallback_image_url?: string
     variants?: ExplorerVariant[]
   }
   oemId?: string
@@ -155,6 +156,7 @@ const featuresOpen = ref(false)
 const resolvedOemId = computed(() => props.section.oem_id || props.oemId || '')
 const resolvedModelSlug = computed(() => props.section.model_slug || props.modelSlug || '')
 const shouldUseDatabase = computed(() => props.section.data_source !== 'manual' && !!resolvedOemId.value && !!resolvedModelSlug.value)
+const fallbackImage = computed(() => proxiedUrl(props.section.fallback_image_url, resolvedOemId.value))
 
 const colorsByProductId = computed(() => {
   const map = new Map<string, VariantColor[]>()
@@ -172,7 +174,7 @@ const variants = computed(() => dbVariants.value.length ? dbVariants.value : man
 const selectedVariant = computed(() => variants.value[selectedVariantIndex.value] || variants.value[0])
 const selectedColors = computed(() => selectedVariant.value?.colors || [])
 const selectedColor = computed(() => selectedColors.value[selectedColorIndex.value] || selectedColors.value[0])
-const selectedImage = computed(() => selectedColor.value?.hero_image_url || selectedVariant.value?.image_url || null)
+const selectedImage = computed(() => selectedColor.value?.hero_image_url || selectedVariant.value?.image_url || fallbackImage.value || null)
 const selectedColorName = computed(() => selectedColor.value?.name || '')
 const ctaText = computed(() => selectedVariant.value?.cta_text || props.section.cta_text || 'Build your own')
 const ctaUrl = computed(() => selectedVariant.value?.cta_url || props.section.cta_url || '#')

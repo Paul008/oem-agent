@@ -989,6 +989,10 @@ function onMediaLibrarySelect(url: string) {
             <UiInput :model-value="section.cta_url || ''" class="h-8 text-xs" @update:model-value="update('cta_url', $event)" />
           </div>
         </div>
+        <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Fallback image URL</label>
+          <UiInput :model-value="section.fallback_image_url || ''" class="h-8 text-xs" placeholder="/media/pages/assets/..." @update:model-value="update('fallback_image_url', $event)" />
+        </div>
         <p class="text-xs text-muted-foreground">
           Uses catalog products and variant colours for the selected model. Manual variants are used only when database data is unavailable or data source is manual.
         </p>

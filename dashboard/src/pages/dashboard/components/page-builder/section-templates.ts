@@ -113,7 +113,7 @@ export const SECTION_DEFAULTS: Record<PageSectionType, () => Record<string, any>
   'split-content': () => ({ title: '', body_html: '', image_url: '', image_position: 'right', layout: 'contained', background: '' }),
   'media': () => ({ title: '', images: [{ url: '', alt: '', caption: '' }], layout: 'stacked', height: 'large', overlay_style: 'dark' }),
   'pinned-scroll': () => ({ title: '', background_image: '', background_image_mobile: '', cards: [{ image: '', mobile_image: '', caption: '', title_bg: '', content_bg: '' }], mobile_layout: 'carousel', animation: 'none' }),
-  'variant-color-explorer': () => ({ data_source: 'database', oem_id: '', model_slug: '', eyebrow: 'Petrol Range', heading: 'Make Your Mark.', cta_text: 'Build your own', cta_url: '', variants: [] }),
+  'variant-color-explorer': () => ({ data_source: 'database', oem_id: '', model_slug: '', eyebrow: 'Petrol Range', heading: 'Make Your Mark.', cta_text: 'Build your own', cta_url: '', fallback_image_url: '', variants: [] }),
 }
 
 export const SECTION_TEMPLATES: SectionTemplate[] = [
