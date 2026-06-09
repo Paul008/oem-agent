@@ -433,6 +433,13 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
         line-height: 1rem !important;
         letter-spacing: 0 !important;
       }
+
+      .aem-Grid > .richtext .richtext-read-more > [data-clone-studio-responsive-content-variant="desktop"]:not([data-clone-studio-responsive-content-paired="true"]) > p:nth-of-type(n+4) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        line-height: 0 !important;
+      }
     }
 
     @media (min-width: 1024px) {
