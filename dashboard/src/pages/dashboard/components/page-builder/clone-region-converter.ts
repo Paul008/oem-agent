@@ -156,3 +156,25 @@ export function buildRawHtmlSectionFromCloneRegion(html: string | null | undefin
     animation: 'fade-in',
   }
 }
+
+export interface BuildEditableSectionFromCloneRegionInput {
+  html?: string | null
+  tailwindRecipeArtifact?: any
+  compileTailwindRecipeArtifact?: (artifact: any) => Promise<any>
+}
+
+export async function buildEditableSectionFromCloneRegion(input: BuildEditableSectionFromCloneRegionInput): Promise<Record<string, any> | null> {
+  if (input.tailwindRecipeArtifact && input.compileTailwindRecipeArtifact) {
+    try {
+      const response = await input.compileTailwindRecipeArtifact(input.tailwindRecipeArtifact)
+      const result = response?.result
+      if (response?.success && result?.section && Number(result.confidence) >= 0.7)
+        return result.section
+    }
+    catch {
+      // Fall through to raw HTML conversion. The caller can still save the region.
+    }
+  }
+
+  return buildRawHtmlSectionFromCloneRegion(input.html)
+}

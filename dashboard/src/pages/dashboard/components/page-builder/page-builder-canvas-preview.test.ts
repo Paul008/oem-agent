@@ -497,10 +497,12 @@ describe('clone region conversion wiring', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
     for (const source of [builderSource, previewSource]) {
-      expect(source).toContain('buildRawHtmlSectionFromCloneRegion')
+      expect(source).toContain('buildEditableSectionFromCloneRegion')
+      expect(source).toContain('compileTailwindRecipeArtifact')
       expect(source).toContain('addSectionFromLiveData')
       expect(source).toContain('setActiveMode')
-      expect(source).toContain('const section = buildRawHtmlSectionFromCloneRegion(html)')
+      expect(source).toContain('const section = await buildEditableSectionFromCloneRegion')
+      expect(source).toContain('tailwindRecipeArtifact')
       expect(source).toContain('toast.error(\'Region HTML is not available\')')
       expect(source).toContain('addSectionFromLiveData(section)')
       expect(source).toContain('setActiveMode(\'sections\')')

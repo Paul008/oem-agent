@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCatalogSectionsFromModel, buildRawHtmlSectionFromCloneRegion } from './clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildRawHtmlSectionFromCloneRegion } from './clone-region-converter'
 
 describe('buildRawHtmlSectionFromCloneRegion', () => {
   it('wraps clone region HTML in an editable content block', () => {
@@ -15,6 +15,49 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
 
   it('rejects blank clone region HTML', () => {
     expect(buildRawHtmlSectionFromCloneRegion('   ')).toBeNull()
+  })
+})
+
+describe('buildEditableSectionFromCloneRegion', () => {
+  it('uses a confident Tailwind recipe compile result when an artifact is available', async () => {
+    const artifact = { region_id: 'r1' }
+    const compile = async () => ({
+      success: true,
+      result: {
+        section_type: 'variant-color-explorer',
+        confidence: 0.82,
+        section: { type: 'variant-color-explorer', heading: 'Make Your Mark.' },
+      },
+    })
+
+    await expect(buildEditableSectionFromCloneRegion({
+      html: '<section>fallback</section>',
+      tailwindRecipeArtifact: artifact,
+      compileTailwindRecipeArtifact: compile,
+    })).resolves.toEqual({ type: 'variant-color-explorer', heading: 'Make Your Mark.' })
+  })
+
+  it('falls back to raw HTML when Tailwind compile confidence is low', async () => {
+    const section = await buildEditableSectionFromCloneRegion({
+      html: '<section><h2>Fallback</h2></section>',
+      tailwindRecipeArtifact: { region_id: 'r2' },
+      compileTailwindRecipeArtifact: async () => ({
+        success: true,
+        result: {
+          section_type: 'content-block',
+          confidence: 0.4,
+          section: { type: 'content-block', title: 'Low confidence' },
+        },
+      }),
+    })
+
+    expect(section).toEqual({
+      type: 'content-block',
+      title: '',
+      content_html: '',
+      _generated_html: '<section><h2>Fallback</h2></section>',
+      animation: 'fade-in',
+    })
   })
 })
 

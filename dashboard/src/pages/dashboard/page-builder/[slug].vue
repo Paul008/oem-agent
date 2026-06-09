@@ -31,7 +31,7 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { useThemeStore } from '@/stores/theme'
-import { fetchCaptureDiagnostics, mapPagePreview, type CaptureDiagnosticsRecord } from '@/lib/worker-api'
+import { compileTailwindRecipeArtifact, fetchCaptureDiagnostics, mapPagePreview, type CaptureDiagnosticsRecord } from '@/lib/worker-api'
 import { describeCaptureStatus } from '@/lib/capture-status'
 
 import type { CloneRegion, PageMode } from './page-modes'
@@ -46,7 +46,7 @@ import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vu
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
-import { buildCatalogSectionsFromModel, buildRawHtmlSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
 import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, needsDestructiveActionConfirmation, shouldShowSourceUrlInput } from './page-workflow'
 
@@ -220,8 +220,8 @@ function onUpdateField(id: string, field: string, value: any) {
 }
 
 // Structural region actions. `delete`/`hide` map to a visibility patch (the pragmatic delete for a
-// clone). `duplicate` clones the region via the bridge; `convert` stages a raw editable section.
-async function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
+// clone). `duplicate` clones the region via the bridge; `convert` stages an editable section.
+async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }: { action: RegionActionId, regionId: string, html?: string, tailwindRecipeArtifact?: any }) {
   if (isWriteProtectedPage.value)
     return
   if (action === 'delete' || action === 'hide') {
@@ -240,7 +240,11 @@ async function onRegionAction({ action, regionId, html }: { action: RegionAction
     return
   }
   if (action === 'convert') {
-    const section = buildRawHtmlSectionFromCloneRegion(html)
+    const section = await buildEditableSectionFromCloneRegion({
+      html,
+      tailwindRecipeArtifact,
+      compileTailwindRecipeArtifact,
+    })
     if (!section) {
       toast.error('Region HTML is not available')
       return

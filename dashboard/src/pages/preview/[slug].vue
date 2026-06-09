@@ -10,7 +10,8 @@ import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
-import { buildCatalogSectionsFromModel, buildRawHtmlSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { compileTailwindRecipeArtifact } from '@/lib/worker-api'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 
@@ -157,7 +158,7 @@ function onUpdateField(id: string, field: string, value: any) {
   updateSection(id, { [field]: value })
 }
 
-async function onRegionAction({ action, regionId, html }: { action: RegionActionId, regionId: string, html?: string }) {
+async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }: { action: RegionActionId, regionId: string, html?: string, tailwindRecipeArtifact?: any }) {
   if (previewReadOnly.value)
     return
 
@@ -179,7 +180,11 @@ async function onRegionAction({ action, regionId, html }: { action: RegionAction
   }
 
   if (action === 'convert') {
-    const section = buildRawHtmlSectionFromCloneRegion(html)
+    const section = await buildEditableSectionFromCloneRegion({
+      html,
+      tailwindRecipeArtifact,
+      compileTailwindRecipeArtifact,
+    })
     if (!section) {
       toast.error('Region HTML is not available')
       return
