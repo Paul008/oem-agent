@@ -27,13 +27,17 @@ function matchingFallbackColor(dbColor: ExplorerColor, fallbackColors: ExplorerC
   return fallbackColors.find(color => [color.code, color.name].map(key).some(value => dbKeys.includes(value))) || fallbackColors[index]
 }
 
+function colorKeys(color: ExplorerColor): string[] {
+  return [color.code, color.name].map(key).filter(Boolean)
+}
+
 function mergeColors(dbColors: ExplorerColor[] | undefined, fallbackColors: ExplorerColor[] | undefined, fallbackImageUrl: string | null | undefined): ExplorerColor[] {
   const database = dbColors || []
   const captured = fallbackColors || []
   if (!database.length)
     return captured
 
-  return database.map((color, index) => {
+  const merged = database.map((color, index) => {
     const fallback = matchingFallbackColor(color, captured, index)
     return {
       ...fallback,
@@ -45,6 +49,11 @@ function mergeColors(dbColors: ExplorerColor[] | undefined, fallbackColors: Expl
       hex: color.hex || fallback?.hex || null,
     }
   })
+  const databaseKeys = new Set(database.flatMap(colorKeys))
+  return [
+    ...merged,
+    ...captured.filter(color => !colorKeys(color).some(value => databaseKeys.has(value))),
+  ]
 }
 
 export function mergeVariantFallbacks(dbVariants: ExplorerVariant[], manualVariants: ExplorerVariant[]): ExplorerVariant[] {

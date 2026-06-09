@@ -43,6 +43,7 @@ describe('mergeVariantFallbacks', () => {
             swatch_url: null,
             hex: 'rgb(255, 255, 255)',
           },
+          { name: 'Red Diamond', hero_image_url: '', hex: 'rgb(200, 0, 20)' },
         ],
       },
     ])
@@ -60,5 +61,29 @@ describe('mergeVariantFallbacks', () => {
     ]
 
     expect(mergeVariantFallbacks([], manual)).toEqual(manual)
+  })
+
+  it('appends captured colours that are missing from database colours', () => {
+    const result = mergeVariantFallbacks([
+      {
+        title: 'ES',
+        colors: [
+          { name: 'White', code: 'WHT', hero_image_url: '/white.png' },
+        ],
+      },
+    ], [
+      {
+        title: 'ES',
+        colors: [
+          { name: 'White', hero_image_url: '/captured-white.png', hex: '#fff' },
+          { name: 'Red Diamond', hero_image_url: '/captured-red.png', hex: '#c00' },
+        ],
+      },
+    ])
+
+    expect(result[0].colors).toEqual([
+      { name: 'White', code: 'WHT', swatch_url: null, hero_image_url: '/white.png', hex: '#fff' },
+      { name: 'Red Diamond', hero_image_url: '/captured-red.png', hex: '#c00' },
+    ])
   })
 })
