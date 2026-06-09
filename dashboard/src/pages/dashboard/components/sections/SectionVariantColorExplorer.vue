@@ -3,28 +3,10 @@ import { ChevronDown, Database, Loader2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import type { OemColorPalette, Product, VariantColor } from '@/composables/use-oem-data'
+import type { ExplorerColor, ExplorerVariant } from './variant-color-explorer-data'
 
 import { useOemData } from '@/composables/use-oem-data'
-
-interface ExplorerColor {
-  name: string
-  code?: string
-  swatch_url?: string | null
-  hero_image_url?: string | null
-  hex?: string | null
-}
-
-interface ExplorerVariant {
-  id?: string
-  title: string
-  description?: string
-  price_label?: string
-  cta_text?: string
-  cta_url?: string
-  key_features?: string[]
-  image_url?: string | null
-  colors?: ExplorerColor[]
-}
+import { mergeVariantFallbacks } from './variant-color-explorer-data'
 
 const props = defineProps<{
   section: {
@@ -205,7 +187,7 @@ const paletteByKey = computed(() => {
 
 const manualVariants = computed(() => (props.section.variants || []).map(variant => normalizeManualVariant(variant, resolvedOemId.value)))
 const dbVariants = computed(() => products.value.map(product => normalizeDbVariant(product, colorsByProductId.value.get(product.id) || [], paletteByKey.value, resolvedOemId.value)))
-const variants = computed(() => dbVariants.value.length ? dbVariants.value : manualVariants.value)
+const variants = computed(() => mergeVariantFallbacks(dbVariants.value, manualVariants.value))
 const selectedVariant = computed(() => variants.value[selectedVariantIndex.value] || variants.value[0])
 const selectedColors = computed(() => selectedVariant.value?.colors || [])
 const selectedColor = computed(() => selectedColors.value[selectedColorIndex.value] || selectedColors.value[0])
