@@ -1,0 +1,32 @@
+[
+  {
+    "oemId": "mitsubishi-au",
+    "modelSlug": "asx",
+    "name": "ASX",
+    "sourceUrl": "https://www.mitsubishi-motors.com.au/vehicles/asx.html"
+  },
+  {
+    "oemId": "mitsubishi-au",
+    "modelSlug": "outlander",
+    "name": "Outlander",
+    "sourceUrl": "https://www.mitsubishi-motors.com.au/vehicles/outlander.html"
+  },
+  {
+    "oemId": "mitsubishi-au",
+    "modelSlug": "eclipse-cross",
+    "name": "Eclipse Cross",
+    "sourceUrl": "https://www.mitsubishi-motors.com.au/vehicles/eclipse-cross.html"
+  },
+  {
+    "oemId": "mitsubishi-au",
+    "modelSlug": "triton",
+    "name": "Triton",
+    "sourceUrl": "https://www.mitsubishi-motors.com.au/vehicles/triton.html"
+  },
+  {
+    "oemId": "mitsubishi-au",
+    "modelSlug": "pajero-sport",
+    "name": "Pajero Sport",
+    "sourceUrl": "https://www.mitsubishi-motors.com.au/vehicles/pajero-sport.html"
+  }
+]
