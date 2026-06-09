@@ -32,6 +32,44 @@ import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '..
 
 type PageBuilderModelOverride = { provider?: AiProvider; model?: string };
 
+function parseGeneratedPageSlug(slug: string): { oemId: OemId; modelSlug: string } | null {
+  for (const oemId of allOemIds) {
+    const prefix = `${oemId}-`;
+    if (slug.startsWith(prefix)) {
+      const modelSlug = slug.slice(prefix.length);
+      if (modelSlug) {
+        return { oemId, modelSlug };
+      }
+    }
+  }
+  return null;
+}
+
+function getProductionCloneHtml(page: any): string {
+  const clone = page?.content?.modes?.clone;
+  const editedRendered = clone?.edited_rendered;
+  if (typeof editedRendered === 'string' && editedRendered.trim().length > 0) {
+    return editedRendered;
+  }
+
+  const cloneRendered = clone?.rendered;
+  if (typeof cloneRendered === 'string' && cloneRendered.trim().length > 0) {
+    return cloneRendered;
+  }
+
+  const legacyRendered = page?.content?.rendered;
+  if (typeof legacyRendered === 'string' && legacyRendered.trim().length > 0) {
+    return legacyRendered;
+  }
+
+  return '';
+}
+
+function absoluteMediaUrls(html: string, origin: string): string {
+  const base = origin.replace(/\/+$/, '');
+  return html.replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${base}/media/`);
+}
+
 function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
   if (!isModelPageWriteProtected(oemId)) {
     return null;
@@ -2047,6 +2085,48 @@ app.get('/pages/stats', async (c) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ error: errorMessage }, 500);
   }
+});
+
+/**
+ * GET /api/v1/oem-agent/pages/:slug/production-html
+ * Return the production-safe pixel clone HTML for linked apps.
+ *
+ * This endpoint intentionally ignores structured sections. Sections are an editing/conversion
+ * layer; linked production apps should consume clone HTML unless a page is explicitly promoted
+ * through a future structured-production workflow.
+ */
+app.get('/pages/:slug/production-html', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  const page = await obj.json() as any;
+  const html = getProductionCloneHtml(page);
+  if (!html) {
+    return c.json({
+      error: 'Production clone HTML is not available for this page',
+      slug,
+      active_mode: page?.active_mode ?? null,
+    }, 409);
+  }
+
+  const body = absoluteMediaUrls(html, new URL(c.req.url).origin);
+  return new Response(body, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+      'X-OEM-Page-Mode': 'clone',
+      'X-OEM-Page-Version': String(page?.version ?? ''),
+    },
+  });
 });
 
 /**

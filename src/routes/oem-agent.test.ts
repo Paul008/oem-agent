@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import oemAgentApp from './oem-agent';
 
+function jsonObject(value: unknown) {
+  return {
+    async json() {
+      return JSON.parse(JSON.stringify(value));
+    },
+  };
+}
+
 function throwingBucket() {
   return {
     get() {
@@ -18,6 +26,114 @@ function throwingBucket() {
     },
   };
 }
+
+describe('oem-agent production HTML route', () => {
+  it('serves edited clone HTML as the production artifact even when sections mode is active', async () => {
+    const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+    const pageData = {
+      active_mode: 'sections',
+      version: 12,
+      content: {
+        rendered: '<main>Legacy Clone</main>',
+        sections: [{ type: 'variant-color-explorer' }],
+        modes: {
+          clone: {
+            rendered: '<main><img src="/media/pages/assets/mitsubishi-au/outlander/original.jpg">Original Clone</main>',
+            edited_rendered: '<main><img src="/media/pages/assets/mitsubishi-au/outlander/edited.jpg">Edited Clone</main>',
+          },
+          sections: {
+            items: [{ type: 'variant-color-explorer', heading: 'Structured renderer' }],
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('text/html');
+    expect(response.headers.get('X-OEM-Page-Mode')).toBe('clone');
+    expect(response.headers.get('X-OEM-Page-Version')).toBe('12');
+
+    const html = await response.text();
+    expect(html).toContain('Edited Clone');
+    expect(html).not.toContain('Original Clone');
+    expect(html).not.toContain('Structured renderer');
+    expect(html).toContain('http://localhost/media/pages/assets/mitsubishi-au/outlander/edited.jpg');
+  });
+
+  it('falls back to original clone HTML when no edited clone exists', async () => {
+    const latestKey = 'pages/definitions/ford-au/mustang/latest.json';
+    const pageData = {
+      active_mode: 'clone',
+      version: 3,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main>Original Mustang Clone</main>',
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/ford-au-mustang/production-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('<main>Original Mustang Clone</main>');
+  });
+
+  it('does not silently serve structured sections when clone HTML is missing', async () => {
+    const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+    const pageData = {
+      active_mode: 'sections',
+      version: 5,
+      content: {
+        sections: [{ type: 'variant-color-explorer' }],
+        modes: {
+          sections: {
+            items: [{ type: 'variant-color-explorer', heading: 'Structured renderer' }],
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(409);
+    const body = await response.json() as { error: string };
+    expect(body.error).toContain('Production clone HTML is not available');
+  });
+});
 
 describe('oem-agent clone update route', () => {
   it.each([
