@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import {
   adaptivePipeline,
   clonePage,
+  compileTailwindRecipeArtifact,
   createSubpage,
   fetchGeneratedPage,
   fetchGeneratedPages,
@@ -182,6 +183,44 @@ describe('worker-api mapAndStructurePage', () => {
     const fetchMock = vi.mocked(fetch)
     expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
     expect(fetchMock.mock.calls[0][1]?.body).toBeUndefined()
+  })
+})
+
+describe('worker-api compileTailwindRecipeArtifact', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ success: true, result: { section_type: 'variant-color-explorer' } }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  })
+
+  it('posts the captured artifact to the Tailwind recipe compiler endpoint', async () => {
+    const artifact = {
+      oem_id: 'mitsubishi-au',
+      model_slug: 'outlander',
+      source_url: 'https://www.mitsubishi-motors.com.au/vehicles/outlander.html',
+      region_id: 'range-picker',
+      viewport: { name: 'desktop', width: 1440, height: 1200 },
+      root: {
+        path: '0',
+        tag: 'section',
+        text: 'Make Your Mark.',
+        attributes: { class: 'range-selector' },
+        computed_style: { display: 'grid' },
+        children: [],
+      },
+    }
+
+    await compileTailwindRecipeArtifact(artifact)
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/admin/compile-tailwind-recipe')
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({ artifact }))
   })
 })
 

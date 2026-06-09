@@ -396,6 +396,15 @@ export async function mapAndStructurePage(oemId: string, modelSlug: string, mode
   })
 }
 
+/** Compile a selected Clone Studio region artifact into a structured section draft. Non-mutating. */
+export async function compileTailwindRecipeArtifact(artifact: any) {
+  return workerFetch('/api/v1/oem-agent/admin/compile-tailwind-recipe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ artifact }),
+  })
+}
+
 export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
   assertModelPageWriteAllowed(oemId)
   return workerFetch(`/api/v1/oem-agent/admin/update-sections/${oemId}/${modelSlug}`, {
