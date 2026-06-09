@@ -149,6 +149,16 @@ export interface VariantColor {
   created_at: string
 }
 
+export interface OemColorPalette {
+  oem_id: string
+  color_code: string
+  color_name: string
+  color_type: string | null
+  hex_approx: string | null
+  swatch_url: string | null
+  is_active: boolean
+}
+
 export interface VariantPricing {
   id: string
   product_id: string
@@ -388,6 +398,20 @@ export function useOemData() {
     return (data ?? []) as VariantColor[]
   }
 
+  async function fetchOemColorPalette(oemId: string) {
+    if (!oemId)
+      return [] as OemColorPalette[]
+
+    const { data, error: err } = await supabase
+      .from('oem_color_palette')
+      .select('oem_id, color_code, color_name, color_type, hex_approx, swatch_url, is_active')
+      .eq('oem_id', oemId)
+      .eq('is_active', true)
+    if (err)
+      throw err
+    return (data ?? []) as OemColorPalette[]
+  }
+
   async function fetchVariantColorsWithProducts() {
     const PAGE = 1000
     const rows: (VariantColor & { products: { oem_id: string, title: string, price_amount: number | null, price_type: string | null, price_qualifier: string | null } })[] = []
@@ -597,6 +621,7 @@ export function useOemData() {
     fetchBanners,
     fetchPortals,
     fetchVariantColors,
+    fetchOemColorPalette,
     fetchVariantPricing,
     fetchSourcePages,
     fetchAccessories,

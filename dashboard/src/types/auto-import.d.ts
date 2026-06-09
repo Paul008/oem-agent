@@ -131,7 +131,7 @@ declare global {
   export type { GoogleFont } from '../composables/use-google-fonts'
   import('../composables/use-google-fonts')
   // @ts-ignore
-  export type { Oem, ImportRun, ChangeEvent, VehicleModel, OemPortal, ProductSpecs, Product, Offer, VariantColor, VariantPricing, Banner, SourcePage, Accessory, AccessoryModel } from '../composables/use-oem-data'
+  export type { Oem, ImportRun, ChangeEvent, VehicleModel, OemPortal, ProductSpecs, Product, Offer, VariantColor, OemColorPalette, VariantPricing, Banner, SourcePage, Accessory, AccessoryModel } from '../composables/use-oem-data'
   import('../composables/use-oem-data')
   // @ts-ignore
   export type { DiscoveredPage, DiscoveredApi, CodeSnippet, RegistrationResult } from '../composables/use-onboarding'

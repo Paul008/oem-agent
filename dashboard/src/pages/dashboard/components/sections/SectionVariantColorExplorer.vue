@@ -2,7 +2,7 @@
 import { ChevronDown, Database, Loader2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import type { Product, VariantColor } from '@/composables/use-oem-data'
+import type { OemColorPalette, Product, VariantColor } from '@/composables/use-oem-data'
 
 import { useOemData } from '@/composables/use-oem-data'
 
@@ -67,6 +67,19 @@ function proxiedUrl(url: string | null | undefined, oemId: string | undefined): 
   return `${WORKER_BASE}/media/${oemId}/${encodeUrl(url)}`
 }
 
+function colorKey(value: string | null | undefined): string {
+  return String(value || '').trim().toLowerCase()
+}
+
+function cssColorValue(value: string | null | undefined): string | null {
+  const trimmed = String(value || '').trim()
+  if (/^#[0-9a-f]{3,8}$/i.test(trimmed))
+    return trimmed
+  if (/^(rgb|rgba|hsl|hsla)\(/i.test(trimmed))
+    return trimmed
+  return null
+}
+
 function variantTitle(product: Product): string {
   return product.variant_name || product.subtitle || product.title || 'Variant'
 }
@@ -122,14 +135,24 @@ function normalizeManualVariant(variant: ExplorerVariant, oemId: string | undefi
   }
 }
 
-function normalizeDbVariant(product: Product, colors: VariantColor[], oemId: string | undefined): ExplorerVariant {
+function normalizeDbVariant(product: Product, colors: VariantColor[], paletteByKey: Map<string, OemColorPalette>, oemId: string | undefined): ExplorerVariant {
   const normalizedColors = colors.map(color => ({
     name: color.color_name,
     code: color.color_code,
-    swatch_url: proxiedUrl(color.swatch_url || color.source_swatch_url, oemId),
+    swatch_url: null,
     hero_image_url: proxiedUrl(color.hero_image_url || color.source_hero_url, oemId),
     hex: null,
-  }))
+  })).map((color, index) => {
+    const source = colors[index]
+    const palette = paletteByKey.get(colorKey(source.color_code)) || paletteByKey.get(colorKey(source.color_name))
+    const rawSwatch = source.swatch_url || source.source_swatch_url || palette?.swatch_url || null
+    const cssSwatch = cssColorValue(rawSwatch)
+    return {
+      ...color,
+      swatch_url: cssSwatch ? null : proxiedUrl(rawSwatch, oemId),
+      hex: cssSwatch || palette?.hex_approx || null,
+    }
+  })
   const selectedImage = normalizedColors.find(color => color.hero_image_url)?.hero_image_url || null
 
   return {
@@ -145,10 +168,11 @@ function normalizeDbVariant(product: Product, colors: VariantColor[], oemId: str
   }
 }
 
-const { fetchProductsForModel, fetchVariantColors } = useOemData()
+const { fetchProductsForModel, fetchVariantColors, fetchOemColorPalette } = useOemData()
 const loading = ref(false)
 const products = ref<Product[]>([])
 const colors = ref<VariantColor[]>([])
+const palette = ref<OemColorPalette[]>([])
 const selectedVariantIndex = ref(0)
 const selectedColorIndex = ref(0)
 const featuresOpen = ref(false)
@@ -168,8 +192,19 @@ const colorsByProductId = computed(() => {
   return map
 })
 
+const paletteByKey = computed(() => {
+  const map = new Map<string, OemColorPalette>()
+  for (const item of palette.value) {
+    if (item.color_code)
+      map.set(colorKey(item.color_code), item)
+    if (item.color_name)
+      map.set(colorKey(item.color_name), item)
+  }
+  return map
+})
+
 const manualVariants = computed(() => (props.section.variants || []).map(variant => normalizeManualVariant(variant, resolvedOemId.value)))
-const dbVariants = computed(() => products.value.map(product => normalizeDbVariant(product, colorsByProductId.value.get(product.id) || [], resolvedOemId.value)))
+const dbVariants = computed(() => products.value.map(product => normalizeDbVariant(product, colorsByProductId.value.get(product.id) || [], paletteByKey.value, resolvedOemId.value)))
 const variants = computed(() => dbVariants.value.length ? dbVariants.value : manualVariants.value)
 const selectedVariant = computed(() => variants.value[selectedVariantIndex.value] || variants.value[0])
 const selectedColors = computed(() => selectedVariant.value?.colors || [])
@@ -197,7 +232,12 @@ async function loadDatabaseData() {
   try {
     const rows = await fetchProductsForModel(resolvedOemId.value, resolvedModelSlug.value)
     products.value = rows
-    colors.value = rows.length ? await fetchVariantColors(rows.map(product => product.id)) : []
+    const [colorRows, paletteRows] = await Promise.all([
+      rows.length ? fetchVariantColors(rows.map(product => product.id)) : Promise.resolve([]),
+      fetchOemColorPalette(resolvedOemId.value),
+    ])
+    colors.value = colorRows
+    palette.value = paletteRows
     selectedVariantIndex.value = 0
     selectedColorIndex.value = 0
   }
@@ -205,6 +245,7 @@ async function loadDatabaseData() {
     console.warn('Failed to load variant explorer data:', error)
     products.value = []
     colors.value = []
+    palette.value = []
   }
   finally {
     loading.value = false
