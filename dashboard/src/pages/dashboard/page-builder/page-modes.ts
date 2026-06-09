@@ -26,6 +26,8 @@ export interface CloneRegion {
   editable_fields: CloneEditableField[]
   height_override?: number
   panel_index?: number
+  html?: string
+  tailwindRecipeArtifact?: any
 }
 
 export interface CloneViewport {

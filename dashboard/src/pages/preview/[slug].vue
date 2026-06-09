@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ExternalLink, Eye, Loader2, Lock, Pencil, Save } from 'lucide-vue-next'
+import { ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -36,7 +36,9 @@ const {
   isCloned,
   isStructured,
   cloneHtml,
+  cloneRegions,
   cloneRegionsForSave,
+  selectedCloneRegionData,
   oemId,
   modelSlug,
   loadPage,
@@ -62,6 +64,7 @@ const pageBuilderCanvas = ref<{
   duplicateRegion: (regionId: string) => void
 } | null>(null)
 const cloneDraftHtml = ref<string | null>(null)
+const convertingCloneRegion = ref(false)
 const editorSectionId = ref<string | null>(null)
 const pageSlug = computed(() => (route.params as { slug?: string }).slug ?? '')
 const builderUrl = computed(() => pageSlug.value ? `/dashboard/page-builder/${pageSlug.value}` : '/dashboard/model-pages')
@@ -74,6 +77,19 @@ const canEditPreview = computed(() => !previewReadOnly.value)
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((section: any) => section.id === editorSectionId.value) ?? null : null,
 )
+const selectedCloneRegion = computed(() => {
+  if (!selectedCloneRegionId.value)
+    return null
+  if (selectedCloneRegionData.value && selectedCloneRegionData.value.id === selectedCloneRegionId.value)
+    return selectedCloneRegionData.value
+  return cloneRegions.value.find(region => region.id === selectedCloneRegionId.value) ?? null
+})
+const canConvertSelectedCloneRegion = computed(() => Boolean(
+  canEditPreview.value
+  && activeMode.value === 'clone'
+  && selectedCloneRegion.value
+  && (selectedCloneRegion.value.html || selectedCloneRegion.value.tailwindRecipeArtifact),
+))
 const { fetchProductsForModel, fetchVariantColors } = useOemData()
 const catalogModelSlug = computed(() =>
   modelSlug.value.includes('--') ? modelSlug.value.split('--')[0] : modelSlug.value,
@@ -229,6 +245,33 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
   }
 }
 
+async function convertSelectedCloneRegionToTailwind() {
+  if (!canConvertSelectedCloneRegion.value)
+    return
+
+  convertingCloneRegion.value = true
+  try {
+    const section = await buildEditableSectionFromCloneRegion({
+      html: selectedCloneRegion.value?.html,
+      tailwindRecipeArtifact: selectedCloneRegion.value?.tailwindRecipeArtifact,
+      compileTailwindRecipeArtifact,
+    })
+    if (!section) {
+      toast.error('Select a clone region with captured HTML first')
+      return
+    }
+    addSectionFromLiveData(section)
+    setActiveMode('sections')
+    toast.success('Selected region converted to Tailwind section')
+  }
+  catch (error: any) {
+    toast.error(`Failed to convert region: ${error?.message || 'Unknown error'}`)
+  }
+  finally {
+    convertingCloneRegion.value = false
+  }
+}
+
 async function savePreview() {
   if (isProductionView.value) {
     toast.error('Switch to Edit view to save changes')
@@ -305,6 +348,18 @@ async function savePreview() {
           />
           {{ isDirty ? 'Unsaved' : 'Saved' }}
         </div>
+        <button
+          v-if="canEditPreview && activeMode === 'clone'"
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          :disabled="convertingCloneRegion || !canConvertSelectedCloneRegion"
+          title="Convert selected region to Tailwind"
+          @click="convertSelectedCloneRegionToTailwind"
+        >
+          <Loader2 v-if="convertingCloneRegion" class="size-3.5 animate-spin" />
+          <Wand2 v-else class="size-3.5" />
+          <span class="hidden lg:inline">Convert to Tailwind</span>
+        </button>
         <button
           v-if="canEditPreview"
           type="button"

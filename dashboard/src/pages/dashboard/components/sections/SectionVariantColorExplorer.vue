@@ -3,7 +3,7 @@ import { ChevronDown, Database, Loader2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import type { OemColorPalette, Product, VariantColor } from '@/composables/use-oem-data'
-import type { ExplorerColor, ExplorerVariant } from './variant-color-explorer-data'
+import type { ExplorerVariant } from './variant-color-explorer-data'
 
 import { useOemData } from '@/composables/use-oem-data'
 import { mergeVariantFallbacks } from './variant-color-explorer-data'
