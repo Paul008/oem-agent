@@ -43,6 +43,62 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
       supported_declarations: 3,
     })
   })
+
+  it('renders known Mitsubishi home offer modules through a deterministic Tailwind template', () => {
+    const section = buildRawHtmlSectionFromCloneRegion(`
+      <section class="contentblock bg-black invisible-xs-down">
+        <img src="/content/dam/mmal/home/outlander.jpg" alt="Outlander Black Edition">
+        <div class="text">
+          <h2>Take centre stage</h2>
+          <p>The new Outlander Black Edition commands the road.</p>
+          <p>Pitch-dark details demand the spotlight.</p>
+        </div>
+        <a class="link" href="/offers/outlander.html"><span class="link-text">View offer</span></a>
+      </section>
+    `, {
+      tailwindRecipeArtifact: { source_url: 'https://www.mitsubishi-motors.com.au/' },
+    })
+
+    expect(section?._tailwind_conversion).toMatchObject({
+      source: 'known-oem-pattern',
+      pattern: 'mitsubishi-home-offer',
+    })
+    expect(section?._generated_html).toContain('src="https://www.mitsubishi-motors.com.au/content/dam/mmal/home/outlander.jpg"')
+    expect(section?._generated_html).toContain('Take centre stage')
+    expect(section?._generated_html).toContain('The new Outlander Black Edition commands the road.')
+    expect(section?._generated_html).toContain('Pitch-dark details demand the spotlight.')
+    expect(section?._generated_html).toContain('href="/special-offers"')
+    expect(section?._generated_html).toContain('mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 bg-[#050505] text-white lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]')
+  })
+
+  it('renders known Mitsubishi Diamond Advantage modules through a deterministic Tailwind template', () => {
+    const section = buildRawHtmlSectionFromCloneRegion(`
+      <section class="contentblock">
+        <img src="/content/dam/mmal/home/diamond.jpg">
+        <div class="text">
+          <h2>You Can Count On Us</h2>
+          <p>Every new Mitsubishi is backed by Diamond Advantage.</p>
+          <ul>
+            <li>10 year warranty</li>
+            <li>10 year capped price servicing</li>
+          </ul>
+          <a class="link" href="/owners/diamond-advantage.html">Learn more</a>
+        </div>
+      </section>
+    `, {
+      tailwindRecipeArtifact: { source_url: 'https://www.mitsubishi-motors.com.au/' },
+    })
+
+    expect(section?._tailwind_conversion).toMatchObject({
+      source: 'known-oem-pattern',
+      pattern: 'mitsubishi-diamond-advantage',
+    })
+    expect(section?._generated_html).toContain('Australia&#39;s first')
+    expect(section?._generated_html).toContain('You Can Count On Us')
+    expect(section?._generated_html).toContain('10 year warranty')
+    expect(section?._generated_html).toContain('class="w-full bg-[#f3f4f4] px-5 py-12 text-neutral-950')
+    expect(section?._generated_html).toContain('href="https://www.mitsubishi-motors.com.au/owners/diamond-advantage.html"')
+  })
 })
 
 describe('buildEditableSectionFromCloneRegion', () => {

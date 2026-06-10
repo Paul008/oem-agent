@@ -168,7 +168,8 @@ interface CapturedTailwindStats {
 interface CapturedTailwindCompilation {
   html: string
   leftoverCss: string
-  source: 'captured-region-css' | 'captured-computed-style' | 'raw-html'
+  source: 'known-oem-pattern' | 'captured-region-css' | 'captured-computed-style' | 'raw-html'
+  pattern?: string
   supportedDeclarations: number
   leftoverRules: number
   mode: TailwindConversionMode
@@ -195,6 +196,7 @@ export function buildRawHtmlSectionFromCloneRegion(html: string | null | undefin
       mode: compiled.mode,
       supported_declarations: compiled.supportedDeclarations,
       leftover_rules: compiled.leftoverRules,
+      ...(compiled.pattern ? { pattern: compiled.pattern } : {}),
       stats: compiled.stats,
     }
   }
@@ -234,6 +236,9 @@ function compileCapturedRegionHtmlToTailwind(html: string, options: BuildRawHtml
   const styleExtraction = extractStyleBlocks(html)
   const css = [styleExtraction.css, options.css].filter(Boolean).join('\n').trim()
   const mode = options.mode || 'exact'
+  const knownPattern = compileKnownOemRegionToTailwind(styleExtraction.html, options, mode)
+  if (knownPattern)
+    return knownPattern
 
   if (hasComputedStyleArtifact(options.tailwindRecipeArtifact)) {
     const computedResult = compileComputedStyleArtifactIntoHtml(styleExtraction.html, options.tailwindRecipeArtifact, mode)
@@ -305,6 +310,187 @@ function extractTailwindRecipeArtifactCss(artifact: any): string {
   return candidates
     .filter(value => typeof value === 'string' && value.trim())
     .join('\n')
+}
+
+function compileKnownOemRegionToTailwind(html: string, options: BuildRawHtmlSectionFromCloneRegionOptions, mode: TailwindConversionMode): CapturedTailwindCompilation | null {
+  const mitsubishi = compileKnownMitsubishiRegionToTailwind(html, options, mode)
+  if (mitsubishi)
+    return mitsubishi
+
+  return null
+}
+
+function compileKnownMitsubishiRegionToTailwind(html: string, options: BuildRawHtmlSectionFromCloneRegionOptions, mode: TailwindConversionMode): CapturedTailwindCompilation | null {
+  const sectionTag = firstOpeningTag(html, 'section')
+  if (!readHtmlClassAttribute(sectionTag).split(/\s+/).includes('contentblock'))
+    return null
+
+  const sectionText = htmlToKnownPatternText(html)
+  if (/You Can Count On Us/i.test(sectionText))
+    return compileMitsubishiDiamondAdvantageModule(html, options, mode)
+
+  const sectionClasses = readHtmlClassAttribute(sectionTag).split(/\s+/)
+  if (sectionClasses.includes('bg-black') && firstOpeningTag(html, 'img') && knownPatternParagraphs(html).length)
+    return compileMitsubishiHomeOfferModule(html, options, mode)
+
+  return null
+}
+
+function compileMitsubishiHomeOfferModule(sourceHtml: string, options: BuildRawHtmlSectionFromCloneRegionOptions, mode: TailwindConversionMode): CapturedTailwindCompilation | null {
+  const imageTag = firstOpeningTag(sourceHtml, 'img')
+  const image = absoluteKnownPatternUrl(readHtmlAttributeValue(imageTag, 'src'), options.tailwindRecipeArtifact)
+  const imageAlt = normalizeKnownPatternText(readHtmlAttributeValue(imageTag, 'alt'))
+  const title = knownPatternFirstHeading(sourceHtml)
+  const paragraphs = knownPatternParagraphs(sourceHtml)
+  const ctaHtml = knownPatternFirstAnchor(sourceHtml)
+  const ctaText = knownPatternLinkText(ctaHtml) || 'View offer'
+  const ctaHref = hrefForKnownMitsubishiOffer(readHtmlAttributeValue(firstOpeningTag(ctaHtml, 'a'), 'href'), options.tailwindRecipeArtifact)
+
+  if (!image || !paragraphs.length)
+    return null
+
+  const html = `<section class="w-full bg-[#050505] px-5 py-12 text-white md:px-10 md:py-20">
+  <div class="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 bg-[#050505] text-white lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] lg:gap-16">
+    <div class="aspect-square overflow-hidden bg-[#111111]">
+      <img src="${escapeText(image)}" alt="${escapeText(imageAlt || title || ctaText)}" class="h-full w-full object-cover">
+    </div>
+    <div class="max-w-xl">
+      ${title ? `<h2 class="m-0 text-4xl font-black leading-tight tracking-normal text-white md:text-5xl">${escapeText(title)}</h2>` : ''}
+      <div class="${title ? 'mt-6' : ''} space-y-5 text-base leading-7 text-white md:text-xl md:leading-8">
+        ${paragraphs.map((paragraph: string) => `<p>${escapeText(paragraph)}</p>`).join('')}
+      </div>
+      <a href="${escapeText(ctaHref)}" class="mt-8 inline-flex min-h-14 items-center justify-center border border-white px-6 text-base font-black text-white transition-colors hover:border-[#ed0000] hover:bg-[#ed0000]">${escapeText(ctaText)}</a>
+    </div>
+  </div>
+</section>`
+
+  return knownPatternCompilation(html, 'mitsubishi-home-offer', mode)
+}
+
+function compileMitsubishiDiamondAdvantageModule(sourceHtml: string, options: BuildRawHtmlSectionFromCloneRegionOptions, mode: TailwindConversionMode): CapturedTailwindCompilation | null {
+  const imageTag = firstOpeningTag(sourceHtml, 'img')
+  const image = absoluteKnownPatternUrl(readHtmlAttributeValue(imageTag, 'src'), options.tailwindRecipeArtifact)
+  const imageAlt = normalizeKnownPatternText(readHtmlAttributeValue(imageTag, 'alt'))
+  const title = knownPatternFirstHeading(sourceHtml)
+  const paragraphs = knownPatternParagraphs(sourceHtml)
+  const features = knownPatternListItems(sourceHtml)
+  const ctaHtml = knownPatternFirstAnchor(sourceHtml)
+  const ctaText = knownPatternLinkText(ctaHtml) || 'Learn more'
+  const ctaHref = absoluteKnownPatternUrl(readHtmlAttributeValue(firstOpeningTag(ctaHtml, 'a'), 'href'), options.tailwindRecipeArtifact)
+
+  if (!image || !title || !paragraphs.length)
+    return null
+
+  const html = `<section class="w-full bg-[#f3f4f4] px-5 py-12 text-neutral-950 md:px-10 md:py-20">
+  <div class="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(280px,0.92fr)_minmax(0,1.08fr)] lg:gap-16">
+    <div class="aspect-square overflow-hidden bg-white">
+      <img src="${escapeText(image)}" alt="${escapeText(imageAlt || title)}" class="h-full w-full object-cover">
+    </div>
+    <div>
+      <p class="mb-2 text-sm font-black uppercase tracking-[0.08em] text-[#ed0000]">${escapeText('Australia\'s first')}</p>
+      <h2 class="m-0 text-4xl font-black leading-tight tracking-normal text-neutral-950 md:text-5xl">${escapeText(title)}</h2>
+      <div class="mt-6 space-y-5 text-base leading-7 text-neutral-950 md:text-xl md:leading-8">
+        ${paragraphs.map((paragraph: string) => `<p>${escapeText(paragraph)}</p>`).join('')}
+      </div>
+      ${features.length ? `<ul class="mt-6 grid list-none gap-2 p-0">${features.map((feature: string) => `<li class="relative pl-6 font-bold before:absolute before:left-0 before:top-[0.55em] before:size-2 before:bg-[#ed0000]">${escapeText(feature)}</li>`).join('')}</ul>` : ''}
+      <a href="${escapeText(ctaHref)}" class="mt-8 inline-flex min-h-14 items-center justify-center border border-neutral-950 px-6 text-base font-black text-neutral-950 transition-colors hover:border-[#ed0000] hover:bg-[#ed0000] hover:text-white">${escapeText(ctaText)}</a>
+    </div>
+  </div>
+</section>`
+
+  return knownPatternCompilation(html, 'mitsubishi-diamond-advantage', mode)
+}
+
+function knownPatternCompilation(html: string, pattern: string, mode: TailwindConversionMode): CapturedTailwindCompilation {
+  return {
+    html: html.trim(),
+    leftoverCss: '',
+    source: 'known-oem-pattern',
+    pattern,
+    supportedDeclarations: 0,
+    leftoverRules: 0,
+    mode,
+    stats: createTailwindStats(),
+  }
+}
+
+function firstOpeningTag(html: string, tagName: string): string {
+  const match = String(html || '').match(new RegExp(`<${escapeRegExp(tagName)}(?:\\s[^<>]*?)?/?>`, 'i'))
+  return match?.[0] || ''
+}
+
+function knownPatternFirstHeading(html: string): string {
+  const match = String(html || '').match(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>/i)
+  return htmlToKnownPatternText(match?.[1] || '')
+}
+
+function knownPatternParagraphs(html: string): string[] {
+  return Array.from(String(html || '').matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi))
+    .map(match => htmlToKnownPatternText(match[1] || ''))
+    .filter(Boolean)
+}
+
+function knownPatternListItems(html: string): string[] {
+  return Array.from(String(html || '').matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi))
+    .map(match => htmlToKnownPatternText(match[1] || ''))
+    .filter(Boolean)
+}
+
+function knownPatternFirstAnchor(html: string): string {
+  const linkClassMatch = String(html || '').match(/<a\b(?=[^>]*\bclass\s*=\s*(["'])[^"']*\blink\b[^"']*\1)[^>]*>[\s\S]*?<\/a>/i)
+  if (linkClassMatch)
+    return linkClassMatch[0]
+
+  return String(html || '').match(/<a\b[^>]*>[\s\S]*?<\/a>/i)?.[0] || ''
+}
+
+function knownPatternLinkText(anchorHtml: string): string {
+  const linkTextMatch = String(anchorHtml || '').match(/<[^>]*\bclass\s*=\s*(["'])[^"']*\blink-text\b[^"']*\1[^>]*>([\s\S]*?)<\/[^>]+>/i)
+  return htmlToKnownPatternText(linkTextMatch?.[2] || anchorHtml)
+}
+
+function htmlToKnownPatternText(html: string): string {
+  return normalizeKnownPatternText(
+    String(html || '')
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' '),
+  )
+}
+
+function normalizeKnownPatternText(value: unknown): string {
+  return String(value || '').replace(/\s+/g, ' ').trim()
+}
+
+function absoluteKnownPatternUrl(path: unknown, artifact: any): string {
+  const value = String(path || '').trim()
+  if (!value)
+    return ''
+  if (/^data:/i.test(value))
+    return value
+  const sourceUrl = typeof artifact?.source_url === 'string' ? artifact.source_url : 'https://www.mitsubishi-motors.com.au/'
+  try {
+    return new URL(value, sourceUrl).toString()
+  }
+  catch {
+    return value
+  }
+}
+
+function hrefForKnownMitsubishiOffer(path: unknown, artifact: any): string {
+  const value = String(path || '').trim()
+  if (!value)
+    return '/special-offers'
+  const absolute = absoluteKnownPatternUrl(value, artifact)
+  try {
+    const url = new URL(absolute)
+    if (/^\/offers\/?/i.test(url.pathname))
+      return '/special-offers'
+    return url.toString()
+  }
+  catch {
+    return '/special-offers'
+  }
 }
 
 function compileCssRulesIntoHtml(html: string, css: string, options: { mode: TailwindConversionMode, applyBaseUtilities: boolean }): { html: string, leftoverCss: string, stats: CapturedTailwindStats } {
