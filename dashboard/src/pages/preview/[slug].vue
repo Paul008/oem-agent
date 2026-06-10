@@ -7,6 +7,8 @@ import { toast } from 'vue-sonner'
 import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
 import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
@@ -889,150 +891,164 @@ async function savePreview() {
         class="min-h-screen bg-slate-950 px-4 py-16 text-slate-100 sm:px-6 lg:px-10"
       >
         <div class="mx-auto max-w-[1600px] space-y-5">
-          <div class="space-y-1">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-              Compare Tailwind
-            </p>
-            <h1 class="text-xl font-semibold text-white">
-              {{ page?.name || pageSlug }}
-            </h1>
-            <p class="text-sm text-slate-400">
-              Original captured markup beside converted Tailwind output, with conversion coverage signals.
-            </p>
-          </div>
-          <div
-            v-if="hasTailwindCompare"
-            class="flex flex-wrap items-center gap-2 text-xs"
-          >
-            <span
-              class="rounded px-2 py-1 font-semibold"
-              :class="comparePageReadinessClass()"
-            >
-              {{ comparePageReadinessLabel() }}
-            </span>
-            <span class="rounded bg-slate-800 px-2 py-1 font-medium text-slate-200">
-              {{ comparePageReadinessSummary().total }} sections
-            </span>
-            <span class="rounded bg-emerald-500/15 px-2 py-1 font-medium text-emerald-300">
-              {{ comparePageReadinessSummary().ready }} ready
-            </span>
-            <span class="rounded bg-amber-500/15 px-2 py-1 font-medium text-amber-200">
-              {{ comparePageReadinessSummary().review }} review
-            </span>
-            <span class="rounded bg-slate-700 px-2 py-1 font-medium text-slate-200">
-              {{ comparePageReadinessSummary().incomplete }} incomplete
-            </span>
-          </div>
+          <Card class="border-slate-800 bg-slate-900/85 py-0 text-slate-100 shadow-xl shadow-black/20">
+            <CardHeader class="border-b border-slate-800 px-5 py-4">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0 space-y-1">
+                  <p class="text-xs font-semibold uppercase text-slate-400">
+                    Compare Tailwind
+                  </p>
+                  <CardTitle class="truncate text-xl font-semibold text-white">
+                    {{ page?.name || pageSlug }}
+                  </CardTitle>
+                  <CardDescription class="text-sm text-slate-400">
+                    Original captured markup and converted Tailwind output render at the captured viewport width, with conversion coverage signals.
+                  </CardDescription>
+                </div>
+                <div
+                  v-if="hasTailwindCompare"
+                  class="flex max-w-full flex-wrap items-center gap-2"
+                >
+                  <Badge
+                    class="font-semibold"
+                    :class="comparePageReadinessClass()"
+                  >
+                    {{ comparePageReadinessLabel() }}
+                  </Badge>
+                  <Badge variant="secondary" class="bg-slate-800 text-slate-200">
+                    {{ comparePageReadinessSummary().total }} sections
+                  </Badge>
+                  <Badge variant="secondary" class="bg-emerald-500/15 text-emerald-300">
+                    {{ comparePageReadinessSummary().ready }} ready
+                  </Badge>
+                  <Badge variant="secondary" class="bg-amber-500/15 text-amber-200">
+                    {{ comparePageReadinessSummary().review }} review
+                  </Badge>
+                  <Badge variant="secondary" class="bg-slate-700 text-slate-200">
+                    {{ comparePageReadinessSummary().incomplete }} incomplete
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
 
-          <div v-if="!hasTailwindCompare" class="rounded-lg border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
-            Convert a page to Tailwind sections before comparing original and converted output.
-          </div>
+          <Card v-if="!hasTailwindCompare" class="border-slate-800 bg-slate-900/80 py-0 text-slate-100">
+            <CardContent class="p-5 text-sm text-slate-300">
+              Convert a page to Tailwind sections before comparing original and converted output.
+            </CardContent>
+          </Card>
 
-          <div
+          <Card
             v-for="section in sections"
             v-else
             :key="section.id"
-            class="overflow-hidden rounded-lg border border-slate-800 bg-slate-900/80"
+            class="overflow-hidden border-slate-800 bg-slate-900/80 py-0 text-slate-100 shadow-lg shadow-black/15"
           >
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
-              <div class="min-w-0">
-                <p class="truncate text-sm font-semibold text-white">
-                  {{ section.name || section.title || section.id }}
-                </p>
-                <p class="text-xs text-slate-400">
-                  {{ section.type || 'section' }}
-                </p>
-              </div>
-              <div class="flex flex-wrap items-center gap-2 text-xs">
-                <span
-                  class="rounded px-2 py-1 font-semibold"
-                  :class="compareReadinessClass(section)"
-                >
-                  {{ compareReadinessLabel(section) }}
-                </span>
-                <span
-                  class="rounded px-2 py-1 font-medium"
-                  :class="hasComputedDeclarationStats(section) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'"
-                >
-                  {{ compareMappingSummary(section) }}
-                </span>
-                <span
-                  v-if="hasComputedDeclarationStats(section)"
-                  class="rounded bg-sky-500/15 px-2 py-1 font-medium text-sky-300"
-                >
-                  {{ mappedDeclarationRate(section) }}
-                </span>
-                <span
-                  v-if="computedSnapshotCount(section)"
-                  class="rounded bg-cyan-500/15 px-2 py-1 font-medium text-cyan-200"
-                >
-                  {{ computedSnapshotCount(section) }} snapshots
-                </span>
-                <span class="rounded bg-violet-500/15 px-2 py-1 font-medium text-violet-200">
-                  {{ compareTemplateSummary(section) }}
-                </span>
-                <span class="rounded bg-slate-800 px-2 py-1 text-slate-300">
-                  {{ compareRiskSummary(section) }}
-                </span>
-              </div>
-            </div>
-            <div class="grid gap-0 min-[2800px]:grid-cols-2">
-              <div class="border-b border-slate-800 min-[2800px]:border-b-0 min-[2800px]:border-r">
-                <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                  Original
+            <CardHeader class="border-b border-slate-800 px-4 py-3">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 space-y-0.5">
+                  <CardTitle class="truncate text-sm font-semibold text-white">
+                    {{ section.name || section.title || section.id }}
+                  </CardTitle>
+                  <CardDescription class="text-xs text-slate-400">
+                    {{ section.type || 'section' }}
+                  </CardDescription>
                 </div>
-                <div class="overflow-auto bg-slate-950">
-                  <iframe
-                    class="max-w-none min-w-[1280px] bg-white"
-                    sandbox="allow-scripts"
-                    title="Original capture"
-                    :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
-                    :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture', section)"
-                  />
+                <div class="flex max-w-full flex-wrap items-center gap-2">
+                  <Badge
+                    class="font-semibold"
+                    :class="compareReadinessClass(section)"
+                  >
+                    {{ compareReadinessLabel(section) }}
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    :class="hasComputedDeclarationStats(section) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'"
+                  >
+                    {{ compareMappingSummary(section) }}
+                  </Badge>
+                  <Badge
+                    v-if="hasComputedDeclarationStats(section)"
+                    variant="secondary"
+                    class="bg-sky-500/15 text-sky-300"
+                  >
+                    {{ mappedDeclarationRate(section) }}
+                  </Badge>
+                  <Badge
+                    v-if="computedSnapshotCount(section)"
+                    variant="secondary"
+                    class="bg-cyan-500/15 text-cyan-200"
+                  >
+                    {{ computedSnapshotCount(section) }} snapshots
+                  </Badge>
+                  <Badge variant="secondary" class="bg-violet-500/15 text-violet-200">
+                    {{ compareTemplateSummary(section) }}
+                  </Badge>
+                  <Badge variant="secondary" class="bg-slate-800 text-slate-300">
+                    {{ compareRiskSummary(section) }}
+                  </Badge>
                 </div>
               </div>
-              <div>
-                <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                  Converted Tailwind
+            </CardHeader>
+            <CardContent class="p-0">
+              <div class="grid gap-0 min-[2800px]:grid-cols-2">
+                <div class="border-b border-slate-800 min-[2800px]:border-b-0 min-[2800px]:border-r">
+                  <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300">
+                    Original
+                  </div>
+                  <div class="overflow-auto bg-slate-950">
+                    <iframe
+                      class="max-w-none min-w-[1280px] bg-white"
+                      sandbox="allow-scripts"
+                      title="Original capture"
+                      :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
+                      :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture', section)"
+                    />
+                  </div>
                 </div>
-                <div class="overflow-auto bg-slate-950">
-                  <iframe
-                    class="max-w-none min-w-[1280px] bg-white"
-                    sandbox="allow-scripts"
-                    title="Converted Tailwind"
-                    :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
-                    :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind', section)"
-                  />
+                <div>
+                  <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300">
+                    Converted Tailwind
+                  </div>
+                  <div class="overflow-auto bg-slate-950">
+                    <iframe
+                      class="max-w-none min-w-[1280px] bg-white"
+                      sandbox="allow-scripts"
+                      title="Converted Tailwind"
+                      :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
+                      :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind', section)"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <details
-              v-if="hasTailwindLeftoverCss(section)"
-              class="border-t border-slate-800 bg-slate-950/70"
-            >
-              <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
-                Leftover CSS
-              </summary>
-              <pre class="max-h-72 overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200"><code>{{ tailwindLeftoverCss(section) }}</code></pre>
-            </details>
-            <details
-              v-if="hasUnsupportedDeclarationSamples(section)"
-              class="border-t border-slate-800 bg-slate-950/70"
-            >
-              <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
-                Unmapped Declarations
-              </summary>
-              <ul class="max-h-72 list-none overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200">
-                <li
-                  v-for="sample in unsupportedDeclarationSamples(section)"
-                  :key="sample"
-                  class="font-mono"
-                >
-                  {{ sample }}
-                </li>
-              </ul>
-            </details>
-          </div>
+              <details
+                v-if="hasTailwindLeftoverCss(section)"
+                class="border-t border-slate-800 bg-slate-950/70"
+              >
+                <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase text-slate-300">
+                  Leftover CSS
+                </summary>
+                <pre class="max-h-72 overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200"><code>{{ tailwindLeftoverCss(section) }}</code></pre>
+              </details>
+              <details
+                v-if="hasUnsupportedDeclarationSamples(section)"
+                class="border-t border-slate-800 bg-slate-950/70"
+              >
+                <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase text-slate-300">
+                  Unmapped Declarations
+                </summary>
+                <ul class="max-h-72 list-none overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200">
+                  <li
+                    v-for="sample in unsupportedDeclarationSamples(section)"
+                    :key="sample"
+                    class="font-mono"
+                  >
+                    {{ sample }}
+                  </li>
+                </ul>
+              </details>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
