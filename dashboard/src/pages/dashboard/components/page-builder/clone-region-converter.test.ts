@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildRawHtmlSectionFromCloneRegion } from './clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, buildRawHtmlSectionFromCloneRegion } from './clone-region-converter'
 
 describe('buildRawHtmlSectionFromCloneRegion', () => {
   it('wraps clone region HTML in an editable content block', () => {
@@ -58,6 +58,59 @@ describe('buildEditableSectionFromCloneRegion', () => {
       _generated_html: '<section><h2>Fallback</h2></section>',
       animation: 'fade-in',
     })
+  })
+})
+
+describe('buildPreviewReplacementHtmlFromCloneRegion', () => {
+  it('renders a confident Tailwind recipe compile result as replacement preview HTML', async () => {
+    const html = await buildPreviewReplacementHtmlFromCloneRegion({
+      regionId: 'region-1',
+      html: '<section>fallback</section>',
+      tailwindRecipeArtifact: { region_id: 'region-1' },
+      compileTailwindRecipeArtifact: async () => ({
+        success: true,
+        result: {
+          confidence: 0.86,
+          section: {
+            type: 'variant-color-explorer',
+            eyebrow: 'Petrol range',
+            heading: 'Make Your Mark.',
+            cta_text: 'Build your own',
+            cta_url: '/build',
+            variants: [
+              {
+                title: 'ES',
+                image_url: '/outlander.png',
+                key_features: ['20 inch black alloys'],
+                colors: [{ name: 'White', hero_image_url: '/outlander-white.png', hex: '#fff' }],
+              },
+            ],
+          },
+        },
+      }),
+    })
+
+    expect(html).toContain('data-oem-region-id="region-1"')
+    expect(html).toContain('Make Your Mark.')
+    expect(html).toContain('20 inch black alloys')
+    expect(html).toContain('class="bg-white px-5 py-14 text-neutral-950 md:px-10 md:py-20"')
+  })
+
+  it('falls back to the captured region HTML when the compiler is not confident', async () => {
+    const html = await buildPreviewReplacementHtmlFromCloneRegion({
+      regionId: 'region-2',
+      html: '<section data-oem-region-id="region-2"><h2>Original</h2></section>',
+      tailwindRecipeArtifact: { region_id: 'region-2' },
+      compileTailwindRecipeArtifact: async () => ({
+        success: true,
+        result: {
+          confidence: 0.2,
+          section: { type: 'content-block', content_html: '<p>Low confidence</p>' },
+        },
+      }),
+    })
+
+    expect(html).toBe('<section data-oem-region-id="region-2"><h2>Original</h2></section>')
   })
 })
 

@@ -1545,6 +1545,8 @@ ${rendered}
       patchVisibility(target, value)
     else if (kind === 'style')
       patchTextStyle(target, message)
+    else if (kind === 'outer-html')
+      target.outerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? '' : value)
     else if (kind === 'html')
       target.innerHTML = sanitizeHtml(message.html != null ? message.html : value == null ? '' : value)
     else

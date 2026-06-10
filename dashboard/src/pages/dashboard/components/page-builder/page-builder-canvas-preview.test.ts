@@ -495,21 +495,21 @@ describe('clone region conversion wiring', () => {
     expect(canvasSource).toContain('emit(\'regionAction\', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
   })
 
-  it('converts clone region HTML into raw content-block sections in builder and preview', () => {
+  it('keeps builder conversion as section insertion and preview conversion as in-place clone replacement', () => {
     const builderSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
-    for (const source of [builderSource, previewSource]) {
-      expect(source).toContain('buildEditableSectionFromCloneRegion')
-      expect(source).toContain('compileTailwindRecipeArtifact')
-      expect(source).toContain('addSectionFromLiveData')
-      expect(source).toContain('setActiveMode')
-      expect(source).toContain('const section = await buildEditableSectionFromCloneRegion')
-      expect(source).toContain('tailwindRecipeArtifact')
-      expect(source).toContain('toast.error(\'Region HTML is not available\')')
-      expect(source).toContain('addSectionFromLiveData(section)')
-      expect(source).toContain('setActiveMode(\'sections\')')
-    }
+    expect(builderSource).toContain('buildEditableSectionFromCloneRegion')
+    expect(builderSource).toContain('compileTailwindRecipeArtifact')
+    expect(builderSource).toContain('const section = await buildEditableSectionFromCloneRegion')
+    expect(builderSource).toContain('addSectionFromLiveData(section)')
+    expect(builderSource).toContain('setActiveMode(\'sections\')')
+
+    expect(previewSource).toContain('buildPreviewReplacementHtmlFromCloneRegion')
+    expect(previewSource).toContain('compileTailwindRecipeArtifact')
+    expect(previewSource).toContain('patchCloneField({')
+    expect(previewSource).toContain('kind: \'outer-html\'')
+    expect(previewSource).toContain('html: replacementHtml')
   })
 })
 

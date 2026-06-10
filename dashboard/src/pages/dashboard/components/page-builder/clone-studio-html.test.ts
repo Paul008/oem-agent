@@ -38,6 +38,19 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('clone-studio:dom-updated')
   })
 
+  it('supports replacing a selected clone region outer HTML from the bridge', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main data-oem-region-id="r1"><h1>Mustang</h1></main>',
+      title: 'Mustang',
+      baseHref: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const bridge = extractBridgeScript(html)
+    expect(bridge).toContain('kind === \'outer-html\'')
+    expect(bridge).toContain('target.outerHTML = sanitizeHtml')
+  })
+
   it('marks a selected region for the iframe bridge', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main data-oem-region-id="r1"><h1>Mustang</h1></main>',

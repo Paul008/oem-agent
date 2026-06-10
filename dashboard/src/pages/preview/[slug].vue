@@ -11,7 +11,7 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { compileTailwindRecipeArtifact } from '@/lib/worker-api'
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 
@@ -196,18 +196,8 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
   }
 
   if (action === 'convert') {
-    const section = await buildEditableSectionFromCloneRegion({
-      html,
-      tailwindRecipeArtifact,
-      compileTailwindRecipeArtifact,
-    })
-    if (!section) {
-      toast.error('Region HTML is not available')
-      return
-    }
-    addSectionFromLiveData(section)
-    setActiveMode('sections')
-    toast.success('Region converted to editable section')
+    await replaceCloneRegionWithTailwind({ regionId, html, tailwindRecipeArtifact })
+    return
   }
 
   if (action === 'bind-catalog') {
@@ -251,18 +241,11 @@ async function convertSelectedCloneRegionToTailwind() {
 
   convertingCloneRegion.value = true
   try {
-    const section = await buildEditableSectionFromCloneRegion({
+    await replaceCloneRegionWithTailwind({
+      regionId: selectedCloneRegion.value?.id,
       html: selectedCloneRegion.value?.html,
       tailwindRecipeArtifact: selectedCloneRegion.value?.tailwindRecipeArtifact,
-      compileTailwindRecipeArtifact,
     })
-    if (!section) {
-      toast.error('Select a clone region with captured HTML first')
-      return
-    }
-    addSectionFromLiveData(section)
-    setActiveMode('sections')
-    toast.success('Selected region converted to Tailwind section')
   }
   catch (error: any) {
     toast.error(`Failed to convert region: ${error?.message || 'Unknown error'}`)
@@ -270,6 +253,36 @@ async function convertSelectedCloneRegionToTailwind() {
   finally {
     convertingCloneRegion.value = false
   }
+}
+
+async function replaceCloneRegionWithTailwind(input: { regionId?: string | null, html?: string | null, tailwindRecipeArtifact?: any }) {
+  const regionId = input.regionId || selectedCloneRegion.value?.id
+  if (!regionId) {
+    toast.error('Select a clone region first')
+    return
+  }
+
+  const replacementHtml = await buildPreviewReplacementHtmlFromCloneRegion({
+    regionId,
+    html: input.html,
+    tailwindRecipeArtifact: input.tailwindRecipeArtifact,
+    compileTailwindRecipeArtifact,
+  })
+
+  if (!replacementHtml) {
+    toast.error('Select a clone region with captured HTML first')
+    return
+  }
+
+  patchCloneField({
+    regionId,
+    fieldId: `${regionId}:tailwind-html`,
+    selector: `[data-oem-region-id="${regionId}"]`,
+    kind: 'outer-html',
+    value: replacementHtml,
+    html: replacementHtml,
+  })
+  toast.success('Selected region converted in preview')
 }
 
 async function savePreview() {
