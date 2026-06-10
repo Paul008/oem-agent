@@ -155,6 +155,7 @@ type TailwindConversionMode = 'exact' | 'token'
 type TailwindTemplateKind = 'hero' | 'offer-card' | 'feature-grid' | 'feature-card' | 'image-media' | 'content-block' | 'variant-color-explorer' | 'unknown'
 
 interface CapturedTailwindStats {
+  computed_snapshots: number
   computed_declarations: number
   mapped_declarations: number
   leftover_declarations: number
@@ -932,6 +933,7 @@ function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode:
   const responsiveNodesByPath = snapshotNodes.map(nodes => new Map(nodes.map(node => [String(node?.path || ''), node])))
   let index = 0
   const stats = createTailwindStats()
+  stats.computed_snapshots = snapshots.length
   const nextHtml = html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
     const node = snapshotNodes[0]?.[index]
     index += 1
@@ -1155,6 +1157,7 @@ function normalizeCssValue(value: string): string {
 
 function createTailwindStats(): CapturedTailwindStats {
   return {
+    computed_snapshots: 0,
     computed_declarations: 0,
     mapped_declarations: 0,
     leftover_declarations: 0,

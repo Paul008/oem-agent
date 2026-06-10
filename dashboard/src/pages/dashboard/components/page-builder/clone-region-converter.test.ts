@@ -314,6 +314,7 @@ describe('buildEditableSectionFromCloneRegion', () => {
 
     expect(section?._generated_html).toContain('class="hero-copy p-6 lg:p-12"')
     expect(section?._generated_html).toContain('<h1 class="text-3xl lg:text-6xl">Take centre stage</h1>')
+    expect(section?._tailwind_conversion.stats.computed_snapshots).toBe(2)
     expect(section?._tailwind_conversion.stats.variant_declarations).toBe(2)
   })
 })
@@ -500,6 +501,7 @@ describe('convertCloneRegionsToTailwindSections', () => {
         heading: 'Take centre stage',
       },
       stats: {
+        computed_snapshots: 1,
         computed_declarations: 2,
         mapped_declarations: 2,
       },
