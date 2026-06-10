@@ -71,7 +71,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
 </script>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { CloneRegion } from '../../page-builder/page-modes'
 
 const props = withDefaults(defineProps<{
@@ -118,13 +118,22 @@ const containerHeight = ref(0)
 let resizeObserver: ResizeObserver | null = null
 const bridgeToken = createBridgeToken()
 const pendingRegionListRequests = new Map<string, (regions: CloneRegion[]) => void>()
+const captureFrameWidth = ref<number | null>(null)
+const TAILWIND_CAPTURE_WIDTHS = [
+  { name: 'base', width: 375 },
+  { name: 'sm', width: 640 },
+  { name: 'md', width: 768 },
+  { name: 'lg', width: 1024 },
+  { name: 'xl', width: 1280 },
+]
+const activeFrameWidth = computed(() => captureFrameWidth.value ?? props.frameWidth)
 
 // Scale the desktop-width frame to fit. In the editor we never upscale past 1:1; in fit-width
 // (full-screen preview) we scale up so the clone fills the window instead of leaving a gap.
 const frameScale = computed(() => {
-  if (props.fitWidth && containerWidth.value && props.frameWidth > 0)
-    return containerWidth.value / props.frameWidth
-  return computeCloneFrameScale(containerWidth.value, props.frameWidth)
+  if (props.fitWidth && containerWidth.value && activeFrameWidth.value > 0)
+    return containerWidth.value / activeFrameWidth.value
+  return computeCloneFrameScale(containerWidth.value, activeFrameWidth.value)
 })
 const sameOriginSandboxEnabled = computed(() =>
   props.allowSameOriginSandbox || import.meta.env.VITE_CLONE_STUDIO_SAME_ORIGIN === 'true',
@@ -134,7 +143,7 @@ const iframeSandbox = computed(() => cloneStudioIframeSandbox(sameOriginSandboxE
 const frameStyle = computed(() => {
   const scale = frameScale.value
   return {
-    width: `${props.frameWidth}px`,
+    width: `${activeFrameWidth.value}px`,
     height: containerHeight.value ? `${Math.ceil(containerHeight.value / scale)}px` : '100%',
     transform: `scale(${scale})`,
     transformOrigin: 'top left',
@@ -297,7 +306,15 @@ function duplicateRegion(regionId: string) {
   postToFrame({ type: 'clone-studio:duplicate-region', regionId, bridgeToken })
 }
 
-function collectRegions(): Promise<CloneRegion[]> {
+function waitForFrameViewport(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+function collectRegionsAtCurrentWidth(): Promise<CloneRegion[]> {
   const requestId = `regions-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   return new Promise((resolve) => {
     pendingRegionListRequests.set(requestId, resolve)
@@ -310,6 +327,58 @@ function collectRegions(): Promise<CloneRegion[]> {
       pending([])
     }, 2000)
   })
+}
+
+function snapshotForRegion(region: CloneRegion | undefined): any | null {
+  const artifact = region?.tailwindRecipeArtifact
+  const snapshots = artifact?.computed_snapshots
+  return Array.isArray(snapshots) ? snapshots[0] ?? null : null
+}
+
+function mergeCapturedBreakpointRegions(captures: CloneRegion[][]): CloneRegion[] {
+  const baseRegions = captures[0] ?? []
+  const byWidth = captures.map(regions => new Map(regions.map(region => [region.id, region])))
+
+  return baseRegions.map((region) => {
+    const artifact = region.tailwindRecipeArtifact && typeof region.tailwindRecipeArtifact === 'object'
+      ? { ...region.tailwindRecipeArtifact }
+      : null
+    if (!artifact)
+      return region
+
+    const snapshots = byWidth
+      .map(regionsById => snapshotForRegion(regionsById.get(region.id)))
+      .filter(Boolean)
+
+    return {
+      ...region,
+      tailwindRecipeArtifact: {
+        ...artifact,
+        computed_snapshots: snapshots,
+        viewport: snapshots[0]?.viewport ?? artifact.viewport,
+        root: snapshots[0]?.root ?? artifact.root,
+      },
+    }
+  })
+}
+
+async function collectRegions(): Promise<CloneRegion[]> {
+  const originalCaptureWidth = captureFrameWidth.value
+  const captures: CloneRegion[][] = []
+  try {
+    for (const breakpoint of TAILWIND_CAPTURE_WIDTHS) {
+      captureFrameWidth.value = breakpoint.width
+      await nextTick()
+      await waitForFrameViewport()
+      captures.push(await collectRegionsAtCurrentWidth())
+    }
+  }
+  finally {
+    captureFrameWidth.value = originalCaptureWidth
+    await nextTick()
+  }
+
+  return mergeCapturedBreakpointRegions(captures)
 }
 
 function selectRegionInFrame(regionId: string | null) {

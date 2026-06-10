@@ -929,6 +929,7 @@ function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode:
     return { html, stats: createTailwindStats() }
 
   const snapshotNodes = snapshots.map(snapshot => flattenTailwindRecipeNodes(snapshot.root))
+  const responsiveNodesByPath = snapshotNodes.map(nodes => new Map(nodes.map(node => [String(node?.path || ''), node])))
   let index = 0
   const stats = createTailwindStats()
   const nextHtml = html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
@@ -942,7 +943,7 @@ function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode:
 
     let previousStyle = node.computed_style || {}
     for (let snapshotIndex = 1; snapshotIndex < snapshotNodes.length; snapshotIndex++) {
-      const responsiveNode = snapshotNodes[snapshotIndex]?.[index - 1]
+      const responsiveNode = responsiveNodesByPath[snapshotIndex]?.get(String(node.path || ''))
       if (!responsiveNode || String(responsiveNode.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
         continue
 
