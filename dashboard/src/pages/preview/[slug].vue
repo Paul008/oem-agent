@@ -437,6 +437,22 @@ function comparePageReadinessSummary(): { ready: number, review: number, incompl
   }, { ready: 0, review: 0, incomplete: 0, total: 0 })
 }
 
+function comparePageReadinessLabel(): string {
+  const summary = comparePageReadinessSummary()
+  if (!summary.total)
+    return 'No converted sections'
+  return summary.review || summary.incomplete ? 'Action required' : 'Page ready'
+}
+
+function comparePageReadinessClass(): string {
+  const label = comparePageReadinessLabel()
+  if (label === 'Page ready')
+    return 'bg-emerald-500 text-emerald-950'
+  if (label === 'Action required')
+    return 'bg-amber-400 text-amber-950'
+  return 'bg-slate-600 text-white'
+}
+
 function computedSnapshotCount(section: any): number {
   return Number(section?._tailwind_conversion?.stats?.computed_snapshots) || 0
 }
@@ -874,6 +890,12 @@ async function savePreview() {
             v-if="hasTailwindCompare"
             class="flex flex-wrap items-center gap-2 text-xs"
           >
+            <span
+              class="rounded px-2 py-1 font-semibold"
+              :class="comparePageReadinessClass()"
+            >
+              {{ comparePageReadinessLabel() }}
+            </span>
             <span class="rounded bg-slate-800 px-2 py-1 font-medium text-slate-200">
               {{ comparePageReadinessSummary().total }} sections
             </span>
