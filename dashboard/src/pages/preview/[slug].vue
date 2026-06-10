@@ -20,6 +20,23 @@ import SectionEditorDialog from '@/pages/dashboard/components/page-builder/Secti
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 type PreviewView = 'edit' | 'production' | 'source' | 'compare'
+type StyleGuideFontFace = {
+  family: string
+  weight?: string | number
+  style?: string
+  url: string
+}
+
+const HOSTED_OEM_FONT_FACES: Record<string, { primary: string, faces: StyleGuideFontFace[] }> = {
+  'mitsubishi-au': {
+    primary: 'MMC, sans-serif',
+    faces: [
+      { family: 'MMC', weight: '400', url: `${WORKER_BASE}/media/fonts/mitsubishi-au/MMC-Regular.woff2` },
+      { family: 'MMC', weight: '500', url: `${WORKER_BASE}/media/fonts/mitsubishi-au/MMC-Medium.woff2` },
+      { family: 'MMC', weight: '700', url: `${WORKER_BASE}/media/fonts/mitsubishi-au/MMC-Bold.woff2` },
+    ],
+  },
+}
 
 const route = useRoute()
 const {
@@ -227,12 +244,12 @@ function tailwindCompareSrcdoc(html: string, label: string, section?: any): stri
 }
 
 function styleGuideFontCss(): string {
-  const faces = styleGuideTokens.value?.typography?.font_faces
-  if (!Array.isArray(faces))
+  const faces = styleGuideFontFaces()
+  if (!faces.length)
     return ''
 
   return faces
-    .map((face: any) => {
+    .map((face) => {
       const family = sanitizeCssString(face?.family || '')
       const url = sanitizeCssUrl(face?.url || '')
       if (!family || !url)
@@ -248,8 +265,51 @@ function styleGuideFontCss(): string {
 }
 
 function styleGuideBodyFontFamily(): string {
-  const family = String(styleGuideTokens.value?.typography?.font_primary || '').trim()
+  const family = String(styleGuideTokens.value?.typography?.font_primary || hostedOemFontConfig()?.primary || '').trim()
   return family ? sanitizeCssFontFamily(family) : 'Inter,Arial,sans-serif'
+}
+
+function styleGuideFontFaces(): StyleGuideFontFace[] {
+  const typography = styleGuideTokens.value?.typography
+  const faces = typography?.font_faces
+  if (Array.isArray(faces) && faces.length)
+    return faces
+
+  const cdnUrls = typography?.font_cdn_urls
+  if (Array.isArray(cdnUrls) && cdnUrls.length) {
+    const primaryFamily = firstFontFamily(String(typography?.font_primary || hostedOemFontConfig()?.primary || ''))
+    return cdnUrls
+      .map((url: unknown) => {
+        const filename = String(url || '').split('/').pop() || ''
+        return {
+          family: primaryFamily,
+          weight: fontWeightFromFilename(filename),
+          url: String(url || ''),
+        }
+      })
+      .filter(face => Boolean(face.family && face.url))
+  }
+
+  return hostedOemFontConfig()?.faces ?? []
+}
+
+function hostedOemFontConfig() {
+  return HOSTED_OEM_FONT_FACES[oemId.value]
+}
+
+function firstFontFamily(value: string): string {
+  return sanitizeCssString(value.split(',')[0] || '')
+}
+
+function fontWeightFromFilename(filename: string): string {
+  const normalized = filename.toLowerCase()
+  if (normalized.includes('bold'))
+    return '700'
+  if (normalized.includes('medium'))
+    return '500'
+  if (normalized.includes('light'))
+    return '300'
+  return '400'
 }
 
 function sanitizeCssString(value: unknown): string {
