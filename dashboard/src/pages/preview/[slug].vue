@@ -159,8 +159,18 @@ function replacePreviewViewQuery(view: PreviewView) {
 
 function tailwindSectionSource(section: any): string {
   const html = section?._generated_html || section?.content_html || section?.body_html || ''
-  if (typeof html === 'string' && html.trim())
-    return html.trim()
+  const leftoverCss = typeof section?._tailwind_leftover_css === 'string' ? section._tailwind_leftover_css.trim() : ''
+  const stats = section?._tailwind_conversion?.stats
+  const statsSource = stats && typeof stats === 'object'
+    ? `/* Tailwind Conversion Stats */\n${JSON.stringify(stats, null, 2)}`
+    : ''
+  const suffix = [statsSource, leftoverCss ? `/* Leftover CSS */\n${leftoverCss}` : ''].filter(Boolean).join('\n\n')
+  if (typeof html === 'string' && html.trim()) {
+    const trimmedHtml = html.trim()
+    return suffix ? `${trimmedHtml}\n\n${suffix}` : trimmedHtml
+  }
+  if (suffix)
+    return suffix
   return JSON.stringify(section, null, 2)
 }
 

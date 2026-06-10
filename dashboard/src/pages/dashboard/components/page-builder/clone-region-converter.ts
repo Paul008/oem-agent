@@ -1,5 +1,6 @@
 import type { Product, VariantColor } from '@/composables/use-oem-data'
 import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
+import { tailwindRules } from '@/composables/capture-tailwind-rules'
 
 const HTML_ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -144,18 +145,64 @@ export function buildCatalogSectionsFromModel(input: CatalogBindingInput): Recor
   ]
 }
 
-export function buildRawHtmlSectionFromCloneRegion(html: string | null | undefined): Record<string, any> | null {
+interface BuildRawHtmlSectionFromCloneRegionOptions {
+  css?: string | null
+  tailwindRecipeArtifact?: any
+  mode?: TailwindConversionMode
+}
+
+type TailwindConversionMode = 'exact' | 'token'
+
+interface CapturedTailwindStats {
+  computed_declarations: number
+  mapped_declarations: number
+  leftover_declarations: number
+  unmatched_rules: number
+  leftover_rules: number
+  important_count: number
+  calc_count: number
+  unresolved_var_count: number
+  variant_declarations: number
+}
+
+interface CapturedTailwindCompilation {
+  html: string
+  leftoverCss: string
+  source: 'captured-region-css' | 'captured-computed-style' | 'raw-html'
+  supportedDeclarations: number
+  leftoverRules: number
+  mode: TailwindConversionMode
+  stats: CapturedTailwindStats
+}
+
+export function buildRawHtmlSectionFromCloneRegion(html: string | null | undefined, options: BuildRawHtmlSectionFromCloneRegionOptions = {}): Record<string, any> | null {
   const trimmed = typeof html === 'string' ? html.trim() : ''
   if (!trimmed)
     return null
 
-  return {
+  const compiled = compileCapturedRegionHtmlToTailwind(trimmed, options)
+  const section: Record<string, any> = {
     type: 'content-block',
     title: '',
     content_html: '',
-    _generated_html: trimmed,
+    _generated_html: compiled.html,
     animation: 'fade-in',
   }
+
+  if (compiled.source !== 'raw-html') {
+    section._tailwind_conversion = {
+      source: compiled.source,
+      mode: compiled.mode,
+      supported_declarations: compiled.supportedDeclarations,
+      leftover_rules: compiled.leftoverRules,
+      stats: compiled.stats,
+    }
+  }
+
+  if (compiled.leftoverCss)
+    section._tailwind_leftover_css = compiled.leftoverCss
+
+  return section
 }
 
 export interface BuildEditableSectionFromCloneRegionInput {
@@ -177,7 +224,596 @@ export async function buildEditableSectionFromCloneRegion(input: BuildEditableSe
     }
   }
 
-  return buildRawHtmlSectionFromCloneRegion(input.html)
+  return buildRawHtmlSectionFromCloneRegion(input.html, {
+    css: extractTailwindRecipeArtifactCss(input.tailwindRecipeArtifact),
+    tailwindRecipeArtifact: input.tailwindRecipeArtifact,
+  })
+}
+
+function compileCapturedRegionHtmlToTailwind(html: string, options: BuildRawHtmlSectionFromCloneRegionOptions): CapturedTailwindCompilation {
+  const styleExtraction = extractStyleBlocks(html)
+  const css = [styleExtraction.css, options.css].filter(Boolean).join('\n').trim()
+  const mode = options.mode || 'exact'
+
+  if (hasComputedStyleArtifact(options.tailwindRecipeArtifact)) {
+    const computedResult = compileComputedStyleArtifactIntoHtml(styleExtraction.html, options.tailwindRecipeArtifact, mode)
+    const cssResult = css
+      ? compileCssRulesIntoHtml(computedResult.html, css, { mode, applyBaseUtilities: false })
+      : emptyCssCompilation(computedResult.html, mode)
+    const stats = mergeTailwindStats(computedResult.stats, cssResult.stats)
+    return {
+      html: cssResult.html.trim(),
+      leftoverCss: cssResult.leftoverCss,
+      source: 'captured-computed-style',
+      supportedDeclarations: stats.mapped_declarations,
+      leftoverRules: stats.leftover_rules,
+      mode,
+      stats,
+    }
+  }
+
+  if (css) {
+    const cssResult = compileCssRulesIntoHtml(styleExtraction.html, css, { mode, applyBaseUtilities: true })
+    return {
+      html: cssResult.html.trim(),
+      leftoverCss: cssResult.leftoverCss,
+      source: 'captured-region-css',
+      supportedDeclarations: cssResult.stats.mapped_declarations,
+      leftoverRules: cssResult.stats.leftover_rules,
+      mode,
+      stats: cssResult.stats,
+    }
+  }
+
+  return {
+    html: styleExtraction.html.trim(),
+    leftoverCss: '',
+    source: 'raw-html',
+    supportedDeclarations: 0,
+    leftoverRules: 0,
+    mode,
+    stats: createTailwindStats(),
+  }
+}
+
+function extractStyleBlocks(html: string): { html: string, css: string } {
+  const css: string[] = []
+  const withoutStyles = String(html || '').replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_match, body) => {
+    if (body)
+      css.push(String(body).trim())
+    return ''
+  })
+
+  return { html: withoutStyles.trim(), css: css.join('\n') }
+}
+
+function extractTailwindRecipeArtifactCss(artifact: any): string {
+  if (!artifact || typeof artifact !== 'object')
+    return ''
+
+  const candidates = [
+    artifact.css,
+    artifact.captured_css,
+    artifact.capturedCss,
+    artifact.stylesheet,
+    artifact.stylesheet_css,
+    artifact.stylesheetCss,
+    artifact.matching_css,
+    artifact.matchingCss,
+  ]
+
+  return candidates
+    .filter(value => typeof value === 'string' && value.trim())
+    .join('\n')
+}
+
+function compileCssRulesIntoHtml(html: string, css: string, options: { mode: TailwindConversionMode, applyBaseUtilities: boolean }): { html: string, leftoverCss: string, stats: CapturedTailwindStats } {
+  let nextHtml = html
+  const leftoverCss: string[] = []
+  const stats = createTailwindStats()
+
+  for (const block of parseTopLevelCssBlocks(css)) {
+    if (block.type === 'atrule') {
+      countCssSignals(block.raw, stats)
+      const mediaPrefix = mediaVariantPrefix(block.selector)
+      if (mediaPrefix) {
+        const mediaResult = compileNestedMediaRules(nextHtml, block.body, mediaPrefix, options, stats)
+        nextHtml = mediaResult.html
+        if (mediaResult.leftoverCss)
+          leftoverCss.push(mediaResult.leftoverCss)
+      }
+      else {
+        leftoverCss.push(block.raw)
+        stats.leftover_rules += 1
+      }
+      continue
+    }
+
+    const result = applyCssRuleToHtml(nextHtml, block.selector, parseDeclarations(block.body), options, stats)
+    nextHtml = result.html
+    if (result.leftoverCss)
+      leftoverCss.push(result.leftoverCss)
+  }
+
+  return {
+    html: nextHtml,
+    leftoverCss: leftoverCss.filter(Boolean).join('\n').trim(),
+    stats,
+  }
+}
+
+function emptyCssCompilation(html: string, _mode: TailwindConversionMode): { html: string, leftoverCss: string, stats: CapturedTailwindStats } {
+  return { html, leftoverCss: '', stats: createTailwindStats() }
+}
+
+function compileNestedMediaRules(html: string, css: string, mediaPrefix: string, options: { mode: TailwindConversionMode, applyBaseUtilities: boolean }, stats: CapturedTailwindStats): { html: string, leftoverCss: string } {
+  let nextHtml = html
+  const leftoverCss: string[] = []
+  const nestedOptions = { ...options, forcedVariantPrefix: mediaPrefix }
+
+  for (const block of parseTopLevelCssBlocks(css)) {
+    if (block.type === 'atrule') {
+      leftoverCss.push(block.raw)
+      stats.leftover_rules += 1
+      continue
+    }
+
+    const result = applyCssRuleToHtml(nextHtml, block.selector, parseDeclarations(block.body), nestedOptions, stats)
+    nextHtml = result.html
+    if (result.leftoverCss)
+      leftoverCss.push(result.leftoverCss)
+  }
+
+  return { html: nextHtml, leftoverCss: leftoverCss.join('\n').trim() }
+}
+
+function applyCssRuleToHtml(
+  html: string,
+  selector: string,
+  declarations: Array<{ prop: string, value: string }>,
+  options: { mode: TailwindConversionMode, applyBaseUtilities: boolean, forcedVariantPrefix?: string },
+  stats: CapturedTailwindStats,
+): { html: string, leftoverCss: string } {
+  let nextHtml = html
+  const leftoverCss: string[] = []
+  const selectors = splitSelectorList(selector)
+
+  for (const rawSelector of selectors) {
+    const selectorPlan = parseSelectorPlan(rawSelector.trim(), options.forcedVariantPrefix)
+    if (!selectorPlan) {
+      leftoverCss.push(formatCssRule(rawSelector.trim(), declarations))
+      stats.leftover_rules += 1
+      stats.leftover_declarations += declarations.length
+      continue
+    }
+
+    if (!selectorMatchesHtml(nextHtml, selectorPlan.targetSelector)) {
+      stats.unmatched_rules += 1
+      continue
+    }
+
+    const classes: string[] = []
+    const leftoverDeclarations: Array<{ prop: string, value: string }> = []
+    for (const declaration of declarations) {
+      const cleaned = cleanCssDeclarationValue(declaration.value)
+      countCssSignals(declaration.value, stats)
+      const mapped = declarationToTailwindClasses(declaration.prop, cleaned.value, options.mode)
+      const shouldApply = mapped.length && (options.applyBaseUtilities || selectorPlan.variantPrefix)
+
+      if (cleaned.important)
+        stats.important_count += 1
+
+      if (shouldApply) {
+        const prefixed = selectorPlan.variantPrefix
+          ? mapped.map(className => `${selectorPlan.variantPrefix}${className}`)
+          : mapped
+        classes.push(...prefixed)
+        stats.mapped_declarations += 1
+        if (selectorPlan.variantPrefix)
+          stats.variant_declarations += 1
+      }
+      else if (!mapped.length && shouldCountCssDeclaration(declaration.prop, cleaned.value)) {
+        leftoverDeclarations.push({ prop: declaration.prop, value: declaration.value })
+        stats.leftover_declarations += 1
+      }
+    }
+
+    if (classes.length)
+      nextHtml = appendClassesForSelector(nextHtml, selectorPlan.targetSelector, classes)
+
+    if (leftoverDeclarations.length) {
+      leftoverCss.push(formatCssRule(rawSelector.trim(), leftoverDeclarations))
+      stats.leftover_rules += 1
+    }
+  }
+
+  return { html: nextHtml, leftoverCss: leftoverCss.join('\n').trim() }
+}
+
+function parseTopLevelCssBlocks(css: string): Array<{ type: 'rule' | 'atrule', selector: string, body: string, raw: string }> {
+  const blocks: Array<{ type: 'rule' | 'atrule', selector: string, body: string, raw: string }> = []
+  const input = String(css || '')
+  let cursor = 0
+
+  while (cursor < input.length) {
+    const open = input.indexOf('{', cursor)
+    if (open < 0)
+      break
+
+    const prelude = input.slice(cursor, open).trim()
+    let depth = 1
+    let index = open + 1
+    while (index < input.length && depth > 0) {
+      const char = input[index]
+      if (char === '{')
+        depth += 1
+      else if (char === '}')
+        depth -= 1
+      index += 1
+    }
+
+    const raw = input.slice(cursor, index).trim()
+    const body = input.slice(open + 1, Math.max(open + 1, index - 1)).trim()
+    if (prelude) {
+      if (prelude.startsWith('@') || body.includes('{'))
+        blocks.push({ type: 'atrule', selector: prelude, body, raw })
+      else
+        blocks.push({ type: 'rule', selector: prelude, body, raw })
+    }
+
+    cursor = index
+  }
+
+  return blocks
+}
+
+function splitSelectorList(selector: string): string[] {
+  const selectors: string[] = []
+  let current = ''
+  let parenDepth = 0
+
+  for (const char of selector) {
+    if (char === '(')
+      parenDepth += 1
+    else if (char === ')')
+      parenDepth = Math.max(0, parenDepth - 1)
+
+    if (char === ',' && parenDepth === 0) {
+      selectors.push(current)
+      current = ''
+    }
+    else {
+      current += char
+    }
+  }
+
+  if (current.trim())
+    selectors.push(current)
+
+  return selectors
+}
+
+function parseDeclarations(body: string): Array<{ prop: string, value: string }> {
+  return String(body || '')
+    .split(';')
+    .map((part) => {
+      const colon = part.indexOf(':')
+      if (colon < 0)
+        return null
+
+      const prop = part.slice(0, colon).trim().toLowerCase()
+      const value = part.slice(colon + 1).trim()
+      return prop && value ? { prop, value } : null
+    })
+    .filter((declaration): declaration is { prop: string, value: string } => Boolean(declaration))
+}
+
+function isSafeSelector(selector: string): boolean {
+  return /^(\.[A-Za-z0-9_-]+|#[A-Za-z0-9_-]+|[a-z][a-z0-9-]*)$/i.test(selector)
+}
+
+function parseSelectorPlan(selector: string, forcedVariantPrefix?: string): { targetSelector: string, variantPrefix: string } | null {
+  if (!selector)
+    return null
+
+  if (forcedVariantPrefix && isSafeSelector(selector))
+    return { targetSelector: selector, variantPrefix: forcedVariantPrefix }
+
+  if (isSafeSelector(selector))
+    return { targetSelector: selector, variantPrefix: forcedVariantPrefix || '' }
+
+  const variant = selector.match(/^(\.[A-Za-z0-9_-]+|#[A-Za-z0-9_-]+|[a-z][a-z0-9-]*):(hover|focus|active|disabled|visited|focus-visible)$/i)
+  if (variant) {
+    const variantName = variant[2].toLowerCase()
+    return { targetSelector: variant[1], variantPrefix: `${variantName}:` }
+  }
+
+  return null
+}
+
+function mediaVariantPrefix(selector: string): string {
+  const normalized = String(selector || '').replace(/\s+/g, ' ').trim()
+  const max = normalized.match(/^@media\s*\(\s*max-width\s*:\s*([0-9.]+px)\s*\)$/i)
+  if (max)
+    return `max-[${max[1]}]:`
+
+  const min = normalized.match(/^@media\s*\(\s*min-width\s*:\s*([0-9.]+px)\s*\)$/i)
+  if (min)
+    return `min-[${min[1]}]:`
+
+  return ''
+}
+
+function selectorMatchesHtml(html: string, selector: string): boolean {
+  if (selector.startsWith('.')) {
+    const className = selector.slice(1)
+    let matched = false
+    html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+      if (readHtmlClassAttribute(tag).split(/\s+/).includes(className))
+        matched = true
+      return tag
+    })
+    return matched
+  }
+
+  if (selector.startsWith('#')) {
+    const id = selector.slice(1)
+    let matched = false
+    html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+      if (readHtmlAttributeValue(tag, 'id') === id)
+        matched = true
+      return tag
+    })
+    return matched
+  }
+
+  return new RegExp(`<${escapeRegExp(selector)}(\\s|>|/)`, 'i').test(html)
+}
+
+function formatCssRule(selector: string, declarations: Array<{ prop: string, value: string }>): string {
+  if (!declarations.length)
+    return ''
+
+  const body = declarations.map(declaration => `${declaration.prop}: ${declaration.value};`).join(' ')
+  return `${selector} { ${body} }`
+}
+
+function appendClassesForSelector(html: string, selector: string, classes: string[]): string {
+  if (!classes.length)
+    return html
+
+  if (selector.startsWith('.')) {
+    const className = selector.slice(1)
+    return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+      const existing = readHtmlClassAttribute(tag)
+      if (!existing.split(/\s+/).includes(className))
+        return tag
+      return appendClassesToOpeningTag(tag, classes)
+    })
+  }
+
+  if (selector.startsWith('#')) {
+    const id = selector.slice(1)
+    return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+      if (readHtmlAttributeValue(tag, 'id') !== id)
+        return tag
+      return appendClassesToOpeningTag(tag, classes)
+    })
+  }
+
+  const tagName = selector.toLowerCase()
+  const pattern = new RegExp(`<${escapeRegExp(tagName)}(\\s[^<>]*?)?>`, 'gi')
+  return html.replace(pattern, tag => appendClassesToOpeningTag(tag, classes))
+}
+
+function appendClassesToOpeningTag(tag: string, classes: string[]): string {
+  const existing = readHtmlClassAttribute(tag)
+  const next = uniqueClassList([...existing.split(/\s+/).filter(Boolean), ...classes])
+  if (!next.length)
+    return tag
+
+  if (/\sclass\s*=/.test(tag))
+    return tag.replace(/\sclass\s*=\s*(["'])(.*?)\1/i, ` class="${next.join(' ')}"`)
+
+  return tag.replace(/\/?>$/, match => ` class="${next.join(' ')}"${match}`)
+}
+
+function readHtmlClassAttribute(tag: string): string {
+  return readHtmlAttributeValue(tag, 'class') || ''
+}
+
+function readHtmlAttributeValue(tag: string, name: string): string | null {
+  const pattern = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`, 'i')
+  const match = String(tag || '').match(pattern)
+  return match ? match[2] : null
+}
+
+function uniqueClassList(classes: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const className of classes) {
+    const trimmed = className.trim()
+    if (!trimmed || seen.has(trimmed))
+      continue
+    seen.add(trimmed)
+    result.push(trimmed)
+  }
+  return result
+}
+
+function escapeRegExp(value: string): string {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode: TailwindConversionMode): { html: string, stats: CapturedTailwindStats } {
+  const root = artifact?.root
+  if (!root || typeof root !== 'object')
+    return { html, stats: createTailwindStats() }
+
+  const nodes = flattenTailwindRecipeNodes(root)
+  let index = 0
+  const stats = createTailwindStats()
+  const nextHtml = html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
+    const node = nodes[index]
+    index += 1
+    if (!node || String(node.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
+      return tag
+
+    const classes = computedStyleToTailwindClasses(node.computed_style, mode, stats)
+    return appendClassesToOpeningTag(tag, classes.classes)
+  })
+
+  return { html: nextHtml, stats }
+}
+
+function hasComputedStyleArtifact(artifact: any): boolean {
+  return Boolean(artifact?.root && typeof artifact.root === 'object')
+}
+
+function flattenTailwindRecipeNodes(root: any): any[] {
+  const nodes: any[] = []
+  const visit = (node: any) => {
+    if (!node || typeof node !== 'object')
+      return
+
+    nodes.push(node)
+    const children = Array.isArray(node.children) ? node.children : []
+    for (const child of children)
+      visit(child)
+  }
+
+  visit(root)
+  return nodes
+}
+
+function computedStyleToTailwindClasses(style: Record<string, unknown> | null | undefined, mode: TailwindConversionMode, stats: CapturedTailwindStats): { classes: string[] } {
+  if (!style || typeof style !== 'object')
+    return { classes: [] }
+
+  const classes: string[] = []
+  for (const [prop, rawValue] of Object.entries(style)) {
+    const value = String(rawValue ?? '')
+    countCssSignals(value, stats)
+    if (!shouldCountCssDeclaration(prop, value))
+      continue
+
+    stats.computed_declarations += 1
+    const mapped = declarationToTailwindClasses(prop, value, mode)
+    if (!mapped.length) {
+      stats.leftover_declarations += 1
+      continue
+    }
+
+    classes.push(...mapped)
+    stats.mapped_declarations += 1
+  }
+
+  return { classes: uniqueClassList(classes) }
+}
+
+interface TailwindDeclarationResolver {
+  mode: TailwindConversionMode
+  classesForDeclaration: (prop: string, value: string) => string[]
+}
+
+function declarationToTailwindClasses(prop: string, value: string, mode: TailwindConversionMode): string[] {
+  const normalizedProp = String(prop || '').trim().toLowerCase()
+  const normalizedValue = String(value || '').trim()
+  if (!normalizedProp || !normalizedValue)
+    return []
+
+  return getTailwindDeclarationResolver(mode).classesForDeclaration(normalizedProp, normalizedValue)
+}
+
+function getTailwindDeclarationResolver(mode: TailwindConversionMode): TailwindDeclarationResolver {
+  return {
+    mode,
+    classesForDeclaration: exactTailwindClassesForDeclaration,
+  }
+}
+
+function exactTailwindClassesForDeclaration(normalizedProp: string, normalizedValue: string): string[] {
+  const shorthand = spacingShorthandToTailwind(normalizedProp, normalizedValue)
+  if (shorthand.length)
+    return shorthand
+
+  return tailwindRules().cssTw(normalizedProp, normalizeCssValue(normalizedValue))
+}
+
+function spacingShorthandToTailwind(prop: string, value: string): string[] {
+  if (prop !== 'padding' && prop !== 'margin')
+    return []
+
+  const parts = value.split(/\s+/).filter(Boolean)
+  if (parts.length !== 1)
+    return []
+
+  const numeric = parseFloat(parts[0])
+  if (Number.isNaN(numeric) || numeric < 0 || !/px$/i.test(parts[0]))
+    return []
+
+  const prefix = prop === 'padding' ? 'p' : 'm'
+  return [`${prefix}-${tailwindRules().pxToSp(numeric)}`]
+}
+
+function normalizeCssValue(value: string): string {
+  const rgb = value.match(/^rgba?\(\s*(\d+)\s+(\d+)\s+(\d+)(?:\s*\/\s*([0-9.]+%?))?\s*\)$/i)
+  if (!rgb)
+    return value
+
+  if (rgb[4]) {
+    const alpha = rgb[4].endsWith('%') ? String(Number.parseFloat(rgb[4]) / 100) : rgb[4]
+    return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`
+  }
+
+  return `rgb(${rgb[1]}, ${rgb[2]}, ${rgb[3]})`
+}
+
+function createTailwindStats(): CapturedTailwindStats {
+  return {
+    computed_declarations: 0,
+    mapped_declarations: 0,
+    leftover_declarations: 0,
+    unmatched_rules: 0,
+    leftover_rules: 0,
+    important_count: 0,
+    calc_count: 0,
+    unresolved_var_count: 0,
+    variant_declarations: 0,
+  }
+}
+
+function mergeTailwindStats(...statsList: CapturedTailwindStats[]): CapturedTailwindStats {
+  const merged = createTailwindStats()
+  for (const stats of statsList) {
+    for (const key of Object.keys(merged) as Array<keyof CapturedTailwindStats>)
+      merged[key] += stats[key] || 0
+  }
+  return merged
+}
+
+function cleanCssDeclarationValue(value: string): { value: string, important: boolean } {
+  const raw = String(value || '').trim()
+  const important = /!important\s*$/i.test(raw)
+  return {
+    value: raw.replace(/\s*!important\s*$/i, '').trim(),
+    important,
+  }
+}
+
+function countCssSignals(value: string, stats: CapturedTailwindStats) {
+  const raw = String(value || '')
+  if (/calc\(/i.test(raw))
+    stats.calc_count += 1
+  if (/var\(/i.test(raw))
+    stats.unresolved_var_count += 1
+}
+
+function shouldCountCssDeclaration(prop: string, value: string): boolean {
+  const normalizedValue = String(value || '').trim()
+  if (!normalizedValue || normalizedValue === 'none' || normalizedValue === 'normal' || normalizedValue === 'auto' || normalizedValue === '0px' || normalizedValue === 'rgba(0, 0, 0, 0)')
+    return false
+  return Boolean(String(prop || '').trim())
 }
 
 export interface ConvertCloneRegionsToTailwindSectionsInput {

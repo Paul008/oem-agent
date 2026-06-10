@@ -63,6 +63,10 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('data-oem-tailwind-source-view="true"')
     expect(source).toContain('v-for="section in sections"')
     expect(source).toContain('tailwindSectionSource(section)')
+    expect(source).toContain('/* Leftover CSS */')
+    expect(source).toContain('/* Tailwind Conversion Stats */')
+    expect(source).toContain('_tailwind_leftover_css')
+    expect(source).toContain('_tailwind_conversion?.stats')
   })
 
   it('preserves unsaved converted sections when switching preview views', () => {

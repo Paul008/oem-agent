@@ -16,6 +16,33 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
   it('rejects blank clone region HTML', () => {
     expect(buildRawHtmlSectionFromCloneRegion('   ')).toBeNull()
   })
+
+  it('compiles safe captured CSS selectors into Tailwind classes and preserves leftovers', () => {
+    const section = buildRawHtmlSectionFromCloneRegion(`
+      <style>
+        .hero-copy {
+          padding: 37px;
+          background-color: #050505;
+          color: #f5f5f5;
+          clip-path: polygon(0 0, 100% 0, 90% 100%, 0 100%);
+        }
+        .hero-copy::before { content: ""; display: block; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+      </style>
+      <section class="hero-copy"><h1>Take centre stage</h1></section>
+    `)
+
+    expect(section?._generated_html).not.toContain('<style>')
+    expect(section?._generated_html).toContain('class="hero-copy p-[37px] bg-[#050505] text-[#f5f5f5]"')
+    expect(section?._tailwind_leftover_css).toContain('clip-path: polygon(0 0, 100% 0, 90% 100%, 0 100%)')
+    expect(section?._tailwind_leftover_css).toContain('.hero-copy::before')
+    expect(section?._tailwind_leftover_css).toContain('@keyframes fade-in')
+    expect(section?._tailwind_conversion).toMatchObject({
+      source: 'captured-region-css',
+      mode: 'exact',
+      supported_declarations: 3,
+    })
+  })
 })
 
 describe('buildEditableSectionFromCloneRegion', () => {
@@ -57,6 +84,100 @@ describe('buildEditableSectionFromCloneRegion', () => {
       content_html: '',
       _generated_html: '<section><h2>Fallback</h2></section>',
       animation: 'fade-in',
+    })
+  })
+
+  it('falls back to compiling captured computed styles into Tailwind classes', async () => {
+    const section = await buildEditableSectionFromCloneRegion({
+      html: '<section class="hero-copy"><h1>Take centre stage</h1></section>',
+      tailwindRecipeArtifact: {
+        region_id: 'r3',
+        root: {
+          path: '0',
+          tag: 'section',
+          attributes: { class: 'hero-copy' },
+          computed_style: {
+            display: 'flex',
+            'background-color': 'rgb(5, 5, 5)',
+            color: 'rgb(245, 245, 245)',
+            padding: '37px',
+          },
+          children: [
+            {
+              path: '0.0',
+              tag: 'h1',
+              attributes: {},
+              computed_style: {
+                'font-size': '48px',
+                'font-weight': '700',
+                'letter-spacing': '0.3px',
+              },
+              children: [],
+            },
+          ],
+        },
+      },
+      compileTailwindRecipeArtifact: async () => ({
+        success: false,
+        result: null,
+      }),
+    })
+
+    expect(section?._generated_html).toContain('class="hero-copy flex bg-[#050505] text-[#f5f5f5] p-[37px]"')
+    expect(section?._generated_html).toContain('<h1 class="text-5xl font-bold tracking-[0.3px]">Take centre stage</h1>')
+    expect(section?._tailwind_conversion).toMatchObject({
+      source: 'captured-computed-style',
+      mode: 'exact',
+    })
+  })
+
+  it('uses computed styles as the base conversion and raw CSS only for variants, leftovers, and stats', async () => {
+    const section = await buildEditableSectionFromCloneRegion({
+      html: `
+        <style>
+          .hero-copy { padding: 12px; color: #111111; clip-path: inset(0); }
+          .hero-copy:hover { color: #ffffff; background-color: #000000 !important; }
+          .unused-rule { color: #ff0000; }
+          @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        </style>
+        <section class="hero-copy"><h1>Take centre stage</h1></section>
+      `,
+      tailwindRecipeArtifact: {
+        region_id: 'r4',
+        root: {
+          path: '0',
+          tag: 'section',
+          attributes: { class: 'hero-copy' },
+          computed_style: {
+            'background-color': 'rgb(5, 5, 5)',
+            color: 'rgb(245, 245, 245)',
+            padding: '37px',
+          },
+          children: [
+            {
+              path: '0.0',
+              tag: 'h1',
+              attributes: {},
+              computed_style: { 'font-weight': '700' },
+              children: [],
+            },
+          ],
+        },
+      },
+      compileTailwindRecipeArtifact: async () => ({ success: false, result: null }),
+    })
+
+    expect(section?._generated_html).toContain('class="hero-copy bg-[#050505] text-[#f5f5f5] p-[37px] hover:text-[#ffffff] hover:bg-[#000000]"')
+    expect(section?._generated_html).not.toContain('p-3')
+    expect(section?._tailwind_leftover_css).toContain('clip-path: inset(0)')
+    expect(section?._tailwind_leftover_css).toContain('@keyframes fade-in')
+    expect(section?._tailwind_conversion).toMatchObject({
+      source: 'captured-computed-style',
+      stats: {
+        unmatched_rules: 1,
+        important_count: 1,
+        variant_declarations: 2,
+      },
     })
   })
 })
