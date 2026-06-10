@@ -237,7 +237,7 @@ function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: Clone
   }
 
   return rows.map((row, index) => {
-    const orderedRow = [...row].sort((a, b) => (Number(a.region.left) || 0) - (Number(b.region.left) || 0))
+    const orderedRow = [...row].sort((a, b) => regionLeft(a.region) - regionLeft(b.region))
     if (orderedRow.length > 1)
       return buildGroupedCloneRegionSection(orderedRow, index)
 
@@ -257,22 +257,30 @@ function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: Clone
 }
 
 function regionsShareVisualRow(a: CloneRegion, b: CloneRegion): boolean {
-  const aTop = Number(a.top) || 0
-  const bTop = Number(b.top) || 0
+  const aTop = regionTop(a)
+  const bTop = regionTop(b)
   const aHeight = Math.max(1, Number(a.height) || 1)
   const bHeight = Math.max(1, Number(b.height) || 1)
   const verticalOverlap = Math.min(aTop + aHeight, bTop + bHeight) - Math.max(aTop, bTop)
   const verticalOverlapRatio = verticalOverlap / Math.min(aHeight, bHeight)
   const topDelta = Math.abs(aTop - bTop)
 
-  const aLeft = Number(a.left) || 0
-  const bLeft = Number(b.left) || 0
+  const aLeft = regionLeft(a)
+  const bLeft = regionLeft(b)
   const aWidth = Math.max(1, Number(a.width) || 1)
   const bWidth = Math.max(1, Number(b.width) || 1)
   const horizontalOverlap = Math.min(aLeft + aWidth, bLeft + bWidth) - Math.max(aLeft, bLeft)
   const horizontalOverlapRatio = Math.max(0, horizontalOverlap) / Math.min(aWidth, bWidth)
 
   return horizontalOverlapRatio < 0.35 && (verticalOverlapRatio >= 0.45 || topDelta <= Math.max(96, Math.min(aHeight, bHeight) * 0.35))
+}
+
+function regionLeft(region: CloneRegion): number {
+  return Number.isFinite(Number(region.left)) ? Number(region.left) : Number(region.viewport_left) || 0
+}
+
+function regionTop(region: CloneRegion): number {
+  return Number.isFinite(Number(region.top)) ? Number(region.top) : Number(region.viewport_top) || 0
 }
 
 function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, section: Record<string, any> }>, order: number): Record<string, any> {
