@@ -375,11 +375,52 @@ function mappedDeclarations(section: any): number {
   return Number(section?._tailwind_conversion?.stats?.mapped_declarations) || 0
 }
 
+function hasComputedDeclarationStats(section: any): boolean {
+  return computedDeclarations(section) > 0
+}
+
+function compareMappingSummary(section: any): string {
+  if (!hasComputedDeclarationStats(section))
+    return 'No computed snapshots'
+  return `${mappedDeclarations(section)} / ${computedDeclarations(section)} mapped`
+}
+
 function mappedDeclarationRate(section: any): string {
   const computed = computedDeclarations(section)
   if (!computed)
-    return '0%'
+    return 'N/A'
   return `${Math.round((mappedDeclarations(section) / computed) * 100)}%`
+}
+
+function compareReadinessLabel(section: any): string {
+  if (!hasComputedDeclarationStats(section))
+    return 'Capture incomplete'
+
+  const stats = section?._tailwind_conversion?.stats || {}
+  const explicitRisks = Array.isArray(section?._tailwind_conversion?.parity_risks)
+    ? section._tailwind_conversion.parity_risks
+    : []
+  const coverage = mappedDeclarations(section) / computedDeclarations(section)
+  const hasRiskSignals = Boolean(
+    explicitRisks.length
+    || Number(stats.leftover_declarations)
+    || Number(stats.leftover_rules)
+    || Number(stats.unmatched_rules)
+    || Number(stats.unresolved_var_count)
+    || Number(stats.calc_count)
+    || Number(stats.important_count),
+  )
+
+  return coverage >= 0.95 && !hasRiskSignals ? 'Ready' : 'Needs review'
+}
+
+function compareReadinessClass(section: any): string {
+  const label = compareReadinessLabel(section)
+  if (label === 'Ready')
+    return 'bg-emerald-500 text-emerald-950'
+  if (label === 'Needs review')
+    return 'bg-amber-400 text-amber-950'
+  return 'bg-slate-600 text-white'
 }
 
 function computedSnapshotCount(section: any): number {
@@ -836,10 +877,22 @@ async function savePreview() {
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2 text-xs">
-                <span class="rounded bg-emerald-500/15 px-2 py-1 font-medium text-emerald-300">
-                  {{ mappedDeclarations(section) }} / {{ computedDeclarations(section) }} mapped
+                <span
+                  class="rounded px-2 py-1 font-semibold"
+                  :class="compareReadinessClass(section)"
+                >
+                  {{ compareReadinessLabel(section) }}
                 </span>
-                <span class="rounded bg-sky-500/15 px-2 py-1 font-medium text-sky-300">
+                <span
+                  class="rounded px-2 py-1 font-medium"
+                  :class="hasComputedDeclarationStats(section) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-200'"
+                >
+                  {{ compareMappingSummary(section) }}
+                </span>
+                <span
+                  v-if="hasComputedDeclarationStats(section)"
+                  class="rounded bg-sky-500/15 px-2 py-1 font-medium text-sky-300"
+                >
                   {{ mappedDeclarationRate(section) }}
                 </span>
                 <span
