@@ -1148,15 +1148,52 @@ function spacingShorthandToTailwind(prop: string, value: string): string[] {
     return []
 
   const parts = value.split(/\s+/).filter(Boolean)
-  if (parts.length !== 1)
+  if (!parts.length || parts.length > 4)
     return []
 
-  const numeric = parseFloat(parts[0])
-  if (Number.isNaN(numeric) || numeric < 0 || !/px$/i.test(parts[0]))
-    return []
+  const spacingClass = (prefix: string, part: string): string => {
+    const numeric = parseFloat(part)
+    if (Number.isNaN(numeric) || numeric < 0 || !/px$/i.test(part))
+      return ''
+    return `${prefix}-${tailwindRules().pxToSp(numeric)}`
+  }
 
   const prefix = prop === 'padding' ? 'p' : 'm'
-  return [`${prefix}-${tailwindRules().pxToSp(numeric)}`]
+  if (parts.length === 1)
+    return [spacingClass(prefix, parts[0])].filter(Boolean)
+
+  const [top, right = top, bottom = top, left = right] = parts
+  if ([top, right, bottom, left].some(part => !spacingClass(prefix, part)))
+    return []
+
+  const classes: string[] = []
+  const add = (classPrefix: string, part: string) => {
+    if (parseFloat(part) !== 0)
+      classes.push(spacingClass(classPrefix, part))
+  }
+
+  if (top === bottom && right === left) {
+    add(`${prefix}y`, top)
+    add(`${prefix}x`, right)
+  }
+  else if (right === left) {
+    add(`${prefix}t`, top)
+    add(`${prefix}x`, right)
+    add(`${prefix}b`, bottom)
+  }
+  else if (top === bottom) {
+    add(`${prefix}y`, top)
+    add(`${prefix}r`, right)
+    add(`${prefix}l`, left)
+  }
+  else {
+    add(`${prefix}t`, top)
+    add(`${prefix}r`, right)
+    add(`${prefix}b`, bottom)
+    add(`${prefix}l`, left)
+  }
+
+  return classes
 }
 
 function normalizeCssValue(value: string): string {
@@ -1317,6 +1354,16 @@ function shouldCountCssDeclaration(prop: string, value: string): boolean {
   if (normalizedProp === 'overflow' && normalizedValue === 'visible')
     return false
   if (normalizedProp === 'background-position' && (normalizedValue === '0% 0%' || normalizedValue === '0px 0px'))
+    return false
+  if (normalizedProp === 'object-position' && normalizedValue === '50% 50%')
+    return false
+  if (normalizedProp === 'object-fit' && normalizedValue === 'fill')
+    return false
+  if (normalizedProp === 'visibility' && normalizedValue === 'visible')
+    return false
+  if (normalizedProp === 'position' && normalizedValue === 'static')
+    return false
+  if (normalizedProp === 'border-color' && normalizedValue === 'rgb(0, 0, 0)')
     return false
   if (/^border(?:-(?:top|right|bottom|left))?$/.test(normalizedProp) && /^0(?:px)?\s+none\b/i.test(normalizedValue))
     return false

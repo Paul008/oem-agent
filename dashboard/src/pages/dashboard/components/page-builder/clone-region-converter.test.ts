@@ -297,6 +297,11 @@ describe('buildEditableSectionFromCloneRegion', () => {
                 opacity: '1',
                 overflow: 'visible',
                 'background-position': '0% 0%',
+                'object-position': '50% 50%',
+                'object-fit': 'fill',
+                visibility: 'visible',
+                position: 'static',
+                'border-color': 'rgb(0, 0, 0)',
                 border: '0px none rgb(0, 0, 0)',
               },
               children: [
@@ -326,6 +331,28 @@ describe('buildEditableSectionFromCloneRegion', () => {
     expect(section?._tailwind_conversion.stats.variant_declarations).toBe(2)
     expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).toEqual(['clip-path: inset(0)'])
     expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).not.toContain('opacity: 1')
+    expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).not.toContain('position: static')
+  })
+
+  it('maps multi-value spacing shorthands from computed styles', async () => {
+    const section = await buildEditableSectionFromCloneRegion({
+      html: '<section><p>Spacing</p></section>',
+      tailwindRecipeArtifact: {
+        root: {
+          path: '0',
+          tag: 'section',
+          computed_style: { padding: '80px 0px 0px', margin: '0px 16px 24px 16px' },
+          children: [
+            { path: '0.0', tag: 'p', computed_style: { padding: '12px 20px' }, children: [] },
+          ],
+        },
+      },
+      compileTailwindRecipeArtifact: async () => ({ success: false, result: null }),
+    })
+
+    expect(section?._generated_html).toContain('<section class="pt-20 mx-4 mb-6">')
+    expect(section?._generated_html).toContain('<p class="py-3 px-5">Spacing</p>')
+    expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).toEqual([])
   })
 })
 
