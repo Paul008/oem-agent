@@ -232,6 +232,17 @@ function hasTailwindLeftoverCss(section: any): boolean {
   return Boolean(tailwindLeftoverCss(section))
 }
 
+function unsupportedDeclarationSamples(section: any): string[] {
+  const samples = section?._tailwind_conversion?.stats?.unsupported_declaration_samples
+  return Array.isArray(samples)
+    ? samples.map(sample => String(sample || '').trim()).filter(Boolean)
+    : []
+}
+
+function hasUnsupportedDeclarationSamples(section: any): boolean {
+  return unsupportedDeclarationSamples(section).length > 0
+}
+
 function tailwindCompareSrcdoc(html: string, label: string, section?: any): string {
   const safeLabel = escapeHtml(label)
   const body = stripUnsafeCompareHtml(html) || `<div class="empty">${safeLabel} unavailable</div>`
@@ -871,6 +882,23 @@ async function savePreview() {
                 Leftover CSS
               </summary>
               <pre class="max-h-72 overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200"><code>{{ tailwindLeftoverCss(section) }}</code></pre>
+            </details>
+            <details
+              v-if="hasUnsupportedDeclarationSamples(section)"
+              class="border-t border-slate-800 bg-slate-950/70"
+            >
+              <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+                Unmapped Declarations
+              </summary>
+              <ul class="max-h-72 list-none overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200">
+                <li
+                  v-for="sample in unsupportedDeclarationSamples(section)"
+                  :key="sample"
+                  class="font-mono"
+                >
+                  {{ sample }}
+                </li>
+              </ul>
             </details>
           </div>
         </div>

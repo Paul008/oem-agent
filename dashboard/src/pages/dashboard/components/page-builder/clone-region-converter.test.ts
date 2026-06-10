@@ -271,6 +271,7 @@ describe('buildEditableSectionFromCloneRegion', () => {
         unmatched_rules: 1,
         important_count: 1,
         variant_declarations: 2,
+        unsupported_declaration_samples: expect.arrayContaining(['clip-path: inset(0)']),
       },
     })
     expect(section?._tailwind_conversion.parity_risks).toEqual(expect.arrayContaining([
@@ -290,7 +291,7 @@ describe('buildEditableSectionFromCloneRegion', () => {
             root: {
               path: '0',
               tag: 'section',
-              computed_style: { padding: '24px' },
+              computed_style: { padding: '24px', 'clip-path': 'inset(0)' },
               children: [
                 { path: '0.0', tag: 'h1', computed_style: { 'font-size': '30px' }, children: [] },
               ],
@@ -316,6 +317,7 @@ describe('buildEditableSectionFromCloneRegion', () => {
     expect(section?._generated_html).toContain('<h1 class="text-3xl lg:text-6xl">Take centre stage</h1>')
     expect(section?._tailwind_conversion.stats.computed_snapshots).toBe(2)
     expect(section?._tailwind_conversion.stats.variant_declarations).toBe(2)
+    expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).toEqual(['clip-path: inset(0)'])
   })
 })
 

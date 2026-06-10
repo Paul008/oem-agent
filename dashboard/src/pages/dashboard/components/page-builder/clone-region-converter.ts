@@ -165,7 +165,22 @@ interface CapturedTailwindStats {
   calc_count: number
   unresolved_var_count: number
   variant_declarations: number
+  unsupported_declaration_samples: string[]
 }
+
+const TAILWIND_UNSUPPORTED_DECLARATION_SAMPLE_LIMIT = 12
+const TAILWIND_NUMERIC_STAT_KEYS = [
+  'computed_snapshots',
+  'computed_declarations',
+  'mapped_declarations',
+  'leftover_declarations',
+  'unmatched_rules',
+  'leftover_rules',
+  'important_count',
+  'calc_count',
+  'unresolved_var_count',
+  'variant_declarations',
+] as const satisfies Array<Exclude<keyof CapturedTailwindStats, 'unsupported_declaration_samples'>>
 
 interface CapturedTailwindCompilation {
   html: string
@@ -673,6 +688,7 @@ function applyCssRuleToHtml(
       else if (!mapped.length && shouldCountCssDeclaration(declaration.prop, cleaned.value)) {
         leftoverDeclarations.push({ prop: declaration.prop, value: declaration.value })
         stats.leftover_declarations += 1
+        recordUnsupportedDeclaration(stats, declaration.prop, declaration.value)
       }
     }
 
@@ -1041,6 +1057,7 @@ function computedStyleToTailwindClasses(style: Record<string, unknown> | null | 
     const mapped = declarationToTailwindClasses(prop, value, mode)
     if (!mapped.length) {
       stats.leftover_declarations += 1
+      recordUnsupportedDeclaration(stats, prop, value)
       continue
     }
 
@@ -1167,6 +1184,7 @@ function createTailwindStats(): CapturedTailwindStats {
     calc_count: 0,
     unresolved_var_count: 0,
     variant_declarations: 0,
+    unsupported_declaration_samples: [],
   }
 }
 
@@ -1247,10 +1265,27 @@ function extractTailwindTemplateSchema(html: string, artifact: any): Record<stri
 function mergeTailwindStats(...statsList: CapturedTailwindStats[]): CapturedTailwindStats {
   const merged = createTailwindStats()
   for (const stats of statsList) {
-    for (const key of Object.keys(merged) as Array<keyof CapturedTailwindStats>)
+    for (const key of TAILWIND_NUMERIC_STAT_KEYS)
       merged[key] += stats[key] || 0
+    for (const sample of stats.unsupported_declaration_samples || []) {
+      if (merged.unsupported_declaration_samples.length >= TAILWIND_UNSUPPORTED_DECLARATION_SAMPLE_LIMIT)
+        break
+      if (!merged.unsupported_declaration_samples.includes(sample))
+        merged.unsupported_declaration_samples.push(sample)
+    }
   }
   return merged
+}
+
+function recordUnsupportedDeclaration(stats: CapturedTailwindStats, prop: string, value: string) {
+  if (stats.unsupported_declaration_samples.length >= TAILWIND_UNSUPPORTED_DECLARATION_SAMPLE_LIMIT)
+    return
+
+  const sample = `${String(prop || '').trim()}: ${String(value || '').trim()}`
+  if (sample === ': ' || stats.unsupported_declaration_samples.includes(sample))
+    return
+
+  stats.unsupported_declaration_samples.push(sample)
 }
 
 function cleanCssDeclarationValue(value: string): { value: string, important: boolean } {
@@ -1468,8 +1503,13 @@ function readTailwindStats(value: unknown): CapturedTailwindStats {
   if (!value || typeof value !== 'object')
     return stats
 
-  for (const key of Object.keys(stats) as Array<keyof CapturedTailwindStats>)
+  for (const key of TAILWIND_NUMERIC_STAT_KEYS)
     stats[key] = Number((value as Record<string, unknown>)[key]) || 0
+  const samples = (value as Record<string, unknown>).unsupported_declaration_samples
+  if (Array.isArray(samples)) {
+    stats.unsupported_declaration_samples = uniqueClassList(samples.map(sample => String(sample || '').trim()).filter(Boolean))
+      .slice(0, TAILWIND_UNSUPPORTED_DECLARATION_SAMPLE_LIMIT)
+  }
 
   return stats
 }
