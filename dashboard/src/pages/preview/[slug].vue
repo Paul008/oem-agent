@@ -251,7 +251,21 @@ function tailwindCompareSrcdoc(html: string, label: string, section?: any): stri
     styleGuideFontCss(),
     typeof section?._tailwind_leftover_css === 'string' ? section._tailwind_leftover_css : '',
   ].filter(Boolean).join('\n'))
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${tailwindRuntime}<style>${supplementalCss}\nhtml,body{margin:0;min-height:100%;font-family:${styleGuideBodyFontFamily()};background:#fff;color:#111}.frame-label{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);color:#fff;font:600 11px/1.2 ${styleGuideBodyFontFamily()};letter-spacing:.08em;text-transform:uppercase;padding:8px 10px}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 ${styleGuideBodyFontFamily()}}</style></head><body><div class="frame-label">${safeLabel}</div>${body}</body></html>`
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${tailwindRuntime}<style>${supplementalCss}\nhtml,body{margin:0;min-height:100%;font-family:${styleGuideBodyFontFamily()};background:#fff;color:#111}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 ${styleGuideBodyFontFamily()}}</style></head><body>${body}</body></html>`
+}
+
+function tailwindCompareViewportWidth(section: any): number {
+  const width = Number(section?._tailwind_conversion?.viewport?.width)
+  if (Number.isFinite(width) && width >= 320)
+    return Math.min(Math.max(Math.round(width), 1280), 1920)
+  return 1280
+}
+
+function tailwindCompareViewportHeight(section: any): number {
+  const height = Number(section?._tailwind_conversion?.viewport?.height)
+  if (Number.isFinite(height) && height >= 320)
+    return Math.min(Math.max(Math.round(height), 720), 1600)
+  return 720
 }
 
 function styleGuideFontCss(): string {
@@ -964,20 +978,32 @@ async function savePreview() {
             </div>
             <div class="grid gap-0 lg:grid-cols-2">
               <div class="border-b border-slate-800 lg:border-b-0 lg:border-r">
-                <iframe
-                  class="h-[520px] w-full bg-white"
-                  sandbox="allow-scripts"
-                  title="Original capture"
-                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture', section)"
-                />
+                <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                  Original
+                </div>
+                <div class="overflow-auto bg-slate-950">
+                  <iframe
+                    class="max-w-none min-w-[1280px] bg-white"
+                    sandbox="allow-scripts"
+                    title="Original capture"
+                    :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
+                    :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture', section)"
+                  />
+                </div>
               </div>
               <div>
-                <iframe
-                  class="h-[520px] w-full bg-white"
-                  sandbox="allow-scripts"
-                  title="Converted Tailwind"
-                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind', section)"
-                />
+                <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                  Converted Tailwind
+                </div>
+                <div class="overflow-auto bg-slate-950">
+                  <iframe
+                    class="max-w-none min-w-[1280px] bg-white"
+                    sandbox="allow-scripts"
+                    title="Converted Tailwind"
+                    :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
+                    :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind', section)"
+                  />
+                </div>
               </div>
             </div>
             <details
