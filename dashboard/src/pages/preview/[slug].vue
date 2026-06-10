@@ -193,7 +193,8 @@ function tailwindCompareConvertedHtml(section: any): string {
 function tailwindCompareSrcdoc(html: string, label: string): string {
   const safeLabel = escapeHtml(label)
   const body = stripUnsafeCompareHtml(html) || `<div class="empty">${safeLabel} unavailable</div>`
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#fff;color:#111}.frame-label{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);color:#fff;font:600 11px/1.2 Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 Inter,Arial,sans-serif}</style></head><body><div class="frame-label">${safeLabel}</div>${body}</body></html>`
+  const tailwindRuntime = '<script>window.tailwind=window.tailwind||{};window.tailwind.config={corePlugins:{preflight:false}}<\/script><script src="https://cdn.tailwindcss.com"><\/script>'
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${tailwindRuntime}<style>html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#fff;color:#111}.frame-label{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);color:#fff;font:600 11px/1.2 Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 Inter,Arial,sans-serif}</style></head><body><div class="frame-label">${safeLabel}</div>${body}</body></html>`
 }
 
 function stripUnsafeCompareHtml(html: string): string {
@@ -678,7 +679,7 @@ async function savePreview() {
               <div class="border-b border-slate-800 lg:border-b-0 lg:border-r">
                 <iframe
                   class="h-[520px] w-full bg-white"
-                  sandbox=""
+                  sandbox="allow-scripts"
                   title="Original capture"
                   :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture')"
                 />
@@ -686,7 +687,7 @@ async function savePreview() {
               <div>
                 <iframe
                   class="h-[520px] w-full bg-white"
-                  sandbox=""
+                  sandbox="allow-scripts"
                   title="Converted Tailwind"
                   :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind')"
                 />
