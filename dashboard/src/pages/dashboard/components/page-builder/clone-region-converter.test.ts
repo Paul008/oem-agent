@@ -291,7 +291,14 @@ describe('buildEditableSectionFromCloneRegion', () => {
             root: {
               path: '0',
               tag: 'section',
-              computed_style: { padding: '24px', 'clip-path': 'inset(0)' },
+              computed_style: {
+                padding: '24px',
+                'clip-path': 'inset(0)',
+                opacity: '1',
+                overflow: 'visible',
+                'background-position': '0% 0%',
+                border: '0px none rgb(0, 0, 0)',
+              },
               children: [
                 { path: '0.0', tag: 'h1', computed_style: { 'font-size': '30px' }, children: [] },
               ],
@@ -318,6 +325,7 @@ describe('buildEditableSectionFromCloneRegion', () => {
     expect(section?._tailwind_conversion.stats.computed_snapshots).toBe(2)
     expect(section?._tailwind_conversion.stats.variant_declarations).toBe(2)
     expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).toEqual(['clip-path: inset(0)'])
+    expect(section?._tailwind_conversion.stats.unsupported_declaration_samples).not.toContain('opacity: 1')
   })
 })
 

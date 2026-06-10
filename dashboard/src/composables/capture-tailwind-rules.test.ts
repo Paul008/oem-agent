@@ -74,6 +74,15 @@ describe('newly-emitted Tailwind props', () => {
     expect(R.cssTw('text-decoration', 'underline solid rgb(0,0,0)')).toEqual(['underline'])
     expect(R.cssTw('font-family', 'Inter, sans-serif')).toEqual(['font-[Inter]'])
   })
+  it('maps computed layout values used by region capture', () => {
+    expect(R.cssTw('width', '375px')).toEqual(['w-[375px]'])
+    expect(R.cssTw('height', '666.664px')).toEqual(['h-[666.66px]'])
+    expect(R.cssTw('grid-template-columns', '31.25px 31.25px')).toEqual(['grid-cols-[31.25px_31.25px]'])
+    expect(R.cssTw('grid-template-rows', '666.664px')).toEqual(['grid-rows-[666.664px]'])
+    expect(R.cssTw('align-items', 'start')).toEqual(['items-start'])
+    expect(R.cssTw('flex-direction', 'row')).toEqual(['flex-row'])
+    expect(R.cssTw('flex-wrap', 'nowrap')).toEqual(['flex-nowrap'])
+  })
   it('font-weight: arbitrary fallback for unmapped weights', () => {
     expect(R.cssTw('font-weight', '700')).toEqual(['font-bold'])
     expect(R.cssTw('font-weight', '350')).toEqual(['font-[350]'])

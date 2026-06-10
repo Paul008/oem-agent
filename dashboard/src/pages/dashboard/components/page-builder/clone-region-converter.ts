@@ -1306,10 +1306,25 @@ function countCssSignals(value: string, stats: CapturedTailwindStats) {
 }
 
 function shouldCountCssDeclaration(prop: string, value: string): boolean {
+  const normalizedProp = String(prop || '').trim().toLowerCase()
   const normalizedValue = String(value || '').trim()
   if (!normalizedValue || normalizedValue === 'none' || normalizedValue === 'normal' || normalizedValue === 'auto' || normalizedValue === '0px' || normalizedValue === 'rgba(0, 0, 0, 0)')
     return false
-  return Boolean(String(prop || '').trim())
+  if (!normalizedProp)
+    return false
+  if (normalizedProp === 'opacity' && normalizedValue === '1')
+    return false
+  if (normalizedProp === 'overflow' && normalizedValue === 'visible')
+    return false
+  if (normalizedProp === 'background-position' && (normalizedValue === '0% 0%' || normalizedValue === '0px 0px'))
+    return false
+  if (/^border(?:-(?:top|right|bottom|left))?$/.test(normalizedProp) && /^0(?:px)?\s+none\b/i.test(normalizedValue))
+    return false
+  if (/^border-(?:top|right|bottom|left)-width$/.test(normalizedProp) && normalizedValue === '0px')
+    return false
+  if (/^border-(?:top|right|bottom|left)-style$/.test(normalizedProp) && normalizedValue === 'none')
+    return false
+  return true
 }
 
 export interface ConvertCloneRegionsToTailwindSectionsInput {

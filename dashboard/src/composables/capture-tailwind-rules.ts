@@ -36,6 +36,9 @@ export function tailwindRules() {
     if (prop === 'min-height') return 'min-height:min(100svh,' + pxText(px) + ')';
     return '';
   }
+  function arbitraryValue(val: string): string {
+    return String(val || '').trim().replace(/\s+/g, '_');
+  }
   function rgbHex(rgb: string): string {
     var m=rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/); if(!m)return rgb;
     return '#'+[m[1],m[2],m[3]].map(function(n){return parseInt(n).toString(16).padStart(2,'0')}).join('');
@@ -49,16 +52,18 @@ export function tailwindRules() {
     var px=parseFloat(val),cls: string[]=[];
     switch(prop){
       case 'display': var dm: Record<string, string>={block:'block','inline-block':'inline-block',flex:'flex',grid:'grid',none:'hidden','inline-flex':'inline-flex'}; if(dm[val])cls.push(dm[val]);break;
-      case 'flex-direction': if(val==='column')cls.push('flex-col');else if(val==='row-reverse')cls.push('flex-row-reverse');break;
-      case 'flex-wrap': if(val==='wrap')cls.push('flex-wrap');break;
-      case 'align-items': var ai: Record<string, string>={'flex-start':'items-start','flex-end':'items-end',center:'items-center',stretch:'items-stretch',baseline:'items-baseline'}; if(ai[val])cls.push(ai[val]);break;
+      case 'flex-direction': if(val==='row')cls.push('flex-row');else if(val==='column')cls.push('flex-col');else if(val==='row-reverse')cls.push('flex-row-reverse');else if(val==='column-reverse')cls.push('flex-col-reverse');break;
+      case 'flex-wrap': if(val==='wrap')cls.push('flex-wrap');else if(val==='nowrap')cls.push('flex-nowrap');break;
+      case 'align-items': var ai: Record<string, string>={'flex-start':'items-start',start:'items-start','flex-end':'items-end',end:'items-end',center:'items-center',stretch:'items-stretch',baseline:'items-baseline'}; if(ai[val])cls.push(ai[val]);break;
       case 'justify-content': var jc: Record<string, string>={'flex-start':'justify-start','flex-end':'justify-end',center:'justify-center','space-between':'justify-between','space-around':'justify-around'}; if(jc[val])cls.push(jc[val]);break;
-      case 'grid-template-columns': var cm=val.match(/repeat\((\d+),/i); if(cm)cls.push('grid-cols-'+cm[1]); else{var fr=(val.match(/\d+fr/g)||[]).length;if(fr>0)cls.push('grid-cols-'+fr);} break;
+      case 'grid-template-columns': var cm=val.match(/repeat\((\d+),/i); if(cm)cls.push('grid-cols-'+cm[1]); else{var fr=(val.match(/\d+fr/g)||[]).length;if(fr>0)cls.push('grid-cols-'+fr);else cls.push('grid-cols-['+arbitraryValue(val)+']');} break;
+      case 'grid-template-rows': cls.push('grid-rows-['+arbitraryValue(val)+']');break;
       case 'gap':case 'grid-gap': if(!isNaN(px)&&px>0)cls.push('gap-'+pxToSp(px));break;
       case 'column-gap': if(!isNaN(px)&&px>0)cls.push('gap-x-'+pxToSp(px));break;
       case 'row-gap': if(!isNaN(px)&&px>0)cls.push('gap-y-'+pxToSp(px));break;
       case 'width':
         if(val==='100%')cls.push('w-full');
+        else if(!isNaN(px)&&px>0&&val.indexOf('px')>=0)cls.push('w-['+pxText(px)+']');
         else if(val.endsWith('%')){var pct=parseFloat(val);
           if(Math.abs(pct-8.33)<1)cls.push('w-1/12');
           else if(Math.abs(pct-16.67)<1)cls.push('w-2/12');
@@ -74,6 +79,7 @@ export function tailwindRules() {
           else cls.push('w-['+val+']');
         }
         break;
+      case 'height': if(val==='100%')cls.push('h-full');else if(!isNaN(px)&&px>0&&val.indexOf('px')>=0)cls.push('h-['+pxText(px)+']');break;
       case 'max-width': if(val==='100%')cls.push('max-w-full');else if(!isNaN(px)&&px>0)cls.push('max-w-['+px+'px]');break;
       case 'min-height': if(!isNaN(px)&&px>0)cls.push('min-h-['+px+'px]');break;
       case 'padding-top': if(!isNaN(px)&&px>0)cls.push('pt-'+pxToSp(px));break;
