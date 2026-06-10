@@ -888,7 +888,7 @@ async function savePreview() {
         data-oem-tailwind-compare-view="true"
         class="min-h-screen bg-slate-950 px-4 py-16 text-slate-100 sm:px-6 lg:px-10"
       >
-        <div class="mx-auto max-w-7xl space-y-5">
+        <div class="mx-auto max-w-[1600px] space-y-5">
           <div class="space-y-1">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
               Compare Tailwind
@@ -976,8 +976,8 @@ async function savePreview() {
                 </span>
               </div>
             </div>
-            <div class="grid gap-0 lg:grid-cols-2">
-              <div class="border-b border-slate-800 lg:border-b-0 lg:border-r">
+            <div class="grid gap-0 min-[2800px]:grid-cols-2">
+              <div class="border-b border-slate-800 min-[2800px]:border-b-0 min-[2800px]:border-r">
                 <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
                   Original
                 </div>
