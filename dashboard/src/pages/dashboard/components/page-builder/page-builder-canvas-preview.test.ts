@@ -333,7 +333,7 @@ describe('pageBuilderCanvas preview mode', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
     expect(previewSource).toContain('isModelPageWriteProtected')
-    expect(previewSource).toContain('const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value)')
+    expect(previewSource).toContain('const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value || isCompareView.value)')
     expect(previewSource).toContain('const canEditPreview = computed(() => !previewReadOnly.value)')
     expect(previewSource).toContain(':read-only="previewReadOnly"')
     expect(previewSource).toContain(':allow-same-origin-sandbox="previewReadOnly"')
@@ -354,10 +354,10 @@ describe('pageBuilderCanvas preview mode', () => {
   it('adds a production view to the standalone preview that disables edit/save paths', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
-    expect(previewSource).toContain('type PreviewView = \'edit\' | \'production\' | \'source\'')
+    expect(previewSource).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\'')
     expect(previewSource).toContain('const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))')
     expect(previewSource).toContain('function normalizePreviewView(value: unknown): PreviewView')
-    expect(previewSource).toContain('return raw === \'production\' || raw === \'source\' ? raw : \'edit\'')
+    expect(previewSource).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' ? raw : \'edit\'')
     expect(previewSource).toContain('function setPreviewView(view: PreviewView)')
     expect(previewSource).toContain('query.view = \'production\'')
     expect(previewSource).toContain('delete query.view')

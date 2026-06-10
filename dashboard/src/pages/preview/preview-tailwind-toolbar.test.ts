@@ -54,7 +54,7 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('const isSourceView = computed(() => previewView.value === \'source\')')
     expect(source).toContain('const hasTailwindSource = computed')
     expect(source).toContain('function tailwindSectionSource(section: any): string')
-    expect(source).toContain('return raw === \'production\' || raw === \'source\' ? raw : \'edit\'')
+    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' ? raw : \'edit\'')
     expect(source).toContain('query.view = \'source\'')
     expect(source).toContain('@click="setPreviewView(\'source\')"')
     expect(source).toContain('title="Tailwind source"')
@@ -67,6 +67,27 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('/* Tailwind Conversion Stats */')
     expect(source).toContain('_tailwind_leftover_css')
     expect(source).toContain('_tailwind_conversion?.stats')
+  })
+
+  it('adds a read-only Tailwind compare view for converted sections', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\'')
+    expect(source).toContain('const isCompareView = computed(() => previewView.value === \'compare\')')
+    expect(source).toContain('const hasTailwindCompare = computed')
+    expect(source).toContain('function tailwindCompareOriginalHtml(section: any): string')
+    expect(source).toContain('function tailwindCompareConvertedHtml(section: any): string')
+    expect(source).toContain('function tailwindCompareSrcdoc(html: string, label: string): string')
+    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' ? raw : \'edit\'')
+    expect(source).toContain('query.view = \'compare\'')
+    expect(source).toContain('@click="setPreviewView(\'compare\')"')
+    expect(source).toContain('title="Compare Tailwind"')
+    expect(source).toContain('Compare Tailwind')
+    expect(source).toContain('data-oem-tailwind-compare-view="true"')
+    expect(source).toContain(':srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), \'Original capture\')"')
+    expect(source).toContain(':srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), \'Converted Tailwind\')"')
+    expect(source).toContain('mappedDeclarations(section)')
+    expect(source).toContain('computedDeclarations(section)')
   })
 
   it('preserves unsaved converted sections when switching preview views', () => {

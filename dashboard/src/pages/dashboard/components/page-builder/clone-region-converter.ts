@@ -956,6 +956,7 @@ function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: Clone
       id: `tw-${safeIdPart(item.region.id || `region-${index + 1}`)}`,
       order: index,
       _clone_region_id: item.region.id,
+      _tailwind_original_html: typeof item.region.html === 'string' ? item.region.html.trim() : '',
       _tailwind_conversion: buildCloneRegionConversionMetadata(item),
     }
   })
@@ -1003,6 +1004,10 @@ function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, sectio
 
     return `<div class="min-w-0">${html}</div>`
   }).join('')
+  const originalColumns = row.map((item) => {
+    const html = typeof item.region.html === 'string' ? item.region.html.trim() : ''
+    return `<div class="min-w-0">${html}</div>`
+  }).join('')
 
   return {
     type: 'content-block',
@@ -1013,6 +1018,7 @@ function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, sectio
     id: `tw-${regionIds.map(safeIdPart).join('-')}`,
     order,
     _clone_region_ids: regionIds,
+    _tailwind_original_html: `<section class="w-full bg-white text-neutral-950"><div class="grid grid-cols-1 lg:grid-cols-${Math.min(row.length, 4)}">${originalColumns}</div></section>`,
     ...(leftoverCss ? { _tailwind_leftover_css: leftoverCss } : {}),
     _tailwind_conversion: buildCloneRegionGroupConversionMetadata(row),
   }

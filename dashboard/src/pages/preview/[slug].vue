@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Code2, ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
+import { Code2, Columns2, ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -19,7 +19,7 @@ import SectionEditorDialog from '@/pages/dashboard/components/page-builder/Secti
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
-type PreviewView = 'edit' | 'production' | 'source'
+type PreviewView = 'edit' | 'production' | 'source' | 'compare'
 
 const route = useRoute()
 const {
@@ -75,11 +75,16 @@ const writeProtectedMessage = computed(() => getModelPageWriteProtectedMessage(p
 const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))
 const isProductionView = computed(() => previewView.value === 'production')
 const isSourceView = computed(() => previewView.value === 'source')
-const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value)
+const isCompareView = computed(() => previewView.value === 'compare')
+const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value || isCompareView.value)
 const canEditPreview = computed(() => !previewReadOnly.value)
 const hasTailwindSource = computed(() => Boolean(
   activeMode.value === 'sections'
   && sections.value.some((section: any) => Boolean(section?._tailwind_conversion || String(section?._generated_html || '').trim())),
+))
+const hasTailwindCompare = computed(() => Boolean(
+  activeMode.value === 'sections'
+  && sections.value.some((section: any) => Boolean(section?._tailwind_conversion && tailwindCompareOriginalHtml(section) && tailwindCompareConvertedHtml(section))),
 ))
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((section: any) => section.id === editorSectionId.value) ?? null : null,
@@ -109,7 +114,7 @@ const catalogModelSlug = computed(() =>
 
 function normalizePreviewView(value: unknown): PreviewView {
   const raw = Array.isArray(value) ? value[0] : value
-  return raw === 'production' || raw === 'source' ? raw : 'edit'
+  return raw === 'production' || raw === 'source' || raw === 'compare' ? raw : 'edit'
 }
 
 onMounted(async () => {
@@ -139,6 +144,8 @@ function replacePreviewViewQuery(view: PreviewView) {
     query.view = 'production'
   else if (view === 'source')
     query.view = 'source'
+  else if (view === 'compare')
+    query.view = 'compare'
   else
     delete query.view
   const url = new URL(window.location.href)
@@ -172,6 +179,65 @@ function tailwindSectionSource(section: any): string {
   if (suffix)
     return suffix
   return JSON.stringify(section, null, 2)
+}
+
+function tailwindCompareOriginalHtml(section: any): string {
+  return typeof section?._tailwind_original_html === 'string' ? section._tailwind_original_html.trim() : ''
+}
+
+function tailwindCompareConvertedHtml(section: any): string {
+  const html = section?._generated_html || section?.content_html || section?.body_html || ''
+  return typeof html === 'string' ? html.trim() : ''
+}
+
+function tailwindCompareSrcdoc(html: string, label: string): string {
+  const safeLabel = escapeHtml(label)
+  const body = stripUnsafeCompareHtml(html) || `<div class="empty">${safeLabel} unavailable</div>`
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#fff;color:#111}.frame-label{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);color:#fff;font:600 11px/1.2 Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 Inter,Arial,sans-serif}</style></head><body><div class="frame-label">${safeLabel}</div>${body}</body></html>`
+}
+
+function stripUnsafeCompareHtml(html: string): string {
+  return String(html || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*(["']).*?\1/gi, '')
+    .trim()
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function computedDeclarations(section: any): number {
+  return Number(section?._tailwind_conversion?.stats?.computed_declarations) || 0
+}
+
+function mappedDeclarations(section: any): number {
+  return Number(section?._tailwind_conversion?.stats?.mapped_declarations) || 0
+}
+
+function mappedDeclarationRate(section: any): string {
+  const computed = computedDeclarations(section)
+  if (!computed)
+    return '0%'
+  return `${Math.round((mappedDeclarations(section) / computed) * 100)}%`
+}
+
+function compareRiskSummary(section: any): string {
+  const stats = section?._tailwind_conversion?.stats || {}
+  const risks = [
+    Number(stats.leftover_declarations) ? `${Number(stats.leftover_declarations)} unmapped` : '',
+    Number(stats.leftover_rules) ? `${Number(stats.leftover_rules)} leftover rules` : '',
+    Number(stats.unmatched_rules) ? `${Number(stats.unmatched_rules)} dead rules` : '',
+    Number(stats.unresolved_var_count) ? `${Number(stats.unresolved_var_count)} var()` : '',
+    Number(stats.calc_count) ? `${Number(stats.calc_count)} calc()` : '',
+    Number(stats.important_count) ? `${Number(stats.important_count)} !important` : '',
+  ].filter(Boolean)
+  return risks.length ? risks.join(' · ') : 'No conversion risk flags'
 }
 
 function openEditor(id: string) {
@@ -367,7 +433,7 @@ async function convertPageToTailwind() {
 }
 
 async function savePreview() {
-  if (isProductionView.value || isSourceView.value) {
+  if (isProductionView.value || isSourceView.value || isCompareView.value) {
     toast.error('Switch to Edit view to save changes')
     return
   }
@@ -437,14 +503,25 @@ async function savePreview() {
             <Code2 class="size-3.5" />
             <span class="hidden md:inline">Source</span>
           </button>
+          <button
+            v-if="hasTailwindCompare || isCompareView"
+            type="button"
+            class="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium transition-colors"
+            :class="previewView === 'compare' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            title="Compare Tailwind"
+            @click="setPreviewView('compare')"
+          >
+            <Columns2 class="size-3.5" />
+            <span class="hidden md:inline">Compare</span>
+          </button>
         </div>
         <div
           v-if="previewReadOnly"
           class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
-          :title="isSourceView ? 'Tailwind source view disables editing and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage)"
+          :title="isCompareView ? 'Tailwind compare view disables editing and save actions' : (isSourceView ? 'Tailwind source view disables editing and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage))"
         >
           <Lock class="size-3.5" />
-          {{ isSourceView ? 'Source' : (isProductionView ? 'Production' : 'Read-only') }}
+          {{ isCompareView ? 'Compare' : (isSourceView ? 'Source' : (isProductionView ? 'Production' : 'Read-only')) }}
         </div>
         <div v-else class="hidden items-center gap-1.5 px-1 text-xs text-muted-foreground sm:flex">
           <span
@@ -544,6 +621,77 @@ async function savePreview() {
               </span>
             </div>
             <pre class="max-h-[620px] overflow-auto p-4 text-xs leading-5 text-slate-100"><code>{{ tailwindSectionSource(section) }}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else-if="isCompareView"
+        data-oem-tailwind-compare-view="true"
+        class="min-h-screen bg-slate-950 px-4 py-16 text-slate-100 sm:px-6 lg:px-10"
+      >
+        <div class="mx-auto max-w-7xl space-y-5">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Compare Tailwind
+            </p>
+            <h1 class="text-xl font-semibold text-white">
+              {{ page?.name || pageSlug }}
+            </h1>
+            <p class="text-sm text-slate-400">
+              Original captured markup beside converted Tailwind output, with conversion coverage signals.
+            </p>
+          </div>
+
+          <div v-if="!hasTailwindCompare" class="rounded-lg border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
+            Convert a page to Tailwind sections before comparing original and converted output.
+          </div>
+
+          <div
+            v-for="section in sections"
+            v-else
+            :key="section.id"
+            class="overflow-hidden rounded-lg border border-slate-800 bg-slate-900/80"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-white">
+                  {{ section.name || section.title || section.id }}
+                </p>
+                <p class="text-xs text-slate-400">
+                  {{ section.type || 'section' }}
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="rounded bg-emerald-500/15 px-2 py-1 font-medium text-emerald-300">
+                  {{ mappedDeclarations(section) }} / {{ computedDeclarations(section) }} mapped
+                </span>
+                <span class="rounded bg-sky-500/15 px-2 py-1 font-medium text-sky-300">
+                  {{ mappedDeclarationRate(section) }}
+                </span>
+                <span class="rounded bg-slate-800 px-2 py-1 text-slate-300">
+                  {{ compareRiskSummary(section) }}
+                </span>
+              </div>
+            </div>
+            <div class="grid gap-0 lg:grid-cols-2">
+              <div class="border-b border-slate-800 lg:border-b-0 lg:border-r">
+                <iframe
+                  class="h-[520px] w-full bg-white"
+                  sandbox=""
+                  title="Original capture"
+                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture')"
+                />
+              </div>
+              <div>
+                <iframe
+                  class="h-[520px] w-full bg-white"
+                  sandbox=""
+                  title="Converted Tailwind"
+                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind')"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
