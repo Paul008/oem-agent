@@ -404,6 +404,12 @@ export interface BrandTypography {
   font_primary: string;
   font_secondary: string | null;
   font_mono: string | null;
+  font_faces?: Array<{
+    family: string;
+    weight: string | number;
+    style?: string;
+    url: string;
+  }>;
   font_cdn_urls: string[];
   scale: {
     display?: TypographyEntry;

@@ -27,17 +27,6 @@ type StyleGuideFontFace = {
   url: string
 }
 
-const HOSTED_OEM_FONT_FACES: Record<string, { primary: string, faces: StyleGuideFontFace[] }> = {
-  'mitsubishi-au': {
-    primary: 'MMC, sans-serif',
-    faces: [
-      { family: 'MMC', weight: '400', url: `${WORKER_BASE}/media/fonts/mitsubishi-au/MMC-Regular.woff2` },
-      { family: 'MMC', weight: '500', url: `${WORKER_BASE}/media/fonts/mitsubishi-au/MMC-Medium.woff2` },
-      { family: 'MMC', weight: '700', url: `${WORKER_BASE}/media/fonts/mitsubishi-au/MMC-Bold.woff2` },
-    ],
-  },
-}
-
 const route = useRoute()
 const {
   page,
@@ -265,7 +254,7 @@ function styleGuideFontCss(): string {
 }
 
 function styleGuideBodyFontFamily(): string {
-  const family = String(styleGuideTokens.value?.typography?.font_primary || hostedOemFontConfig()?.primary || '').trim()
+  const family = String(styleGuideTokens.value?.typography?.font_primary || '').trim()
   return family ? sanitizeCssFontFamily(family) : 'Inter,Arial,sans-serif'
 }
 
@@ -277,7 +266,7 @@ function styleGuideFontFaces(): StyleGuideFontFace[] {
 
   const cdnUrls = typography?.font_cdn_urls
   if (Array.isArray(cdnUrls) && cdnUrls.length) {
-    const primaryFamily = firstFontFamily(String(typography?.font_primary || hostedOemFontConfig()?.primary || ''))
+    const primaryFamily = firstFontFamily(String(typography?.font_primary || ''))
     return cdnUrls
       .map((url: unknown) => {
         const filename = String(url || '').split('/').pop() || ''
@@ -290,11 +279,7 @@ function styleGuideFontFaces(): StyleGuideFontFace[] {
       .filter(face => Boolean(face.family && face.url))
   }
 
-  return hostedOemFontConfig()?.faces ?? []
-}
-
-function hostedOemFontConfig() {
-  return HOSTED_OEM_FONT_FACES[oemId.value]
+  return []
 }
 
 function firstFontFamily(value: string): string {

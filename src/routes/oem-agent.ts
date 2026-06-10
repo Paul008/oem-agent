@@ -28,6 +28,7 @@ import { applyCloneEdit } from '../design/page-modes';
 import { scopeProductionCloneHtml, type ScopeProductionCloneDiagnostics } from '../design/production-css-scope';
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
+import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
@@ -71,6 +72,10 @@ function getProductionCloneHtml(page: any): string {
 function absoluteMediaUrls(html: string, origin: string): string {
   const base = origin.replace(/\/+$/, '');
   return html.replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${base}/media/`);
+}
+
+function styleGuideMediaBaseUrl(c: Context<OemAgentEnv>): string {
+  return c.env.WORKER_URL || new URL(c.req.url).origin;
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -3707,6 +3712,7 @@ app.get('/recipes/:oemId', async (c) => {
 
 app.get('/admin/brand-tokens/:oemId', async (c) => {
   const oemId = c.req.param('oemId')
+  const mediaBaseUrl = styleGuideMediaBaseUrl(c)
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,
     serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -3719,11 +3725,12 @@ app.get('/admin/brand-tokens/:oemId', async (c) => {
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
-  return c.json(data?.tokens_json ?? null)
+  return c.json(enrichBrandTokensWithHostedFontFaces(data?.tokens_json ?? null, oemId, mediaBaseUrl))
 });
 
 app.get('/admin/style-guide/:oemId', async (c) => {
   const oemId = c.req.param('oemId')
+  const mediaBaseUrl = styleGuideMediaBaseUrl(c)
   const supabase = createSupabaseClient({
     url: c.env.SUPABASE_URL,
     serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -3763,7 +3770,7 @@ app.get('/admin/style-guide/:oemId', async (c) => {
   return c.json({
     oem_id: oemId,
     oem_name: oem?.name ?? oemId,
-    brand_tokens: tokenRow?.tokens_json ?? null,
+    brand_tokens: enrichBrandTokensWithHostedFontFaces(tokenRow?.tokens_json ?? null, oemId, mediaBaseUrl),
     brand_recipes: brandRecipes ?? [],
     default_recipes: defaultRecipes ?? [],
   })
