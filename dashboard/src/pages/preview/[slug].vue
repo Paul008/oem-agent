@@ -270,6 +270,21 @@ function tailwindCompareViewportHeight(section: any): number {
   return 720
 }
 
+function comparePaneId(section: any, pane: 'original' | 'converted'): string {
+  const raw = String(section?.id || section?.name || 'section')
+  const safe = raw.replace(/[^a-z0-9_-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  return `compare-${pane}-${safe || 'section'}`
+}
+
+function scrollComparePane(section: any, pane: 'original' | 'converted') {
+  if (typeof document === 'undefined')
+    return
+  document.getElementById(comparePaneId(section, pane))?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  })
+}
+
 function styleGuideFontCss(): string {
   const faces = styleGuideFontFaces()
   if (!faces.length)
@@ -987,14 +1002,37 @@ async function savePreview() {
                   <Badge variant="secondary" class="bg-slate-800 text-slate-300">
                     {{ compareRiskSummary(section) }}
                   </Badge>
+                  <Badge variant="outline" class="border-slate-700 bg-slate-950/60 text-slate-300">
+                    {{ tailwindCompareViewportWidth(section) }}×{{ tailwindCompareViewportHeight(section) }}
+                  </Badge>
+                  <div class="ml-1 inline-flex rounded-md border border-slate-800 bg-slate-950/60 p-0.5">
+                    <button
+                      type="button"
+                      class="rounded px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                      @click="scrollComparePane(section, 'original')"
+                    >
+                      Original
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                      @click="scrollComparePane(section, 'converted')"
+                    >
+                      Converted
+                    </button>
+                  </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent class="p-0">
               <div class="grid gap-0 min-[2800px]:grid-cols-2">
-                <div class="border-b border-slate-800 min-[2800px]:border-b-0 min-[2800px]:border-r">
-                  <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300">
-                    Original
+                <div
+                  :id="comparePaneId(section, 'original')"
+                  class="scroll-mt-20 border-b border-slate-800 min-[2800px]:border-b-0 min-[2800px]:border-r"
+                >
+                  <div class="sticky top-14 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300 backdrop-blur">
+                    <span>Original</span>
+                    <span class="font-mono text-slate-500">{{ tailwindCompareViewportWidth(section) }}×{{ tailwindCompareViewportHeight(section) }}</span>
                   </div>
                   <div class="overflow-auto bg-slate-950">
                     <iframe
@@ -1006,9 +1044,13 @@ async function savePreview() {
                     />
                   </div>
                 </div>
-                <div>
-                  <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300">
-                    Converted Tailwind
+                <div
+                  :id="comparePaneId(section, 'converted')"
+                  class="scroll-mt-20"
+                >
+                  <div class="sticky top-14 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300 backdrop-blur">
+                    <span>Converted Tailwind</span>
+                    <span class="font-mono text-slate-500">Tailwind</span>
                   </div>
                   <div class="overflow-auto bg-slate-950">
                     <iframe
