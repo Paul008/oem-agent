@@ -490,7 +490,47 @@ function htmlToKnownPatternText(html: string): string {
 }
 
 function normalizeKnownPatternText(value: unknown): string {
-  return String(value || '').replace(/\s+/g, ' ').trim()
+  return decodeHtmlTextEntities(String(value || ''))
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function decodeHtmlTextEntities(value: string): string {
+  const named: Record<string, string> = {
+    amp: '&',
+    apos: "'",
+    cent: '¢',
+    copy: '©',
+    gt: '>',
+    hellip: '…',
+    laquo: '«',
+    ldquo: '“',
+    lsquo: '‘',
+    lt: '<',
+    mdash: '—',
+    nbsp: ' ',
+    ndash: '–',
+    quot: '"',
+    raquo: '»',
+    rdquo: '”',
+    reg: '®',
+    rsquo: '’',
+    trade: '™',
+  }
+
+  return String(value || '').replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (match, entity) => {
+    const raw = String(entity || '')
+    if (raw.startsWith('#x')) {
+      const code = Number.parseInt(raw.slice(2), 16)
+      return Number.isFinite(code) ? String.fromCodePoint(code) : match
+    }
+    if (raw.startsWith('#')) {
+      const code = Number.parseInt(raw.slice(1), 10)
+      return Number.isFinite(code) ? String.fromCodePoint(code) : match
+    }
+    return named[raw.toLowerCase()] ?? match
+  })
 }
 
 function absoluteKnownPatternUrl(path: unknown, artifact: any): string {

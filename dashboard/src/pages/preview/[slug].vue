@@ -10,7 +10,7 @@ import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
-import { compileTailwindRecipeArtifact } from '@/lib/worker-api'
+import { compileTailwindRecipeArtifact, fetchStyleGuide } from '@/lib/worker-api'
 import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
@@ -68,6 +68,7 @@ const cloneDraftHtml = ref<string | null>(null)
 const convertingCloneRegion = ref(false)
 const convertingPage = ref(false)
 const editorSectionId = ref<string | null>(null)
+const styleGuideTokens = ref<Record<string, any> | null>(null)
 const pageSlug = computed(() => (route.params as { slug?: string }).slug ?? '')
 const builderUrl = computed(() => pageSlug.value ? `/dashboard/page-builder/${pageSlug.value}` : '/dashboard/model-pages')
 const isWriteProtectedPage = computed(() => isModelPageWriteProtected(oemId.value))
@@ -122,6 +123,19 @@ onMounted(async () => {
   if (slug)
     await loadPage(slug)
 })
+
+watch(oemId, async (nextOemId) => {
+  styleGuideTokens.value = null
+  if (!nextOemId)
+    return
+  try {
+    const guide = await fetchStyleGuide(nextOemId)
+    styleGuideTokens.value = guide?.brand_tokens ?? null
+  }
+  catch {
+    styleGuideTokens.value = null
+  }
+}, { immediate: true })
 
 watch(
   () => route.query.view,
@@ -201,11 +215,73 @@ function tailwindCompareConvertedHtml(section: any): string {
   return typeof html === 'string' ? html.trim() : ''
 }
 
-function tailwindCompareSrcdoc(html: string, label: string): string {
+function tailwindCompareSrcdoc(html: string, label: string, section?: any): string {
   const safeLabel = escapeHtml(label)
   const body = stripUnsafeCompareHtml(html) || `<div class="empty">${safeLabel} unavailable</div>`
   const tailwindRuntime = '<script>window.tailwind=window.tailwind||{};window.tailwind.config={corePlugins:{preflight:false}}<\/script><script src="https://cdn.tailwindcss.com"><\/script>'
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${tailwindRuntime}<style>html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#fff;color:#111}.frame-label{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);color:#fff;font:600 11px/1.2 Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 Inter,Arial,sans-serif}</style></head><body><div class="frame-label">${safeLabel}</div>${body}</body></html>`
+  const supplementalCss = sanitizeCompareCss([
+    styleGuideFontCss(),
+    typeof section?._tailwind_leftover_css === 'string' ? section._tailwind_leftover_css : '',
+  ].filter(Boolean).join('\n'))
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${tailwindRuntime}<style>${supplementalCss}\nhtml,body{margin:0;min-height:100%;font-family:${styleGuideBodyFontFamily()};background:#fff;color:#111}.frame-label{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);color:#fff;font:600 11px/1.2 ${styleGuideBodyFontFamily()};letter-spacing:.08em;text-transform:uppercase;padding:8px 10px}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 ${styleGuideBodyFontFamily()}}</style></head><body><div class="frame-label">${safeLabel}</div>${body}</body></html>`
+}
+
+function styleGuideFontCss(): string {
+  const faces = styleGuideTokens.value?.typography?.font_faces
+  if (!Array.isArray(faces))
+    return ''
+
+  return faces
+    .map((face: any) => {
+      const family = sanitizeCssString(face?.family || '')
+      const url = sanitizeCssUrl(face?.url || '')
+      if (!family || !url)
+        return ''
+      const weight = sanitizeCssToken(face?.weight || '400')
+      const style = sanitizeCssToken(face?.style || 'normal')
+      const ext = url.split('?')[0].split('.').pop()?.toLowerCase()
+      const fmt = ext === 'woff2' ? 'woff2' : ext === 'ttf' ? 'truetype' : 'woff'
+      return `@font-face{font-family:'${family}';font-style:${style};font-weight:${weight};src:url('${url}') format('${fmt}');font-display:swap;}`
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+function styleGuideBodyFontFamily(): string {
+  const family = String(styleGuideTokens.value?.typography?.font_primary || '').trim()
+  return family ? sanitizeCssFontFamily(family) : 'Inter,Arial,sans-serif'
+}
+
+function sanitizeCssString(value: unknown): string {
+  return String(value || '').replace(/['"\\<>]/g, '').trim()
+}
+
+function sanitizeCssToken(value: unknown): string {
+  return String(value || '').replace(/[^a-z0-9 ._-]/gi, '').trim() || 'normal'
+}
+
+function sanitizeCssUrl(value: unknown): string {
+  const raw = String(value || '').trim()
+  if (!/^https?:\/\//i.test(raw) && !raw.startsWith('/'))
+    return ''
+  return raw.replace(/['"\\<>\s]/g, '')
+}
+
+function sanitizeCssFontFamily(value: string): string {
+  return value
+    .split(',')
+    .map(part => sanitizeCssString(part).replace(/\s+/g, ' '))
+    .filter(Boolean)
+    .join(',')
+    || 'Inter,Arial,sans-serif'
+}
+
+function sanitizeCompareCss(css: string): string {
+  return String(css || '')
+    .replace(/<\/style/gi, '<\\/style')
+    .replace(/<script/gi, '<\\script')
+    .replace(/javascript:/gi, '')
+    .replace(/expression\s*\(/gi, '')
 }
 
 function stripUnsafeCompareHtml(html: string): string {
@@ -709,7 +785,7 @@ async function savePreview() {
                   class="h-[520px] w-full bg-white"
                   sandbox="allow-scripts"
                   title="Original capture"
-                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture')"
+                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture', section)"
                 />
               </div>
               <div>
@@ -717,7 +793,7 @@ async function savePreview() {
                   class="h-[520px] w-full bg-white"
                   sandbox="allow-scripts"
                   title="Converted Tailwind"
-                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind')"
+                  :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind', section)"
                 />
               </div>
             </div>

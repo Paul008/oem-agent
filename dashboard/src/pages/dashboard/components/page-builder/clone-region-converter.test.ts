@@ -84,6 +84,25 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
     expect(section?._generated_html).toContain('mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 bg-[#050505] text-white lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]')
   })
 
+  it('decodes captured HTML entities before rendering known Mitsubishi copy', () => {
+    const section = buildRawHtmlSectionFromCloneRegion(`
+      <section class="contentblock bg-black">
+        <img src="/content/dam/mmal/home/outlander.jpg" alt="Outlander&nbsp;Black&nbsp;Edition">
+        <h2>Take&nbsp;centre&nbsp;stage</h2>
+        <p>The new&nbsp;Outlander&nbsp;Black&nbsp;Edition&nbsp;commands the road with&nbsp;blacked-out details.</p>
+        <a class="link" href="/offers/outlander.html"><span class="link-text">Build&nbsp;your&nbsp;own</span></a>
+      </section>
+    `, {
+      tailwindRecipeArtifact: { source_url: 'https://www.mitsubishi-motors.com.au/' },
+    })
+
+    expect(section?._generated_html).toContain('Take centre stage')
+    expect(section?._generated_html).toContain('The new Outlander Black Edition commands the road with blacked-out details.')
+    expect(section?._generated_html).toContain('Build your own')
+    expect(section?._generated_html).not.toContain('&nbsp;')
+    expect(section?._generated_html).not.toContain('&amp;nbsp;')
+  })
+
   it('renders known Mitsubishi Diamond Advantage modules through a deterministic Tailwind template', () => {
     const section = buildRawHtmlSectionFromCloneRegion(`
       <section class="contentblock">
