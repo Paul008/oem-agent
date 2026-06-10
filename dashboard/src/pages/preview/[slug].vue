@@ -423,6 +423,20 @@ function compareReadinessClass(section: any): string {
   return 'bg-slate-600 text-white'
 }
 
+function comparePageReadinessSummary(): { ready: number, review: number, incomplete: number, total: number } {
+  return sections.value.reduce((summary, section: any) => {
+    const label = compareReadinessLabel(section)
+    if (label === 'Ready')
+      summary.ready += 1
+    else if (label === 'Needs review')
+      summary.review += 1
+    else
+      summary.incomplete += 1
+    summary.total += 1
+    return summary
+  }, { ready: 0, review: 0, incomplete: 0, total: 0 })
+}
+
 function computedSnapshotCount(section: any): number {
   return Number(section?._tailwind_conversion?.stats?.computed_snapshots) || 0
 }
@@ -855,6 +869,23 @@ async function savePreview() {
             <p class="text-sm text-slate-400">
               Original captured markup beside converted Tailwind output, with conversion coverage signals.
             </p>
+          </div>
+          <div
+            v-if="hasTailwindCompare"
+            class="flex flex-wrap items-center gap-2 text-xs"
+          >
+            <span class="rounded bg-slate-800 px-2 py-1 font-medium text-slate-200">
+              {{ comparePageReadinessSummary().total }} sections
+            </span>
+            <span class="rounded bg-emerald-500/15 px-2 py-1 font-medium text-emerald-300">
+              {{ comparePageReadinessSummary().ready }} ready
+            </span>
+            <span class="rounded bg-amber-500/15 px-2 py-1 font-medium text-amber-200">
+              {{ comparePageReadinessSummary().review }} review
+            </span>
+            <span class="rounded bg-slate-700 px-2 py-1 font-medium text-slate-200">
+              {{ comparePageReadinessSummary().incomplete }} incomplete
+            </span>
           </div>
 
           <div v-if="!hasTailwindCompare" class="rounded-lg border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
