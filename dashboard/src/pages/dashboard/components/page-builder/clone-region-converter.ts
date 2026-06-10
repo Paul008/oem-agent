@@ -646,28 +646,69 @@ function escapeRegExp(value: string): string {
 }
 
 function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode: TailwindConversionMode): { html: string, stats: CapturedTailwindStats } {
-  const root = artifact?.root
-  if (!root || typeof root !== 'object')
+  const snapshots = computedSnapshotsForArtifact(artifact)
+  if (!snapshots.length)
     return { html, stats: createTailwindStats() }
 
-  const nodes = flattenTailwindRecipeNodes(root)
+  const snapshotNodes = snapshots.map(snapshot => flattenTailwindRecipeNodes(snapshot.root))
   let index = 0
   const stats = createTailwindStats()
   const nextHtml = html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
-    const node = nodes[index]
+    const node = snapshotNodes[0]?.[index]
     index += 1
     if (!node || String(node.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
       return tag
 
-    const classes = computedStyleToTailwindClasses(node.computed_style, mode, stats)
-    return appendClassesToOpeningTag(tag, classes.classes)
+    const classes: string[] = []
+    classes.push(...computedStyleToTailwindClasses(node.computed_style, mode, stats).classes)
+
+    let previousStyle = node.computed_style || {}
+    for (let snapshotIndex = 1; snapshotIndex < snapshotNodes.length; snapshotIndex++) {
+      const responsiveNode = snapshotNodes[snapshotIndex]?.[index - 1]
+      if (!responsiveNode || String(responsiveNode.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
+        continue
+
+      const prefix = responsiveVariantPrefixForViewport(snapshots[snapshotIndex].viewport)
+      if (!prefix)
+        continue
+
+      const diff = diffComputedStyle(previousStyle, responsiveNode.computed_style)
+      const responsiveClasses = computedStyleToTailwindClasses(diff, mode, stats).classes
+      classes.push(...responsiveClasses.map(className => `${prefix}${className}`))
+      stats.variant_declarations += responsiveClasses.length
+      previousStyle = responsiveNode.computed_style || previousStyle
+    }
+
+    return appendClassesToOpeningTag(tag, classes)
   })
 
   return { html: nextHtml, stats }
 }
 
 function hasComputedStyleArtifact(artifact: any): boolean {
-  return Boolean(artifact?.root && typeof artifact.root === 'object')
+  return computedSnapshotsForArtifact(artifact).length > 0
+}
+
+function computedSnapshotsForArtifact(artifact: any): Array<{ viewport: any, root: any }> {
+  if (!artifact || typeof artifact !== 'object')
+    return []
+
+  const rawSnapshots = Array.isArray(artifact.computed_snapshots)
+    ? artifact.computed_snapshots
+    : Array.isArray(artifact.computedSnapshots)
+      ? artifact.computedSnapshots
+      : []
+
+  const snapshots = rawSnapshots
+    .filter((snapshot: any) => snapshot?.root && typeof snapshot.root === 'object')
+    .map((snapshot: any) => ({ viewport: snapshot.viewport || {}, root: snapshot.root }))
+
+  if (snapshots.length)
+    return snapshots
+
+  return artifact.root && typeof artifact.root === 'object'
+    ? [{ viewport: artifact.viewport || {}, root: artifact.root }]
+    : []
 }
 
 function flattenTailwindRecipeNodes(root: any): any[] {
@@ -709,6 +750,38 @@ function computedStyleToTailwindClasses(style: Record<string, unknown> | null | 
   }
 
   return { classes: uniqueClassList(classes) }
+}
+
+function diffComputedStyle(previous: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  const previousStyle = previous && typeof previous === 'object' ? previous : {}
+  const nextStyle = next && typeof next === 'object' ? next : {}
+  const diff: Record<string, unknown> = {}
+
+  for (const [prop, value] of Object.entries(nextStyle)) {
+    if (String(previousStyle[prop] ?? '') !== String(value ?? ''))
+      diff[prop] = value
+  }
+
+  return diff
+}
+
+function responsiveVariantPrefixForViewport(viewport: any): string {
+  const name = String(viewport?.name || '').toLowerCase()
+  if (['sm', 'md', 'lg', 'xl', '2xl'].includes(name))
+    return `${name}:`
+
+  const width = Number(viewport?.width)
+  if (!Number.isFinite(width) || width < 640)
+    return ''
+  if (width >= 1536)
+    return '2xl:'
+  if (width >= 1280)
+    return 'xl:'
+  if (width >= 1024)
+    return 'lg:'
+  if (width >= 768)
+    return 'md:'
+  return 'sm:'
 }
 
 interface TailwindDeclarationResolver {

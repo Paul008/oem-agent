@@ -180,6 +180,44 @@ describe('buildEditableSectionFromCloneRegion', () => {
       },
     })
   })
+
+  it('emits responsive utilities from multi-viewport computed snapshots when values change', async () => {
+    const section = await buildEditableSectionFromCloneRegion({
+      html: '<section class="hero-copy"><h1>Take centre stage</h1></section>',
+      tailwindRecipeArtifact: {
+        region_id: 'r5',
+        computed_snapshots: [
+          {
+            viewport: { name: 'base', width: 375 },
+            root: {
+              path: '0',
+              tag: 'section',
+              computed_style: { padding: '24px' },
+              children: [
+                { path: '0.0', tag: 'h1', computed_style: { 'font-size': '30px' }, children: [] },
+              ],
+            },
+          },
+          {
+            viewport: { name: 'lg', width: 1024 },
+            root: {
+              path: '0',
+              tag: 'section',
+              computed_style: { padding: '48px' },
+              children: [
+                { path: '0.0', tag: 'h1', computed_style: { 'font-size': '60px' }, children: [] },
+              ],
+            },
+          },
+        ],
+      },
+      compileTailwindRecipeArtifact: async () => ({ success: false, result: null }),
+    })
+
+    expect(section?._generated_html).toContain('class="hero-copy p-6 lg:p-12"')
+    expect(section?._generated_html).toContain('<h1 class="text-3xl lg:text-6xl">Take centre stage</h1>')
+    expect(section?._tailwind_conversion.stats.variant_declarations).toBe(2)
+  })
 })
 
 describe('buildPreviewReplacementHtmlFromCloneRegion', () => {

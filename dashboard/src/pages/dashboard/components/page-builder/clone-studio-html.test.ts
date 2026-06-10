@@ -640,6 +640,8 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('viewport_top: rect.top || 0')
     expect(bridgeScript).toContain('left: (rect.left || 0) + (window.scrollX || 0)')
     expect(bridgeScript).toContain('width: rect.width || 0')
+    expect(bridgeScript).toContain('computed_snapshots')
+    expect(bridgeScript).toContain('root: root')
   })
 
   it('uses message.html for html patch-field messages', () => {

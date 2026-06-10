@@ -579,17 +579,25 @@ ${rendered}
       return null
 
     var regionId = ensureRegionId(element)
+    var viewport = {
+      name: tailwindRecipeViewportName(),
+      width: window.innerWidth || document.documentElement.clientWidth || 0,
+      height: window.innerHeight || document.documentElement.clientHeight || 0
+    }
+    var root = tailwindRecipeNode(element, '0', 0)
     return {
       oem_id: OEM_ID,
       model_slug: MODEL_SLUG,
       source_url: BASE_HREF,
       region_id: regionId || '',
-      viewport: {
-        name: tailwindRecipeViewportName(),
-        width: window.innerWidth || document.documentElement.clientWidth || 0,
-        height: window.innerHeight || document.documentElement.clientHeight || 0
-      },
-      root: tailwindRecipeNode(element, '0', 0)
+      viewport: viewport,
+      root: root,
+      computed_snapshots: [
+        {
+          viewport: viewport,
+          root: root
+        }
+      ]
     }
   }
 
