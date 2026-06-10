@@ -64,4 +64,18 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('v-for="section in sections"')
     expect(source).toContain('tailwindSectionSource(section)')
   })
+
+  it('preserves unsaved converted sections when switching preview views', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+    const setPreviewViewFunction = source.slice(
+      source.indexOf('function setPreviewView(view: PreviewView)'),
+      source.indexOf('function tailwindSectionSource(section: any): string'),
+    )
+
+    expect(setPreviewViewFunction).toContain('replacePreviewViewQuery(view)')
+    expect(setPreviewViewFunction).not.toContain('router.replace')
+    expect(source).toContain('function replacePreviewViewQuery(view: PreviewView)')
+    expect(source).toContain('window.history.replaceState')
+    expect(source).toContain('preserve unsaved converted sections')
+  })
 })

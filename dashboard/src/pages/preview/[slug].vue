@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { Code2, ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import type { RegionActionId } from '@/pages/dashboard/components/page-builder/region-actions'
@@ -22,7 +22,6 @@ const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-d
 type PreviewView = 'edit' | 'production' | 'source'
 
 const route = useRoute()
-const router = useRouter()
 const {
   page,
   loading,
@@ -128,6 +127,13 @@ watch(
 
 function setPreviewView(view: PreviewView) {
   previewView.value = view
+  replacePreviewViewQuery(view)
+}
+
+function replacePreviewViewQuery(view: PreviewView) {
+  // Use History directly to preserve unsaved converted sections when toggling Source/Production.
+  if (typeof window === 'undefined')
+    return
   const query = { ...route.query }
   if (view === 'production')
     query.view = 'production'
@@ -135,7 +141,20 @@ function setPreviewView(view: PreviewView) {
     query.view = 'source'
   else
     delete query.view
-  void router.replace({ query })
+  const url = new URL(window.location.href)
+  url.search = ''
+  for (const [key, value] of Object.entries(query)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item != null)
+          url.searchParams.append(key, String(item))
+      }
+    }
+    else if (value != null) {
+      url.searchParams.set(key, String(value))
+    }
+  }
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
 }
 
 function tailwindSectionSource(section: any): string {
