@@ -222,6 +222,16 @@ function tailwindCompareConvertedHtml(section: any): string {
   return typeof html === 'string' ? html.trim() : ''
 }
 
+function tailwindLeftoverCss(section: any): string {
+  return typeof section?._tailwind_leftover_css === 'string'
+    ? section._tailwind_leftover_css.trim()
+    : ''
+}
+
+function hasTailwindLeftoverCss(section: any): boolean {
+  return Boolean(tailwindLeftoverCss(section))
+}
+
 function tailwindCompareSrcdoc(html: string, label: string, section?: any): string {
   const safeLabel = escapeHtml(label)
   const body = stripUnsafeCompareHtml(html) || `<div class="empty">${safeLabel} unavailable</div>`
@@ -853,6 +863,15 @@ async function savePreview() {
                 />
               </div>
             </div>
+            <details
+              v-if="hasTailwindLeftoverCss(section)"
+              class="border-t border-slate-800 bg-slate-950/70"
+            >
+              <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+                Leftover CSS
+              </summary>
+              <pre class="max-h-72 overflow-auto border-t border-slate-800 px-4 py-3 text-xs leading-5 text-slate-200"><code>{{ tailwindLeftoverCss(section) }}</code></pre>
+            </details>
           </div>
         </div>
       </div>
