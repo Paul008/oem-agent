@@ -167,11 +167,22 @@ function replacePreviewViewQuery(view: PreviewView) {
 function tailwindSectionSource(section: any): string {
   const html = section?._generated_html || section?.content_html || section?.body_html || ''
   const leftoverCss = typeof section?._tailwind_leftover_css === 'string' ? section._tailwind_leftover_css.trim() : ''
-  const stats = section?._tailwind_conversion?.stats
+  const conversion = section?._tailwind_conversion
+  const stats = conversion?.stats
+  const summarySource = conversion && typeof conversion === 'object'
+    ? `/* Tailwind Compiler Summary */\n${JSON.stringify({
+      source: conversion.source,
+      compiled_source: conversion.compiled_source,
+      template_kind: conversion.template_kind,
+      confidence: conversion.confidence,
+      parity_risks: conversion.parity_risks || [],
+      extracted_schema: conversion.extracted_schema,
+    }, null, 2)}`
+    : ''
   const statsSource = stats && typeof stats === 'object'
     ? `/* Tailwind Conversion Stats */\n${JSON.stringify(stats, null, 2)}`
     : ''
-  const suffix = [statsSource, leftoverCss ? `/* Leftover CSS */\n${leftoverCss}` : ''].filter(Boolean).join('\n\n')
+  const suffix = [summarySource, statsSource, leftoverCss ? `/* Leftover CSS */\n${leftoverCss}` : ''].filter(Boolean).join('\n\n')
   if (typeof html === 'string' && html.trim()) {
     const trimmedHtml = html.trim()
     return suffix ? `${trimmedHtml}\n\n${suffix}` : trimmedHtml
@@ -229,6 +240,12 @@ function mappedDeclarationRate(section: any): string {
 }
 
 function compareRiskSummary(section: any): string {
+  const explicitRisks = Array.isArray(section?._tailwind_conversion?.parity_risks)
+    ? section._tailwind_conversion.parity_risks
+    : []
+  if (explicitRisks.length)
+    return explicitRisks.join(' · ')
+
   const stats = section?._tailwind_conversion?.stats || {}
   const risks = [
     Number(stats.leftover_declarations) ? `${Number(stats.leftover_declarations)} unmapped` : '',
@@ -239,6 +256,14 @@ function compareRiskSummary(section: any): string {
     Number(stats.important_count) ? `${Number(stats.important_count)} !important` : '',
   ].filter(Boolean)
   return risks.length ? risks.join(' · ') : 'No conversion risk flags'
+}
+
+function compareTemplateSummary(section: any): string {
+  const kind = section?._tailwind_conversion?.template_kind || 'unknown'
+  const confidence = Number(section?._tailwind_conversion?.confidence)
+  return Number.isFinite(confidence)
+    ? `${kind} · ${Math.round(confidence * 100)}% confidence`
+    : kind
 }
 
 function openEditor(id: string) {
@@ -669,6 +694,9 @@ async function savePreview() {
                 </span>
                 <span class="rounded bg-sky-500/15 px-2 py-1 font-medium text-sky-300">
                   {{ mappedDeclarationRate(section) }}
+                </span>
+                <span class="rounded bg-violet-500/15 px-2 py-1 font-medium text-violet-200">
+                  {{ compareTemplateSummary(section) }}
                 </span>
                 <span class="rounded bg-slate-800 px-2 py-1 text-slate-300">
                   {{ compareRiskSummary(section) }}

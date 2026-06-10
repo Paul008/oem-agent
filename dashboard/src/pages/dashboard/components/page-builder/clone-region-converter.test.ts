@@ -41,6 +41,12 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
       source: 'captured-region-css',
       mode: 'exact',
       supported_declarations: 3,
+      template_kind: 'content-block',
+    })
+    expect(section?._tailwind_conversion.confidence).toBeGreaterThan(0)
+    expect(section?._tailwind_conversion.parity_risks).toContain('No browser-computed style snapshot; static CSS selector conversion may miss cascade details.')
+    expect(section?._tailwind_conversion.extracted_schema).toMatchObject({
+      heading: 'Take centre stage',
     })
   })
 
@@ -62,6 +68,13 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
     expect(section?._tailwind_conversion).toMatchObject({
       source: 'known-oem-pattern',
       pattern: 'mitsubishi-home-offer',
+      template_kind: 'offer-card',
+      confidence: 0.98,
+      parity_risks: [],
+    })
+    expect(section?._tailwind_conversion.extracted_schema).toMatchObject({
+      heading: 'Take centre stage',
+      cta_text: 'View offer',
     })
     expect(section?._generated_html).toContain('src="https://www.mitsubishi-motors.com.au/content/dam/mmal/home/outlander.jpg"')
     expect(section?._generated_html).toContain('Take centre stage')
@@ -92,6 +105,8 @@ describe('buildRawHtmlSectionFromCloneRegion', () => {
     expect(section?._tailwind_conversion).toMatchObject({
       source: 'known-oem-pattern',
       pattern: 'mitsubishi-diamond-advantage',
+      template_kind: 'feature-card',
+      confidence: 0.98,
     })
     expect(section?._generated_html).toContain('Australia&#39;s first')
     expect(section?._generated_html).toContain('You Can Count On Us')
@@ -184,7 +199,10 @@ describe('buildEditableSectionFromCloneRegion', () => {
     expect(section?._tailwind_conversion).toMatchObject({
       source: 'captured-computed-style',
       mode: 'exact',
+      template_kind: 'content-block',
     })
+    expect(section?._tailwind_conversion.confidence).toBeGreaterThan(0.9)
+    expect(section?._tailwind_conversion.parity_risks).toEqual([])
   })
 
   it('uses computed styles as the base conversion and raw CSS only for variants, leftovers, and stats', async () => {
@@ -229,12 +247,17 @@ describe('buildEditableSectionFromCloneRegion', () => {
     expect(section?._tailwind_leftover_css).toContain('@keyframes fade-in')
     expect(section?._tailwind_conversion).toMatchObject({
       source: 'captured-computed-style',
+      template_kind: 'content-block',
       stats: {
         unmatched_rules: 1,
         important_count: 1,
         variant_declarations: 2,
       },
     })
+    expect(section?._tailwind_conversion.parity_risks).toEqual(expect.arrayContaining([
+      '1 CSS rules matched no elements in the captured region.',
+      '1 !important declarations were encountered.',
+    ]))
   })
 
   it('emits responsive utilities from multi-viewport computed snapshots when values change', async () => {
@@ -452,6 +475,11 @@ describe('convertCloneRegionsToTailwindSections', () => {
       source: 'clone-region',
       region_id: 'copy',
       compiled_source: 'captured-computed-style',
+      template_kind: 'content-block',
+      confidence: 0.96,
+      extracted_schema: {
+        heading: 'Take centre stage',
+      },
       stats: {
         computed_declarations: 2,
         mapped_declarations: 2,
@@ -516,6 +544,8 @@ describe('convertCloneRegionsToTailwindSections', () => {
     expect(result.sections).toHaveLength(1)
     expect(result.sections[0]._tailwind_conversion).toMatchObject({
       source: 'clone-region-group',
+      template_kind: 'content-block',
+      confidence: 0.96,
       stats: {
         computed_declarations: 5,
         mapped_declarations: 5,

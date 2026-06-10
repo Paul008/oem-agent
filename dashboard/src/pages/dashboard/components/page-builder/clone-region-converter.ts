@@ -152,6 +152,7 @@ interface BuildRawHtmlSectionFromCloneRegionOptions {
 }
 
 type TailwindConversionMode = 'exact' | 'token'
+type TailwindTemplateKind = 'hero' | 'offer-card' | 'feature-grid' | 'feature-card' | 'image-media' | 'content-block' | 'variant-color-explorer' | 'unknown'
 
 interface CapturedTailwindStats {
   computed_declarations: number
@@ -170,6 +171,10 @@ interface CapturedTailwindCompilation {
   leftoverCss: string
   source: 'known-oem-pattern' | 'captured-region-css' | 'captured-computed-style' | 'raw-html'
   pattern?: string
+  templateKind: TailwindTemplateKind
+  confidence: number
+  parityRisks: string[]
+  extractedSchema?: Record<string, unknown>
   supportedDeclarations: number
   leftoverRules: number
   mode: TailwindConversionMode
@@ -196,6 +201,10 @@ export function buildRawHtmlSectionFromCloneRegion(html: string | null | undefin
       mode: compiled.mode,
       supported_declarations: compiled.supportedDeclarations,
       leftover_rules: compiled.leftoverRules,
+      template_kind: compiled.templateKind,
+      confidence: compiled.confidence,
+      parity_risks: compiled.parityRisks,
+      ...(compiled.extractedSchema ? { extracted_schema: compiled.extractedSchema } : {}),
       ...(compiled.pattern ? { pattern: compiled.pattern } : {}),
       stats: compiled.stats,
     }
@@ -250,6 +259,10 @@ function compileCapturedRegionHtmlToTailwind(html: string, options: BuildRawHtml
       html: cssResult.html.trim(),
       leftoverCss: cssResult.leftoverCss,
       source: 'captured-computed-style',
+      templateKind: inferTailwindTemplateKind(cssResult.html, options.tailwindRecipeArtifact),
+      confidence: tailwindCompilationConfidence(stats, true),
+      parityRisks: tailwindCompilationRisks(stats, true),
+      extractedSchema: extractTailwindTemplateSchema(cssResult.html, options.tailwindRecipeArtifact),
       supportedDeclarations: stats.mapped_declarations,
       leftoverRules: stats.leftover_rules,
       mode,
@@ -263,6 +276,10 @@ function compileCapturedRegionHtmlToTailwind(html: string, options: BuildRawHtml
       html: cssResult.html.trim(),
       leftoverCss: cssResult.leftoverCss,
       source: 'captured-region-css',
+      templateKind: inferTailwindTemplateKind(cssResult.html, options.tailwindRecipeArtifact),
+      confidence: tailwindCompilationConfidence(cssResult.stats, false),
+      parityRisks: tailwindCompilationRisks(cssResult.stats, false),
+      extractedSchema: extractTailwindTemplateSchema(cssResult.html, options.tailwindRecipeArtifact),
       supportedDeclarations: cssResult.stats.mapped_declarations,
       leftoverRules: cssResult.stats.leftover_rules,
       mode,
@@ -274,6 +291,10 @@ function compileCapturedRegionHtmlToTailwind(html: string, options: BuildRawHtml
     html: styleExtraction.html.trim(),
     leftoverCss: '',
     source: 'raw-html',
+    templateKind: inferTailwindTemplateKind(styleExtraction.html, options.tailwindRecipeArtifact),
+    confidence: 0,
+    parityRisks: ['No captured CSS or computed-style artifact was available.'],
+    extractedSchema: extractTailwindTemplateSchema(styleExtraction.html, options.tailwindRecipeArtifact),
     supportedDeclarations: 0,
     leftoverRules: 0,
     mode,
@@ -402,11 +423,21 @@ function compileMitsubishiDiamondAdvantageModule(sourceHtml: string, options: Bu
 }
 
 function knownPatternCompilation(html: string, pattern: string, mode: TailwindConversionMode): CapturedTailwindCompilation {
+  const templateKind: TailwindTemplateKind = pattern === 'mitsubishi-home-offer'
+    ? 'offer-card'
+    : pattern === 'mitsubishi-diamond-advantage'
+      ? 'feature-card'
+      : 'content-block'
+
   return {
     html: html.trim(),
     leftoverCss: '',
     source: 'known-oem-pattern',
     pattern,
+    templateKind,
+    confidence: 0.98,
+    parityRisks: [],
+    extractedSchema: extractTailwindTemplateSchema(html, null),
     supportedDeclarations: 0,
     leftoverRules: 0,
     mode,
@@ -1095,6 +1126,80 @@ function createTailwindStats(): CapturedTailwindStats {
   }
 }
 
+function tailwindCompilationConfidence(stats: CapturedTailwindStats, hasComputedStyles: boolean): number {
+  const countedDeclarations = stats.computed_declarations || (stats.mapped_declarations + stats.leftover_declarations)
+  const coverage = countedDeclarations > 0 ? stats.mapped_declarations / countedDeclarations : 0
+  const riskPenalty = Math.min(0.32, (stats.leftover_rules * 0.04) + (stats.unmatched_rules * 0.015) + (stats.leftover_declarations * 0.025))
+  const signalBonus = hasComputedStyles ? 0.1 : 0
+  return Math.max(0, Math.min(0.96, Number((coverage + signalBonus - riskPenalty).toFixed(2))))
+}
+
+function tailwindCompilationRisks(stats: CapturedTailwindStats, hasComputedStyles: boolean): string[] {
+  const risks: string[] = []
+  if (!hasComputedStyles)
+    risks.push('No browser-computed style snapshot; static CSS selector conversion may miss cascade details.')
+  if (stats.leftover_declarations)
+    risks.push(`${stats.leftover_declarations} declarations could not be mapped to Tailwind utilities.`)
+  if (stats.leftover_rules)
+    risks.push(`${stats.leftover_rules} CSS rules remain in leftover CSS.`)
+  if (stats.unmatched_rules)
+    risks.push(`${stats.unmatched_rules} CSS rules matched no elements in the captured region.`)
+  if (stats.unresolved_var_count)
+    risks.push(`${stats.unresolved_var_count} var() references need token or literal verification.`)
+  if (stats.calc_count)
+    risks.push(`${stats.calc_count} calc() values need visual parity review.`)
+  if (stats.important_count)
+    risks.push(`${stats.important_count} !important declarations were encountered.`)
+  return risks
+}
+
+function inferTailwindTemplateKind(html: string, artifact: any): TailwindTemplateKind {
+  const text = htmlToKnownPatternText(html).toLowerCase()
+  const classSignal = String(artifact?.root?.attributes?.class || '').toLowerCase()
+  const signal = `${text} ${classSignal}`
+  const imageCount = (String(html || '').match(/<img\b/gi) || []).length
+  const headingCount = (String(html || '').match(/<h[1-6]\b/gi) || []).length
+  const ctaCount = (String(html || '').match(/<(a|button)\b/gi) || []).length
+  const cardCount = (String(html || '').match(/<(article|li)\b/gi) || []).length
+
+  if (/make your mark|colour|color|swatch|range selector|variant/.test(signal))
+    return 'variant-color-explorer'
+  if (/offer|special|finance|drive away|build your own|enquire|view offer/.test(signal) && imageCount)
+    return 'offer-card'
+  if (cardCount >= 3)
+    return 'feature-grid'
+  if (headingCount && imageCount && ctaCount)
+    return 'hero'
+  if (headingCount && (/warranty|advantage|features|safety|performance/.test(signal) || cardCount))
+    return 'feature-card'
+  if (imageCount && !headingCount)
+    return 'image-media'
+  if (headingCount || text)
+    return 'content-block'
+  return 'unknown'
+}
+
+function extractTailwindTemplateSchema(html: string, artifact: any): Record<string, unknown> {
+  const heading = knownPatternFirstHeading(html)
+  const imageTag = firstOpeningTag(html, 'img')
+  const ctaHtml = knownPatternFirstAnchor(html)
+  const paragraphs = knownPatternParagraphs(html).slice(0, 4)
+  const schema: Record<string, unknown> = {
+    heading: heading || '',
+    paragraphs,
+    image_url: readHtmlAttributeValue(imageTag, 'src') || '',
+    cta_text: knownPatternLinkText(ctaHtml) || '',
+    cta_url: readHtmlAttributeValue(firstOpeningTag(ctaHtml, 'a'), 'href') || '',
+  }
+
+  if (artifact?.source_url)
+    schema.source_url = artifact.source_url
+  if (artifact?.region_id)
+    schema.region_id = artifact.region_id
+
+  return Object.fromEntries(Object.entries(schema).filter(([, value]) => Array.isArray(value) ? value.length : Boolean(value)))
+}
+
 function mergeTailwindStats(...statsList: CapturedTailwindStats[]): CapturedTailwindStats {
   const merged = createTailwindStats()
   for (const stats of statsList) {
@@ -1282,6 +1387,10 @@ function buildCloneRegionConversionMetadata(item: { region: CloneRegion, section
     label: item.region.label || item.region.id,
     ...(compiled.source ? { compiled_source: compiled.source } : {}),
     ...(compiled.mode ? { mode: compiled.mode } : {}),
+    ...(compiled.template_kind ? { template_kind: compiled.template_kind } : {}),
+    ...(Number.isFinite(Number(compiled.confidence)) ? { confidence: Number(compiled.confidence) } : {}),
+    ...(Array.isArray(compiled.parity_risks) ? { parity_risks: compiled.parity_risks } : {}),
+    ...(compiled.extracted_schema && typeof compiled.extracted_schema === 'object' ? { extracted_schema: compiled.extracted_schema } : {}),
     ...(Number.isFinite(Number(compiled.supported_declarations)) ? { supported_declarations: Number(compiled.supported_declarations) } : {}),
     ...(Number.isFinite(Number(compiled.leftover_rules)) ? { leftover_rules: Number(compiled.leftover_rules) } : {}),
     ...(compiled.stats && typeof compiled.stats === 'object' ? { stats: compiled.stats } : {}),
@@ -1292,12 +1401,18 @@ function buildCloneRegionGroupConversionMetadata(row: Array<{ region: CloneRegio
   const stats = mergeTailwindStats(...row.map(item => readTailwindStats(item.section._tailwind_conversion?.stats)))
   const supportedDeclarations = row.reduce((total, item) => total + (Number(item.section._tailwind_conversion?.supported_declarations) || 0), 0)
   const leftoverRules = row.reduce((total, item) => total + (Number(item.section._tailwind_conversion?.leftover_rules) || 0), 0)
+  const confidences = row.map(item => Number(item.section._tailwind_conversion?.confidence)).filter(value => Number.isFinite(value))
+  const parityRisks = uniqueClassList(row.flatMap(item => Array.isArray(item.section._tailwind_conversion?.parity_risks) ? item.section._tailwind_conversion.parity_risks : []))
+  const templateKinds = uniqueClassList(row.map(item => String(item.section._tailwind_conversion?.template_kind || '')).filter(Boolean))
 
   return {
     source: 'clone-region-group',
     region_ids: row.map(item => item.region.id),
     labels: row.map(item => item.region.label || item.region.id),
     compiled_sources: uniqueClassList(row.map(item => String(item.section._tailwind_conversion?.source || '')).filter(Boolean)),
+    ...(templateKinds.length === 1 ? { template_kind: templateKinds[0] } : templateKinds.length > 1 ? { template_kind: 'content-block', template_kinds: templateKinds } : {}),
+    ...(confidences.length ? { confidence: Number((confidences.reduce((sum, value) => sum + value, 0) / confidences.length).toFixed(2)) } : {}),
+    ...(parityRisks.length ? { parity_risks: parityRisks } : {}),
     ...(supportedDeclarations ? { supported_declarations: supportedDeclarations } : {}),
     ...(leftoverRules ? { leftover_rules: leftoverRules } : {}),
     stats,

@@ -63,6 +63,9 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('data-oem-tailwind-source-view="true"')
     expect(source).toContain('v-for="section in sections"')
     expect(source).toContain('tailwindSectionSource(section)')
+    expect(source).toContain('/* Tailwind Compiler Summary */')
+    expect(source).toContain('template_kind: conversion.template_kind')
+    expect(source).toContain('parity_risks: conversion.parity_risks || []')
     expect(source).toContain('/* Leftover CSS */')
     expect(source).toContain('/* Tailwind Conversion Stats */')
     expect(source).toContain('_tailwind_leftover_css')
@@ -91,6 +94,9 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain(':srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), \'Converted Tailwind\')"')
     expect(source).toContain('mappedDeclarations(section)')
     expect(source).toContain('computedDeclarations(section)')
+    expect(source).toContain('function compareTemplateSummary(section: any): string')
+    expect(source).toContain('compareTemplateSummary(section)')
+    expect(source).toContain('section?._tailwind_conversion?.parity_risks')
   })
 
   it('preserves unsaved converted sections when switching preview views', () => {
