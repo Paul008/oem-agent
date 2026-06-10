@@ -362,6 +362,109 @@ describe('convertCloneRegionsToTailwindSections', () => {
     expect(result.skipped).toEqual([])
   })
 
+  it('preserves detailed Tailwind conversion stats on whole-page converted clone sections', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: [
+        {
+          id: 'copy',
+          label: 'Hero copy',
+          selector: '[data-oem-region-id="copy"]',
+          tag: 'section',
+          classes: [],
+          top: 0,
+          width: 1000,
+          height: 400,
+          editable_fields: [],
+          html: '<section class="hero-copy"><h1>Take centre stage</h1></section>',
+          tailwindRecipeArtifact: {
+            region_id: 'copy',
+            root: {
+              path: '0',
+              tag: 'section',
+              computed_style: { color: 'rgb(255, 255, 255)' },
+              children: [
+                { path: '0.0', tag: 'h1', computed_style: { 'font-weight': '700' }, children: [] },
+              ],
+            },
+          },
+        },
+      ],
+    })
+
+    expect(result.sections).toHaveLength(1)
+    expect(result.sections[0]._tailwind_conversion).toMatchObject({
+      source: 'clone-region',
+      region_id: 'copy',
+      compiled_source: 'captured-computed-style',
+      stats: {
+        computed_declarations: 2,
+        mapped_declarations: 2,
+      },
+    })
+  })
+
+  it('aggregates detailed Tailwind conversion stats on grouped clone sections', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: [
+        {
+          id: 'copy',
+          label: 'Hero copy',
+          selector: '[data-oem-region-id="copy"]',
+          tag: 'section',
+          classes: [],
+          viewport_left: 0,
+          top: 0,
+          width: 400,
+          height: 400,
+          editable_fields: [],
+          html: '<section class="copy"><h1>Take centre stage</h1></section>',
+          tailwindRecipeArtifact: {
+            root: {
+              path: '0',
+              tag: 'section',
+              computed_style: { color: 'rgb(255, 255, 255)' },
+              children: [
+                { path: '0.0', tag: 'h1', computed_style: { 'font-weight': '700' }, children: [] },
+              ],
+            },
+          },
+        },
+        {
+          id: 'image',
+          label: 'Hero image',
+          selector: '[data-oem-region-id="image"]',
+          tag: 'section',
+          classes: [],
+          viewport_left: 500,
+          top: 0,
+          width: 400,
+          height: 400,
+          editable_fields: [],
+          html: '<section class="image"><img src="/outlander.webp" alt="Outlander"></section>',
+          tailwindRecipeArtifact: {
+            root: {
+              path: '0',
+              tag: 'section',
+              computed_style: { display: 'block' },
+              children: [
+                { path: '0.0', tag: 'img', computed_style: { width: '100%', 'object-fit': 'cover' }, children: [] },
+              ],
+            },
+          },
+        },
+      ],
+    })
+
+    expect(result.sections).toHaveLength(1)
+    expect(result.sections[0]._tailwind_conversion).toMatchObject({
+      source: 'clone-region-group',
+      stats: {
+        computed_declarations: 5,
+        mapped_declarations: 5,
+      },
+    })
+  })
+
   it('reports skipped regions that do not have conversion-ready source data', async () => {
     const result = await convertCloneRegionsToTailwindSections({
       regions: [

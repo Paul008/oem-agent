@@ -956,11 +956,7 @@ function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: Clone
       id: `tw-${safeIdPart(item.region.id || `region-${index + 1}`)}`,
       order: index,
       _clone_region_id: item.region.id,
-      _tailwind_conversion: {
-        source: 'clone-region',
-        region_id: item.region.id,
-        label: item.region.label || item.region.id,
-      },
+      _tailwind_conversion: buildCloneRegionConversionMetadata(item),
     }
   })
 }
@@ -994,6 +990,10 @@ function regionTop(region: CloneRegion): number {
 
 function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, section: Record<string, any> }>, order: number): Record<string, any> {
   const regionIds = row.map(item => item.region.id)
+  const leftoverCss = row
+    .map(item => typeof item.section._tailwind_leftover_css === 'string' ? item.section._tailwind_leftover_css.trim() : '')
+    .filter(Boolean)
+    .join('\n')
   const columns = row.map(item => {
     const html = renderPreviewSectionHtml(item.section, {
       regionId: item.region.id,
@@ -1013,12 +1013,53 @@ function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, sectio
     id: `tw-${regionIds.map(safeIdPart).join('-')}`,
     order,
     _clone_region_ids: regionIds,
-    _tailwind_conversion: {
-      source: 'clone-region-group',
-      region_ids: regionIds,
-      labels: row.map(item => item.region.label || item.region.id),
-    },
+    ...(leftoverCss ? { _tailwind_leftover_css: leftoverCss } : {}),
+    _tailwind_conversion: buildCloneRegionGroupConversionMetadata(row),
   }
+}
+
+function buildCloneRegionConversionMetadata(item: { region: CloneRegion, section: Record<string, any> }): Record<string, any> {
+  const compiled = item.section._tailwind_conversion && typeof item.section._tailwind_conversion === 'object'
+    ? item.section._tailwind_conversion
+    : {}
+
+  return {
+    source: 'clone-region',
+    region_id: item.region.id,
+    label: item.region.label || item.region.id,
+    ...(compiled.source ? { compiled_source: compiled.source } : {}),
+    ...(compiled.mode ? { mode: compiled.mode } : {}),
+    ...(Number.isFinite(Number(compiled.supported_declarations)) ? { supported_declarations: Number(compiled.supported_declarations) } : {}),
+    ...(Number.isFinite(Number(compiled.leftover_rules)) ? { leftover_rules: Number(compiled.leftover_rules) } : {}),
+    ...(compiled.stats && typeof compiled.stats === 'object' ? { stats: compiled.stats } : {}),
+  }
+}
+
+function buildCloneRegionGroupConversionMetadata(row: Array<{ region: CloneRegion, section: Record<string, any> }>): Record<string, any> {
+  const stats = mergeTailwindStats(...row.map(item => readTailwindStats(item.section._tailwind_conversion?.stats)))
+  const supportedDeclarations = row.reduce((total, item) => total + (Number(item.section._tailwind_conversion?.supported_declarations) || 0), 0)
+  const leftoverRules = row.reduce((total, item) => total + (Number(item.section._tailwind_conversion?.leftover_rules) || 0), 0)
+
+  return {
+    source: 'clone-region-group',
+    region_ids: row.map(item => item.region.id),
+    labels: row.map(item => item.region.label || item.region.id),
+    compiled_sources: uniqueClassList(row.map(item => String(item.section._tailwind_conversion?.source || '')).filter(Boolean)),
+    ...(supportedDeclarations ? { supported_declarations: supportedDeclarations } : {}),
+    ...(leftoverRules ? { leftover_rules: leftoverRules } : {}),
+    stats,
+  }
+}
+
+function readTailwindStats(value: unknown): CapturedTailwindStats {
+  const stats = createTailwindStats()
+  if (!value || typeof value !== 'object')
+    return stats
+
+  for (const key of Object.keys(stats) as Array<keyof CapturedTailwindStats>)
+    stats[key] = Number((value as Record<string, unknown>)[key]) || 0
+
+  return stats
 }
 
 function safeIdPart(value: string): string {
