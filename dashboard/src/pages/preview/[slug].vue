@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
+import { Code2, ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -19,7 +19,7 @@ import SectionEditorDialog from '@/pages/dashboard/components/page-builder/Secti
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
-type PreviewView = 'edit' | 'production'
+type PreviewView = 'edit' | 'production' | 'source'
 
 const route = useRoute()
 const router = useRouter()
@@ -75,8 +75,13 @@ const isWriteProtectedPage = computed(() => isModelPageWriteProtected(oemId.valu
 const writeProtectedMessage = computed(() => getModelPageWriteProtectedMessage(page.value?.name ?? oemId.value))
 const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))
 const isProductionView = computed(() => previewView.value === 'production')
-const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value)
+const isSourceView = computed(() => previewView.value === 'source')
+const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value)
 const canEditPreview = computed(() => !previewReadOnly.value)
+const hasTailwindSource = computed(() => Boolean(
+  activeMode.value === 'sections'
+  && sections.value.some((section: any) => Boolean(section?._tailwind_conversion || String(section?._generated_html || '').trim())),
+))
 const editorSection = computed(() =>
   editorSectionId.value ? sections.value.find((section: any) => section.id === editorSectionId.value) ?? null : null,
 )
@@ -105,7 +110,7 @@ const catalogModelSlug = computed(() =>
 
 function normalizePreviewView(value: unknown): PreviewView {
   const raw = Array.isArray(value) ? value[0] : value
-  return raw === 'production' ? 'production' : 'edit'
+  return raw === 'production' || raw === 'source' ? raw : 'edit'
 }
 
 onMounted(async () => {
@@ -126,9 +131,18 @@ function setPreviewView(view: PreviewView) {
   const query = { ...route.query }
   if (view === 'production')
     query.view = 'production'
+  else if (view === 'source')
+    query.view = 'source'
   else
     delete query.view
   void router.replace({ query })
+}
+
+function tailwindSectionSource(section: any): string {
+  const html = section?._generated_html || section?.content_html || section?.body_html || ''
+  if (typeof html === 'string' && html.trim())
+    return html.trim()
+  return JSON.stringify(section, null, 2)
 }
 
 function openEditor(id: string) {
@@ -324,7 +338,7 @@ async function convertPageToTailwind() {
 }
 
 async function savePreview() {
-  if (isProductionView.value) {
+  if (isProductionView.value || isSourceView.value) {
     toast.error('Switch to Edit view to save changes')
     return
   }
@@ -383,14 +397,25 @@ async function savePreview() {
             <Eye class="size-3.5" />
             <span class="hidden sm:inline">Production</span>
           </button>
+          <button
+            v-if="hasTailwindSource || isSourceView"
+            type="button"
+            class="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium transition-colors"
+            :class="previewView === 'source' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            title="Tailwind source"
+            @click="setPreviewView('source')"
+          >
+            <Code2 class="size-3.5" />
+            <span class="hidden md:inline">Source</span>
+          </button>
         </div>
         <div
           v-if="previewReadOnly"
           class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
-          :title="isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage"
+          :title="isSourceView ? 'Tailwind source view disables editing and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage)"
         >
           <Lock class="size-3.5" />
-          {{ isProductionView ? 'Production' : 'Read-only' }}
+          {{ isSourceView ? 'Source' : (isProductionView ? 'Production' : 'Read-only') }}
         </div>
         <div v-else class="hidden items-center gap-1.5 px-1 text-xs text-muted-foreground sm:flex">
           <span
@@ -445,7 +470,57 @@ async function savePreview() {
         </a>
       </div>
 
+      <div
+        v-if="isSourceView"
+        data-oem-tailwind-source-view="true"
+        class="min-h-screen bg-slate-950 px-4 py-16 text-slate-100 sm:px-6 lg:px-10"
+      >
+        <div class="mx-auto max-w-6xl space-y-4">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Tailwind Source
+            </p>
+            <h1 class="text-xl font-semibold text-white">
+              {{ page?.name || pageSlug }}
+            </h1>
+            <p class="text-sm text-slate-400">
+              Converted section markup rendered from the saved section model.
+            </p>
+          </div>
+
+          <div v-if="!hasTailwindSource" class="rounded-lg border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
+            No converted Tailwind sections are saved for this page yet.
+          </div>
+
+          <div
+            v-for="section in sections"
+            v-else
+            :key="section.id"
+            class="overflow-hidden rounded-lg border border-slate-800 bg-slate-900/80"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-white">
+                  {{ section.name || section.title || section.id }}
+                </p>
+                <p class="text-xs text-slate-400">
+                  {{ section.type || 'section' }}
+                </p>
+              </div>
+              <span
+                v-if="section._tailwind_conversion"
+                class="rounded bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-300"
+              >
+                converted
+              </span>
+            </div>
+            <pre class="max-h-[620px] overflow-auto p-4 text-xs leading-5 text-slate-100"><code>{{ tailwindSectionSource(section) }}</code></pre>
+          </div>
+        </div>
+      </div>
+
       <PageBuilderCanvas
+        v-else
         ref="pageBuilderCanvas"
         :page="page"
         :sections="sections"

@@ -46,4 +46,22 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('title="Convert page to Tailwind sections"')
     expect(source).toContain('Convert Page')
   })
+
+  it('adds a read-only Tailwind source view for converted sections', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\'')
+    expect(source).toContain('const isSourceView = computed(() => previewView.value === \'source\')')
+    expect(source).toContain('const hasTailwindSource = computed')
+    expect(source).toContain('function tailwindSectionSource(section: any): string')
+    expect(source).toContain('return raw === \'production\' || raw === \'source\' ? raw : \'edit\'')
+    expect(source).toContain('query.view = \'source\'')
+    expect(source).toContain('@click="setPreviewView(\'source\')"')
+    expect(source).toContain('title="Tailwind source"')
+    expect(source).toContain('Tailwind Source')
+    expect(source).toContain('v-if="isSourceView"')
+    expect(source).toContain('data-oem-tailwind-source-view="true"')
+    expect(source).toContain('v-for="section in sections"')
+    expect(source).toContain('tailwindSectionSource(section)')
+  })
 })
