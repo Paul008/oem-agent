@@ -6,7 +6,7 @@ describe('preview Tailwind conversion toolbar', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
     const convertFunction = source.slice(
       source.indexOf('async function convertSelectedCloneRegionToTailwind()'),
-      source.indexOf('async function savePreview()'),
+      source.indexOf('async function convertPageToTailwind()'),
     )
 
     expect(source).toContain('selectedCloneRegionData')
@@ -24,5 +24,26 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(convertFunction).not.toContain('setActiveMode(\'sections\')')
     expect(source).toContain('title="Convert selected region to Tailwind"')
     expect(source).toContain('Convert to Tailwind')
+  })
+
+  it('exposes whole-page Tailwind conversion as an unsaved structured draft', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+    const convertPageFunction = source.slice(
+      source.indexOf('async function convertPageToTailwind()'),
+      source.indexOf('async function savePreview()'),
+    )
+
+    expect(source).toContain('convertCloneRegionsToTailwindSections')
+    expect(source).toContain('const convertingPage = ref(false)')
+    expect(source).toContain('const canConvertPageToTailwind = computed')
+    expect(convertPageFunction).toContain('convertCloneRegionsToTailwindSections({')
+    expect(convertPageFunction).toContain('const collectedRegions = await pageBuilderCanvas.value?.collectCloneRegions()')
+    expect(convertPageFunction).toContain('regions: collectedRegions?.length ? collectedRegions : cloneRegionsForSave.value')
+    expect(convertPageFunction).toContain('replaceSections(result.sections)')
+    expect(convertPageFunction).toContain('setActiveMode(\'sections\')')
+    expect(convertPageFunction).toContain('toast.success')
+    expect(convertPageFunction).not.toContain('saveSections(')
+    expect(source).toContain('title="Convert page to Tailwind sections"')
+    expect(source).toContain('Convert Page')
   })
 })

@@ -489,6 +489,8 @@ ${rendered}
   var MESSAGE_REGION_HEIGHT = 'clone-studio:region-height'
   var MESSAGE_SWITCH_PANEL = 'clone-studio:switch-panel'
   var MESSAGE_DUPLICATE_REGION = 'clone-studio:duplicate-region'
+  var MESSAGE_LIST_REGIONS = 'clone-studio:list-regions'
+  var MESSAGE_REGIONS_LIST = 'clone-studio:regions-list'
   var RESIZE_HANDLE_MIN_HEIGHT = 40
   var resizeHandle = null
   var resizeDrag = null
@@ -1287,6 +1289,19 @@ ${rendered}
       height: rect.height || 0,
       editable_fields: extractFields(element)
     }
+  }
+
+  function collectRegionPayloads() {
+    var regions = document.querySelectorAll(REGION_SELECTOR)
+    var payloads = []
+
+    for (var i = 0; i < regions.length; i++) {
+      var payload = regionPayload(regions[i])
+      if (payload)
+        payloads.push(payload)
+    }
+
+    return payloads
   }
 
   function isNavigationElement(target) {
@@ -4162,6 +4177,14 @@ ${rendered}
       var panelRegionId = message.regionId || message.selectedRegionId || message.id
       if (switchPanel(panelRegionId, message.index))
         post(MESSAGE_DOM_UPDATED, { regionId: panelRegionId })
+    }
+
+    if (message.type === MESSAGE_LIST_REGIONS) {
+      post(MESSAGE_REGIONS_LIST, {
+        requestId: message.requestId || null,
+        regions: collectRegionPayloads()
+      })
+      return
     }
 
     if (message.type === MESSAGE_DUPLICATE_REGION) {

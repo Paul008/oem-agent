@@ -1,4 +1,5 @@
 import type { Product, VariantColor } from '@/composables/use-oem-data'
+import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
 const HTML_ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -177,6 +178,69 @@ export async function buildEditableSectionFromCloneRegion(input: BuildEditableSe
   }
 
   return buildRawHtmlSectionFromCloneRegion(input.html)
+}
+
+export interface ConvertCloneRegionsToTailwindSectionsInput {
+  regions: CloneRegion[]
+  compileTailwindRecipeArtifact?: (artifact: any) => Promise<any>
+}
+
+export interface ConvertCloneRegionsToTailwindSectionsResult {
+  sections: Record<string, any>[]
+  skipped: Array<{ id: string, label: string, reason: 'missing-source' | 'conversion-failed' }>
+}
+
+export async function convertCloneRegionsToTailwindSections(input: ConvertCloneRegionsToTailwindSectionsInput): Promise<ConvertCloneRegionsToTailwindSectionsResult> {
+  const orderedRegions = [...(input.regions || [])].sort((a, b) => {
+    const topDelta = (Number(a.top) || 0) - (Number(b.top) || 0)
+    if (topDelta !== 0)
+      return topDelta
+    return (Number(a.left) || 0) - (Number(b.left) || 0)
+  })
+  const sections: Record<string, any>[] = []
+  const skipped: ConvertCloneRegionsToTailwindSectionsResult['skipped'] = []
+
+  for (const region of orderedRegions) {
+    const hasSource = Boolean(region.html || region.tailwindRecipeArtifact)
+    if (!hasSource) {
+      skipped.push({ id: region.id, label: region.label || region.id, reason: 'missing-source' })
+      continue
+    }
+
+    const section = await buildEditableSectionFromCloneRegion({
+      html: region.html,
+      tailwindRecipeArtifact: region.tailwindRecipeArtifact,
+      compileTailwindRecipeArtifact: input.compileTailwindRecipeArtifact,
+    })
+
+    if (!section) {
+      skipped.push({ id: region.id, label: region.label || region.id, reason: 'conversion-failed' })
+      continue
+    }
+
+    sections.push({
+      ...JSON.parse(JSON.stringify(section)),
+      id: `tw-${safeIdPart(region.id || `region-${sections.length + 1}`)}`,
+      order: sections.length,
+      _clone_region_id: region.id,
+      _tailwind_conversion: {
+        source: 'clone-region',
+        region_id: region.id,
+        label: region.label || region.id,
+      },
+    })
+  }
+
+  return { sections, skipped }
+}
+
+function safeIdPart(value: string): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'region'
 }
 
 export interface BuildPreviewReplacementHtmlFromCloneRegionInput extends BuildEditableSectionFromCloneRegionInput {

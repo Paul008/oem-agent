@@ -11,7 +11,7 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { compileTailwindRecipeArtifact } from '@/lib/worker-api'
-import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 
@@ -48,6 +48,7 @@ const {
   duplicateSection,
   updateSection,
   addSectionFromLiveData,
+  replaceSections,
   saveSections,
   saveClone,
   setActiveMode,
@@ -62,9 +63,11 @@ const {
 const pageBuilderCanvas = ref<{
   patchCloneField: (payload: Record<string, unknown>) => void
   duplicateRegion: (regionId: string) => void
+  collectCloneRegions: () => Promise<CloneRegion[]>
 } | null>(null)
 const cloneDraftHtml = ref<string | null>(null)
 const convertingCloneRegion = ref(false)
+const convertingPage = ref(false)
 const editorSectionId = ref<string | null>(null)
 const pageSlug = computed(() => (route.params as { slug?: string }).slug ?? '')
 const builderUrl = computed(() => pageSlug.value ? `/dashboard/page-builder/${pageSlug.value}` : '/dashboard/model-pages')
@@ -89,6 +92,11 @@ const canConvertSelectedCloneRegion = computed(() => Boolean(
   && activeMode.value === 'clone'
   && selectedCloneRegion.value
   && (selectedCloneRegion.value.html || selectedCloneRegion.value.tailwindRecipeArtifact),
+))
+const canConvertPageToTailwind = computed(() => Boolean(
+  canEditPreview.value
+  && activeMode.value === 'clone'
+  && isCloned.value,
 ))
 const { fetchProductsForModel, fetchVariantColors } = useOemData()
 const catalogModelSlug = computed(() =>
@@ -285,6 +293,36 @@ async function replaceCloneRegionWithTailwind(input: { regionId?: string | null,
   toast.success('Selected region converted in preview')
 }
 
+async function convertPageToTailwind() {
+  if (!canConvertPageToTailwind.value)
+    return
+
+  convertingPage.value = true
+  try {
+    const collectedRegions = await pageBuilderCanvas.value?.collectCloneRegions()
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: collectedRegions?.length ? collectedRegions : cloneRegionsForSave.value,
+      compileTailwindRecipeArtifact,
+    })
+
+    if (!result.sections.length) {
+      toast.error('No clone regions are ready to convert')
+      return
+    }
+
+    replaceSections(result.sections)
+    setActiveMode('sections')
+    const skippedSuffix = result.skipped.length ? ` (${result.skipped.length} skipped)` : ''
+    toast.success(`Converted ${result.sections.length} region${result.sections.length === 1 ? '' : 's'} to Tailwind sections${skippedSuffix}`)
+  }
+  catch (error: any) {
+    toast.error(`Failed to convert page: ${error?.message || 'Unknown error'}`)
+  }
+  finally {
+    convertingPage.value = false
+  }
+}
+
 async function savePreview() {
   if (isProductionView.value) {
     toast.error('Switch to Edit view to save changes')
@@ -372,6 +410,18 @@ async function savePreview() {
           <Loader2 v-if="convertingCloneRegion" class="size-3.5 animate-spin" />
           <Wand2 v-else class="size-3.5" />
           <span class="hidden lg:inline">Convert to Tailwind</span>
+        </button>
+        <button
+          v-if="canEditPreview && activeMode === 'clone'"
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          :disabled="convertingPage || !canConvertPageToTailwind"
+          title="Convert page to Tailwind sections"
+          @click="convertPageToTailwind"
+        >
+          <Loader2 v-if="convertingPage" class="size-3.5 animate-spin" />
+          <Wand2 v-else class="size-3.5" />
+          <span class="hidden xl:inline">Convert Page</span>
         </button>
         <button
           v-if="canEditPreview"

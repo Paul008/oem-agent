@@ -117,6 +117,7 @@ const containerWidth = ref(0)
 const containerHeight = ref(0)
 let resizeObserver: ResizeObserver | null = null
 const bridgeToken = createBridgeToken()
+const pendingRegionListRequests = new Map<string, (regions: CloneRegion[]) => void>()
 
 // Scale the desktop-width frame to fit. In the editor we never upscale past 1:1; in fit-width
 // (full-screen preview) we scale up so the clone fills the window instead of leaving a gap.
@@ -254,6 +255,17 @@ function onMessage(event: MessageEvent) {
       x: pt.x,
       y: pt.y,
     })
+    return
+  }
+
+  if (data.type === 'clone-studio:regions-list') {
+    const requestId = typeof data.requestId === 'string' ? data.requestId : ''
+    const resolve = pendingRegionListRequests.get(requestId)
+    if (!resolve)
+      return
+    pendingRegionListRequests.delete(requestId)
+    const regions = Array.isArray(data.regions) ? data.regions.map(enrichRegionForHost) : []
+    resolve(regions as CloneRegion[])
   }
 }
 
@@ -283,6 +295,21 @@ function setHeight(regionId: string, value: number | null) {
 
 function duplicateRegion(regionId: string) {
   postToFrame({ type: 'clone-studio:duplicate-region', regionId, bridgeToken })
+}
+
+function collectRegions(): Promise<CloneRegion[]> {
+  const requestId = `regions-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return new Promise((resolve) => {
+    pendingRegionListRequests.set(requestId, resolve)
+    postToFrame({ type: 'clone-studio:list-regions', requestId, bridgeToken })
+    window.setTimeout(() => {
+      const pending = pendingRegionListRequests.get(requestId)
+      if (!pending)
+        return
+      pendingRegionListRequests.delete(requestId)
+      pending([])
+    }, 2000)
+  })
 }
 
 function selectRegionInFrame(regionId: string | null) {
@@ -326,6 +353,7 @@ defineExpose({
   switchPanel,
   setHeight,
   duplicateRegion,
+  collectRegions,
 })
 </script>
 

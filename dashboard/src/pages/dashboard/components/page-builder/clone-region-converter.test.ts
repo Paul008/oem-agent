@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, buildRawHtmlSectionFromCloneRegion } from './clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, buildRawHtmlSectionFromCloneRegion, convertCloneRegionsToTailwindSections } from './clone-region-converter'
 
 describe('buildRawHtmlSectionFromCloneRegion', () => {
   it('wraps clone region HTML in an editable content block', () => {
@@ -111,6 +111,70 @@ describe('buildPreviewReplacementHtmlFromCloneRegion', () => {
     })
 
     expect(html).toBe('<section data-oem-region-id="region-2"><h2>Original</h2></section>')
+  })
+})
+
+describe('convertCloneRegionsToTailwindSections', () => {
+  it('converts all clone regions with captured HTML or Tailwind artifacts into ordered section drafts', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: [
+        {
+          id: 'hero',
+          label: 'Hero',
+          selector: '[data-oem-region-id="hero"]',
+          tag: 'section',
+          classes: [],
+          top: 0,
+          height: 300,
+          editable_fields: [],
+          html: '<section><h1>Hero</h1></section>',
+        },
+        {
+          id: 'range',
+          label: 'Range',
+          selector: '[data-oem-region-id="range"]',
+          tag: 'section',
+          classes: [],
+          top: 300,
+          height: 400,
+          editable_fields: [],
+          tailwindRecipeArtifact: { region_id: 'range' },
+        },
+      ],
+      compileTailwindRecipeArtifact: async () => ({
+        success: true,
+        result: {
+          confidence: 0.88,
+          section: { type: 'variant-color-explorer', heading: 'Make Your Mark.' },
+        },
+      }),
+    })
+
+    expect(result.sections).toHaveLength(2)
+    expect(result.sections[0]).toMatchObject({ type: 'content-block', order: 0, _clone_region_id: 'hero' })
+    expect(result.sections[1]).toMatchObject({ type: 'variant-color-explorer', order: 1, _clone_region_id: 'range' })
+    expect(result.skipped).toEqual([])
+  })
+
+  it('reports skipped regions that do not have conversion-ready source data', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: [
+        {
+          id: 'empty',
+          label: 'Empty region',
+          selector: '[data-oem-region-id="empty"]',
+          tag: 'section',
+          classes: [],
+          top: 0,
+          height: 300,
+          editable_fields: [],
+        },
+      ],
+      compileTailwindRecipeArtifact: async () => ({ success: true, result: { confidence: 1, section: {} } }),
+    })
+
+    expect(result.sections).toEqual([])
+    expect(result.skipped).toEqual([{ id: 'empty', label: 'Empty region', reason: 'missing-source' }])
   })
 })
 

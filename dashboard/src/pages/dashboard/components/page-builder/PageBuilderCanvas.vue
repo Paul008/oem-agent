@@ -123,9 +123,16 @@ function duplicateRegion(regionId: string) {
   cloneStudioCanvas.value?.duplicateRegion(regionId)
 }
 
+async function collectCloneRegions(): Promise<CloneRegion[]> {
+  if (props.readOnly)
+    return []
+  return await cloneStudioCanvas.value?.collectRegions() ?? []
+}
+
 defineExpose({
   patchCloneField,
   duplicateRegion,
+  collectCloneRegions,
 })
 
 // ── Clone region context menu ──────────────────────────────────────────────

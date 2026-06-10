@@ -495,6 +495,21 @@ describe('clone region conversion wiring', () => {
     expect(canvasSource).toContain('emit(\'regionAction\', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
   })
 
+  it('can collect every clone region payload from the iframe for whole-page conversion', () => {
+    const bridgeSource = readFileSync(new URL('./clone-studio-html.ts', import.meta.url), 'utf8')
+    const cloneCanvasSource = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+    const canvasSource = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+
+    expect(bridgeSource).toContain('clone-studio:list-regions')
+    expect(bridgeSource).toContain('clone-studio:regions-list')
+    expect(bridgeSource).toContain('document.querySelectorAll(REGION_SELECTOR)')
+    expect(bridgeSource).toContain('regions: collectRegionPayloads()')
+    expect(cloneCanvasSource).toContain('function collectRegions(): Promise<CloneRegion[]>')
+    expect(cloneCanvasSource).toContain('pendingRegionListRequests')
+    expect(canvasSource).toContain('function collectCloneRegions(): Promise<CloneRegion[]>')
+    expect(canvasSource).toContain('collectCloneRegions,')
+  })
+
   it('keeps builder conversion as section insertion and preview conversion as in-place clone replacement', () => {
     const builderSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
