@@ -197,7 +197,7 @@ export async function convertCloneRegionsToTailwindSections(input: ConvertCloneR
       return topDelta
     return (Number(a.left) || 0) - (Number(b.left) || 0)
   })
-  const sections: Record<string, any>[] = []
+  const converted: Array<{ region: CloneRegion, section: Record<string, any> }> = []
   const skipped: ConvertCloneRegionsToTailwindSectionsResult['skipped'] = []
 
   for (const region of orderedRegions) {
@@ -218,20 +218,90 @@ export async function convertCloneRegionsToTailwindSections(input: ConvertCloneR
       continue
     }
 
-    sections.push({
-      ...JSON.parse(JSON.stringify(section)),
-      id: `tw-${safeIdPart(region.id || `region-${sections.length + 1}`)}`,
-      order: sections.length,
-      _clone_region_id: region.id,
-      _tailwind_conversion: {
-        source: 'clone-region',
-        region_id: region.id,
-        label: region.label || region.id,
-      },
-    })
+    converted.push({ region, section })
   }
 
+  const sections = buildSectionsFromConvertedCloneRegions(converted)
   return { sections, skipped }
+}
+
+function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: CloneRegion, section: Record<string, any> }>): Record<string, any>[] {
+  const rows: Array<Array<{ region: CloneRegion, section: Record<string, any> }>> = []
+
+  for (const item of converted) {
+    const row = rows.find(existing => existing.some(candidate => regionsShareVisualRow(candidate.region, item.region)))
+    if (row)
+      row.push(item)
+    else
+      rows.push([item])
+  }
+
+  return rows.map((row, index) => {
+    const orderedRow = [...row].sort((a, b) => (Number(a.region.left) || 0) - (Number(b.region.left) || 0))
+    if (orderedRow.length > 1)
+      return buildGroupedCloneRegionSection(orderedRow, index)
+
+    const item = orderedRow[0]
+    return {
+      ...JSON.parse(JSON.stringify(item.section)),
+      id: `tw-${safeIdPart(item.region.id || `region-${index + 1}`)}`,
+      order: index,
+      _clone_region_id: item.region.id,
+      _tailwind_conversion: {
+        source: 'clone-region',
+        region_id: item.region.id,
+        label: item.region.label || item.region.id,
+      },
+    }
+  })
+}
+
+function regionsShareVisualRow(a: CloneRegion, b: CloneRegion): boolean {
+  const aTop = Number(a.top) || 0
+  const bTop = Number(b.top) || 0
+  const aHeight = Math.max(1, Number(a.height) || 1)
+  const bHeight = Math.max(1, Number(b.height) || 1)
+  const verticalOverlap = Math.min(aTop + aHeight, bTop + bHeight) - Math.max(aTop, bTop)
+  const verticalOverlapRatio = verticalOverlap / Math.min(aHeight, bHeight)
+  const topDelta = Math.abs(aTop - bTop)
+
+  const aLeft = Number(a.left) || 0
+  const bLeft = Number(b.left) || 0
+  const aWidth = Math.max(1, Number(a.width) || 1)
+  const bWidth = Math.max(1, Number(b.width) || 1)
+  const horizontalOverlap = Math.min(aLeft + aWidth, bLeft + bWidth) - Math.max(aLeft, bLeft)
+  const horizontalOverlapRatio = Math.max(0, horizontalOverlap) / Math.min(aWidth, bWidth)
+
+  return horizontalOverlapRatio < 0.35 && (verticalOverlapRatio >= 0.45 || topDelta <= Math.max(96, Math.min(aHeight, bHeight) * 0.35))
+}
+
+function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, section: Record<string, any> }>, order: number): Record<string, any> {
+  const regionIds = row.map(item => item.region.id)
+  const columns = row.map(item => {
+    const html = renderPreviewSectionHtml(item.section, {
+      regionId: item.region.id,
+      html: item.region.html,
+      tailwindRecipeArtifact: item.region.tailwindRecipeArtifact,
+    }) || ''
+
+    return `<div class="min-w-0">${html}</div>`
+  }).join('')
+
+  return {
+    type: 'content-block',
+    title: '',
+    content_html: '',
+    _generated_html: `<section class="w-full bg-white text-neutral-950"><div class="grid grid-cols-1 lg:grid-cols-${Math.min(row.length, 4)}">${columns}</div></section>`,
+    animation: 'fade-in',
+    id: `tw-${regionIds.map(safeIdPart).join('-')}`,
+    order,
+    _clone_region_ids: regionIds,
+    _tailwind_conversion: {
+      source: 'clone-region-group',
+      region_ids: regionIds,
+      labels: row.map(item => item.region.label || item.region.id),
+    },
+  }
 }
 
 function safeIdPart(value: string): string {

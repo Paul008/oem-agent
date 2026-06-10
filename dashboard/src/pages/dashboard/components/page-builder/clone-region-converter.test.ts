@@ -156,6 +156,53 @@ describe('convertCloneRegionsToTailwindSections', () => {
     expect(result.skipped).toEqual([])
   })
 
+  it('preserves side-by-side clone regions as one responsive grouped section', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: [
+        {
+          id: 'image',
+          label: 'Hero image',
+          selector: '[data-oem-region-id="image"]',
+          tag: 'section',
+          classes: [],
+          left: 640,
+          top: 120,
+          width: 640,
+          height: 560,
+          editable_fields: [],
+          html: '<section><img src="/outlander.webp" alt="Outlander"></section>',
+        },
+        {
+          id: 'copy',
+          label: 'Hero copy',
+          selector: '[data-oem-region-id="copy"]',
+          tag: 'section',
+          classes: [],
+          left: 0,
+          top: 140,
+          width: 560,
+          height: 420,
+          editable_fields: [],
+          html: '<section><h1>Take centre stage</h1></section>',
+        },
+      ],
+    })
+
+    expect(result.sections).toHaveLength(1)
+    expect(result.sections[0]).toMatchObject({
+      type: 'content-block',
+      order: 0,
+      _clone_region_ids: ['copy', 'image'],
+      _tailwind_conversion: {
+        source: 'clone-region-group',
+        region_ids: ['copy', 'image'],
+      },
+    })
+    expect(result.sections[0]._generated_html).toContain('lg:grid-cols-2')
+    expect(result.sections[0]._generated_html.indexOf('Take centre stage')).toBeLessThan(result.sections[0]._generated_html.indexOf('Outlander'))
+    expect(result.skipped).toEqual([])
+  })
+
   it('reports skipped regions that do not have conversion-ready source data', async () => {
     const result = await convertCloneRegionsToTailwindSections({
       regions: [
