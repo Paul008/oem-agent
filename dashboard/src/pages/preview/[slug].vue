@@ -195,6 +195,7 @@ function tailwindSectionSource(section: any): string {
       compiled_source: conversion.compiled_source,
       template_kind: conversion.template_kind,
       confidence: conversion.confidence,
+      computed_snapshots: conversion.stats?.computed_snapshots,
       parity_risks: conversion.parity_risks || [],
       extracted_schema: conversion.extracted_schema,
     }, null, 2)}`
@@ -358,6 +359,10 @@ function mappedDeclarationRate(section: any): string {
   if (!computed)
     return '0%'
   return `${Math.round((mappedDeclarations(section) / computed) * 100)}%`
+}
+
+function computedSnapshotCount(section: any): number {
+  return Number(section?._tailwind_conversion?.stats?.computed_snapshots) || 0
 }
 
 function compareRiskSummary(section: any): string {
@@ -815,6 +820,12 @@ async function savePreview() {
                 </span>
                 <span class="rounded bg-sky-500/15 px-2 py-1 font-medium text-sky-300">
                   {{ mappedDeclarationRate(section) }}
+                </span>
+                <span
+                  v-if="computedSnapshotCount(section)"
+                  class="rounded bg-cyan-500/15 px-2 py-1 font-medium text-cyan-200"
+                >
+                  {{ computedSnapshotCount(section) }} snapshots
                 </span>
                 <span class="rounded bg-violet-500/15 px-2 py-1 font-medium text-violet-200">
                   {{ compareTemplateSummary(section) }}
