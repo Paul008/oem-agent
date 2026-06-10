@@ -618,6 +618,21 @@ function appendClassesToOpeningTag(tag: string, classes: string[]): string {
   return tag.replace(/\/?>$/, match => ` class="${next.join(' ')}"${match}`)
 }
 
+function appendInlineStyleToOpeningTag(tag: string, declarations: string): string {
+  const existing = readHtmlAttributeValue(tag, 'style')
+  const next = [existing?.trim().replace(/;$/, ''), declarations.trim().replace(/;$/, '')]
+    .filter(Boolean)
+    .join('; ')
+  if (!next)
+    return tag
+
+  const escaped = escapeHtmlAttributeValue(next)
+  if (/\sstyle\s*=/.test(tag))
+    return tag.replace(/\sstyle\s*=\s*(["'])(.*?)\1/i, ` style="${escaped}"`)
+
+  return tag.replace(/\/?>$/, match => ` style="${escaped}"${match}`)
+}
+
 function readHtmlClassAttribute(tag: string): string {
   return readHtmlAttributeValue(tag, 'class') || ''
 }
@@ -643,6 +658,12 @@ function uniqueClassList(classes: string[]): string[] {
 
 function escapeRegExp(value: string): string {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function escapeHtmlAttributeValue(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
 }
 
 function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode: TailwindConversionMode): { html: string, stats: CapturedTailwindStats } {
@@ -683,6 +704,24 @@ function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode:
   })
 
   return { html: nextHtml, stats }
+}
+
+function inlineComputedStyleArtifactIntoHtml(html: string, artifact: any): string {
+  const snapshot = computedSnapshotsForArtifact(artifact)[0]
+  if (!snapshot?.root)
+    return html
+
+  const nodes = flattenTailwindRecipeNodes(snapshot.root)
+  let index = 0
+  return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
+    const node = nodes[index]
+    index += 1
+    if (!node || String(node.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
+      return tag
+
+    const declarations = computedStyleToInlineDeclarations(node.computed_style)
+    return declarations ? appendInlineStyleToOpeningTag(tag, declarations) : tag
+  })
 }
 
 function hasComputedStyleArtifact(artifact: any): boolean {
@@ -750,6 +789,20 @@ function computedStyleToTailwindClasses(style: Record<string, unknown> | null | 
   }
 
   return { classes: uniqueClassList(classes) }
+}
+
+function computedStyleToInlineDeclarations(style: Record<string, unknown> | null | undefined): string {
+  if (!style || typeof style !== 'object')
+    return ''
+
+  return Object.entries(style)
+    .map(([prop, rawValue]) => {
+      const name = String(prop || '').trim()
+      const value = String(rawValue ?? '').trim()
+      return name && value ? `${name}: ${value}` : ''
+    })
+    .filter(Boolean)
+    .join('; ')
 }
 
 function diffComputedStyle(previous: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null | undefined): Record<string, unknown> {
@@ -956,7 +1009,7 @@ function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: Clone
       id: `tw-${safeIdPart(item.region.id || `region-${index + 1}`)}`,
       order: index,
       _clone_region_id: item.region.id,
-      _tailwind_original_html: typeof item.region.html === 'string' ? item.region.html.trim() : '',
+      _tailwind_original_html: originalHtmlForCloneRegion(item.region),
       _tailwind_conversion: buildCloneRegionConversionMetadata(item),
     }
   })
@@ -1005,7 +1058,7 @@ function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, sectio
     return `<div class="min-w-0">${html}</div>`
   }).join('')
   const originalColumns = row.map((item) => {
-    const html = typeof item.region.html === 'string' ? item.region.html.trim() : ''
+    const html = originalHtmlForCloneRegion(item.region)
     return `<div class="min-w-0">${html}</div>`
   }).join('')
 
@@ -1022,6 +1075,14 @@ function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, sectio
     ...(leftoverCss ? { _tailwind_leftover_css: leftoverCss } : {}),
     _tailwind_conversion: buildCloneRegionGroupConversionMetadata(row),
   }
+}
+
+function originalHtmlForCloneRegion(region: CloneRegion): string {
+  const html = typeof region.html === 'string' ? region.html.trim() : ''
+  if (!html)
+    return ''
+
+  return inlineComputedStyleArtifactIntoHtml(html, region.tailwindRecipeArtifact)
 }
 
 function buildCloneRegionConversionMetadata(item: { region: CloneRegion, section: Record<string, any> }): Record<string, any> {

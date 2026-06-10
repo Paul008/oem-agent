@@ -401,7 +401,8 @@ describe('convertCloneRegionsToTailwindSections', () => {
         mapped_declarations: 2,
       },
     })
-    expect(result.sections[0]._tailwind_original_html).toBe('<section class="hero-copy"><h1>Take centre stage</h1></section>')
+    expect(result.sections[0]._tailwind_original_html).toContain('<section class="hero-copy" style="color: rgb(255, 255, 255)">')
+    expect(result.sections[0]._tailwind_original_html).toContain('<h1 style="font-weight: 700">Take centre stage</h1>')
   })
 
   it('aggregates detailed Tailwind conversion stats on grouped clone sections', async () => {
@@ -464,8 +465,8 @@ describe('convertCloneRegionsToTailwindSections', () => {
         mapped_declarations: 5,
       },
     })
-    expect(result.sections[0]._tailwind_original_html).toContain('<section class="copy"><h1>Take centre stage</h1></section>')
-    expect(result.sections[0]._tailwind_original_html).toContain('<section class="image"><img src="/outlander.webp" alt="Outlander"></section>')
+    expect(result.sections[0]._tailwind_original_html).toContain('<section class="copy" style="color: rgb(255, 255, 255)">')
+    expect(result.sections[0]._tailwind_original_html).toContain('<section class="image" style="display: block"><img src="/outlander.webp" alt="Outlander" style="width: 100%; object-fit: cover"></section>')
     expect(result.sections[0]._tailwind_original_html).toContain('lg:grid-cols-2')
   })
 
