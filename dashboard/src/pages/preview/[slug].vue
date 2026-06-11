@@ -22,6 +22,7 @@ import SectionEditorDialog from '@/pages/dashboard/components/page-builder/Secti
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 type PreviewView = 'edit' | 'production' | 'source' | 'compare'
+type CompareLayoutMode = 'accurate' | 'fit'
 type StyleGuideFontFace = {
   family: string
   weight?: string | number
@@ -77,6 +78,7 @@ const convertingCloneRegion = ref(false)
 const convertingPage = ref(false)
 const editorSectionId = ref<string | null>(null)
 const styleGuideTokens = ref<Record<string, any> | null>(null)
+const compareLayoutMode = ref<CompareLayoutMode>('accurate')
 const pageSlug = computed(() => (route.params as { slug?: string }).slug ?? '')
 const builderUrl = computed(() => pageSlug.value ? `/dashboard/page-builder/${pageSlug.value}` : '/dashboard/model-pages')
 const isWriteProtectedPage = computed(() => isModelPageWriteProtected(oemId.value))
@@ -924,6 +926,24 @@ async function savePreview() {
                   v-if="hasTailwindCompare"
                   class="flex max-w-full flex-wrap items-center gap-2"
                 >
+                  <div class="inline-flex rounded-md border border-slate-800 bg-slate-950/60 p-0.5">
+                    <button
+                      type="button"
+                      class="rounded px-2.5 py-1 text-xs font-semibold transition"
+                      :class="compareLayoutMode === 'accurate' ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:bg-slate-800 hover:text-white'"
+                      @click="compareLayoutMode = 'accurate'"
+                    >
+                      Accurate
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded px-2.5 py-1 text-xs font-semibold transition"
+                      :class="compareLayoutMode === 'fit' ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:bg-slate-800 hover:text-white'"
+                      @click="compareLayoutMode = 'fit'"
+                    >
+                      Fit
+                    </button>
+                  </div>
                   <Badge
                     class="font-semibold"
                     :class="comparePageReadinessClass()"
@@ -1025,21 +1045,22 @@ async function savePreview() {
               </div>
             </CardHeader>
             <CardContent class="p-0">
-              <div class="grid gap-0 min-[2800px]:grid-cols-2">
+              <div :class="compareLayoutMode === 'fit' ? 'grid gap-0 xl:grid-cols-2' : 'grid gap-0 min-[2800px]:grid-cols-2'">
                 <div
                   :id="comparePaneId(section, 'original')"
                   class="scroll-mt-20 border-b border-slate-800 min-[2800px]:border-b-0 min-[2800px]:border-r"
+                  :class="compareLayoutMode === 'fit' ? 'xl:border-r' : ''"
                 >
                   <div class="sticky top-14 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300 backdrop-blur">
                     <span>Original</span>
-                    <span class="font-mono text-slate-500">{{ tailwindCompareViewportWidth(section) }}×{{ tailwindCompareViewportHeight(section) }}</span>
+                    <span class="font-mono text-slate-500">{{ compareLayoutMode === 'fit' ? 'Fit' : `${tailwindCompareViewportWidth(section)}×${tailwindCompareViewportHeight(section)}` }}</span>
                   </div>
                   <div class="overflow-auto bg-slate-950">
                     <iframe
-                      class="max-w-none min-w-[1280px] bg-white"
+                      :class="compareLayoutMode === 'fit' ? 'w-full bg-white' : 'max-w-none min-w-[1280px] bg-white'"
                       sandbox="allow-scripts"
                       title="Original capture"
-                      :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
+                      :style="compareLayoutMode === 'fit' ? { height: `${tailwindCompareViewportHeight(section)}px` } : { width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
                       :srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), 'Original capture', section)"
                     />
                   </div>
@@ -1050,14 +1071,14 @@ async function savePreview() {
                 >
                   <div class="sticky top-14 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 py-2 text-[11px] font-semibold uppercase text-slate-300 backdrop-blur">
                     <span>Converted Tailwind</span>
-                    <span class="font-mono text-slate-500">Tailwind</span>
+                    <span class="font-mono text-slate-500">{{ compareLayoutMode === 'fit' ? 'Fit' : 'Tailwind' }}</span>
                   </div>
                   <div class="overflow-auto bg-slate-950">
                     <iframe
-                      class="max-w-none min-w-[1280px] bg-white"
+                      :class="compareLayoutMode === 'fit' ? 'w-full bg-white' : 'max-w-none min-w-[1280px] bg-white'"
                       sandbox="allow-scripts"
                       title="Converted Tailwind"
-                      :style="{ width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
+                      :style="compareLayoutMode === 'fit' ? { height: `${tailwindCompareViewportHeight(section)}px` } : { width: `${tailwindCompareViewportWidth(section)}px`, height: `${tailwindCompareViewportHeight(section)}px` }"
                       :srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), 'Converted Tailwind', section)"
                     />
                   </div>
