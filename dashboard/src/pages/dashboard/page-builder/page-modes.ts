@@ -59,11 +59,11 @@ interface SectionsModeContent extends Record<string, unknown> {
 }
 
 interface DashboardPageModes extends Record<string, unknown> {
-  clone?: CloneModeContent
-  sections?: SectionsModeContent
-  raw_html?: unknown
-  generated?: unknown
-  template?: unknown
+  'clone'?: CloneModeContent
+  'sections'?: SectionsModeContent
+  'raw_html'?: unknown
+  'generated'?: unknown
+  'template'?: unknown
   'raw-html'?: unknown
 }
 
@@ -223,9 +223,11 @@ export function applyRegionHeightOverride(
   height: number | null,
 ): CloneRegion[] {
   return regions.map((r) => {
-    if (r.id !== regionId) return r
+    if (r.id !== regionId)
+      return r
     const next = { ...r }
-    if (height == null) delete next.height_override
+    if (height == null)
+      delete next.height_override
     else next.height_override = height
     return next
   })

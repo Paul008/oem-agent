@@ -71,7 +71,7 @@ describe('section conversion nested item defaults', () => {
   it('keeps tab item literals centralized in conversions', () => {
     const source = readFileSync(new URL('./section-converter.ts', import.meta.url), 'utf8')
 
-    expect(source).not.toContain("image_disclaimer: '',\n        disclaimer: '',")
+    expect(source).not.toContain('image_disclaimer: \'\',\n        disclaimer: \'\',')
   })
 
   it('uses the full shared showcase image shape when converting a single image into an image showcase', () => {
@@ -103,8 +103,8 @@ describe('section conversion nested item defaults', () => {
   it('keeps image showcase item literals centralized in conversions', () => {
     const source = readFileSync(new URL('./section-converter.ts', import.meta.url), 'utf8')
 
-    expect(source).not.toContain("description: '', overlay_position: 'bottom-left'")
-    expect(source).not.toContain("description: img.description || '',\n        overlay_position: 'bottom-left',")
+    expect(source).not.toContain('description: \'\', overlay_position: \'bottom-left\'')
+    expect(source).not.toContain('description: img.description || \'\',\n        overlay_position: \'bottom-left\',')
   })
 
   it('uses the shared feature card shape when converting stats into feature cards', () => {

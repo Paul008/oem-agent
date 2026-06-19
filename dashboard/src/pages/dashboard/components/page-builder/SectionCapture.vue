@@ -294,15 +294,18 @@ function addToQueue(data: any, forcedType?: string) {
 }
 
 function onContextMenuSelect(type: string) {
-  if (!contextMenu.value.data) { contextMenu.value.show = false; return }
+  if (!contextMenu.value.data) {
+    contextMenu.value.show = false
+    return
+  }
 
   if (type === RAW_HTML_CAPTURE_TYPE) {
-    // Add Tailwind-class HTML to queue — will create content-block with _generated_html when captured
-    const twHtml = contextMenu.value.data.styledHtml || contextMenu.value.data.html || ''
+    // Add raw HTML clone to queue — CSS will be scoped at render time
+    const rawHtml = contextMenu.value.data.html || ''
     completed.value = 0
     queue.value.push({
       id: `q${Date.now().toString(36)}`,
-      html: twHtml,
+      html: rawHtml,
       imageUrls: contextMenu.value.data.imageUrls || [],
       rootStyles: {},
       label: 'HTML clone',
@@ -348,6 +351,16 @@ function clearQueue() {
   queue.value = []
 }
 
+function extractStyleBlocks(html: string): { html: string, css: string } {
+  const blocks: string[] = []
+  const withoutStyles = html.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_match, body) => {
+    if (body)
+      blocks.push(String(body).trim())
+    return ''
+  })
+  return { html: withoutStyles.trim(), css: blocks.join('\n') }
+}
+
 async function captureAll() {
   if (!queue.value.length)
     return
@@ -363,10 +376,17 @@ async function captureAll() {
     try {
       // HTML clone: create content-block directly, no API call needed
       if (item.forcedType === RAW_HTML_CAPTURE_TYPE) {
-        emit('smartCapture', {
-          type: 'content-block',
-          data: { title: '', content_html: '', _generated_html: item.html, animation: 'fade-in' },
-        })
+        const { html, css } = extractStyleBlocks(item.html || '')
+        const data: Record<string, any> = {
+          title: '',
+          content_html: '',
+          _generated_html: html,
+          animation: 'fade-in',
+        }
+        if (css)
+          data._generated_css = css
+
+        emit('smartCapture', { type: 'content-block', data })
         completed.value++
         continue
       }
@@ -411,7 +431,11 @@ async function captureAll() {
   analyzeStatus.value = `Done — ${completed.value} sections captured`
   queue.value = []
   // Keep iframe loaded — user can continue selecting more sections
-  setTimeout(() => { analyzing.value = false; analyzeStatus.value = ''; analyzeProgress.value = 0 }, 1500)
+  setTimeout(() => {
+    analyzing.value = false
+    analyzeStatus.value = ''
+    analyzeProgress.value = 0
+  }, 1500)
 }
 
 function onKeydown(e: KeyboardEvent) {

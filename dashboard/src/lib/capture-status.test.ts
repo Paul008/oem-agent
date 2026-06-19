@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { describeCaptureStatus } from './capture-status'
+import { describe, expect, it } from 'vitest'
+
 import type { CaptureDiagnosticsRecord } from './worker-api'
+
+import { describeCaptureStatus } from './capture-status'
 
 function rec(overrides: Partial<CaptureDiagnosticsRecord>): CaptureDiagnosticsRecord {
   return {

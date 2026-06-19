@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -126,11 +125,11 @@ describe('model-pages dashboard integration', () => {
     expect(source).toContain('getGeneratedPageStatus')
     expect(source).toContain('summarizeGeneratedPageStatuses')
     expect(source).toContain('type GeneratedPageStatus')
-    expect(source).toContain("} from './model-pages-status'")
+    expect(source).toContain('} from \'./model-pages-status\'')
 
     expect(source).toContain('fetchGeneratedPage(fullSlug(item), { includeModes: true })')
-    expect(source).toContain("type PageStatus = GeneratedPageStatus")
-    expect(source).toContain("unknown: { label: 'Loading'")
+    expect(source).toContain('type PageStatus = GeneratedPageStatus')
+    expect(source).toContain('unknown: { label: \'Loading\'')
     expect(source).toContain('getGeneratedPageSectionCount(getModelPageData(model))')
     expect(source).toContain('summarizeGeneratedPageStatuses([...pageCache.value.values()])')
 

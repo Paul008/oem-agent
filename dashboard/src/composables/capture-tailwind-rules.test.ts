@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { tailwindRules } from './capture-tailwind-rules'
 
 const R = tailwindRules()
@@ -119,11 +120,11 @@ describe('borderTw', () => {
     return function (p: string) { return map[p] || '' }
   }
   function uniform(width: string, style: string, color: string) {
-    var m: Record<string, string> = {}
-    ;['top', 'right', 'bottom', 'left'].forEach(function (s) {
-      m['border-' + s + '-width'] = width
-      m['border-' + s + '-style'] = style
-      m['border-' + s + '-color'] = color
+    const m: Record<string, string> = {}
+    ;['top', 'right', 'bottom', 'left'].forEach((s) => {
+      m[`border-${s}-width`] = width
+      m[`border-${s}-style`] = style
+      m[`border-${s}-color`] = color
     })
     return m
   }
@@ -145,8 +146,12 @@ describe('borderTw', () => {
   })
   it('non-uniform (only bottom) → inline border-bottom', () => {
     expect(R.borderTw(makeReader({
-      'border-bottom-width': '1px', 'border-bottom-style': 'solid', 'border-bottom-color': 'rgb(204, 204, 204)',
-      'border-top-width': '0px', 'border-right-width': '0px', 'border-left-width': '0px',
+      'border-bottom-width': '1px',
+      'border-bottom-style': 'solid',
+      'border-bottom-color': 'rgb(204, 204, 204)',
+      'border-top-width': '0px',
+      'border-right-width': '0px',
+      'border-left-width': '0px',
     }))).toEqual({ classes: [], style: 'border-bottom:1px solid rgb(204, 204, 204)' })
   })
   it('non-tokenizable uniform style (groove) → inline all sides', () => {
@@ -161,10 +166,18 @@ describe('borderTw', () => {
   })
   it('mixed widths (4 sides, same color/style) → inline', () => {
     const r = R.borderTw(makeReader({
-      'border-top-width': '1px', 'border-top-style': 'solid', 'border-top-color': 'rgb(0, 0, 0)',
-      'border-right-width': '2px', 'border-right-style': 'solid', 'border-right-color': 'rgb(0, 0, 0)',
-      'border-bottom-width': '1px', 'border-bottom-style': 'solid', 'border-bottom-color': 'rgb(0, 0, 0)',
-      'border-left-width': '1px', 'border-left-style': 'solid', 'border-left-color': 'rgb(0, 0, 0)',
+      'border-top-width': '1px',
+      'border-top-style': 'solid',
+      'border-top-color': 'rgb(0, 0, 0)',
+      'border-right-width': '2px',
+      'border-right-style': 'solid',
+      'border-right-color': 'rgb(0, 0, 0)',
+      'border-bottom-width': '1px',
+      'border-bottom-style': 'solid',
+      'border-bottom-color': 'rgb(0, 0, 0)',
+      'border-left-width': '1px',
+      'border-left-style': 'solid',
+      'border-left-color': 'rgb(0, 0, 0)',
     }))
     expect(r.classes).toEqual([])
     expect(r.style).toBe('border-top:1px solid rgb(0, 0, 0);border-right:2px solid rgb(0, 0, 0);border-bottom:1px solid rgb(0, 0, 0);border-left:1px solid rgb(0, 0, 0)')

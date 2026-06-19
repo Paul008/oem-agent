@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
 import type { CSSProperties } from 'vue'
+
+import { computed } from 'vue'
 
 import { useInlineEdit } from '@/composables/use-inline-edit'
 

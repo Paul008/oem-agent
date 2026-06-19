@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchGeneratedPage, fetchRecipes } from '@/lib/worker-api'
+
 import { normalizeStoredMediaUrls, usePageBuilder } from './use-page-builder'
 
 vi.mock('@/lib/worker-api', () => ({

@@ -9,15 +9,15 @@ export function capturePseudoElementRules() {
       return String.fromCodePoint(code)
     if (code <= 0xFFFF)
       return String.fromCharCode(code)
-    var n = code - 0x10000
+    const n = code - 0x10000
     return String.fromCharCode((n >> 10) + 0xD800, (n % 0x400) + 0xDC00)
   }
 
   function normalizePseudoElementContentForCapture(content: string | null | undefined): string {
-    var raw = String(content || '').trim()
+    const raw = String(content || '').trim()
     if (!raw)
       return ''
-    var lower = raw.toLowerCase()
+    const lower = raw.toLowerCase()
     if (
       lower === 'none'
       || lower === 'normal'
@@ -33,15 +33,15 @@ export function capturePseudoElementRules() {
       return ''
     }
 
-    var quote = raw.charAt(0)
+    const quote = raw.charAt(0)
     if ((quote !== '"' && quote !== '\'') || raw.charAt(raw.length - 1) !== quote)
       return ''
 
-    var value = raw
+    const value = raw
       .slice(1, -1)
       .replace(/\\A\s?/gi, String.fromCharCode(10))
-      .replace(/\\([0-9a-fA-F]{1,6})\s?/g, function(_match, hex) {
-        return fromCodePointForCapture(parseInt(hex, 16))
+      .replace(/\\([0-9a-f]{1,6})\s?/gi, (_match, hex) => {
+        return fromCodePointForCapture(Number.parseInt(hex, 16))
       })
       .replace(/\\+(["'\\])/g, '$1')
       .trim()
@@ -62,22 +62,22 @@ export function capturePseudoElementRules() {
     textTransform?: string
     letterSpacing?: string
   }): string {
-    var out: string[] = []
+    const out: string[] = []
 
     function clean(value: string | undefined): string {
       return String(value || '').trim().replace(/[;<>"']/g, '')
     }
 
     function push(prop: string, value: string | undefined, skip?: string[]) {
-      var cleaned = clean(value)
+      const cleaned = clean(value)
       if (!cleaned)
         return
-      var lower = cleaned.toLowerCase()
-      for (var i = 0; skip && i < skip.length; i++) {
+      const lower = cleaned.toLowerCase()
+      for (let i = 0; skip && i < skip.length; i++) {
         if (lower === skip[i])
           return
       }
-      out.push(prop + ':' + cleaned)
+      out.push(`${prop}:${cleaned}`)
     }
 
     push('display', style.display, ['none'])
@@ -102,23 +102,23 @@ export function capturePseudoElementRules() {
   function materializePseudoElementForCapture(src: Element, cln: Element, pseudo: string, includeStyle: boolean) {
     if (!src || !cln || !window.getComputedStyle)
       return
-    var style = window.getComputedStyle(src, '::' + pseudo)
+    const style = window.getComputedStyle(src, `::${pseudo}`)
     if (!isVisiblePseudoElementForCapture(style))
       return
-    var text = normalizePseudoElementContentForCapture(style.content)
+    const text = normalizePseudoElementContentForCapture(style.content)
     if (!text)
       return
-    var existing = cln.querySelector && cln.querySelector(':scope > [data-oem-pseudo="' + pseudo + '"][data-oem-pseudo-capture="true"]')
+    const existing = cln.querySelector && cln.querySelector(`:scope > [data-oem-pseudo="${pseudo}"][data-oem-pseudo-capture="true"]`)
     if (existing)
       return
 
-    var span = document.createElement('span')
+    const span = document.createElement('span')
     span.setAttribute('data-oem-pseudo', pseudo)
     span.setAttribute('data-oem-pseudo-capture', 'true')
     span.textContent = text
 
     if (includeStyle) {
-      var styleText = pseudoElementInlineStyleForCapture(style)
+      const styleText = pseudoElementInlineStyleForCapture(style)
       if (styleText)
         span.setAttribute('style', styleText)
     }
@@ -130,9 +130,9 @@ export function capturePseudoElementRules() {
   }
 
   function materializePseudoElementsForCapture(src: Element, cln: Element, includeStyle: boolean) {
-    var srcCh = src && src.children ? src.children : []
-    var clnCh = cln && cln.children ? cln.children : []
-    for (var i = 0; i < srcCh.length && i < clnCh.length; i++) {
+    const srcCh = src && src.children ? src.children : []
+    const clnCh = cln && cln.children ? cln.children : []
+    for (let i = 0; i < srcCh.length && i < clnCh.length; i++) {
       if (srcCh[i].nodeType === 1)
         materializePseudoElementsForCapture(srcCh[i], clnCh[i], includeStyle)
     }
@@ -141,8 +141,8 @@ export function capturePseudoElementRules() {
   }
 
   return {
-    normalizePseudoElementContentForCapture: normalizePseudoElementContentForCapture,
-    pseudoElementInlineStyleForCapture: pseudoElementInlineStyleForCapture,
-    materializePseudoElementsForCapture: materializePseudoElementsForCapture,
+    normalizePseudoElementContentForCapture,
+    pseudoElementInlineStyleForCapture,
+    materializePseudoElementsForCapture,
   }
 }

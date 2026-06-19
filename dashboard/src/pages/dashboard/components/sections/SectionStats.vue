@@ -23,7 +23,6 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
   edit.startEdit(el)
   emit('inline-edit', field, el.textContent || '', el)
 }
-
 </script>
 
 <template>

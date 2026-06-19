@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { SECTION_DEFAULTS, type PageSectionType } from './section-templates'
+import type { PageSectionType } from './section-templates'
+
+import { SECTION_DEFAULTS } from './section-templates'
 
 interface MockAsyncComponent {
   loader: () => Promise<unknown>
@@ -71,7 +73,8 @@ describe('section-registry', () => {
     for (const type of Object.keys(SECTION_DEFAULTS) as PageSectionType[]) {
       if (displayOverrideTypes.has(type)) {
         expect(registry.displaySectionComponentMap[type]).not.toBe(registry.canvasSectionComponentMap[type])
-      } else {
+      }
+      else {
         expect(registry.displaySectionComponentMap[type]).toBe(registry.canvasSectionComponentMap[type])
       }
     }

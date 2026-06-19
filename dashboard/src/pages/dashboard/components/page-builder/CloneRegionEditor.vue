@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { CloneEditableField, CloneRegion } from '../../page-builder/page-modes'
 
-export type CloneFieldPatchPayload = {
+export interface CloneFieldPatchPayload {
   regionId: string
   fieldId: string
   selector: string

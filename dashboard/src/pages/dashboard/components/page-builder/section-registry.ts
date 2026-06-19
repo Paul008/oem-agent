@@ -1,4 +1,6 @@
-import { defineAsyncComponent, type Component } from 'vue'
+import type { Component } from 'vue'
+
+import { defineAsyncComponent } from 'vue'
 
 import type { PageSectionType } from './section-templates'
 

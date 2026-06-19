@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Code2, Columns2, ExternalLink, Eye, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
+import { Code2, Columns2, ExternalLink, Eye, FileCode, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -12,8 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
+import { scopeOemSection } from '@/lib/scope-oem-section'
 import { compileTailwindRecipeArtifact, fetchStyleGuide } from '@/lib/worker-api'
 import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCloneStudioFrameHtmlForCanvas } from '@/pages/dashboard/components/page-builder/clone-studio-canvas-helpers'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 
@@ -21,9 +23,9 @@ import SectionEditorDialog from '@/pages/dashboard/components/page-builder/Secti
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
-type PreviewView = 'edit' | 'production' | 'source' | 'compare'
+type PreviewView = 'edit' | 'production' | 'source' | 'compare' | 'standalone'
 type CompareLayoutMode = 'accurate' | 'fit'
-type StyleGuideFontFace = {
+interface StyleGuideFontFace {
   family: string
   weight?: string | number
   style?: string
@@ -87,7 +89,9 @@ const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))
 const isProductionView = computed(() => previewView.value === 'production')
 const isSourceView = computed(() => previewView.value === 'source')
 const isCompareView = computed(() => previewView.value === 'compare')
-const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value || isCompareView.value)
+const isStandaloneView = computed(() => previewView.value === 'standalone')
+const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)
+
 const canEditPreview = computed(() => !previewReadOnly.value)
 const hasTailwindSource = computed(() => Boolean(
   activeMode.value === 'sections'
@@ -125,7 +129,7 @@ const catalogModelSlug = computed(() =>
 
 function normalizePreviewView(value: unknown): PreviewView {
   const raw = Array.isArray(value) ? value[0] : value
-  return raw === 'production' || raw === 'source' || raw === 'compare' ? raw : 'edit'
+  return raw === 'production' || raw === 'source' || raw === 'compare' || raw === 'standalone' ? raw : 'edit'
 }
 
 onMounted(async () => {
@@ -149,7 +153,7 @@ watch(oemId, async (nextOemId) => {
 
 watch(
   () => route.query.view,
-  value => {
+  (value) => {
     previewView.value = normalizePreviewView(value)
   },
 )
@@ -170,8 +174,11 @@ function replacePreviewViewQuery(view: PreviewView) {
     query.view = 'source'
   else if (view === 'compare')
     query.view = 'compare'
+  else if (view === 'standalone')
+    query.view = 'standalone'
   else
     delete query.view
+
   const url = new URL(window.location.href)
   url.search = ''
   for (const [key, value] of Object.entries(query)) {
@@ -258,6 +265,80 @@ function tailwindCompareSrcdoc(html: string, label: string, section?: any): stri
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${tailwindRuntime}<style>${supplementalCss}\nhtml,body{margin:0;min-height:100%;font-family:${styleGuideBodyFontFamily()};background:#fff;color:#111}.empty{display:grid;min-height:180px;place-items:center;color:#64748b;font:500 13px/1.5 ${styleGuideBodyFontFamily()}}</style></head><body>${body}</body></html>`
 }
 
+function standaloneBaseHref(): string {
+  const raw = page.value?.source_url || page.value?.url || page.value?.content?.source_url
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const url = new URL(raw.trim())
+      const lastSegment = url.pathname.split('/').pop() || ''
+      // If the URL path looks like a directory (no dot in final segment), ensure a trailing
+      // slash so relative asset URLs resolve inside that directory instead of its parent.
+      if (lastSegment && !lastSegment.includes('.') && !url.pathname.endsWith('/'))
+        url.pathname += '/'
+      return url.href
+    }
+    catch {
+      return raw.trim()
+    }
+  }
+  return ''
+}
+
+function buildStandaloneHtml(): string {
+  const baseHref = standaloneBaseHref()
+
+  // For cloned pages, reuse the Clone Studio frame builder so original stylesheets,
+  // media proxying, and the captured body all render exactly like the production view.
+  if (activeMode.value === 'clone' && page.value) {
+    return buildCloneStudioFrameHtmlForCanvas({
+      page: page.value,
+      title: page.value?.name || pageSlug.value,
+      baseHref: baseHref || WORKER_BASE,
+      workerBase: WORKER_BASE,
+      selectedRegionId: null,
+      bridgeToken: '',
+      oemId: oemId.value,
+      modelSlug: modelSlug.value,
+      editable: false,
+    })
+  }
+
+  const baseTag = baseHref ? `<base href="${escapeHtml(baseHref)}" target="_blank">` : ''
+  const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(page.value?.name || pageSlug.value)}</title>${baseTag}<style>html,body{margin:0;padding:0;}</style>`
+
+  const parts: string[] = []
+  for (const section of sections.value) {
+    const html = String(section?._generated_html || section?.content_html || section?.body_html || '').trim()
+    if (!html)
+      continue
+
+    const css = typeof section?._generated_css === 'string' ? section._generated_css.trim() : ''
+    if (css) {
+      const scoped = scopeOemSection({ html, css }, section.id)
+      parts.push(`<style data-section-id="${escapeHtml(section.id)}">${scoped.css}</style>`)
+      parts.push(`<div class="${scoped.scopeClass}">${scoped.html}</div>`)
+    }
+    else {
+      parts.push(html)
+    }
+  }
+
+  const body = parts.length
+    ? parts.join('\n')
+    : '<div style="padding:2rem;font-family:system-ui,sans-serif;color:#64748b">No captured HTML sections to render.</div>'
+
+  return `<!doctype html><html><head>${head}</head><body>${body}</body></html>`
+}
+
+function openStandaloneHtml() {
+  const html = buildStandaloneHtml()
+  const blob = new Blob([html], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  // Expose the URL so tests and automation can navigate to the blob directly.
+  ;(window as any).__lastStandaloneBlobUrl = url
+  window.open(url, '_blank')
+}
+
 function tailwindCompareViewportWidth(section: any): number {
   const width = Number(section?._tailwind_conversion?.viewport?.width)
   if (Number.isFinite(width) && width >= 320)
@@ -274,7 +355,7 @@ function tailwindCompareViewportHeight(section: any): number {
 
 function comparePaneId(section: any, pane: 'original' | 'converted'): string {
   const raw = String(section?.id || section?.name || 'section')
-  const safe = raw.replace(/[^a-z0-9_-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  const safe = raw.replace(/[^\w-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
   return `compare-${pane}-${safe || 'section'}`
 }
 
@@ -357,7 +438,7 @@ function sanitizeCssString(value: unknown): string {
 }
 
 function sanitizeCssToken(value: unknown): string {
-  return String(value || '').replace(/[^a-z0-9 ._-]/gi, '').trim() || 'normal'
+  return String(value || '').replace(/[^\w .-]/g, '').trim() || 'normal'
 }
 
 function sanitizeCssUrl(value: unknown): string {
@@ -710,7 +791,7 @@ async function convertPageToTailwind() {
 }
 
 async function savePreview() {
-  if (isProductionView.value || isSourceView.value || isCompareView.value) {
+  if (isProductionView.value || isSourceView.value || isCompareView.value || isStandaloneView.value) {
     toast.error('Switch to Edit view to save changes')
     return
   }
@@ -770,6 +851,16 @@ async function savePreview() {
             <span class="hidden sm:inline">Production</span>
           </button>
           <button
+            type="button"
+            class="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium transition-colors"
+            :class="previewView === 'standalone' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            title="Standalone HTML"
+            @click="setPreviewView('standalone')"
+          >
+            <FileCode class="size-3.5" />
+            <span class="hidden sm:inline">HTML</span>
+          </button>
+          <button
             v-if="hasTailwindSource || isSourceView"
             type="button"
             class="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium transition-colors"
@@ -795,10 +886,10 @@ async function savePreview() {
         <div
           v-if="previewReadOnly"
           class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
-          :title="isCompareView ? 'Tailwind compare view disables editing and save actions' : (isSourceView ? 'Tailwind source view disables editing and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage))"
+          :title="isCompareView ? 'Tailwind compare view disables editing and save actions' : (isSourceView ? 'Tailwind source view disables editing and save actions' : (isStandaloneView ? 'Standalone HTML view disables editing overlays and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage)))"
         >
           <Lock class="size-3.5" />
-          {{ isCompareView ? 'Compare' : (isSourceView ? 'Source' : (isProductionView ? 'Production' : 'Read-only')) }}
+          {{ isCompareView ? 'Compare' : (isSourceView ? 'Source' : (isStandaloneView ? 'HTML' : (isProductionView ? 'Production' : 'Read-only'))) }}
         </div>
         <div v-else class="hidden items-center gap-1.5 px-1 text-xs text-muted-foreground sm:flex">
           <span
@@ -1113,6 +1204,31 @@ async function savePreview() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div
+        v-else-if="isStandaloneView"
+        class="h-screen w-full bg-background"
+      >
+        <div class="flex items-center justify-between border-b bg-card px-4 py-2">
+          <div class="text-sm font-medium">
+            Standalone HTML
+          </div>
+          <button
+            type="button"
+            class="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted"
+            @click="openStandaloneHtml"
+          >
+            <ExternalLink class="size-3.5" />
+            Open in new tab
+          </button>
+        </div>
+        <iframe
+          class="h-[calc(100vh-3rem)] w-full border-0 bg-white"
+          sandbox="allow-scripts"
+          title="Standalone HTML preview"
+          :srcdoc="buildStandaloneHtml()"
+        />
       </div>
 
       <PageBuilderCanvas

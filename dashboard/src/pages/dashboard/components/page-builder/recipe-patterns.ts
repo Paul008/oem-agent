@@ -1,3 +1,5 @@
+import type { Component } from 'vue'
+
 import {
   Columns3,
   Database,
@@ -8,7 +10,6 @@ import {
   Play,
   SplitSquareHorizontal,
 } from 'lucide-vue-next'
-import type { Component } from 'vue'
 
 export type RecipePatternGroupKey
   = | 'hero'

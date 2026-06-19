@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs'
-
 import { describe, expect, it } from 'vitest'
 
-describe('SectionHero responsive media', () => {
+describe('sectionHero responsive media', () => {
   it('renders a mobile source before the desktop hero image', () => {
     const source = readFileSync(new URL('./SectionHero.vue', import.meta.url), 'utf8')
     const pictureIndex = source.indexOf('<picture')

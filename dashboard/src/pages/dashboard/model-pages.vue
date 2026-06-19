@@ -8,13 +8,16 @@ import type { VehicleModel } from '@/composables/use-oem-data'
 import ConfirmDialog from '@/components/confirm-dialog.vue'
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
-import { OEM_IDS, getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected, OEM_IDS } from '@/lib/oem-ids'
 import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
+
+import type { GeneratedPageStatus } from './model-pages-status'
+
 import {
+
   getGeneratedPageSectionCount,
   getGeneratedPageStatus,
   summarizeGeneratedPageStatuses,
-  type GeneratedPageStatus,
 } from './model-pages-status'
 
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'

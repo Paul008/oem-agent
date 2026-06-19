@@ -360,8 +360,8 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('source.replace(/-desktop-new')
     expect(bridgeScript).toContain('-new-mbl$1$2')
     expect(bridgeScript).toContain('addResponsiveImageCandidate(candidates, source)')
-    expect(bridgeScript).toContain("return 'ford-au'")
-    expect(bridgeScript).toContain("MEDIA_BASE + '/media/' + oemId + '/' + encoded")
+    expect(bridgeScript).toContain('return \'ford-au\'')
+    expect(bridgeScript).toContain('MEDIA_BASE + \'/media/\' + oemId + \'/\' + encoded')
     expect(bridgeScript).toContain('recoverMissingResponsiveImagePairs()')
 
     const body = extractInitialBody(html)
@@ -385,7 +385,7 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('stripResponsiveContentMarkers(clone)')
     expect(bridgeScript).toContain('stripResponsiveConfigMarkers(clone)')
     expect(bridgeScript).toContain('data-clone-studio-generated-responsive-image')
-    expect(bridgeScript).toContain("removeAttribute('data-clone-studio-responsive-recovering')")
+    expect(bridgeScript).toContain('removeAttribute(\'data-clone-studio-responsive-recovering\')')
   })
 
   it('leaves absolute media URLs and non-proxied relative paths untouched', () => {

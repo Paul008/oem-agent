@@ -6,7 +6,7 @@ import { onUnmounted, ref, shallowRef } from 'vue'
 import { supabase } from '@/lib/supabase'
 
 type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*'
-type RealtimeRow = { [key: string]: any }
+interface RealtimeRow { [key: string]: any }
 
 interface UseRealtimeOptions<T extends RealtimeRow> {
   channelName: string

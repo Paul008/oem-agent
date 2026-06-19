@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { translateFramePoint } from './CloneStudioCanvas.vue'
+import { describe, expect, it } from 'vitest'
+
+import { translateFramePoint } from './clone-studio-canvas-helpers'
 
 describe('translateFramePoint', () => {
   it('scales iframe coords by frame scale and adds the iframe origin', () => {

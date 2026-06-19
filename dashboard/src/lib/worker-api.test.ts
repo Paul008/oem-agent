@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { supabase } from '@/lib/supabase'
+
 import {
   adaptivePipeline,
   clonePage,
