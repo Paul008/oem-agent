@@ -2,6 +2,8 @@
 import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronLeft, ChevronRight, Copy, Database, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import { scopeOemSection } from '@/lib/scope-oem-section'
+
 import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
 import type { RegionAction, RegionActionId } from './region-actions'
 
@@ -9,6 +11,7 @@ import { getCloneViewport } from '../../page-builder/page-modes'
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
 import MediaLibraryDialog from './MediaLibraryDialog.vue'
+import OemScopedStyle from './OemScopedStyle.vue'
 import { buildPatchPayload, getRegionActions } from './region-actions'
 import { resolveSectionComponent } from './section-registry'
 
@@ -109,6 +112,20 @@ function setPreviewWidth(mode: PreviewWidth) {
 
 const showCloneFrame = computed(() => props.activeMode === 'clone' && props.isCloned)
 const showStructuredPreview = computed(() => props.activeMode === 'sections' && props.isStructured && props.sections.length > 0)
+
+const scopedCapturedSections = computed(() => {
+  const map = new Map<string, ReturnType<typeof scopeOemSection>>()
+  for (const section of props.sections) {
+    if (section._generated_html && section._generated_css) {
+      map.set(section.id, scopeOemSection(
+        { html: section._generated_html, css: section._generated_css },
+        section.id,
+      ))
+    }
+  }
+  return map
+})
+
 const cloneStudioCanvas = ref<InstanceType<typeof CloneStudioCanvas> | null>(null)
 
 function patchCloneField(payload: Record<string, unknown>) {
@@ -801,8 +818,12 @@ function onToolbarUpdate(sectionId: string, field: string, value: any) {
 }
 
 // Drag-and-drop state
+// dragIndex   = index of the section being dragged
+// dropIndex   = index of the section currently hovered (legacy indicator)
+// dropInsertionIndex = final array index where the dragged section will be inserted
 const dragIndex = ref<number | null>(null)
 const dropIndex = ref<number | null>(null)
+const dropInsertionIndex = ref<number | null>(null)
 
 function onDragStart(e: DragEvent, index: number) {
   if (props.readOnly)
@@ -814,35 +835,90 @@ function onDragStart(e: DragEvent, index: number) {
   }
 }
 
+function computeInsertionIndex(index: number, clientY: number, target: HTMLElement): number {
+  const rect = target.getBoundingClientRect()
+  const midpoint = rect.top + rect.height / 2
+  const insertAfter = clientY > midpoint
+  return insertAfter ? index + 1 : index
+}
+
 function onDragOver(e: DragEvent, index: number) {
   if (props.readOnly)
     return
   if (dragIndex.value === null)
     return
+  if (dragIndex.value === index) {
+    dropIndex.value = null
+    dropInsertionIndex.value = null
+    return
+  }
   e.preventDefault()
   if (e.dataTransfer)
     e.dataTransfer.dropEffect = 'move'
   dropIndex.value = index
+  dropInsertionIndex.value = computeInsertionIndex(index, e.clientY, e.currentTarget as HTMLElement)
 }
 
 function onDragLeave() {
   dropIndex.value = null
+  dropInsertionIndex.value = null
 }
 
 function onDrop(e: DragEvent, index: number) {
   if (props.readOnly)
     return
   e.preventDefault()
-  if (dragIndex.value !== null && dragIndex.value !== index) {
-    emit('moveSection', dragIndex.value, index)
+  e.stopPropagation()
+  if (dragIndex.value !== null && dragIndex.value !== index && dropInsertionIndex.value !== null) {
+    emit('moveSection', dragIndex.value, dropInsertionIndex.value)
   }
   dragIndex.value = null
   dropIndex.value = null
+  dropInsertionIndex.value = null
+}
+
+function onContainerDragOver(e: DragEvent) {
+  if (props.readOnly || dragIndex.value === null)
+    return
+  const container = e.currentTarget as HTMLElement
+  const lastSection = container.lastElementChild as HTMLElement | null
+  if (!lastSection)
+    return
+  const rect = lastSection.getBoundingClientRect()
+  if (e.clientY > rect.bottom) {
+    e.preventDefault()
+    if (e.dataTransfer)
+      e.dataTransfer.dropEffect = 'move'
+    dropIndex.value = null
+    dropInsertionIndex.value = props.sections.length
+  }
+}
+
+function onContainerDragLeave(e: DragEvent) {
+  const container = e.currentTarget as HTMLElement
+  const related = e.relatedTarget as HTMLElement | null
+  if (!container.contains(related)) {
+    dropIndex.value = null
+    dropInsertionIndex.value = null
+  }
+}
+
+function onContainerDrop(e: DragEvent) {
+  if (props.readOnly || dragIndex.value === null)
+    return
+  if (dropInsertionIndex.value === props.sections.length) {
+    e.preventDefault()
+    emit('moveSection', dragIndex.value, dropInsertionIndex.value)
+  }
+  dragIndex.value = null
+  dropIndex.value = null
+  dropInsertionIndex.value = null
 }
 
 function onDragEnd() {
   dragIndex.value = null
   dropIndex.value = null
+  dropInsertionIndex.value = null
 }
 
 function sectionStyle(section: any): Record<string, string> {
@@ -1283,7 +1359,13 @@ watch(
 
       <!-- Structured sections -->
       <template v-else-if="showStructuredPreview">
-        <div class="space-y-0 transition-all duration-300" :class="previewFrameClass">
+        <div
+          class="space-y-0 transition-all duration-300"
+          :class="previewFrameClass"
+          @dragover="onContainerDragOver"
+          @dragleave="onContainerDragLeave"
+          @drop="onContainerDrop"
+        >
           <div
             v-for="(section, index) in sections"
             :key="section.id"
@@ -1293,8 +1375,9 @@ watch(
                 ? 'ring-2 ring-primary ring-offset-2'
                 : 'hover:ring-1 hover:ring-muted-foreground/30 hover:ring-offset-1',
               props.readOnly ? 'cursor-default' : 'cursor-pointer',
-              dragIndex === index ? 'opacity-40' : '',
-              dropIndex === index && dragIndex !== index ? 'ring-2 ring-blue-500 ring-offset-2' : '',
+              dragIndex === index ? 'opacity-40 scale-[0.995] shadow-xl' : '',
+              dropInsertionIndex === index ? 'drop-target-before' : '',
+              dropInsertionIndex === sections.length && index === sections.length - 1 ? 'drop-target-after' : '',
             ]"
             :data-section-id="section.id"
             :style="sectionStyle(section)"
@@ -1345,8 +1428,24 @@ watch(
             </div>
 
             <!-- Render captured/cloned HTML — contenteditable for inline text editing -->
+            <OemScopedStyle
+              v-if="section._generated_html && section._generated_css && scopedCapturedSections.has(section.id)"
+              :css="scopedCapturedSections.get(section.id)!.css"
+              :section-id="section.id"
+            />
             <div
-              v-if="section._generated_html"
+              v-if="section._generated_html && section._generated_css && scopedCapturedSections.has(section.id)"
+              class="captured-section cursor-text outline-none focus:ring-2 focus:ring-primary/20 rounded"
+              :class="scopedCapturedSections.get(section.id)!.scopeClass"
+              :contenteditable="!props.readOnly"
+              spellcheck="false"
+              @click="onCapturedClick($event, section.id)"
+              @focus="editingTarget = $event.target as HTMLElement; editingSectionId = section.id; editingField = '_generated_html'; editingSection = section"
+              @blur="editingTarget = null; editingSectionId = null; editingField = null; editingSection = null; onInlineEdit(section.id, '_generated_html', ($event.target as HTMLElement).innerHTML)"
+              v-html="scopedCapturedSections.get(section.id)!.html"
+            />
+            <div
+              v-else-if="section._generated_html"
               class="captured-section cursor-text outline-none focus:ring-2 focus:ring-primary/20 rounded"
               :contenteditable="!props.readOnly"
               spellcheck="false"
@@ -1514,3 +1613,26 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.drop-target-before::before,
+.drop-target-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: hsl(var(--primary));
+  border-radius: 2px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.drop-target-before::before {
+  top: -2px;
+}
+
+.drop-target-after::after {
+  bottom: -2px;
+}
+</style>

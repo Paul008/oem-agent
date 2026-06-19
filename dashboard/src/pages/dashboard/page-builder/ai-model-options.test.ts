@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { AI_MODEL_OPTIONS, getAiModelOverride } from './ai-model-options'
 
-describe('AI model options', () => {
+describe('aI model options', () => {
   it('provides page-builder AI model choices in display order', () => {
     expect(AI_MODEL_OPTIONS.map(option => ({ value: option.value, label: option.label }))).toEqual([
       { value: 'default', label: 'Default (from settings)' },

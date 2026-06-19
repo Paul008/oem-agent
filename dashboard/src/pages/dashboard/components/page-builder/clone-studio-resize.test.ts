@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { clampRegionHeight } from './CloneStudioCanvas.vue'
+import { describe, expect, it } from 'vitest'
+
+import { clampRegionHeight } from './clone-studio-canvas-helpers'
+
 describe('clampRegionHeight', () => {
   it('returns pointer offset within [min, naturalHeight]', () => {
     expect(clampRegionHeight(300, 100, 500)).toBe(200)

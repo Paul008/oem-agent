@@ -27,26 +27,28 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import type { CaptureDiagnosticsRecord } from '@/lib/worker-api'
+
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
-import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
-import { useThemeStore } from '@/stores/theme'
-import { compileTailwindRecipeArtifact, fetchCaptureDiagnostics, mapPagePreview, type CaptureDiagnosticsRecord } from '@/lib/worker-api'
 import { describeCaptureStatus } from '@/lib/capture-status'
+import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
+import { compileTailwindRecipeArtifact, fetchCaptureDiagnostics, mapPagePreview } from '@/lib/worker-api'
+import { useThemeStore } from '@/stores/theme'
 
-import type { CloneRegion, PageMode } from './page-modes'
-
-import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
-import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
-import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
 import type { CloneFieldPatchPayload } from '../components/page-builder/CloneRegionEditor.vue'
 import type { RegionActionId } from '../components/page-builder/region-actions'
+import type { CloneRegion, PageMode } from './page-modes'
+
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
+import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
+import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
+import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
 import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_VALUE, getAiModelOverride } from './ai-model-options'
 import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisabled, needsDestructiveActionConfirmation, shouldShowSourceUrlInput } from './page-workflow'
 
@@ -354,7 +356,7 @@ const writeProtectedMessage = computed(() =>
   getModelPageWriteProtectedMessage(oemName(oemId.value)),
 )
 
-type ModelOverride = { provider: string, model: string }
+interface ModelOverride { provider: string, model: string }
 
 const DESTRUCTIVE_ACTION_COPY = {
   clone: 'Clone again? Existing manual edits or sections may be overwritten. Other mode data is preserved where possible.',
@@ -475,7 +477,7 @@ const captureStatusBadgeClass = computed(() => {
   }
 })
 
-type MappingPreviewSummary = {
+interface MappingPreviewSummary {
   overall_confidence: number
   needs_ai_fallback: boolean
   sections: Array<{ type: string, confidence: number }>
@@ -676,8 +678,12 @@ watch(
           :class="mappingStatus.needsAiFallback ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'"
           :title="mappingStatus.detail"
         >
-          <template v-if="mappingStatus.needsAiFallback">AI fallback {{ mappingStatus.percent }}%</template>
-          <template v-else>Map {{ mappingStatus.percent }}%</template>
+          <template v-if="mappingStatus.needsAiFallback">
+            AI fallback {{ mappingStatus.percent }}%
+          </template>
+          <template v-else>
+            Map {{ mappingStatus.percent }}%
+          </template>
         </UiBadge>
         <div v-if="canShowModeSwitcher" class="ml-1 hidden lg:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
           <button

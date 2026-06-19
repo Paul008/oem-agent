@@ -187,10 +187,10 @@ describe('buildEditableSectionFromCloneRegion', () => {
           tag: 'section',
           attributes: { class: 'hero-copy' },
           computed_style: {
-            display: 'flex',
+            'display': 'flex',
             'background-color': 'rgb(5, 5, 5)',
-            color: 'rgb(245, 245, 245)',
-            padding: '37px',
+            'color': 'rgb(245, 245, 245)',
+            'padding': '37px',
           },
           children: [
             {
@@ -243,8 +243,8 @@ describe('buildEditableSectionFromCloneRegion', () => {
           attributes: { class: 'hero-copy' },
           computed_style: {
             'background-color': 'rgb(5, 5, 5)',
-            color: 'rgb(245, 245, 245)',
-            padding: '37px',
+            'color': 'rgb(245, 245, 245)',
+            'padding': '37px',
           },
           children: [
             {
@@ -292,17 +292,17 @@ describe('buildEditableSectionFromCloneRegion', () => {
               path: '0',
               tag: 'section',
               computed_style: {
-                padding: '24px',
+                'padding': '24px',
                 'clip-path': 'inset(0)',
-                opacity: '1',
-                overflow: 'visible',
+                'opacity': '1',
+                'overflow': 'visible',
                 'background-position': '0% 0%',
                 'object-position': '50% 50%',
                 'object-fit': 'fill',
-                visibility: 'visible',
-                position: 'static',
+                'visibility': 'visible',
+                'position': 'static',
                 'border-color': 'rgb(0, 0, 0)',
-                border: '0px none rgb(0, 0, 0)',
+                'border': '0px none rgb(0, 0, 0)',
               },
               children: [
                 { path: '0.0', tag: 'h1', computed_style: { 'font-size': '30px' }, children: [] },
@@ -591,7 +591,7 @@ describe('convertCloneRegionsToTailwindSections', () => {
               tag: 'section',
               computed_style: { display: 'block' },
               children: [
-                { path: '0.0', tag: 'img', computed_style: { width: '100%', 'object-fit': 'cover' }, children: [] },
+                { path: '0.0', tag: 'img', computed_style: { 'width': '100%', 'object-fit': 'cover' }, children: [] },
               ],
             },
           },

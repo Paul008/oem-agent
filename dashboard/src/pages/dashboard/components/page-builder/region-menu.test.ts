@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { getRegionActions } from './region-actions'
 
 describe('region menu contract', () => {

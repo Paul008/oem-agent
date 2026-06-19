@@ -1,10 +1,10 @@
+import { capturePseudoElementRules } from './capture-pseudo-elements'
 /**
  * Builds the HTML to inject into the capture iframe.
  * Separated from the Vue SFC to avoid parser issues with
  * literal </style> and </script> tags inside template literals.
  */
 import { tailwindRules } from './capture-tailwind-rules'
-import { capturePseudoElementRules } from './capture-pseudo-elements'
 
 export function buildCaptureInjection(): { earlyStub: string, lateInjection: string } {
   const css = `

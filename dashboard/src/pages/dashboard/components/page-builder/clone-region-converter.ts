@@ -1,5 +1,6 @@
 import type { Product, VariantColor } from '@/composables/use-oem-data'
 import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
+
 import { tailwindRules } from '@/composables/capture-tailwind-rules'
 
 const HTML_ESCAPES: Record<string, string> = {
@@ -7,7 +8,7 @@ const HTML_ESCAPES: Record<string, string> = {
   '<': '&lt;',
   '>': '&gt;',
   '"': '&quot;',
-  "'": '&#39;',
+  '\'': '&#39;',
 }
 
 function escapeText(value: unknown): string {
@@ -507,7 +508,7 @@ function htmlToKnownPatternText(html: string): string {
 
 function normalizeKnownPatternText(value: unknown): string {
   return decodeHtmlTextEntities(String(value || ''))
-    .replace(/\u00a0/g, ' ')
+    .replace(/\u00A0/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -515,7 +516,7 @@ function normalizeKnownPatternText(value: unknown): string {
 function decodeHtmlTextEntities(value: string): string {
   const named: Record<string, string> = {
     amp: '&',
-    apos: "'",
+    apos: '\'',
     cent: '¢',
     copy: '©',
     gt: '>',
@@ -783,7 +784,7 @@ function parseDeclarations(body: string): Array<{ prop: string, value: string }>
 }
 
 function isSafeSelector(selector: string): boolean {
-  return /^(\.[A-Za-z0-9_-]+|#[A-Za-z0-9_-]+|[a-z][a-z0-9-]*)$/i.test(selector)
+  return /^(\.[\w-]+|#[\w-]+|[a-z][a-z0-9-]*)$/i.test(selector)
 }
 
 function parseSelectorPlan(selector: string, forcedVariantPrefix?: string): { targetSelector: string, variantPrefix: string } | null {
@@ -796,7 +797,7 @@ function parseSelectorPlan(selector: string, forcedVariantPrefix?: string): { ta
   if (isSafeSelector(selector))
     return { targetSelector: selector, variantPrefix: forcedVariantPrefix || '' }
 
-  const variant = selector.match(/^(\.[A-Za-z0-9_-]+|#[A-Za-z0-9_-]+|[a-z][a-z0-9-]*):(hover|focus|active|disabled|visited|focus-visible)$/i)
+  const variant = selector.match(/^(\.[\w-]+|#[\w-]+|[a-z][a-z0-9-]*):(hover|focus|active|disabled|visited|focus-visible)$/i)
   if (variant) {
     const variantName = variant[2].toLowerCase()
     return { targetSelector: variant[1], variantPrefix: `${variantName}:` }
@@ -822,7 +823,7 @@ function selectorMatchesHtml(html: string, selector: string): boolean {
   if (selector.startsWith('.')) {
     const className = selector.slice(1)
     let matched = false
-    html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+    html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*)?>/gi, (tag) => {
       if (readHtmlClassAttribute(tag).split(/\s+/).includes(className))
         matched = true
       return tag
@@ -833,7 +834,7 @@ function selectorMatchesHtml(html: string, selector: string): boolean {
   if (selector.startsWith('#')) {
     const id = selector.slice(1)
     let matched = false
-    html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+    html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*)?>/gi, (tag) => {
       if (readHtmlAttributeValue(tag, 'id') === id)
         matched = true
       return tag
@@ -858,7 +859,7 @@ function appendClassesForSelector(html: string, selector: string, classes: strin
 
   if (selector.startsWith('.')) {
     const className = selector.slice(1)
-    return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+    return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*)?>/gi, (tag) => {
       const existing = readHtmlClassAttribute(tag)
       if (!existing.split(/\s+/).includes(className))
         return tag
@@ -868,7 +869,7 @@ function appendClassesForSelector(html: string, selector: string, classes: strin
 
   if (selector.startsWith('#')) {
     const id = selector.slice(1)
-    return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag) => {
+    return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*)?>/gi, (tag) => {
       if (readHtmlAttributeValue(tag, 'id') !== id)
         return tag
       return appendClassesToOpeningTag(tag, classes)
@@ -950,7 +951,7 @@ function compileComputedStyleArtifactIntoHtml(html: string, artifact: any, mode:
   let index = 0
   const stats = createTailwindStats()
   stats.computed_snapshots = snapshots.length
-  const nextHtml = html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
+  const nextHtml = html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*)?>/gi, (tag, tagName) => {
     const node = snapshotNodes[0]?.[index]
     index += 1
     if (!node || String(node.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
@@ -989,7 +990,7 @@ function inlineComputedStyleArtifactIntoHtml(html: string, artifact: any): strin
 
   const nodes = flattenTailwindRecipeNodes(snapshot.root)
   let index = 0
-  return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*?)?>/gi, (tag, tagName) => {
+  return html.replace(/<([a-z][a-z0-9-]*)(\s[^<>]*)?>/gi, (tag, tagName) => {
     const node = nodes[index]
     index += 1
     if (!node || String(node.tag || '').toLowerCase() !== String(tagName || '').toLowerCase())
@@ -1152,7 +1153,7 @@ function spacingShorthandToTailwind(prop: string, value: string): string[] {
     return []
 
   const spacingClass = (prefix: string, part: string): string => {
-    const numeric = parseFloat(part)
+    const numeric = Number.parseFloat(part)
     if (Number.isNaN(numeric) || numeric < 0 || !/px$/i.test(part))
       return ''
     return `${prefix}-${tailwindRules().pxToSp(numeric)}`
@@ -1168,7 +1169,7 @@ function spacingShorthandToTailwind(prop: string, value: string): string[] {
 
   const classes: string[] = []
   const add = (classPrefix: string, part: string) => {
-    if (parseFloat(part) !== 0)
+    if (Number.parseFloat(part) !== 0)
       classes.push(spacingClass(classPrefix, part))
   }
 
@@ -1480,7 +1481,7 @@ function buildGroupedCloneRegionSection(row: Array<{ region: CloneRegion, sectio
     .map(item => typeof item.section._tailwind_leftover_css === 'string' ? item.section._tailwind_leftover_css.trim() : '')
     .filter(Boolean)
     .join('\n')
-  const columns = row.map(item => {
+  const columns = row.map((item) => {
     const html = renderPreviewSectionHtml(item.section, {
       regionId: item.region.id,
       html: item.region.html,
@@ -1685,10 +1686,12 @@ function renderVariantColorExplorerPreviewHtml(section: Record<string, any>, reg
                 : '<div class="flex aspect-[16/9] w-full items-center justify-center bg-neutral-100 text-sm font-medium text-neutral-500">Vehicle image unavailable</div>'}
             </div>
 
-            ${colors.length ? `<div class="mt-8 text-center">
+            ${colors.length
+              ? `<div class="mt-8 text-center">
               <p class="text-base font-black">${escapeText(selectedColorName)}</p>
               <div class="mt-7 flex flex-wrap justify-center gap-x-10 gap-y-8">${swatches}</div>
-            </div>` : ''}
+            </div>`
+              : ''}
           </div>
         </div>
       </div>

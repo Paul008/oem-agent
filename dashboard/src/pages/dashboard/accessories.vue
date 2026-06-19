@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ImageOff, Loader2, Search } from 'lucide-vue-next'
 import type { AcceptableValue } from 'reka-ui'
+
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ImageOff, Loader2, Search } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import type { Accessory, AccessoryModel, VehicleModel } from '@/composables/use-oem-data'

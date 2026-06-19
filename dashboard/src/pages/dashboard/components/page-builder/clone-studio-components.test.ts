@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCloneFieldPatchPayload } from './CloneRegionEditor.vue'
-import { cloneRegionFieldCount, cloneRegionSelectionPayload, sortCloneRegions } from './CloneRegionSidebar.vue'
-import * as CloneStudioCanvas from './CloneStudioCanvas.vue'
-import { buildCloneStudioFrameHtmlForCanvas, computeCloneFrameScale } from './CloneStudioCanvas.vue'
 import type { CloneEditableField, CloneRegion } from '../../page-builder/page-modes'
+
+import { cloneRegionFieldCount, cloneRegionSelectionPayload, sortCloneRegions } from './clone-region-sidebar-helpers'
+import {
+  buildCloneStudioFrameHtmlForCanvas,
+  cloneStudioIframeSandbox,
+  computeCloneFrameScale,
+} from './clone-studio-canvas-helpers'
+import { buildCloneFieldPatchPayload } from './CloneRegionEditor.vue'
 
 function makeRegion(overrides: Partial<CloneRegion> = {}): CloneRegion {
   return {
@@ -31,7 +35,7 @@ function makeField(kind: CloneEditableField['kind'], overrides: Partial<CloneEdi
   }
 }
 
-describe('Clone Studio components', () => {
+describe('clone Studio components', () => {
   it('builds canvas srcdoc independently of selected region changes', () => {
     const page = {
       content: {
@@ -102,14 +106,9 @@ describe('Clone Studio components', () => {
   })
 
   it('keeps same-origin iframe sandboxing opt-in for Clone Studio', () => {
-    const helper = (CloneStudioCanvas as {
-      cloneStudioIframeSandbox?: (allowSameOrigin?: boolean) => string
-    }).cloneStudioIframeSandbox
-
-    expect(helper).toBeTypeOf('function')
-    expect(helper?.()).toBe('allow-scripts')
-    expect(helper?.(false)).toBe('allow-scripts')
-    expect(helper?.(true)).toBe('allow-scripts allow-same-origin')
+    expect(cloneStudioIframeSandbox()).toBe('allow-scripts')
+    expect(cloneStudioIframeSandbox(false)).toBe('allow-scripts')
+    expect(cloneStudioIframeSandbox(true)).toBe('allow-scripts allow-same-origin')
   })
 
   it('returns full region objects and stable sorted sidebar data', () => {

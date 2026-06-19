@@ -51,11 +51,11 @@ describe('preview Tailwind conversion toolbar', () => {
   it('adds a read-only Tailwind source view for converted sections', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\'')
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\' | \'standalone\'')
     expect(source).toContain('const isSourceView = computed(() => previewView.value === \'source\')')
     expect(source).toContain('const hasTailwindSource = computed')
     expect(source).toContain('function tailwindSectionSource(section: any): string')
-    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' ? raw : \'edit\'')
+    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
     expect(source).toContain('query.view = \'source\'')
     expect(source).toContain('@click="setPreviewView(\'source\')"')
     expect(source).toContain('title="Tailwind source"')
@@ -77,10 +77,10 @@ describe('preview Tailwind conversion toolbar', () => {
   it('adds a read-only Tailwind compare view for converted sections', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\'')
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\' | \'standalone\'')
     expect(source).toContain('const isCompareView = computed(() => previewView.value === \'compare\')')
-    expect(source).toContain("import { Badge } from '@/components/ui/badge'")
-    expect(source).toContain("import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'")
+    expect(source).toContain('import { Badge } from \'@/components/ui/badge\'')
+    expect(source).toContain('import { Card, CardContent, CardDescription, CardHeader, CardTitle } from \'@/components/ui/card\'')
     expect(source).toContain('<Card')
     expect(source).toContain('<CardHeader')
     expect(source).toContain('<CardTitle')
@@ -117,7 +117,7 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('tailwindCompareViewportHeight(section)')
     expect(source).toContain('Original')
     expect(source).toContain('Converted Tailwind')
-    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' ? raw : \'edit\'')
+    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
     expect(source).toContain('query.view = \'compare\'')
     expect(source).toContain('@click="setPreviewView(\'compare\')"')
     expect(source).toContain('title="Compare Tailwind"')
@@ -186,5 +186,21 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('function replacePreviewViewQuery(view: PreviewView)')
     expect(source).toContain('window.history.replaceState')
     expect(source).toContain('preserve unsaved converted sections')
+  })
+
+  it('adds a standalone HTML view that scopes captured sections', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('const isStandaloneView = computed(() => previewView.value === \'standalone\')')
+    expect(source).toContain('@click="setPreviewView(\'standalone\')"')
+    expect(source).toContain('title="Standalone HTML"')
+    expect(source).toContain('function buildStandaloneHtml(): string')
+    expect(source).toContain('scopeOemSection(')
+    expect(source).toContain('data-section-id="')
+    expect(source).toContain('sandbox="allow-scripts"')
+    expect(source).toContain(':srcdoc="buildStandaloneHtml()"')
+    expect(source).toContain('function openStandaloneHtml()')
+    expect(source).toContain('new Blob([html], { type: \'text/html\' })')
+    expect(source).toContain('window.open(url, \'_blank\')')
   })
 })

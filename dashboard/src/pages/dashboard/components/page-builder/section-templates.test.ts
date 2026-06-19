@@ -79,7 +79,7 @@ describe('section nested item defaults', () => {
   it('keeps tab item literals out of the editor add action', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
-    expect(source).not.toContain("addArrayItem('tabs', {")
+    expect(source).not.toContain('addArrayItem(\'tabs\', {')
   })
 
   it('creates fresh image showcase items with overlay metadata', () => {
@@ -117,7 +117,7 @@ describe('section nested item defaults', () => {
   it('keeps image showcase item literals out of the editor add action', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
-    expect(source).not.toContain("addArrayItem('images', { url: '', alt: '', caption: '', description: '', overlay_position: 'bottom-left' })")
+    expect(source).not.toContain('addArrayItem(\'images\', { url: \'\', alt: \'\', caption: \'\', description: \'\', overlay_position: \'bottom-left\' })')
   })
 
   it('creates fresh feature card items with the base card schema', () => {
@@ -150,7 +150,7 @@ describe('section nested item defaults', () => {
   it('keeps feature card item literals out of the editor add action', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
-    expect(source).not.toContain("addArrayItem('cards', { title: '', description: '', image_url: '' })")
+    expect(source).not.toContain('addArrayItem(\'cards\', { title: \'\', description: \'\', image_url: \'\' })')
   })
 
   it('creates fresh accordion items with the base accordion schema', () => {
@@ -181,7 +181,7 @@ describe('section nested item defaults', () => {
   it('keeps accordion item literals out of the editor add action', () => {
     const source = readFileSync(new URL('./SectionProperties.vue', import.meta.url), 'utf8')
 
-    expect(source).not.toContain("addArrayItem('items', { question: '', answer: '' })")
+    expect(source).not.toContain('addArrayItem(\'items\', { question: \'\', answer: \'\' })')
   })
 })
 

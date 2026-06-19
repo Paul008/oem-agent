@@ -4614,7 +4614,7 @@ function parseCloneStudioTagAttributes(tag: string): Map<string, string> {
   const attrs = new Map<string, string>()
   const attrSource = tag
     .replace(/^<\s*[a-z0-9:-]+\b/i, '')
-    .replace(/\/?\s*>\s*$/i, '')
+    .replace(/\/?\s*>\s*$/, '')
   const pattern = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+)))?/g
   let match: RegExpExecArray | null
 
@@ -4694,7 +4694,7 @@ function decodeHtmlEntities(value: string): string {
     .replace(/&#x([0-9a-f]+);?/gi, (_match: string, code: string) => {
       return String.fromCharCode(Number.parseInt(code, 16))
     })
-    .replace(/&#([0-9]+);?/g, (_match: string, code: string) => {
+    .replace(/&#(\d+);?/g, (_match: string, code: string) => {
       return String.fromCharCode(Number.parseInt(code, 10))
     })
     .replace(/&colon;/gi, ':')
@@ -4705,7 +4705,7 @@ function cssCodePoint(code: number): string {
 }
 
 function decodeCssEscapes(value: string): string {
-  return value.replace(/\\([0-9a-fA-F]{1,6})(?:\r\n|[\t\n\f\r ])?|\\([^\r\n])/g, (_match: string, hex?: string, escapedChar?: string) => {
+  return value.replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\f\r ])?|\\([^\r\n])/gi, (_match: string, hex?: string, escapedChar?: string) => {
     if (!hex)
       return escapedChar ?? ''
 
@@ -4741,7 +4741,7 @@ function isRelativeUrl(url: string, context: CloneStudioUrlContext): boolean {
     || url.startsWith('./')
     || url.startsWith('../')
     || url.startsWith('?')
-    || /^[a-z0-9._~-]/i.test(url)
+    || /^[\w.~-]/.test(url)
 }
 
 function sanitizeCloneStudioUrl(value: unknown, context: CloneStudioUrlContext = 'link'): string {
@@ -4877,11 +4877,11 @@ function isCloneStudioMediaUrlAttribute(name: string): boolean {
 function sanitizeCloneStudioHtmlFallback(value: unknown): string {
   let html = String(value ?? '')
   html = html.replace(/<\s*(script|object|embed)\b[\s\S]*?<\/\s*\1\s*>/gi, '')
-  html = html.replace(/<\s*(script|object|embed|base|meta|link)\b[^>]*\/?\s*>/gi, '')
+  html = html.replace(/<\s*(script|object|embed|base|meta|link)\b[^>]*>/gi, '')
   html = html.replace(/<\s*iframe\b[^>]*>[\s\S]*?<\/\s*iframe\s*>/gi, (match: string) => (isCloneStudioTrustedIframeMarkup(match) ? match : ''))
-  html = html.replace(/<\s*iframe\b[^>]*\/?\s*>/gi, (match: string) => (isCloneStudioTrustedIframeMarkup(match) ? match : ''))
+  html = html.replace(/<\s*iframe\b[^>]*>/gi, (match: string) => (isCloneStudioTrustedIframeMarkup(match) ? match : ''))
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-  html = html.replace(/<script\b[^>]*\/?\s*>/gi, '')
+  html = html.replace(/<script\b[^>]*>/gi, '')
   html = html.replace(/\son[a-z0-9:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
   html = html.replace(/\ssrcdoc\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
   html = html.replace(/\s(href|src|poster|action|formaction|cite|manifest|data|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match: string, name: string, doubleQuotedUrl?: string, singleQuotedUrl?: string, unquotedUrl?: string) => {
@@ -4901,7 +4901,8 @@ function sanitizeCloneStudioHtmlFallback(value: unknown): string {
 }
 
 function isCloneStudioVideoUrl(url: string): boolean {
-  if (!url) return false
+  if (!url)
+    return false
 
   const lower = url.toLowerCase()
 

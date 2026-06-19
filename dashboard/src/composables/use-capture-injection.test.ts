@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { buildCaptureInjection } from './use-capture-injection'
 
 describe('buildCaptureInjection uses the extracted rules', () => {
@@ -21,11 +22,11 @@ describe('buildCaptureInjection uses the extracted rules', () => {
 
   it('collects responsive background/media sizing props for Tailwind HTML capture', () => {
     const { lateInjection } = buildCaptureInjection()
-    expect(lateInjection).toContain("'background-size'")
-    expect(lateInjection).toContain("'background-position'")
-    expect(lateInjection).toContain("'background-repeat'")
-    expect(lateInjection).toContain("'aspect-ratio'")
-    expect(lateInjection).toContain("'object-position'")
+    expect(lateInjection).toContain('\'background-size\'')
+    expect(lateInjection).toContain('\'background-position\'')
+    expect(lateInjection).toContain('\'background-repeat\'')
+    expect(lateInjection).toContain('\'aspect-ratio\'')
+    expect(lateInjection).toContain('\'object-position\'')
   })
 
   it('materializes simple pseudo-element text in clean and Tailwind capture output', () => {
@@ -37,12 +38,12 @@ describe('buildCaptureInjection uses the extracted rules', () => {
     expect(lateInjection).toContain('span.setAttribute("data-oem-pseudo", pseudo)')
     expect(lateInjection).toContain('span.setAttribute("data-oem-pseudo-capture", "true")')
     expect(lateInjection).toContain('span.textContent = text')
-    expect(lateInjection).toContain("P.materializePseudoElementsForCapture(el, clone, true)")
-    expect(lateInjection).toContain("P.materializePseudoElementsForCapture(el, clone, false)")
+    expect(lateInjection).toContain('P.materializePseudoElementsForCapture(el, clone, true)')
+    expect(lateInjection).toContain('P.materializePseudoElementsForCapture(el, clone, false)')
     expect((lateInjection.match(/function normalizePseudoElementContentForCapture\b/g) || []).length).toBe(1)
 
     const convertIndex = lateInjection.indexOf('convert(el, clone);')
-    const tailwindPseudoIndex = lateInjection.indexOf("P.materializePseudoElementsForCapture(el, clone, true)")
+    const tailwindPseudoIndex = lateInjection.indexOf('P.materializePseudoElementsForCapture(el, clone, true)')
     expect(convertIndex).toBeGreaterThan(-1)
     expect(tailwindPseudoIndex).toBeGreaterThan(convertIndex)
   })

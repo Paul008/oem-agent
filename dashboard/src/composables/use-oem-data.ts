@@ -297,7 +297,7 @@ export function useOemData() {
       }
       if (!data || data.length === 0)
         break
-      for (const row of data as { entity_id: string; created_at: string }[]) {
+      for (const row of data as { entity_id: string, created_at: string }[]) {
         if (!map.has(row.entity_id))
           map.set(row.entity_id, row.created_at)
       }

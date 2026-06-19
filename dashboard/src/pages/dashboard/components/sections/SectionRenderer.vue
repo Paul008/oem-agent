@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import AnimatedSection from './AnimatedSection.vue'
 import { resolveSectionComponent } from '../page-builder/section-registry'
+import AnimatedSection from './AnimatedSection.vue'
 
 interface PageSection {
   type: string

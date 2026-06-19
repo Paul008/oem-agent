@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { OEM_IDS, isModelPageWriteProtected } from './oem-ids'
+import { isModelPageWriteProtected, OEM_IDS } from './oem-ids'
 
 describe('dashboard OEM IDs', () => {
   it('tracks the full built-in OEM set without duplicates', () => {

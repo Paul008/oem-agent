@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { getRegionActions, buildPatchPayload } from './region-actions'
+import { describe, expect, it } from 'vitest'
+
+import { buildPatchPayload, getRegionActions } from './region-actions'
 
 const base = { id: 'r1', label: 'Region', selector: 'div', tag: 'div', classes: [], top: 0, height: 100, editable_fields: [] as any[] }
 

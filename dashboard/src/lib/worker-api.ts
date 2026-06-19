@@ -1,7 +1,8 @@
-import { supabase } from '@/lib/supabase'
+import type { Recipe } from '@/lib/recipes'
+
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { normalizeRecipesResponse } from '@/lib/recipes'
-import type { Recipe } from '@/lib/recipes'
+import { supabase } from '@/lib/supabase'
 
 export type { Recipe } from '@/lib/recipes'
 

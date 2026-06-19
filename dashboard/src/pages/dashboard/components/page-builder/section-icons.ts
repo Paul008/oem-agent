@@ -1,3 +1,5 @@
+import type { Component } from 'vue'
+
 import {
   Award,
   BarChart3,
@@ -20,7 +22,6 @@ import {
   Type as TypeIcon,
   Video,
 } from 'lucide-vue-next'
-import type { Component } from 'vue'
 
 import type { PageSectionType } from './section-templates'
 

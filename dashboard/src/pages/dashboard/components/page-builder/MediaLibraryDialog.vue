@@ -25,7 +25,7 @@ const { fetchPortalAssetsPage, fetchParsedModels, thumbnailUrl } = usePortalAsse
 type Tab = 'library' | 'portal'
 const tab = ref<Tab>('library')
 type LibraryScope = 'model' | 'oem'
-type PortalTypeOption = { value: string, label: string }
+interface PortalTypeOption { value: string, label: string }
 
 // ── Library (R2 uploads — existing behaviour) ──
 const items = ref<MediaItem[]>([])
@@ -80,7 +80,7 @@ const filteredItems = computed(() => {
 const libraryScopeModelLabel = computed(() => props.modelSlug || 'Current model')
 const librarySearchPlaceholder = computed(() => libraryScope.value === 'model'
   ? `Search ${libraryScopeModelLabel.value} media...`
-  : 'Search all OEM media...'
+  : 'Search all OEM media...',
 )
 const libraryEmptyText = computed(() => {
   if (items.value.length > 0)

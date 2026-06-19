@@ -6,8 +6,8 @@ import {
   Plus,
 } from 'lucide-vue-next'
 
-import { countSectionImages } from './section-media'
 import { getSectionTypeIcon } from './section-icons'
+import { countSectionImages } from './section-media'
 
 const props = defineProps<{
   section: any
