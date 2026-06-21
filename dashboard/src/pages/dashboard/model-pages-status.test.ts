@@ -124,7 +124,7 @@ describe('model-pages dashboard integration', () => {
     expect(source).toContain('getGeneratedPageSectionCount')
     expect(source).toContain('getGeneratedPageStatus')
     expect(source).toContain('summarizeGeneratedPageStatuses')
-    expect(source).toContain('type GeneratedPageStatus')
+    expect(source).toContain('import type { GeneratedPageStatus } from \'./model-pages-status\'')
     expect(source).toContain('} from \'./model-pages-status\'')
 
     expect(source).toContain('fetchGeneratedPage(fullSlug(item), { includeModes: true })')

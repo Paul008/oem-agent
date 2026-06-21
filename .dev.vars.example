@@ -33,6 +33,9 @@ MOLTBOT_GATEWAY_TOKEN=dev-token-change-in-prod
 # CF_ACCESS_TEAM_DOMAIN=myteam.cloudflareaccess.com
 # CF_ACCESS_AUD=your-application-audience-tag
 
+# Optional dedicated bearer token for MCP clients (remote model-context-protocol server at /mcp)
+# MCP_AUTH_TOKEN=optional-mcp-bearer-token
+
 # Optional chat channels
 # TELEGRAM_BOT_TOKEN=optional
 # DISCORD_BOT_TOKEN=optional

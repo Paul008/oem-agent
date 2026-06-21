@@ -7,6 +7,10 @@ export function shouldAttachSandboxForPath(pathname: string): boolean {
     return false;
   }
 
+  if (pathname === '/mcp' || pathname.startsWith('/mcp/')) {
+    return false;
+  }
+
   if (isProductionArtifactPath(pathname)) {
     return false;
   }

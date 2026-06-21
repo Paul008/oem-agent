@@ -34,7 +34,7 @@ describe('buildCaptureInjection uses the extracted rules', () => {
 
     expect(lateInjection).toContain('var P=(')
     expect(lateInjection).toContain('function capturePseudoElementRules')
-    expect(lateInjection).toContain('window.getComputedStyle(src, "::" + pseudo)')
+    expect(lateInjection).toContain('window.getComputedStyle(src, `::${pseudo}`)')
     expect(lateInjection).toContain('span.setAttribute("data-oem-pseudo", pseudo)')
     expect(lateInjection).toContain('span.setAttribute("data-oem-pseudo-capture", "true")')
     expect(lateInjection).toContain('span.textContent = text')

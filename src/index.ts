@@ -24,12 +24,14 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
+import { McpSession } from './mcp';
 
 import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy } from './routes';
+import mcpRoutes from './mcp';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
 import { isProductionArtifactPath, shouldAttachSandboxForPath } from './sandbox-paths';
@@ -52,6 +54,7 @@ function transformErrorMessage(message: string, host: string): string {
 }
 
 export { Sandbox };
+export { McpSession };
 
 /**
  * Validate required environment variables.
@@ -384,6 +387,9 @@ app.use('/debug/*', async (c, next) => {
   return next();
 });
 app.route('/debug', debug);
+
+// Mount MCP server routes (auth handled internally by mcpAuthMiddleware)
+app.route('/mcp', mcpRoutes);
 
 // =============================================================================
 // CATCH-ALL: Proxy to Moltbot gateway

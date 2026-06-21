@@ -1,4 +1,4 @@
-import { Activity, BarChart3, BookmarkPlus, BookOpen, Bot, Brain, BrainCircuit, Calendar, Car, Clapperboard, Clock, Cpu, Eye, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, LayoutTemplate, List, Palette, Play, Plug, Rocket, ScrollText, Settings, Shield, Sparkles, Tag, TrendingUp, Upload, Users, Wrench } from 'lucide-vue-next'
+import { Activity, BarChart3, BookmarkPlus, BookOpen, Bot, Brain, BrainCircuit, Calendar, Car, Clapperboard, Clock, Cpu, Eye, Factory, FileText, Gauge, Globe, HeartPulse, Image, Images, KeyRound, Layers, LayoutTemplate, List, Palette, Play, Plug, Rocket, ScrollText, Server, Settings, Shield, Sparkles, Tag, TrendingUp, Upload, Users, Wrench } from 'lucide-vue-next'
 
 import type { NavGroup } from '@/components/app-sidebar/types'
 
@@ -45,6 +45,7 @@ export function useSidebar() {
         { title: 'Media Library', url: '/dashboard/media', icon: Clapperboard },
         { title: 'Dealer API', url: '/dashboard/dealer-api', icon: Plug },
         { title: 'API Docs', url: '/dashboard/docs', icon: BookOpen },
+        { title: 'MCP Server', url: '/dashboard/mcp', icon: Server },
         { title: 'Page Builder', url: '/dashboard/page-builder-docs', icon: Cpu },
         { title: 'Template Gallery', url: '/dashboard/page-builder/', icon: Sparkles },
         { title: 'Recipes', url: '/dashboard/recipes', icon: BookmarkPlus },

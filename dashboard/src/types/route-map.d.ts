@@ -228,6 +228,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dashboard/mcp': RouteRecordInfo<
+      '/dashboard/mcp',
+      '/dashboard/mcp',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard/media': RouteRecordInfo<
       '/dashboard/media',
       '/dashboard/media',
@@ -761,6 +768,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/dashboard/import-legacy.vue': {
       routes:
         | '/dashboard/import-legacy'
+      views:
+        | never
+    }
+    'src/pages/dashboard/mcp.vue': {
+      routes:
+        | '/dashboard/mcp'
       views:
         | never
     }

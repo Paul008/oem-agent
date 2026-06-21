@@ -11,6 +11,7 @@ import type { MoltbotEnv } from './types';
 export function createMockEnv(overrides: Partial<MoltbotEnv> = {}): MoltbotEnv {
   return {
     Sandbox: {} as any,
+    McpSession: {} as any,
     ASSETS: {} as any,
     MOLTBOT_BUCKET: {} as any,
     SUPABASE_URL: 'https://test.supabase.co',

@@ -36,8 +36,8 @@ describe('pageBuilderCanvas preview mode', () => {
     const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
     const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('function patchCloneField(payload: Record<string, unknown>)')
-    expect(source).toContain('cloneStudioCanvas.value?.patchField(payload)')
+    expect(source).toContain('function patchCloneField(payload: CloneFieldPatchPayload)')
+    expect(source).toContain('cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)')
     expect(source).toContain('defineExpose({')
     expect(source).toContain('patchCloneField,')
     expect(source).toContain('ref="cloneStudioCanvas"')

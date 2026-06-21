@@ -50,6 +50,10 @@
       {
         "name": "Sandbox",
         "class_name": "Sandbox"
+      },
+      {
+        "name": "McpSession",
+        "class_name": "McpSession"
       }
     ]
   },
@@ -59,6 +63,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["Sandbox"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["McpSession"]
     }
   ],
 
@@ -94,6 +102,7 @@
   // CLOUDFLARE_ACCOUNT_ID
   // APIFY_TOKEN (for actor-based scraping — Toyota, etc.)
   // CDP_SECRET
+  // MCP_AUTH_TOKEN (optional dedicated bearer token for MCP clients)
 
   // Cron Triggers (crawl schedules)
   // Cron Triggers — times in UTC (AEST = UTC + 11 during AEDT / UTC + 10 during AEST)
@@ -158,6 +167,10 @@
           {
             "name": "Sandbox",
             "class_name": "Sandbox"
+          },
+          {
+            "name": "McpSession",
+            "class_name": "McpSession"
           }
         ]
       }

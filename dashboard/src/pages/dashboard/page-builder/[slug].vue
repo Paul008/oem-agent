@@ -135,7 +135,7 @@ const showCapture = ref(false)
 const cloneDraftHtml = ref<string | null>(null)
 const cloneEditorOpen = ref(false)
 const pageBuilderCanvas = ref<{
-  patchCloneField: (payload: Record<string, unknown>) => void
+  patchCloneField: (payload: CloneFieldPatchPayload) => void
   duplicateRegion: (regionId: string) => void
 } | null>(null)
 const editorSectionId = ref<string | null>(null)

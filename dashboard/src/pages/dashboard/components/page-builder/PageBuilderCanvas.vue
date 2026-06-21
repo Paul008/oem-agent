@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { scopeOemSection } from '@/lib/scope-oem-section'
 
+import type { CloneFieldPatchPayload } from './CloneRegionEditor.vue'
 import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
 import type { RegionAction, RegionActionId } from './region-actions'
 
@@ -128,10 +129,10 @@ const scopedCapturedSections = computed(() => {
 
 const cloneStudioCanvas = ref<InstanceType<typeof CloneStudioCanvas> | null>(null)
 
-function patchCloneField(payload: Record<string, unknown>) {
+function patchCloneField(payload: CloneFieldPatchPayload) {
   if (props.readOnly)
     return
-  cloneStudioCanvas.value?.patchField(payload)
+  cloneStudioCanvas.value?.patchField(payload as unknown as Record<string, unknown>)
 }
 
 function duplicateRegion(regionId: string) {

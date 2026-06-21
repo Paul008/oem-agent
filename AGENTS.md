@@ -71,6 +71,19 @@ src/
     ├── App.tsx
     ├── api.ts        # API client
     └── pages/
+├── mcp/              # Remote MCP server
+│   ├── index.ts      # Hono router mounted at /mcp
+│   ├── session.ts    # Durable Object: SSE session + JSON-RPC dispatch
+│   ├── auth.ts       # MCP auth (dev bypass, CF Access, Supabase, MCP_AUTH_TOKEN)
+│   ├── server.ts     # (logic lives in session.ts) protocol handlers
+│   ├── types.ts      # MCP JSON-RPC and tool types
+│   ├── tools/        # MCP tool implementations
+│   │   ├── index.ts      # Tool registry
+│   │   ├── oem-tools.ts  # list_oems, search_oem_models, get_oem_model
+│   │   ├── page-tools.ts # generate_model_page, create_model_subpage, get_page_status
+│   │   ├── recipe-tools.ts # list_oem_recipes
+│   │   └── sync-tools.ts   # trigger_oem_sync
+│   └── server.test.ts # Protocol + tool tests
 
 dashboard/
 ├── src/
@@ -463,6 +476,68 @@ OpenClaw has strict config validation. Common gotchas:
 - `gateway.bind` is not a config option - use `--bind` CLI flag
 
 See [OpenClaw docs](https://docs.openclaw.ai/) for full schema.
+
+## MCP Server
+
+A Remote MCP (Model Context Protocol) server is mounted at `/mcp` and exposes OEM Agent operations to external AI clients such as ChatGPT, Claude, and Cursor.
+
+### Protocol
+
+Implements MCP 2024-11-05 over HTTP+SSE:
+
+- `GET /mcp/sse` — Open an SSE stream. Returns an `endpoint` event containing the message URL.
+- `POST /mcp/messages?sessionId=<id>` — Send JSON-RPC requests/notifications.
+
+Each client session is backed by a `McpSession` Durable Object (`src/mcp/session.ts`).
+
+### Authentication
+
+`src/mcp/auth.ts` accepts, in priority order:
+
+1. **Dev/E2E bypass** when `DEV_MODE=true` or `E2E_TEST_MODE=true`.
+2. **`Authorization: Bearer <token>`** where `<token>` matches the `MCP_AUTH_TOKEN` secret.
+3. **`Authorization: Bearer <supabase-jwt>`** validated against Supabase.
+4. **`CF-Access-JWT-Assertion`** header from Cloudflare Access.
+
+Set the optional secret with:
+
+```bash
+npx wrangler secret put MCP_AUTH_TOKEN
+```
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_oems` | List all OEMs in the registry. |
+| `search_oem_models` | Search vehicle models by OEM and optional name query. |
+| `get_oem_model` | Get full model details, variants, colors, pricing, and offers. |
+| `list_oem_recipes` | Browse reusable design recipes for an OEM. |
+| `generate_model_page` | Run the AI pipeline to generate a model page. |
+| `create_model_subpage` | Create a subpage under an existing model page. |
+| `get_page_status` | Check whether a generated page exists and get its metadata. |
+| `trigger_oem_sync` | Trigger a crawl/sync job for one OEM or all OEMs. |
+
+### Testing
+
+```bash
+npm test -- src/mcp/server.test.ts
+```
+
+### Client connection example
+
+```bash
+# 1. Open SSE stream
+curl -N -H "Authorization: Bearer $MCP_AUTH_TOKEN" \
+  https://<worker>/mcp/sse
+
+# 2. Read the endpoint event, then post messages to that URL
+curl -X POST \
+  -H "Authorization: Bearer $MCP_AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  "https://<worker>/mcp/messages?sessionId=<sessionId>"
+```
 
 ## Common Tasks
 
