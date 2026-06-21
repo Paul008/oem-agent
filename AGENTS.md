@@ -517,6 +517,17 @@ npx wrangler secret put MCP_AUTH_TOKEN
 | `create_model_subpage` | Create a subpage under an existing model page. |
 | `get_page_status` | Check whether a generated page exists and get its metadata. |
 | `trigger_oem_sync` | Trigger a crawl/sync job for one OEM or all OEMs. |
+| `search_products` | Search vehicle variants/products by OEM with optional filters. |
+| `get_product` | Get full details for a specific product/variant. |
+| `list_variant_colors` | List colour options for a product/variant. |
+| `search_accessories` | Search accessories for an OEM or specific model. |
+| `preview_page` | Fetch and return the generated HTML for a page slug. |
+| `list_model_pages` | List generated pages/subpages for an OEM. |
+| `trigger_specific_crawl` | Trigger a named scheduled crawl (e.g. `homepage`, `offers`, `banners`). |
+| `search_pdfs` | Semantic search across PDF embeddings. |
+| `search_specs` | Full-text search over product technical specifications. |
+
+A full tool reference and copy-paste client examples are available in the dashboard at `/dashboard/mcp`.
 
 ### Testing
 
