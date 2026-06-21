@@ -6,10 +6,12 @@
  */
 
 import type { MCPContext, MCPTool, MCPToolCallResult } from '../types';
+import { searchAccessoriesTool, getProductTool, listVariantColorsTool, searchProductsTool } from './catalog-tools';
 import { listOemsTool, searchOemModelsTool, getOemModelTool } from './oem-tools';
-import { generateModelPageTool, createModelSubpageTool, getPageStatusTool } from './page-tools';
+import { generateModelPageTool, createModelSubpageTool, getPageStatusTool, listModelPagesTool, previewPageTool } from './page-tools';
 import { listOemRecipesTool } from './recipe-tools';
-import { triggerOemSyncTool } from './sync-tools';
+import { searchPdfsTool, searchSpecsTool } from './search-tools';
+import { triggerOemSyncTool, triggerSpecificCrawlTool } from './sync-tools';
 
 export interface RegisteredTool {
   definition: MCPTool;
@@ -25,10 +27,19 @@ export function createToolRegistry(): {
     searchOemModelsTool,
     getOemModelTool,
     listOemRecipesTool,
+    searchProductsTool,
+    getProductTool,
+    listVariantColorsTool,
+    searchAccessoriesTool,
     generateModelPageTool,
     createModelSubpageTool,
     getPageStatusTool,
+    previewPageTool,
+    listModelPagesTool,
     triggerOemSyncTool,
+    triggerSpecificCrawlTool,
+    searchPdfsTool,
+    searchSpecsTool,
   ];
 
   const byName = new Map(tools.map((t) => [t.definition.name, t]));

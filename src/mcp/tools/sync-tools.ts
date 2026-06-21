@@ -120,3 +120,59 @@ export const triggerOemSyncTool: RegisteredTool = {
     });
   },
 };
+
+const VALID_CRAWL_TYPES = [
+  'homepage',
+  'offers',
+  'vehicles',
+  'news',
+  'sitemap',
+  'banners',
+  'banner-health',
+  'design-drift',
+  'portal-asset-health',
+  'toyota-browser-sync',
+];
+
+export const triggerSpecificCrawlTool: RegisteredTool = {
+  definition: {
+    name: 'trigger_specific_crawl',
+    description:
+      'Trigger a specific scheduled crawl type for all OEMs: homepage, offers, vehicles, news, sitemap, banners, banner-health, design-drift, portal-asset-health, or toyota-browser-sync.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        crawl_type: {
+          type: 'string',
+          description: 'Crawl type to trigger',
+        },
+      },
+      required: ['crawl_type'],
+    },
+  },
+  handler: async (args, ctx) => {
+    const crawlType = String(args.crawl_type || '').trim();
+
+    if (!crawlType) {
+      return textResult('crawl_type is required', true);
+    }
+    if (!VALID_CRAWL_TYPES.includes(crawlType)) {
+      return textResult(`Invalid crawl_type. Valid: ${VALID_CRAWL_TYPES.join(', ')}`, true);
+    }
+
+    const orchestrator = createOrchestrator(ctx.env);
+    const jobId = crypto.randomUUID();
+
+    orchestrator.runScheduledCrawl(crawlType).catch((err: unknown) => {
+      console.error(`[MCP Specific Crawl ${jobId}] Error running ${crawlType}:`, err);
+    });
+
+    return jsonResult({
+      success: true,
+      job_id: jobId,
+      crawl_type: crawlType,
+      message: `${crawlType} crawl triggered for all OEMs`,
+      status: 'running',
+    });
+  },
+};

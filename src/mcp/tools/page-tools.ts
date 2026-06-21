@@ -236,3 +236,141 @@ export const getPageStatusTool: RegisteredTool = {
     });
   },
 };
+
+export const previewPageTool: RegisteredTool = {
+  definition: {
+    name: 'preview_page',
+    description:
+      'Return preview URLs and metadata for an AI-generated model page (production HTML, manifest, and raw page JSON).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        oem_id: {
+          type: 'string',
+          description: 'OEM identifier',
+        },
+        model_slug: {
+          type: 'string',
+          description: 'Model slug',
+        },
+      },
+      required: ['oem_id', 'model_slug'],
+    },
+  },
+  handler: async (args, ctx) => {
+    const oemId = String(args.oem_id || '');
+    const modelSlug = String(args.model_slug || '');
+
+    if (!oemId || !modelSlug) {
+      return textResult('oem_id and model_slug are required', true);
+    }
+
+    const supabase = createSupabaseClient({
+      url: ctx.env.SUPABASE_URL,
+      serviceRoleKey: ctx.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    const { PageGenerator } = await import('../../design/page-generator');
+    const aiRouter = new AiRouter(
+      {
+        groq: ctx.env.GROQ_API_KEY,
+        together: ctx.env.TOGETHER_API_KEY,
+        moonshot: ctx.env.MOONSHOT_API_KEY,
+        anthropic: ctx.env.ANTHROPIC_API_KEY,
+        google: ctx.env.GOOGLE_API_KEY,
+      },
+      supabase,
+    );
+    const designAgent = new DesignAgent(ctx.env.TOGETHER_API_KEY, ctx.env.MOLTBOT_BUCKET);
+
+    const generator = new PageGenerator({
+      supabase,
+      aiRouter,
+      designAgent,
+      r2Bucket: ctx.env.MOLTBOT_BUCKET,
+      browser: ctx.env.BROWSER!,
+    });
+
+    const slug = `${oemId}-${modelSlug}`;
+    const page = await generator.getPageBySlug(slug);
+
+    if (!page) {
+      return textResult('Page not found', true);
+    }
+
+    return jsonResult({
+      slug,
+      oem_id: oemId,
+      model_slug: modelSlug,
+      name: page.name,
+      active_mode: (page as any).active_mode ?? null,
+      version: page.version ?? null,
+      generated_at: page.generated_at ?? null,
+      page_json_url: `/api/v1/oem-agent/pages/${slug}`,
+      production_html_url: `/api/v1/oem-agent/pages/${slug}/production-html`,
+      production_manifest_url: `/api/v1/oem-agent/pages/${slug}/production-manifest`,
+    });
+  },
+};
+
+export const listModelPagesTool: RegisteredTool = {
+  definition: {
+    name: 'list_model_pages',
+    description: 'List AI-generated model pages for a given OEM.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        oem_id: {
+          type: 'string',
+          description: 'OEM identifier',
+        },
+      },
+      required: ['oem_id'],
+    },
+  },
+  handler: async (args, ctx) => {
+    const oemId = String(args.oem_id || '') as OemId;
+
+    if (!isValidOemId(oemId)) {
+      return textResult(`Invalid or unknown oem_id: ${oemId}`, true);
+    }
+
+    const supabase = createSupabaseClient({
+      url: ctx.env.SUPABASE_URL,
+      serviceRoleKey: ctx.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    const { PageGenerator } = await import('../../design/page-generator');
+    const aiRouter = new AiRouter(
+      {
+        groq: ctx.env.GROQ_API_KEY,
+        together: ctx.env.TOGETHER_API_KEY,
+        moonshot: ctx.env.MOONSHOT_API_KEY,
+        anthropic: ctx.env.ANTHROPIC_API_KEY,
+        google: ctx.env.GOOGLE_API_KEY,
+      },
+      supabase,
+    );
+    const designAgent = new DesignAgent(ctx.env.TOGETHER_API_KEY, ctx.env.MOLTBOT_BUCKET);
+
+    const generator = new PageGenerator({
+      supabase,
+      aiRouter,
+      designAgent,
+      r2Bucket: ctx.env.MOLTBOT_BUCKET,
+      browser: ctx.env.BROWSER!,
+    });
+
+    const slugs = await generator.listGeneratedPages(oemId);
+
+    return jsonResult({
+      oem_id: oemId,
+      count: slugs.length,
+      pages: slugs.map((slug) => ({
+        slug,
+        page_json_url: `/api/v1/oem-agent/pages/${slug}`,
+        production_html_url: `/api/v1/oem-agent/pages/${slug}/production-html`,
+      })),
+    });
+  },
+};

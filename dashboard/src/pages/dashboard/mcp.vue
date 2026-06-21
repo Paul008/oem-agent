@@ -17,11 +17,20 @@ const tools = [
   { name: 'list_oems', description: 'List all available OEMs in the registry.' },
   { name: 'search_oem_models', description: 'Search vehicle models by OEM and optional name query.' },
   { name: 'get_oem_model', description: 'Get full model details, variants, colors, pricing, and offers.' },
+  { name: 'search_products', description: 'Search vehicle products/variants by OEM with filters.' },
+  { name: 'get_product', description: 'Get full variant details including pricing, colors, specs, and offers.' },
+  { name: 'list_variant_colors', description: 'List color options for a product/variant.' },
+  { name: 'search_accessories', description: 'Search accessory catalog for an OEM.' },
   { name: 'list_oem_recipes', description: 'Browse reusable design recipes for an OEM.' },
   { name: 'generate_model_page', description: 'Generate an AI-powered model page for a specific vehicle.' },
   { name: 'create_model_subpage', description: 'Create a subpage under an existing model page.' },
   { name: 'get_page_status', description: 'Check whether a generated page exists and get its metadata.' },
+  { name: 'preview_page', description: 'Return preview URLs and metadata for a generated model page.' },
+  { name: 'list_model_pages', description: 'List AI-generated model pages for an OEM.' },
   { name: 'trigger_oem_sync', description: 'Trigger a data sync/crawl job for one OEM or all OEMs.' },
+  { name: 'trigger_specific_crawl', description: 'Trigger a specific crawl type for all OEMs (vehicles, offers, news, etc.).' },
+  { name: 'search_pdfs', description: 'Semantic search over OEM PDF brochures and guidelines.' },
+  { name: 'search_specs', description: 'Search extracted vehicle specifications for a model.' },
 ]
 
 const authMethods = [
