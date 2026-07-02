@@ -455,6 +455,61 @@ export async function executeCrawlDoctor(
 // HEAD-requests every banner image URL, nulls broken ones, emits triage events.
 // ============================================================================
 
+const HEALTH_CHECK_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+/**
+ * Probe an asset URL without trusting HEAD alone. Many OEM CDNs reject HEAD
+ * (Isuzu's dataweavers CDN returns 405) or sit behind bot protection that
+ * 403s Worker traffic (Ford/Akamai) while the asset renders fine in a real
+ * browser — a naive `HEAD >= 400 → broken` policy nulled healthy banner
+ * URLs nightly, which the next crawl re-inserted, forever.
+ *
+ * - 'ok'           → some probe returned < 400
+ * - 'broken'       → GET confirmed 404/410 (definitively gone) — safe to act on
+ * - 'unverifiable' → 403/405/5xx/timeouts — report, never destroy data
+ */
+export async function checkAssetUrl(
+  url: string,
+  timeoutMs: number,
+): Promise<{ verdict: 'ok' | 'broken' | 'unverifiable'; status: number }> {
+  const probe = async (method: 'HEAD' | 'GET'): Promise<number> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method,
+        signal: controller.signal,
+        headers: {
+          'User-Agent': HEALTH_CHECK_UA,
+          ...(method === 'GET' ? { Range: 'bytes=0-0' } : {}),
+        },
+      });
+      return res.status;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  let headStatus = 0;
+  try {
+    headStatus = await probe('HEAD');
+    if (headStatus < 400) return { verdict: 'ok', status: headStatus };
+  } catch {
+    // fall through to GET
+  }
+
+  let getStatus = 0;
+  try {
+    getStatus = await probe('GET');
+  } catch {
+    return { verdict: 'unverifiable', status: headStatus };
+  }
+  if (getStatus < 400) return { verdict: 'ok', status: getStatus };
+  if (getStatus === 404 || getStatus === 410) return { verdict: 'broken', status: getStatus };
+  return { verdict: 'unverifiable', status: getStatus };
+}
+
 export interface BannerHealthResult {
   timestamp: string;
   urls_checked: number;
@@ -489,30 +544,30 @@ export async function executeBannerImageHealthCheck(
   console.log(`[BannerHealth] Checking ${checks.length} image URLs across ${allBanners.length} banners...`);
 
   const broken: Array<{ id: string; oem_id: string; field: string; url: string; status: number }> = [];
+  const unverifiable: Array<{ id: string; oem_id: string; field: string; url: string; status: number }> = [];
 
   // Process in batches of 20
   for (let i = 0; i < checks.length; i += 20) {
     const batch = checks.slice(i, i + 20);
     const results = await Promise.allSettled(
       batch.map(async (check) => {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 5000);
-          const res = await fetch(check.url, { method: 'HEAD', signal: controller.signal });
-          clearTimeout(timeout);
-          return res.status >= 400 ? { ...check, status: res.status } : null;
-        } catch {
-          return { ...check, status: 0 };
-        }
+        const { verdict, status } = await checkAssetUrl(check.url, 5000);
+        return { ...check, verdict, status };
       })
     );
     for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) broken.push(r.value);
+      if (r.status !== 'fulfilled') continue;
+      if (r.value.verdict === 'broken') broken.push(r.value);
+      else if (r.value.verdict === 'unverifiable') unverifiable.push(r.value);
     }
   }
 
+  if (unverifiable.length > 0) {
+    console.log(`[BannerHealth] ${unverifiable.length} URLs unverifiable (HEAD rejected / bot-protected / 5xx) — left untouched`);
+  }
+
   if (broken.length === 0) {
-    console.log(`[BannerHealth] All ${checks.length} image URLs are healthy`);
+    console.log(`[BannerHealth] All ${checks.length} verifiable image URLs are healthy`);
     return { timestamp: now.toISOString(), urls_checked: checks.length, urls_broken: 0, oems_affected: [], details: [] };
   }
 
@@ -646,28 +701,30 @@ export async function executePortalAssetHealthCheck(
   console.log(`[PortalAssetHealth] Checking ${checks.length} URLs...`);
 
   const broken: Array<{ id: string; oem_id: string; url: string; name: string; status: number }> = [];
+  let unverifiable = 0;
 
   for (let i = 0; i < checks.length; i += BATCH) {
     const slice = checks.slice(i, i + BATCH);
     const results = await Promise.allSettled(
       slice.map(async (c) => {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), TIMEOUT);
-          const res = await fetch(c.url, { method: 'HEAD', signal: controller.signal });
-          clearTimeout(timeout);
-          return res.status >= 400 ? { ...c, status: res.status } : null;
-        } catch {
-          return { ...c, status: 0 };
-        }
+        // Only definitive 404/410 counts as broken — HEAD-rejecting CDNs and
+        // bot-protected hosts must not get their rows soft-deleted.
+        const { verdict, status } = await checkAssetUrl(c.url, TIMEOUT);
+        return { ...c, verdict, status };
       }),
     );
     for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) broken.push(r.value);
+      if (r.status !== 'fulfilled') continue;
+      if (r.value.verdict === 'broken') broken.push(r.value);
+      else if (r.value.verdict === 'unverifiable') unverifiable++;
     }
     if (i % (BATCH * 20) === 0) {
       console.log(`[PortalAssetHealth]   Progress: ${Math.min(i + BATCH, checks.length)}/${checks.length}, ${broken.length} broken so far`);
     }
+  }
+
+  if (unverifiable > 0) {
+    console.log(`[PortalAssetHealth] ${unverifiable} URLs unverifiable (HEAD rejected / bot-protected / 5xx) — left active`);
   }
 
   // Stamp last_checked_at so the stalest-first rotation advances (chunked —

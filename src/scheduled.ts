@@ -58,15 +58,18 @@ export const CLOUDFLARE_TRIGGERS = [
     enabled: true,
     config: { crawl_type: 'news' },
   },
+  // Note: the former cf-sitemap-crawl trigger (0 20 * * *) was retired
+  // 2026-07-02 — no sitemap discovery was ever implemented and zero
+  // page_type='sitemap' rows exist in source_pages, so every run was a no-op.
   {
-    id: 'cf-sitemap-crawl',
-    name: 'Sitemap & Design Checks',
-    description: 'Daily sitemap discovery and design capture (7am AEDT)',
-    schedule: '0 20 * * *',
+    id: 'cf-crawl-doctor',
+    name: 'Crawl Doctor',
+    description: 'Daily diagnosis/repair — resets browser-error pages, deactivates 404s, flags failing OEMs, expires offers (2:45am AEST). Ports the dead OpenClaw crawl-doctor job.',
+    schedule: '45 16 * * *',
     timezone: 'Australia/Melbourne',
     skill: 'cloudflare-scheduled',
     enabled: true,
-    config: { crawl_type: 'sitemap' },
+    config: { crawl_type: 'crawl-doctor' },
   },
   {
     id: 'cf-banner-health',
@@ -176,6 +179,21 @@ export async function handleScheduled(
           run.status = 'success';
           run.completedAt = new Date().toISOString();
           run.result = { crawl_type: 'banner-health', ...result };
+          await saveRun(bucket, run);
+          return;
+        }
+
+        // Crawl doctor — resets browser-error pages, deactivates 404s,
+        // flags failing OEMs, expires stale offers. Runs before the main
+        // crawl window so reset pages get retried the same night.
+        if (crawlType === 'crawl-doctor') {
+          const { executeCrawlDoctor } = await import('./sync/crawl-doctor');
+          const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+          const result = await executeCrawlDoctor(supabase, env.SLACK_WEBHOOK_URL);
+
+          run.status = 'success';
+          run.completedAt = new Date().toISOString();
+          run.result = { crawl_type: 'crawl-doctor', ...result };
           await saveRun(bucket, run);
           return;
         }

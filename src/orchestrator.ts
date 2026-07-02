@@ -533,6 +533,7 @@ export class OemAgentOrchestrator {
     let changesFound = 0;
     let finalStatus = 'completed';
     let errorLog: string | null = null;
+    const pageErrors: string[] = [];
 
     try {
       // Get due pages for this OEM (filtered by page type if specified)
@@ -570,12 +571,14 @@ export class OemAgentOrchestrator {
             changesFound += result.changesFound || 0;
           } else {
             errors++;
+            pageErrors.push(`${page.url}: ${result.error || 'unknown error'}`.slice(0, 250));
           }
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
           console.error(`[Orchestrator] Error crawling page ${page.url}: ${msg}`);
           errors++;
           jobsProcessed++;
+          pageErrors.push(`${page.url}: ${msg}`.slice(0, 250));
         }
       }
 
@@ -608,7 +611,11 @@ export class OemAgentOrchestrator {
             offers_upserted: offersUpserted,
             banners_upserted: bannersUpserted,
             changes_found: changesFound,
-            error_log: errorLog,
+            // Failed runs previously recorded NULL here — page-level errors
+            // only reached console.log, making failures undiagnosable from
+            // the dashboard.
+            error_log: errorLog ?? (pageErrors.length ? pageErrors.slice(0, 10).join('\n').slice(0, 2000) : null),
+            error_json: pageErrors.length ? { page_errors: pageErrors.slice(0, 50) } : null,
           })
           .eq('id', importRunId);
         console.log(`[Orchestrator] Import run ${importRunId} → ${finalStatus} (${jobsProcessed} pages, ${errors} errors)`);
