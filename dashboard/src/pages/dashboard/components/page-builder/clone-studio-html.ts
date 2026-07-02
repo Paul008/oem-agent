@@ -55,9 +55,11 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
     .map(part => proxyCloneStudioHeadAssetUrls(part, options.baseHref, mediaBase))
     .map(part => rewriteProxiedMediaUrls(part, mediaBase))
   const rendered = rewriteProxiedMediaUrls(
-    stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(
-      stripSourceDocumentImagePlaceholders(bodyHtml, options.baseHref),
-    ))),
+    stripExternalSvgUseRefs(
+      stripClonePreviewInlineHandlers(disableClonePreviewNavigation(sanitizeCloneStudioHtml(
+        stripSourceDocumentImagePlaceholders(bodyHtml, options.baseHref),
+      ))),
+    ),
     mediaBase,
   )
   const selectedRegion = safeJson(options.selectedRegionId)
@@ -4462,6 +4464,39 @@ function stripSourceDocumentImagePlaceholders(html: string, baseHref: string): s
     if (!src || hasRecoverableCloneStudioImageSource(attrs))
       return tag
     return isLikelySourceDocumentImageUrl(src, baseHref, comparableBaseHref) ? '' : tag
+  })
+}
+
+/**
+ * Remove external SVG `<use>` references. WebKit refuses to load an SVG
+ * `<use>` whose target is a different origin than the preview iframe, so
+ * captured sprite icons like `<use href="/etc.clientlibs/.../icon.svg#id">`
+ * — which resolve to the OEM origin via the injected `<base href>` — throw
+ * "Unsafe attempt to load URL ... Domains, protocols and ports must match"
+ * and render blank. Same-document refs (`<use href="#id">`) are safe; drop
+ * everything else so the preview is clean instead of spamming the console.
+ */
+function stripExternalSvgUseRefs(html: string): string {
+  const isExternal = (href: string | null | undefined): boolean => {
+    const value = String(href ?? '').trim()
+    return value.length > 0 && !value.startsWith('#')
+  }
+
+  if (typeof DOMParser !== 'undefined') {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(`<body>${String(html ?? '')}</body>`, 'text/html')
+    for (const use of Array.from(doc.body.querySelectorAll('use'))) {
+      const href = use.getAttribute('href') ?? use.getAttribute('xlink:href')
+      if (isExternal(href))
+        use.parentElement?.removeChild(use)
+    }
+    return doc.body.innerHTML
+  }
+
+  return String(html ?? '').replace(/<use\b[^>]*?\/?>(?:\s*<\/use>)?/gi, (tag: string) => {
+    const attrs = parseCloneStudioTagAttributes(tag)
+    const href = attrs.get('href') ?? attrs.get('xlink:href')
+    return isExternal(href) ? '' : tag
   })
 }
 

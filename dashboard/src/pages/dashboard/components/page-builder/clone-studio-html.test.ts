@@ -38,6 +38,23 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('clone-studio:dom-updated')
   })
 
+  it('strips external SVG <use> icon refs (WebKit blocks them cross-origin) but keeps same-document refs', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main>'
+        + '<svg><use href="/etc.clientlibs/apps/resources/statics/icons/Phone/default.svg#master"></use></svg>'
+        + '<svg><use xlink:href="https://www.volkswagen.com.au/icons/Discount.svg#d"></use></svg>'
+        + '<svg><use href="#inline-symbol"></use></svg>'
+        + '</main>',
+      title: 'Amarok',
+      baseHref: 'https://www.volkswagen.com.au/amarok.html',
+      selectedRegionId: null,
+    })
+
+    expect(html).not.toContain('icons/Phone/default.svg')
+    expect(html).not.toContain('Discount.svg')
+    expect(html).toContain('#inline-symbol')
+  })
+
   it('supports replacing a selected clone region outer HTML from the bridge', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main data-oem-region-id="r1"><h1>Mustang</h1></main>',
