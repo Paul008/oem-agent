@@ -34,6 +34,15 @@
     }
   ],
 
+  // Cloudflare Workflows (durable multi-step orchestration)
+  "workflows": [
+    {
+      "name": "brochure-mirror",
+      "binding": "BROCHURE_MIRROR",
+      "class_name": "BrochureMirrorWorkflow"
+    }
+  ],
+
   // Cloudflare Containers (Sandbox for code execution)
   "containers": [
     {

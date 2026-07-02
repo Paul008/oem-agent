@@ -1,0 +1,11 @@
+{
+  "actorSpecification": 1,
+  "name": "pdf-fetch",
+  "title": "PDF Fetch (residential proxy)",
+  "description": "Fetches brochure/PDF URLs via Apify residential proxy and saves each to the key-value store — bypasses IP-reputation/velocity blocks (e.g. Ford AU / Akamai).",
+  "version": "1.0",
+  "buildTag": "latest",
+  "environmentVariables": {},
+  "input": "./input_schema.json",
+  "dockerfile": "../Dockerfile"
+}

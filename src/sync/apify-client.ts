@@ -19,6 +19,7 @@ export interface ApifyRunResult {
   runId: string;
   status: string;
   datasetId: string;
+  keyValueStoreId?: string;
   items: unknown[];
   error?: string;
 }
@@ -79,8 +80,9 @@ export async function runApifyActor(options: ApifyRunOptions): Promise<ApifyRunR
 
     if (status === 'SUCCEEDED') {
       const datasetId = statusData.data.defaultDatasetId;
+      const keyValueStoreId = statusData.data.defaultKeyValueStoreId;
       const items = await fetchDatasetItems(token, datasetId);
-      return { runId, status, datasetId, items };
+      return { runId, status, datasetId, keyValueStoreId, items };
     }
 
     if (status === 'FAILED' || status === 'TIMED_OUT' || status === 'ABORTED') {
@@ -120,6 +122,25 @@ async function fetchDatasetItems(token: string, datasetId: string): Promise<unkn
   }
 
   return items;
+}
+
+/**
+ * Fetch a single binary record from an Apify key-value store.
+ * Used to retrieve PDFs an actor saved via Actor.setValue().
+ */
+export async function getKeyValueRecord(
+  token: string,
+  storeId: string,
+  key: string,
+): Promise<ArrayBuffer> {
+  const res = await fetch(
+    `${APIFY_API_BASE}/key-value-stores/${storeId}/records/${encodeURIComponent(key)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Apify KV record ${storeId}/${key}: ${res.status}`);
+  }
+  return await res.arrayBuffer();
 }
 
 function sleep(ms: number): Promise<void> {

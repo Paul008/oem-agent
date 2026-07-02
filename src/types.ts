@@ -70,6 +70,9 @@ export interface MoltbotEnv {
   // External scraping services
   APIFY_TOKEN?: string;         // Apify API token for actor-based scraping
   TOYOTA_DEALER_ID?: string;    // Toyota TDP/NavCategory dealer ID for model discovery (default: Werribee 36948)
+  APIFY_PDF_FETCH_ACTOR_ID?: string; // Apify actor id for the generic PDF fetcher (brochure mirror)
+  // Cloudflare Workflows
+  BROCHURE_MIRROR?: Workflow;   // Durable brochure mirror → R2 → extract workflow
 }
 
 /**

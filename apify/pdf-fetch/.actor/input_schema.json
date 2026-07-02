@@ -1,0 +1,35 @@
+{
+  "title": "PDF Fetch Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "items": {
+      "title": "Items",
+      "type": "array",
+      "description": "List of { slug, url } objects to fetch. Each PDF is saved to the key-value store under key pdf_<slug>.",
+      "editor": "json"
+    },
+    "proxyGroups": {
+      "title": "Proxy groups",
+      "type": "array",
+      "description": "Apify proxy groups. Use RESIDENTIAL to beat IP-reputation blocks.",
+      "editor": "json",
+      "default": ["RESIDENTIAL"]
+    },
+    "countryCode": {
+      "title": "Proxy country",
+      "type": "string",
+      "description": "Two-letter country code for the proxy (e.g. AU).",
+      "editor": "textfield",
+      "default": "AU"
+    },
+    "delayMs": {
+      "title": "Delay between requests (ms)",
+      "type": "integer",
+      "description": "Pause between fetches.",
+      "editor": "number",
+      "default": 2000
+    }
+  },
+  "required": ["items"]
+}

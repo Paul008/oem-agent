@@ -55,6 +55,7 @@ function transformErrorMessage(message: string, host: string): string {
 
 export { Sandbox };
 export { McpSession };
+export { BrochureMirrorWorkflow } from './workflows/brochure-mirror';
 
 /**
  * Validate required environment variables.

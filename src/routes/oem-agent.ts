@@ -1785,6 +1785,53 @@ app.post('/admin/test-crawl', async (c) => {
 });
 
 /**
+ * POST /api/v1/oem-agent/admin/mirror-brochures/:oemId
+ * Kick off the durable brochure-mirror Workflow: fetch bot-blocked brochure
+ * PDFs off-Cloudflare via Apify → store to R2 → extract variant specs.
+ * Query: ?force=true to re-extract; ?actorId=... to override the Apify actor.
+ */
+app.post('/admin/mirror-brochures/:oemId', async (c) => {
+  const oemId = c.req.param('oemId');
+  if (!c.env.BROCHURE_MIRROR) {
+    return c.json({ error: 'BROCHURE_MIRROR workflow binding not configured' }, 503);
+  }
+  if (!c.env.APIFY_TOKEN) {
+    return c.json({ error: 'APIFY_TOKEN not configured' }, 503);
+  }
+  if (!c.env.APIFY_PDF_FETCH_ACTOR_ID && !c.req.query('actorId')) {
+    return c.json({ error: 'APIFY_PDF_FETCH_ACTOR_ID not set (or pass ?actorId=)' }, 400);
+  }
+  try {
+    const instance = await c.env.BROCHURE_MIRROR.create({
+      params: {
+        oemId,
+        force: c.req.query('force') === 'true',
+        actorId: c.req.query('actorId') || undefined,
+      },
+    });
+    return c.json({ started: true, oemId, instanceId: instance.id });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+});
+
+/**
+ * GET /api/v1/oem-agent/admin/mirror-brochures/:instanceId/status
+ * Check a brochure-mirror Workflow instance's status.
+ */
+app.get('/admin/mirror-brochures/:instanceId/status', async (c) => {
+  if (!c.env.BROCHURE_MIRROR) {
+    return c.json({ error: 'BROCHURE_MIRROR workflow binding not configured' }, 503);
+  }
+  try {
+    const instance = await c.env.BROCHURE_MIRROR.get(c.req.param('instanceId'));
+    return c.json({ status: await instance.status() });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 404);
+  }
+});
+
+/**
  * POST /api/v1/oem-agent/admin/toyota-browser-sync
  * Trigger Toyota sync via Apify actor
  */
