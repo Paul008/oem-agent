@@ -382,6 +382,47 @@ interface ExecuteOptions {
   modelIds?: string[];
   maxModels?: number;
   force?: boolean;
+  /** Cloudflare Browser Rendering binding — enables the bot-protection fallback for PDF downloads. */
+  browser?: Fetcher;
+}
+
+/**
+ * Download a PDF through headless Chrome when a plain Worker fetch is
+ * bot-blocked (Ford's Akamai started 403ing Worker/API traffic mid-2026;
+ * a real browser session that has visited the site origin passes).
+ * Returns the PDF bytes fetched from within the page context.
+ */
+async function downloadPdfViaBrowser(browserBinding: Fetcher, pdfUrl: string): Promise<ArrayBuffer> {
+  const puppeteerModule = await import('@cloudflare/puppeteer');
+  const puppeteer = puppeteerModule.default;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const browser = await puppeteer.launch(browserBinding as any);
+  try {
+    const page = await browser.newPage();
+    const origin = new URL(pdfUrl).origin;
+    // Land on the site origin first so the anti-bot challenge runs and cookies are set.
+    await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+
+    const base64 = await page.evaluate(async (url: string) => {
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+      }
+      return btoa(binary);
+    }, pdfUrl);
+
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  } finally {
+    await browser.close().catch(() => {});
+  }
 }
 
 /**
@@ -658,10 +699,15 @@ export async function executePdfSpecExtractionVision(
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
         signal: AbortSignal.timeout(30_000),
       });
-      if (!pdfResponse.ok) {
+      let pdfBuffer: ArrayBuffer;
+      if (pdfResponse.ok) {
+        pdfBuffer = await pdfResponse.arrayBuffer();
+      } else if ((pdfResponse.status === 403 || pdfResponse.status === 429) && options.browser) {
+        console.log(`[pdf-spec-extractor:vision] Plain fetch got HTTP ${pdfResponse.status} — retrying via Browser Rendering`);
+        pdfBuffer = await downloadPdfViaBrowser(options.browser, brochureUrl);
+      } else {
         throw new Error(`PDF download failed: HTTP ${pdfResponse.status}`);
       }
-      const pdfBuffer = await pdfResponse.arrayBuffer();
       const pdfSizeMb = pdfBuffer.byteLength / 1024 / 1024;
       console.log(`[pdf-spec-extractor:vision] Downloaded ${pdfSizeMb.toFixed(2)}MB`);
 

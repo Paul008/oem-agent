@@ -302,7 +302,13 @@ specsApi.post('/admin/extract-specs', async (c) => {
   // Use vision-based extractor (Gemini PDF input + variant matrix support).
   // Falls back to text-based extractor if vision fails.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await executePdfSpecExtractionVision(supabase, aiRouter as any, { modelIds, force });
+  const result = await executePdfSpecExtractionVision(supabase, aiRouter as any, {
+    modelIds,
+    force,
+    // Bot-protection fallback: Ford's Akamai 403s plain Worker fetches of
+    // brochure PDFs — headless Chrome with an origin session passes.
+    browser: c.env.BROWSER,
+  });
 
   return c.json(result);
 });
