@@ -1429,6 +1429,25 @@ export class OemAgentOrchestrator {
   }
 
   /**
+   * Resolve an extracted asset reference to an absolute URL.
+   * Extraction often captures site-relative src values ("/content/dam/...")
+   * or lazy-load placeholders (data: pixel URIs, .../px.png) — the dashboard
+   * renders this field verbatim as <img src>, so relative paths 404 against
+   * the dashboard origin and placeholders render blank.
+   */
+  private resolveAssetUrl(raw: string | null | undefined, pageUrl: string): string | null {
+    const value = String(raw ?? '').trim();
+    if (!value) return null;
+    if (value.startsWith('data:')) return null;
+    if (/\/px\.png(\?|$)/.test(value)) return null;
+    try {
+      return new URL(value, pageUrl).toString();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Extract numeric price from common CMS/API shapes.
    * Handles strings (e.g. "From $45,990"), numbers, arrays, and structured
    * price objects from Gatsby/i-Motor page-data.
@@ -4253,7 +4272,7 @@ ${html.substring(0, 50000)}
       validity_raw: offerData.validity?.raw_string || null,
       cta_text: offerData.cta_text || null,
       cta_url: offerData.cta_url || null,
-      hero_image_r2_key: offerData.hero_image_url || null,
+      hero_image_r2_key: this.resolveAssetUrl(offerData.hero_image_url, sourceUrl),
       disclaimer_text: offerData.disclaimer_text || null,
       disclaimer_html: offerData.disclaimer_html || null,
       eligibility: offerData.eligibility || null,

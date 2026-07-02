@@ -54,6 +54,18 @@ const GONE_ERRORS = [
   'HTTP 410',
 ];
 
+// Transient upstream failures (AI-provider rate limits, overload) — the page
+// itself is fine; safe to reset. A single Groq 429 burst once stranded 70
+// vehicle pages in error status with nothing left to reset them.
+const TRANSIENT_ERRORS = [
+  'Groq API error: 429',
+  'Rate limit',
+  'rate_limit',
+  'HTTP 429',
+  'HTTP 503',
+  'Overloaded',
+];
+
 export async function executeCrawlDoctor(
   supabase: SupabaseClient,
   slackWebhookUrl?: string,
@@ -83,6 +95,8 @@ export async function executeCrawlDoctor(
     const isBrowserError = BROWSER_RENDER_ERRORS.some(pattern => err.includes(pattern));
     // Check if this is a 403 (may work with cheap fetch)
     const is403 = err.includes('HTTP 403');
+    // Check if this is a transient upstream failure (rate limit etc. — safe to reset)
+    const isTransient = TRANSIENT_ERRORS.some(pattern => err.includes(pattern));
     // Check if this is a genuine 404/410 (page is gone)
     const isGone = GONE_ERRORS.some(pattern => err.includes(pattern));
 
@@ -103,7 +117,7 @@ export async function executeCrawlDoctor(
         action: 'Deactivated (page genuinely gone)',
         result: 'fixed',
       });
-    } else if (isBrowserError || is403) {
+    } else if (isBrowserError || is403 || isTransient) {
       // Reset browser-caused errors back to active
       await supabase
         .from('source_pages')
