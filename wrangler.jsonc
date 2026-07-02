@@ -92,7 +92,10 @@
     "MEDIA_BASE_URL": "https://oemmedia.driveagent.io",
     // Optional: Lightpanda WebSocket URL for headless browser rendering.
     // When not set, falls back to Cloudflare Browser (env.BROWSER binding).
-    "LIGHTPANDA_URL": ""
+    "LIGHTPANDA_URL": "",
+    // Apify actor that fetches bot-blocked brochure PDFs off-Cloudflare
+    // (residential proxy) for the brochure-mirror Workflow.
+    "APIFY_PDF_FETCH_ACTOR_ID": "J2BGYKGzL18sNxusx"
   },
 
   "routes": [
