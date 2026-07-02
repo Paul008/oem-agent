@@ -614,6 +614,10 @@ export async function executePortalAssetHealthCheck(
   console.log('[PortalAssetHealth] Starting portal asset URL health check...');
 
   // Stream candidates in 1000-row pages to keep memory flat.
+  // Stalest-first rotation: with ~18k active assets and a ~1000-subrequest
+  // Worker budget, a single run can never HEAD-check everything. Each run
+  // takes the LIMIT least-recently-checked rows and stamps last_checked_at,
+  // so successive runs rotate through the full set.
   const checks: Array<{ id: string; oem_id: string; url: string; name: string }> = [];
   const PAGE = 1000;
   for (let from = 0; from < LIMIT; from += PAGE) {
@@ -622,7 +626,7 @@ export async function executePortalAssetHealthCheck(
       .from('portal_assets')
       .select('id, oem_id, cdn_url, name')
       .eq('is_active', true)
-      .order('oem_id')
+      .order('last_checked_at', { ascending: true, nullsFirst: true })
       .range(from, to);
     if (error) {
       console.error('[PortalAssetHealth] Query failed:', error.message);
@@ -663,6 +667,21 @@ export async function executePortalAssetHealthCheck(
     }
     if (i % (BATCH * 20) === 0) {
       console.log(`[PortalAssetHealth]   Progress: ${Math.min(i + BATCH, checks.length)}/${checks.length}, ${broken.length} broken so far`);
+    }
+  }
+
+  // Stamp last_checked_at so the stalest-first rotation advances (chunked —
+  // PostgREST filters travel in the query string, so .in() with 800 uuids is too long).
+  const STAMP_CHUNK = 200;
+  for (let i = 0; i < checks.length; i += STAMP_CHUNK) {
+    const ids = checks.slice(i, i + STAMP_CHUNK).map(c => c.id);
+    const { error: stampError } = await supabase
+      .from('portal_assets')
+      .update({ last_checked_at: now.toISOString() })
+      .in('id', ids);
+    if (stampError) {
+      console.warn('[PortalAssetHealth] Failed to stamp last_checked_at:', stampError.message);
+      break;
     }
   }
 

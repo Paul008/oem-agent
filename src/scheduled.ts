@@ -91,8 +91,8 @@ export const CLOUDFLARE_TRIGGERS = [
   {
     id: 'cf-portal-asset-health',
     name: 'Portal Asset Health Check',
-    description: 'Weekly HEAD-check of every portal_assets.cdn_url; marks broken rows inactive (Monday 5:30am AEDT)',
-    schedule: '30 18 * * 1',
+    description: 'Daily HEAD-check of the 800 least-recently-checked portal_assets.cdn_url rows; marks broken rows inactive (5:30am AEDT). Full rotation over ~18k assets takes ~3 weeks.',
+    schedule: '30 18 * * *',
     timezone: 'Australia/Melbourne',
     skill: 'cloudflare-scheduled',
     enabled: true,
@@ -107,6 +107,16 @@ export const CLOUDFLARE_TRIGGERS = [
     skill: 'cloudflare-scheduled',
     enabled: true,
     config: { crawl_type: 'toyota-browser-sync' },
+  },
+  {
+    id: 'cf-oem-data-sync',
+    name: 'Daily Specs, Color + Pricing Sync',
+    description: 'Daily sync of variant specs, colors and pricing for all OEMs — ports the OpenClaw oem-data-sync-daily job (2:30am AEST)',
+    schedule: '30 16 * * *',
+    timezone: 'Australia/Melbourne',
+    skill: 'cloudflare-scheduled',
+    enabled: true,
+    config: { crawl_type: 'oem-data-sync' },
   },
 ] as const satisfies ReadonlyArray<{
   id: string;
@@ -170,11 +180,14 @@ export async function handleScheduled(
           return;
         }
 
-        // Portal asset (DAM) health check — weekly
+        // Portal asset (DAM) health check — daily, stalest-first rotation.
+        // The 800 cap keeps the run inside the Worker's ~1000-subrequest
+        // budget; an uncapped run dies mid-check and the R2 record sticks
+        // at "running" forever.
         if (crawlType === 'portal-asset-health') {
           const { executePortalAssetHealthCheck } = await import('./sync/crawl-doctor');
           const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
-          const result = await executePortalAssetHealthCheck(supabase, env.SLACK_WEBHOOK_URL);
+          const result = await executePortalAssetHealthCheck(supabase, env.SLACK_WEBHOOK_URL, { limit: 800 });
 
           run.status = 'success';
           run.completedAt = new Date().toISOString();
@@ -210,6 +223,42 @@ export async function handleScheduled(
               `Errors: ${result.errors.length}`
             ).catch(() => {});
           }
+          return;
+        }
+
+        // All-OEM specs, colors + pricing sync — same work as the OpenClaw
+        // oem-data-sync-daily job, which lost its scheduler when the gateway
+        // container stopped running.
+        if (crawlType === 'oem-data-sync') {
+          const supabase = createSupabaseClient({ url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+          const errors: string[] = [];
+          const results: Record<string, unknown> = {};
+
+          try {
+            const { executeKiaColorSync } = await import('./sync/kia-colors');
+            results.kia_color_sync = await executeKiaColorSync(supabase);
+          } catch (e) {
+            errors.push(`kia: ${e instanceof Error ? e.message : String(e)}`);
+          }
+
+          try {
+            const { executeSuzukiSync } = await import('./sync/suzuki-sync');
+            results.suzuki_sync = await executeSuzukiSync(supabase);
+          } catch (e) {
+            errors.push(`suzuki: ${e instanceof Error ? e.message : String(e)}`);
+          }
+
+          try {
+            const { executeAllOemSync } = await import('./sync/all-oem-sync');
+            results.all_oem_sync = await executeAllOemSync(supabase);
+          } catch (e) {
+            errors.push(`all-oem: ${e instanceof Error ? e.message : String(e)}`);
+          }
+
+          run.status = errors.length === 3 ? 'failed' : 'success';
+          run.completedAt = new Date().toISOString();
+          run.result = { crawl_type: 'oem-data-sync', ...results, errors };
+          await saveRun(bucket, run);
           return;
         }
 
@@ -259,7 +308,22 @@ export async function handleScheduled(
           return;
         }
 
-        const result = await orchestrator.runScheduledCrawl(crawlType);
+        // Persist progress after every batch so that if the Worker is killed
+        // mid-crawl (subrequest/wall-clock budget), the R2 record shows the
+        // last completed phase instead of sticking at "running" forever.
+        const result = await orchestrator.runScheduledCrawl(crawlType, {
+          onProgress: async (partial) => {
+            run.result = {
+              crawl_type: trigger?.config.crawl_type ?? 'full',
+              phase: partial.phase,
+              completed: partial.completed,
+              total: partial.total,
+              elapsedMs: partial.elapsedMs,
+              oemResults: partial.oemResults,
+            };
+            await saveRun(bucket, run);
+          },
+        });
         console.log(`[${label}] Processed ${result.jobsProcessed} pages, ${result.pagesChanged} changed`);
 
         run.status = 'success';
