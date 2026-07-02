@@ -319,13 +319,31 @@ export function useOemData() {
   }
 
   async function fetchProducts() {
-    const { data, error: err } = await supabase
-      .from('products')
-      .select('id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, price_qualifier, price_raw_string, availability, key_features, specs_json, meta_json, created_at, updated_at, last_seen_at')
-      .order('oem_id, title')
-    if (err)
-      throw err
-    return ((data ?? []) as Product[]).filter(product => product.availability !== 'discontinued')
+    // Paginate: PostgREST caps a single response at 1000 rows and the catalog
+    // is now >1000 products — without paging, the alphabetically-last OEMs
+    // (Volkswagen, etc.) silently vanish from the page. Order with an id
+    // tiebreaker so pages don't overlap or drop rows.
+    const PAGE = 1000
+    const SELECT = 'id, oem_id, model_id, title, subtitle, variant_name, variant_code, body_type, fuel_type, price_amount, price_type, price_qualifier, price_raw_string, availability, key_features, specs_json, meta_json, created_at, updated_at, last_seen_at'
+    const all: Product[] = []
+    let from = 0
+    while (true) {
+      const { data, error: err } = await supabase
+        .from('products')
+        .select(SELECT)
+        .order('oem_id')
+        .order('title')
+        .order('id')
+        .range(from, from + PAGE - 1)
+      if (err)
+        throw err
+      const batch = (data ?? []) as Product[]
+      all.push(...batch)
+      if (batch.length < PAGE)
+        break
+      from += PAGE
+    }
+    return all.filter(product => product.availability !== 'discontinued')
   }
 
   async function fetchProductsForModel(oemId: string, modelSlug: string) {
