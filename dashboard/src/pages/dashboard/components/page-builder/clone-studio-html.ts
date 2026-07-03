@@ -2653,6 +2653,21 @@ ${rendered}
     bar.style.justifyContent = 'center'
     bar.style.gap = '8px'
     bar.style.pointerEvents = 'none'
+    bar.style.opacity = '0'
+    bar.style.transition = 'opacity 120ms ease'
+
+    bar.addEventListener('mouseenter', function () {
+      bar.style.opacity = '1'
+    })
+    bar.addEventListener('mouseleave', function () {
+      bar.style.opacity = '0'
+    })
+    bar.addEventListener('focusin', function () {
+      bar.style.opacity = '1'
+    })
+    bar.addEventListener('focusout', function () {
+      bar.style.opacity = '0'
+    })
 
     if (regionEl.style) {
       var position = window.getComputedStyle ? window.getComputedStyle(regionEl).position : ''

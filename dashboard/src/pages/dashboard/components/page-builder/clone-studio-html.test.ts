@@ -1164,6 +1164,9 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('document.createElement')
     expect(bridgeScript).toContain('\\u2039') // ‹ prev chevron
     expect(bridgeScript).toContain('\\u203a') // › next chevron
+    expect(bridgeScript).toContain('bar.style.opacity = \'0\'')
+    expect(bridgeScript).toContain('bar.addEventListener(\'mouseenter\'')
+    expect(bridgeScript).toContain('bar.addEventListener(\'focusin\'')
     // Every injected node is marked as bridge scaffolding so it never serializes into saved HTML.
     expect(bridgeScript).toContain('setAttribute(\'data-clone-studio-bridge\', \'true\')')
     // Clicks drive switchPanel + clamp index + suppress navigation/propagation.
