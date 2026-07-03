@@ -132,15 +132,21 @@ function normalizePreviewView(value: unknown): PreviewView {
   return raw === 'production' || raw === 'source' || raw === 'compare' || raw === 'standalone' ? raw : 'edit'
 }
 
+function shouldLoadStyleGuideForPreview(view: PreviewView): boolean {
+  return view === 'compare'
+}
+
 onMounted(async () => {
   const slug = pageSlug.value
   if (slug)
     await loadPage(slug)
 })
 
-watch(oemId, async (nextOemId) => {
+watch([oemId, previewView], async ([nextOemId, nextPreviewView]) => {
   styleGuideTokens.value = null
   if (!nextOemId)
+    return
+  if (!shouldLoadStyleGuideForPreview(nextPreviewView))
     return
   try {
     const guide = await fetchStyleGuide(nextOemId)

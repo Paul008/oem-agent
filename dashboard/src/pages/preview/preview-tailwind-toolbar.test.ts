@@ -203,4 +203,14 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('new Blob([html], { type: \'text/html\' })')
     expect(source).toContain('window.open(url, \'_blank\')')
   })
+
+  it('does not call the admin style guide endpoint for production previews', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('function shouldLoadStyleGuideForPreview(view: PreviewView): boolean')
+    expect(source).toContain('return view === \'compare\'')
+    expect(source).toContain('watch([oemId, previewView], async ([nextOemId, nextPreviewView])')
+    expect(source).toContain('if (!shouldLoadStyleGuideForPreview(nextPreviewView))')
+    expect(source).not.toContain('watch(oemId, async (nextOemId)')
+  })
 })
