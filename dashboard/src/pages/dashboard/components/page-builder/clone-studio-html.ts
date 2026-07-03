@@ -4461,7 +4461,9 @@ function stripSourceDocumentImagePlaceholders(html: string, baseHref: string): s
   return String(html ?? '').replace(/<img\b[^>]*>/gi, (tag: string) => {
     const attrs = parseCloneStudioTagAttributes(tag)
     const src = attrs.get('src') ?? ''
-    if (!src || hasRecoverableCloneStudioImageSource(attrs))
+    if (!src)
+      return hasRecoverableCloneStudioImageSource(attrs) ? tag : ''
+    if (hasRecoverableCloneStudioImageSource(attrs))
       return tag
     return isLikelySourceDocumentImageUrl(src, baseHref, comparableBaseHref) ? '' : tag
   })
@@ -4502,7 +4504,9 @@ function stripExternalSvgUseRefs(html: string): string {
 
 function isSourceDocumentImagePlaceholder(image: Element, baseHref: string, comparableBaseHref: string): boolean {
   const src = image.getAttribute('src') ?? ''
-  if (!src || hasRecoverableCloneStudioImageSource(image))
+  if (!src)
+    return !hasRecoverableCloneStudioImageSource(image)
+  if (hasRecoverableCloneStudioImageSource(image))
     return false
 
   return isLikelySourceDocumentImageUrl(src, baseHref, comparableBaseHref)

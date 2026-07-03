@@ -96,7 +96,9 @@ export function parseCliArgs(argv) {
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
 
-    if (arg === '--source-url') {
+    if (arg === '--') {
+      continue;
+    } else if (arg === '--source-url') {
       options.sourceUrl = readNext(argv, index, arg);
       index++;
     } else if (arg === '--preview-url') {

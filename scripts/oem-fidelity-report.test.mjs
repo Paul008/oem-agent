@@ -33,6 +33,7 @@ function capture(target, viewport, largestUrl) {
 describe('parseCliArgs', () => {
   it('builds the production preview URL from a slug', () => {
     const options = parseCliArgs([
+      '--',
       '--source-url',
       'https://www.ford.com.au/showroom/cars/mustang/',
       '--slug',

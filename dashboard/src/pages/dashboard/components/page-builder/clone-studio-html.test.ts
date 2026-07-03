@@ -442,6 +442,26 @@ describe('buildCloneStudioHtml', () => {
     expect(body).toContain('https://oem-agent.adme-dev.workers.dev/media/pages/assets/subaru-au/brz/hero.webp')
   })
 
+  it('removes empty lazy image placeholders that resolve to the source document URL', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <img class="vw-empty-placeholder lazyload" src="" alt="">
+          <img class="vw-real" src="/media/pages/assets/volkswagen-au/amarok/hero.webp" alt="Amarok">
+        </main>
+      `,
+      title: 'Amarok',
+      baseHref: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+    const body = extractInitialBody(html)
+
+    expect(body).not.toContain('vw-empty-placeholder')
+    expect(body).toContain('vw-real')
+    expect(body).toContain('https://oem-agent.adme-dev.workers.dev/media/pages/assets/volkswagen-au/amarok/hero.webp')
+  })
+
   it('removes same-origin model-year document routes when the stored source URL lacks the year segment', () => {
     const html = buildCloneStudioHtml({
       rendered: `
