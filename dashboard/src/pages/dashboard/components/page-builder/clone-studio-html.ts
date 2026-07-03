@@ -43,7 +43,7 @@ const LINK_URL_ATTRIBUTE_NAMES = new Set(['href', 'action', 'formaction', 'cite'
 const MEDIA_URL_ATTRIBUTE_NAMES = new Set(['src', 'poster', 'data', 'xlink:href'])
 const SAFE_HEAD_LINK_REL_NAMES = new Set(['stylesheet', 'preconnect', 'dns-prefetch', 'preload'])
 const SAFE_HEAD_PRELOAD_AS_NAMES = new Set(['style', 'font', 'image'])
-const CLONE_STUDIO_BRIDGE_STYLE_VERSION = '2026-06-05-responsive-text-v3'
+const CLONE_STUDIO_BRIDGE_STYLE_VERSION = '2026-07-03-empty-feature-app-v1'
 
 export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const mediaBase = normalizeCloneStudioMediaBase(options.mediaBase)
@@ -277,6 +277,21 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       opacity: 1 !important;
       visibility: visible !important;
       transform: none !important;
+    }
+
+    /*
+     * Some OEM feature apps reserve a large blank shell when their JavaScript is stripped or fails
+     * to hydrate in a static clone. Collapse only shells that contain no rendered media, controls,
+     * or semantic interactive content so real galleries/configurators are preserved.
+     */
+    .featureAppSection:has([class*="CmsFeatureAppLoader"]):not(:has(img, picture, video, iframe, canvas, svg, a, button, [role="button"], [role="img"], [role="tab"], [role="tabpanel"], input, select, textarea)),
+    [class*="CmsFeatureAppLoader"]:not(:has(img, picture, video, iframe, canvas, svg, a, button, [role="button"], [role="img"], [role="tab"], [role="tabpanel"], input, select, textarea)) {
+      display: none !important;
+      min-height: 0 !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
     }
 
     /*

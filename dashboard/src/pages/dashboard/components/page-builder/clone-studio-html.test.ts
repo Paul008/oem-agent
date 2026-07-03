@@ -226,6 +226,21 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/img,[\s\S]*picture[\s\S]*max-width:\s*100%\s*!important/i)
   })
 
+  it('collapses empty OEM feature-app loader shells without hiding populated modules', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><section class="featureAppSection"><div class="CmsFeatureAppLoader"></div></section></main>',
+      title: 'Amarok',
+      baseHref: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      selectedRegionId: null,
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    expect(head).toContain('.featureAppSection:has([class*="CmsFeatureAppLoader"])')
+    expect(head).toContain('[class*="CmsFeatureAppLoader"]:not(:has(img, picture, video, iframe, canvas, svg, a, button')
+    expect(head).toMatch(/CmsFeatureAppLoader[\s\S]*display:\s*none\s*!important/i)
+    expect(head).toMatch(/CmsFeatureAppLoader[\s\S]*height:\s*0\s*!important/i)
+  })
+
   it('stacks AEM split-grid blocks below desktop and restores mobile data-config spacing', () => {
     const html = buildCloneStudioHtml({
       rendered: `
@@ -574,7 +589,7 @@ describe('buildCloneStudioHtml', () => {
     })
     const head = extractDocumentHead(html)
 
-    expect(head).toContain('data-clone-studio-bridge-style="2026-06-05-responsive-text-v3"')
+    expect(head).toContain('data-clone-studio-bridge-style="2026-07-03-empty-feature-app-v1"')
     expect(head).toContain('p[class*="heading3-medium"]')
     expect(head).toContain('.oem-style')
     expect(head).not.toContain('.stale-clone-bridge')
