@@ -35,6 +35,7 @@ import mcpRoutes from './mcp';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
 import { isProductionArtifactPath, shouldAttachSandboxForPath } from './sandbox-paths';
+import { rewriteOpenClawNestedAssetRequest } from './openclaw-url-rewrite';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
 
@@ -607,15 +608,18 @@ app.all('*', async (c) => {
 
   console.log('[HTTP] Proxying:', url.pathname + url.search);
 
+  const proxyRequest = rewriteOpenClawNestedAssetRequest(request);
+  const proxyUrl = new URL(proxyRequest.url);
+
   // Only forward the gateway token for requests the Worker has already
   // authenticated. Anonymous catch-all traffic should use OpenClaw's own
   // token/session flow instead.
-  let httpRequest = request;
+  let httpRequest = proxyRequest;
   const gatewayToken = c.env.MOLTBOT_GATEWAY_TOKEN;
-  if (gatewayToken && shouldInjectGatewayToken(c, url)) {
-    const tokenUrl = new URL(url.toString());
+  if (gatewayToken && shouldInjectGatewayToken(c, proxyUrl)) {
+    const tokenUrl = new URL(proxyUrl.toString());
     tokenUrl.searchParams.set('token', gatewayToken);
-    httpRequest = new Request(tokenUrl.toString(), request);
+    httpRequest = new Request(tokenUrl.toString(), proxyRequest);
   }
 
   const httpResponse = await sandbox.containerFetch(httpRequest, MOLTBOT_PORT);

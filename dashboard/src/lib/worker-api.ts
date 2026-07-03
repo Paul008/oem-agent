@@ -460,13 +460,56 @@ export async function deleteSubpage(oemId: string, modelSlug: string, subpageSlu
   })
 }
 
-export async function adaptivePipeline(oemId: string, modelSlug: string, sourceUrl?: string, modelOverride?: { provider: string, model: string }) {
+export interface AdaptivePipelineOptions {
+  sourceUrl?: string
+  modelOverride?: { provider: string, model: string }
+  forceClone?: boolean
+}
+
+export type CompileRunStatusValue
+  = | 'queued'
+    | 'capturing'
+    | 'segmenting'
+    | 'compiling'
+    | 'qa'
+    | 'publishing'
+    | 'succeeded'
+    | 'failed'
+
+export interface CompileRunStatus {
+  runId: string
+  status: CompileRunStatusValue
+  stageLabel: string
+  startedAt: string | null
+  updatedAt: string | null
+  completedAt: string | null
+  error: string | null
+  warnings: string[]
+  artifacts: Array<{
+    path: string
+    contentType?: string
+    bytes?: number
+    sha256?: string
+  }>
+}
+
+export async function adaptivePipeline(
+  oemId: string,
+  modelSlug: string,
+  sourceUrlOrOptions?: string | AdaptivePipelineOptions,
+  modelOverride?: { provider: string, model: string },
+) {
   assertModelPageWriteAllowed(oemId)
+  const options: AdaptivePipelineOptions = typeof sourceUrlOrOptions === 'string'
+    ? { sourceUrl: sourceUrlOrOptions, modelOverride }
+    : (sourceUrlOrOptions ?? {})
   const bodyData: Record<string, unknown> = {}
-  if (sourceUrl)
-    bodyData.source_url = sourceUrl
-  if (modelOverride)
-    bodyData.modelOverride = modelOverride
+  if (options.sourceUrl)
+    bodyData.source_url = options.sourceUrl
+  if (options.modelOverride)
+    bodyData.modelOverride = options.modelOverride
+  if (options.forceClone)
+    bodyData.force_clone = true
   const hasBody = Object.keys(bodyData).length > 0
   return workerFetch(`/api/v1/oem-agent/admin/adaptive-pipeline/${oemId}/${modelSlug}`, {
     method: 'POST',
@@ -477,6 +520,10 @@ export async function adaptivePipeline(oemId: string, modelSlug: string, sourceU
         }
       : {}),
   })
+}
+
+export async function fetchCompileRunStatus(oemId: string, modelSlug: string): Promise<CompileRunStatus> {
+  return workerFetch(`/api/v1/oem-agent/admin/compile-status/${oemId}/${modelSlug}`)
 }
 
 export async function uploadMedia(oemId: string, modelSlug: string, file: File) {

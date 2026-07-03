@@ -260,6 +260,64 @@ describe('oem-agent production HTML route', () => {
   });
 });
 
+describe('oem-agent compile status route', () => {
+  it('returns a queued placeholder when no compile run has been recorded', async () => {
+    const bucket = {
+      async get(key: string) {
+        expect(key).toBe('pages/compile-runs/volkswagen-au/amarok/latest.json');
+        return null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/admin/compile-status/volkswagen-au/amarok', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      runId: 'volkswagen-au:amarok:none',
+      status: 'queued',
+      stageLabel: 'No compile run recorded',
+      error: null,
+      warnings: [],
+      artifacts: [],
+    });
+  });
+
+  it('returns the latest compile run status artifact from R2', async () => {
+    const status = {
+      runId: 'volkswagen-au:amarok:1783000000000',
+      status: 'capturing',
+      stageLabel: 'Capturing source page',
+      startedAt: '2026-07-03T00:00:00.000Z',
+      updatedAt: '2026-07-03T00:00:01.000Z',
+      completedAt: null,
+      error: null,
+      warnings: [],
+      artifacts: [],
+    };
+    const bucket = {
+      async get(key: string) {
+        expect(key).toBe('pages/compile-runs/volkswagen-au/amarok/latest.json');
+        return jsonObject(status);
+      },
+    };
+
+    const response = await oemAgentApp.request('/admin/compile-status/volkswagen-au/amarok', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(status);
+  });
+});
+
 describe('oem-agent Tailwind recipe compiler route', () => {
   const env = {
     MOLTBOT_BUCKET: {},

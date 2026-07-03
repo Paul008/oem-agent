@@ -137,4 +137,20 @@ describe('model-pages dashboard integration', () => {
     expect(source).toContain('Clone-only')
     expect(source).toContain('Loaded Details')
   })
+
+  it('surfaces the adaptive pipeline as the full preview action', () => {
+    const source = readFileSync(new URL('./model-pages.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('Build Full Preview')
+    expect(source).toContain('Rebuild Full Preview')
+    expect(source).toContain('Run full preview pipeline (clone, structure, refresh preview)')
+    expect(source).toContain('@click.stop="triggerGenerate(model, $event)"')
+    expect(source).toContain('triggerGenerateAll(group.oemId, $event)')
+    expect(source).toContain('Rebuilding full preview...')
+    expect(source).toContain('fetchCompileRunStatus')
+    expect(source).toContain('startCompileStatusPolling(model)')
+    expect(source).toContain('setCompileStatusMessage(model, status.stageLabel)')
+    expect(source).toContain('Full preview rebuilt')
+    expect(source).toContain('result?.success === false')
+  })
 })

@@ -4,8 +4,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { scopeOemSection } from '@/lib/scope-oem-section'
 
-import type { CloneFieldPatchPayload } from './CloneRegionEditor.vue'
 import type { CloneRegion, PageMode } from '../../page-builder/page-modes'
+import type { CloneFieldPatchPayload } from './CloneRegionEditor.vue'
 import type { RegionAction, RegionActionId } from './region-actions'
 
 import { getCloneViewport } from '../../page-builder/page-modes'

@@ -40,6 +40,14 @@ export interface CloneDecision {
   reason: string;
 }
 
+export interface CloneDecisionOptions {
+  force?: boolean;
+}
+
+export interface AdaptivePipelineRunOptions {
+  forceClone?: boolean;
+}
+
 function normalizeSourceUrl(url: string | null | undefined): string {
   const trimmed = url?.trim();
   if (!trimmed) return '';
@@ -56,7 +64,12 @@ function normalizeSourceUrl(url: string | null | undefined): string {
 export function getCloneDecision(
   existingPage: Pick<import('../oem/types').VehicleModelPage, 'source_url'> | null | undefined,
   requestedSourceUrl: string,
+  options: CloneDecisionOptions = {},
 ): CloneDecision {
+  if (options.force) {
+    return { shouldClone: true, reason: 'clone refresh requested' };
+  }
+
   if (!existingPage) {
     return { shouldClone: true, reason: 'clone missing' };
   }
@@ -124,7 +137,13 @@ export class AdaptivePipeline {
   /**
    * Run the full 7-step adaptive pipeline for a model page.
    */
-  async run(oemId: OemId, modelSlug: string, sourceUrl: string, modelName?: string): Promise<PipelineResult> {
+  async run(
+    oemId: OemId,
+    modelSlug: string,
+    sourceUrl: string,
+    modelName?: string,
+    options: AdaptivePipelineRunOptions = {},
+  ): Promise<PipelineResult> {
     const pipelineStart = Date.now();
     const steps: PipelineStepResult[] = [];
     let totalTokens = 0;
@@ -181,7 +200,7 @@ export class AdaptivePipeline {
           }
         }
 
-        const cloneDecision = getCloneDecision(existingPage, sourceUrl);
+        const cloneDecision = getCloneDecision(existingPage, sourceUrl, { force: options.forceClone });
 
         if (!cloneDecision.shouldClone) {
           console.log(`[Pipeline] Clone exists at ${latestKey}, skipping clone step`);

@@ -29,6 +29,7 @@ import { scopeProductionCloneHtml, type ScopeProductionCloneDiagnostics } from '
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
 import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts';
+import type { CompileRunStatus } from '../design/compiler-contracts';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
@@ -5209,6 +5210,75 @@ app.get('/extraction-runs', async (c) => {
 // Adaptive Pipeline
 // ============================================================================
 
+function compileRunStatusKey(oemId: string, modelSlug: string): string {
+  return `pages/compile-runs/${oemId}/${modelSlug}/latest.json`;
+}
+
+function makeCompileRunStatus(
+  oemId: string,
+  modelSlug: string,
+  status: CompileRunStatus['status'],
+  overrides: Partial<CompileRunStatus> = {},
+): CompileRunStatus {
+  const now = new Date().toISOString();
+  const stageLabels: Record<CompileRunStatus['status'], string> = {
+    queued: 'Queued',
+    capturing: 'Capturing source page',
+    segmenting: 'Detecting sections',
+    compiling: 'Compiling section artifacts',
+    qa: 'Running visual QA',
+    publishing: 'Publishing preview artifact',
+    succeeded: 'Preview compile complete',
+    failed: 'Preview compile failed',
+  };
+
+  return {
+    runId: `${oemId}:${modelSlug}:${Date.now()}`,
+    status,
+    stageLabel: stageLabels[status],
+    startedAt: now,
+    updatedAt: now,
+    completedAt: status === 'succeeded' || status === 'failed' ? now : null,
+    error: null,
+    warnings: [],
+    artifacts: [],
+    ...overrides,
+  };
+}
+
+async function putCompileRunStatus(
+  bucket: R2Bucket,
+  oemId: string,
+  modelSlug: string,
+  status: CompileRunStatus,
+): Promise<void> {
+  await bucket.put(compileRunStatusKey(oemId, modelSlug), JSON.stringify(status, null, 2), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8' },
+  });
+}
+
+app.get('/admin/compile-status/:oemId/:modelSlug', async (c) => {
+  const oemId = c.req.param('oemId');
+  const modelSlug = c.req.param('modelSlug');
+  const object = await c.env.MOLTBOT_BUCKET.get(compileRunStatusKey(oemId, modelSlug));
+
+  if (!object) {
+    return c.json({
+      runId: `${oemId}:${modelSlug}:none`,
+      status: 'queued',
+      stageLabel: 'No compile run recorded',
+      startedAt: null,
+      updatedAt: null,
+      completedAt: null,
+      error: null,
+      warnings: [],
+      artifacts: [],
+    });
+  }
+
+  return c.json(await object.json());
+});
+
 app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
@@ -5222,10 +5292,12 @@ app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
   // Accept optional source_url override and modelOverride in body
   let bodySourceUrl: string | undefined;
   let modelOverride: { provider?: string; model?: string } | undefined;
+  let forceClone = false;
   try {
     const body = await c.req.json();
     bodySourceUrl = body?.source_url;
     modelOverride = body?.modelOverride;
+    forceClone = body?.force_clone === true || body?.forceClone === true;
   } catch { /* no body is fine */ }
 
   // Look up source URL from vehicle_models
@@ -5273,8 +5345,38 @@ app.post('/admin/adaptive-pipeline/:oemId/:modelSlug', async (c) => {
     googleApiKey: c.env.GOOGLE_API_KEY,
   });
 
-  const result = await pipeline.run(oemId, modelSlug, sourceUrl, model?.name);
-  return c.json(result);
+  const initialStatus = makeCompileRunStatus(oemId, modelSlug, 'capturing');
+  await putCompileRunStatus(c.env.MOLTBOT_BUCKET, oemId, modelSlug, initialStatus);
+
+  try {
+    const result = await pipeline.run(oemId, modelSlug, sourceUrl, model?.name, { forceClone });
+    const finalStatus = makeCompileRunStatus(
+      oemId,
+      modelSlug,
+      result.success ? 'succeeded' : 'failed',
+      {
+        runId: initialStatus.runId,
+        startedAt: initialStatus.startedAt,
+        error: result.success ? null : result.error || 'Adaptive pipeline failed',
+        warnings: result.error ? [result.error] : [],
+        artifacts: result.success
+          ? [{ path: `pages/definitions/${oemId}/${modelSlug}/latest.json`, contentType: 'application/json' }]
+          : [],
+      },
+    );
+    await putCompileRunStatus(c.env.MOLTBOT_BUCKET, oemId, modelSlug, finalStatus);
+    return c.json({ ...result, compile_run: finalStatus });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const failedStatus = makeCompileRunStatus(oemId, modelSlug, 'failed', {
+      runId: initialStatus.runId,
+      startedAt: initialStatus.startedAt,
+      error: message,
+      warnings: [message],
+    });
+    await putCompileRunStatus(c.env.MOLTBOT_BUCKET, oemId, modelSlug, failedStatus);
+    throw error;
+  }
 });
 
 // POST /admin/create-custom-page/:oemId/:slug — Create a blank custom page in R2

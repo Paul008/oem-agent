@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Clock, DollarSign, ExternalLink, Factory, FilePlus2, FileText, ImageOff, Layers, LayoutGrid, List, Loader2, Play, Plus, RefreshCw, Search, Square, Trash2, Zap } from 'lucide-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { VehicleModel } from '@/composables/use-oem-data'
@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/confirm-dialog.vue'
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected, OEM_IDS } from '@/lib/oem-ids'
-import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
+import { adaptivePipeline, createCustomPage, createSubpage, deleteCustomPage, deleteSubpage, fetchCompileRunStatus, fetchGeneratedPage, fetchGeneratedPages } from '@/lib/worker-api'
 
 import type { GeneratedPageStatus } from './model-pages-status'
 
@@ -76,6 +76,8 @@ const pageDetailErrors = ref<Record<string, string>>({})
 // Inline generation tracking
 const generating = ref(new Set<string>())
 const generateErrors = ref(new Map<string, string>())
+const generateMessages = ref(new Map<string, string>())
+const compileStatusPollers = new Map<string, ReturnType<typeof setInterval>>()
 
 // Custom page creation state
 const customPageName = ref('')
@@ -513,6 +515,51 @@ function generationProtectedMessage(oemId: string): string {
   return getModelPageWriteProtectedMessage(oemName(oemId))
 }
 
+function fullPreviewActionLabel(model: VehicleModel): string {
+  return isModelPageCreated(model) ? 'Rebuild Full Preview' : 'Build Full Preview'
+}
+
+function fullPreviewActionTitle(oemId: string): string {
+  return isGenerationProtected(oemId)
+    ? generationProtectedMessage(oemId)
+    : 'Run full preview pipeline (clone, structure, refresh preview)'
+}
+
+function setCompileStatusMessage(model: VehicleModel, stageLabel: string | null | undefined) {
+  const label = stageLabel?.trim()
+  if (!label)
+    return
+  generateMessages.value.set(modelKey(model), label)
+}
+
+function stopCompileStatusPolling(key: string) {
+  const poller = compileStatusPollers.get(key)
+  if (!poller)
+    return
+  clearInterval(poller)
+  compileStatusPollers.delete(key)
+}
+
+function startCompileStatusPolling(model: VehicleModel) {
+  const key = modelKey(model)
+  stopCompileStatusPolling(key)
+
+  const poll = async () => {
+    try {
+      const status = await fetchCompileRunStatus(model.oem_id, model.slug)
+      setCompileStatusMessage(model, status.stageLabel)
+      if (status.status === 'succeeded' || status.status === 'failed')
+        stopCompileStatusPolling(key)
+    }
+    catch {
+      // Status polling is supporting UI only; the pipeline request owns failure handling.
+    }
+  }
+
+  void poll()
+  compileStatusPollers.set(key, setInterval(poll, 1500))
+}
+
 // Inline adaptive pipeline trigger
 async function triggerGenerate(model: VehicleModel, event: Event) {
   event.stopPropagation()
@@ -526,20 +573,27 @@ async function triggerGenerate(model: VehicleModel, event: Event) {
 
   generating.value.add(key)
   generateErrors.value.delete(key)
+  generateMessages.value.set(key, isModelPageCreated(model) ? 'Rebuilding full preview...' : 'Building full preview...')
+  startCompileStatusPolling(model)
 
   try {
-    await adaptivePipeline(model.oem_id, model.slug)
+    const result = await adaptivePipeline(model.oem_id, model.slug, { forceClone: true }) as { success?: boolean, error?: string, compile_run?: { stageLabel?: string } }
+    if (result?.success === false)
+      throw new Error(result.error || 'Full preview pipeline failed')
     // Add to allSlugs so UI updates immediately
     if (!isModelPageCreated(model)) {
       allSlugs.value = [...allSlugs.value, { oem_id: model.oem_id, slug: model.slug }]
     }
     // Fetch the new page data
     await prefetchPages([{ oem_id: model.oem_id, slug: model.slug }])
+    generateMessages.value.set(key, result.compile_run?.stageLabel || 'Full preview rebuilt')
   }
   catch (err: any) {
     generateErrors.value.set(key, err?.message || 'Generation failed')
+    generateMessages.value.set(key, 'Full preview failed')
   }
   finally {
+    stopCompileStatusPolling(key)
     generating.value.delete(key)
   }
 }
@@ -550,6 +604,10 @@ function isGenerating(model: VehicleModel): boolean {
 
 function getGenerateError(model: VehicleModel): string | null {
   return generateErrors.value.get(modelKey(model)) ?? null
+}
+
+function getGenerateMessage(model: VehicleModel): string | null {
+  return generateMessages.value.get(modelKey(model)) ?? null
 }
 
 // Bulk generation: generate all pending models for an OEM
@@ -588,22 +646,29 @@ async function triggerGenerateAll(oemId: string, event: Event) {
     const key = modelKey(model)
     generating.value.add(key)
     generateErrors.value.delete(key)
+    generateMessages.value.set(key, 'Building full preview...')
+    startCompileStatusPolling(model)
 
     try {
-      await adaptivePipeline(model.oem_id, model.slug)
+      const result = await adaptivePipeline(model.oem_id, model.slug, { forceClone: true }) as { success?: boolean, error?: string, compile_run?: { stageLabel?: string } }
+      if (result?.success === false)
+        throw new Error(result.error || 'Full preview pipeline failed')
       if (!isModelPageCreated(model)) {
         allSlugs.value = [...allSlugs.value, { oem_id: model.oem_id, slug: model.slug }]
       }
       await prefetchPages([{ oem_id: model.oem_id, slug: model.slug }])
+      generateMessages.value.set(key, result.compile_run?.stageLabel || 'Full preview built')
     }
     catch (err: any) {
       generateErrors.value.set(key, err?.message || 'Generation failed')
+      generateMessages.value.set(key, 'Full preview failed')
       bulkProgress.value[oemId] = {
         ...bulkProgress.value[oemId],
         errors: bulkProgress.value[oemId].errors + 1,
       }
     }
     finally {
+      stopCompileStatusPolling(key)
       generating.value.delete(key)
       bulkProgress.value[oemId] = {
         ...bulkProgress.value[oemId],
@@ -615,6 +680,12 @@ async function triggerGenerateAll(oemId: string, event: Event) {
   bulkProgress.value[oemId] = { ...bulkProgress.value[oemId], running: false }
   delete bulkAbort.value[oemId]
 }
+
+onUnmounted(() => {
+  for (const key of compileStatusPollers.keys()) {
+    stopCompileStatusPolling(key)
+  }
+})
 
 function stopBulkGenerate(oemId: string, event: Event) {
   event.stopPropagation()
@@ -1172,11 +1243,11 @@ async function handleRefresh() {
                 size="sm"
                 variant="outline"
                 class="h-7 text-xs px-2.5 shrink-0"
-                title="Generate all pending model pages for this OEM"
+                title="Run full preview pipeline for all pending model pages in this OEM"
                 @click="triggerGenerateAll(group.oemId, $event)"
               >
                 <Zap class="size-3 mr-1" />
-                Generate All
+                Build All
               </UiButton>
             </div>
 
@@ -1246,9 +1317,29 @@ async function handleRefresh() {
                   <span v-if="getGenerateError(model)" class="text-[10px] text-red-500 max-w-[200px] truncate shrink-0" :title="getGenerateError(model)!">
                     {{ getGenerateError(model) }}
                   </span>
+                  <span
+                    v-else-if="getGenerateMessage(model)"
+                    class="text-[10px] font-medium max-w-[180px] truncate shrink-0"
+                    :class="isGenerating(model) ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'"
+                    :title="getGenerateMessage(model)!"
+                  >
+                    {{ getGenerateMessage(model) }}
+                  </span>
 
                   <!-- Page info for created pages -->
                   <template v-if="isModelPageCreated(model)">
+                    <UiButton
+                      size="sm"
+                      variant="outline"
+                      class="h-7 text-xs px-2.5 shrink-0"
+                      :title="fullPreviewActionTitle(model.oem_id)"
+                      :disabled="isGenerationProtected(model.oem_id) || isGenerating(model)"
+                      @click.stop="triggerGenerate(model, $event)"
+                    >
+                      <Loader2 v-if="isGenerating(model)" class="size-3 mr-1 animate-spin" />
+                      <Zap v-else class="size-3 mr-1" />
+                      {{ isGenerating(model) ? 'Building...' : fullPreviewActionLabel(model) }}
+                    </UiButton>
                     <!-- Section count -->
                     <span v-if="sectionCount(model)" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
                       <Layers class="size-3" />
@@ -1278,13 +1369,13 @@ async function handleRefresh() {
                       size="sm"
                       variant="outline"
                       class="h-7 text-xs px-2.5 shrink-0"
-                      :title="isGenerationProtected(model.oem_id) ? generationProtectedMessage(model.oem_id) : 'Run adaptive pipeline (Clone + Structure + Generate)'"
+                      :title="fullPreviewActionTitle(model.oem_id)"
                       :disabled="isGenerationProtected(model.oem_id)"
-                      @click="triggerGenerate(model, $event)"
+                      @click.stop="triggerGenerate(model, $event)"
                     >
                       <AlertCircle v-if="isGenerationProtected(model.oem_id)" class="size-3 mr-1" />
                       <Play v-else class="size-3 mr-1" />
-                      {{ isGenerationProtected(model.oem_id) ? 'Protected' : 'Generate' }}
+                      {{ isGenerationProtected(model.oem_id) ? 'Protected' : fullPreviewActionLabel(model) }}
                     </UiButton>
                   </template>
 

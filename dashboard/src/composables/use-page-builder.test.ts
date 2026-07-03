@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { fetchGeneratedPage, fetchRecipes } from '@/lib/worker-api'
+import { adaptivePipeline, fetchGeneratedPage, fetchRecipes } from '@/lib/worker-api'
 
 import { normalizeStoredMediaUrls, usePageBuilder } from './use-page-builder'
 
@@ -57,6 +57,27 @@ describe('usePageBuilder media URL resolution', () => {
     expect(builder.modelSlug.value).toBe('arkana')
     expect(fetchGeneratedPage).toHaveBeenCalledWith('renault-au-arkana', { includeRendered: true, includeModes: true })
     expect(fetchRecipes).toHaveBeenCalledWith('renault-au')
+  })
+
+  it('forces a fresh clone when running the adaptive pipeline from the page builder', async () => {
+    vi.mocked(fetchGeneratedPage).mockResolvedValue({
+      name: 'Amarok',
+      header: { slides: [] },
+      content: { sections: [] },
+    })
+    vi.mocked(adaptivePipeline).mockResolvedValue({ success: true })
+
+    const builder = usePageBuilder()
+
+    await builder.loadPage('volkswagen-au-amarok')
+    builder.sourceUrlOverride.value = 'https://www.volkswagen.com.au/en/models/amarok.html'
+    await builder.handleAdaptivePipeline({ provider: 'google_gemini', model: 'gemini-2.5-pro' })
+
+    expect(adaptivePipeline).toHaveBeenCalledWith('volkswagen-au', 'amarok', {
+      sourceUrl: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      modelOverride: { provider: 'google_gemini', model: 'gemini-2.5-pro' },
+      forceClone: true,
+    })
   })
 
   it('exposes clone-first mode state while keeping structured sections available', () => {

@@ -7,6 +7,7 @@ import {
   clonePage,
   compileTailwindRecipeArtifact,
   createSubpage,
+  fetchCompileRunStatus,
   fetchGeneratedPage,
   fetchGeneratedPages,
   importLegacyPage,
@@ -50,6 +51,81 @@ describe('worker-api clonePage', () => {
     expect(options?.body).toBe(JSON.stringify({
       source_url: 'https://www.ford.com.au/showroom/performance/mustang/',
     }))
+  })
+})
+
+describe('worker-api adaptivePipeline', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ success: true }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  })
+
+  it('serializes force clone refresh requests for full preview rebuilds', async () => {
+    await adaptivePipeline('volkswagen-au', 'amarok', { forceClone: true })
+
+    const fetchMock = vi.mocked(fetch)
+    const [, options] = fetchMock.mock.calls[0]
+
+    expect(options?.method).toBe('POST')
+    expect(options?.body).toBe(JSON.stringify({ force_clone: true }))
+  })
+
+  it('keeps the legacy source URL and model override signature compatible', async () => {
+    await adaptivePipeline(
+      'ford-au',
+      'mustang',
+      'https://www.ford.com.au/showroom/performance/mustang/',
+      { provider: 'google_gemini', model: 'gemini-2.5-pro' },
+    )
+
+    const fetchMock = vi.mocked(fetch)
+    const [, options] = fetchMock.mock.calls[0]
+
+    expect(options?.body).toBe(JSON.stringify({
+      source_url: 'https://www.ford.com.au/showroom/performance/mustang/',
+      modelOverride: { provider: 'google_gemini', model: 'gemini-2.5-pro' },
+    }))
+  })
+})
+
+describe('worker-api fetchCompileRunStatus', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({
+          runId: 'volkswagen-au:amarok:1',
+          status: 'capturing',
+          stageLabel: 'Capturing source page',
+          startedAt: '2026-07-03T00:00:00.000Z',
+          updatedAt: '2026-07-03T00:00:01.000Z',
+          completedAt: null,
+          error: null,
+          warnings: [],
+          artifacts: [],
+        }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  })
+
+  it('reads the compile run status for a model page', async () => {
+    const status = await fetchCompileRunStatus('volkswagen-au', 'amarok')
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/admin/compile-status/volkswagen-au/amarok')
+    expect(status).toMatchObject({
+      runId: 'volkswagen-au:amarok:1',
+      status: 'capturing',
+      stageLabel: 'Capturing source page',
+    })
   })
 })
 

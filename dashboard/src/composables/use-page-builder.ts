@@ -746,7 +746,11 @@ export function usePageBuilder() {
     pipelineResult.value = null
     try {
       const overrideUrl = sourceUrlOverride.value?.trim() || undefined
-      const result = await apiAdaptivePipeline(oemId.value, modelSlug.value, overrideUrl, modelOverride)
+      const result = await apiAdaptivePipeline(oemId.value, modelSlug.value, {
+        sourceUrl: overrideUrl,
+        modelOverride,
+        forceClone: true,
+      })
       pipelineResult.value = result
       await refreshPage()
     }

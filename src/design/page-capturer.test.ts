@@ -15,12 +15,14 @@ import {
   CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
   CAPTURE_STATIC_CLONE_SAFETY_CSS,
   CAPTURE_STATIC_MEDIA_FRAME_CSS,
+  collectCaptureHeadPartsFromHtml,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   PageCapturer,
   prioritizeCaptureImageUrls,
   pseudoElementInlineStyleForCapture,
+  shouldPreferInitialDocumentCapture,
   sweepCaptureScrollForCapture,
   waitForCaptureDomQuietForCapture,
   waitForCaptureFontsForCapture,
@@ -774,6 +776,19 @@ describe('PageCapturer stylesheet link attribute wiring', () => {
     expect(referrerPolicyAttr).toBeGreaterThan(integrityAttr)
     expect(styleSheetFallback).toBeGreaterThan(referrerPolicyAttr)
   })
+
+  it('collects inline head styles before document.styleSheets fallback', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const phaseC = source.indexOf('// ====== Phase C: Collect external stylesheets ======')
+    const inlineStyleHelper = source.indexOf('function inlineStyleTag(style: HTMLStyleElement): string | null', phaseC)
+    const styleQuery = source.indexOf('document.querySelectorAll(\'head style\')', phaseC)
+    const styleSheetFallback = source.indexOf('for (const sheet of document.styleSheets)', phaseC)
+
+    expect(phaseC).toBeGreaterThan(-1)
+    expect(inlineStyleHelper).toBeGreaterThan(phaseC)
+    expect(styleQuery).toBeGreaterThan(inlineStyleHelper)
+    expect(styleSheetFallback).toBeGreaterThan(styleQuery)
+  })
 })
 
 describe('PageCapturer media downloader', () => {
@@ -1446,6 +1461,107 @@ describe('buildDomCaptureFromHtml', () => {
     expect(result.stylesheetLinks).toContain('<link rel="stylesheet" href="https://www.toyota.com.au/assets/desktop.css?rev=1" media="screen and (min-width: 1024px)" crossorigin="anonymous" integrity="sha384-test" referrerpolicy="no-referrer">')
     expect(result.stylesheetLinks.join('\n')).not.toContain('onload=')
     expect(result.stylesheetLinks.join('\n')).not.toContain('data-track')
+  })
+
+  it('preserves safe inline head styles in external captures', () => {
+    const result = buildDomCaptureFromHtml({
+      html: `
+        <!doctype html>
+        <html>
+          <head>
+            <title>Amarok</title>
+            <style>
+              @font-face {
+                font-family: 'vw-head';
+                src: url('/fonts/vwhead.woff2') format('woff2');
+              }
+            </style>
+            <style data-styled="true" data-styled-version="5.3.11">
+              .gxuGQa { color: #001e50; margin: 0 0 24px; }
+              .lbFChn { background-image: url('/content/dam/amarok.jpg'); }
+            </style>
+            <style>
+              @import url("https://evil.example.test/drop.css");
+              .bad { width: expression(alert(1)); background: url(javascript:alert(2)); }
+              .safe { color: red; }
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>Amarok</h1>
+              <p>${'Tough feels better. '.repeat(120)}</p>
+            </main>
+          </body>
+        </html>
+      `,
+    }, 'https://www.volkswagen.com.au/en/models/amarok.html')
+
+    if ('bot_blocked' in result)
+      throw new Error('Expected external capture to succeed')
+
+    const headParts = result.stylesheetLinks.join('\n')
+
+    expect(headParts).toContain("<style>@font-face")
+    expect(headParts).toContain("font-family: 'vw-head'")
+    expect(headParts).toContain('url("https://www.volkswagen.com.au/fonts/vwhead.woff2")')
+    expect(headParts).toContain('<style data-styled="true" data-styled-version="5.3.11">')
+    expect(headParts).toContain('.gxuGQa { color: #001e50; margin: 0 0 24px; }')
+    expect(headParts).toContain('url("https://www.volkswagen.com.au/content/dam/amarok.jpg")')
+    expect(headParts).toContain('.safe { color: red; }')
+    expect(headParts).not.toContain('@import')
+    expect(headParts).not.toContain('expression(')
+    expect(headParts).not.toContain('javascript:')
+  })
+
+  it('collects Volkswagen SSR styled-components CSS from initial HTML', () => {
+    const headParts = collectCaptureHeadPartsFromHtml(`
+      <!doctype html>
+      <html>
+        <head>
+          <style data-styled="true" data-styled-version="5.3.11">
+            .kuRQyR{margin:0 0 var(--size-dynamic0130);}
+            .sc-feUZmu{color:#001e50;}
+          </style>
+          <style>
+            @font-face { font-family: 'vw-head'; src: url('/fonts/vwhead.woff2') format('woff2'); }
+          </style>
+        </head>
+        <body><main><h1>Amarok</h1></main></body>
+      </html>
+    `, 'https://www.volkswagen.com.au/en/models/amarok.html')
+
+    const serialized = headParts.join('\n')
+    expect(serialized).toContain('<style data-styled="true" data-styled-version="5.3.11">')
+    expect(serialized).toContain('.kuRQyR{margin:0 0 var(--size-dynamic0130);}')
+    expect(serialized).toContain('.sc-feUZmu{color:#001e50;}')
+    expect(serialized).toContain('url("https://www.volkswagen.com.au/fonts/vwhead.woff2")')
+  })
+
+  it('prefers initial SSR capture when styled-components CSS matches it better than the hydrated DOM', () => {
+    const styledCss = `<style data-styled="true">${Array.from({ length: 24 }, (_, index) => `.ssr-${index}{color:#001e50;}`).join('')}</style>`
+    const initialHtml = Array.from({ length: 24 }, (_, index) => `<div class="ssr-${index}">SSR ${index}</div>`).join('')
+    const hydratedHtml = Array.from({ length: 24 }, (_, index) => `<div class="hydrated-${index}">Hydrated ${index}</div>`).join('')
+
+    expect(shouldPreferInitialDocumentCapture(
+      {
+        html: hydratedHtml,
+        stylesheetLinks: [styledCss],
+        imageUrls: [],
+        heroUrl: '',
+        title: 'Amarok',
+        elementCount: 24,
+        viewport: { width: 1440, height: 1080 },
+      },
+      {
+        html: initialHtml,
+        stylesheetLinks: [styledCss],
+        imageUrls: [],
+        heroUrl: '',
+        title: 'Amarok',
+        elementCount: 24,
+        viewport: { width: 1440, height: 1080 },
+      },
+    )).toBe(true)
   })
 
   it('rejects non-http stylesheet links in external captures', () => {

@@ -67,6 +67,11 @@ export interface DomCaptureResult {
   };
 }
 
+interface InitialDocumentCapture {
+  headParts: string[];
+  capture?: DomCaptureResult;
+}
+
 export interface PseudoElementCaptureStyle {
   display?: string;
   color?: string;
@@ -961,6 +966,7 @@ function escapeHtmlAttribute(value: string): string {
 }
 
 const SAFE_STYLESHEET_LINK_ATTRS = ['media', 'crossorigin', 'integrity', 'referrerpolicy'] as const;
+const SAFE_INLINE_STYLE_ATTRS = ['media', 'title', 'data-styled', 'data-styled-version'] as const;
 
 function stylesheetLinkTag(input: string, sourceUrl: string): string | null {
   const trimmed = input.trim();
@@ -991,6 +997,149 @@ function stylesheetLinkTag(input: string, sourceUrl: string): string | null {
   }
 
   return `<link ${attrs.map(([name, value]) => `${name}="${escapeHtmlAttribute(value)}"`).join(' ')}>`;
+}
+
+function sanitizeCaptureHeadStyleCss(css: string, sourceUrl: string): string {
+  const normalizedCss = normalizeCaptureStyleUrls(
+    String(css || '').replace(/\/\*[\s\S]*?\*\//g, ''),
+    sourceUrl,
+    new Set(),
+  );
+
+  return normalizedCss
+    .replace(/@import[^;]*;?/gi, '')
+    .replace(/expression\s*\([^)]*\)/gi, '')
+    .replace(/-moz-binding\s*:[^;]*;?/gi, '')
+    .replace(/javascript\s*:/gi, '')
+    .replace(/vbscript\s*:/gi, '')
+    .replace(/<\/style/gi, '<\\/style')
+    .trim();
+}
+
+function inlineStyleTag($: CheerioAPI, node: any, sourceUrl: string): string | null {
+  const css = sanitizeCaptureHeadStyleCss($(node).html() || '', sourceUrl);
+  if (!css)
+    return null;
+
+  const attrs = node.attribs ?? {};
+  const attrPairs: Array<[string, string]> = [];
+  for (const attrName of SAFE_INLINE_STYLE_ATTRS) {
+    const value = attrs[attrName];
+    if (value != null)
+      attrPairs.push([attrName, value]);
+  }
+
+  const attrSource = attrPairs.length
+    ? ` ${attrPairs.map(([name, value]) => `${name}="${escapeHtmlAttribute(value)}"`).join(' ')}`
+    : '';
+
+  return `<style${attrSource}>${css}</style>`;
+}
+
+function captureHeadPartIdentity(part: string): string {
+  const href = extractStylesheetHref(part);
+  if (href)
+    return `link:${href}`;
+
+  const dataStyled = extractHtmlAttribute(part, 'data-styled');
+  const dataStyledVersion = extractHtmlAttribute(part, 'data-styled-version');
+  if (dataStyled != null)
+    return `style:data-styled:${dataStyled}:${dataStyledVersion ?? ''}`;
+
+  return `style:${part}`;
+}
+
+export function collectCaptureHeadPartsFromHtml(
+  html: string,
+  sourceUrl: string,
+  stylesheetUrls: string[] = [],
+): string[] {
+  const $ = load(html);
+  const stylesheetLinks = new Map<string, string>();
+
+  for (const url of stylesheetUrls) {
+    const tag = stylesheetLinkTag(url, sourceUrl);
+    const href = tag ? extractStylesheetHref(tag) : null;
+    if (tag && href)
+      stylesheetLinks.set(href, tag);
+  }
+
+  $('link[rel~="stylesheet"]').each((_idx, node) => {
+    const href = $(node).attr('href') || '';
+    const linkHtml = $.html(node);
+    const tag = stylesheetLinkTag(linkHtml || href, sourceUrl);
+    const absoluteHref = tag ? extractStylesheetHref(tag) : null;
+    if (tag && absoluteHref)
+      stylesheetLinks.set(absoluteHref, tag);
+  });
+
+  $('head style').each((_idx, node) => {
+    const tag = inlineStyleTag($, node, sourceUrl);
+    if (tag)
+      stylesheetLinks.set(captureHeadPartIdentity(tag), tag);
+  });
+
+  return [...stylesheetLinks.values()];
+}
+
+function mergeCaptureHeadParts(primary: string[], fallback: string[]): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const part of [...fallback, ...primary]) {
+    const identity = captureHeadPartIdentity(part);
+    if (seen.has(identity))
+      continue;
+    seen.add(identity);
+    merged.push(part);
+  }
+
+  return merged;
+}
+
+function captureCssText(capture: DomCaptureResult): string {
+  return capture.stylesheetLinks.join('\n');
+}
+
+function captureHtmlClassNames(html: string): string[] {
+  const classNames = new Set<string>();
+  for (const match of String(html || '').matchAll(/\bclass\s*=\s*["']([^"']+)["']/gi)) {
+    for (const className of match[1].split(/\s+/)) {
+      const trimmed = className.trim();
+      if (trimmed)
+        classNames.add(trimmed);
+    }
+  }
+  return [...classNames];
+}
+
+function cssContainsClass(css: string, className: string): boolean {
+  const escaped = className.replace(/([!"#$%&'()*+,./:;<=>?@[\]^`{|}~])/g, '\\$1');
+  return css.includes(`.${className}`) || css.includes(`.${escaped}`);
+}
+
+function captureStyledClassMatchCount(capture: DomCaptureResult): number {
+  const css = captureCssText(capture);
+  if (!css.includes('data-styled'))
+    return 0;
+
+  return captureHtmlClassNames(capture.html)
+    .filter(className => cssContainsClass(css, className))
+    .length;
+}
+
+export function shouldPreferInitialDocumentCapture(
+  browserCapture: DomCaptureResult,
+  initialCapture: DomCaptureResult,
+): boolean {
+  const initialCss = captureCssText(initialCapture);
+  if (!initialCss.includes('data-styled'))
+    return false;
+
+  const browserMatches = captureStyledClassMatchCount(browserCapture);
+  const initialMatches = captureStyledClassMatchCount(initialCapture);
+
+  return initialMatches >= 20 && initialMatches > browserMatches * 2;
 }
 
 function collectSrcsetUrls(srcset: string, sourceUrl: string, imageUrls: Set<string>): string {
@@ -1145,21 +1294,7 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
   if (isCaptureBlockedBySecurityPage({ html: $.html(), title }))
     return { bot_blocked: true };
 
-  const stylesheetLinks = new Map<string, string>();
-  for (const url of input.stylesheetUrls ?? []) {
-    const tag = stylesheetLinkTag(url, sourceUrl);
-    const href = tag ? extractStylesheetHref(tag) : null;
-    if (tag && href)
-      stylesheetLinks.set(href, tag);
-  }
-  $('link[rel~="stylesheet"]').each((_idx, node) => {
-    const href = $(node).attr('href') || '';
-    const linkHtml = $.html(node);
-    const tag = stylesheetLinkTag(linkHtml || href, sourceUrl);
-    const absoluteHref = tag ? extractStylesheetHref(tag) : null;
-    if (tag && absoluteHref)
-      stylesheetLinks.set(absoluteHref, tag);
-  });
+  const stylesheetLinks = collectCaptureHeadPartsFromHtml(input.html, sourceUrl, input.stylesheetUrls ?? []);
 
   const containerSelectors = ['main', '[role="main"]', '#content', '#main-content', '.main-content', '.page-content', '.site-content', 'article'];
   let container: Cheerio<any> = $('body') as Cheerio<any>;
@@ -1273,7 +1408,7 @@ export function buildDomCaptureFromHtml(input: ExternalHtmlCaptureInput, sourceU
 
   const result = normalizeCapturedLazyMedia({
     html: container.html() || '',
-    stylesheetLinks: [...stylesheetLinks.values()],
+    stylesheetLinks,
     imageUrls: [...imageUrls],
     heroUrl,
     title,
@@ -1570,7 +1705,7 @@ export class PageCapturer {
         };
       }
 
-      const capture = backend === 'scrapling-stealth' || backend === 'external-html'
+      let capture = backend === 'scrapling-stealth' || backend === 'external-html'
         ? buildDomCaptureFromHtml(options.externalCapture!, options.externalCapture?.finalUrl || sourceUrl)
         : await this.captureDom(sourceUrl);
       if ('bot_blocked' in capture) {
@@ -1581,6 +1716,15 @@ export class PageCapturer {
           bot_blocked: true,
           error: 'Security verification page detected; existing page was not overwritten',
         };
+      }
+
+      if (backend === 'cloudflare-browser') {
+        const initialDocument = await this.fetchInitialDocumentCapture(sourceUrl);
+        if (initialDocument.capture && shouldPreferInitialDocumentCapture(capture, initialDocument.capture)) {
+          capture = initialDocument.capture;
+        } else if (initialDocument.headParts.length > 0) {
+          capture.stylesheetLinks = mergeCaptureHeadParts(capture.stylesheetLinks, initialDocument.headParts);
+        }
       }
 
       console.log(`[PageCapturer] Captured via ${backend}: "${capture.title}", ${capture.elementCount} elements, ${capture.imageUrls.length} images`);
@@ -1717,6 +1861,42 @@ export class PageCapturer {
   // ============================================================================
   // DOM Capture via Puppeteer
   // ============================================================================
+
+  private async fetchInitialDocumentCapture(sourceUrl: string): Promise<InitialDocumentCapture> {
+    try {
+      const response = await fetch(sourceUrl, {
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-AU,en;q=0.9',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+        },
+        signal: AbortSignal.timeout(12_000),
+      });
+
+      if (!response.ok)
+        return { headParts: [] };
+
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType && !contentType.toLowerCase().includes('html'))
+        return { headParts: [] };
+
+      const html = await response.text();
+      if (isCaptureBlockedBySecurityPage({ html }))
+        return { headParts: [] };
+
+      const capture = buildDomCaptureFromHtml({ html, finalUrl: sourceUrl }, sourceUrl);
+      if ('bot_blocked' in capture)
+        return { headParts: collectCaptureHeadPartsFromHtml(html, sourceUrl) };
+
+      return {
+        headParts: capture.stylesheetLinks,
+        capture,
+      };
+    } catch (error) {
+      console.warn('[PageCapturer] Initial document CSS merge failed:', error);
+      return { headParts: [] };
+    }
+  }
 
   private async captureDom(
     sourceUrl: string,
@@ -2000,6 +2180,48 @@ export class PageCapturer {
             .replace(/>/g, '&gt;');
         }
 
+        function sanitizeStyleCss(css: string): string {
+          return String(css || '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/@import[^;]*;?/gi, '')
+            .replace(/expression\s*\([^)]*\)/gi, '')
+            .replace(/-moz-binding\s*:[^;]*;?/gi, '')
+            .replace(/javascript\s*:/gi, '')
+            .replace(/vbscript\s*:/gi, '')
+            .replace(/url\((["']?)(.*?)\1\)/gi, (_match, _quote, rawUrl) => {
+              const url = String(rawUrl || '').trim();
+              if (!url)
+                return '';
+              if (/^data:image\/(?:png|jpe?g|gif|webp|avif)(?:;[^,]*)?,/i.test(url))
+                return `url("${url.replace(/"/g, '%22')}")`;
+              try {
+                const absoluteUrl = new URL(url, document.location.href);
+                if (absoluteUrl.protocol !== 'http:' && absoluteUrl.protocol !== 'https:')
+                  return '';
+                return `url("${absoluteUrl.href.replace(/"/g, '%22')}")`;
+              } catch {
+                return '';
+              }
+            })
+            .replace(/<\/style/gi, '<\\/style')
+            .trim();
+        }
+
+        function inlineStyleTag(style: HTMLStyleElement): string | null {
+          const css = sanitizeStyleCss(style.textContent || '');
+          if (!css)
+            return null;
+
+          const attrs: Array<[string, string]> = [];
+          for (const name of ['media', 'title', 'data-styled', 'data-styled-version']) {
+            const value = style.getAttribute(name);
+            if (value != null)
+              attrs.push([name, value]);
+          }
+
+          return '<style' + (attrs.length ? ' ' + attrs.map(([name, value]) => name + '="' + escapeAttr(value) + '"').join(' ') : '') + '>' + css + '</style>';
+        }
+
         document.querySelectorAll('link[rel~="stylesheet"]').forEach(link => {
           const htmlLink = link as HTMLLinkElement;
           const href = htmlLink.href;
@@ -2027,6 +2249,11 @@ export class PageCapturer {
 
           seenHrefs.add(href);
           stylesheetLinks.push('<link ' + attrs.map(([name, value]) => name + '="' + escapeAttr(value) + '"').join(' ') + '>');
+        });
+        document.querySelectorAll('head style').forEach(style => {
+          const tag = inlineStyleTag(style as HTMLStyleElement);
+          if (tag)
+            stylesheetLinks.push(tag);
         });
         for (const sheet of document.styleSheets) {
           if (sheet.href && !seenHrefs.has(sheet.href)) {

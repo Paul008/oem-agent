@@ -33,7 +33,7 @@ import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { describeCaptureStatus } from '@/lib/capture-status'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
-import { compileTailwindRecipeArtifact, fetchCaptureDiagnostics, mapPagePreview } from '@/lib/worker-api'
+import { compileTailwindRecipeArtifact, fetchCaptureDiagnostics, fetchCompileRunStatus, mapPagePreview } from '@/lib/worker-api'
 import { useThemeStore } from '@/stores/theme'
 
 import type { CloneFieldPatchPayload } from '../components/page-builder/CloneRegionEditor.vue'
@@ -54,6 +54,8 @@ import { getPageWorkflowState, getPrimaryWorkflowAction, isPipelineActionDisable
 
 const route = useRoute()
 const router = useRouter()
+const compileStageLabel = ref('')
+let compileStatusPoller: ReturnType<typeof setInterval> | null = null
 const {
   fetchOems,
   fetchProductsForModel,
@@ -405,9 +407,42 @@ async function runAdaptivePipeline(modelOverride?: ModelOverride) {
   if (!confirmDestructiveAction('pipeline'))
     return
 
-  await handleAdaptivePipeline(modelOverride)
-  await loadCaptureDiagnostics()
-  await loadMappingPreview()
+  startCompileStatusPolling()
+  try {
+    await handleAdaptivePipeline(modelOverride)
+    await loadCaptureDiagnostics()
+    await loadMappingPreview()
+  }
+  finally {
+    stopCompileStatusPolling()
+  }
+}
+
+function stopCompileStatusPolling() {
+  if (!compileStatusPoller)
+    return
+  clearInterval(compileStatusPoller)
+  compileStatusPoller = null
+}
+
+function startCompileStatusPolling() {
+  stopCompileStatusPolling()
+  compileStageLabel.value = 'Starting full preview pipeline'
+
+  const poll = async () => {
+    try {
+      const status = await fetchCompileRunStatus(oemId.value, modelSlug.value)
+      compileStageLabel.value = status.stageLabel
+      if (status.status === 'succeeded' || status.status === 'failed')
+        stopCompileStatusPolling()
+    }
+    catch {
+      // Supporting indicator only; the pipeline action still owns success/failure.
+    }
+  }
+
+  void poll()
+  compileStatusPoller = setInterval(poll, 1500)
 }
 
 function handleKeyboard(e: KeyboardEvent) {
@@ -511,6 +546,7 @@ const mappingStatus = computed(() => {
 })
 
 onUnmounted(() => {
+  stopCompileStatusPolling()
   themeStore.setContentLayout(prevLayout as any)
   document.removeEventListener('keydown', handleKeyboard)
 })
@@ -546,6 +582,14 @@ const pipelineActionDisabled = computed(() => isPipelineActionDisabled({
   cloning: cloning.value,
   structuring: structuring.value,
 }) || isWriteProtectedPage.value)
+const fullPreviewActionLabel = computed(() =>
+  pageWorkflowState.value === 'missing' || pageWorkflowState.value === 'empty'
+    ? 'Build Full Preview'
+    : 'Rebuild Full Preview',
+)
+const fullPreviewButtonLabel = computed(() =>
+  pipelining.value ? (compileStageLabel.value || 'Building...') : fullPreviewActionLabel.value,
+)
 
 const subpageDisplayName = computed(() => {
   if (!isSubpage.value || !subpageSlug.value)
@@ -844,11 +888,12 @@ watch(
           :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
           :disabled="pipelineActionDisabled"
           class="hidden min-[2100px]:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
+          title="Run full preview pipeline (clone, structure, refresh preview)"
           @click="runAdaptivePipeline(selectedModelOverride)"
         >
           <Zap v-if="!pipelining" class="size-3.5 mr-1 text-violet-500" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
-          {{ pipelining ? 'Running...' : primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Pipeline' }}
+          {{ fullPreviewButtonLabel }}
         </UiButton>
 
         <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden min-[2100px]:block" />
@@ -977,7 +1022,7 @@ watch(
                 @select="runAdaptivePipeline(selectedModelOverride)"
               >
                 <Zap class="size-3.5 mr-2 text-violet-500" />
-                {{ primaryWorkflowAction.key === 'pipeline' ? primaryWorkflowAction.label : 'Adaptive Pipeline' }}
+                {{ fullPreviewActionLabel }}
               </UiDropdownMenuItem>
             </template>
 
@@ -1098,17 +1143,18 @@ watch(
         <button
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           :disabled="pipelineActionDisabled"
+          title="Run full preview pipeline (clone, structure, refresh preview)"
           @click="runAdaptivePipeline(selectedModelOverride)"
         >
           <Loader2 v-if="pipelining" class="size-4 animate-spin" />
           <Zap v-else class="size-4" />
-          {{ isWriteProtectedPage ? 'Protected' : pipelining ? 'Running...' : primaryWorkflowAction.label }}
+          {{ isWriteProtectedPage ? 'Protected' : fullPreviewButtonLabel }}
         </button>
         <p v-if="isWriteProtectedPage" class="text-xs text-amber-600 dark:text-amber-400">
           {{ writeProtectedMessage }}.
         </p>
         <p v-if="pipelining" class="text-xs text-muted-foreground">
-          This may take 1-2 minutes
+          {{ compileStageLabel || 'This may take 1-2 minutes' }}
         </p>
         <div class="pt-2">
           <button class="text-sm text-muted-foreground hover:text-foreground" @click="router.push('/dashboard/model-pages')">
