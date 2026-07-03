@@ -618,6 +618,21 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toContain('color: purple')
   })
 
+  it('preserves safe CSS child combinators in extracted head styles', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<style>.vw-grid > * { grid-column: full; } .vw-grid [data-layout-type="text"] > p { color: blue; }</style><main>Amarok</main>',
+      title: 'Amarok',
+      baseHref: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const head = extractDocumentHead(html)
+
+    expect(head).toContain('.vw-grid > *')
+    expect(head).toContain('[data-layout-type="text"] > p')
+    expect(head).not.toContain('\\3E')
+  })
+
   it('preserves safe extracted head stylesheet links and CSS', () => {
     const html = buildCloneStudioHtml({
       rendered: '<link rel="stylesheet" href="https://cdn.example.test/site.css" media="screen"><link rel="preconnect" href="https://fonts.example.test" crossorigin="anonymous"><link rel="preload" as="font" href="/fonts/oem.woff2" type="font/woff2"><style>.hero { background-image: url(/images/mustang.png); color: #111; }</style><main>Mustang</main>',

@@ -4644,9 +4644,7 @@ function sanitizeCloneStudioHeadStyle(part: string): string {
 }
 
 function neutralizeCssForStyleElement(css: string): string {
-  return css
-    .replace(/</g, '\\3C ')
-    .replace(/>/g, '\\3E ')
+  return css.replace(/</g, '\\3C ')
 }
 
 function parseCloneStudioTagAttributes(tag: string): Map<string, string> {
