@@ -67,6 +67,22 @@ export interface DomCaptureResult {
   };
 }
 
+export type CaptureHydrationStatus = 'stable' | 'budget-exhausted' | 'max-passes' | 'unsupported';
+
+export interface CaptureHydrationPassSample {
+  pass: number;
+  scroll_height: number;
+  image_count: number;
+  elapsed_ms: number;
+}
+
+export interface CaptureHydrationReport {
+  status: CaptureHydrationStatus;
+  passes: CaptureHydrationPassSample[];
+  final_scroll_height: number;
+  final_image_count: number;
+}
+
 interface InitialDocumentCapture {
   headParts: string[];
   capture?: DomCaptureResult;
@@ -105,6 +121,11 @@ export const CAPTURE_FONT_READY_TIMEOUT_MS = 2_500;
 export const CAPTURE_IMAGE_READY_TIMEOUT_MS = 3_000;
 export const CAPTURE_DOM_QUIET_WINDOW_MS = 250;
 export const CAPTURE_DOM_QUIET_TIMEOUT_MS = 1_500;
+export const CAPTURE_HYDRATION_BUDGET_MS = 90_000;
+export const CAPTURE_HYDRATION_STEP_DELAY_MS = 450;
+export const CAPTURE_HYDRATION_MOUNT_WAIT_MS = 4_000;
+export const CAPTURE_HYDRATION_STABILITY_PCT = 2;
+export const CAPTURE_HYDRATION_MAX_PASSES = 4;
 export const CAPTURE_STATIC_CLONE_SAFETY_CSS = `
 img.imgdesktop,
 img.dsktoponly,
@@ -465,6 +486,140 @@ export async function sweepCaptureScrollForCapture(options?: {
   } finally {
     scrollTo.call(activeWindow, 0, 0);
     await sleep(finalDelayMs);
+  }
+}
+
+/**
+ * Multi-pass scroll sweep that keeps sweeping until the page stops growing.
+ * Unlike sweepCaptureScrollForCapture (single pass, hard 10s cap), this paces
+ * each step and grants a bounded extra wait whenever a step mounts new content
+ * (scroll-triggered OEM feature apps need seconds to fetch + render).
+ */
+export async function runPacedHydrationSweepForCapture(options?: {
+  budgetMs?: number;
+  stepDelayMs?: number;
+  mountWaitMs?: number;
+  stabilityPct?: number;
+  maxPasses?: number;
+  win?: CaptureScrollSweepWindow;
+}): Promise<CaptureHydrationReport> {
+  const activeWindow = options?.win ?? (typeof window !== 'undefined'
+    ? window as unknown as CaptureScrollSweepWindow
+    : undefined);
+  const activeDocument = activeWindow?.document ?? (typeof document !== 'undefined'
+    ? document as unknown as CaptureScrollSweepWindow['document']
+    : undefined);
+  const viewportHeight = Number(activeWindow?.innerHeight ?? 0);
+  const scrollTo = activeWindow?.scrollTo;
+
+  const report: CaptureHydrationReport = {
+    status: 'unsupported',
+    passes: [],
+    final_scroll_height: 0,
+    final_image_count: 0,
+  };
+
+  if (!activeWindow || !activeDocument || typeof scrollTo !== 'function' || !Number.isFinite(viewportHeight) || viewportHeight <= 0)
+    return report;
+
+  const budgetMs = Math.max(0, options?.budgetMs ?? 90_000);
+  const stepDelayMs = Math.max(0, options?.stepDelayMs ?? 450);
+  const mountWaitMs = Math.max(0, options?.mountWaitMs ?? 4_000);
+  const stabilityPct = Math.max(0, options?.stabilityPct ?? 2);
+  const maxPasses = Math.max(1, options?.maxPasses ?? 4);
+  const clock = activeWindow.Date ?? Date;
+  const timer = activeWindow.setTimeout ?? setTimeout;
+  const sleep = (delayMs: number) => new Promise<void>((resolve) => {
+    timer(resolve, delayMs);
+  });
+  const scrollHeight = () => Math.max(
+    0,
+    Number(activeDocument.documentElement?.scrollHeight ?? 0),
+    Number(activeDocument.body?.scrollHeight ?? 0),
+  );
+  const imageCount = () => {
+    try {
+      const doc = activeDocument as unknown as { querySelectorAll?: (selector: string) => ArrayLike<unknown> };
+      return Number(doc.querySelectorAll?.('img')?.length ?? 0);
+    } catch {
+      return 0;
+    }
+  };
+  const startedAt = clock.now();
+  const budgetLeft = () => budgetMs - (clock.now() - startedAt);
+  const snapshotFinals = () => {
+    report.final_scroll_height = scrollHeight();
+    report.final_image_count = imageCount();
+  };
+
+  let previousHeight = scrollHeight();
+  try {
+    for (let pass = 1; pass <= maxPasses; pass++) {
+      scrollTo.call(activeWindow, 0, 0);
+      let y = 0;
+
+      while (true) {
+        if (budgetLeft() <= 0) {
+          report.status = 'budget-exhausted';
+          snapshotFinals();
+          return report;
+        }
+
+        const maxY = Math.max(0, scrollHeight() - viewportHeight);
+        if (y >= maxY)
+          break;
+
+        const beforeHeight = scrollHeight();
+        const beforeImages = imageCount();
+        y = Math.min(y + viewportHeight, maxY);
+        scrollTo.call(activeWindow, 0, y);
+        await sleep(stepDelayMs);
+
+        if (scrollHeight() > beforeHeight || imageCount() > beforeImages) {
+          // This step mounted new content — give it a bounded settle window.
+          const mountDeadline = clock.now() + Math.min(mountWaitMs, Math.max(0, budgetLeft()));
+          let lastHeight = scrollHeight();
+          let lastImages = imageCount();
+          while (clock.now() < mountDeadline) {
+            await sleep(stepDelayMs);
+            const nextHeight = scrollHeight();
+            const nextImages = imageCount();
+            if (nextHeight === lastHeight && nextImages === lastImages)
+              break;
+            lastHeight = nextHeight;
+            lastImages = nextImages;
+          }
+        }
+      }
+
+      const passHeight = scrollHeight();
+      report.passes.push({
+        pass,
+        scroll_height: passHeight,
+        image_count: imageCount(),
+        elapsed_ms: clock.now() - startedAt,
+      });
+
+      const growthPct = previousHeight > 0 ? ((passHeight - previousHeight) / previousHeight) * 100 : 100;
+      if (growthPct <= stabilityPct) {
+        report.status = 'stable';
+        snapshotFinals();
+        return report;
+      }
+
+      previousHeight = passHeight;
+      if (budgetLeft() <= 0) {
+        report.status = 'budget-exhausted';
+        snapshotFinals();
+        return report;
+      }
+    }
+
+    report.status = 'max-passes';
+    snapshotFinals();
+    return report;
+  } finally {
+    scrollTo.call(activeWindow, 0, 0);
   }
 }
 

@@ -7,6 +7,11 @@ import {
   CAPTURE_DOM_QUIET_TIMEOUT_MS,
   CAPTURE_DOM_QUIET_WINDOW_MS,
   CAPTURE_FONT_READY_TIMEOUT_MS,
+  CAPTURE_HYDRATION_BUDGET_MS,
+  CAPTURE_HYDRATION_MAX_PASSES,
+  CAPTURE_HYDRATION_MOUNT_WAIT_MS,
+  CAPTURE_HYDRATION_STABILITY_PCT,
+  CAPTURE_HYDRATION_STEP_DELAY_MS,
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
   CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS,
   CAPTURE_SCROLL_SWEEP_MAX_STEPS,
@@ -22,6 +27,7 @@ import {
   PageCapturer,
   prioritizeCaptureImageUrls,
   pseudoElementInlineStyleForCapture,
+  runPacedHydrationSweepForCapture,
   shouldPreferInitialDocumentCapture,
   sweepCaptureScrollForCapture,
   waitForCaptureDomQuietForCapture,
@@ -115,6 +121,39 @@ function createScrollSweepWindow(options: {
     },
   }
 
+  return { win, calls }
+}
+
+function createHydrationWindow(options: {
+  scrollHeight: number;
+  imageCount?: number;
+  msPerTick?: number;
+  onScroll?: (y: number, win: any) => void;
+}) {
+  let nowMs = 0
+  const calls: Array<[number, number]> = []
+  const win: any = {
+    innerHeight: 1000,
+    scrollY: 0,
+    imageCount: options.imageCount ?? 0,
+    Date: { now: () => nowMs },
+    setTimeout: ((callback: () => void) => {
+      nowMs += options.msPerTick ?? 1
+      callback()
+      return 0 as any
+    }) as typeof setTimeout,
+    scrollTo: (x: number, y: number) => {
+      calls.push([x, y])
+      win.scrollY = y
+      options.onScroll?.(y, win)
+    },
+  }
+  win.document = {
+    body: { scrollHeight: options.scrollHeight },
+    documentElement: { scrollHeight: options.scrollHeight },
+    querySelectorAll: (selector: string) =>
+      selector === 'img' ? Array.from({ length: win.imageCount }) : [],
+  }
   return { win, calls }
 }
 
@@ -1615,5 +1654,103 @@ describe('buildDomCaptureFromHtml', () => {
         </html>
       `,
     }, 'https://www.toyota.com.au/rav4')).toEqual({ bot_blocked: true })
+  })
+})
+
+describe('runPacedHydrationSweepForCapture', () => {
+  it('is stable after one pass on a static page and scrolls back to top', async () => {
+    const { win, calls } = createHydrationWindow({ scrollHeight: 2500, imageCount: 10 })
+
+    const report = await runPacedHydrationSweepForCapture({
+      budgetMs: 10_000, stepDelayMs: 0, mountWaitMs: 0, stabilityPct: 2, maxPasses: 4, win,
+    })
+
+    expect(report.status).toBe('stable')
+    expect(report.passes).toHaveLength(1)
+    expect(report.final_scroll_height).toBe(2500)
+    expect(report.final_image_count).toBe(10)
+    expect(calls.at(-1)).toEqual([0, 0])
+  })
+
+  it('runs a second pass when content grows during the first, then stabilizes', async () => {
+    const { win } = createHydrationWindow({
+      scrollHeight: 2000,
+      onScroll: (y, activeWindow) => {
+        if (y >= 1000 && activeWindow.document.body.scrollHeight < 4000) {
+          activeWindow.document.body.scrollHeight = 4000
+          activeWindow.document.documentElement.scrollHeight = 4000
+        }
+      },
+    })
+
+    const report = await runPacedHydrationSweepForCapture({
+      budgetMs: 60_000, stepDelayMs: 0, mountWaitMs: 0, stabilityPct: 2, maxPasses: 4, win,
+    })
+
+    expect(report.status).toBe('stable')
+    expect(report.passes).toHaveLength(2)
+    expect(report.passes[0].scroll_height).toBe(4000)
+    expect(report.final_scroll_height).toBe(4000)
+  })
+
+  it('returns max-passes when every pass keeps growing the page', async () => {
+    const { win } = createHydrationWindow({
+      scrollHeight: 2000,
+      onScroll: (_y, activeWindow) => {
+        activeWindow.document.body.scrollHeight += 500
+        activeWindow.document.documentElement.scrollHeight += 500
+      },
+    })
+
+    const report = await runPacedHydrationSweepForCapture({
+      budgetMs: 600_000, stepDelayMs: 0, mountWaitMs: 0, stabilityPct: 2, maxPasses: 2, win,
+    })
+
+    expect(report.status).toBe('max-passes')
+    expect(report.passes).toHaveLength(2)
+  })
+
+  it('returns budget-exhausted when the time budget runs out mid-sweep', async () => {
+    const { win } = createHydrationWindow({ scrollHeight: 50_000, msPerTick: 400 })
+
+    const report = await runPacedHydrationSweepForCapture({
+      budgetMs: 1_000, stepDelayMs: 300, mountWaitMs: 0, stabilityPct: 2, maxPasses: 4, win,
+    })
+
+    expect(report.status).toBe('budget-exhausted')
+    expect(report.final_scroll_height).toBe(50_000)
+  })
+
+  it('waits out a mount burst triggered by a step before moving on', async () => {
+    let mounted = false
+    const { win } = createHydrationWindow({
+      scrollHeight: 2000,
+      imageCount: 5,
+      onScroll: (y, activeWindow) => {
+        if (y >= 1000 && !mounted) {
+          mounted = true
+          activeWindow.imageCount = 25
+        }
+      },
+    })
+
+    const report = await runPacedHydrationSweepForCapture({
+      budgetMs: 60_000, stepDelayMs: 1, mountWaitMs: 10, stabilityPct: 2, maxPasses: 4, win,
+    })
+
+    expect(report.status).toBe('stable')
+    expect(report.final_image_count).toBe(25)
+  })
+
+  it('returns unsupported when the viewport cannot scroll', async () => {
+    const report = await runPacedHydrationSweepForCapture({
+      win: {
+        innerHeight: 0,
+        document: { body: { scrollHeight: 1000 }, documentElement: { scrollHeight: 1000 } },
+        scrollTo: () => {},
+      } as any,
+    })
+
+    expect(report.status).toBe('unsupported')
   })
 })
