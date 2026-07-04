@@ -14,11 +14,12 @@
  * this module must parse with the SAME full-document mode and walk from the
  * document root exactly like `elementPath` in section-parser.ts does — NOT
  * fragment mode, which has a different (shallower) coordinate system. After
- * stamping, we serialize via `$('body').html()` to shed the synthetic
- * <html>/<head>/<body> wrapper cheerio adds, so stamped output stays a plain
- * fragment. The byte-identical pass-through test never touches cheerio at
- * all (see the zero-regions early return below), so this choice doesn't
- * affect it.
+ * stamping, we serialize head content + body content (in that order) to shed
+ * the synthetic <html>/<head>/<body> wrapper cheerio adds while keeping any
+ * leading <style>/<link> the parser hoisted into <head>, so stamped output
+ * stays a plain fragment. The byte-identical pass-through test never touches
+ * cheerio at all (see the zero-regions early return below), so this choice
+ * doesn't affect it.
  */
 
 import { load } from 'cheerio';
@@ -93,8 +94,8 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
       interactions.push({
         id: String($el.attr(CLONE_REGION_ID_ATTR) ?? ''),
         type: String($el.attr(CLONE_INTERACTION_ATTR)) as DetectedInteractionType,
-        trigger_count: $el.find('[data-clone-tab], [data-clone-acc-trigger], [data-clone-gallery-thumb]').length,
-        panel_count: $el.find('[data-clone-panel], [data-clone-acc-panel], [data-clone-slide]').length,
+        trigger_count: $el.find('[data-clone-tab], [data-clone-acc-trigger], [data-clone-gallery-thumb], [data-clone-prev], [data-clone-next]').length,
+        panel_count: $el.find('[data-clone-panel], [data-clone-acc-panel], [data-clone-slide], [data-clone-gallery-main]').length,
       });
     });
     return { html, interactions };
@@ -171,5 +172,10 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
     }
   });
 
-  return { html: $('body').html() ?? '', interactions };
+  // Full-document parsing hoists LEADING head-eligible elements (<style>,
+  // <link>, <title>, <meta>) into <head>; captured fragments can open with a
+  // <style> tag, so serializing body alone would silently drop it. Because
+  // hoisting only ever moves a leading run of such elements, re-emitting head
+  // content first restores the original order.
+  return { html: ($('head').html() ?? '') + ($('body').html() ?? ''), interactions };
 }

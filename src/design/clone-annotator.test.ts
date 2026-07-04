@@ -66,11 +66,28 @@ describe('annotateCloneInteractions', () => {
     expect(result.html).toBe(plain)
   })
 
+  it('preserves a leading style tag when stamping a region', () => {
+    const input = `<style>.model-features{color:red}</style>${TABS_ARIA}`
+
+    const result = annotateCloneInteractions(input)
+
+    expect(result.html).toContain('.model-features{color:red}')
+    expect(result.html.indexOf('<style>')).toBeLessThan(result.html.indexOf('data-clone-interaction'))
+    expect(result.interactions).toHaveLength(1)
+  })
+
   it('is idempotent — already-stamped HTML is returned unchanged', () => {
     const first = annotateCloneInteractions(TABS_ARIA)
     const second = annotateCloneInteractions(first.html)
 
     expect(second.html).toBe(first.html)
+    expect(second.interactions).toEqual(first.interactions)
+  })
+
+  it('recomputes carousel inventory faithfully on already-stamped input', () => {
+    const first = annotateCloneInteractions(CAROUSEL)
+    const second = annotateCloneInteractions(first.html)
+
     expect(second.interactions).toEqual(first.interactions)
   })
 
