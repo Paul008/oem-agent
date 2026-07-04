@@ -9583,7 +9583,7 @@
       "label": "evaluateCaptureCompleteness()",
       "file_type": "code",
       "source_file": "src/design/capture-completeness.ts",
-      "source_location": "L34",
+      "source_location": "L45",
       "id": "capture_completeness_evaluatecapturecompleteness",
       "community": 207
     },
@@ -37417,7 +37417,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-completeness.ts",
-      "source_location": "L34",
+      "source_location": "L45",
       "weight": 1.0,
       "_src": "src_design_capture_completeness_ts",
       "_tgt": "capture_completeness_evaluatecapturecompleteness",
