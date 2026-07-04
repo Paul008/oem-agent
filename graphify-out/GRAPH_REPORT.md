@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-04)
 
 ## Corpus Check
-- 431 files · ~4,367,126 words
+- 431 files · ~4,367,685 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2145 nodes · 3102 edges · 425 communities detected
+- 2146 nodes · 3103 edges · 425 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -591,16 +591,16 @@ Cohesion: 0.12
 Nodes (6): BaseTagInjector, ControlBarInjector, IdBlocker, MetaStripper, NoscriptStripper, ScriptStripper
 
 ### Community 32 - "Community 32"
+Cohesion: 0.13
+Nodes (1): TestMutationObserver
+
+### Community 33 - "Community 33"
 Cohesion: 0.22
 Nodes (11): generateContentHash(), generateEmbedding(), generateEmbeddingsBatch(), generateGeminiEmbedding(), generateGroqEmbedding(), generateOpenAIEmbedding(), generateTogetherEmbedding(), prepareProductText() (+3 more)
 
-### Community 33 - "Community 33"
+### Community 34 - "Community 34"
 Cohesion: 0.21
 Nodes (3): DesignAgent, generateBrandTokenExtractionPrompt(), generatePageLayoutPrompt()
-
-### Community 34 - "Community 34"
-Cohesion: 0.14
-Nodes (1): TestMutationObserver
 
 ### Community 35 - "Community 35"
 Cohesion: 0.42

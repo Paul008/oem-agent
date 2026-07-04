@@ -8055,7 +8055,7 @@
       "label": "activateLazyMediaForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L274",
+      "source_location": "L276",
       "id": "page_capturer_activatelazymediaforcapture",
       "community": 5
     },
@@ -8063,7 +8063,7 @@
       "label": "sweepCaptureScrollForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L448",
+      "source_location": "L450",
       "id": "page_capturer_sweepcapturescrollforcapture",
       "community": 5
     },
@@ -8071,7 +8071,7 @@
       "label": "runPacedHydrationSweepForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L515",
+      "source_location": "L517",
       "id": "page_capturer_runpacedhydrationsweepforcapture",
       "community": 5
     },
@@ -8079,7 +8079,7 @@
       "label": "waitForFeatureAppMountsForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L655",
+      "source_location": "L657",
       "id": "page_capturer_waitforfeatureappmountsforcapture",
       "community": 5
     },
@@ -8087,7 +8087,7 @@
       "label": "waitForCaptureImagesForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L735",
+      "source_location": "L737",
       "id": "page_capturer_waitforcaptureimagesforcapture",
       "community": 5
     },
@@ -8095,7 +8095,7 @@
       "label": "waitForCaptureDomQuietForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L769",
+      "source_location": "L771",
       "id": "page_capturer_waitforcapturedomquietforcapture",
       "community": 5
     },
@@ -8103,7 +8103,7 @@
       "label": "waitForCaptureFontsForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L826",
+      "source_location": "L828",
       "id": "page_capturer_waitforcapturefontsforcapture",
       "community": 5
     },
@@ -8111,7 +8111,7 @@
       "label": "isCaptureBlockedBySecurityPage()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L849",
+      "source_location": "L851",
       "id": "page_capturer_iscaptureblockedbysecuritypage",
       "community": 5
     },
@@ -8119,7 +8119,7 @@
       "label": "normalizePseudoElementContentForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L896",
+      "source_location": "L898",
       "id": "page_capturer_normalizepseudoelementcontentforcapture",
       "community": 5
     },
@@ -8127,7 +8127,7 @@
       "label": "pseudoElementInlineStyleForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L934",
+      "source_location": "L936",
       "id": "page_capturer_pseudoelementinlinestyleforcapture",
       "community": 5
     },
@@ -8135,7 +8135,7 @@
       "label": "materializePseudoElementTextForCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L965",
+      "source_location": "L967",
       "id": "page_capturer_materializepseudoelementtextforcapture",
       "community": 5
     },
@@ -8143,7 +8143,7 @@
       "label": "extractStylesheetHref()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1079",
+      "source_location": "L1081",
       "id": "page_capturer_extractstylesheethref",
       "community": 5
     },
@@ -8151,7 +8151,7 @@
       "label": "extractHtmlAttribute()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1085",
+      "source_location": "L1087",
       "id": "page_capturer_extracthtmlattribute",
       "community": 5
     },
@@ -8159,7 +8159,7 @@
       "label": "absolutizeCaptureUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1092",
+      "source_location": "L1094",
       "id": "page_capturer_absolutizecaptureurl",
       "community": 5
     },
@@ -8167,7 +8167,7 @@
       "label": "isDataOrBlobCaptureUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1106",
+      "source_location": "L1108",
       "id": "page_capturer_isdataorblobcaptureurl",
       "community": 5
     },
@@ -8175,7 +8175,7 @@
       "label": "isHttpCaptureUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1111",
+      "source_location": "L1113",
       "id": "page_capturer_ishttpcaptureurl",
       "community": 5
     },
@@ -8183,7 +8183,7 @@
       "label": "normalizeCaptureSrcset()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1120",
+      "source_location": "L1122",
       "id": "page_capturer_normalizecapturesrcset",
       "community": 5
     },
@@ -8191,7 +8191,7 @@
       "label": "normalizeCaptureStyleUrls()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1144",
+      "source_location": "L1146",
       "id": "page_capturer_normalizecapturestyleurls",
       "community": 5
     },
@@ -8199,7 +8199,7 @@
       "label": "bestCaptureSrcsetUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1163",
+      "source_location": "L1165",
       "id": "page_capturer_bestcapturesrcseturl",
       "community": 5
     },
@@ -8207,7 +8207,7 @@
       "label": "normalizeComparableUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1167",
+      "source_location": "L1169",
       "id": "page_capturer_normalizecomparableurl",
       "community": 5
     },
@@ -8215,7 +8215,7 @@
       "label": "isLikelyCaptureDocumentUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1182",
+      "source_location": "L1184",
       "id": "page_capturer_islikelycapturedocumenturl",
       "community": 5
     },
@@ -8223,7 +8223,7 @@
       "label": "isNonRenderableCaptureMediaUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1205",
+      "source_location": "L1207",
       "id": "page_capturer_isnonrenderablecapturemediaurl",
       "community": 5
     },
@@ -8231,7 +8231,7 @@
       "label": "firstCaptureLazyImageSrc()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1218",
+      "source_location": "L1220",
       "id": "page_capturer_firstcapturelazyimagesrc",
       "community": 5
     },
@@ -8239,7 +8239,7 @@
       "label": "escapeHtmlAttribute()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1224",
+      "source_location": "L1226",
       "id": "page_capturer_escapehtmlattribute",
       "community": 5
     },
@@ -8247,7 +8247,7 @@
       "label": "stylesheetLinkTag()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1235",
+      "source_location": "L1237",
       "id": "page_capturer_stylesheetlinktag",
       "community": 5
     },
@@ -8255,7 +8255,7 @@
       "label": "sanitizeCaptureHeadStyleCss()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1266",
+      "source_location": "L1268",
       "id": "page_capturer_sanitizecaptureheadstylecss",
       "community": 5
     },
@@ -8263,7 +8263,7 @@
       "label": "inlineStyleTag()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1283",
+      "source_location": "L1285",
       "id": "page_capturer_inlinestyletag",
       "community": 5
     },
@@ -8271,7 +8271,7 @@
       "label": "captureHeadPartIdentity()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1303",
+      "source_location": "L1305",
       "id": "page_capturer_captureheadpartidentity",
       "community": 5
     },
@@ -8279,7 +8279,7 @@
       "label": "collectCaptureHeadPartsFromHtml()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1316",
+      "source_location": "L1318",
       "id": "page_capturer_collectcaptureheadpartsfromhtml",
       "community": 5
     },
@@ -8287,7 +8287,7 @@
       "label": "mergeCaptureHeadParts()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1349",
+      "source_location": "L1351",
       "id": "page_capturer_mergecaptureheadparts",
       "community": 5
     },
@@ -8295,7 +8295,7 @@
       "label": "captureCssText()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1364",
+      "source_location": "L1366",
       "id": "page_capturer_capturecsstext",
       "community": 5
     },
@@ -8303,7 +8303,7 @@
       "label": "captureHtmlClassNames()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1368",
+      "source_location": "L1370",
       "id": "page_capturer_capturehtmlclassnames",
       "community": 5
     },
@@ -8311,7 +8311,7 @@
       "label": "cssContainsClass()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1380",
+      "source_location": "L1382",
       "id": "page_capturer_csscontainsclass",
       "community": 5
     },
@@ -8319,7 +8319,7 @@
       "label": "captureStyledClassMatchCount()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1385",
+      "source_location": "L1387",
       "id": "page_capturer_capturestyledclassmatchcount",
       "community": 5
     },
@@ -8327,7 +8327,7 @@
       "label": "shouldPreferInitialDocumentCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1395",
+      "source_location": "L1397",
       "id": "page_capturer_shouldpreferinitialdocumentcapture",
       "community": 5
     },
@@ -8335,7 +8335,7 @@
       "label": "collectSrcsetUrls()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1409",
+      "source_location": "L1411",
       "id": "page_capturer_collectsrcseturls",
       "community": 5
     },
@@ -8343,7 +8343,7 @@
       "label": "bestImageSrcUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1413",
+      "source_location": "L1415",
       "id": "page_capturer_bestimagesrcurl",
       "community": 5
     },
@@ -8351,7 +8351,7 @@
       "label": "bestElementImageUrl()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1425",
+      "source_location": "L1427",
       "id": "page_capturer_bestelementimageurl",
       "community": 5
     },
@@ -8359,7 +8359,7 @@
       "label": "stripExternalCaptureChrome()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1468",
+      "source_location": "L1470",
       "id": "page_capturer_stripexternalcapturechrome",
       "community": 5
     },
@@ -8367,7 +8367,7 @@
       "label": "removeDangerousAttributes()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1532",
+      "source_location": "L1534",
       "id": "page_capturer_removedangerousattributes",
       "community": 5
     },
@@ -8375,7 +8375,7 @@
       "label": "buildDomCaptureFromHtml()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1550",
+      "source_location": "L1552",
       "id": "page_capturer_builddomcapturefromhtml",
       "community": 5
     },
@@ -8383,7 +8383,7 @@
       "label": "normalizeCapturedLazyMedia()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1689",
+      "source_location": "L1691",
       "id": "page_capturer_normalizecapturedlazymedia",
       "community": 5
     },
@@ -8391,7 +8391,7 @@
       "label": "prioritizeCaptureImageUrls()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1893",
+      "source_location": "L1895",
       "id": "page_capturer_prioritizecaptureimageurls",
       "community": 5
     },
@@ -8399,7 +8399,7 @@
       "label": "PageCapturer",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1925",
+      "source_location": "L1927",
       "id": "page_capturer_pagecapturer",
       "community": 5
     },
@@ -8407,7 +8407,7 @@
       "label": ".constructor()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1929",
+      "source_location": "L1931",
       "id": "page_capturer_pagecapturer_constructor",
       "community": 5
     },
@@ -8415,7 +8415,7 @@
       "label": ".captureModelPage()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1934",
+      "source_location": "L1936",
       "id": "page_capturer_pagecapturer_capturemodelpage",
       "community": 5
     },
@@ -8423,7 +8423,7 @@
       "label": ".fetchInitialDocumentCapture()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2152",
+      "source_location": "L2161",
       "id": "page_capturer_pagecapturer_fetchinitialdocumentcapture",
       "community": 5
     },
@@ -8431,7 +8431,7 @@
       "label": ".captureDom()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2188",
+      "source_location": "L2197",
       "id": "page_capturer_pagecapturer_capturedom",
       "community": 5
     },
@@ -8439,7 +8439,7 @@
       "label": ".downloadImages()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2732",
+      "source_location": "L2741",
       "id": "page_capturer_pagecapturer_downloadimages",
       "community": 5
     },
@@ -8447,7 +8447,7 @@
       "label": ".captureSectionScreenshots()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2847",
+      "source_location": "L2856",
       "id": "page_capturer_pagecapturer_capturesectionscreenshots",
       "community": 5
     },
@@ -9369,7 +9369,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L1",
       "id": "src_design_agent_ts",
-      "community": 33
+      "community": 34
     },
     {
       "label": "generateBrandTokenExtractionPrompt()",
@@ -9377,7 +9377,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L59",
       "id": "agent_generatebrandtokenextractionprompt",
-      "community": 33
+      "community": 34
     },
     {
       "label": "generatePageLayoutPrompt()",
@@ -9385,7 +9385,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L185",
       "id": "agent_generatepagelayoutprompt",
-      "community": 33
+      "community": 34
     },
     {
       "label": "DesignAgent",
@@ -9393,7 +9393,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L285",
       "id": "agent_designagent",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".constructor()",
@@ -9401,7 +9401,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L290",
       "id": "agent_designagent_constructor",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".shouldCapture()",
@@ -9409,7 +9409,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L305",
       "id": "agent_designagent_shouldcapture",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".executeCapture()",
@@ -9417,7 +9417,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L352",
       "id": "agent_designagent_executecapture",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".extractBrandTokens()",
@@ -9425,7 +9425,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L427",
       "id": "agent_designagent_extractbrandtokens",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".extractPageLayout()",
@@ -9433,7 +9433,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L484",
       "id": "agent_designagent_extractpagelayout",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".capturePageForGeneration()",
@@ -9441,7 +9441,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L547",
       "id": "agent_designagent_capturepageforgeneration",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".captureScreenshots()",
@@ -9449,7 +9449,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L716",
       "id": "agent_designagent_capturescreenshots",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".calculatePhashDistance()",
@@ -9457,7 +9457,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L739",
       "id": "agent_designagent_calculatephashdistance",
-      "community": 33
+      "community": 34
     },
     {
       "label": ".estimateCaptureCost()",
@@ -9465,7 +9465,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L759",
       "id": "agent_designagent_estimatecapturecost",
-      "community": 33
+      "community": 34
     },
     {
       "label": "generatePhash()",
@@ -9473,7 +9473,7 @@
       "source_file": "src/design/agent.ts",
       "source_location": "L789",
       "id": "agent_generatephash",
-      "community": 33
+      "community": 34
     },
     {
       "label": "hosted-oem-fonts.test.ts",
@@ -9503,7 +9503,7 @@
       "label": "normalizeSourceUrl()",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L51",
+      "source_location": "L52",
       "id": "pipeline_normalizesourceurl",
       "community": 68
     },
@@ -9511,7 +9511,7 @@
       "label": "getCloneDecision()",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L64",
+      "source_location": "L65",
       "id": "pipeline_getclonedecision",
       "community": 68
     },
@@ -9519,7 +9519,7 @@
       "label": "AdaptivePipeline",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L104",
+      "source_location": "L105",
       "id": "pipeline_adaptivepipeline",
       "community": 68
     },
@@ -9527,7 +9527,7 @@
       "label": ".constructor()",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L114",
+      "source_location": "L115",
       "id": "pipeline_adaptivepipeline_constructor",
       "community": 68
     },
@@ -9535,7 +9535,7 @@
       "label": ".run()",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L140",
+      "source_location": "L141",
       "id": "pipeline_adaptivepipeline_run",
       "community": 68
     },
@@ -9543,7 +9543,7 @@
       "label": ".classifySections()",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L534",
+      "source_location": "L548",
       "id": "pipeline_adaptivepipeline_classifysections",
       "community": 68
     },
@@ -9551,7 +9551,7 @@
       "label": ".validateExtraction()",
       "file_type": "code",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L600",
+      "source_location": "L614",
       "id": "pipeline_adaptivepipeline_validateextraction",
       "community": 68
     },
@@ -9593,7 +9593,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L1",
       "id": "src_design_page_capturer_test_ts",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createLazyMediaElement()",
@@ -9601,7 +9601,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L35",
       "id": "page_capturer_test_createlazymediaelement",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createLazyMediaDocument()",
@@ -9609,7 +9609,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L69",
       "id": "page_capturer_test_createlazymediadocument",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createScrollSweepWindow()",
@@ -9617,7 +9617,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L96",
       "id": "page_capturer_test_createscrollsweepwindow",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createHydrationWindow()",
@@ -9625,7 +9625,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L124",
       "id": "page_capturer_test_createhydrationwindow",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createMemoryBucket()",
@@ -9633,7 +9633,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L157",
       "id": "page_capturer_test_creatememorybucket",
-      "community": 34
+      "community": 32
     },
     {
       "label": "externalHtmlPage()",
@@ -9641,7 +9641,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L175",
       "id": "page_capturer_test_externalhtmlpage",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createShellElement()",
@@ -9649,7 +9649,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L180",
       "id": "page_capturer_test_createshellelement",
-      "community": 34
+      "community": 32
     },
     {
       "label": "createShellWindow()",
@@ -9657,7 +9657,7 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L201",
       "id": "page_capturer_test_createshellwindow",
-      "community": 34
+      "community": 32
     },
     {
       "label": "fakeBrowserCapture()",
@@ -9665,39 +9665,47 @@
       "source_file": "src/design/page-capturer.test.ts",
       "source_location": "L268",
       "id": "page_capturer_test_fakebrowsercapture",
-      "community": 34
+      "community": 32
+    },
+    {
+      "label": "fakeInitialDocumentCapture()",
+      "file_type": "code",
+      "source_file": "src/design/page-capturer.test.ts",
+      "source_location": "L290",
+      "id": "page_capturer_test_fakeinitialdocumentcapture",
+      "community": 32
     },
     {
       "label": "TestMutationObserver",
       "file_type": "code",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L660",
+      "source_location": "L707",
       "id": "page_capturer_test_testmutationobserver",
-      "community": 34
+      "community": 32
     },
     {
       "label": ".constructor()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L666",
+      "source_location": "L713",
       "id": "page_capturer_test_testmutationobserver_constructor",
-      "community": 34
+      "community": 32
     },
     {
       "label": ".observe()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L671",
+      "source_location": "L718",
       "id": "page_capturer_test_testmutationobserver_observe",
-      "community": 34
+      "community": 32
     },
     {
       "label": ".disconnect()",
       "file_type": "code",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L673",
+      "source_location": "L720",
       "id": "page_capturer_test_testmutationobserver_disconnect",
-      "community": 34
+      "community": 32
     },
     {
       "label": "page-generator.ts",
@@ -10935,7 +10943,7 @@
       "label": "diagnosticsKey()",
       "file_type": "code",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L51",
+      "source_location": "L53",
       "id": "capture_diagnostics_diagnosticskey",
       "community": 88
     },
@@ -10943,7 +10951,7 @@
       "label": "buildDiagnosticsRecord()",
       "file_type": "code",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L64",
+      "source_location": "L66",
       "id": "capture_diagnostics_builddiagnosticsrecord",
       "community": 88
     },
@@ -10951,7 +10959,7 @@
       "label": "recordCaptureDiagnostics()",
       "file_type": "code",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L109",
+      "source_location": "L112",
       "id": "capture_diagnostics_recordcapturediagnostics",
       "community": 88
     },
@@ -10959,7 +10967,7 @@
       "label": "readCaptureDiagnostics()",
       "file_type": "code",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L124",
+      "source_location": "L127",
       "id": "capture_diagnostics_readcapturediagnostics",
       "community": 88
     },
@@ -10967,7 +10975,7 @@
       "label": "readLastGoodCapturedHeight()",
       "file_type": "code",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L141",
+      "source_location": "L144",
       "id": "capture_diagnostics_readlastgoodcapturedheight",
       "community": 88
     },
@@ -11673,7 +11681,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L1",
       "id": "src_utils_embeddings_ts",
-      "community": 32
+      "community": 33
     },
     {
       "label": "prepareProductText()",
@@ -11681,7 +11689,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L87",
       "id": "embeddings_prepareproducttext",
-      "community": 32
+      "community": 33
     },
     {
       "label": "prepareOfferText()",
@@ -11689,7 +11697,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L118",
       "id": "embeddings_prepareoffertext",
-      "community": 32
+      "community": 33
     },
     {
       "label": "prepareChangeEventText()",
@@ -11697,7 +11705,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L143",
       "id": "embeddings_preparechangeeventtext",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateContentHash()",
@@ -11705,7 +11713,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L180",
       "id": "embeddings_generatecontenthash",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateEmbedding()",
@@ -11713,7 +11721,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L191",
       "id": "embeddings_generateembedding",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateGeminiEmbedding()",
@@ -11721,7 +11729,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L212",
       "id": "embeddings_generategeminiembedding",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateOpenAIEmbedding()",
@@ -11729,7 +11737,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L258",
       "id": "embeddings_generateopenaiembedding",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateGroqEmbedding()",
@@ -11737,7 +11745,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L295",
       "id": "embeddings_generategroqembedding",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateTogetherEmbedding()",
@@ -11745,7 +11753,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L332",
       "id": "embeddings_generatetogetherembedding",
-      "community": 32
+      "community": 33
     },
     {
       "label": "generateEmbeddingsBatch()",
@@ -11753,7 +11761,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L381",
       "id": "embeddings_generateembeddingsbatch",
-      "community": 32
+      "community": 33
     },
     {
       "label": "syncProductEmbeddings()",
@@ -11761,7 +11769,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L442",
       "id": "embeddings_syncproductembeddings",
-      "community": 32
+      "community": 33
     },
     {
       "label": "searchProductsSemantic()",
@@ -11769,7 +11777,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L509",
       "id": "embeddings_searchproductssemantic",
-      "community": 32
+      "community": 33
     },
     {
       "label": "searchPdfsSemantic()",
@@ -11777,7 +11785,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L573",
       "id": "embeddings_searchpdfssemantic",
-      "community": 32
+      "community": 33
     },
     {
       "label": "findSimilarProducts()",
@@ -11785,7 +11793,7 @@
       "source_file": "src/utils/embeddings.ts",
       "source_location": "L645",
       "id": "embeddings_findsimilarproducts",
-      "community": 32
+      "community": 33
     },
     {
       "label": "image-proxy.ts",
@@ -33477,7 +33485,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L274",
+      "source_location": "L276",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_activatelazymediaforcapture",
@@ -33489,7 +33497,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L448",
+      "source_location": "L450",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_sweepcapturescrollforcapture",
@@ -33501,7 +33509,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L515",
+      "source_location": "L517",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_runpacedhydrationsweepforcapture",
@@ -33513,7 +33521,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L655",
+      "source_location": "L657",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_waitforfeatureappmountsforcapture",
@@ -33525,7 +33533,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L735",
+      "source_location": "L737",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_waitforcaptureimagesforcapture",
@@ -33537,7 +33545,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L769",
+      "source_location": "L771",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_waitforcapturedomquietforcapture",
@@ -33549,7 +33557,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L826",
+      "source_location": "L828",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_waitforcapturefontsforcapture",
@@ -33561,7 +33569,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L849",
+      "source_location": "L851",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_iscaptureblockedbysecuritypage",
@@ -33573,7 +33581,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L896",
+      "source_location": "L898",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_normalizepseudoelementcontentforcapture",
@@ -33585,7 +33593,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L934",
+      "source_location": "L936",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_pseudoelementinlinestyleforcapture",
@@ -33597,7 +33605,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L965",
+      "source_location": "L967",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_materializepseudoelementtextforcapture",
@@ -33609,7 +33617,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1079",
+      "source_location": "L1081",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_extractstylesheethref",
@@ -33621,7 +33629,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1085",
+      "source_location": "L1087",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_extracthtmlattribute",
@@ -33633,7 +33641,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1092",
+      "source_location": "L1094",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_absolutizecaptureurl",
@@ -33645,7 +33653,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1106",
+      "source_location": "L1108",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_isdataorblobcaptureurl",
@@ -33657,7 +33665,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1111",
+      "source_location": "L1113",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_ishttpcaptureurl",
@@ -33669,7 +33677,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1120",
+      "source_location": "L1122",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_normalizecapturesrcset",
@@ -33681,7 +33689,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1144",
+      "source_location": "L1146",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_normalizecapturestyleurls",
@@ -33693,7 +33701,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1163",
+      "source_location": "L1165",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_bestcapturesrcseturl",
@@ -33705,7 +33713,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1167",
+      "source_location": "L1169",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_normalizecomparableurl",
@@ -33717,7 +33725,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1182",
+      "source_location": "L1184",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_islikelycapturedocumenturl",
@@ -33729,7 +33737,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1205",
+      "source_location": "L1207",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_isnonrenderablecapturemediaurl",
@@ -33741,7 +33749,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1218",
+      "source_location": "L1220",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_firstcapturelazyimagesrc",
@@ -33753,7 +33761,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1224",
+      "source_location": "L1226",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_escapehtmlattribute",
@@ -33765,7 +33773,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1235",
+      "source_location": "L1237",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_stylesheetlinktag",
@@ -33777,7 +33785,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1266",
+      "source_location": "L1268",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_sanitizecaptureheadstylecss",
@@ -33789,7 +33797,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1283",
+      "source_location": "L1285",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_inlinestyletag",
@@ -33801,7 +33809,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1303",
+      "source_location": "L1305",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_captureheadpartidentity",
@@ -33813,7 +33821,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1316",
+      "source_location": "L1318",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_collectcaptureheadpartsfromhtml",
@@ -33825,7 +33833,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1349",
+      "source_location": "L1351",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_mergecaptureheadparts",
@@ -33837,7 +33845,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1364",
+      "source_location": "L1366",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_capturecsstext",
@@ -33849,7 +33857,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1368",
+      "source_location": "L1370",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_capturehtmlclassnames",
@@ -33861,7 +33869,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1380",
+      "source_location": "L1382",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_csscontainsclass",
@@ -33873,7 +33881,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1385",
+      "source_location": "L1387",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_capturestyledclassmatchcount",
@@ -33885,7 +33893,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1395",
+      "source_location": "L1397",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_shouldpreferinitialdocumentcapture",
@@ -33897,7 +33905,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1409",
+      "source_location": "L1411",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_collectsrcseturls",
@@ -33909,7 +33917,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1413",
+      "source_location": "L1415",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_bestimagesrcurl",
@@ -33921,7 +33929,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1425",
+      "source_location": "L1427",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_bestelementimageurl",
@@ -33933,7 +33941,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1468",
+      "source_location": "L1470",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_stripexternalcapturechrome",
@@ -33945,7 +33953,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1532",
+      "source_location": "L1534",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_removedangerousattributes",
@@ -33957,7 +33965,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1550",
+      "source_location": "L1552",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_builddomcapturefromhtml",
@@ -33969,7 +33977,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1689",
+      "source_location": "L1691",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_normalizecapturedlazymedia",
@@ -33981,7 +33989,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1893",
+      "source_location": "L1895",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_prioritizecaptureimageurls",
@@ -33993,7 +34001,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1925",
+      "source_location": "L1927",
       "weight": 1.0,
       "_src": "src_design_page_capturer_ts",
       "_tgt": "page_capturer_pagecapturer",
@@ -34005,7 +34013,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1551",
+      "source_location": "L1553",
       "weight": 1.0,
       "_src": "page_capturer_builddomcapturefromhtml",
       "_tgt": "page_capturer_iscaptureblockedbysecuritypage",
@@ -34017,7 +34025,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2171",
+      "source_location": "L2180",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_fetchinitialdocumentcapture",
       "_tgt": "page_capturer_iscaptureblockedbysecuritypage",
@@ -34029,7 +34037,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2223",
+      "source_location": "L2232",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturedom",
       "_tgt": "page_capturer_iscaptureblockedbysecuritypage",
@@ -34041,7 +34049,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1241",
+      "source_location": "L1243",
       "weight": 1.0,
       "_src": "page_capturer_stylesheetlinktag",
       "_tgt": "page_capturer_extractstylesheethref",
@@ -34053,7 +34061,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1304",
+      "source_location": "L1306",
       "weight": 1.0,
       "_src": "page_capturer_captureheadpartidentity",
       "_tgt": "page_capturer_extractstylesheethref",
@@ -34065,7 +34073,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1326",
+      "source_location": "L1328",
       "weight": 1.0,
       "_src": "page_capturer_collectcaptureheadpartsfromhtml",
       "_tgt": "page_capturer_extractstylesheethref",
@@ -34077,7 +34085,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1257",
+      "source_location": "L1259",
       "weight": 1.0,
       "_src": "page_capturer_stylesheetlinktag",
       "_tgt": "page_capturer_extracthtmlattribute",
@@ -34089,7 +34097,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1308",
+      "source_location": "L1310",
       "weight": 1.0,
       "_src": "page_capturer_captureheadpartidentity",
       "_tgt": "page_capturer_extracthtmlattribute",
@@ -34101,7 +34109,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1183",
+      "source_location": "L1185",
       "weight": 1.0,
       "_src": "page_capturer_islikelycapturedocumenturl",
       "_tgt": "page_capturer_absolutizecaptureurl",
@@ -34113,7 +34121,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1214",
+      "source_location": "L1216",
       "weight": 1.0,
       "_src": "page_capturer_isnonrenderablecapturemediaurl",
       "_tgt": "page_capturer_absolutizecaptureurl",
@@ -34125,7 +34133,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1246",
+      "source_location": "L1248",
       "weight": 1.0,
       "_src": "page_capturer_stylesheetlinktag",
       "_tgt": "page_capturer_absolutizecaptureurl",
@@ -34137,7 +34145,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1417",
+      "source_location": "L1419",
       "weight": 1.0,
       "_src": "page_capturer_bestimagesrcurl",
       "_tgt": "page_capturer_absolutizecaptureurl",
@@ -34149,7 +34157,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1693",
+      "source_location": "L1695",
       "weight": 1.0,
       "_src": "page_capturer_normalizecapturedlazymedia",
       "_tgt": "page_capturer_absolutizecaptureurl",
@@ -34161,7 +34169,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1215",
+      "source_location": "L1217",
       "weight": 1.0,
       "_src": "page_capturer_isnonrenderablecapturemediaurl",
       "_tgt": "page_capturer_ishttpcaptureurl",
@@ -34173,7 +34181,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1247",
+      "source_location": "L1249",
       "weight": 1.0,
       "_src": "page_capturer_stylesheetlinktag",
       "_tgt": "page_capturer_ishttpcaptureurl",
@@ -34185,7 +34193,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1410",
+      "source_location": "L1412",
       "weight": 1.0,
       "_src": "page_capturer_collectsrcseturls",
       "_tgt": "page_capturer_normalizecapturesrcset",
@@ -34197,7 +34205,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1267",
+      "source_location": "L1269",
       "weight": 1.0,
       "_src": "page_capturer_sanitizecaptureheadstylecss",
       "_tgt": "page_capturer_normalizecapturestyleurls",
@@ -34209,7 +34217,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1434",
+      "source_location": "L1436",
       "weight": 1.0,
       "_src": "page_capturer_bestelementimageurl",
       "_tgt": "page_capturer_bestcapturesrcseturl",
@@ -34221,7 +34229,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1184",
+      "source_location": "L1186",
       "weight": 1.0,
       "_src": "page_capturer_islikelycapturedocumenturl",
       "_tgt": "page_capturer_normalizecomparableurl",
@@ -34233,7 +34241,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1215",
+      "source_location": "L1217",
       "weight": 1.0,
       "_src": "page_capturer_isnonrenderablecapturemediaurl",
       "_tgt": "page_capturer_islikelycapturedocumenturl",
@@ -34245,7 +34253,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1416",
+      "source_location": "L1418",
       "weight": 1.0,
       "_src": "page_capturer_bestimagesrcurl",
       "_tgt": "page_capturer_isnonrenderablecapturemediaurl",
@@ -34257,7 +34265,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1694",
+      "source_location": "L1696",
       "weight": 1.0,
       "_src": "page_capturer_normalizecapturedlazymedia",
       "_tgt": "page_capturer_isnonrenderablecapturemediaurl",
@@ -34269,7 +34277,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1415",
+      "source_location": "L1417",
       "weight": 1.0,
       "_src": "page_capturer_bestimagesrcurl",
       "_tgt": "page_capturer_firstcapturelazyimagesrc",
@@ -34281,7 +34289,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1325",
+      "source_location": "L1327",
       "weight": 1.0,
       "_src": "page_capturer_collectcaptureheadpartsfromhtml",
       "_tgt": "page_capturer_stylesheetlinktag",
@@ -34293,7 +34301,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1284",
+      "source_location": "L1286",
       "weight": 1.0,
       "_src": "page_capturer_inlinestyletag",
       "_tgt": "page_capturer_sanitizecaptureheadstylecss",
@@ -34305,7 +34313,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1354",
+      "source_location": "L1356",
       "weight": 1.0,
       "_src": "page_capturer_mergecaptureheadparts",
       "_tgt": "page_capturer_captureheadpartidentity",
@@ -34317,7 +34325,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1561",
+      "source_location": "L1563",
       "weight": 1.0,
       "_src": "page_capturer_builddomcapturefromhtml",
       "_tgt": "page_capturer_collectcaptureheadpartsfromhtml",
@@ -34329,7 +34337,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2176",
+      "source_location": "L2185",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_fetchinitialdocumentcapture",
       "_tgt": "page_capturer_collectcaptureheadpartsfromhtml",
@@ -34341,7 +34349,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1991",
+      "source_location": "L1995",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_mergecaptureheadparts",
@@ -34353,7 +34361,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1386",
+      "source_location": "L1388",
       "weight": 1.0,
       "_src": "page_capturer_capturestyledclassmatchcount",
       "_tgt": "page_capturer_capturecsstext",
@@ -34365,7 +34373,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1399",
+      "source_location": "L1401",
       "weight": 1.0,
       "_src": "page_capturer_shouldpreferinitialdocumentcapture",
       "_tgt": "page_capturer_capturecsstext",
@@ -34377,7 +34385,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1390",
+      "source_location": "L1392",
       "weight": 1.0,
       "_src": "page_capturer_capturestyledclassmatchcount",
       "_tgt": "page_capturer_capturehtmlclassnames",
@@ -34389,7 +34397,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1403",
+      "source_location": "L1405",
       "weight": 1.0,
       "_src": "page_capturer_shouldpreferinitialdocumentcapture",
       "_tgt": "page_capturer_capturestyledclassmatchcount",
@@ -34401,7 +34409,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1988",
+      "source_location": "L1991",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_shouldpreferinitialdocumentcapture",
@@ -34413,7 +34421,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1434",
+      "source_location": "L1436",
       "weight": 1.0,
       "_src": "page_capturer_bestelementimageurl",
       "_tgt": "page_capturer_collectsrcseturls",
@@ -34425,7 +34433,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1440",
+      "source_location": "L1442",
       "weight": 1.0,
       "_src": "page_capturer_bestelementimageurl",
       "_tgt": "page_capturer_bestimagesrcurl",
@@ -34437,7 +34445,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1666",
+      "source_location": "L1668",
       "weight": 1.0,
       "_src": "page_capturer_builddomcapturefromhtml",
       "_tgt": "page_capturer_bestelementimageurl",
@@ -34449,7 +34457,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1877",
+      "source_location": "L1879",
       "weight": 1.0,
       "_src": "page_capturer_normalizecapturedlazymedia",
       "_tgt": "page_capturer_bestelementimageurl",
@@ -34461,7 +34469,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1555",
+      "source_location": "L1557",
       "weight": 1.0,
       "_src": "page_capturer_builddomcapturefromhtml",
       "_tgt": "page_capturer_stripexternalcapturechrome",
@@ -34473,7 +34481,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1573",
+      "source_location": "L1575",
       "weight": 1.0,
       "_src": "page_capturer_builddomcapturefromhtml",
       "_tgt": "page_capturer_removedangerousattributes",
@@ -34485,7 +34493,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1673",
+      "source_location": "L1675",
       "weight": 1.0,
       "_src": "page_capturer_builddomcapturefromhtml",
       "_tgt": "page_capturer_normalizecapturedlazymedia",
@@ -34497,7 +34505,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1974",
+      "source_location": "L1976",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_builddomcapturefromhtml",
@@ -34509,7 +34517,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2174",
+      "source_location": "L2183",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_fetchinitialdocumentcapture",
       "_tgt": "page_capturer_builddomcapturefromhtml",
@@ -34521,7 +34529,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2717",
+      "source_location": "L2726",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturedom",
       "_tgt": "page_capturer_normalizecapturedlazymedia",
@@ -34533,7 +34541,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2018",
+      "source_location": "L2026",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_prioritizecaptureimageurls",
@@ -34545,7 +34553,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1929",
+      "source_location": "L1931",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer",
       "_tgt": "page_capturer_pagecapturer_constructor",
@@ -34557,7 +34565,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1934",
+      "source_location": "L1936",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer",
       "_tgt": "page_capturer_pagecapturer_capturemodelpage",
@@ -34569,7 +34577,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2152",
+      "source_location": "L2161",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer",
       "_tgt": "page_capturer_pagecapturer_fetchinitialdocumentcapture",
@@ -34581,7 +34589,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2188",
+      "source_location": "L2197",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer",
       "_tgt": "page_capturer_pagecapturer_capturedom",
@@ -34593,7 +34601,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2732",
+      "source_location": "L2741",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer",
       "_tgt": "page_capturer_pagecapturer_downloadimages",
@@ -34605,7 +34613,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2847",
+      "source_location": "L2856",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer",
       "_tgt": "page_capturer_pagecapturer_capturesectionscreenshots",
@@ -34617,7 +34625,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1975",
+      "source_location": "L1977",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_pagecapturer_capturedom",
@@ -34629,7 +34637,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L1987",
+      "source_location": "L1990",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_pagecapturer_fetchinitialdocumentcapture",
@@ -34641,7 +34649,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.ts",
-      "source_location": "L2022",
+      "source_location": "L2030",
       "weight": 1.0,
       "_src": "page_capturer_pagecapturer_capturemodelpage",
       "_tgt": "page_capturer_pagecapturer_downloadimages",
@@ -37245,7 +37253,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L51",
+      "source_location": "L52",
       "weight": 1.0,
       "_src": "src_design_pipeline_ts",
       "_tgt": "pipeline_normalizesourceurl",
@@ -37257,7 +37265,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L64",
+      "source_location": "L65",
       "weight": 1.0,
       "_src": "src_design_pipeline_ts",
       "_tgt": "pipeline_getclonedecision",
@@ -37269,7 +37277,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L104",
+      "source_location": "L105",
       "weight": 1.0,
       "_src": "src_design_pipeline_ts",
       "_tgt": "pipeline_adaptivepipeline",
@@ -37281,7 +37289,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L77",
+      "source_location": "L78",
       "weight": 1.0,
       "_src": "pipeline_getclonedecision",
       "_tgt": "pipeline_normalizesourceurl",
@@ -37293,7 +37301,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L203",
+      "source_location": "L204",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline_run",
       "_tgt": "pipeline_getclonedecision",
@@ -37305,7 +37313,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L114",
+      "source_location": "L115",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline",
       "_tgt": "pipeline_adaptivepipeline_constructor",
@@ -37317,7 +37325,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L140",
+      "source_location": "L141",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline",
       "_tgt": "pipeline_adaptivepipeline_run",
@@ -37329,7 +37337,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L534",
+      "source_location": "L548",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline",
       "_tgt": "pipeline_adaptivepipeline_classifysections",
@@ -37341,7 +37349,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L600",
+      "source_location": "L614",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline",
       "_tgt": "pipeline_adaptivepipeline_validateextraction",
@@ -37353,7 +37361,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L287",
+      "source_location": "L301",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline_run",
       "_tgt": "pipeline_adaptivepipeline_classifysections",
@@ -37365,7 +37373,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/pipeline.ts",
-      "source_location": "L350",
+      "source_location": "L364",
       "weight": 1.0,
       "_src": "pipeline_adaptivepipeline_run",
       "_tgt": "pipeline_adaptivepipeline_validateextraction",
@@ -37497,7 +37505,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L660",
+      "source_location": "L290",
+      "weight": 1.0,
+      "_src": "src_design_page_capturer_test_ts",
+      "_tgt": "page_capturer_test_fakeinitialdocumentcapture",
+      "source": "src_design_page_capturer_test_ts",
+      "target": "page_capturer_test_fakeinitialdocumentcapture",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/page-capturer.test.ts",
+      "source_location": "L707",
       "weight": 1.0,
       "_src": "src_design_page_capturer_test_ts",
       "_tgt": "page_capturer_test_testmutationobserver",
@@ -37509,7 +37529,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L666",
+      "source_location": "L713",
       "weight": 1.0,
       "_src": "page_capturer_test_testmutationobserver",
       "_tgt": "page_capturer_test_testmutationobserver_constructor",
@@ -37521,7 +37541,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L671",
+      "source_location": "L718",
       "weight": 1.0,
       "_src": "page_capturer_test_testmutationobserver",
       "_tgt": "page_capturer_test_testmutationobserver_observe",
@@ -37533,7 +37553,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/design/page-capturer.test.ts",
-      "source_location": "L673",
+      "source_location": "L720",
       "weight": 1.0,
       "_src": "page_capturer_test_testmutationobserver",
       "_tgt": "page_capturer_test_testmutationobserver_disconnect",
@@ -40689,7 +40709,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L51",
+      "source_location": "L53",
       "weight": 1.0,
       "_src": "src_design_capture_diagnostics_ts",
       "_tgt": "capture_diagnostics_diagnosticskey",
@@ -40701,7 +40721,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L64",
+      "source_location": "L66",
       "weight": 1.0,
       "_src": "src_design_capture_diagnostics_ts",
       "_tgt": "capture_diagnostics_builddiagnosticsrecord",
@@ -40713,7 +40733,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L109",
+      "source_location": "L112",
       "weight": 1.0,
       "_src": "src_design_capture_diagnostics_ts",
       "_tgt": "capture_diagnostics_recordcapturediagnostics",
@@ -40725,7 +40745,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L124",
+      "source_location": "L127",
       "weight": 1.0,
       "_src": "src_design_capture_diagnostics_ts",
       "_tgt": "capture_diagnostics_readcapturediagnostics",
@@ -40737,7 +40757,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L141",
+      "source_location": "L144",
       "weight": 1.0,
       "_src": "src_design_capture_diagnostics_ts",
       "_tgt": "capture_diagnostics_readlastgoodcapturedheight",
@@ -40749,7 +40769,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L117",
+      "source_location": "L120",
       "weight": 1.0,
       "_src": "capture_diagnostics_recordcapturediagnostics",
       "_tgt": "capture_diagnostics_diagnosticskey",
@@ -40761,7 +40781,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L129",
+      "source_location": "L132",
       "weight": 1.0,
       "_src": "capture_diagnostics_readcapturediagnostics",
       "_tgt": "capture_diagnostics_diagnosticskey",
@@ -40773,7 +40793,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L113",
+      "source_location": "L116",
       "weight": 1.0,
       "_src": "capture_diagnostics_recordcapturediagnostics",
       "_tgt": "capture_diagnostics_readcapturediagnostics",
@@ -40785,7 +40805,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/design/capture-diagnostics.ts",
-      "source_location": "L146",
+      "source_location": "L149",
       "weight": 1.0,
       "_src": "capture_diagnostics_readlastgoodcapturedheight",
       "_tgt": "capture_diagnostics_readcapturediagnostics",
