@@ -18,6 +18,7 @@ import { load, type Cheerio, type CheerioAPI } from 'cheerio';
 import type { OemId, VehicleModelPage } from '../oem/types';
 import { applyCloneMode, type ModeAwarePage } from './page-modes';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+import { resolveCaptureProfile, type OemCaptureProfile } from './capture-profiles';
 
 // ============================================================================
 // Types
@@ -65,6 +66,7 @@ export interface DomCaptureResult {
     width: number;
     height: number;
   };
+  audit?: CaptureAudit;
 }
 
 export type CaptureHydrationStatus = 'stable' | 'budget-exhausted' | 'max-passes' | 'unsupported';
@@ -81,6 +83,16 @@ export interface CaptureHydrationReport {
   passes: CaptureHydrationPassSample[];
   final_scroll_height: number;
   final_image_count: number;
+}
+
+export interface CaptureAudit {
+  captured_scroll_height: number;
+  dom_image_count: number;
+  hydration_status: CaptureHydrationStatus;
+  hydration_passes: CaptureHydrationPassSample[];
+  shells_checked: number;
+  shells_recovered: number;
+  empty_shells: string[];
 }
 
 interface InitialDocumentCapture {
@@ -1952,9 +1964,10 @@ export class PageCapturer {
         };
       }
 
+      const profile = resolveCaptureProfile(oemId);
       let capture = backend === 'scrapling-stealth' || backend === 'external-html'
         ? buildDomCaptureFromHtml(options.externalCapture!, options.externalCapture?.finalUrl || sourceUrl)
-        : await this.captureDom(sourceUrl);
+        : await this.captureDom(sourceUrl, profile);
       if ('bot_blocked' in capture) {
         return {
           success: false,
@@ -2147,6 +2160,7 @@ export class PageCapturer {
 
   private async captureDom(
     sourceUrl: string,
+    profile: OemCaptureProfile,
   ): Promise<DomCaptureResult | { bot_blocked: true }> {
     const puppeteerModule = await import('@cloudflare/puppeteer');
     const puppeteer = puppeteerModule.default;
@@ -2216,15 +2230,23 @@ export class PageCapturer {
       // Wait a moment for the DOM changes to take effect
       await new Promise(r => setTimeout(r, 500));
 
-      // Scroll to trigger lazy-loaded images (now that hidden panels are visible).
-      // Re-measure height during the sweep because OEM pages may append content near the bottom.
-      const scrollSweepStatus = await page.evaluate(sweepCaptureScrollForCapture as any, {
-        stepDelayMs: CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS,
-        finalDelayMs: CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS,
-        timeoutMs: CAPTURE_SCROLL_SWEEP_TIMEOUT_MS,
-        maxSteps: CAPTURE_SCROLL_SWEEP_MAX_STEPS,
-      });
-      console.log(`[PageCapturer] Scroll sweep: ${scrollSweepStatus}`);
+      // Paced multi-pass hydration sweep: keep sweeping until the page stops
+      // growing so scroll-mounted feature apps exist before we serialize.
+      const hydrationReport = await page.evaluate(runPacedHydrationSweepForCapture as any, {
+        budgetMs: profile.hydration.budgetMs,
+        stepDelayMs: profile.hydration.stepDelayMs,
+        mountWaitMs: profile.hydration.mountWaitMs,
+        stabilityPct: profile.hydration.stabilityPct,
+        maxPasses: profile.hydration.maxPasses,
+      }) as CaptureHydrationReport;
+      console.log(`[PageCapturer] Hydration sweep: ${hydrationReport.status} after ${hydrationReport.passes.length} pass(es), height=${hydrationReport.final_scroll_height}, images=${hydrationReport.final_image_count}`);
+
+      // Give known still-empty feature-app shells a bounded second chance.
+      const featureAppReport = await page.evaluate(waitForFeatureAppMountsForCapture as any, {
+        shellSelectors: profile.featureAppShellSelectors,
+        mountWaitMs: profile.hydration.mountWaitMs,
+      }) as CaptureFeatureAppMountReport;
+      console.log(`[PageCapturer] Feature apps: checked=${featureAppReport.checked}, recovered=${featureAppReport.recovered}, stillEmpty=${featureAppReport.still_empty.length}`);
 
       // Wait for images to finish loading after scroll
       await new Promise(r => setTimeout(r, 2000));
@@ -2237,6 +2259,14 @@ export class PageCapturer {
 
       const domQuietStatus = await page.evaluate(waitForCaptureDomQuietForCapture as any, CAPTURE_DOM_QUIET_WINDOW_MS, CAPTURE_DOM_QUIET_TIMEOUT_MS);
       console.log(`[PageCapturer] DOM quiet: ${domQuietStatus}`);
+
+      const auditSnapshot = await page.evaluate(() => ({
+        scroll_height: Math.max(
+          Number(document.documentElement?.scrollHeight ?? 0),
+          Number(document.body?.scrollHeight ?? 0),
+        ),
+        image_count: document.querySelectorAll('img').length,
+      })) as { scroll_height: number; image_count: number };
 
       // Materialize simple CSS ::before/::after text before serializing the DOM. This preserves
       // OEM badges/labels that would otherwise disappear when Clone Studio strips page CSS scripts.
@@ -2641,6 +2671,16 @@ export class PageCapturer {
           elementCount,
         };
       });
+
+      (result as DomCaptureResult).audit = {
+        captured_scroll_height: auditSnapshot.scroll_height,
+        dom_image_count: auditSnapshot.image_count,
+        hydration_status: hydrationReport.status,
+        hydration_passes: hydrationReport.passes,
+        shells_checked: featureAppReport.checked,
+        shells_recovered: featureAppReport.recovered,
+        empty_shells: featureAppReport.still_empty,
+      };
 
       const resultWithViewport: DomCaptureResult = {
         ...result,

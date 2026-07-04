@@ -4,15 +4,12 @@
  * a half-hydrated page can never replace a good clone (spec §4.1 "fail loud").
  */
 
-// Structural subset of CaptureAudit (page-capturer.ts). Kept structural so this
-// module has no runtime dependency on page-capturer (avoids an import cycle via
-// capture-profiles). Task 4 aliases the real type here via `import type`.
-export interface CaptureCompletenessAuditInput {
-  captured_scroll_height: number;
-  dom_image_count: number;
-  hydration_status: 'stable' | 'budget-exhausted' | 'max-passes' | 'unsupported';
-  empty_shells: string[];
-}
+import type { CaptureAudit } from './page-capturer';
+
+export type CaptureCompletenessAuditInput = Pick<
+  CaptureAudit,
+  'captured_scroll_height' | 'dom_image_count' | 'hydration_status' | 'empty_shells'
+>;
 
 export interface CaptureCompletenessConfig {
   /** Feature-app shells allowed to remain empty. Default 0. */

@@ -13,10 +13,6 @@ import {
   CAPTURE_HYDRATION_STABILITY_PCT,
   CAPTURE_HYDRATION_STEP_DELAY_MS,
   CAPTURE_IMAGE_READY_TIMEOUT_MS,
-  CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS,
-  CAPTURE_SCROLL_SWEEP_MAX_STEPS,
-  CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS,
-  CAPTURE_SCROLL_SWEEP_TIMEOUT_MS,
   CAPTURE_STATIC_CAROUSEL_SAFETY_CSS,
   CAPTURE_STATIC_CLONE_SAFETY_CSS,
   CAPTURE_STATIC_MEDIA_FRAME_CSS,
@@ -739,27 +735,26 @@ describe('PageCapturer readiness wiring', () => {
   it('waits for images, fonts, and DOM quiet before materializing pseudo-element text', () => {
     const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
     const lazyActivation = source.indexOf('page.evaluate(activateLazyMediaForCapture as any)')
-    const lazyActivationLog = source.indexOf('videoSources=${lazyMediaActivation.videoSources}, videoPosters=${lazyMediaActivation.videoPosters}', lazyActivation)
-    const scrollSweep = source.indexOf('page.evaluate(sweepCaptureScrollForCapture as any')
+    const hydrationSweep = source.indexOf('page.evaluate(runPacedHydrationSweepForCapture as any')
+    const featureAppWait = source.indexOf('page.evaluate(waitForFeatureAppMountsForCapture as any')
     const imageWait = source.indexOf('page.evaluate(waitForCaptureImagesForCapture as any, CAPTURE_IMAGE_READY_TIMEOUT_MS)')
     const fontWait = source.indexOf('page.evaluate(waitForCaptureFontsForCapture as any, CAPTURE_FONT_READY_TIMEOUT_MS)')
     const domQuietWait = source.indexOf('page.evaluate(waitForCaptureDomQuietForCapture as any, CAPTURE_DOM_QUIET_WINDOW_MS, CAPTURE_DOM_QUIET_TIMEOUT_MS)')
     const pseudoMaterialize = source.indexOf('page.evaluate(materializePseudoElementTextForCapture as any)')
 
-    expect(CAPTURE_SCROLL_SWEEP_STEP_DELAY_MS).toBe(300)
-    expect(CAPTURE_SCROLL_SWEEP_FINAL_DELAY_MS).toBe(500)
-    expect(CAPTURE_SCROLL_SWEEP_TIMEOUT_MS).toBe(10000)
-    expect(CAPTURE_SCROLL_SWEEP_MAX_STEPS).toBe(30)
+    expect(CAPTURE_HYDRATION_BUDGET_MS).toBe(90000)
+    expect(CAPTURE_HYDRATION_STEP_DELAY_MS).toBe(450)
+    expect(CAPTURE_HYDRATION_MOUNT_WAIT_MS).toBe(4000)
+    expect(CAPTURE_HYDRATION_STABILITY_PCT).toBe(2)
+    expect(CAPTURE_HYDRATION_MAX_PASSES).toBe(4)
     expect(CAPTURE_IMAGE_READY_TIMEOUT_MS).toBe(3000)
     expect(CAPTURE_FONT_READY_TIMEOUT_MS).toBe(2500)
     expect(CAPTURE_DOM_QUIET_WINDOW_MS).toBe(250)
     expect(CAPTURE_DOM_QUIET_TIMEOUT_MS).toBe(1500)
     expect(lazyActivation).toBeGreaterThan(-1)
-    expect(lazyActivationLog).toBeGreaterThan(lazyActivation)
-    expect(scrollSweep).toBeGreaterThan(lazyActivation)
-    expect(scrollSweep).toBeGreaterThan(-1)
-    expect(imageWait).toBeGreaterThan(scrollSweep)
-    expect(imageWait).toBeGreaterThan(-1)
+    expect(hydrationSweep).toBeGreaterThan(lazyActivation)
+    expect(featureAppWait).toBeGreaterThan(hydrationSweep)
+    expect(imageWait).toBeGreaterThan(featureAppWait)
     expect(fontWait).toBeGreaterThan(imageWait)
     expect(domQuietWait).toBeGreaterThan(fontWait)
     expect(pseudoMaterialize).toBeGreaterThan(domQuietWait)
