@@ -1,2477 +1,2741 @@
-# Graph Report - src + dashboard/src  (2026-07-04)
+# Graph Report - .  (2026-07-04)
 
 ## Corpus Check
-- 383 files · ~229,617 words
+- 431 files · ~4,367,126 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1894 nodes · 2748 edges · 381 communities detected
+- 2145 nodes · 3102 edges · 425 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Multi-OEM Sync Jobs|Multi-OEM Sync Jobs]]
-- [[_COMMUNITY_Clone Region Converter|Clone Region Converter]]
-- [[_COMMUNITY_Crawl Orchestrator|Crawl Orchestrator]]
-- [[_COMMUNITY_Dashboard Worker API Client|Dashboard Worker API Client]]
-- [[_COMMUNITY_Clone Studio HTML Bridge|Clone Studio HTML Bridge]]
-- [[_COMMUNITY_Page Capture Engine|Page Capture Engine]]
-- [[_COMMUNITY_Content Extraction Engine|Content Extraction Engine]]
-- [[_COMMUNITY_Mitsubishi Sync|Mitsubishi Sync]]
-- [[_COMMUNITY_Page Modes|Page Modes]]
-- [[_COMMUNITY_Toyota Browser Sync|Toyota Browser Sync]]
-- [[_COMMUNITY_OEM Agent Routes|OEM Agent Routes]]
-- [[_COMMUNITY_Section Detection|Section Detection]]
-- [[_COMMUNITY_Slack Alerts|Slack Alerts]]
-- [[_COMMUNITY_Page Generator|Page Generator]]
-- [[_COMMUNITY_Discovery Cache|Discovery Cache]]
-- [[_COMMUNITY_Change Detection|Change Detection]]
-- [[_COMMUNITY_Legacy Page Importer|Legacy Page Importer]]
-- [[_COMMUNITY_AI Router|AI Router]]
-- [[_COMMUNITY_Scope Oem Css|Scope Oem Css]]
-- [[_COMMUNITY_Network Interception Browser|Network Interception Browser]]
-- [[_COMMUNITY_Crawl Scheduler|Crawl Scheduler]]
-- [[_COMMUNITY_Tailwind Recipe Compiler|Tailwind Recipe Compiler]]
-- [[_COMMUNITY_Session|Session]]
-- [[_COMMUNITY_Cdp|Cdp]]
-- [[_COMMUNITY_Dealer Api|Dealer Api]]
-- [[_COMMUNITY_Page Structurer|Page Structurer]]
-- [[_COMMUNITY_Sales Rep|Sales Rep]]
-- [[_COMMUNITY_Oem Proxy|Oem Proxy]]
-- [[_COMMUNITY_Embeddings|Embeddings]]
-- [[_COMMUNITY_Agent|Agent]]
-- [[_COMMUNITY_Oem Scraper|Oem Scraper]]
-- [[_COMMUNITY_Section Mapper|Section Mapper]]
-- [[_COMMUNITY_Production Css Scope|Production Css Scope]]
-- [[_COMMUNITY_Network Capture|Network Capture]]
-- [[_COMMUNITY_Onboarding|Onboarding]]
-- [[_COMMUNITY_Model Pages Status|Model Pages Status]]
-- [[_COMMUNITY_Gac Scraper|Gac Scraper]]
-- [[_COMMUNITY_Agent Spawner|Agent Spawner]]
-- [[_COMMUNITY_Pdf Spec Extractor|Pdf Spec Extractor]]
-- [[_COMMUNITY_Suzuki Sync|Suzuki Sync]]
-- [[_COMMUNITY_Cron|Cron]]
-- [[_COMMUNITY_Page Structurer.Test|Page Structurer.Test]]
-- [[_COMMUNITY_Api Chainer|Api Chainer]]
-- [[_COMMUNITY_Multi Provider|Multi Provider]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Recipe Extractor|Recipe Extractor]]
-- [[_COMMUNITY_Page Capturer.Test|Page Capturer.Test]]
-- [[_COMMUNITY_Memory|Memory]]
-- [[_COMMUNITY_AI Router|AI Router]]
-- [[_COMMUNITY_Self Heal|Self Heal]]
-- [[_COMMUNITY_Api|Api]]
-- [[_COMMUNITY_Oem Agent Style Guide.Test|Oem Agent Style Guide.Test]]
-- [[_COMMUNITY_Page Workflow|Page Workflow]]
-- [[_COMMUNITY_Prompt Builder|Prompt Builder]]
-- [[_COMMUNITY_Crawl Orchestrator|Crawl Orchestrator]]
-- [[_COMMUNITY_Kia Colors|Kia Colors]]
-- [[_COMMUNITY_Adminpage|Adminpage]]
-- [[_COMMUNITY_Section Templates|Section Templates]]
-- [[_COMMUNITY_Pipeline|Pipeline]]
-- [[_COMMUNITY_Page Cloner|Page Cloner]]
-- [[_COMMUNITY_Banner Graphics|Banner Graphics]]
-- [[_COMMUNITY_Banner Data Filter|Banner Data Filter]]
-- [[_COMMUNITY_Inline Data|Inline Data]]
-- [[_COMMUNITY_Hosted Oem Fonts|Hosted Oem Fonts]]
-- [[_COMMUNITY_Ux Knowledge|Ux Knowledge]]
-- [[_COMMUNITY_Page Builder Composable|Page Builder Composable]]
-- [[_COMMUNITY_Scope Oem Section|Scope Oem Section]]
-- [[_COMMUNITY_Test Utils|Test Utils]]
-- [[_COMMUNITY_Component Generator|Component Generator]]
-- [[_COMMUNITY_Capture Diagnostics.Test|Capture Diagnostics.Test]]
-- [[_COMMUNITY_Auth|Auth]]
-- [[_COMMUNITY_Registry|Registry]]
-- [[_COMMUNITY_Banner Triage|Banner Triage]]
-- [[_COMMUNITY_Media|Media]]
-- [[_COMMUNITY_Variant Color Explorer Data|Variant Color Explorer Data]]
-- [[_COMMUNITY_Clone Studio Canvas Helpers|Clone Studio Canvas Helpers]]
-- [[_COMMUNITY_Example Tasks.Api|Example Tasks.Api]]
-- [[_COMMUNITY_Component Generator.Test|Component Generator.Test]]
-- [[_COMMUNITY_Capture Diagnostics|Capture Diagnostics]]
-- [[_COMMUNITY_Tailwind Declaration Mapper|Tailwind Declaration Mapper]]
-- [[_COMMUNITY_Middleware|Middleware]]
-- [[_COMMUNITY_Test Groq|Test Groq]]
-- [[_COMMUNITY_Crawl Doctor|Crawl Doctor]]
-- [[_COMMUNITY_Apify Client|Apify Client]]
-- [[_COMMUNITY_Oem Agent.Test|Oem Agent.Test]]
-- [[_COMMUNITY_Clone Region Sidebar Helpers|Clone Region Sidebar Helpers]]
-- [[_COMMUNITY_Clone Studio Html.Test|Clone Studio Html.Test]]
-- [[_COMMUNITY_Section Media|Section Media]]
-- [[_COMMUNITY_Section Converter|Section Converter]]
-- [[_COMMUNITY_Tailwind Recipe Types|Tailwind Recipe Types]]
-- [[_COMMUNITY_Compiler Contracts|Compiler Contracts]]
-- [[_COMMUNITY_Extraction Runner|Extraction Runner]]
-- [[_COMMUNITY_Tailwind Style Normalizer|Tailwind Style Normalizer]]
-- [[_COMMUNITY_Brochure Mirror|Brochure Mirror]]
-- [[_COMMUNITY_Cron Runs|Cron Runs]]
-- [[_COMMUNITY_Image Proxy|Image Proxy]]
-- [[_COMMUNITY_Server.Test|Server.Test]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Use Stock Health|Use Stock Health]]
-- [[_COMMUNITY_Markdown|Markdown]]
-- [[_COMMUNITY_Utils|Utils]]
-- [[_COMMUNITY_Region Actions|Region Actions]]
-- [[_COMMUNITY_Scheduled|Scheduled]]
-- [[_COMMUNITY_Model Page Protection|Model Page Protection]]
-- [[_COMMUNITY_Container|Container]]
-- [[_COMMUNITY_Sandbox Paths|Sandbox Paths]]
-- [[_COMMUNITY_Openclaw Url Rewrite|Openclaw Url Rewrite]]
-- [[_COMMUNITY_Middleware.Test|Middleware.Test]]
-- [[_COMMUNITY_Audit Log|Audit Log]]
-- [[_COMMUNITY_Rate Limit|Rate Limit]]
-- [[_COMMUNITY_Image Proxy.Test|Image Proxy.Test]]
-- [[_COMMUNITY_Banner Data Filter.Test|Banner Data Filter.Test]]
-- [[_COMMUNITY_Specs Api|Specs Api]]
-- [[_COMMUNITY_R2|R2]]
-- [[_COMMUNITY_Process|Process]]
-- [[_COMMUNITY_Capture Tailwind Rules.Test|Capture Tailwind Rules.Test]]
-- [[_COMMUNITY_Use Template Gallery|Use Template Gallery]]
-- [[_COMMUNITY_Use Section Animation|Use Section Animation]]
-- [[_COMMUNITY_Utils|Utils]]
-- [[_COMMUNITY_Sidebar Data|Sidebar Data]]
-- [[_COMMUNITY_Oem Ids|Oem Ids]]
-- [[_COMMUNITY_Clone Studio Components.Test|Clone Studio Components.Test]]
-- [[_COMMUNITY_Clone Preview Html|Clone Preview Html]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Config|Config]]
-- [[_COMMUNITY_Recipe Response.Test|Recipe Response.Test]]
-- [[_COMMUNITY_Hosted Oem Fonts.Test|Hosted Oem Fonts.Test]]
-- [[_COMMUNITY_Recipe Response|Recipe Response]]
-- [[_COMMUNITY_Jwt|Jwt]]
-- [[_COMMUNITY_Test Integration|Test Integration]]
-- [[_COMMUNITY_Test Performance|Test Performance]]
-- [[_COMMUNITY_Supabase|Supabase]]
-- [[_COMMUNITY_Logging|Logging]]
-- [[_COMMUNITY_Auth.Test|Auth.Test]]
-- [[_COMMUNITY_Page Tools|Page Tools]]
-- [[_COMMUNITY_Catalog Tools|Catalog Tools]]
-- [[_COMMUNITY_Sync Tools|Sync Tools]]
-- [[_COMMUNITY_Scheduler.Test|Scheduler.Test]]
-- [[_COMMUNITY_Pdf Spec Extractor.Test|Pdf Spec Extractor.Test]]
-- [[_COMMUNITY_Competitive Intel|Competitive Intel]]
-- [[_COMMUNITY_Weekly Report|Weekly Report]]
-- [[_COMMUNITY_Orchestrator Controller|Orchestrator Controller]]
-- [[_COMMUNITY_App|App]]
-- [[_COMMUNITY_Agents|Agents]]
-- [[_COMMUNITY_Process.Test|Process.Test]]
-- [[_COMMUNITY_Utils|Utils]]
-- [[_COMMUNITY_Env|Env]]
-- [[_COMMUNITY_Sync|Sync]]
-- [[_COMMUNITY_Main|Main]]
-- [[_COMMUNITY_Use Generated Pages|Use Generated Pages]]
-- [[_COMMUNITY_Use Auth|Use Auth]]
-- [[_COMMUNITY_Use Portal Assets|Use Portal Assets]]
-- [[_COMMUNITY_Use Agents|Use Agents]]
-- [[_COMMUNITY_Use Onboarding|Use Onboarding]]
-- [[_COMMUNITY_Use Google Fonts|Use Google Fonts]]
-- [[_COMMUNITY_Use Inline Edit|Use Inline Edit]]
-- [[_COMMUNITY_Use Clipboard|Use Clipboard]]
-- [[_COMMUNITY_Capture Pseudo Elements|Capture Pseudo Elements]]
-- [[_COMMUNITY_Use Cron Jobs|Use Cron Jobs]]
-- [[_COMMUNITY_Use Sidebar|Use Sidebar]]
-- [[_COMMUNITY_Use Page Builder.Test|Use Page Builder.Test]]
-- [[_COMMUNITY_Use System Theme|Use System Theme]]
-- [[_COMMUNITY_Use Agent Profile|Use Agent Profile]]
-- [[_COMMUNITY_Capture Tailwind Rules|Capture Tailwind Rules]]
-- [[_COMMUNITY_Use Axios|Use Axios]]
-- [[_COMMUNITY_Use Realtime|Use Realtime]]
-- [[_COMMUNITY_Use Oem Data|Use Oem Data]]
-- [[_COMMUNITY_Use Capture Injection|Use Capture Injection]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Setup|Setup]]
-- [[_COMMUNITY_Useformfield|Useformfield]]
-- [[_COMMUNITY_Usecarousel|Usecarousel]]
-- [[_COMMUNITY_Use Modal|Use Modal]]
-- [[_COMMUNITY_Use Generate Vue Table|Use Generate Vue Table]]
-- [[_COMMUNITY_Capture Status|Capture Status]]
-- [[_COMMUNITY_Capture Status.Test|Capture Status.Test]]
-- [[_COMMUNITY_Recipes|Recipes]]
-- [[_COMMUNITY_Supabase|Supabase]]
-- [[_COMMUNITY_Ai Model Options|Ai Model Options]]
-- [[_COMMUNITY_Section Registry|Section Registry]]
-- [[_COMMUNITY_Section Registry.Test|Section Registry.Test]]
-- [[_COMMUNITY_Clone Region Converter.Test|Clone Region Converter.Test]]
-- [[_COMMUNITY_Section Icons|Section Icons]]
-- [[_COMMUNITY_Recipe Patterns|Recipe Patterns]]
-- [[_COMMUNITY_Users|Users]]
-- [[_COMMUNITY_Auth Guard|Auth Guard]]
-- [[_COMMUNITY_Index.Test|Index.Test]]
-- [[_COMMUNITY_Openclaw Url Rewrite.Test|Openclaw Url Rewrite.Test]]
-- [[_COMMUNITY_Env.D|Env.D]]
-- [[_COMMUNITY_Logging.Test|Logging.Test]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Orchestrator.Test|Orchestrator.Test]]
-- [[_COMMUNITY_Assets.D|Assets.D]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Model Page Write Protection.Test|Model Page Write Protection.Test]]
-- [[_COMMUNITY_Section Mapper.Test|Section Mapper.Test]]
-- [[_COMMUNITY_Tailwind Style Normalizer.Test|Tailwind Style Normalizer.Test]]
-- [[_COMMUNITY_Pipeline.Test|Pipeline.Test]]
-- [[_COMMUNITY_Compiler Contracts.Test|Compiler Contracts.Test]]
-- [[_COMMUNITY_Tailwind Recipe Types.Test|Tailwind Recipe Types.Test]]
-- [[_COMMUNITY_Clone Studio Audit Script.Test|Clone Studio Audit Script.Test]]
-- [[_COMMUNITY_Section Parser.Test|Section Parser.Test]]
-- [[_COMMUNITY_Recipe Extractor.Test|Recipe Extractor.Test]]
-- [[_COMMUNITY_Tailwind Recipe Compiler.Test|Tailwind Recipe Compiler.Test]]
-- [[_COMMUNITY_Production Css Scope.Test|Production Css Scope.Test]]
-- [[_COMMUNITY_Tailwind Declaration Mapper.Test|Tailwind Declaration Mapper.Test]]
-- [[_COMMUNITY_Page Modes.Test|Page Modes.Test]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Page Section Types.Test|Page Section Types.Test]]
-- [[_COMMUNITY_Jwt.Test|Jwt.Test]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Recipe Tools|Recipe Tools]]
-- [[_COMMUNITY_Search Tools|Search Tools]]
-- [[_COMMUNITY_Oem Tools|Oem Tools]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Banner Graphics.Test|Banner Graphics.Test]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Inline Data.Test|Inline Data.Test]]
-- [[_COMMUNITY_Engine.Test|Engine.Test]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Main|Main]]
-- [[_COMMUNITY_Debug|Debug]]
-- [[_COMMUNITY_Api|Api]]
-- [[_COMMUNITY_Admin Ui|Admin Ui]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Public|Public]]
-- [[_COMMUNITY_Media.Test|Media.Test]]
-- [[_COMMUNITY_Env.Test|Env.Test]]
-- [[_COMMUNITY_Sync.Test|Sync.Test]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_R2.Test|R2.Test]]
-- [[_COMMUNITY_Vue Router Meta.D|Vue Router Meta.D]]
-- [[_COMMUNITY_Auto Import.D|Auto Import.D]]
-- [[_COMMUNITY_Auto Import Components.D|Auto Import Components.D]]
-- [[_COMMUNITY_Vite Env.D|Vite Env.D]]
-- [[_COMMUNITY_Route Map.D|Route Map.D]]
-- [[_COMMUNITY_Capture Pseudo Elements.Test|Capture Pseudo Elements.Test]]
-- [[_COMMUNITY_Use Clipboard.Test|Use Clipboard.Test]]
-- [[_COMMUNITY_Use Capture Injection.Test|Use Capture Injection.Test]]
-- [[_COMMUNITY_Pagination|Pagination]]
-- [[_COMMUNITY_Route Path|Route Path]]
-- [[_COMMUNITY_Themes|Themes]]
-- [[_COMMUNITY_Theme|Theme]]
-- [[_COMMUNITY_Auth|Auth]]
-- [[_COMMUNITY_Env|Env]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Utils|Utils]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Injectionkeys|Injectionkeys]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Interface|Interface]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Team.Validator|Team.Validator]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Types|Types]]
-- [[_COMMUNITY_Table Columns|Table Columns]]
-- [[_COMMUNITY_Oem Ids.Test|Oem Ids.Test]]
-- [[_COMMUNITY_Recipes.Test|Recipes.Test]]
-- [[_COMMUNITY_Scope Oem Css.Test|Scope Oem Css.Test]]
-- [[_COMMUNITY_Worker Api.Test|Worker Api.Test]]
-- [[_COMMUNITY_Scope Oem Section.Test|Scope Oem Section.Test]]
-- [[_COMMUNITY_Display.Validator|Display.Validator]]
-- [[_COMMUNITY_Account.Validator|Account.Validator]]
-- [[_COMMUNITY_Notifications.Validator|Notifications.Validator]]
-- [[_COMMUNITY_Profile.Validator|Profile.Validator]]
-- [[_COMMUNITY_Appearance.Validator|Appearance.Validator]]
-- [[_COMMUNITY_Columns|Columns]]
-- [[_COMMUNITY_Task.Validator|Task.Validator]]
-- [[_COMMUNITY_Schema|Schema]]
-- [[_COMMUNITY_Data|Data]]
-- [[_COMMUNITY_Index|Index]]
-- [[_COMMUNITY_Talks|Talks]]
-- [[_COMMUNITY_Model Pages Status.Test|Model Pages Status.Test]]
-- [[_COMMUNITY_Ai Model Options.Test|Ai Model Options.Test]]
-- [[_COMMUNITY_Toolbar Layout.Test|Toolbar Layout.Test]]
-- [[_COMMUNITY_Full Preview Workflow.Test|Full Preview Workflow.Test]]
-- [[_COMMUNITY_Page Modes.Test|Page Modes.Test]]
-- [[_COMMUNITY_Page Workflow.Test|Page Workflow.Test]]
-- [[_COMMUNITY_Variant Color Explorer Data.Test|Variant Color Explorer Data.Test]]
-- [[_COMMUNITY_Section Hero.Test|Section Hero.Test]]
-- [[_COMMUNITY_Region Actions.Test|Region Actions.Test]]
-- [[_COMMUNITY_Section Capture Options.Test|Section Capture Options.Test]]
-- [[_COMMUNITY_Section Media.Test|Section Media.Test]]
-- [[_COMMUNITY_Section Templates.Test|Section Templates.Test]]
-- [[_COMMUNITY_Oem Templates|Oem Templates]]
-- [[_COMMUNITY_Clone Studio Resize.Test|Clone Studio Resize.Test]]
-- [[_COMMUNITY_Clone Studio Coords.Test|Clone Studio Coords.Test]]
-- [[_COMMUNITY_Recipe Patterns.Test|Recipe Patterns.Test]]
-- [[_COMMUNITY_Section Capture Options|Section Capture Options]]
-- [[_COMMUNITY_Section Converter.Test|Section Converter.Test]]
-- [[_COMMUNITY_Region Menu.Test|Region Menu.Test]]
-- [[_COMMUNITY_Section Icons.Test|Section Icons.Test]]
-- [[_COMMUNITY_Page Builder Canvas Preview.Test|Page Builder Canvas Preview.Test]]
-- [[_COMMUNITY_Style Guide Copy Affordances.Test|Style Guide Copy Affordances.Test]]
-- [[_COMMUNITY_Columns|Columns]]
-- [[_COMMUNITY_User.Validator|User.Validator]]
-- [[_COMMUNITY_User Invite.Validator|User Invite.Validator]]
-- [[_COMMUNITY_Schema|Schema]]
-- [[_COMMUNITY_Data|Data]]
-- [[_COMMUNITY_Preview Tailwind Toolbar.Test|Preview Tailwind Toolbar.Test]]
-- [[_COMMUNITY_Type|Type]]
-- [[_COMMUNITY_Apps|Apps]]
-- [[_COMMUNITY_Type|Type]]
-- [[_COMMUNITY_Columns|Columns]]
-- [[_COMMUNITY_Schema|Schema]]
-- [[_COMMUNITY_Data|Data]]
-- [[_COMMUNITY_Response.Type|Response.Type]]
-- [[_COMMUNITY_Index|Index]]
+- [[_COMMUNITY_Community 0|Community 0]]
+- [[_COMMUNITY_Community 1|Community 1]]
+- [[_COMMUNITY_Community 2|Community 2]]
+- [[_COMMUNITY_Community 3|Community 3]]
+- [[_COMMUNITY_Community 4|Community 4]]
+- [[_COMMUNITY_Community 5|Community 5]]
+- [[_COMMUNITY_Community 6|Community 6]]
+- [[_COMMUNITY_Community 7|Community 7]]
+- [[_COMMUNITY_Community 8|Community 8]]
+- [[_COMMUNITY_Community 9|Community 9]]
+- [[_COMMUNITY_Community 10|Community 10]]
+- [[_COMMUNITY_Community 11|Community 11]]
+- [[_COMMUNITY_Community 12|Community 12]]
+- [[_COMMUNITY_Community 13|Community 13]]
+- [[_COMMUNITY_Community 14|Community 14]]
+- [[_COMMUNITY_Community 15|Community 15]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
+- [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
+- [[_COMMUNITY_Community 22|Community 22]]
+- [[_COMMUNITY_Community 23|Community 23]]
+- [[_COMMUNITY_Community 24|Community 24]]
+- [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
+- [[_COMMUNITY_Community 27|Community 27]]
+- [[_COMMUNITY_Community 28|Community 28]]
+- [[_COMMUNITY_Community 29|Community 29]]
+- [[_COMMUNITY_Community 30|Community 30]]
+- [[_COMMUNITY_Community 31|Community 31]]
+- [[_COMMUNITY_Community 32|Community 32]]
+- [[_COMMUNITY_Community 33|Community 33]]
+- [[_COMMUNITY_Community 34|Community 34]]
+- [[_COMMUNITY_Community 35|Community 35]]
+- [[_COMMUNITY_Community 36|Community 36]]
+- [[_COMMUNITY_Community 37|Community 37]]
+- [[_COMMUNITY_Community 38|Community 38]]
+- [[_COMMUNITY_Community 39|Community 39]]
+- [[_COMMUNITY_Community 40|Community 40]]
+- [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
+- [[_COMMUNITY_Community 43|Community 43]]
+- [[_COMMUNITY_Community 44|Community 44]]
+- [[_COMMUNITY_Community 45|Community 45]]
+- [[_COMMUNITY_Community 46|Community 46]]
+- [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
+- [[_COMMUNITY_Community 49|Community 49]]
+- [[_COMMUNITY_Community 50|Community 50]]
+- [[_COMMUNITY_Community 51|Community 51]]
+- [[_COMMUNITY_Community 52|Community 52]]
+- [[_COMMUNITY_Community 53|Community 53]]
+- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
+- [[_COMMUNITY_Community 59|Community 59]]
+- [[_COMMUNITY_Community 60|Community 60]]
+- [[_COMMUNITY_Community 61|Community 61]]
+- [[_COMMUNITY_Community 62|Community 62]]
+- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 64|Community 64]]
+- [[_COMMUNITY_Community 65|Community 65]]
+- [[_COMMUNITY_Community 66|Community 66]]
+- [[_COMMUNITY_Community 67|Community 67]]
+- [[_COMMUNITY_Community 68|Community 68]]
+- [[_COMMUNITY_Community 69|Community 69]]
+- [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 71|Community 71]]
+- [[_COMMUNITY_Community 72|Community 72]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 74|Community 74]]
+- [[_COMMUNITY_Community 75|Community 75]]
+- [[_COMMUNITY_Community 76|Community 76]]
+- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 78|Community 78]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 80|Community 80]]
+- [[_COMMUNITY_Community 81|Community 81]]
+- [[_COMMUNITY_Community 82|Community 82]]
+- [[_COMMUNITY_Community 83|Community 83]]
+- [[_COMMUNITY_Community 84|Community 84]]
+- [[_COMMUNITY_Community 85|Community 85]]
+- [[_COMMUNITY_Community 86|Community 86]]
+- [[_COMMUNITY_Community 87|Community 87]]
+- [[_COMMUNITY_Community 88|Community 88]]
+- [[_COMMUNITY_Community 89|Community 89]]
+- [[_COMMUNITY_Community 90|Community 90]]
+- [[_COMMUNITY_Community 91|Community 91]]
+- [[_COMMUNITY_Community 92|Community 92]]
+- [[_COMMUNITY_Community 93|Community 93]]
+- [[_COMMUNITY_Community 94|Community 94]]
+- [[_COMMUNITY_Community 95|Community 95]]
+- [[_COMMUNITY_Community 96|Community 96]]
+- [[_COMMUNITY_Community 97|Community 97]]
+- [[_COMMUNITY_Community 98|Community 98]]
+- [[_COMMUNITY_Community 99|Community 99]]
+- [[_COMMUNITY_Community 100|Community 100]]
+- [[_COMMUNITY_Community 101|Community 101]]
+- [[_COMMUNITY_Community 102|Community 102]]
+- [[_COMMUNITY_Community 103|Community 103]]
+- [[_COMMUNITY_Community 104|Community 104]]
+- [[_COMMUNITY_Community 105|Community 105]]
+- [[_COMMUNITY_Community 106|Community 106]]
+- [[_COMMUNITY_Community 107|Community 107]]
+- [[_COMMUNITY_Community 108|Community 108]]
+- [[_COMMUNITY_Community 109|Community 109]]
+- [[_COMMUNITY_Community 110|Community 110]]
+- [[_COMMUNITY_Community 111|Community 111]]
+- [[_COMMUNITY_Community 112|Community 112]]
+- [[_COMMUNITY_Community 113|Community 113]]
+- [[_COMMUNITY_Community 114|Community 114]]
+- [[_COMMUNITY_Community 115|Community 115]]
+- [[_COMMUNITY_Community 116|Community 116]]
+- [[_COMMUNITY_Community 117|Community 117]]
+- [[_COMMUNITY_Community 118|Community 118]]
+- [[_COMMUNITY_Community 119|Community 119]]
+- [[_COMMUNITY_Community 120|Community 120]]
+- [[_COMMUNITY_Community 121|Community 121]]
+- [[_COMMUNITY_Community 122|Community 122]]
+- [[_COMMUNITY_Community 123|Community 123]]
+- [[_COMMUNITY_Community 124|Community 124]]
+- [[_COMMUNITY_Community 125|Community 125]]
+- [[_COMMUNITY_Community 126|Community 126]]
+- [[_COMMUNITY_Community 127|Community 127]]
+- [[_COMMUNITY_Community 128|Community 128]]
+- [[_COMMUNITY_Community 129|Community 129]]
+- [[_COMMUNITY_Community 130|Community 130]]
+- [[_COMMUNITY_Community 131|Community 131]]
+- [[_COMMUNITY_Community 132|Community 132]]
+- [[_COMMUNITY_Community 133|Community 133]]
+- [[_COMMUNITY_Community 134|Community 134]]
+- [[_COMMUNITY_Community 135|Community 135]]
+- [[_COMMUNITY_Community 136|Community 136]]
+- [[_COMMUNITY_Community 137|Community 137]]
+- [[_COMMUNITY_Community 138|Community 138]]
+- [[_COMMUNITY_Community 139|Community 139]]
+- [[_COMMUNITY_Community 140|Community 140]]
+- [[_COMMUNITY_Community 141|Community 141]]
+- [[_COMMUNITY_Community 142|Community 142]]
+- [[_COMMUNITY_Community 143|Community 143]]
+- [[_COMMUNITY_Community 144|Community 144]]
+- [[_COMMUNITY_Community 145|Community 145]]
+- [[_COMMUNITY_Community 146|Community 146]]
+- [[_COMMUNITY_Community 147|Community 147]]
+- [[_COMMUNITY_Community 148|Community 148]]
+- [[_COMMUNITY_Community 149|Community 149]]
+- [[_COMMUNITY_Community 150|Community 150]]
+- [[_COMMUNITY_Community 151|Community 151]]
+- [[_COMMUNITY_Community 152|Community 152]]
+- [[_COMMUNITY_Community 153|Community 153]]
+- [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
+- [[_COMMUNITY_Community 157|Community 157]]
+- [[_COMMUNITY_Community 158|Community 158]]
+- [[_COMMUNITY_Community 159|Community 159]]
+- [[_COMMUNITY_Community 160|Community 160]]
+- [[_COMMUNITY_Community 161|Community 161]]
+- [[_COMMUNITY_Community 162|Community 162]]
+- [[_COMMUNITY_Community 163|Community 163]]
+- [[_COMMUNITY_Community 164|Community 164]]
+- [[_COMMUNITY_Community 165|Community 165]]
+- [[_COMMUNITY_Community 166|Community 166]]
+- [[_COMMUNITY_Community 167|Community 167]]
+- [[_COMMUNITY_Community 168|Community 168]]
+- [[_COMMUNITY_Community 169|Community 169]]
+- [[_COMMUNITY_Community 170|Community 170]]
+- [[_COMMUNITY_Community 171|Community 171]]
+- [[_COMMUNITY_Community 172|Community 172]]
+- [[_COMMUNITY_Community 173|Community 173]]
+- [[_COMMUNITY_Community 174|Community 174]]
+- [[_COMMUNITY_Community 175|Community 175]]
+- [[_COMMUNITY_Community 176|Community 176]]
+- [[_COMMUNITY_Community 177|Community 177]]
+- [[_COMMUNITY_Community 178|Community 178]]
+- [[_COMMUNITY_Community 179|Community 179]]
+- [[_COMMUNITY_Community 180|Community 180]]
+- [[_COMMUNITY_Community 181|Community 181]]
+- [[_COMMUNITY_Community 182|Community 182]]
+- [[_COMMUNITY_Community 183|Community 183]]
+- [[_COMMUNITY_Community 184|Community 184]]
+- [[_COMMUNITY_Community 185|Community 185]]
+- [[_COMMUNITY_Community 186|Community 186]]
+- [[_COMMUNITY_Community 187|Community 187]]
+- [[_COMMUNITY_Community 188|Community 188]]
+- [[_COMMUNITY_Community 189|Community 189]]
+- [[_COMMUNITY_Community 190|Community 190]]
+- [[_COMMUNITY_Community 191|Community 191]]
+- [[_COMMUNITY_Community 192|Community 192]]
+- [[_COMMUNITY_Community 193|Community 193]]
+- [[_COMMUNITY_Community 194|Community 194]]
+- [[_COMMUNITY_Community 195|Community 195]]
+- [[_COMMUNITY_Community 196|Community 196]]
+- [[_COMMUNITY_Community 197|Community 197]]
+- [[_COMMUNITY_Community 198|Community 198]]
+- [[_COMMUNITY_Community 199|Community 199]]
+- [[_COMMUNITY_Community 200|Community 200]]
+- [[_COMMUNITY_Community 201|Community 201]]
+- [[_COMMUNITY_Community 202|Community 202]]
+- [[_COMMUNITY_Community 203|Community 203]]
+- [[_COMMUNITY_Community 204|Community 204]]
+- [[_COMMUNITY_Community 205|Community 205]]
+- [[_COMMUNITY_Community 206|Community 206]]
+- [[_COMMUNITY_Community 207|Community 207]]
+- [[_COMMUNITY_Community 208|Community 208]]
+- [[_COMMUNITY_Community 209|Community 209]]
+- [[_COMMUNITY_Community 210|Community 210]]
+- [[_COMMUNITY_Community 211|Community 211]]
+- [[_COMMUNITY_Community 212|Community 212]]
+- [[_COMMUNITY_Community 213|Community 213]]
+- [[_COMMUNITY_Community 214|Community 214]]
+- [[_COMMUNITY_Community 215|Community 215]]
+- [[_COMMUNITY_Community 216|Community 216]]
+- [[_COMMUNITY_Community 217|Community 217]]
+- [[_COMMUNITY_Community 218|Community 218]]
+- [[_COMMUNITY_Community 219|Community 219]]
+- [[_COMMUNITY_Community 220|Community 220]]
+- [[_COMMUNITY_Community 221|Community 221]]
+- [[_COMMUNITY_Community 222|Community 222]]
+- [[_COMMUNITY_Community 223|Community 223]]
+- [[_COMMUNITY_Community 224|Community 224]]
+- [[_COMMUNITY_Community 225|Community 225]]
+- [[_COMMUNITY_Community 226|Community 226]]
+- [[_COMMUNITY_Community 227|Community 227]]
+- [[_COMMUNITY_Community 228|Community 228]]
+- [[_COMMUNITY_Community 229|Community 229]]
+- [[_COMMUNITY_Community 230|Community 230]]
+- [[_COMMUNITY_Community 231|Community 231]]
+- [[_COMMUNITY_Community 232|Community 232]]
+- [[_COMMUNITY_Community 233|Community 233]]
+- [[_COMMUNITY_Community 234|Community 234]]
+- [[_COMMUNITY_Community 235|Community 235]]
+- [[_COMMUNITY_Community 236|Community 236]]
+- [[_COMMUNITY_Community 237|Community 237]]
+- [[_COMMUNITY_Community 238|Community 238]]
+- [[_COMMUNITY_Community 239|Community 239]]
+- [[_COMMUNITY_Community 240|Community 240]]
+- [[_COMMUNITY_Community 241|Community 241]]
+- [[_COMMUNITY_Community 242|Community 242]]
+- [[_COMMUNITY_Community 243|Community 243]]
+- [[_COMMUNITY_Community 244|Community 244]]
+- [[_COMMUNITY_Community 245|Community 245]]
+- [[_COMMUNITY_Community 246|Community 246]]
+- [[_COMMUNITY_Community 247|Community 247]]
+- [[_COMMUNITY_Community 248|Community 248]]
+- [[_COMMUNITY_Community 249|Community 249]]
+- [[_COMMUNITY_Community 250|Community 250]]
+- [[_COMMUNITY_Community 251|Community 251]]
+- [[_COMMUNITY_Community 252|Community 252]]
+- [[_COMMUNITY_Community 253|Community 253]]
+- [[_COMMUNITY_Community 254|Community 254]]
+- [[_COMMUNITY_Community 255|Community 255]]
+- [[_COMMUNITY_Community 256|Community 256]]
+- [[_COMMUNITY_Community 257|Community 257]]
+- [[_COMMUNITY_Community 258|Community 258]]
+- [[_COMMUNITY_Community 259|Community 259]]
+- [[_COMMUNITY_Community 260|Community 260]]
+- [[_COMMUNITY_Community 261|Community 261]]
+- [[_COMMUNITY_Community 262|Community 262]]
+- [[_COMMUNITY_Community 263|Community 263]]
+- [[_COMMUNITY_Community 264|Community 264]]
+- [[_COMMUNITY_Community 265|Community 265]]
+- [[_COMMUNITY_Community 266|Community 266]]
+- [[_COMMUNITY_Community 267|Community 267]]
+- [[_COMMUNITY_Community 268|Community 268]]
+- [[_COMMUNITY_Community 269|Community 269]]
+- [[_COMMUNITY_Community 270|Community 270]]
+- [[_COMMUNITY_Community 271|Community 271]]
+- [[_COMMUNITY_Community 272|Community 272]]
+- [[_COMMUNITY_Community 273|Community 273]]
+- [[_COMMUNITY_Community 274|Community 274]]
+- [[_COMMUNITY_Community 275|Community 275]]
+- [[_COMMUNITY_Community 276|Community 276]]
+- [[_COMMUNITY_Community 277|Community 277]]
+- [[_COMMUNITY_Community 278|Community 278]]
+- [[_COMMUNITY_Community 279|Community 279]]
+- [[_COMMUNITY_Community 280|Community 280]]
+- [[_COMMUNITY_Community 281|Community 281]]
+- [[_COMMUNITY_Community 282|Community 282]]
+- [[_COMMUNITY_Community 283|Community 283]]
+- [[_COMMUNITY_Community 284|Community 284]]
+- [[_COMMUNITY_Community 285|Community 285]]
+- [[_COMMUNITY_Community 286|Community 286]]
+- [[_COMMUNITY_Community 287|Community 287]]
+- [[_COMMUNITY_Community 288|Community 288]]
+- [[_COMMUNITY_Community 289|Community 289]]
+- [[_COMMUNITY_Community 290|Community 290]]
+- [[_COMMUNITY_Community 291|Community 291]]
+- [[_COMMUNITY_Community 292|Community 292]]
+- [[_COMMUNITY_Community 293|Community 293]]
+- [[_COMMUNITY_Community 294|Community 294]]
+- [[_COMMUNITY_Community 295|Community 295]]
+- [[_COMMUNITY_Community 296|Community 296]]
+- [[_COMMUNITY_Community 297|Community 297]]
+- [[_COMMUNITY_Community 298|Community 298]]
+- [[_COMMUNITY_Community 299|Community 299]]
+- [[_COMMUNITY_Community 300|Community 300]]
+- [[_COMMUNITY_Community 301|Community 301]]
+- [[_COMMUNITY_Community 302|Community 302]]
+- [[_COMMUNITY_Community 303|Community 303]]
+- [[_COMMUNITY_Community 304|Community 304]]
+- [[_COMMUNITY_Community 305|Community 305]]
+- [[_COMMUNITY_Community 306|Community 306]]
+- [[_COMMUNITY_Community 307|Community 307]]
+- [[_COMMUNITY_Community 308|Community 308]]
+- [[_COMMUNITY_Community 309|Community 309]]
+- [[_COMMUNITY_Community 310|Community 310]]
+- [[_COMMUNITY_Community 311|Community 311]]
+- [[_COMMUNITY_Community 312|Community 312]]
+- [[_COMMUNITY_Community 313|Community 313]]
+- [[_COMMUNITY_Community 314|Community 314]]
+- [[_COMMUNITY_Community 315|Community 315]]
+- [[_COMMUNITY_Community 316|Community 316]]
+- [[_COMMUNITY_Community 317|Community 317]]
+- [[_COMMUNITY_Community 318|Community 318]]
+- [[_COMMUNITY_Community 319|Community 319]]
+- [[_COMMUNITY_Community 320|Community 320]]
+- [[_COMMUNITY_Community 321|Community 321]]
+- [[_COMMUNITY_Community 322|Community 322]]
+- [[_COMMUNITY_Community 323|Community 323]]
+- [[_COMMUNITY_Community 324|Community 324]]
+- [[_COMMUNITY_Community 325|Community 325]]
+- [[_COMMUNITY_Community 326|Community 326]]
+- [[_COMMUNITY_Community 327|Community 327]]
+- [[_COMMUNITY_Community 328|Community 328]]
+- [[_COMMUNITY_Community 329|Community 329]]
+- [[_COMMUNITY_Community 330|Community 330]]
+- [[_COMMUNITY_Community 331|Community 331]]
+- [[_COMMUNITY_Community 332|Community 332]]
+- [[_COMMUNITY_Community 333|Community 333]]
+- [[_COMMUNITY_Community 334|Community 334]]
+- [[_COMMUNITY_Community 335|Community 335]]
+- [[_COMMUNITY_Community 336|Community 336]]
+- [[_COMMUNITY_Community 337|Community 337]]
+- [[_COMMUNITY_Community 338|Community 338]]
+- [[_COMMUNITY_Community 339|Community 339]]
+- [[_COMMUNITY_Community 340|Community 340]]
+- [[_COMMUNITY_Community 341|Community 341]]
+- [[_COMMUNITY_Community 342|Community 342]]
+- [[_COMMUNITY_Community 343|Community 343]]
+- [[_COMMUNITY_Community 344|Community 344]]
+- [[_COMMUNITY_Community 345|Community 345]]
+- [[_COMMUNITY_Community 346|Community 346]]
+- [[_COMMUNITY_Community 347|Community 347]]
+- [[_COMMUNITY_Community 348|Community 348]]
+- [[_COMMUNITY_Community 349|Community 349]]
+- [[_COMMUNITY_Community 350|Community 350]]
+- [[_COMMUNITY_Community 351|Community 351]]
+- [[_COMMUNITY_Community 352|Community 352]]
+- [[_COMMUNITY_Community 353|Community 353]]
+- [[_COMMUNITY_Community 354|Community 354]]
+- [[_COMMUNITY_Community 355|Community 355]]
+- [[_COMMUNITY_Community 356|Community 356]]
+- [[_COMMUNITY_Community 357|Community 357]]
+- [[_COMMUNITY_Community 358|Community 358]]
+- [[_COMMUNITY_Community 359|Community 359]]
+- [[_COMMUNITY_Community 360|Community 360]]
+- [[_COMMUNITY_Community 361|Community 361]]
+- [[_COMMUNITY_Community 362|Community 362]]
+- [[_COMMUNITY_Community 363|Community 363]]
+- [[_COMMUNITY_Community 364|Community 364]]
+- [[_COMMUNITY_Community 365|Community 365]]
+- [[_COMMUNITY_Community 366|Community 366]]
+- [[_COMMUNITY_Community 367|Community 367]]
+- [[_COMMUNITY_Community 368|Community 368]]
+- [[_COMMUNITY_Community 369|Community 369]]
+- [[_COMMUNITY_Community 370|Community 370]]
+- [[_COMMUNITY_Community 371|Community 371]]
+- [[_COMMUNITY_Community 372|Community 372]]
+- [[_COMMUNITY_Community 373|Community 373]]
+- [[_COMMUNITY_Community 374|Community 374]]
+- [[_COMMUNITY_Community 375|Community 375]]
+- [[_COMMUNITY_Community 376|Community 376]]
+- [[_COMMUNITY_Community 377|Community 377]]
+- [[_COMMUNITY_Community 378|Community 378]]
+- [[_COMMUNITY_Community 379|Community 379]]
+- [[_COMMUNITY_Community 380|Community 380]]
+- [[_COMMUNITY_Community 381|Community 381]]
+- [[_COMMUNITY_Community 382|Community 382]]
+- [[_COMMUNITY_Community 383|Community 383]]
+- [[_COMMUNITY_Community 384|Community 384]]
+- [[_COMMUNITY_Community 385|Community 385]]
+- [[_COMMUNITY_Community 386|Community 386]]
+- [[_COMMUNITY_Community 387|Community 387]]
+- [[_COMMUNITY_Community 388|Community 388]]
+- [[_COMMUNITY_Community 389|Community 389]]
+- [[_COMMUNITY_Community 390|Community 390]]
+- [[_COMMUNITY_Community 391|Community 391]]
+- [[_COMMUNITY_Community 392|Community 392]]
+- [[_COMMUNITY_Community 393|Community 393]]
+- [[_COMMUNITY_Community 394|Community 394]]
+- [[_COMMUNITY_Community 395|Community 395]]
+- [[_COMMUNITY_Community 396|Community 396]]
+- [[_COMMUNITY_Community 397|Community 397]]
+- [[_COMMUNITY_Community 398|Community 398]]
+- [[_COMMUNITY_Community 399|Community 399]]
+- [[_COMMUNITY_Community 400|Community 400]]
+- [[_COMMUNITY_Community 401|Community 401]]
+- [[_COMMUNITY_Community 402|Community 402]]
+- [[_COMMUNITY_Community 403|Community 403]]
+- [[_COMMUNITY_Community 404|Community 404]]
+- [[_COMMUNITY_Community 405|Community 405]]
+- [[_COMMUNITY_Community 406|Community 406]]
+- [[_COMMUNITY_Community 407|Community 407]]
+- [[_COMMUNITY_Community 408|Community 408]]
+- [[_COMMUNITY_Community 409|Community 409]]
+- [[_COMMUNITY_Community 410|Community 410]]
+- [[_COMMUNITY_Community 411|Community 411]]
+- [[_COMMUNITY_Community 412|Community 412]]
+- [[_COMMUNITY_Community 413|Community 413]]
+- [[_COMMUNITY_Community 414|Community 414]]
+- [[_COMMUNITY_Community 415|Community 415]]
+- [[_COMMUNITY_Community 416|Community 416]]
+- [[_COMMUNITY_Community 417|Community 417]]
+- [[_COMMUNITY_Community 418|Community 418]]
+- [[_COMMUNITY_Community 419|Community 419]]
+- [[_COMMUNITY_Community 420|Community 420]]
+- [[_COMMUNITY_Community 421|Community 421]]
+- [[_COMMUNITY_Community 422|Community 422]]
+- [[_COMMUNITY_Community 423|Community 423]]
+- [[_COMMUNITY_Community 424|Community 424]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `OemAgentOrchestrator` - 66 edges
 2. `workerFetch()` - 65 edges
-3. `buildHyundaiSpecsJson()` - 17 edges
+3. `handler()` - 30 edges
 4. `assertModelPageWriteAllowed()` - 17 edges
-5. `NetworkInterceptionBrowser` - 16 edges
-6. `McpSession` - 16 edges
-7. `AiRouter` - 16 edges
-8. `syncGac()` - 16 edges
-9. `buildCloneStudioHtml()` - 16 edges
-10. `SalesRepAgent` - 15 edges
+5. `buildHyundaiSpecsJson()` - 17 edges
+6. `buildCloneStudioHtml()` - 16 edges
+7. `NetworkInterceptionBrowser` - 16 edges
+8. `McpSession` - 16 edges
+9. `AiRouter` - 16 edges
+10. `syncGac()` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `normalizeDashboardPageModes()` --calls--> `isRecord()`  [EXTRACTED]
+  dashboard/src/pages/dashboard/page-builder/page-modes.ts → src/design/page-modes.ts
 - `normalizeDashboardPageModes()` --calls--> `ensureContent()`  [EXTRACTED]
   dashboard/src/pages/dashboard/page-builder/page-modes.ts → src/design/page-modes.ts
 - `normalizeDashboardPageModes()` --calls--> `ensureModes()`  [EXTRACTED]
   dashboard/src/pages/dashboard/page-builder/page-modes.ts → src/design/page-modes.ts
-- `getAvailablePageModes()` --calls--> `isModeAvailable()`  [EXTRACTED]
+- `getActivePageMode()` --calls--> `normalizeModeName()`  [EXTRACTED]
   dashboard/src/pages/dashboard/page-builder/page-modes.ts → src/design/page-modes.ts
-- `isModeAvailable()` --calls--> `getCloneHtml()`  [EXTRACTED]
-  src/design/page-modes.ts → dashboard/src/pages/dashboard/page-builder/page-modes.ts
-- `isModeAvailable()` --calls--> `getSectionItems()`  [EXTRACTED]
-  src/design/page-modes.ts → dashboard/src/pages/dashboard/page-builder/page-modes.ts
+- `getAvailablePageModes()` --calls--> `isRecord()`  [EXTRACTED]
+  dashboard/src/pages/dashboard/page-builder/page-modes.ts → src/design/page-modes.ts
 
 ## Communities
 
-### Community 0 - "Multi-OEM Sync Jobs"
+### Community 0 - "Community 0"
 Cohesion: 0.05
 Nodes (84): absolutizeMazdaUrl(), addGacFeature(), addSpecsSection(), allStates(), buildHyundaiSpecsJson(), buildMazdaSpecsJson(), classifyGacBasicItem(), classifyGacColorType() (+76 more)
 
-### Community 1 - "Clone Region Converter"
+### Community 1 - "Community 1"
 Cohesion: 0.06
 Nodes (77): absoluteKnownPatternUrl(), appendClassesForSelector(), appendClassesToOpeningTag(), appendInlineStyleToOpeningTag(), applyCssRuleToHtml(), buildCloneRegionGroupConversionMetadata(), buildEditableSectionFromCloneRegion(), buildGroupedCloneRegionSection() (+69 more)
 
-### Community 2 - "Crawl Orchestrator"
+### Community 2 - "Community 2"
 Cohesion: 0.06
 Nodes (4): isOfferLikeSourceUrl(), OemAgentOrchestrator, shouldSkipCrawlerProductWrites(), withTimeout()
 
-### Community 3 - "Dashboard Worker API Client"
+### Community 3 - "Community 3"
 Cohesion: 0.06
 Nodes (67): adaptivePipeline(), addWebhook(), analyzeBannerGraphics(), applyCrawledTokens(), applyPageTemplate(), assertModelPageWriteAllowed(), buildWorkerHeaders(), checkDrift() (+59 more)
 
-### Community 4 - "Clone Studio HTML Bridge"
+### Community 4 - "Community 4"
 Cohesion: 0.06
 Nodes (59): buildCloneStudioHtml(), buildOemStylesheetLinkTags(), cloneStudioMediaProxyOemIdForUrl(), createCloneStudioBridgeToken(), decodeCssEscapes(), decodeHtmlEntities(), encodeCloneStudioBase64Url(), escapeHtmlAttribute() (+51 more)
 
-### Community 5 - "Page Capture Engine"
+### Community 5 - "Community 5"
 Cohesion: 0.08
 Nodes (31): absolutizeCaptureUrl(), bestCaptureSrcsetUrl(), bestElementImageUrl(), bestImageSrcUrl(), buildDomCaptureFromHtml(), captureCssText(), captureHeadPartIdentity(), captureHtmlClassNames() (+23 more)
 
-### Community 6 - "Content Extraction Engine"
+### Community 6 - "Community 6"
 Cohesion: 0.08
 Nodes (31): cleanImageHeadlineCandidate(), computeHtmlHash(), deriveHeadlineFromImageUrl(), extractBgImageUrl(), extractCssUrl(), extractCtaText(), extractDataBackgroundImageUrl(), extractDesktopSourceImageUrl() (+23 more)
 
-### Community 7 - "Mitsubishi Sync"
+### Community 7 - "Community 7"
 Cohesion: 0.11
 Nodes (36): accessoryCatalogEntryImage(), accessoryCategory(), accessoryGraphqlImage(), accessoryImage(), accessoryPrice(), accessorySkuCandidates(), bestOffer(), colorType() (+28 more)
 
-### Community 8 - "Page Modes"
+### Community 8 - "Community 8"
+Cohesion: 0.1
+Nodes (34): braveSearch(), captureScreenshots(), classifyApis(), classifyApiWithLlm(), conductResearch(), createCdpClient(), determineStrategy(), discoverModelFlow() (+26 more)
+
+### Community 9 - "Community 9"
 Cohesion: 0.16
 Nodes (34): applyCloneEdit(), applyCloneMode(), applySectionsMode(), chooseActiveMode(), dedupe(), ensureContent(), ensureModes(), extractCloneHeadParts() (+26 more)
 
-### Community 9 - "Toyota Browser Sync"
+### Community 10 - "Community 10"
 Cohesion: 0.14
 Nodes (18): collectToyotaNavModelPaths(), executeToyotaBrowserSync(), externalKeyForTrim(), fetchToyotaNavModelPaths(), galleryFromUnknownImages(), imageFromToyotaImages(), minPaintPrice(), modelPathFromToyotaNavUrl() (+10 more)
 
-### Community 10 - "OEM Agent Routes"
+### Community 11 - "Community 11"
 Cohesion: 0.1
 Nodes (12): absoluteMediaUrls(), analyzeBannerGraphicsBatch(), buildProductionCloneArtifact(), compileRunStatusKey(), fetchBannerImageForAnalysis(), fireWebhooks(), getProductionCloneHtml(), loadWebhooks() (+4 more)
 
-### Community 11 - "Section Detection"
+### Community 12 - "Community 12"
 Cohesion: 0.24
 Nodes (24): classContains(), detectCardGrid(), detectCtaBanner(), detectGallery(), detectHeading(), detectHero(), detectImage(), detectIntro() (+16 more)
 
-### Community 12 - "Slack Alerts"
+### Community 13 - "Community 13"
 Cohesion: 0.14
 Nodes (7): createAvailabilityChangeAlert(), createDailyDigest(), createNewOfferAlert(), createNewProductAlert(), createPriceChangeAlert(), MultiChannelNotifier, SlackNotifier
 
-### Community 13 - "Page Generator"
+### Community 14 - "Community 14"
 Cohesion: 0.18
 Nodes (8): assembleModelData(), buildContentPrompt(), buildFallbackExtraction(), buildScreenshotToCodePrompt(), formatOemName(), PageGenerator, stripCodeFences(), validatePage()
 
-### Community 14 - "Discovery Cache"
+### Community 15 - "Community 15"
 Cohesion: 0.19
 Nodes (15): deserializeCache(), getAllCachedSelectors(), getCachedApi(), getCachedSelector(), getCacheFilePath(), getCacheHealthSummary(), getDiscoveryCache(), getHealthyApis() (+7 more)
 
-### Community 15 - "Change Detection"
-Cohesion: 0.22
-Nodes (3): AlertBatcher, ChangeDetector, isNoiseField()
-
-### Community 16 - "Legacy Page Importer"
-Cohesion: 0.27
-Nodes (17): buildCardGridSection(), buildContentBlockSection(), buildFeatureCardsSection(), buildHeadingSection(), buildHeroSection(), buildImageGridSection(), buildImageOverlaySection(), buildImageSection() (+9 more)
-
-### Community 17 - "AI Router"
-Cohesion: 0.18
-Nodes (1): AiRouter
-
-### Community 18 - "Scope Oem Css"
+### Community 16 - "Community 16"
 Cohesion: 0.21
 Nodes (18): collectKeyframes(), consumeBlock(), emitItem(), emitRule(), escapeRegExp(), isKeyframesName(), isRootSelector(), isScopeContainerName() (+10 more)
 
-### Community 19 - "Network Interception Browser"
+### Community 17 - "Community 17"
+Cohesion: 0.22
+Nodes (18): annotateSeriesNames(), classifyOffer(), cleanDollarEscape(), extractBuilds(), extractEntityOffers(), extractSeriesMap(), findAncestorBrace(), flattenTechSpecs() (+10 more)
+
+### Community 18 - "Community 18"
+Cohesion: 0.22
+Nodes (3): AlertBatcher, ChangeDetector, isNoiseField()
+
+### Community 19 - "Community 19"
+Cohesion: 0.27
+Nodes (17): buildCardGridSection(), buildContentBlockSection(), buildFeatureCardsSection(), buildHeadingSection(), buildHeroSection(), buildImageGridSection(), buildImageOverlaySection(), buildImageSection() (+9 more)
+
+### Community 20 - "Community 20"
+Cohesion: 0.18
+Nodes (1): AiRouter
+
+### Community 21 - "Community 21"
+Cohesion: 0.25
+Nodes (17): discontinueStale(), hasToken(), inferDrive(), inferEngine(), inferFuelType(), inferTransmission(), launchOptions(), main() (+9 more)
+
+### Community 22 - "Community 22"
 Cohesion: 0.18
 Nodes (1): NetworkInterceptionBrowser
 
-### Community 20 - "Crawl Scheduler"
+### Community 23 - "Community 23"
 Cohesion: 0.12
 Nodes (2): CrawlPriorityQueue, CrawlScheduler
 
-### Community 21 - "Tailwind Recipe Compiler"
+### Community 24 - "Community 24"
 Cohesion: 0.27
 Nodes (14): buildVariantFallbacks(), cleanText(), compileTailwindRecipe(), extractColors(), extractCta(), extractEyebrow(), extractFeatureItems(), extractHeading() (+6 more)
 
-### Community 22 - "Session"
+### Community 25 - "Community 25"
 Cohesion: 0.22
 Nodes (1): McpSession
 
-### Community 23 - "Cdp"
+### Community 26 - "Community 26"
 Cohesion: 0.21
 Nodes (13): handleBrowser(), handleCDPMethod(), handleDOM(), handleEmulation(), handleFetch(), handleInput(), handleNetwork(), handlePage() (+5 more)
 
-### Community 24 - "Dealer Api"
+### Community 27 - "Community 27"
 Cohesion: 0.18
 Nodes (11): buildEngine(), capitalize(), computeEgcFromBreakdown(), extractPdfVariantSpecs(), formatDriveaway(), formatFeatures(), hashUuid(), isMisattachedFromPriceOffer() (+3 more)
 
-### Community 25 - "Page Structurer"
+### Community 28 - "Community 28"
+Cohesion: 0.15
+Nodes (4): _buildFrames(), init(), pick(), _preload()
+
+### Community 29 - "Community 29"
 Cohesion: 0.21
 Nodes (5): buildExtractionPrompt(), isExtractablePageSectionType(), mappedSectionsToRawSections(), PageStructurer, stripHtml()
 
-### Community 26 - "Sales Rep"
+### Community 30 - "Community 30"
 Cohesion: 0.23
 Nodes (1): SalesRepAgent
 
-### Community 27 - "Oem Proxy"
+### Community 31 - "Community 31"
 Cohesion: 0.12
 Nodes (6): BaseTagInjector, ControlBarInjector, IdBlocker, MetaStripper, NoscriptStripper, ScriptStripper
 
-### Community 28 - "Embeddings"
+### Community 32 - "Community 32"
 Cohesion: 0.22
 Nodes (11): generateContentHash(), generateEmbedding(), generateEmbeddingsBatch(), generateGeminiEmbedding(), generateGroqEmbedding(), generateOpenAIEmbedding(), generateTogetherEmbedding(), prepareProductText() (+3 more)
 
-### Community 29 - "Agent"
+### Community 33 - "Community 33"
 Cohesion: 0.21
 Nodes (3): DesignAgent, generateBrandTokenExtractionPrompt(), generatePageLayoutPrompt()
 
-### Community 30 - "Oem Scraper"
+### Community 34 - "Community 34"
+Cohesion: 0.14
+Nodes (1): TestMutationObserver
+
+### Community 35 - "Community 35"
 Cohesion: 0.42
 Nodes (13): cleanText(), extractCtaCards(), extractFaqSections(), extractGridBlocks(), extractHero(), extractIntroText(), extractModelRange(), extractPricing() (+5 more)
 
-### Community 31 - "Section Mapper"
-Cohesion: 0.27
-Nodes (10): contentChildren(), descendToBranch(), heroFromRegion(), isWrapper(), mapPage(), mapPageToSections(), meaningfulChildren(), selectorFor() (+2 more)
-
-### Community 32 - "Production Css Scope"
-Cohesion: 0.27
-Nodes (10): attrEscape(), htmlAttrEscape(), isGlobalSelector(), scopeCss(), scopeOneSelector(), scopeProductionCloneHtml(), scopeSelectorFor(), shouldSkipSelector() (+2 more)
-
-### Community 33 - "Network Capture"
-Cohesion: 0.24
-Nodes (8): captureFordPricing(), captureNetworkActivity(), captureWithChaining(), extractFordDataFromHtml(), extractTokens(), isFordConfigData(), isFordPricingData(), triggerLazyLoading()
-
-### Community 34 - "Onboarding"
-Cohesion: 0.17
-Nodes (2): classifyPath(), classifyUrls()
-
-### Community 35 - "Model Pages Status"
+### Community 36 - "Community 36"
 Cohesion: 0.36
 Nodes (12): contentRecord(), getGeneratedPageSectionCount(), getGeneratedPageStatus(), hasGeneratedPageClone(), hasGeneratedPageSections(), hasLegacyCloneMarker(), hasModeCloneHtml(), isRecord() (+4 more)
 
-### Community 36 - "Gac Scraper"
+### Community 37 - "Community 37"
+Cohesion: 0.27
+Nodes (10): contentChildren(), descendToBranch(), heroFromRegion(), isWrapper(), mapPage(), mapPageToSections(), meaningfulChildren(), selectorFor() (+2 more)
+
+### Community 38 - "Community 38"
+Cohesion: 0.27
+Nodes (10): attrEscape(), htmlAttrEscape(), isGlobalSelector(), scopeCss(), scopeOneSelector(), scopeProductionCloneHtml(), scopeSelectorFor(), shouldSkipSelector() (+2 more)
+
+### Community 39 - "Community 39"
+Cohesion: 0.24
+Nodes (8): captureFordPricing(), captureNetworkActivity(), captureWithChaining(), extractFordDataFromHtml(), extractTokens(), isFordConfigData(), isFordPricingData(), triggerLazyLoading()
+
+### Community 40 - "Community 40"
+Cohesion: 0.17
+Nodes (2): classifyPath(), classifyUrls()
+
+### Community 41 - "Community 41"
 Cohesion: 0.39
 Nodes (11): buildResult(), findPageData(), isVideoUrl(), mapAppDownload(), mapBigHeaderPic(), mapSliderSellingPoints(), mapTextDisplay(), nextId() (+3 more)
 
-### Community 37 - "Agent Spawner"
+### Community 42 - "Community 42"
 Cohesion: 0.3
 Nodes (1): AgentSpawner
 
-### Community 38 - "Pdf Spec Extractor"
+### Community 43 - "Community 43"
 Cohesion: 0.32
 Nodes (11): arrayBufferToBase64(), buildExtractionPrompt(), buildVisionExtractionPrompt(), downloadPdfViaBrowser(), executePdfSpecExtraction(), executePdfSpecExtractionVision(), jaccardSimilarity(), mapVariantsToProducts() (+3 more)
 
-### Community 39 - "Suzuki Sync"
+### Community 44 - "Community 44"
 Cohesion: 0.26
 Nodes (7): buildSpecsJson(), deriveTitle(), deriveVariantName(), executeSuzukiSync(), isUniqueViolation(), parseFeatures(), resolveTransmission()
 
-### Community 40 - "Cron"
+### Community 45 - "Community 45"
 Cohesion: 0.32
 Nodes (10): executeAgentHooks(), executeBrandAmbassador(), executeHealthCheck(), executeJob(), executeMemorySync(), executeOemDataSync(), executeOemDiscovery(), executeOemExtract() (+2 more)
 
-### Community 41 - "Page Structurer.Test"
+### Community 46 - "Community 46"
+Cohesion: 0.33
+Nodes (9): buildSpecsJson(), buildTitle(), chunkByPages(), extractFromChunk(), extractVariants(), fetchPdfText(), main(), runTypeScriptScript() (+1 more)
+
+### Community 47 - "Community 47"
 Cohesion: 0.24
 Nodes (4): clonePage(), makeBasePage(), makeClonePage(), MemoryR2Bucket
 
-### Community 42 - "Api Chainer"
+### Community 48 - "Community 48"
 Cohesion: 0.31
 Nodes (1): ApiChainer
 
-### Community 43 - "Multi Provider"
+### Community 49 - "Community 49"
 Cohesion: 0.27
 Nodes (1): MultiProviderClient
 
-### Community 44 - "Index"
-Cohesion: 0.22
-Nodes (2): buildSandboxOptions(), scheduled()
-
-### Community 45 - "Recipe Extractor"
-Cohesion: 0.36
-Nodes (2): buildRecipeExtractionPrompt(), RecipeExtractor
-
-### Community 46 - "Page Capturer.Test"
-Cohesion: 0.2
-Nodes (1): TestMutationObserver
-
-### Community 47 - "Memory"
-Cohesion: 0.27
-Nodes (1): DesignMemoryManager
-
-### Community 48 - "AI Router"
-Cohesion: 0.27
-Nodes (1): WorkflowRouter
-
-### Community 49 - "Self Heal"
-Cohesion: 0.33
-Nodes (8): buildRepairPrompt(), createSelectorConfig(), extractWithSelector(), extractWithSelfHealing(), parseNewSelector(), repairSelector(), updateSelectorStats(), upgradeLegacySelectors()
-
-### Community 50 - "Api"
-Cohesion: 0.33
-Nodes (8): apiRequest(), approveAllDevices(), approveDevice(), AuthError, getStorageStatus(), listDevices(), restartGateway(), triggerSync()
-
-### Community 51 - "Oem Agent Style Guide.Test"
-Cohesion: 0.2
-Nodes (1): SupabaseQuery
-
-### Community 52 - "Page Workflow"
+### Community 50 - "Community 50"
 Cohesion: 0.36
 Nodes (6): getPageWorkflowState(), hasClonePayload(), hasStructuredSections(), isNonEmptyString(), isRecord(), needsDestructiveActionConfirmation()
 
-### Community 53 - "Prompt Builder"
-Cohesion: 0.36
-Nodes (1): SmartPromptBuilder
+### Community 51 - "Community 51"
+Cohesion: 0.38
+Nodes (9): buildRow(), cleanUndefined(), extractAccessories(), main(), parseBalanced(), processModel(), proxyUrl(), safeJson() (+1 more)
 
-### Community 54 - "Crawl Orchestrator"
-Cohesion: 0.33
-Nodes (5): createEmptyStats(), decideLayer(), extractViaApi(), hybridExtraction(), orchestrateExtraction()
-
-### Community 55 - "Kia Colors"
-Cohesion: 0.31
-Nodes (6): batch(), deriveTypeFromName(), executeKiaColorSync(), extractColors(), findProduct(), trimVariants()
-
-### Community 56 - "Adminpage"
+### Community 52 - "Community 52"
 Cohesion: 0.22
-Nodes (0): 
+Nodes (2): buildSandboxOptions(), scheduled()
 
-### Community 57 - "Section Templates"
+### Community 53 - "Community 53"
+Cohesion: 0.36
+Nodes (2): buildRecipeExtractionPrompt(), RecipeExtractor
+
+### Community 54 - "Community 54"
+Cohesion: 0.27
+Nodes (1): DesignMemoryManager
+
+### Community 55 - "Community 55"
+Cohesion: 0.27
+Nodes (1): WorkflowRouter
+
+### Community 56 - "Community 56"
+Cohesion: 0.33
+Nodes (8): buildRepairPrompt(), createSelectorConfig(), extractWithSelector(), extractWithSelfHealing(), parseNewSelector(), repairSelector(), updateSelectorStats(), upgradeLegacySelectors()
+
+### Community 57 - "Community 57"
+Cohesion: 0.33
+Nodes (8): apiRequest(), approveAllDevices(), approveDevice(), AuthError, getStorageStatus(), listDevices(), restartGateway(), triggerSync()
+
+### Community 58 - "Community 58"
+Cohesion: 0.2
+Nodes (1): SupabaseQuery
+
+### Community 59 - "Community 59"
 Cohesion: 0.25
 Nodes (2): getSectionRecipeDefaults(), inferCardComposition()
 
-### Community 58 - "Pipeline"
+### Community 60 - "Community 60"
+Cohesion: 0.42
+Nodes (8): capture(), extract_title(), import_scrapling(), is_security_verification_page(), main(), parse_args(), read_field(), response_html()
+
+### Community 61 - "Community 61"
+Cohesion: 0.36
+Nodes (1): SmartPromptBuilder
+
+### Community 62 - "Community 62"
+Cohesion: 0.33
+Nodes (5): createEmptyStats(), decideLayer(), extractViaApi(), hybridExtraction(), orchestrateExtraction()
+
+### Community 63 - "Community 63"
+Cohesion: 0.31
+Nodes (6): batch(), deriveTypeFromName(), executeKiaColorSync(), extractColors(), findProduct(), trimVariants()
+
+### Community 64 - "Community 64"
+Cohesion: 0.22
+Nodes (0): 
+
+### Community 65 - "Community 65"
+Cohesion: 0.43
+Nodes (6): asciiFilename(), handleSingle(), handleZip(), isAllowed(), onRequestGet(), onRequestPost()
+
+### Community 66 - "Community 66"
+Cohesion: 0.46
+Nodes (7): decodeConfigState(), dedupe(), emptyHarvest(), harvestFromBody(), harvestOne(), main(), tryClickConfigurator()
+
+### Community 67 - "Community 67"
+Cohesion: 0.46
+Nodes (7): createBrowser(), discoverModelUrls(), extractVariantIds(), fetchTrim(), fetchVariant(), main(), upsertProductFromApi()
+
+### Community 68 - "Community 68"
 Cohesion: 0.39
 Nodes (3): AdaptivePipeline, getCloneDecision(), normalizeSourceUrl()
 
-### Community 59 - "Page Cloner"
+### Community 69 - "Community 69"
 Cohesion: 0.39
 Nodes (1): PageCloner
 
-### Community 60 - "Banner Graphics"
+### Community 70 - "Community 70"
 Cohesion: 0.39
 Nodes (5): analyzeBannerGraphics(), buildBannerGraphicsPrompt(), clampConfidence(), normaliseGraphicsTags(), parseBannerGraphicsResponse()
 
-### Community 61 - "Banner Data Filter"
+### Community 71 - "Community 71"
 Cohesion: 0.36
 Nodes (3): isBannerData(), isObjectArray(), looksLikeBannerArray()
 
-### Community 62 - "Inline Data"
+### Community 72 - "Community 72"
 Cohesion: 0.46
 Nodes (7): extractInlineData(), extractJsonLdBanners(), extractNextData(), extractNuxtData(), extractWindowGlobals(), fetchAemModelJson(), fetchGatsbyPageData()
 
-### Community 63 - "Hosted Oem Fonts"
-Cohesion: 0.52
-Nodes (5): enrichBrandTokensWithHostedFontFaces(), firstFontFamily(), fontFacesFromCdnUrls(), hostedOemFontConfig(), hostedOemFontFaces()
-
-### Community 64 - "Ux Knowledge"
-Cohesion: 0.43
-Nodes (1): UxKnowledgeManager
-
-### Community 65 - "Page Builder Composable"
+### Community 73 - "Community 73"
 Cohesion: 0.33
 Nodes (2): normalizeStoredMediaUrl(), normalizeStoredMediaUrls()
 
-### Community 66 - "Scope Oem Section"
+### Community 74 - "Community 74"
 Cohesion: 0.43
 Nodes (4): rewriteIds(), rewriteInlineAnimations(), scopeClassForSection(), scopeOemSection()
 
-### Community 67 - "Test Utils"
+### Community 75 - "Community 75"
+Cohesion: 0.52
+Nodes (6): emptyCodes(), harvestFromBody(), isNukleus(), main(), parseHar(), slugify()
+
+### Community 76 - "Community 76"
+Cohesion: 0.52
+Nodes (6): extractColorsFromData(), extractGalleryImagesFromData(), extractVariantsFromData(), fetchFordPricingData(), fordPublicUrl(), populateFordInventory()
+
+### Community 77 - "Community 77"
+Cohesion: 0.52
+Nodes (6): createBrowser(), fetchTrim(), fetchVariant(), main(), refreshSession(), upsertVariantProduct()
+
+### Community 78 - "Community 78"
+Cohesion: 0.52
+Nodes (5): enrichBrandTokensWithHostedFontFaces(), firstFontFamily(), fontFacesFromCdnUrls(), hostedOemFontConfig(), hostedOemFontFaces()
+
+### Community 79 - "Community 79"
+Cohesion: 0.43
+Nodes (1): UxKnowledgeManager
+
+### Community 80 - "Community 80"
+Cohesion: 0.33
+Nodes (0): 
+
+### Community 81 - "Community 81"
+Cohesion: 0.33
+Nodes (0): 
+
+### Community 82 - "Community 82"
+Cohesion: 0.33
+Nodes (0): 
+
+### Community 83 - "Community 83"
+Cohesion: 0.6
+Nodes (5): extractPaints(), main(), parseBalanced(), processModel(), safeJson()
+
+### Community 84 - "Community 84"
+Cohesion: 0.47
+Nodes (3): extractGalleryUrls(), main(), processNameplate()
+
+### Community 85 - "Community 85"
 Cohesion: 0.47
 Nodes (4): createMockEnv(), createMockEnvWithR2(), createMockProcess(), createMockSandbox()
 
-### Community 68 - "Component Generator"
+### Community 86 - "Community 86"
 Cohesion: 0.47
 Nodes (1): ComponentGenerator
 
-### Community 69 - "Capture Diagnostics.Test"
+### Community 87 - "Community 87"
 Cohesion: 0.4
 Nodes (1): MemoryR2Bucket
 
-### Community 70 - "Auth"
+### Community 88 - "Community 88"
+Cohesion: 0.6
+Nodes (4): diagnosticsKey(), readCaptureDiagnostics(), readLastGoodCapturedHeight(), recordCaptureDiagnostics()
+
+### Community 89 - "Community 89"
 Cohesion: 0.53
 Nodes (4): mcpAuthMiddleware(), verifyCloudflareAccess(), verifyMcpToken(), verifySupabaseBearer()
 
-### Community 71 - "Registry"
+### Community 90 - "Community 90"
 Cohesion: 0.47
 Nodes (4): generateOemSeedData(), getAllOemDefinitions(), getOemDefinition(), resolveOemDefinition()
 
-### Community 72 - "Banner Triage"
+### Community 91 - "Community 91"
 Cohesion: 0.6
 Nodes (5): cleanHtmlForLlm(), executeBannerTriage(), findBannerArrayInObject(), isAllowedUrl(), upsertBanner()
 
-### Community 73 - "Media"
+### Community 92 - "Community 92"
 Cohesion: 0.33
 Nodes (0): 
 
-### Community 74 - "Variant Color Explorer Data"
-Cohesion: 0.33
-Nodes (0): 
-
-### Community 75 - "Clone Studio Canvas Helpers"
-Cohesion: 0.33
-Nodes (0): 
-
-### Community 76 - "Example Tasks.Api"
-Cohesion: 0.33
-Nodes (0): 
-
-### Community 77 - "Component Generator.Test"
+### Community 93 - "Community 93"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 78 - "Capture Diagnostics"
-Cohesion: 0.7
-Nodes (3): diagnosticsKey(), readCaptureDiagnostics(), recordCaptureDiagnostics()
-
-### Community 79 - "Tailwind Declaration Mapper"
-Cohesion: 0.6
-Nodes (3): arbitrary(), mapDeclaration(), rgbToHex()
-
-### Community 80 - "Middleware"
+### Community 94 - "Community 94"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 81 - "Test Groq"
-Cohesion: 0.7
-Nodes (4): runAllTests(), testComplexExtraction(), testFallbackChain(), testSimplePriceValidation()
-
-### Community 82 - "Crawl Doctor"
-Cohesion: 0.4
-Nodes (0): 
-
-### Community 83 - "Apify Client"
-Cohesion: 0.6
-Nodes (3): fetchDatasetItems(), runApifyActor(), sleep()
-
-### Community 84 - "Oem Agent.Test"
-Cohesion: 0.4
-Nodes (0): 
-
-### Community 85 - "Clone Region Sidebar Helpers"
-Cohesion: 0.4
-Nodes (0): 
-
-### Community 86 - "Clone Studio Html.Test"
-Cohesion: 0.4
-Nodes (0): 
-
-### Community 87 - "Section Media"
+### Community 95 - "Community 95"
 Cohesion: 0.7
 Nodes (4): countImagesInValue(), countSectionImages(), isRecord(), resolveSectionMediaPaths()
 
-### Community 88 - "Section Converter"
+### Community 96 - "Community 96"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 89 - "Tailwind Recipe Types"
-Cohesion: 1.0
-Nodes (3): isNode(), isRecord(), isTailwindRecipeArtifact()
+### Community 97 - "Community 97"
+Cohesion: 0.4
+Nodes (0): 
 
-### Community 90 - "Compiler Contracts"
+### Community 98 - "Community 98"
+Cohesion: 0.7
+Nodes (4): bodyTypeFor(), fordPublicUrl(), main(), slugify()
+
+### Community 99 - "Community 99"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 100 - "Community 100"
+Cohesion: 0.6
+Nodes (3): arbitrary(), mapDeclaration(), rgbToHex()
+
+### Community 101 - "Community 101"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 102 - "Community 102"
+Cohesion: 0.7
+Nodes (4): runAllTests(), testComplexExtraction(), testFallbackChain(), testSimplePriceValidation()
+
+### Community 103 - "Community 103"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 104 - "Community 104"
+Cohesion: 0.6
+Nodes (3): fetchDatasetItems(), runApifyActor(), sleep()
+
+### Community 105 - "Community 105"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 106 - "Community 106"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 91 - "Extraction Runner"
-Cohesion: 0.5
-Nodes (1): ExtractionRunner
-
-### Community 92 - "Tailwind Style Normalizer"
-Cohesion: 0.83
-Nodes (3): hasUsefulValue(), normalizeRegionStyles(), visitNode()
-
-### Community 93 - "Brochure Mirror"
-Cohesion: 0.5
-Nodes (1): BrochureMirrorWorkflow
-
-### Community 94 - "Cron Runs"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 95 - "Image Proxy"
-Cohesion: 0.83
-Nodes (3): encodeUrl(), isAlreadyProxied(), proxyImage()
-
-### Community 96 - "Server.Test"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 97 - "Index"
-Cohesion: 0.67
-Nodes (2): jsonResult(), textResult()
-
-### Community 98 - "Use Stock Health"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 99 - "Markdown"
-Cohesion: 0.83
-Nodes (3): escapeHtml(), inline(), renderMarkdown()
-
-### Community 100 - "Utils"
+### Community 107 - "Community 107"
 Cohesion: 0.5
 Nodes (1): valueUpdater()
 
-### Community 101 - "Region Actions"
+### Community 108 - "Community 108"
+Cohesion: 0.83
+Nodes (3): escapeHtml(), inline(), renderMarkdown()
+
+### Community 109 - "Community 109"
 Cohesion: 0.67
 Nodes (2): getRegionActions(), hasKind()
 
-### Community 102 - "Scheduled"
+### Community 110 - "Community 110"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 111 - "Community 111"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 112 - "Community 112"
 Cohesion: 1.0
-Nodes (2): createOrchestratorFromEnv(), handleScheduled()
+Nodes (3): isNode(), isRecord(), isTailwindRecipeArtifact()
 
-### Community 103 - "Model Page Protection"
+### Community 113 - "Community 113"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 114 - "Community 114"
+Cohesion: 0.5
+Nodes (1): ExtractionRunner
+
+### Community 115 - "Community 115"
+Cohesion: 0.83
+Nodes (3): hasUsefulValue(), normalizeRegionStyles(), visitNode()
+
+### Community 116 - "Community 116"
+Cohesion: 0.5
+Nodes (1): BrochureMirrorWorkflow
+
+### Community 117 - "Community 117"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 118 - "Community 118"
+Cohesion: 0.83
+Nodes (3): encodeUrl(), isAlreadyProxied(), proxyImage()
+
+### Community 119 - "Community 119"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 120 - "Community 120"
+Cohesion: 0.67
+Nodes (2): jsonResult(), textResult()
+
+### Community 121 - "Community 121"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 104 - "Container"
+### Community 122 - "Community 122"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 105 - "Sandbox Paths"
-Cohesion: 1.0
-Nodes (2): isProductionArtifactPath(), shouldAttachSandboxForPath()
-
-### Community 106 - "Openclaw Url Rewrite"
-Cohesion: 1.0
-Nodes (2): rewriteOpenClawNestedAssetPath(), rewriteOpenClawNestedAssetRequest()
-
-### Community 107 - "Middleware.Test"
+### Community 123 - "Community 123"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 108 - "Audit Log"
+### Community 124 - "Community 124"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 109 - "Rate Limit"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 110 - "Image Proxy.Test"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 111 - "Banner Data Filter.Test"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 112 - "Specs Api"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 113 - "R2"
-Cohesion: 1.0
-Nodes (2): isR2Mounted(), mountR2Storage()
-
-### Community 114 - "Process"
-Cohesion: 1.0
-Nodes (2): ensureMoltbotGateway(), findExistingMoltbotProcess()
-
-### Community 115 - "Capture Tailwind Rules.Test"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 116 - "Use Template Gallery"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 117 - "Use Section Animation"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 118 - "Utils"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 119 - "Sidebar Data"
+### Community 125 - "Community 125"
 Cohesion: 1.0
 Nodes (2): md5(), useSidebarData()
 
-### Community 120 - "Oem Ids"
+### Community 126 - "Community 126"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 121 - "Clone Studio Components.Test"
+### Community 127 - "Community 127"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 122 - "Clone Preview Html"
+### Community 128 - "Community 128"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 123 - "Index"
+### Community 129 - "Community 129"
 Cohesion: 1.0
 Nodes (2): createRouterGuard(), setupCommonGuard()
 
-### Community 124 - "Config"
+### Community 130 - "Community 130"
 Cohesion: 1.0
+Nodes (2): analyzeStructure(), fetchFordVehicleMenu()
+
+### Community 131 - "Community 131"
+Cohesion: 1.0
+Nodes (2): main(), normalize()
+
+### Community 132 - "Community 132"
+Cohesion: 1.0
+Nodes (2): main(), runMigration()
+
+### Community 133 - "Community 133"
+Cohesion: 1.0
+Nodes (2): createOrchestratorFromEnv(), handleScheduled()
+
+### Community 134 - "Community 134"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 135 - "Community 135"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 136 - "Community 136"
+Cohesion: 1.0
+Nodes (2): isProductionArtifactPath(), shouldAttachSandboxForPath()
+
+### Community 137 - "Community 137"
+Cohesion: 1.0
+Nodes (2): rewriteOpenClawNestedAssetPath(), rewriteOpenClawNestedAssetRequest()
+
+### Community 138 - "Community 138"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 139 - "Community 139"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 140 - "Community 140"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 141 - "Community 141"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 142 - "Community 142"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 143 - "Community 143"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 144 - "Community 144"
+Cohesion: 1.0
+Nodes (2): isR2Mounted(), mountR2Storage()
+
+### Community 145 - "Community 145"
+Cohesion: 1.0
+Nodes (2): ensureMoltbotGateway(), findExistingMoltbotProcess()
+
+### Community 146 - "Community 146"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 147 - "Community 147"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 148 - "Community 148"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 149 - "Community 149"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 150 - "Community 150"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 151 - "Community 151"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 152 - "Community 152"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 153 - "Community 153"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 154 - "Community 154"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 155 - "Community 155"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 156 - "Community 156"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 157 - "Community 157"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 158 - "Community 158"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 159 - "Community 159"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 160 - "Community 160"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 161 - "Community 161"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 162 - "Community 162"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 163 - "Community 163"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 164 - "Community 164"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 165 - "Community 165"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 166 - "Community 166"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 167 - "Community 167"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 168 - "Community 168"
+Cohesion: 1.0
 Nodes (0): 
 
-### Community 125 - "Recipe Response.Test"
+### Community 169 - "Community 169"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 126 - "Hosted Oem Fonts.Test"
+### Community 170 - "Community 170"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 127 - "Recipe Response"
+### Community 171 - "Community 171"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 128 - "Jwt"
+### Community 172 - "Community 172"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 129 - "Test Integration"
+### Community 173 - "Community 173"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 130 - "Test Performance"
+### Community 174 - "Community 174"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 131 - "Supabase"
+### Community 175 - "Community 175"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 132 - "Logging"
+### Community 176 - "Community 176"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 133 - "Auth.Test"
+### Community 177 - "Community 177"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 134 - "Page Tools"
+### Community 178 - "Community 178"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 135 - "Catalog Tools"
+### Community 179 - "Community 179"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 136 - "Sync Tools"
+### Community 180 - "Community 180"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 137 - "Scheduler.Test"
+### Community 181 - "Community 181"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 138 - "Pdf Spec Extractor.Test"
+### Community 182 - "Community 182"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 139 - "Competitive Intel"
+### Community 183 - "Community 183"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 140 - "Weekly Report"
+### Community 184 - "Community 184"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 141 - "Orchestrator Controller"
+### Community 185 - "Community 185"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 142 - "App"
+### Community 186 - "Community 186"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 143 - "Agents"
+### Community 187 - "Community 187"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 144 - "Process.Test"
+### Community 188 - "Community 188"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 145 - "Utils"
+### Community 189 - "Community 189"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 146 - "Env"
+### Community 190 - "Community 190"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 147 - "Sync"
+### Community 191 - "Community 191"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 148 - "Main"
+### Community 192 - "Community 192"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 149 - "Use Generated Pages"
+### Community 193 - "Community 193"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 150 - "Use Auth"
+### Community 194 - "Community 194"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 151 - "Use Portal Assets"
+### Community 195 - "Community 195"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 152 - "Use Agents"
+### Community 196 - "Community 196"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 153 - "Use Onboarding"
+### Community 197 - "Community 197"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 154 - "Use Google Fonts"
+### Community 198 - "Community 198"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 155 - "Use Inline Edit"
+### Community 199 - "Community 199"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 156 - "Use Clipboard"
+### Community 200 - "Community 200"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 157 - "Capture Pseudo Elements"
+### Community 201 - "Community 201"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 158 - "Use Cron Jobs"
+### Community 202 - "Community 202"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 159 - "Use Sidebar"
+### Community 203 - "Community 203"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 160 - "Use Page Builder.Test"
+### Community 204 - "Community 204"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 161 - "Use System Theme"
+### Community 205 - "Community 205"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 162 - "Use Agent Profile"
+### Community 206 - "Community 206"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 163 - "Capture Tailwind Rules"
+### Community 207 - "Community 207"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 164 - "Use Axios"
+### Community 208 - "Community 208"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 165 - "Use Realtime"
+### Community 209 - "Community 209"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 166 - "Use Oem Data"
+### Community 210 - "Community 210"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 167 - "Use Capture Injection"
+### Community 211 - "Community 211"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 168 - "Index"
+### Community 212 - "Community 212"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 169 - "Setup"
+### Community 213 - "Community 213"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 170 - "Setup"
+### Community 214 - "Community 214"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 171 - "Setup"
+### Community 215 - "Community 215"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 172 - "Setup"
+### Community 216 - "Community 216"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 173 - "Setup"
+### Community 217 - "Community 217"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 174 - "Setup"
+### Community 218 - "Community 218"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 175 - "Setup"
+### Community 219 - "Community 219"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 176 - "Useformfield"
+### Community 220 - "Community 220"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 177 - "Usecarousel"
+### Community 221 - "Community 221"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 178 - "Use Modal"
+### Community 222 - "Community 222"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 179 - "Use Generate Vue Table"
+### Community 223 - "Community 223"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 180 - "Capture Status"
+### Community 224 - "Community 224"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 181 - "Capture Status.Test"
+### Community 225 - "Community 225"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 182 - "Recipes"
+### Community 226 - "Community 226"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 183 - "Supabase"
+### Community 227 - "Community 227"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 184 - "Ai Model Options"
+### Community 228 - "Community 228"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 185 - "Section Registry"
+### Community 229 - "Community 229"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 186 - "Section Registry.Test"
+### Community 230 - "Community 230"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 187 - "Clone Region Converter.Test"
+### Community 231 - "Community 231"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 188 - "Section Icons"
+### Community 232 - "Community 232"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 189 - "Recipe Patterns"
+### Community 233 - "Community 233"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 190 - "Users"
+### Community 234 - "Community 234"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 191 - "Auth Guard"
+### Community 235 - "Community 235"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 192 - "Index.Test"
+### Community 236 - "Community 236"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 193 - "Openclaw Url Rewrite.Test"
+### Community 237 - "Community 237"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 194 - "Env.D"
+### Community 238 - "Community 238"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 195 - "Logging.Test"
+### Community 239 - "Community 239"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 196 - "Types"
+### Community 240 - "Community 240"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 197 - "Orchestrator.Test"
+### Community 241 - "Community 241"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 198 - "Assets.D"
+### Community 242 - "Community 242"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 199 - "Index"
+### Community 243 - "Community 243"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 200 - "Model Page Write Protection.Test"
+### Community 244 - "Community 244"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 201 - "Section Mapper.Test"
+### Community 245 - "Community 245"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 202 - "Tailwind Style Normalizer.Test"
+### Community 246 - "Community 246"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 203 - "Pipeline.Test"
+### Community 247 - "Community 247"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 204 - "Compiler Contracts.Test"
+### Community 248 - "Community 248"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 205 - "Tailwind Recipe Types.Test"
+### Community 249 - "Community 249"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 206 - "Clone Studio Audit Script.Test"
+### Community 250 - "Community 250"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 207 - "Section Parser.Test"
+### Community 251 - "Community 251"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 208 - "Recipe Extractor.Test"
+### Community 252 - "Community 252"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 209 - "Tailwind Recipe Compiler.Test"
+### Community 253 - "Community 253"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 210 - "Production Css Scope.Test"
+### Community 254 - "Community 254"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 211 - "Tailwind Declaration Mapper.Test"
+### Community 255 - "Community 255"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 212 - "Page Modes.Test"
+### Community 256 - "Community 256"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 213 - "Index"
+### Community 257 - "Community 257"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 214 - "Page Section Types.Test"
+### Community 258 - "Community 258"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 215 - "Jwt.Test"
+### Community 259 - "Community 259"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 216 - "Index"
+### Community 260 - "Community 260"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 217 - "Types"
+### Community 261 - "Community 261"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 218 - "Index"
+### Community 262 - "Community 262"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 219 - "Recipe Tools"
+### Community 263 - "Community 263"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 220 - "Search Tools"
+### Community 264 - "Community 264"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 221 - "Oem Tools"
+### Community 265 - "Community 265"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 222 - "Types"
+### Community 266 - "Community 266"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 223 - "Index"
+### Community 267 - "Community 267"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 224 - "Index"
+### Community 268 - "Community 268"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 225 - "Banner Graphics.Test"
+### Community 269 - "Community 269"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 226 - "Index"
+### Community 270 - "Community 270"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 227 - "Inline Data.Test"
+### Community 271 - "Community 271"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 228 - "Engine.Test"
+### Community 272 - "Community 272"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 229 - "Index"
+### Community 273 - "Community 273"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 230 - "Main"
+### Community 274 - "Community 274"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 231 - "Debug"
+### Community 275 - "Community 275"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 232 - "Api"
+### Community 276 - "Community 276"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 233 - "Admin Ui"
+### Community 277 - "Community 277"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 234 - "Index"
+### Community 278 - "Community 278"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 235 - "Public"
+### Community 279 - "Community 279"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 236 - "Media.Test"
+### Community 280 - "Community 280"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 237 - "Env.Test"
+### Community 281 - "Community 281"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 238 - "Sync.Test"
+### Community 282 - "Community 282"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 239 - "Index"
+### Community 283 - "Community 283"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 240 - "R2.Test"
+### Community 284 - "Community 284"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 241 - "Vue Router Meta.D"
+### Community 285 - "Community 285"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 242 - "Auto Import.D"
+### Community 286 - "Community 286"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 243 - "Auto Import Components.D"
+### Community 287 - "Community 287"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 244 - "Vite Env.D"
+### Community 288 - "Community 288"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 245 - "Route Map.D"
+### Community 289 - "Community 289"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 246 - "Capture Pseudo Elements.Test"
+### Community 290 - "Community 290"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 247 - "Use Clipboard.Test"
+### Community 291 - "Community 291"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 248 - "Use Capture Injection.Test"
+### Community 292 - "Community 292"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 249 - "Pagination"
+### Community 293 - "Community 293"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 250 - "Route Path"
+### Community 294 - "Community 294"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 251 - "Themes"
+### Community 295 - "Community 295"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 252 - "Theme"
+### Community 296 - "Community 296"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 253 - "Auth"
+### Community 297 - "Community 297"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 254 - "Env"
+### Community 298 - "Community 298"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 255 - "Index"
+### Community 299 - "Community 299"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 256 - "Index"
+### Community 300 - "Community 300"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 257 - "Index"
+### Community 301 - "Community 301"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 258 - "Index"
+### Community 302 - "Community 302"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 259 - "Utils"
+### Community 303 - "Community 303"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 260 - "Index"
+### Community 304 - "Community 304"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 261 - "Index"
+### Community 305 - "Community 305"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 262 - "Index"
+### Community 306 - "Community 306"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 263 - "Index"
+### Community 307 - "Community 307"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 264 - "Injectionkeys"
+### Community 308 - "Community 308"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 265 - "Index"
+### Community 309 - "Community 309"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 266 - "Index"
+### Community 310 - "Community 310"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 267 - "Index"
+### Community 311 - "Community 311"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 268 - "Index"
+### Community 312 - "Community 312"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 269 - "Index"
+### Community 313 - "Community 313"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 270 - "Index"
+### Community 314 - "Community 314"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 271 - "Index"
+### Community 315 - "Community 315"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 272 - "Index"
+### Community 316 - "Community 316"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 273 - "Index"
+### Community 317 - "Community 317"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 274 - "Index"
+### Community 318 - "Community 318"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 275 - "Index"
+### Community 319 - "Community 319"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 276 - "Index"
+### Community 320 - "Community 320"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 277 - "Index"
+### Community 321 - "Community 321"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 278 - "Index"
+### Community 322 - "Community 322"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 279 - "Index"
+### Community 323 - "Community 323"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 280 - "Index"
+### Community 324 - "Community 324"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 281 - "Index"
+### Community 325 - "Community 325"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 282 - "Index"
+### Community 326 - "Community 326"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 283 - "Index"
+### Community 327 - "Community 327"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 284 - "Index"
+### Community 328 - "Community 328"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 285 - "Index"
+### Community 329 - "Community 329"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 286 - "Index"
+### Community 330 - "Community 330"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 287 - "Index"
+### Community 331 - "Community 331"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 288 - "Index"
+### Community 332 - "Community 332"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 289 - "Index"
+### Community 333 - "Community 333"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 290 - "Index"
+### Community 334 - "Community 334"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 291 - "Interface"
+### Community 335 - "Community 335"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 292 - "Index"
+### Community 336 - "Community 336"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 293 - "Index"
+### Community 337 - "Community 337"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 294 - "Index"
+### Community 338 - "Community 338"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 295 - "Index"
+### Community 339 - "Community 339"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 296 - "Index"
+### Community 340 - "Community 340"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 297 - "Index"
+### Community 341 - "Community 341"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 298 - "Index"
+### Community 342 - "Community 342"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 299 - "Index"
+### Community 343 - "Community 343"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 300 - "Index"
+### Community 344 - "Community 344"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 301 - "Index"
+### Community 345 - "Community 345"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 302 - "Index"
+### Community 346 - "Community 346"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 303 - "Index"
+### Community 347 - "Community 347"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 304 - "Index"
+### Community 348 - "Community 348"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 305 - "Index"
+### Community 349 - "Community 349"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 306 - "Index"
+### Community 350 - "Community 350"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 307 - "Index"
+### Community 351 - "Community 351"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 308 - "Index"
+### Community 352 - "Community 352"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 309 - "Index"
+### Community 353 - "Community 353"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 310 - "Index"
+### Community 354 - "Community 354"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 311 - "Index"
+### Community 355 - "Community 355"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 312 - "Index"
+### Community 356 - "Community 356"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 313 - "Index"
+### Community 357 - "Community 357"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 314 - "Index"
+### Community 358 - "Community 358"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 315 - "Index"
+### Community 359 - "Community 359"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 316 - "Index"
+### Community 360 - "Community 360"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 317 - "Index"
+### Community 361 - "Community 361"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 318 - "Index"
+### Community 362 - "Community 362"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 319 - "Index"
+### Community 363 - "Community 363"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 320 - "Index"
+### Community 364 - "Community 364"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 321 - "Index"
+### Community 365 - "Community 365"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 322 - "Types"
+### Community 366 - "Community 366"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 323 - "Team.Validator"
+### Community 367 - "Community 367"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 324 - "Types"
+### Community 368 - "Community 368"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 325 - "Types"
+### Community 369 - "Community 369"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 326 - "Index"
+### Community 370 - "Community 370"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 327 - "Types"
+### Community 371 - "Community 371"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 328 - "Table Columns"
+### Community 372 - "Community 372"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 329 - "Oem Ids.Test"
+### Community 373 - "Community 373"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 330 - "Recipes.Test"
+### Community 374 - "Community 374"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 331 - "Scope Oem Css.Test"
+### Community 375 - "Community 375"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 332 - "Worker Api.Test"
+### Community 376 - "Community 376"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 333 - "Scope Oem Section.Test"
+### Community 377 - "Community 377"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 334 - "Display.Validator"
+### Community 378 - "Community 378"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 335 - "Account.Validator"
+### Community 379 - "Community 379"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 336 - "Notifications.Validator"
+### Community 380 - "Community 380"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 337 - "Profile.Validator"
+### Community 381 - "Community 381"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 338 - "Appearance.Validator"
+### Community 382 - "Community 382"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 339 - "Columns"
+### Community 383 - "Community 383"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 340 - "Task.Validator"
+### Community 384 - "Community 384"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 341 - "Schema"
+### Community 385 - "Community 385"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 342 - "Data"
+### Community 386 - "Community 386"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 343 - "Index"
+### Community 387 - "Community 387"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 344 - "Talks"
+### Community 388 - "Community 388"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 345 - "Model Pages Status.Test"
+### Community 389 - "Community 389"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 346 - "Ai Model Options.Test"
+### Community 390 - "Community 390"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 347 - "Toolbar Layout.Test"
+### Community 391 - "Community 391"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 348 - "Full Preview Workflow.Test"
+### Community 392 - "Community 392"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 349 - "Page Modes.Test"
+### Community 393 - "Community 393"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 350 - "Page Workflow.Test"
+### Community 394 - "Community 394"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 351 - "Variant Color Explorer Data.Test"
+### Community 395 - "Community 395"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 352 - "Section Hero.Test"
+### Community 396 - "Community 396"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 353 - "Region Actions.Test"
+### Community 397 - "Community 397"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 354 - "Section Capture Options.Test"
+### Community 398 - "Community 398"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 355 - "Section Media.Test"
+### Community 399 - "Community 399"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 356 - "Section Templates.Test"
+### Community 400 - "Community 400"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 357 - "Oem Templates"
+### Community 401 - "Community 401"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 358 - "Clone Studio Resize.Test"
+### Community 402 - "Community 402"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 359 - "Clone Studio Coords.Test"
+### Community 403 - "Community 403"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 360 - "Recipe Patterns.Test"
+### Community 404 - "Community 404"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 361 - "Section Capture Options"
+### Community 405 - "Community 405"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 362 - "Section Converter.Test"
+### Community 406 - "Community 406"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 363 - "Region Menu.Test"
+### Community 407 - "Community 407"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 364 - "Section Icons.Test"
+### Community 408 - "Community 408"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 365 - "Page Builder Canvas Preview.Test"
+### Community 409 - "Community 409"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 366 - "Style Guide Copy Affordances.Test"
+### Community 410 - "Community 410"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 367 - "Columns"
+### Community 411 - "Community 411"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 368 - "User.Validator"
+### Community 412 - "Community 412"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 369 - "User Invite.Validator"
+### Community 413 - "Community 413"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 370 - "Schema"
+### Community 414 - "Community 414"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 371 - "Data"
+### Community 415 - "Community 415"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 372 - "Preview Tailwind Toolbar.Test"
+### Community 416 - "Community 416"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 373 - "Type"
+### Community 417 - "Community 417"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 374 - "Apps"
+### Community 418 - "Community 418"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 375 - "Type"
+### Community 419 - "Community 419"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 376 - "Columns"
+### Community 420 - "Community 420"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 377 - "Schema"
+### Community 421 - "Community 421"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 378 - "Data"
+### Community 422 - "Community 422"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 379 - "Response.Type"
+### Community 423 - "Community 423"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 380 - "Index"
+### Community 424 - "Community 424"
 Cohesion: 1.0
 Nodes (0): 
 
 ## Knowledge Gaps
-- **Thin community `Config`** (2 nodes): `getR2BucketName()`, `config.ts`
+- **Thin community `Community 146`** (2 nodes): `getProductionConfig()`, `build-chunking.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipe Response.Test`** (2 nodes): `from()`, `recipe-response.test.ts`
+- **Thin community `Community 147`** (2 nodes): `main.ts`, `bootstrap()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Hosted Oem Fonts.Test`** (2 nodes): `makeTokens()`, `hosted-oem-fonts.test.ts`
+- **Thin community `Community 148`** (2 nodes): `use-generated-pages.ts`, `useGeneratedPages()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipe Response`** (2 nodes): `normalizeRecipeRows()`, `recipe-response.ts`
+- **Thin community `Community 149`** (2 nodes): `use-auth.ts`, `useAuth()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Jwt`** (2 nodes): `verifyAccessJWT()`, `jwt.ts`
+- **Thin community `Community 150`** (2 nodes): `use-portal-assets.ts`, `usePortalAssets()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Test Integration`** (2 nodes): `test-integration.ts`, `runIntegrationTest()`
+- **Thin community `Community 151`** (2 nodes): `use-agents.ts`, `useAgents()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Test Performance`** (2 nodes): `test-performance.ts`, `runPerformanceTests()`
+- **Thin community `Community 152`** (2 nodes): `use-onboarding.ts`, `useOnboarding()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Supabase`** (2 nodes): `supabase.ts`, `createSupabaseClient()`
+- **Thin community `Community 153`** (2 nodes): `use-google-fonts.ts`, `useGoogleFonts()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Logging`** (2 nodes): `redactSensitiveParams()`, `logging.ts`
+- **Thin community `Community 154`** (2 nodes): `use-inline-edit.ts`, `useInlineEdit()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Auth.Test`** (2 nodes): `createMockContext()`, `auth.test.ts`
+- **Thin community `Community 155`** (2 nodes): `use-clipboard.ts`, `useClipboard()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Page Tools`** (2 nodes): `isValidOemId()`, `page-tools.ts`
+- **Thin community `Community 156`** (2 nodes): `capturePseudoElementRules()`, `capture-pseudo-elements.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Catalog Tools`** (2 nodes): `validateOemId()`, `catalog-tools.ts`
+- **Thin community `Community 157`** (2 nodes): `use-cron-jobs.ts`, `useCronJobs()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Sync Tools`** (2 nodes): `sync-tools.ts`, `createOrchestrator()`
+- **Thin community `Community 158`** (2 nodes): `use-sidebar.ts`, `useSidebar()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Scheduler.Test`** (2 nodes): `makePage()`, `scheduler.test.ts`
+- **Thin community `Community 159`** (2 nodes): `use-page-builder.test.ts`, `region()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Pdf Spec Extractor.Test`** (2 nodes): `makeValidSpecs()`, `pdf-spec-extractor.test.ts`
+- **Thin community `Community 160`** (2 nodes): `use-system-theme.ts`, `useSystemTheme()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Competitive Intel`** (2 nodes): `executeCompetitiveIntel()`, `competitive-intel.ts`
+- **Thin community `Community 161`** (2 nodes): `use-agent-profile.ts`, `useAgentProfile()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Weekly Report`** (2 nodes): `weekly-report.ts`, `executeWeeklyReport()`
+- **Thin community `Community 162`** (2 nodes): `tailwindRules()`, `capture-tailwind-rules.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Orchestrator Controller`** (2 nodes): `executeOrchestratorController()`, `orchestrator-controller.ts`
+- **Thin community `Community 163`** (2 nodes): `use-axios.ts`, `useAxios()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `App`** (2 nodes): `App()`, `App.tsx`
+- **Thin community `Community 164`** (2 nodes): `use-realtime.ts`, `useRealtimeSubscription()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Agents`** (2 nodes): `getSupabase()`, `agents.ts`
+- **Thin community `Community 165`** (2 nodes): `use-oem-data.ts`, `useOemData()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Process.Test`** (2 nodes): `createFullMockProcess()`, `process.test.ts`
+- **Thin community `Community 166`** (2 nodes): `use-capture-injection.ts`, `buildCaptureInjection()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Utils`** (2 nodes): `utils.ts`, `waitForProcess()`
+- **Thin community `Community 167`** (2 nodes): `index.ts`, `setupPlugins()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Env`** (2 nodes): `buildEnvVars()`, `env.ts`
+- **Thin community `Community 168`** (2 nodes): `setup.ts`, `setupTanstackVueQuery()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Sync`** (2 nodes): `sync.ts`, `syncToR2()`
+- **Thin community `Community 169`** (2 nodes): `setup.ts`, `setupNProgress()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Main`** (2 nodes): `main.ts`, `bootstrap()`
+- **Thin community `Community 170`** (2 nodes): `setup.ts`, `setupAutoAnimate()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Generated Pages`** (2 nodes): `use-generated-pages.ts`, `useGeneratedPages()`
+- **Thin community `Community 171`** (2 nodes): `setup.ts`, `setupPinia()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Auth`** (2 nodes): `use-auth.ts`, `useAuth()`
+- **Thin community `Community 172`** (2 nodes): `setup.ts`, `setupDayjs()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Portal Assets`** (2 nodes): `use-portal-assets.ts`, `usePortalAssets()`
+- **Thin community `Community 173`** (2 nodes): `setup.ts`, `setupI18n()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Agents`** (2 nodes): `use-agents.ts`, `useAgents()`
+- **Thin community `Community 174`** (2 nodes): `setup.ts`, `setupRouter()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Onboarding`** (2 nodes): `use-onboarding.ts`, `useOnboarding()`
+- **Thin community `Community 175`** (2 nodes): `useFormField.ts`, `useFormField()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Google Fonts`** (2 nodes): `use-google-fonts.ts`, `useGoogleFonts()`
+- **Thin community `Community 176`** (2 nodes): `useCarousel.ts`, `useCarousel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Inline Edit`** (2 nodes): `use-inline-edit.ts`, `useInlineEdit()`
+- **Thin community `Community 177`** (2 nodes): `use-modal.ts`, `useModal()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Clipboard`** (2 nodes): `use-clipboard.ts`, `useClipboard()`
+- **Thin community `Community 178`** (2 nodes): `use-generate-vue-table.ts`, `generateVueTable()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Capture Pseudo Elements`** (2 nodes): `capturePseudoElementRules()`, `capture-pseudo-elements.ts`
+- **Thin community `Community 179`** (2 nodes): `describeCaptureStatus()`, `capture-status.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Cron Jobs`** (2 nodes): `use-cron-jobs.ts`, `useCronJobs()`
+- **Thin community `Community 180`** (2 nodes): `rec()`, `capture-status.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Sidebar`** (2 nodes): `use-sidebar.ts`, `useSidebar()`
+- **Thin community `Community 181`** (2 nodes): `recipes.ts`, `normalizeRecipesResponse()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Page Builder.Test`** (2 nodes): `use-page-builder.test.ts`, `region()`
+- **Thin community `Community 182`** (2 nodes): `supabase.ts`, `noOpLock()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use System Theme`** (2 nodes): `use-system-theme.ts`, `useSystemTheme()`
+- **Thin community `Community 183`** (2 nodes): `getAiModelOverride()`, `ai-model-options.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Agent Profile`** (2 nodes): `use-agent-profile.ts`, `useAgentProfile()`
+- **Thin community `Community 184`** (2 nodes): `section-registry.ts`, `resolveSectionComponent()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Capture Tailwind Rules`** (2 nodes): `tailwindRules()`, `capture-tailwind-rules.ts`
+- **Thin community `Community 185`** (2 nodes): `section-registry.test.ts`, `expectComponentPath()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Axios`** (2 nodes): `use-axios.ts`, `useAxios()`
+- **Thin community `Community 186`** (2 nodes): `compile()`, `clone-region-converter.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Realtime`** (2 nodes): `use-realtime.ts`, `useRealtimeSubscription()`
+- **Thin community `Community 187`** (2 nodes): `section-icons.ts`, `getSectionTypeIcon()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Oem Data`** (2 nodes): `use-oem-data.ts`, `useOemData()`
+- **Thin community `Community 188`** (2 nodes): `recipe-patterns.ts`, `getRecipePatternGroup()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Capture Injection`** (2 nodes): `use-capture-injection.ts`, `buildCaptureInjection()`
+- **Thin community `Community 189`** (2 nodes): `users.ts`, `fetchUsers()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (2 nodes): `index.ts`, `setupPlugins()`
+- **Thin community `Community 190`** (2 nodes): `authGuard()`, `auth-guard.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupTanstackVueQuery()`
+- **Thin community `Community 191`** (2 nodes): `trigger-toyota-sync.ts`, `main()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupNProgress()`
+- **Thin community `Community 192`** (2 nodes): `check()`, `find-ford-response.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupAutoAnimate()`
+- **Thin community `Community 193`** (2 nodes): `main()`, `probe-ford-showroom-dom.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupPinia()`
+- **Thin community `Community 194`** (2 nodes): `main()`, `find-ford-full-brochures.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupDayjs()`
+- **Thin community `Community 195`** (2 nodes): `setup-database.js`, `setupDatabase()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupI18n()`
+- **Thin community `Community 196`** (2 nodes): `verify-setup.js`, `verify()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Setup`** (2 nodes): `setup.ts`, `setupRouter()`
+- **Thin community `Community 197`** (2 nodes): `seed-ford-discovered-apis.ts`, `main()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Useformfield`** (2 nodes): `useFormField.ts`, `useFormField()`
+- **Thin community `Community 198`** (2 nodes): `createClient()`, `cdp-client.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Usecarousel`** (2 nodes): `useCarousel.ts`, `useCarousel()`
+- **Thin community `Community 199`** (2 nodes): `main()`, `screenshot.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Modal`** (2 nodes): `use-modal.ts`, `useModal()`
+- **Thin community `Community 200`** (2 nodes): `video.js`, `main()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Generate Vue Table`** (2 nodes): `use-generate-vue-table.ts`, `generateVueTable()`
+- **Thin community `Community 201`** (2 nodes): `main.ts`, `syncVariant()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Capture Status`** (2 nodes): `describeCaptureStatus()`, `capture-status.ts`
+- **Thin community `Community 202`** (2 nodes): `getR2BucketName()`, `config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Capture Status.Test`** (2 nodes): `rec()`, `capture-status.test.ts`
+- **Thin community `Community 203`** (2 nodes): `makeAudit()`, `capture-completeness.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipes`** (2 nodes): `recipes.ts`, `normalizeRecipesResponse()`
+- **Thin community `Community 204`** (2 nodes): `resolveCaptureProfile()`, `capture-profiles.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Supabase`** (2 nodes): `supabase.ts`, `noOpLock()`
+- **Thin community `Community 205`** (2 nodes): `from()`, `recipe-response.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Ai Model Options`** (2 nodes): `getAiModelOverride()`, `ai-model-options.ts`
+- **Thin community `Community 206`** (2 nodes): `makeTokens()`, `hosted-oem-fonts.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Registry`** (2 nodes): `section-registry.ts`, `resolveSectionComponent()`
+- **Thin community `Community 207`** (2 nodes): `evaluateCaptureCompleteness()`, `capture-completeness.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Registry.Test`** (2 nodes): `section-registry.test.ts`, `expectComponentPath()`
+- **Thin community `Community 208`** (2 nodes): `normalizeRecipeRows()`, `recipe-response.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Clone Region Converter.Test`** (2 nodes): `compile()`, `clone-region-converter.test.ts`
+- **Thin community `Community 209`** (2 nodes): `verifyAccessJWT()`, `jwt.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Icons`** (2 nodes): `section-icons.ts`, `getSectionTypeIcon()`
+- **Thin community `Community 210`** (2 nodes): `test-integration.ts`, `runIntegrationTest()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipe Patterns`** (2 nodes): `recipe-patterns.ts`, `getRecipePatternGroup()`
+- **Thin community `Community 211`** (2 nodes): `test-performance.ts`, `runPerformanceTests()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Users`** (2 nodes): `users.ts`, `fetchUsers()`
+- **Thin community `Community 212`** (2 nodes): `supabase.ts`, `createSupabaseClient()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Auth Guard`** (2 nodes): `authGuard()`, `auth-guard.ts`
+- **Thin community `Community 213`** (2 nodes): `redactSensitiveParams()`, `logging.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index.Test`** (1 nodes): `index.test.ts`
+- **Thin community `Community 214`** (2 nodes): `createMockContext()`, `auth.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Openclaw Url Rewrite.Test`** (1 nodes): `openclaw-url-rewrite.test.ts`
+- **Thin community `Community 215`** (2 nodes): `isValidOemId()`, `page-tools.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Env.D`** (1 nodes): `env.d.ts`
+- **Thin community `Community 216`** (2 nodes): `validateOemId()`, `catalog-tools.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Logging.Test`** (1 nodes): `logging.test.ts`
+- **Thin community `Community 217`** (2 nodes): `sync-tools.ts`, `createOrchestrator()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 218`** (2 nodes): `makePage()`, `scheduler.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Orchestrator.Test`** (1 nodes): `orchestrator.test.ts`
+- **Thin community `Community 219`** (2 nodes): `makeValidSpecs()`, `pdf-spec-extractor.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Assets.D`** (1 nodes): `assets.d.ts`
+- **Thin community `Community 220`** (2 nodes): `executeCompetitiveIntel()`, `competitive-intel.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 221`** (2 nodes): `weekly-report.ts`, `executeWeeklyReport()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Model Page Write Protection.Test`** (1 nodes): `model-page-write-protection.test.ts`
+- **Thin community `Community 222`** (2 nodes): `executeOrchestratorController()`, `orchestrator-controller.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Mapper.Test`** (1 nodes): `section-mapper.test.ts`
+- **Thin community `Community 223`** (2 nodes): `App()`, `App.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Tailwind Style Normalizer.Test`** (1 nodes): `tailwind-style-normalizer.test.ts`
+- **Thin community `Community 224`** (2 nodes): `getSupabase()`, `agents.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Pipeline.Test`** (1 nodes): `pipeline.test.ts`
+- **Thin community `Community 225`** (2 nodes): `createFullMockProcess()`, `process.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Compiler Contracts.Test`** (1 nodes): `compiler-contracts.test.ts`
+- **Thin community `Community 226`** (2 nodes): `utils.ts`, `waitForProcess()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Tailwind Recipe Types.Test`** (1 nodes): `tailwind-recipe-types.test.ts`
+- **Thin community `Community 227`** (2 nodes): `buildEnvVars()`, `env.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Clone Studio Audit Script.Test`** (1 nodes): `clone-studio-audit-script.test.ts`
+- **Thin community `Community 228`** (2 nodes): `sync.ts`, `syncToR2()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Parser.Test`** (1 nodes): `section-parser.test.ts`
+- **Thin community `Community 229`** (1 nodes): `vite.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipe Extractor.Test`** (1 nodes): `recipe-extractor.test.ts`
+- **Thin community `Community 230`** (1 nodes): `vitest.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Tailwind Recipe Compiler.Test`** (1 nodes): `tailwind-recipe-compiler.test.ts`
+- **Thin community `Community 231`** (1 nodes): `vite.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Production Css Scope.Test`** (1 nodes): `production-css-scope.test.ts`
+- **Thin community `Community 232`** (1 nodes): `vue-router-meta.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Tailwind Declaration Mapper.Test`** (1 nodes): `tailwind-declaration-mapper.test.ts`
+- **Thin community `Community 233`** (1 nodes): `auto-import.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Page Modes.Test`** (1 nodes): `page-modes.test.ts`
+- **Thin community `Community 234`** (1 nodes): `auto-import-components.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 235`** (1 nodes): `vite-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Page Section Types.Test`** (1 nodes): `page-section-types.test.ts`
+- **Thin community `Community 236`** (1 nodes): `route-map.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Jwt.Test`** (1 nodes): `jwt.test.ts`
+- **Thin community `Community 237`** (1 nodes): `capture-pseudo-elements.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 238`** (1 nodes): `use-clipboard.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 239`** (1 nodes): `use-capture-injection.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 240`** (1 nodes): `pagination.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipe Tools`** (1 nodes): `recipe-tools.ts`
+- **Thin community `Community 241`** (1 nodes): `route-path.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Search Tools`** (1 nodes): `search-tools.ts`
+- **Thin community `Community 242`** (1 nodes): `themes.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Oem Tools`** (1 nodes): `oem-tools.ts`
+- **Thin community `Community 243`** (1 nodes): `theme.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 244`** (1 nodes): `auth.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 245`** (1 nodes): `env.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 246`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Banner Graphics.Test`** (1 nodes): `banner-graphics.test.ts`
+- **Thin community `Community 247`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 248`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Inline Data.Test`** (1 nodes): `inline-data.test.ts`
+- **Thin community `Community 249`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Engine.Test`** (1 nodes): `engine.test.ts`
+- **Thin community `Community 250`** (1 nodes): `utils.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 251`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Main`** (1 nodes): `main.tsx`
+- **Thin community `Community 252`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Debug`** (1 nodes): `debug.ts`
+- **Thin community `Community 253`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Api`** (1 nodes): `api.ts`
+- **Thin community `Community 254`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Admin Ui`** (1 nodes): `admin-ui.ts`
+- **Thin community `Community 255`** (1 nodes): `injectionKeys.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 256`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Public`** (1 nodes): `public.ts`
+- **Thin community `Community 257`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Media.Test`** (1 nodes): `media.test.ts`
+- **Thin community `Community 258`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Env.Test`** (1 nodes): `env.test.ts`
+- **Thin community `Community 259`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Sync.Test`** (1 nodes): `sync.test.ts`
+- **Thin community `Community 260`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 261`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `R2.Test`** (1 nodes): `r2.test.ts`
+- **Thin community `Community 262`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Vue Router Meta.D`** (1 nodes): `vue-router-meta.d.ts`
+- **Thin community `Community 263`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Auto Import.D`** (1 nodes): `auto-import.d.ts`
+- **Thin community `Community 264`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Auto Import Components.D`** (1 nodes): `auto-import-components.d.ts`
+- **Thin community `Community 265`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Vite Env.D`** (1 nodes): `vite-env.d.ts`
+- **Thin community `Community 266`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Route Map.D`** (1 nodes): `route-map.d.ts`
+- **Thin community `Community 267`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Capture Pseudo Elements.Test`** (1 nodes): `capture-pseudo-elements.test.ts`
+- **Thin community `Community 268`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Clipboard.Test`** (1 nodes): `use-clipboard.test.ts`
+- **Thin community `Community 269`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Use Capture Injection.Test`** (1 nodes): `use-capture-injection.test.ts`
+- **Thin community `Community 270`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Pagination`** (1 nodes): `pagination.ts`
+- **Thin community `Community 271`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Route Path`** (1 nodes): `route-path.ts`
+- **Thin community `Community 272`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Themes`** (1 nodes): `themes.ts`
+- **Thin community `Community 273`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Theme`** (1 nodes): `theme.ts`
+- **Thin community `Community 274`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Auth`** (1 nodes): `auth.ts`
+- **Thin community `Community 275`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Env`** (1 nodes): `env.ts`
+- **Thin community `Community 276`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 277`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 278`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 279`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 280`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Utils`** (1 nodes): `utils.ts`
+- **Thin community `Community 281`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 282`** (1 nodes): `interface.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 283`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 284`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 285`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Injectionkeys`** (1 nodes): `injectionKeys.ts`
+- **Thin community `Community 286`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 287`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 288`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 289`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 290`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 291`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 292`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 293`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 294`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 295`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 296`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 297`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 298`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 299`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 300`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 301`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 302`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 303`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 304`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 305`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 306`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 307`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 308`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 309`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 310`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 311`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 312`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Interface`** (1 nodes): `interface.ts`
+- **Thin community `Community 313`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 314`** (1 nodes): `team.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 315`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 316`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 317`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 318`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 319`** (1 nodes): `table-columns.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 320`** (1 nodes): `oem-ids.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 321`** (1 nodes): `recipes.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 322`** (1 nodes): `scope-oem-css.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 323`** (1 nodes): `worker-api.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 324`** (1 nodes): `scope-oem-section.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 325`** (1 nodes): `display.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 326`** (1 nodes): `account.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 327`** (1 nodes): `notifications.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 328`** (1 nodes): `profile.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 329`** (1 nodes): `appearance.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 330`** (1 nodes): `columns.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 331`** (1 nodes): `task.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 332`** (1 nodes): `schema.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 333`** (1 nodes): `data.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 334`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 335`** (1 nodes): `talks.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 336`** (1 nodes): `model-pages-status.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 337`** (1 nodes): `ai-model-options.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 338`** (1 nodes): `toolbar-layout.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 339`** (1 nodes): `full-preview-workflow.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 340`** (1 nodes): `page-modes.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 341`** (1 nodes): `page-workflow.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 342`** (1 nodes): `variant-color-explorer-data.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 343`** (1 nodes): `section-hero.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 344`** (1 nodes): `region-actions.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Team.Validator`** (1 nodes): `team.validator.ts`
+- **Thin community `Community 345`** (1 nodes): `section-capture-options.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 346`** (1 nodes): `section-media.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 347`** (1 nodes): `section-templates.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 348`** (1 nodes): `oem-templates.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Types`** (1 nodes): `types.ts`
+- **Thin community `Community 349`** (1 nodes): `clone-studio-resize.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Table Columns`** (1 nodes): `table-columns.ts`
+- **Thin community `Community 350`** (1 nodes): `clone-studio-coords.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Oem Ids.Test`** (1 nodes): `oem-ids.test.ts`
+- **Thin community `Community 351`** (1 nodes): `recipe-patterns.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipes.Test`** (1 nodes): `recipes.test.ts`
+- **Thin community `Community 352`** (1 nodes): `section-capture-options.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Scope Oem Css.Test`** (1 nodes): `scope-oem-css.test.ts`
+- **Thin community `Community 353`** (1 nodes): `section-converter.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Worker Api.Test`** (1 nodes): `worker-api.test.ts`
+- **Thin community `Community 354`** (1 nodes): `region-menu.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Scope Oem Section.Test`** (1 nodes): `scope-oem-section.test.ts`
+- **Thin community `Community 355`** (1 nodes): `section-icons.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Display.Validator`** (1 nodes): `display.validator.ts`
+- **Thin community `Community 356`** (1 nodes): `page-builder-canvas-preview.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Account.Validator`** (1 nodes): `account.validator.ts`
+- **Thin community `Community 357`** (1 nodes): `style-guide-copy-affordances.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Notifications.Validator`** (1 nodes): `notifications.validator.ts`
+- **Thin community `Community 358`** (1 nodes): `columns.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Profile.Validator`** (1 nodes): `profile.validator.ts`
+- **Thin community `Community 359`** (1 nodes): `user.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Appearance.Validator`** (1 nodes): `appearance.validator.ts`
+- **Thin community `Community 360`** (1 nodes): `user-invite.validator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Columns`** (1 nodes): `columns.ts`
+- **Thin community `Community 361`** (1 nodes): `schema.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Task.Validator`** (1 nodes): `task.validator.ts`
+- **Thin community `Community 362`** (1 nodes): `data.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Schema`** (1 nodes): `schema.ts`
+- **Thin community `Community 363`** (1 nodes): `preview-tailwind-toolbar.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Data`** (1 nodes): `data.ts`
+- **Thin community `Community 364`** (1 nodes): `type.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 365`** (1 nodes): `apps.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Talks`** (1 nodes): `talks.ts`
+- **Thin community `Community 366`** (1 nodes): `type.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Model Pages Status.Test`** (1 nodes): `model-pages-status.test.ts`
+- **Thin community `Community 367`** (1 nodes): `columns.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Ai Model Options.Test`** (1 nodes): `ai-model-options.test.ts`
+- **Thin community `Community 368`** (1 nodes): `schema.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Toolbar Layout.Test`** (1 nodes): `toolbar-layout.test.ts`
+- **Thin community `Community 369`** (1 nodes): `data.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Full Preview Workflow.Test`** (1 nodes): `full-preview-workflow.test.ts`
+- **Thin community `Community 370`** (1 nodes): `response.type.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Page Modes.Test`** (1 nodes): `page-modes.test.ts`
+- **Thin community `Community 371`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Page Workflow.Test`** (1 nodes): `page-workflow.test.ts`
+- **Thin community `Community 372`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Variant Color Explorer Data.Test`** (1 nodes): `variant-color-explorer-data.test.ts`
+- **Thin community `Community 373`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Hero.Test`** (1 nodes): `section-hero.test.ts`
+- **Thin community `Community 374`** (1 nodes): `main.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Region Actions.Test`** (1 nodes): `region-actions.test.ts`
+- **Thin community `Community 375`** (1 nodes): `index.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Capture Options.Test`** (1 nodes): `section-capture-options.test.ts`
+- **Thin community `Community 376`** (1 nodes): `openclaw-url-rewrite.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Media.Test`** (1 nodes): `section-media.test.ts`
+- **Thin community `Community 377`** (1 nodes): `env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Templates.Test`** (1 nodes): `section-templates.test.ts`
+- **Thin community `Community 378`** (1 nodes): `logging.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Oem Templates`** (1 nodes): `oem-templates.ts`
+- **Thin community `Community 379`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Clone Studio Resize.Test`** (1 nodes): `clone-studio-resize.test.ts`
+- **Thin community `Community 380`** (1 nodes): `orchestrator.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Clone Studio Coords.Test`** (1 nodes): `clone-studio-coords.test.ts`
+- **Thin community `Community 381`** (1 nodes): `assets.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Recipe Patterns.Test`** (1 nodes): `recipe-patterns.test.ts`
+- **Thin community `Community 382`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Capture Options`** (1 nodes): `section-capture-options.ts`
+- **Thin community `Community 383`** (1 nodes): `model-page-write-protection.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Converter.Test`** (1 nodes): `section-converter.test.ts`
+- **Thin community `Community 384`** (1 nodes): `section-mapper.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Region Menu.Test`** (1 nodes): `region-menu.test.ts`
+- **Thin community `Community 385`** (1 nodes): `tailwind-style-normalizer.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Section Icons.Test`** (1 nodes): `section-icons.test.ts`
+- **Thin community `Community 386`** (1 nodes): `pipeline.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Page Builder Canvas Preview.Test`** (1 nodes): `page-builder-canvas-preview.test.ts`
+- **Thin community `Community 387`** (1 nodes): `compiler-contracts.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Style Guide Copy Affordances.Test`** (1 nodes): `style-guide-copy-affordances.test.ts`
+- **Thin community `Community 388`** (1 nodes): `tailwind-recipe-types.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Columns`** (1 nodes): `columns.ts`
+- **Thin community `Community 389`** (1 nodes): `clone-studio-audit-script.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `User.Validator`** (1 nodes): `user.validator.ts`
+- **Thin community `Community 390`** (1 nodes): `capture-profiles.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `User Invite.Validator`** (1 nodes): `user-invite.validator.ts`
+- **Thin community `Community 391`** (1 nodes): `section-parser.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Schema`** (1 nodes): `schema.ts`
+- **Thin community `Community 392`** (1 nodes): `recipe-extractor.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Data`** (1 nodes): `data.ts`
+- **Thin community `Community 393`** (1 nodes): `tailwind-recipe-compiler.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Preview Tailwind Toolbar.Test`** (1 nodes): `preview-tailwind-toolbar.test.ts`
+- **Thin community `Community 394`** (1 nodes): `production-css-scope.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Type`** (1 nodes): `type.ts`
+- **Thin community `Community 395`** (1 nodes): `tailwind-declaration-mapper.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Apps`** (1 nodes): `apps.ts`
+- **Thin community `Community 396`** (1 nodes): `page-modes.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Type`** (1 nodes): `type.ts`
+- **Thin community `Community 397`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Columns`** (1 nodes): `columns.ts`
+- **Thin community `Community 398`** (1 nodes): `page-section-types.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Schema`** (1 nodes): `schema.ts`
+- **Thin community `Community 399`** (1 nodes): `jwt.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Data`** (1 nodes): `data.ts`
+- **Thin community `Community 400`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Response.Type`** (1 nodes): `response.type.ts`
+- **Thin community `Community 401`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Index`** (1 nodes): `index.ts`
+- **Thin community `Community 402`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 403`** (1 nodes): `recipe-tools.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 404`** (1 nodes): `search-tools.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 405`** (1 nodes): `oem-tools.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 406`** (1 nodes): `types.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 407`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 408`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 409`** (1 nodes): `banner-graphics.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 410`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 411`** (1 nodes): `inline-data.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 412`** (1 nodes): `engine.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 413`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 414`** (1 nodes): `main.tsx`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 415`** (1 nodes): `debug.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 416`** (1 nodes): `api.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 417`** (1 nodes): `admin-ui.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 418`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 419`** (1 nodes): `public.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 420`** (1 nodes): `media.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 421`** (1 nodes): `env.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 422`** (1 nodes): `sync.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 423`** (1 nodes): `index.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 424`** (1 nodes): `r2.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Should `Multi-OEM Sync Jobs` be split into smaller, more focused modules?**
+- **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.05 - nodes in this community are weakly interconnected._
-- **Should `Clone Region Converter` be split into smaller, more focused modules?**
+- **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
-- **Should `Crawl Orchestrator` be split into smaller, more focused modules?**
+- **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
-- **Should `Dashboard Worker API Client` be split into smaller, more focused modules?**
+- **Should `Community 3` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
-- **Should `Clone Studio HTML Bridge` be split into smaller, more focused modules?**
+- **Should `Community 4` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
-- **Should `Page Capture Engine` be split into smaller, more focused modules?**
+- **Should `Community 5` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
-- **Should `Content Extraction Engine` be split into smaller, more focused modules?**
+- **Should `Community 6` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
