@@ -51,28 +51,33 @@ Four layers strengthening the existing `AdaptivePipeline` (CLONE→SCREENSHOT→
 
 1. **Paced hydration sweep** — scroll step-by-viewport with a per-step "did new content mount?" check (DOM mutation + image-count delta); total budget raised to a 90–120s ceiling with early exit when the page goes quiet.
 2. **Feature-app mount-wait** — after the sweep, locate still-empty loader shells (e.g. `CmsFeatureAppLoader`, `featureAppSection` and per-OEM equivalents) and give each a bounded second chance (scroll into view + wait for mutation).
-3. **Capture audit** — JSON written beside the page definition: captured vs live scrollHeight, image counts, unmounted shells with selectors, per-stage timings, backend used. This is the completeness gate input and the failure diagnostic.
+3. **Capture audit** — extends the existing `capture-diagnostics.ts` store (`pages/diagnostics/{oem}/{slug}/latest.json`, history of 20) with: captured vs live scrollHeight, image counts, unmounted shells with selectors, per-stage timings. Backend/timing/size fields already exist there — add, don't replace. This is the completeness gate input and the failure diagnostic.
 4. **Fail loud** — capture below the completeness threshold fails the compile with the audit attached; a stump is never published.
-5. **Per-OEM capture profiles** — brand-specific settings (wait budgets, known shell selectors, backend escalation order `cloudflare-browser → scrapling-stealth → external-html`) stored with page definitions. Escalation is automatic before declaring failure.
+5. **Per-OEM capture profiles** — today backend selection is a call-site param with `scrapling-stealth` hardcoded to toyota-au (`page-capturer.ts` :1690); there is no declarative routing. Profiles add it: brand-specific settings (wait budgets, known shell selectors, backend escalation order `cloudflare-browser → scrapling-stealth → external-html`) stored with page definitions. Escalation is automatic before declaring failure.
 6. `captureSectionScreenshots()` (:2533) adopts the same scroll/lazy/hydrate helpers (it currently has none).
 
 ### 4.2 Recognition layer (CLASSIFY/EXTRACT stages)
 
 A pattern registry of detectors that tag DOM regions: `carousel`, `tabs`, `accordion`, `gallery`, `video`, `spec-table`, `configurator-shell`, `unknown`.
 
+- **Extends `src/design/section-parser.ts`**, which already has deterministic DOM detectors (`detectHero`, `detectGallery`, `detectCardGrid`, `detectCtaBanner`, `detectHeading`) — add the interaction-oriented detectors there rather than creating a parallel registry.
+- The existing AI-vision CLASSIFY step (Groq screenshot classification, `pipeline.ts` :534) stays as enrichment/fallback; today its carousel/tab detections are non-persisted. The gap being closed: deterministic DOM-region tags, **persisted into the artifact manifest**.
 - Per-OEM selector-based detectors first (reliable), generic heuristics (ARIA roles, class patterns) as fallback.
 - `unknown` regions pass through untouched — only confidently recognized regions are transformed, containing misclassification risk.
-- Tags are recorded in the compiled artifact manifest and drive both reconstruction and functional QA.
+- Tags drive both reconstruction and functional QA.
+- Non-reuse note: `orchestrator.ts` "section detection" (:2422+) classifies network API responses, not DOM regions — it is not a base for this layer.
 
 ### 4.3 Reconstruction layer (GENERATE stage) — Alpine.js runtime
 
-Tenant platforms span Nuxt 3/Vue 3 (`promotion-knoxgwmhaval`) and Vue 2.7 (`werribee-toyota-new`); the runtime must be host-framework-agnostic. **Alpine.js** is the runtime:
+Tenant platforms span Nuxt 3/Vue 3 (`promotion-knoxgwmhaval`) and Vue 2.7 (`werribee-toyota-new`); the runtime must be host-framework-agnostic. **Alpine.js** is the runtime — and this direction is already seeded in the codebase: `src/design/compiler-contracts.ts` declares the `alpine` runtime adapter, the `alpine-island` render target, and `INTERACTION_TYPES` (`carousel`, `tabs`, `accordion`, `sticky-bar`, `vehicle-360`, `variant-color-explorer`, `finance-calculator`). **Build on these contracts; do not define new job/target/interaction types.**
 
 - Pinned Alpine core self-hosted inside the compiled artifact (no CDN; tenant CSPs stay clean).
-- Our Alpine component library registered via `Alpine.data()`: `carousel`, `tabs`, `accordion`, `gallery`, `video`, `specTable`.
+- Our Alpine component library registered via `Alpine.data()`, keyed by `INTERACTION_TYPES`.
 - Recognized regions keep their captured OEM markup and are **annotated** with `x-data`/`x-show`/`x-ref` directives — behavior is added, markup is preserved.
-- The current guess-based bridge shims in `clone-studio-html.ts` are retired once the Alpine runtime covers their cases.
-- `configurator-shell` regions are replaced with a designed native Alpine block: vehicle imagery, variant/colour/price data from Supabase `vehicle_models` embedded as a JSON data island, enquiry/quote CTA. Zero server dependency at view time.
+- **This is a port, not a green-field build**: `clone-studio-html.ts` `enableInteractivity()` (:2573) is a working JS interaction runtime (tab wiring :2773, carousel :2814 incl. fabricated control bars :2629, accordion :2933, gallery :2888, dropdown :2910, responsive image/content variant handling :2066/:2395). Its behaviors and its test assertions (`clone-studio-html.test.ts`) are the migration checklist. It is retired once the Alpine runtime covers its cases. Editor-only features (resize handles, inline edit, region messaging) stay in the dashboard and are NOT ported.
+- **Scope guard against triple implementation**: the 35 native Vue section components (`dashboard/src/pages/dashboard/components/sections/`, using embla/gsap) keep their own interactivity. Alpine applies only to the captured-OEM-markup (clone) path.
+- Consolidation: `page-modes.ts` is duplicated between `src/design/` and `dashboard/src/pages/dashboard/page-builder/`; unify to one shared module while touching this path.
+- `configurator-shell` regions are replaced with a designed native Alpine block: vehicle imagery + variant/price data from Supabase (`vehicle_models` for the model, `products` for variants/prices, `variant_colors` for colours) embedded as a JSON data island, enquiry/quote CTA. Zero server dependency at view time.
 
 ### 4.4 Verification layer
 
@@ -84,8 +89,9 @@ Tenant platforms span Nuxt 3/Vue 3 (`promotion-knoxgwmhaval`) and Vue 2.7 (`werr
 
 **Full-page artifact** (decided; section-level export explicitly out of scope for v1):
 
-- One self-contained HTML document: inline CSS, inline/self-hosted Alpine runtime, all media rehosted to our R2/CDN — never hotlinked from OEM domains.
-- `manifest.json` beside it: slug, OEM, model, components used (with selectors), asset list, QA scores, compiled-at, pipeline version.
+- One self-contained HTML document: inline CSS, inline/self-hosted Alpine runtime, all media rehosted to our R2/CDN — never hotlinked from OEM domains. The emitter formalizes the existing `buildStandaloneHtml()` path (`dashboard/src/pages/dashboard/preview/[slug].vue` :293), which already produces a self-contained document, moving it into the compile pipeline so the artifact is produced server-side at publish time.
+- Media rehosting **extends `downloadImages()`** (`page-capturer.ts` :2418 — images/video → R2 `pages/assets/` with per-OEM Origin/Referer headers already works). Known gaps to close: `url()` assets inside external CSS are not rehosted, fonts are a curated allowlist (`hosted-oem-fonts.ts`) rather than auto-downloaded, srcset rehosting is best-effort.
+- `manifest.json` **extends the existing production manifest** (`oem-agent.ts` :2295 — already has slug/oem/model/version/html_sha256/etag/scope). Add: asset list, section/interaction inventory (the recognition tags), QA scores, pipeline version.
 - No OEM trackers, analytics, or cookies survive compilation.
 - Tenants (Nuxt 3, Vue 2, static) serve the artifact as a whole route — same contract for every stack.
 
@@ -99,7 +105,7 @@ assemble artifact → QA gates → publish to R2
 Changes from today:
 
 1. **Raw capture retained** in R2 separately from compiled output — recognition/reconstruction can re-run without re-capturing.
-2. **Last-good publishing** — `pages/definitions/{oemId}/{modelSlug}/latest.json` is only overwritten on green QA; the previous good version is kept for instant rollback. End customers never see a partial compile.
+2. **Last-good publishing** — versioned snapshots already exist (every write dual-writes `latest.json` + `v{timestamp}.json`, `page-capturer.ts` :1825 and five route sites) but are write-only today. Add the missing half: list/read/restore of snapshots, and only overwrite `latest.json` on green QA — previous good version restorable instantly. End customers never see a partial compile.
 
 ## 7. Error handling
 
@@ -114,6 +120,8 @@ Three tiers:
 1. **Unit** — detectors and Alpine components against stored DOM fragments (vitest, no network).
 2. **Fixture** — full captured-DOM snapshots per OEM committed as test fixtures; recognition + reconstruction run offline against them.
 3. **Live** — `qa:preview` + `qa:fidelity` + `qa:functional` against the deployed fixture matrix.
+
+`qa:functional` is built by first extracting a shared QA lib from `scripts/oem-fidelity-report.mjs` (its `captureHtmlTarget`, `collectAudit`, `warmLazyMedia`, `settlePage`, `scoreCapturePair` are the reuse base) — the two existing QA scripts currently copy-paste browser plumbing (`resolveBrowserExecutable`, `timestampForPath`), and a third copy is not acceptable. Note: the existing CI e2e job (`cctr test/e2e`) covers worker/bot infra, not preview interactivity — `qa:functional` is net-new coverage, not overlap.
 
 CI wiring (`.github/workflows/`), currently absent for QA scripts:
 
@@ -151,3 +159,26 @@ CI wiring (`.github/workflows/`), currently absent for QA scripts:
 - Tenant ingest targets (contract consumers, no code changes planned in v1): `promotion-knoxgwmhaval` (Nuxt 3/CF Pages), `werribee-toyota-new` (Vue 2.7/Netlify).
 
 > Note recorded during design: `werribee-toyota-new/package.json` embeds a GitHub PAT in the `driveagent-ui` dependency URL. Rotate that token and inject via `.npmrc`/deploy key. Independent of this project.
+
+## 13. Reuse map (verified inventory, 2026-07-04)
+
+What exists vs what each milestone extends. Sourced from a two-agent code inventory plus the graphify architecture graph (`graphify-out/`).
+
+| Capability | Exists today | We extend / close the gap |
+|---|---|---|
+| Scroll/hydrate/lazy capture | `page-capturer.ts` sweep + DOM-quiet + lazy-media helpers | Raise ~15s budget to paced 90–120s sweep; feature-app mount-waits (M1) |
+| Capture diagnostics | `capture-diagnostics.ts` (backend, timings, sizes, history 20) | Add heights/image counts/unmounted shells → completeness gate (M1) |
+| Backend alternatives | `scrapling-stealth` (toyota-au hardcoded), `external-html` | Declarative per-OEM profiles + automatic escalation (M1) |
+| DOM region detection | `section-parser.ts` (`detectHero/Gallery/CardGrid/CtaBanner`) | Add interaction detectors; persist tags to manifest (M2) |
+| AI section classification | pipeline CLASSIFY (Groq vision, non-persisted) + EXTRACT (Gemini `PageSection[]`) | Keep as enrichment; deterministic tags become source of truth (M2) |
+| Interaction runtime | `enableInteractivity()` in `clone-studio-html.ts` (tabs/carousel/accordion/gallery/dropdown + responsive variants) | Port to Alpine per `compiler-contracts.ts` `INTERACTION_TYPES`; then retire (M2) |
+| Compiler contracts | `compiler-contracts.ts`: job statuses, `alpine` adapter, `alpine-island` target, interaction types | Use as-is — no new type definitions (M2/M3) |
+| Native section components | 35 Vue sections (embla/gsap) + clone→Tailwind converter | Untouched; Alpine is clone-path only (guard, M2) |
+| Self-contained HTML emit | `buildStandaloneHtml()` in preview page (client-side) | Move into pipeline as the artifact emitter (M3) |
+| Media rehosting | `downloadImages()` → R2 with per-OEM headers | Add CSS `url()` assets, font auto-rehost, srcset completeness (M3) |
+| Production manifest | slug/version/sha256/etag/scope | Add assets, section/interaction inventory, QA scores (M3) |
+| Version snapshots | Dual-write `latest.json` + `v{ts}.json` (write-only) | Add list/restore + publish-on-green-only (M4) |
+| Visual QA | `oem-fidelity-report.mjs` (audit, pixel diff, 100-pt score) | Extract shared lib; build `qa:functional` on it (M4) |
+| Configurator data | `vehicle_models` + `products` (variants/prices) + `variant_colors` | JSON data island for replacement blocks (M3) |
+
+Known duplications to resolve while in the area: `page-modes.ts` mirrored between worker and dashboard; QA scripts' copy-pasted browser plumbing.
