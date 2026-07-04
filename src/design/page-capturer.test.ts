@@ -1913,3 +1913,20 @@ describe('waitForFeatureAppMountsForCapture', () => {
     expect(report).toEqual({ checked: 0, recovered: 0, still_empty: [] })
   })
 })
+
+describe('PageCapturer section screenshot hydration wiring', () => {
+  it('activates lazy media and runs a hydration sweep before measuring sections', () => {
+    const source = readFileSync(new URL('./page-capturer.ts', import.meta.url), 'utf8')
+    const sectionMethod = source.indexOf('async captureSectionScreenshots(')
+    const sectionGoto = source.indexOf('await page.goto(sourceUrl', sectionMethod)
+    const sectionLazy = source.indexOf('page.evaluate(activateLazyMediaForCapture as any)', sectionMethod)
+    const sectionSweep = source.indexOf('page.evaluate(runPacedHydrationSweepForCapture as any', sectionMethod)
+    const sectionMeasure = source.indexOf('page.evaluate((sel: string)', sectionMethod)
+
+    expect(sectionMethod).toBeGreaterThan(-1)
+    expect(sectionGoto).toBeGreaterThan(sectionMethod)
+    expect(sectionLazy).toBeGreaterThan(sectionGoto)
+    expect(sectionSweep).toBeGreaterThan(sectionLazy)
+    expect(sectionMeasure).toBeGreaterThan(sectionSweep)
+  })
+})

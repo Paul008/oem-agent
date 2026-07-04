@@ -2881,6 +2881,18 @@ export class PageCapturer {
         return screenshots;
       }
 
+      // Hydrate before measuring sections — same helpers as the main capture
+      // path with a reduced budget (screenshots tolerate a partial tail).
+      await page.evaluate(activateLazyMediaForCapture as any);
+      const sectionHydration = await page.evaluate(runPacedHydrationSweepForCapture as any, {
+        budgetMs: 20_000,
+        stepDelayMs: CAPTURE_HYDRATION_STEP_DELAY_MS,
+        mountWaitMs: 2_000,
+        stabilityPct: CAPTURE_HYDRATION_STABILITY_PCT,
+        maxPasses: 2,
+      }) as CaptureHydrationReport;
+      console.log(`[PageCapturer] Section screenshot hydration: ${sectionHydration.status}`);
+
       // Find major sections via common selectors
       const sectionSelectors = [
         'section',
