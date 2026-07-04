@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-05)
 
 ## Corpus Check
-- 438 files · ~10,443,451 words
+- 438 files · ~11,578,512 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2170 nodes · 3121 edges · 432 communities detected
+- 2171 nodes · 3123 edges · 432 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -610,20 +610,20 @@ Cohesion: 0.21
 Nodes (3): DesignAgent, generateBrandTokenExtractionPrompt(), generatePageLayoutPrompt()
 
 ### Community 35 - "Community 35"
+Cohesion: 0.25
+Nodes (11): attrEscape(), htmlAttrEscape(), isGlobalSelector(), sanitizeOrphanDeclarations(), scopeCss(), scopeOneSelector(), scopeProductionCloneHtml(), scopeSelectorFor() (+3 more)
+
+### Community 36 - "Community 36"
 Cohesion: 0.42
 Nodes (13): cleanText(), extractCtaCards(), extractFaqSections(), extractGridBlocks(), extractHero(), extractIntroText(), extractModelRange(), extractPricing() (+5 more)
 
-### Community 36 - "Community 36"
+### Community 37 - "Community 37"
 Cohesion: 0.36
 Nodes (12): contentRecord(), getGeneratedPageSectionCount(), getGeneratedPageStatus(), hasGeneratedPageClone(), hasGeneratedPageSections(), hasLegacyCloneMarker(), hasModeCloneHtml(), isRecord() (+4 more)
 
-### Community 37 - "Community 37"
-Cohesion: 0.27
-Nodes (10): contentChildren(), descendToBranch(), heroFromRegion(), isWrapper(), mapPage(), mapPageToSections(), meaningfulChildren(), selectorFor() (+2 more)
-
 ### Community 38 - "Community 38"
 Cohesion: 0.27
-Nodes (10): attrEscape(), htmlAttrEscape(), isGlobalSelector(), scopeCss(), scopeOneSelector(), scopeProductionCloneHtml(), scopeSelectorFor(), shouldSkipSelector() (+2 more)
+Nodes (10): contentChildren(), descendToBranch(), heroFromRegion(), isWrapper(), mapPage(), mapPageToSections(), meaningfulChildren(), selectorFor() (+2 more)
 
 ### Community 39 - "Community 39"
 Cohesion: 0.24
