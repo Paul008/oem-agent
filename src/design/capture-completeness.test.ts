@@ -89,6 +89,16 @@ describe('evaluateCaptureCompleteness', () => {
     expect(verdict.reasons).toHaveLength(3)
   })
 
+  it('fails when the capture measured zero page height', () => {
+    const verdict = evaluateCaptureCompleteness({
+      audit: makeAudit({ captured_scroll_height: 0 }),
+      lastGoodScrollHeight: 16000,
+    })
+
+    expect(verdict.passed).toBe(false)
+    expect(verdict.reasons[0]).toContain('zero page height')
+  })
+
   it('honours config overrides', () => {
     const verdict = evaluateCaptureCompleteness(
       { audit: makeAudit({ empty_shells: ['.x [0]'] }) },

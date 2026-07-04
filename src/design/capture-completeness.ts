@@ -44,6 +44,9 @@ export function evaluateCaptureCompleteness(
 
   const failures: string[] = [];
 
+  if (audit.captured_scroll_height <= 0)
+    failures.push('capture measured zero page height — measurement or capture is broken');
+
   if (config.requireHydrationStable && audit.hydration_status !== 'stable' && audit.hydration_status !== 'unsupported')
     failures.push(`hydration did not stabilize (status=${audit.hydration_status})`);
 
