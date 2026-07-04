@@ -492,6 +492,44 @@ describe('captureModelPage completeness gate', () => {
     expect(result.success).toBe(true)
     expect(result.initial_document_preferred).toBe(true)
   })
+
+  it('annotates recognized regions and ships the clone runtime with the page', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    const tabsHtml = `
+<section class="model-features">
+  <div role="tablist"><button role="tab" aria-selected="true" id="t1">A</button><button role="tab" id="t2">B</button></div>
+  <div role="tabpanel" aria-labelledby="t1"><p>Panel A content long enough to count.</p></div>
+  <div role="tabpanel" aria-labelledby="t2"><p>Panel B content long enough to count.</p></div>
+</section>`
+    ;(capturer as any).captureDom = async () => ({
+      ...fakeBrowserCapture({
+        captured_scroll_height: 16000,
+        dom_image_count: 100,
+        hydration_status: 'stable',
+        hydration_passes: [],
+        shells_checked: 0,
+        shells_recovered: 0,
+        empty_shells: [],
+      }),
+      html: `<main><h1>Amarok</h1>${tabsHtml}</main>`,
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [] })
+    ;(capturer as any).downloadImages = async () => new Map()
+
+    const result = await capturer.captureModelPage('toyota-au' as any, 'rav4', 'https://www.toyota.com.au/rav4')
+
+    expect(result.success).toBe(true)
+    const stored = JSON.parse(writes.get('pages/definitions/toyota-au/rav4/latest.json')!)
+    const clone = stored.content.modes.clone
+    expect(clone.rendered).toContain('data-clone-interaction="tabs"')
+    expect(clone.rendered).toContain('x-data="cloneTabs"')
+    expect(clone.rendered).not.toContain('<script')
+    expect(clone.interactions).toHaveLength(1)
+    expect(clone.interactions[0].type).toBe('tabs')
+    expect(clone.runtime_version).toBe('clone-runtime-v1')
+    expect(clone.runtime_js).toContain("Alpine.data('cloneTabs'")
+  })
 })
 
 describe('buildDomCaptureFromHtml', () => {

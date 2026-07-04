@@ -34,6 +34,11 @@ export interface CloneModeContent {
   section_index: CloneSectionRegion[]
   stripped_selectors: string[]
   warnings: string[]
+  /** Recognized interactive regions stamped into rendered HTML (clone runtime). */
+  interactions?: Array<{ id: string; type: string; trigger_count: number; panel_count: number }>
+  /** Trusted script body injected by rendering surfaces (never stored inside rendered HTML). */
+  runtime_js?: string
+  runtime_version?: string
 }
 
 export interface SectionsModeContent {
@@ -78,6 +83,11 @@ export interface CloneCaptureInput {
   stylesheet_urls: string[]
   section_index: CloneSectionRegion[]
   warnings: string[]
+  /** Recognized interactive regions stamped into rendered HTML (clone runtime). */
+  interactions?: Array<{ id: string; type: string; trigger_count: number; panel_count: number }>
+  /** Trusted script body injected by rendering surfaces (never stored inside rendered HTML). */
+  runtime_js?: string
+  runtime_version?: string
 }
 
 interface CloneEditInput {
@@ -144,6 +154,9 @@ export function applyCloneMode<T extends ModeAwarePage>(
     section_index: input.section_index,
     stripped_selectors: [],
     warnings: input.warnings,
+    interactions: input.interactions,
+    runtime_js: input.runtime_js,
+    runtime_version: input.runtime_version,
   }
 
   content.rendered = input.rendered

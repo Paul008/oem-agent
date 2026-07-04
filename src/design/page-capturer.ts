@@ -21,6 +21,8 @@ import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '..
 import { resolveCaptureProfile, type OemCaptureProfile } from './capture-profiles';
 import { evaluateCaptureCompleteness, type CaptureCompletenessVerdict } from './capture-completeness';
 import { readLastGoodCapturedHeight } from './capture-diagnostics';
+import { annotateCloneInteractions } from './clone-annotator';
+import { buildCloneRuntimeScript, CLONE_RUNTIME_VERSION } from './clone-runtime/clone-runtime';
 
 // ============================================================================
 // Types
@@ -2110,6 +2112,13 @@ export class PageCapturer {
         html = html.replaceAll(originalUrl, proxyPath);
       }
 
+      // Recognize interactive regions and stamp Alpine directives (attributes
+      // only — the runtime script ships separately in clone.runtime_js).
+      const annotated = annotateCloneInteractions(html);
+      html = annotated.html;
+      if (annotated.interactions.length > 0)
+        console.log(`[PageCapturer] Clone runtime: stamped ${annotated.interactions.length} region(s): ${annotated.interactions.map(entry => entry.type).join(', ')}`);
+
       const heroUrl = urlMapping.get(capture.heroUrl) || capture.heroUrl;
 
       // Assemble: stylesheet links + static clone safety overrides + cleaned HTML body
@@ -2188,6 +2197,9 @@ export class PageCapturer {
           .filter((href): href is string => Boolean(href)),
         section_index: [],
         warnings: [],
+        interactions: annotated.interactions,
+        runtime_js: annotated.interactions.length > 0 ? buildCloneRuntimeScript() : undefined,
+        runtime_version: annotated.interactions.length > 0 ? CLONE_RUNTIME_VERSION : undefined,
       }, { activate: !existingPage || !existingPage.active_mode }) as VehicleModelPage;
 
       const versionKey = `${R2_PREFIX}/${oemId}/${modelSlug}/v${Date.now()}.json`;
