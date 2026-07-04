@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-05)
 
 ## Corpus Check
-- 438 files · ~8,998,658 words
+- 438 files · ~10,443,275 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2169 nodes · 3120 edges · 432 communities detected
+- 2170 nodes · 3121 edges · 432 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -786,12 +786,12 @@ Cohesion: 0.52
 Nodes (5): enrichBrandTokensWithHostedFontFaces(), firstFontFamily(), fontFacesFromCdnUrls(), hostedOemFontConfig(), hostedOemFontFaces()
 
 ### Community 79 - "Community 79"
-Cohesion: 0.43
-Nodes (1): UxKnowledgeManager
+Cohesion: 0.29
+Nodes (0): 
 
 ### Community 80 - "Community 80"
-Cohesion: 0.33
-Nodes (0): 
+Cohesion: 0.43
+Nodes (1): UxKnowledgeManager
 
 ### Community 81 - "Community 81"
 Cohesion: 0.33
@@ -802,20 +802,20 @@ Cohesion: 0.33
 Nodes (0): 
 
 ### Community 83 - "Community 83"
+Cohesion: 0.33
+Nodes (0): 
+
+### Community 84 - "Community 84"
 Cohesion: 0.6
 Nodes (5): extractPaints(), main(), parseBalanced(), processModel(), safeJson()
 
-### Community 84 - "Community 84"
+### Community 85 - "Community 85"
 Cohesion: 0.47
 Nodes (3): extractGalleryUrls(), main(), processNameplate()
 
-### Community 85 - "Community 85"
+### Community 86 - "Community 86"
 Cohesion: 0.47
 Nodes (4): createMockEnv(), createMockEnvWithR2(), createMockProcess(), createMockSandbox()
-
-### Community 86 - "Community 86"
-Cohesion: 0.33
-Nodes (0): 
 
 ### Community 87 - "Community 87"
 Cohesion: 0.47

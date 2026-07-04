@@ -3137,7 +3137,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_sections_variant_color_explorer_data_ts",
-      "community": 80
+      "community": 81
     },
     {
       "label": "key()",
@@ -3145,7 +3145,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.ts",
       "source_location": "L21",
       "id": "variant_color_explorer_data_key",
-      "community": 80
+      "community": 81
     },
     {
       "label": "matchingFallbackColor()",
@@ -3153,7 +3153,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.ts",
       "source_location": "L25",
       "id": "variant_color_explorer_data_matchingfallbackcolor",
-      "community": 80
+      "community": 81
     },
     {
       "label": "colorKeys()",
@@ -3161,7 +3161,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.ts",
       "source_location": "L30",
       "id": "variant_color_explorer_data_colorkeys",
-      "community": 80
+      "community": 81
     },
     {
       "label": "mergeColors()",
@@ -3169,7 +3169,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.ts",
       "source_location": "L34",
       "id": "variant_color_explorer_data_mergecolors",
-      "community": 80
+      "community": 81
     },
     {
       "label": "mergeVariantFallbacks()",
@@ -3177,7 +3177,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.ts",
       "source_location": "L59",
       "id": "variant_color_explorer_data_mergevariantfallbacks",
-      "community": 80
+      "community": 81
     },
     {
       "label": "section-hero.test.ts",
@@ -4873,7 +4873,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-canvas-helpers.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_canvas_helpers_ts",
-      "community": 81
+      "community": 82
     },
     {
       "label": "computeCloneFrameScale()",
@@ -4881,7 +4881,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-canvas-helpers.ts",
       "source_location": "L20",
       "id": "clone_studio_canvas_helpers_computecloneframescale",
-      "community": 81
+      "community": 82
     },
     {
       "label": "clampRegionHeight()",
@@ -4889,7 +4889,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-canvas-helpers.ts",
       "source_location": "L31",
       "id": "clone_studio_canvas_helpers_clampregionheight",
-      "community": 81
+      "community": 82
     },
     {
       "label": "cloneStudioIframeSandbox()",
@@ -4897,7 +4897,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-canvas-helpers.ts",
       "source_location": "L37",
       "id": "clone_studio_canvas_helpers_clonestudioiframesandbox",
-      "community": 81
+      "community": 82
     },
     {
       "label": "translateFramePoint()",
@@ -4905,7 +4905,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-canvas-helpers.ts",
       "source_location": "L45",
       "id": "clone_studio_canvas_helpers_translateframepoint",
-      "community": 81
+      "community": 82
     },
     {
       "label": "buildCloneStudioFrameHtmlForCanvas()",
@@ -4913,7 +4913,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-canvas-helpers.ts",
       "source_location": "L49",
       "id": "clone_studio_canvas_helpers_buildclonestudioframehtmlforcanvas",
-      "community": 81
+      "community": 82
     },
     {
       "label": "page-builder-canvas-preview.test.ts",
@@ -5057,7 +5057,7 @@
       "source_file": "dashboard/src/services/api/example-tasks.api.ts",
       "source_location": "L1",
       "id": "dashboard_src_services_api_example_tasks_api_ts",
-      "community": 82
+      "community": 83
     },
     {
       "label": "useGetTasksQuery()",
@@ -5065,7 +5065,7 @@
       "source_file": "dashboard/src/services/api/example-tasks.api.ts",
       "source_location": "L15",
       "id": "example_tasks_api_usegettasksquery",
-      "community": 82
+      "community": 83
     },
     {
       "label": "useGetTaskByIdQuery()",
@@ -5073,7 +5073,7 @@
       "source_file": "dashboard/src/services/api/example-tasks.api.ts",
       "source_location": "L27",
       "id": "example_tasks_api_usegettaskbyidquery",
-      "community": 82
+      "community": 83
     },
     {
       "label": "useUpdateTaskMutation()",
@@ -5081,7 +5081,7 @@
       "source_file": "dashboard/src/services/api/example-tasks.api.ts",
       "source_location": "L39",
       "id": "example_tasks_api_useupdatetaskmutation",
-      "community": 82
+      "community": 83
     },
     {
       "label": "useCreateTaskMutation()",
@@ -5089,7 +5089,7 @@
       "source_file": "dashboard/src/services/api/example-tasks.api.ts",
       "source_location": "L55",
       "id": "example_tasks_api_usecreatetaskmutation",
-      "community": 82
+      "community": 83
     },
     {
       "label": "useDeleteTaskMutation()",
@@ -5097,7 +5097,7 @@
       "source_file": "dashboard/src/services/api/example-tasks.api.ts",
       "source_location": "L70",
       "id": "example_tasks_api_usedeletetaskmutation",
-      "community": 82
+      "community": 83
     },
     {
       "label": "index.ts",
@@ -6273,7 +6273,7 @@
       "source_file": "scripts/populate-ford-colour-pricing-rsc.ts",
       "source_location": "L1",
       "id": "scripts_populate_ford_colour_pricing_rsc_ts",
-      "community": 83
+      "community": 84
     },
     {
       "label": "parseBalanced()",
@@ -6281,7 +6281,7 @@
       "source_file": "scripts/populate-ford-colour-pricing-rsc.ts",
       "source_location": "L38",
       "id": "populate_ford_colour_pricing_rsc_parsebalanced",
-      "community": 83
+      "community": 84
     },
     {
       "label": "safeJson()",
@@ -6289,7 +6289,7 @@
       "source_file": "scripts/populate-ford-colour-pricing-rsc.ts",
       "source_location": "L51",
       "id": "populate_ford_colour_pricing_rsc_safejson",
-      "community": 83
+      "community": 84
     },
     {
       "label": "extractPaints()",
@@ -6297,7 +6297,7 @@
       "source_file": "scripts/populate-ford-colour-pricing-rsc.ts",
       "source_location": "L71",
       "id": "populate_ford_colour_pricing_rsc_extractpaints",
-      "community": 83
+      "community": 84
     },
     {
       "label": "processModel()",
@@ -6305,7 +6305,7 @@
       "source_file": "scripts/populate-ford-colour-pricing-rsc.ts",
       "source_location": "L105",
       "id": "populate_ford_colour_pricing_rsc_processmodel",
-      "community": 83
+      "community": 84
     },
     {
       "label": "main()",
@@ -6313,7 +6313,7 @@
       "source_file": "scripts/populate-ford-colour-pricing-rsc.ts",
       "source_location": "L189",
       "id": "populate_ford_colour_pricing_rsc_main",
-      "community": 83
+      "community": 84
     },
     {
       "label": "populate-ford-galleries-rsc.ts",
@@ -6321,7 +6321,7 @@
       "source_file": "scripts/populate-ford-galleries-rsc.ts",
       "source_location": "L1",
       "id": "scripts_populate_ford_galleries_rsc_ts",
-      "community": 84
+      "community": 85
     },
     {
       "label": "proxyUrl()",
@@ -6329,7 +6329,7 @@
       "source_file": "scripts/populate-ford-galleries-rsc.ts",
       "source_location": "L48",
       "id": "populate_ford_galleries_rsc_proxyurl",
-      "community": 84
+      "community": 85
     },
     {
       "label": "unproxyUrl()",
@@ -6337,7 +6337,7 @@
       "source_file": "scripts/populate-ford-galleries-rsc.ts",
       "source_location": "L59",
       "id": "populate_ford_galleries_rsc_unproxyurl",
-      "community": 84
+      "community": 85
     },
     {
       "label": "extractGalleryUrls()",
@@ -6345,7 +6345,7 @@
       "source_file": "scripts/populate-ford-galleries-rsc.ts",
       "source_location": "L72",
       "id": "populate_ford_galleries_rsc_extractgalleryurls",
-      "community": 84
+      "community": 85
     },
     {
       "label": "processNameplate()",
@@ -6353,7 +6353,7 @@
       "source_file": "scripts/populate-ford-galleries-rsc.ts",
       "source_location": "L83",
       "id": "populate_ford_galleries_rsc_processnameplate",
-      "community": 84
+      "community": 85
     },
     {
       "label": "main()",
@@ -6361,7 +6361,7 @@
       "source_file": "scripts/populate-ford-galleries-rsc.ts",
       "source_location": "L148",
       "id": "populate_ford_galleries_rsc_main",
-      "community": 84
+      "community": 85
     },
     {
       "label": "sync-ford-models.ts",
@@ -7497,7 +7497,7 @@
       "source_file": "src/test-utils.ts",
       "source_location": "L1",
       "id": "src_test_utils_ts",
-      "community": 85
+      "community": 86
     },
     {
       "label": "createMockEnv()",
@@ -7505,7 +7505,7 @@
       "source_file": "src/test-utils.ts",
       "source_location": "L11",
       "id": "test_utils_createmockenv",
-      "community": 85
+      "community": 86
     },
     {
       "label": "createMockEnvWithR2()",
@@ -7513,7 +7513,7 @@
       "source_file": "src/test-utils.ts",
       "source_location": "L28",
       "id": "test_utils_createmockenvwithr2",
-      "community": 85
+      "community": 86
     },
     {
       "label": "createMockProcess()",
@@ -7521,7 +7521,7 @@
       "source_file": "src/test-utils.ts",
       "source_location": "L40",
       "id": "test_utils_createmockprocess",
-      "community": 85
+      "community": 86
     },
     {
       "label": "createMockSandbox()",
@@ -7529,7 +7529,7 @@
       "source_file": "src/test-utils.ts",
       "source_location": "L63",
       "id": "test_utils_createmocksandbox",
-      "community": 85
+      "community": 86
     },
     {
       "label": "suppressConsole()",
@@ -7537,7 +7537,7 @@
       "source_file": "src/test-utils.ts",
       "source_location": "L98",
       "id": "test_utils_suppressconsole",
-      "community": 85
+      "community": 86
     },
     {
       "label": "sandbox-paths.ts",
@@ -9569,7 +9569,7 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L1",
       "id": "src_design_clone_annotator_ts",
-      "community": 86
+      "community": 79
     },
     {
       "label": "classAttr()",
@@ -9577,7 +9577,7 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L56",
       "id": "clone_annotator_classattr",
-      "community": 86
+      "community": 79
     },
     {
       "label": "stripForcedStyles()",
@@ -9585,7 +9585,7 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L60",
       "id": "clone_annotator_stripforcedstyles",
-      "community": 86
+      "community": 79
     },
     {
       "label": "resolveTabPanelsByAriaLabelledby()",
@@ -9593,23 +9593,31 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L84",
       "id": "clone_annotator_resolvetabpanelsbyarialabelledby",
-      "community": 86
+      "community": 79
+    },
+    {
+      "label": "nearestCommonAncestor()",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L120",
+      "id": "clone_annotator_nearestcommonancestor",
+      "community": 79
     },
     {
       "label": "resolveByPath()",
       "file_type": "code",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L121",
+      "source_location": "L144",
       "id": "clone_annotator_resolvebypath",
-      "community": 86
+      "community": 79
     },
     {
       "label": "annotateCloneInteractions()",
       "file_type": "code",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L132",
+      "source_location": "L155",
       "id": "clone_annotator_annotatecloneinteractions",
-      "community": 86
+      "community": 79
     },
     {
       "label": "section-parser.test.ts",
@@ -9623,7 +9631,7 @@
       "label": "resolveByPath()",
       "file_type": "code",
       "source_file": "src/design/section-parser.test.ts",
-      "source_location": "L164",
+      "source_location": "L189",
       "id": "section_parser_test_resolvebypath",
       "community": 139
     },
@@ -9631,7 +9639,7 @@
       "label": "widget()",
       "file_type": "code",
       "source_file": "src/design/section-parser.test.ts",
-      "source_location": "L189",
+      "source_location": "L214",
       "id": "section_parser_test_widget",
       "community": 139
     },
@@ -11145,7 +11153,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L1",
       "id": "src_design_ux_knowledge_ts",
-      "community": 79
+      "community": 80
     },
     {
       "label": "UxKnowledgeManager",
@@ -11153,7 +11161,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L42",
       "id": "ux_knowledge_uxknowledgemanager",
-      "community": 79
+      "community": 80
     },
     {
       "label": ".constructor()",
@@ -11161,7 +11169,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L46",
       "id": "ux_knowledge_uxknowledgemanager_constructor",
-      "community": 79
+      "community": 80
     },
     {
       "label": ".indexExtractionResult()",
@@ -11169,7 +11177,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L55",
       "id": "ux_knowledge_uxknowledgemanager_indexextractionresult",
-      "community": 79
+      "community": 80
     },
     {
       "label": ".findSimilarExtractions()",
@@ -11177,7 +11185,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L105",
       "id": "ux_knowledge_uxknowledgemanager_findsimilarextractions",
-      "community": 79
+      "community": 80
     },
     {
       "label": ".summarizeSection()",
@@ -11185,7 +11193,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L146",
       "id": "ux_knowledge_uxknowledgemanager_summarizesection",
-      "community": 79
+      "community": 80
     },
     {
       "label": ".getEmbedding()",
@@ -11193,7 +11201,7 @@
       "source_file": "src/design/ux-knowledge.ts",
       "source_location": "L199",
       "id": "ux_knowledge_uxknowledgemanager_getembedding",
-      "community": 79
+      "community": 80
     },
     {
       "label": "recipe-response.ts",
@@ -37629,7 +37637,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L121",
+      "source_location": "L120",
+      "weight": 1.0,
+      "_src": "src_design_clone_annotator_ts",
+      "_tgt": "clone_annotator_nearestcommonancestor",
+      "source": "src_design_clone_annotator_ts",
+      "target": "clone_annotator_nearestcommonancestor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L144",
       "weight": 1.0,
       "_src": "src_design_clone_annotator_ts",
       "_tgt": "clone_annotator_resolvebypath",
@@ -37641,7 +37661,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L132",
+      "source_location": "L155",
       "weight": 1.0,
       "_src": "src_design_clone_annotator_ts",
       "_tgt": "clone_annotator_annotatecloneinteractions",
@@ -37653,7 +37673,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/section-parser.test.ts",
-      "source_location": "L164",
+      "source_location": "L189",
       "weight": 1.0,
       "_src": "src_design_section_parser_test_ts",
       "_tgt": "section_parser_test_resolvebypath",
@@ -37665,7 +37685,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/section-parser.test.ts",
-      "source_location": "L189",
+      "source_location": "L214",
       "weight": 1.0,
       "_src": "src_design_section_parser_test_ts",
       "_tgt": "section_parser_test_widget",
