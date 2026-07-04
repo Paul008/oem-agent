@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-04)
 
 ## Corpus Check
-- 431 files · ~4,367,685 words
+- 431 files · ~4,442,656 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2146 nodes · 3103 edges · 425 communities detected
+- 2147 nodes · 3105 edges · 425 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -484,7 +484,7 @@ Nodes (59): buildCloneStudioHtml(), buildOemStylesheetLinkTags(), cloneStudioMed
 
 ### Community 5 - "Community 5"
 Cohesion: 0.08
-Nodes (31): absolutizeCaptureUrl(), bestCaptureSrcsetUrl(), bestElementImageUrl(), bestImageSrcUrl(), buildDomCaptureFromHtml(), captureCssText(), captureHeadPartIdentity(), captureHtmlClassNames() (+23 more)
+Nodes (32): absolutizeCaptureUrl(), bestCaptureSrcsetUrl(), bestElementImageUrl(), bestImageSrcUrl(), buildDomCaptureFromHtml(), captureCssText(), captureHeadPartIdentity(), captureHtmlClassNames() (+24 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.08
