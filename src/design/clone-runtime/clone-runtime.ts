@@ -60,8 +60,16 @@ document.addEventListener('alpine:init', function () {
 
   Alpine.data('cloneAccordion', function () {
     return {
+      // $el is bound to whichever element the CURRENT expression/directive is
+      // evaluated against — inside init() that's this component's own x-data
+      // root, but inside an event handler invoked from a click on a
+      // descendant trigger, $el resolves to that TRIGGER, not the root. Cache
+      // the root once (while $el is still correct) so later handlers query
+      // against the right scope regardless of which descendant fired the event.
+      root: null,
       init: function () {
-        var panels = this.$el.querySelectorAll('[data-clone-acc-panel]');
+        this.root = this.$el;
+        var panels = this.root.querySelectorAll('[data-clone-acc-panel]');
         Array.from(panels).forEach(function (panel) {
           var trigger = panel.parentElement
             ? panel.parentElement.querySelector('[data-clone-acc-trigger="' + panel.getAttribute('data-clone-acc-panel') + '"]')
@@ -73,7 +81,7 @@ document.addEventListener('alpine:init', function () {
       togglePanel: function (event) {
         var trigger = event.currentTarget;
         var index = trigger.getAttribute('data-clone-acc-trigger');
-        var panel = this.$el.querySelector('[data-clone-acc-panel="' + index + '"]');
+        var panel = this.root.querySelector('[data-clone-acc-panel="' + index + '"]');
         if (!panel) return;
         var hidden = panel.style.display === 'none';
         if (hidden) {
@@ -95,15 +103,21 @@ document.addEventListener('alpine:init', function () {
       index: 0,
       track: null,
       slides: [],
+      // See cloneAccordion's root comment above: $el inside next()/prev()/update() (invoked from a
+      // click on a descendant prev/next button) resolves to that BUTTON, not this component's root —
+      // caching it here (while $el is still root, during init) is what makes update() write the
+      // carousel-index attribute and read arrow-relative DOM state against the right element.
+      root: null,
       init: function () {
-        this.track = this.$el.querySelector('[data-clone-track]');
+        this.root = this.$el;
+        this.track = this.root.querySelector('[data-clone-track]');
         this.slides = this.track ? Array.from(this.track.querySelectorAll('[data-clone-slide]')) : [];
         if (this.track) {
           this.track.style.setProperty('display', 'flex', 'important');
           this.track.style.setProperty('transition', 'transform 240ms ease', 'important');
           this.track.style.setProperty('overflow', 'visible');
         }
-        if (this.$el.style) this.$el.style.setProperty('overflow', 'hidden', 'important');
+        if (this.root.style) this.root.style.setProperty('overflow', 'hidden', 'important');
         this.update();
       },
       next: function () {
@@ -120,23 +134,29 @@ document.addEventListener('alpine:init', function () {
         if (!this.track || this.slides.length === 0) return;
         var offset = this.slides[this.index].offsetLeft - this.slides[0].offsetLeft;
         this.track.style.setProperty('transform', 'translateX(' + (-offset) + 'px)', 'important');
-        this.$el.setAttribute('data-clone-carousel-index', String(this.index));
+        this.root.setAttribute('data-clone-carousel-index', String(this.index));
       },
     };
   });
 
   Alpine.data('cloneGallery', function () {
     return {
+      // See cloneAccordion's root comment above: selectImage() runs from a click on a descendant
+      // thumbnail, where $el resolves to that thumbnail rather than this component's root.
+      root: null,
+      init: function () {
+        this.root = this.$el;
+      },
       selectImage: function (event) {
         var thumb = event.currentTarget;
-        var main = this.$el.querySelector('[data-clone-gallery-main]');
+        var main = this.root.querySelector('[data-clone-gallery-main]');
         if (!main) return;
         var thumbImg = thumb.tagName === 'IMG' ? thumb : thumb.querySelector('img');
         var src = thumb.getAttribute('data-clone-full-src') || (thumbImg && (thumbImg.currentSrc || thumbImg.src));
         if (!src) return;
         main.setAttribute('src', src);
         main.removeAttribute('srcset');
-        this.$el.setAttribute('data-clone-gallery-selected', thumb.getAttribute('data-clone-gallery-thumb') || '');
+        this.root.setAttribute('data-clone-gallery-selected', thumb.getAttribute('data-clone-gallery-thumb') || '');
       },
     };
   });
