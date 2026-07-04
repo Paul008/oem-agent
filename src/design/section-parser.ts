@@ -7,6 +7,10 @@
  * Replaces the unreliable AI-based smart-capture extraction.
  */
 
+import { load } from 'cheerio'
+
+import type { InteractionType } from './compiler-contracts'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -603,4 +607,221 @@ export function parseSection(html: string): ParsedSection {
         : `<p>${stripHtml(html).slice(0, 500)}</p>`,
     },
   }
+}
+
+// ============================================================================
+// Interaction detection — deterministic DOM-region tagging for the clone
+// runtime (spec §4.2). Conservative: a region is only reported when both the
+// trigger set and the panel/slide set are present; unknown markup is never
+// tagged. Cheerio-based (unlike the regex parsing above) because the stamper
+// in clone-annotator.ts needs element-level positions.
+// ============================================================================
+
+export type DetectedInteractionType = Extract<InteractionType, 'tabs' | 'accordion' | 'carousel' | 'gallery-lightbox'>
+
+export interface DetectedInteractiveRegion {
+  type: DetectedInteractionType
+  /**
+   * Root-relative child-index path, e.g. "0.2.1" — resolved by walking
+   * `$.root().children()` (tag nodes only) and descending one index per
+   * level. cheerio always normalizes parsed markup to a root -> html ->
+   * head/body tree, whether the input was a bare fragment or a full
+   * document, so a path computed against a fragment resolves identically
+   * against the same content wrapped in a full document.
+   */
+  rootSelectorPath: string
+  triggerCount: number
+  panelCount: number
+}
+
+// domhandler node — not part of cheerio's public type surface, so internal
+// tree-walking helpers below deal in `any` rather than adding an undeclared
+// dependency on the `domhandler` package.
+type CheerioNode = any
+
+/** Root-relative child-index path for `el`, counting only element (tag) siblings. */
+function elementPath(el: CheerioNode): string {
+  const path: number[] = []
+  let node = el
+
+  while (node && node.parent && node.parent.type !== 'root') {
+    const siblings: CheerioNode[] = (node.parent.children || []).filter((c: CheerioNode) => c.type === 'tag')
+    path.unshift(Math.max(0, siblings.indexOf(node)))
+    node = node.parent
+  }
+
+  const rootSiblings: CheerioNode[] = (node?.parent?.children || []).filter((c: CheerioNode) => c.type === 'tag')
+  path.unshift(Math.max(0, rootSiblings.indexOf(node)))
+  return path.join('.')
+}
+
+function classAttr(el: CheerioNode): string {
+  return String(el?.attribs?.class ?? '')
+}
+
+function imageArea(el: CheerioNode): number {
+  const width = Number(el?.attribs?.width ?? 0)
+  const height = Number(el?.attribs?.height ?? 0)
+  return Number.isFinite(width) && Number.isFinite(height) ? width * height : 0
+}
+
+/** Whether `node` is a strict descendant of `ancestor` in the parsed tree. */
+function isDescendantOf(ancestor: CheerioNode, node: CheerioNode): boolean {
+  let cursor = node?.parent
+  while (cursor) {
+    if (cursor === ancestor) return true
+    cursor = cursor.parent
+  }
+  return false
+}
+
+/**
+ * Climbs from `seed`'s parent upward (excluding `seed` itself) until it finds
+ * an ancestor whose descendants include at least `minCount` matches for
+ * `selector`. An ARIA tablist and its tabpanels are very often siblings
+ * under a shared section rather than the tabpanels being nested inside the
+ * tablist — so the "root" of a tabs region is not `seed`'s closest() match
+ * (which would match `seed` itself first), it's the first ancestor whose
+ * subtree actually contains both halves.
+ */
+function climbToContainer($: ReturnType<typeof load>, seed: CheerioNode, selector: string, minCount = 2): CheerioNode | null {
+  let node = seed.parent
+  while (node && node.type === 'tag') {
+    if ($(node).find(selector).length >= minCount) return node
+    node = node.parent
+  }
+  return null
+}
+
+export function detectInteractiveRegions(html: string): DetectedInteractiveRegion[] {
+  const $ = load(html)
+  type Candidate = DetectedInteractiveRegion & { el: CheerioNode }
+  const regions: Candidate[] = []
+
+  // --- tabs: ARIA roles first ---
+  $('[role="tablist"]').each((_i, tablist) => {
+    const root = climbToContainer($, tablist, '[role="tabpanel"]', 2)
+    if (!root) return
+
+    const scope = $(root)
+    const triggers = scope.find('[role="tab"]')
+    const panels = scope.find('[role="tabpanel"]')
+    if (triggers.length >= 2 && panels.length >= 2) {
+      regions.push({
+        type: 'tabs',
+        rootSelectorPath: elementPath(root),
+        triggerCount: triggers.length,
+        panelCount: panels.length,
+        el: root,
+      })
+    }
+  })
+
+  // --- tabs: class-pattern fallback ---
+  $('*').each((_i, el) => {
+    if (!/\btabs?\b|tab-container|tab_container/i.test(classAttr(el))) return
+    // Already handled by the ARIA branch above (either this element IS the
+    // tablist itself, or it contains one — either way its region root was
+    // already computed via climbToContainer, and the final nesting dedup
+    // below would drop a duplicate anyway; skipping here avoids computing
+    // one in the first place).
+    if ((el as CheerioNode).attribs?.role === 'tablist' || $(el).find('[role="tablist"]').length) return
+
+    const scope = $(el)
+    const triggers = scope.find('*').filter((_j, c) => /tab[-_]?(item|button|trigger|link)/i.test(classAttr(c)))
+    const panels = scope.find('*').filter((_j, c) => /tab[-_]?(panel|content|pane)/i.test(classAttr(c)))
+    if (triggers.length >= 2 && panels.length >= 2) {
+      regions.push({
+        type: 'tabs',
+        rootSelectorPath: elementPath(el),
+        triggerCount: triggers.length,
+        panelCount: panels.length,
+        el,
+      })
+    }
+  })
+
+  // --- accordion ---
+  $('*').each((_i, el) => {
+    if (!/accordion/i.test(classAttr(el))) return
+    if (/accordion[-_]?(header|trigger|title|button|content|panel|body|item)/i.test(classAttr(el))) return // parts, not roots
+
+    const scope = $(el)
+    const triggers = scope.find('*').filter((_j, c) =>
+      c.tagName === 'button'
+      || c.attribs?.role === 'button'
+      || /accordion[-_]?(header|trigger|title|button)/i.test(classAttr(c)))
+    const panels = scope.find('*').filter((_j, c) =>
+      /accordion[-_]?(content|panel|body)/i.test(classAttr(c)) || c.attribs?.role === 'region')
+
+    if (triggers.length >= 2 && panels.length >= 2) {
+      regions.push({
+        type: 'accordion',
+        rootSelectorPath: elementPath(el),
+        triggerCount: triggers.length,
+        panelCount: panels.length,
+        el,
+      })
+    }
+  })
+
+  // --- carousel ---
+  $('*').each((_i, el) => {
+    if (!/carousel|swiper|slick|splide|slider|embla/i.test(classAttr(el))) return
+    if (/track|wrapper|slide\b|slide-|slick-track|swiper-wrapper/i.test(classAttr(el))) return // parts, not roots
+
+    const scope = $(el)
+    const track = scope.find('*').filter((_j, c) =>
+      /track|wrapper|slides|slide-list|swiper-wrapper|slick-track/i.test(classAttr(c))).first()
+    if (!track.length) return
+
+    const slides = track.children().filter((_j, c) => /slide|item/i.test(classAttr(c)) || c.attribs?.role === 'group')
+    if (slides.length >= 2) {
+      regions.push({
+        type: 'carousel',
+        rootSelectorPath: elementPath(el),
+        triggerCount: 0,
+        panelCount: slides.length,
+        el,
+      })
+    }
+  })
+
+  // --- gallery-lightbox ---
+  $('*').each((_i, el) => {
+    if (!/gallery|thumbnails|media-viewer/i.test(classAttr(el))) return
+    if (/thumb/i.test(classAttr(el))) return // parts, not roots
+
+    const scope = $(el)
+    const thumbImgs = scope.find('*').filter((_j, c) => /thumb/i.test(classAttr(c))).find('img')
+    const thumbImgEls = new Set(thumbImgs.toArray())
+    const nonThumbImgs = scope.find('img').toArray().filter((img: CheerioNode) => !thumbImgEls.has(img))
+
+    let mainCount = nonThumbImgs.filter((img: CheerioNode) => /main|stage|active|current/i.test(classAttr(img))).length
+    if (mainCount === 0 && nonThumbImgs.length > 0) {
+      const largest = nonThumbImgs.reduce((best: CheerioNode, img: CheerioNode) => (imageArea(img) > imageArea(best) ? img : best))
+      if (imageArea(largest) > 0) mainCount = 1
+    }
+
+    if (mainCount >= 1 && thumbImgs.length >= 3) {
+      regions.push({
+        type: 'gallery-lightbox',
+        rootSelectorPath: elementPath(el),
+        triggerCount: thumbImgs.length,
+        panelCount: 1,
+        el,
+      })
+    }
+  })
+
+  // Deduplicate: drop any region nested inside another detected region, and
+  // drop same-root duplicates from overlapping heuristics.
+  const kept: Candidate[] = []
+  for (const candidate of regions) {
+    const insideAnother = regions.some(other => other !== candidate && isDescendantOf(other.el, candidate.el))
+    const sameRootKept = kept.some(existing => existing.el === candidate.el)
+    if (!insideAnother && !sameRootKept) kept.push(candidate)
+  }
+
+  return kept.map(({ el: _el, ...region }) => region)
 }
