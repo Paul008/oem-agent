@@ -43,6 +43,54 @@ describe('evaluateCaptureCompleteness', () => {
     expect(verdict.reasons[0]).toContain('gate skipped')
   })
 
+  it('fails a stable stump below the absolute height floor (Mitsubishi Triton case)', () => {
+    const verdict = evaluateCaptureCompleteness({
+      audit: makeAudit({ captured_scroll_height: 1331, dom_image_count: 16 }),
+    })
+
+    expect(verdict.passed).toBe(false)
+    expect(verdict.reasons).toHaveLength(1)
+    expect(verdict.reasons[0]).toContain('below the 3000px minimum')
+  })
+
+  it('fails a partial capture below the height floor even with some images (Ford Mustang case)', () => {
+    const verdict = evaluateCaptureCompleteness({
+      audit: makeAudit({ captured_scroll_height: 2581, dom_image_count: 8 }),
+    })
+
+    expect(verdict.passed).toBe(false)
+    expect(verdict.reasons[0]).toContain('below the 3000px minimum')
+  })
+
+  it('fails a tall page with almost no images via the image floor', () => {
+    const verdict = evaluateCaptureCompleteness({
+      audit: makeAudit({ captured_scroll_height: 4000, dom_image_count: 3 }),
+    })
+
+    expect(verdict.passed).toBe(false)
+    expect(verdict.reasons).toHaveLength(1)
+    expect(verdict.reasons[0]).toContain('below the minimum 5')
+  })
+
+  it('does not double-report the floor for zero-height captures', () => {
+    const verdict = evaluateCaptureCompleteness({
+      audit: makeAudit({ captured_scroll_height: 0, dom_image_count: 100 }),
+    })
+
+    expect(verdict.passed).toBe(false)
+    expect(verdict.reasons).toHaveLength(1)
+    expect(verdict.reasons[0]).toContain('zero page height')
+  })
+
+  it('allows profiles to disable the floors', () => {
+    const verdict = evaluateCaptureCompleteness(
+      { audit: makeAudit({ captured_scroll_height: 1331, dom_image_count: 2 }) },
+      { ...DEFAULT_CAPTURE_COMPLETENESS, minHeightPx: 0, minImages: 0 },
+    )
+
+    expect(verdict.passed).toBe(true)
+  })
+
   it('fails when hydration never stabilized', () => {
     const verdict = evaluateCaptureCompleteness({
       audit: makeAudit({ hydration_status: 'budget-exhausted' }),

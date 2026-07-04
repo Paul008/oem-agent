@@ -18,12 +18,23 @@ export interface CaptureCompletenessConfig {
   minHeightVsLastGoodPct: number;
   /** Require the hydration sweep to have converged. Default true. */
   requireHydrationStable: boolean;
+  /**
+   * Absolute floor: no real OEM model page renders under this height, so a
+   * stable capture below it is a stump regardless of baseline history
+   * (bot shells and JS-disabled fallbacks hydrate "stable" at ~1-3k px).
+   * 0 disables. Default 3000.
+   */
+  minHeightPx: number;
+  /** Absolute floor on <img> elements in the captured DOM. 0 disables. Default 5. */
+  minImages: number;
 }
 
 export const DEFAULT_CAPTURE_COMPLETENESS: CaptureCompletenessConfig = {
   maxEmptyShells: 0,
   minHeightVsLastGoodPct: 80,
   requireHydrationStable: true,
+  minHeightPx: 3000,
+  minImages: 5,
 };
 
 export interface CaptureCompletenessVerdict {
@@ -43,6 +54,11 @@ export function evaluateCaptureCompleteness(
 
   if (audit.captured_scroll_height <= 0)
     failures.push('capture measured zero page height — measurement or capture is broken');
+  else if (config.minHeightPx > 0 && audit.captured_scroll_height < config.minHeightPx)
+    failures.push(`captured height ${audit.captured_scroll_height}px is below the ${config.minHeightPx}px minimum for a model page`);
+
+  if (config.minImages > 0 && audit.dom_image_count < config.minImages)
+    failures.push(`captured DOM has ${audit.dom_image_count} image(s), below the minimum ${config.minImages}`);
 
   if (config.requireHydrationStable && audit.hydration_status !== 'stable' && audit.hydration_status !== 'unsupported')
     failures.push(`hydration did not stabilize (status=${audit.hydration_status})`);
