@@ -26,6 +26,7 @@ import type { AiProvider, OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
 import { applyCloneEdit } from '../design/page-modes';
 import { scopeProductionCloneHtml, type ScopeProductionCloneDiagnostics } from '../design/production-css-scope';
+import { injectCloneRuntimeScript } from '../design/clone-runtime/inject';
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
 import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts';
@@ -111,7 +112,8 @@ async function buildProductionCloneArtifact(
         baseUrl: typeof baseUrl === 'string' ? baseUrl : undefined,
       })
     : { html: absoluteHtml, diagnostics: null };
-  const body = scoped.html;
+  const runtimeJs = page?.content?.modes?.clone?.runtime_js;
+  const body = injectCloneRuntimeScript(scoped.html, typeof runtimeJs === 'string' ? runtimeJs : undefined);
   const bytes = new TextEncoder().encode(body).byteLength;
   const sha256 = await sha256Hex(body);
 
@@ -2337,6 +2339,8 @@ app.get('/pages/:slug/production-manifest', async (c) => {
     } : null,
     updated_at: page?.updated_at ?? null,
     generated_at: page?.generated_at ?? null,
+    interactions: page?.content?.modes?.clone?.interactions ?? [],
+    runtime_version: page?.content?.modes?.clone?.runtime_version ?? null,
   }, 200, {
     'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
   });
