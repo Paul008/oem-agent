@@ -60,9 +60,9 @@ const OEM_CAPTURE_PROFILE_OVERRIDES: Record<string, Partial<OemCaptureProfile>> 
 export function resolveCaptureProfile(oemId: string): OemCaptureProfile {
   const override = OEM_CAPTURE_PROFILE_OVERRIDES[String(oemId)] ?? {};
   return {
-    backendOrder: override.backendOrder ?? [...DEFAULT_CAPTURE_PROFILE.backendOrder],
+    backendOrder: [...(override.backendOrder ?? DEFAULT_CAPTURE_PROFILE.backendOrder)],
     hydration: { ...DEFAULT_CAPTURE_PROFILE.hydration, ...(override.hydration ?? {}) },
-    featureAppShellSelectors: override.featureAppShellSelectors ?? [...DEFAULT_CAPTURE_PROFILE.featureAppShellSelectors],
+    featureAppShellSelectors: [...(override.featureAppShellSelectors ?? DEFAULT_CAPTURE_PROFILE.featureAppShellSelectors)],
     completeness: { ...DEFAULT_CAPTURE_PROFILE.completeness, ...(override.completeness ?? {}) },
   };
 }

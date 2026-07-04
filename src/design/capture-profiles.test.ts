@@ -35,4 +35,17 @@ describe('resolveCaptureProfile', () => {
 
     expect(DEFAULT_CAPTURE_PROFILE.hydration).toEqual(before)
   })
+
+  it('returns fresh arrays for overridden fields on every call', () => {
+    const first = resolveCaptureProfile('toyota-au')
+    const second = resolveCaptureProfile('toyota-au')
+
+    expect(first.backendOrder).not.toBe(second.backendOrder)
+    first.backendOrder.pop()
+    expect(resolveCaptureProfile('toyota-au').backendOrder).toEqual(['cloudflare-browser', 'scrapling-stealth'])
+
+    const vw = resolveCaptureProfile('volkswagen-au')
+    vw.featureAppShellSelectors.push('mutated')
+    expect(resolveCaptureProfile('volkswagen-au').featureAppShellSelectors).toEqual(['[class*="CmsFeatureAppLoader"]', '.featureAppSection'])
+  })
 })
