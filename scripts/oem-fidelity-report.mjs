@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
-import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import puppeteer from 'puppeteer';
+
+import { launchQaBrowser, readNext, settlePage, timestampForPath } from './lib/qa-browser.mjs';
 
 const DEFAULT_PREVIEW_BASE = 'https://oem-dashboard.pages.dev/preview';
 const DEFAULT_OUTPUT_DIR = 'artifacts/oem-fidelity';
@@ -55,13 +56,6 @@ function boolArg(value) {
   if (value === undefined)
     return true;
   return !['0', 'false', 'no', 'off'].includes(String(value).toLowerCase());
-}
-
-function readNext(argv, index, arg) {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--'))
-    throw new Error(`${arg} requires a value`);
-  return value;
 }
 
 export function pngDimensions(buffer) {
@@ -171,27 +165,6 @@ export function parseCliArgs(argv) {
   return options;
 }
 
-function timestampForPath(date = new Date()) {
-  return date.toISOString().replace(/[:.]/g, '-');
-}
-
-export function resolveBrowserExecutable(explicitPath = '') {
-  if (explicitPath && existsSync(explicitPath))
-    return explicitPath;
-
-  const candidates = [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/google-chrome',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/chromium',
-  ];
-
-  return candidates.find(candidate => existsSync(candidate)) || '';
-}
-
 function cssForHiddenSelectors(selectors) {
   return selectors
     .flatMap(item => String(item).split(',').map(selector => selector.trim()).filter(Boolean))
@@ -250,14 +223,6 @@ async function addStyle(page, css) {
   if (!css.trim())
     return;
   await page.addStyleTag({ content: css });
-}
-
-async function settlePage(page, settleMs) {
-  await page.evaluate(async () => {
-    if (document.fonts && document.fonts.ready)
-      await document.fonts.ready;
-  }).catch(() => null);
-  await new Promise(resolve => setTimeout(resolve, settleMs));
 }
 
 async function warmLazyMedia(page, options) {
@@ -1062,18 +1027,13 @@ export async function runFidelityReport(options) {
   const outputDir = resolve(options.outputDir, runName);
   await mkdir(outputDir, { recursive: true });
 
-  const executablePath = resolveBrowserExecutable(options.browserExecutable);
-  const launchOptions = {
-    headless: 'new',
-    defaultViewport: null,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none', '--disable-blink-features=AutomationControlled'],
-  };
-  if (executablePath)
-    launchOptions.executablePath = executablePath;
-
   let browser;
   try {
-    browser = await puppeteer.launch(launchOptions);
+    browser = await launchQaBrowser(puppeteer, {
+      browserExecutable: options.browserExecutable,
+      defaultViewport: null,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none', '--disable-blink-features=AutomationControlled'],
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('Could not find Chrome')) {

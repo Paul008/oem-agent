@@ -1,22 +1,16 @@
 #!/usr/bin/env node
 
-import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import puppeteer from 'puppeteer';
 
+import { launchQaBrowser, pickRenderedFrame, readNext, timestampForPath } from './lib/qa-browser.mjs';
+
 const DEFAULT_PREVIEW_BASE = 'https://oem-dashboard.pages.dev/preview';
 const DEFAULT_OUTPUT_DIR = 'artifacts/preview-battle-tests';
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_SETTLE_MS = 5_000;
-
-function readNext(argv, index, arg) {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--'))
-    throw new Error(`${arg} requires a value`);
-  return value;
-}
 
 function parseArgs(argv) {
   const options = {
@@ -105,26 +99,6 @@ function parseArgs(argv) {
   return options;
 }
 
-function resolveBrowserExecutable(explicitPath = '') {
-  if (explicitPath && existsSync(explicitPath))
-    return explicitPath;
-
-  const candidates = [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/google-chrome',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/chromium',
-  ];
-
-  return candidates.find(candidate => existsSync(candidate)) || undefined;
-}
-
-function timestampForPath(date = new Date()) {
-  return date.toISOString().replace(/[:.]/g, '-');
-}
-
 function isAllowedFailure(failure, patterns) {
   return patterns.some(pattern => failure.url.includes(pattern));
 }
@@ -155,14 +129,6 @@ async function inspectFrame(frame) {
       hasDataStyled: html.includes('data-styled'),
     };
   });
-}
-
-function pickRenderedFrame(frames) {
-  return [...frames].sort((a, b) => {
-    const aScore = a.textLength + a.styleBytes / 100 + a.bodyHeight / 10;
-    const bScore = b.textLength + b.styleBytes / 100 + b.bodyHeight / 10;
-    return bScore - aScore;
-  })[0] || null;
 }
 
 function evaluateAssertions({ frame, failures, options }) {
@@ -215,15 +181,10 @@ function evaluateAssertions({ frame, failures, options }) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const browserExecutable = resolveBrowserExecutable(options.browserExecutable);
   const outputDir = join(options.outputDir, timestampForPath());
   await mkdir(outputDir, { recursive: true });
 
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: browserExecutable,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const browser = await launchQaBrowser(puppeteer, { browserExecutable: options.browserExecutable });
 
   const page = await browser.newPage();
   const failures = [];
