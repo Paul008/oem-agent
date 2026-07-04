@@ -19,16 +19,20 @@ const TABS_ARIA = `
 // extra clone panels (sharing the same id/aria-labelledby target) for seamless wraparound, while
 // still using role="tab"/"tabpanel" for its pagination bullets. Trigger index N does NOT correspond
 // to DOM-order panel index N here — panel-bullet-1's clone happens to be first in document order.
+// Every clone carries the same capture-forced-VISIBLE inline style as the live page (the capturer
+// forces every slide open), so the unselected duplicates would each render at full slide height and
+// stack the whole stage — the over-render this fix collapses.
+const FORCED_VISIBLE = 'display: block !important; opacity: 1 !important; visibility: visible !important; height: auto !important; overflow: visible !important;'
 const TABS_WITH_DUPLICATE_PANELS = `
 <div role="region" aria-label="Carousel">
   <div role="tablist">
     <button role="tab" id="bullet-0" aria-controls="panel-0" aria-selected="false">First</button>
     <button role="tab" id="bullet-1" aria-controls="panel-1" aria-selected="true">Second</button>
   </div>
-  <div aria-labelledby="bullet-1" id="panel-1" role="tabpanel" inert style="display: none !important;">Second slide (clone A, inert)</div>
-  <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" inert style="display: none !important;">First slide (clone A, inert)</div>
-  <div aria-labelledby="bullet-1" id="panel-1" role="tabpanel" style="display: block !important;">Second slide (LIVE, not inert)</div>
-  <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" inert style="display: none !important;">First slide (clone B, inert)</div>
+  <div aria-labelledby="bullet-1" id="panel-1" role="tabpanel" inert style="${FORCED_VISIBLE}">Second slide (clone A, inert)</div>
+  <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" inert style="${FORCED_VISIBLE}">First slide (clone A, inert)</div>
+  <div aria-labelledby="bullet-1" id="panel-1" role="tabpanel" style="${FORCED_VISIBLE}">Second slide (LIVE, not inert)</div>
+  <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" inert style="${FORCED_VISIBLE}">First slide (clone B, inert)</div>
 </div>`
 
 const CAROUSEL = `
@@ -99,8 +103,9 @@ describe('annotateCloneInteractions', () => {
     expect(panel1Match).not.toContain('inert')
     expect(result.html).toContain('Second slide (LIVE, not inert)')
 
-    // Only the 2 resolved panels are stamped/stripped — the other 2 duplicate clones are left
-    // completely untouched (unstamped, forced styles intact) since the runtime never manages them.
+    // Exactly 2 panels carry the runtime-managed `data-clone-panel` attribute (the resolved set) —
+    // the duplicate clones are marked separately (data-clone-panel-duplicate) so the runtime never
+    // manages them; see the dedicated collapse test below.
     expect((result.html.match(/data-clone-panel=/g) ?? [])).toHaveLength(2)
 
     // Trigger 0 resolves to a panel whose only duplicates were all inert (never the live/rendered
@@ -109,6 +114,30 @@ describe('annotateCloneInteractions', () => {
     // invisible to the accessibility tree even after the display fix.
     const $ = load(result.html)
     expect($('[data-clone-panel][inert]').length).toBe(0)
+  })
+
+  it('collapses forced-visible duplicate (infinite-loop clone) tabpanels so only the resolved panels occupy layout', () => {
+    const result = annotateCloneInteractions(TABS_WITH_DUPLICATE_PANELS)
+    const $ = load(result.html)
+
+    // The 2 unselected duplicate clones (same id/aria-labelledby as a resolved panel) are marked and
+    // force-hidden: they duplicate content already stamped as the real panel, so leaving their
+    // capture-forced `display:block` intact would stack two extra full-height slides on the stage.
+    const dups = $('[data-clone-panel-duplicate]')
+    expect(dups.length).toBe(2)
+    dups.each((_i, el) => {
+      const style = String($(el).attr('style') ?? '')
+      expect(style).toMatch(/display\s*:\s*none\s*!important/)
+      // the capture-forced visible props must no longer win
+      expect(style).not.toMatch(/display\s*:\s*block/)
+      expect(style).not.toMatch(/visibility\s*:\s*visible/)
+    })
+
+    // The genuinely resolved panels are NOT marked as duplicates and keep their runtime attribute.
+    expect($('[data-clone-panel][data-clone-panel-duplicate]').length).toBe(0)
+    expect($('[data-clone-panel]').length).toBe(2)
+    // A duplicate and its resolved twin are never both left visible.
+    expect($('[data-clone-panel-duplicate]').filter((_i, el) => /display\s*:\s*block/.test(String($(el).attr('style') ?? ''))).length).toBe(0)
   })
 
   it('stamps carousel track, slides, and existing prev/next controls', () => {

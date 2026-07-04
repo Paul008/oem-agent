@@ -66,6 +66,18 @@ function stripForcedStyles($el: any): void {
 }
 
 /**
+ * Collapses an unselected infinite-loop clone panel: strips its capture-forced-visible inline styles
+ * (display/opacity/visibility/height/overflow) then appends `display:none !important` so it occupies
+ * no layout. Safe because the element duplicates content already stamped as the resolved panel — see
+ * the duplicate-panel handling in the tabs branch below.
+ */
+function collapseDuplicatePanel($el: any): void {
+  stripForcedStyles($el);
+  const remaining = String($el.attr('style') ?? '').replace(/;\s*$/, '').trim();
+  $el.attr('style', remaining ? `${remaining};display:none !important` : 'display:none !important');
+}
+
+/**
  * Resolves each tab trigger to its OWN tabpanel by `aria-labelledby` (panel) -> `id` (trigger),
  * rather than assuming DOM-order index N of the panel set lines up with trigger index N.
  *
@@ -203,7 +215,19 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
       const resolvedPanels = resolveTabPanelsByAriaLabelledby(triggers, panels);
       triggers.each((i, el) => { $(el).attr('data-clone-tab', String(i)); $(el).attr('x-on:click', 'selectTab'); });
       if (resolvedPanels) {
+        const resolvedSet = new Set<CheerioNode>(resolvedPanels);
         resolvedPanels.forEach((panelEl, i) => { const $panel = $(panelEl); $panel.attr('data-clone-panel', String(i)); stripForcedStyles($panel); $panel.removeAttr('inert'); });
+        // Infinite-loop slider clones: tabpanels sharing a resolved panel's id/aria-labelledby target
+        // but not selected as the live copy. They keep the capture-forced-visible inline styles and
+        // would each render at full slide height, stacking the whole stage (VW Amarok: ~1.8k px of
+        // excess). They duplicate content already stamped as the real panel, so collapse them — this
+        // marks and force-hides duplicates only, never hiding unique content.
+        panels.each((_i, el) => {
+          if (resolvedSet.has(el)) return;
+          const $dup = $(el);
+          $dup.attr('data-clone-panel-duplicate', '');
+          collapseDuplicatePanel($dup);
+        });
       } else {
         panels.each((i, el) => { $(el).attr('data-clone-panel', String(i)); stripForcedStyles($(el)); $(el).removeAttr('inert'); });
       }
