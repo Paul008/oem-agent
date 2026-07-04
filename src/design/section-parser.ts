@@ -676,17 +676,29 @@ function isDescendantOf(ancestor: CheerioNode, node: CheerioNode): boolean {
 }
 
 /**
+ * Maximum ancestor levels climbToContainer may climb above its seed. A real
+ * widget keeps its trigger cluster and panels within a few wrapper levels of
+ * each other; anything further apart is more likely two unrelated DOM areas.
+ * Without a cap, a tablist whose true container lacks panels would climb to a
+ * page-level wrapper — and via the "outer wins" nesting dedup, that inflated
+ * region would swallow every other legitimate region on the page.
+ * Conservative detection means non-detection beats over-association.
+ */
+const MAX_CONTAINER_CLIMB = 4
+
+/**
  * Climbs from `seed`'s parent upward (excluding `seed` itself) until it finds
  * an ancestor whose descendants include at least `minCount` matches for
- * `selector`. An ARIA tablist and its tabpanels are very often siblings
- * under a shared section rather than the tabpanels being nested inside the
- * tablist — so the "root" of a tabs region is not `seed`'s closest() match
- * (which would match `seed` itself first), it's the first ancestor whose
- * subtree actually contains both halves.
+ * `selector`, giving up after MAX_CONTAINER_CLIMB levels. An ARIA tablist and
+ * its tabpanels are very often siblings under a shared section rather than
+ * the tabpanels being nested inside the tablist — so the "root" of a tabs
+ * region is not `seed`'s closest() match (which would match `seed` itself
+ * first), it's the first nearby ancestor whose subtree actually contains
+ * both halves.
  */
 function climbToContainer($: ReturnType<typeof load>, seed: CheerioNode, selector: string, minCount = 2): CheerioNode | null {
   let node = seed.parent
-  while (node && node.type === 'tag') {
+  for (let depth = 1; depth <= MAX_CONTAINER_CLIMB && node && node.type === 'tag'; depth++) {
     if ($(node).find(selector).length >= minCount) return node
     node = node.parent
   }

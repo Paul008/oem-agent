@@ -184,4 +184,32 @@ describe('detectInteractiveRegions', () => {
     const resolvedFromFullDoc = resolveByPath(fullDocument, fullDocRegion.rootSelectorPath)
     expect(resolvedFromFullDoc?.attribs?.class).toBe('model-features')
   })
+
+  it('detects two sibling tab widgets as two regions, not one inflated wrapper', () => {
+    const widget = (n: number) => `
+  <section class="model-features-${n}">
+    <div role="tablist"><button role="tab" aria-selected="true" id="w${n}t1">A</button><button role="tab" id="w${n}t2">B</button></div>
+    <div role="tabpanel" aria-labelledby="w${n}t1"><p>Widget ${n} panel one content.</p></div>
+    <div role="tabpanel" aria-labelledby="w${n}t2"><p>Widget ${n} panel two content.</p></div>
+  </section>`
+    const html = `<div class="page-wrapper">${widget(1)}${widget(2)}</div>`
+
+    const regions = detectInteractiveRegions(html)
+
+    expect(regions).toHaveLength(2)
+    expect(regions[0].rootSelectorPath).not.toBe(regions[1].rootSelectorPath)
+    expect(regions.every(r => r.type === 'tabs')).toBe(true)
+  })
+
+  it('does not detect a tablist whose panels live beyond the climb cap', () => {
+    const html = `<div><div><div><div><div><div>
+      <div role="tablist"><button role="tab">A</button><button role="tab">B</button></div>
+    </div></div></div></div></div>
+    <div role="tabpanel"><p>Orphan panel one far away.</p></div>
+    <div role="tabpanel"><p>Orphan panel two far away.</p></div></div>`
+
+    const regions = detectInteractiveRegions(html)
+
+    expect(regions).toHaveLength(0)
+  })
 })
