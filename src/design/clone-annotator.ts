@@ -66,6 +66,52 @@ function stripForcedStyles($el: any): void {
 }
 
 /**
+ * Resolves each tab trigger to its OWN tabpanel by `aria-labelledby` (panel) -> `id` (trigger),
+ * rather than assuming DOM-order index N of the panel set lines up with trigger index N.
+ *
+ * Some OEM sliders (e.g. VW's "stage" carousel) implement an infinite-loop illusion by duplicating
+ * each real slide into extra clone copies for seamless wraparound — those clones share the SAME
+ * panel `id` (and hence the same `aria-labelledby` target) as the original, so a tabs region can
+ * have e.g. 4 `role="tabpanel"` elements in the DOM for only 2 real triggers. Positional numbering
+ * (`panels.each((i, el) => attr('data-clone-panel', i))`) then assigns index 1 to whichever panel
+ * happens to be second in DOM order — which is frequently a clone belonging to a DIFFERENT trigger
+ * than the one at trigger index 1, so cloneTabs.show(1) reveals the wrong slide's content entirely.
+ *
+ * Returns null (falls back to plain positional stamping) unless duplicate panel ids are actually
+ * present AND every trigger has an id AND every trigger's id resolves to at least one panel — i.e.
+ * this only changes behavior for the specific duplicate-id pattern it exists to fix.
+ */
+function resolveTabPanelsByAriaLabelledby(triggers: any, panels: any): CheerioNode[] | null {
+  const seenPanelIds = new Set<string>();
+  let hasDuplicatePanelId = false;
+  panels.each((_i: number, el: CheerioNode) => {
+    const id = String(el.attribs?.id ?? '');
+    if (!id) return;
+    if (seenPanelIds.has(id)) hasDuplicatePanelId = true;
+    seenPanelIds.add(id);
+  });
+  if (!hasDuplicatePanelId) return null;
+
+  const triggerIds: string[] = [];
+  triggers.each((_i: number, el: CheerioNode) => { triggerIds.push(String(el.attribs?.id ?? '')); });
+  if (triggerIds.some(id => !id)) return null;
+
+  const resolved: CheerioNode[] = [];
+  for (const triggerId of triggerIds) {
+    const matches: CheerioNode[] = [];
+    panels.each((_i: number, el: CheerioNode) => {
+      if (String(el.attribs?.['aria-labelledby'] ?? '') === triggerId) matches.push(el);
+    });
+    if (matches.length === 0) return null;
+    // Prefer whichever duplicate was NOT marked inert — that's the copy that was actually the
+    // live/rendered slide at capture time. If none/all are inert (never-selected trigger), any
+    // duplicate is an equivalent clone of the same content, so the first is a safe pick.
+    resolved.push(matches.find(el => el.attribs?.inert === undefined) ?? matches[0]);
+  }
+  return resolved;
+}
+
+/**
  * Resolves a `rootSelectorPath` (as produced by `elementPath` in
  * section-parser.ts) back to a live node. Must walk from the document root
  * exactly the way `elementPath` counted: one index per level, tag nodes
@@ -131,9 +177,14 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
       const panels = ariaPanels.length >= 2
         ? ariaPanels
         : root.find('*').filter((_i: number, c: CheerioNode) => /tab[-_]?(panel|content|pane)/i.test(classAttr(c)));
+      const resolvedPanels = resolveTabPanelsByAriaLabelledby(triggers, panels);
       triggers.each((i, el) => { $(el).attr('data-clone-tab', String(i)); $(el).attr('x-on:click', 'selectTab'); });
-      panels.each((i, el) => { $(el).attr('data-clone-panel', String(i)); stripForcedStyles($(el)); });
-      interactions.push({ id, type: region.type, trigger_count: triggers.length, panel_count: panels.length });
+      if (resolvedPanels) {
+        resolvedPanels.forEach((panelEl, i) => { const $panel = $(panelEl); $panel.attr('data-clone-panel', String(i)); stripForcedStyles($panel); });
+      } else {
+        panels.each((i, el) => { $(el).attr('data-clone-panel', String(i)); stripForcedStyles($(el)); });
+      }
+      interactions.push({ id, type: region.type, trigger_count: triggers.length, panel_count: (resolvedPanels ?? panels).length });
     }
 
     if (region.type === 'accordion') {
