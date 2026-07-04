@@ -112,6 +112,29 @@ function resolveTabPanelsByAriaLabelledby(triggers: any, panels: any): CheerioNo
 }
 
 /**
+ * Nearest common ancestor element of a set of nodes, walking each node's
+ * ancestor chain and intersecting. Used to find the carousel "track" for
+ * ARIA-pattern carousels, where slides are not guaranteed to be direct
+ * siblings of a class-named wrapper the way swiper/slick markup is.
+ */
+function nearestCommonAncestor(nodes: CheerioNode[]): CheerioNode | null {
+  if (nodes.length === 0) return null;
+  const ancestorsOf = (node: CheerioNode): CheerioNode[] => {
+    const chain: CheerioNode[] = [];
+    let cursor = node.parent;
+    while (cursor) { chain.push(cursor); cursor = cursor.parent; }
+    return chain;
+  };
+  const firstChain = ancestorsOf(nodes[0]);
+  let common = new Set<CheerioNode>(firstChain);
+  for (let i = 1; i < nodes.length; i++) {
+    const chain = new Set<CheerioNode>(ancestorsOf(nodes[i]));
+    common = new Set([...common].filter(node => chain.has(node)));
+  }
+  return firstChain.find(node => common.has(node)) ?? null;
+}
+
+/**
  * Resolves a `rootSelectorPath` (as produced by `elementPath` in
  * section-parser.ts) back to a live node. Must walk from the document root
  * exactly the way `elementPath` counted: one index per level, tag nodes
@@ -196,15 +219,40 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
     }
 
     if (region.type === 'carousel') {
-      const track = root.find('*').filter((_i: number, c: CheerioNode) => /track|wrapper|slides|slide-list|swiper-wrapper|slick-track/i.test(classAttr(c))).first();
-      track.attr('data-clone-track', '');
-      const slides = track.children().filter((_i: number, c: CheerioNode) => /slide|item/i.test(classAttr(c)) || String(c.attribs?.role ?? '') === 'group');
-      slides.each((i, el) => { $(el).attr('data-clone-slide', String(i)); });
-      const prev = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /prev|previous|arrow-left/i.test(classAttr(c))).first();
-      const next = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /next|arrow-right/i.test(classAttr(c))).first();
-      if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
-      if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
-      interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
+      const isAriaCarousel = String(root.attr('aria-roledescription') ?? '') === 'carousel';
+
+      if (isAriaCarousel) {
+        // W3C ARIA carousel pattern: slides carry aria-roledescription="slide"
+        // (also role="group") with no reliable class hints. The "track" is
+        // whichever element is the slides' nearest common parent — not
+        // necessarily root's direct child, so it's computed rather than
+        // assumed to be a single wrapper level down.
+        const slides = root.find('[aria-roledescription="slide"]');
+        const track = nearestCommonAncestor(slides.toArray());
+        if (track) $(track).attr('data-clone-track', '');
+        slides.each((i, el) => { $(el).attr('data-clone-slide', String(i)); });
+
+        // Controls: buttons inside a data-testid*="arrow" wrapper, or buttons
+        // whose aria-label names the direction — first match per direction wins.
+        const candidates = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) =>
+          $(c).closest('[data-testid*="arrow"]').length > 0
+          || /prev|next|back|forward/i.test(String(c.attribs?.['aria-label'] ?? '')));
+        const prev = candidates.filter((_i: number, c: CheerioNode) => /prev|back/i.test(String(c.attribs?.['aria-label'] ?? ''))).first();
+        const next = candidates.filter((_i: number, c: CheerioNode) => /next|forward/i.test(String(c.attribs?.['aria-label'] ?? ''))).first();
+        if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
+        if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
+        interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
+      } else {
+        const track = root.find('*').filter((_i: number, c: CheerioNode) => /track|wrapper|slides|slide-list|swiper-wrapper|slick-track/i.test(classAttr(c))).first();
+        track.attr('data-clone-track', '');
+        const slides = track.children().filter((_i: number, c: CheerioNode) => /slide|item/i.test(classAttr(c)) || String(c.attribs?.role ?? '') === 'group');
+        slides.each((i, el) => { $(el).attr('data-clone-slide', String(i)); });
+        const prev = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /prev|previous|arrow-left/i.test(classAttr(c))).first();
+        const next = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /next|arrow-right/i.test(classAttr(c))).first();
+        if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
+        if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
+        interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
+      }
     }
 
     if (region.type === 'gallery-lightbox') {

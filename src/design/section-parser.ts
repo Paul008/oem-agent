@@ -777,7 +777,28 @@ export function detectInteractiveRegions(html: string): DetectedInteractiveRegio
     }
   })
 
-  // --- carousel ---
+  // --- carousel: W3C ARIA pattern (aria-roledescription) ---
+  // Some OEM sites (e.g. VW's styled-components carousel) carry zero
+  // class-based hints — the only signal is the ARIA carousel pattern itself:
+  // a root with aria-roledescription="carousel" and descendant slides with
+  // aria-roledescription="slide" (which also carry role="group"). Runs before
+  // the class-pattern branch below so an ARIA carousel is never missed just
+  // because its classes don't match the swiper/slick/etc. keywords.
+  $('[aria-roledescription="carousel"]').each((_i, el) => {
+    const scope = $(el)
+    const slides = scope.find('[aria-roledescription="slide"]')
+    if (slides.length >= 2) {
+      regions.push({
+        type: 'carousel',
+        rootSelectorPath: elementPath(el),
+        triggerCount: 0,
+        panelCount: slides.length,
+        el,
+      })
+    }
+  })
+
+  // --- carousel: class-pattern fallback ---
   $('*').each((_i, el) => {
     if (!/carousel|swiper|slick|splide|slider|embla/i.test(classAttr(el))) return
     if (/track|wrapper|slide\b|slide-|slick-track|swiper-wrapper/i.test(classAttr(el))) return // parts, not roots

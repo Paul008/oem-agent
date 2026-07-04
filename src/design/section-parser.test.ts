@@ -62,6 +62,23 @@ const CAROUSEL = `
   </div>
 </div>`
 
+// Mirrors the live VW Amarok stage carousel: W3C ARIA carousel pattern with
+// zero class-based hints (styled-components sc-* class names), slides marked
+// via aria-roledescription="slide" (which also carry role="group"), and
+// prev/next controls inside a data-testid="content-slider-arrows" wrapper.
+const ARIA_CAROUSEL = `
+<div aria-roledescription="carousel" class="sc-bZQynM">
+  <div class="sc-hKFxyN">
+    <div role="group" aria-roledescription="slide" class="sc-abc1"><img src="/1.jpg"></div>
+    <div role="group" aria-roledescription="slide" class="sc-abc2"><img src="/2.jpg"></div>
+    <div role="group" aria-roledescription="slide" class="sc-abc3"><img src="/3.jpg"></div>
+  </div>
+  <div data-testid="content-slider-arrows">
+    <button aria-label="Previous slide">‹</button>
+    <button aria-label="Next slide">›</button>
+  </div>
+</div>`
+
 const ACCORDION = `
 <div class="faq accordion">
   <div class="accordion-item">
@@ -97,6 +114,14 @@ describe('detectInteractiveRegions', () => {
 
   it('detects a swiper carousel with track and slides', () => {
     const regions = detectInteractiveRegions(CAROUSEL)
+
+    expect(regions).toHaveLength(1)
+    expect(regions[0].type).toBe('carousel')
+    expect(regions[0].panelCount).toBe(3)
+  })
+
+  it('detects an ARIA-pattern carousel (aria-roledescription) with no class hints', () => {
+    const regions = detectInteractiveRegions(ARIA_CAROUSEL)
 
     expect(regions).toHaveLength(1)
     expect(regions[0].type).toBe('carousel')

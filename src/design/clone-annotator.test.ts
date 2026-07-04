@@ -42,6 +42,23 @@ const CAROUSEL = `
   <button class="carousel-next">›</button>
 </div>`
 
+// Mirrors the live VW Amarok stage carousel: W3C ARIA carousel pattern with
+// zero class-based hints (styled-components sc-* class names), slides marked
+// via aria-roledescription="slide" (which also carry role="group"), and
+// prev/next controls inside a data-testid="content-slider-arrows" wrapper.
+const ARIA_CAROUSEL = `
+<div aria-roledescription="carousel" class="sc-bZQynM">
+  <div class="sc-hKFxyN">
+    <div role="group" aria-roledescription="slide" class="sc-abc1"><img src="/1.jpg"></div>
+    <div role="group" aria-roledescription="slide" class="sc-abc2"><img src="/2.jpg"></div>
+    <div role="group" aria-roledescription="slide" class="sc-abc3"><img src="/3.jpg"></div>
+  </div>
+  <div data-testid="content-slider-arrows">
+    <button aria-label="Previous slide">‹</button>
+    <button aria-label="Next slide">›</button>
+  </div>
+</div>`
+
 describe('annotateCloneInteractions', () => {
   it('stamps a tabs region with component, triggers, panels, and region id', () => {
     const result = annotateCloneInteractions(TABS_ARIA)
@@ -103,6 +120,28 @@ describe('annotateCloneInteractions', () => {
     expect(result.html).toContain('data-clone-slide="1"')
     expect(result.html).toContain('data-clone-prev')
     expect(result.html).toContain('x-on:click="next"')
+  })
+
+  it('stamps an ARIA-pattern carousel (aria-roledescription) track, slides, and aria-labeled controls', () => {
+    const result = annotateCloneInteractions(ARIA_CAROUSEL)
+
+    expect(result.interactions[0].type).toBe('carousel')
+    expect(result.interactions[0].panel_count).toBe(3)
+    expect(result.html).toContain('x-data="cloneCarousel"')
+    expect(result.html).toContain('data-clone-track')
+    expect(result.html).toContain('data-clone-slide="0"')
+    expect(result.html).toContain('data-clone-slide="1"')
+    expect(result.html).toContain('data-clone-slide="2"')
+    expect(result.html).toContain('data-clone-prev')
+    expect(result.html).toContain('data-clone-next')
+    expect(result.html).toContain('x-on:click="prev"')
+    expect(result.html).toContain('x-on:click="next"')
+
+    // Track is the slides' nearest common parent (the wrapper div), not the
+    // aria-roledescription="carousel" root itself.
+    const trackMatch = result.html.match(/<div[^>]*data-clone-track[^>]*>/)?.[0] ?? ''
+    expect(trackMatch).toContain('sc-hKFxyN')
+    expect(trackMatch).not.toContain('aria-roledescription="carousel"')
   })
 
   it('leaves unrecognized content byte-identical', () => {
