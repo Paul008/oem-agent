@@ -33,6 +33,14 @@ export interface CaptureDiagnosticsRecord {
   /** Failure / blocked reason. Absent on success. */
   reason?: string;
   captured_scroll_height?: number;
+  dom_image_count?: number;
+  hydration_status?: string;
+  empty_shell_count?: number;
+  /** First 10 unmounted shell selectors — enough to diagnose without bloating the record. */
+  empty_shells?: string[];
+  completeness_passed?: boolean;
+  completeness_reasons?: string[];
+  suggested_backend?: string;
 }
 
 export interface CaptureDiagnostics {
@@ -69,6 +77,8 @@ export function buildDiagnosticsRecord(input: BuildDiagnosticsInput): CaptureDia
     reason = result.error || 'Unknown capture error';
   }
 
+  const audit = result.capture_audit;
+
   return {
     oem_id: String(input.oemId),
     model_slug: input.modelSlug,
@@ -84,6 +94,14 @@ export function buildDiagnosticsRecord(input: BuildDiagnosticsInput): CaptureDia
     elements_captured: result.elements_captured,
     images_uploaded: result.images_uploaded,
     reason,
+    captured_scroll_height: audit?.captured_scroll_height,
+    dom_image_count: audit?.dom_image_count,
+    hydration_status: audit?.hydration_status,
+    empty_shell_count: audit ? audit.empty_shells.length : undefined,
+    empty_shells: audit?.empty_shells.slice(0, 10),
+    completeness_passed: result.completeness?.passed,
+    completeness_reasons: result.completeness?.reasons?.slice(0, 5),
+    suggested_backend: result.suggested_backend,
   };
 }
 

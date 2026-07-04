@@ -120,3 +120,55 @@ describe('recordCaptureDiagnostics / readCaptureDiagnostics', () => {
     expect(read).toBeNull()
   })
 })
+
+describe('buildDiagnosticsRecord capture audit fields', () => {
+  it('maps audit, completeness verdict and suggested backend onto the record', () => {
+    const record = buildDiagnosticsRecord({
+      oemId: 'volkswagen-au',
+      modelSlug: 'amarok',
+      sourceUrl: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      capturedAt: '2026-07-04T00:00:00.000Z',
+      result: {
+        success: false,
+        capture_time_ms: 95000,
+        capture_backend: 'cloudflare-browser',
+        error: 'Capture completeness gate failed: 2 feature-app shell(s) never mounted',
+        capture_audit: {
+          captured_scroll_height: 6000,
+          dom_image_count: 31,
+          hydration_status: 'stable',
+          hydration_passes: [{ pass: 1, scroll_height: 6000, image_count: 31, elapsed_ms: 40000 }],
+          shells_checked: 3,
+          shells_recovered: 1,
+          empty_shells: Array.from({ length: 12 }, (_, index) => `.shell [${index}]`),
+        },
+        completeness: { passed: false, reasons: ['2 feature-app shell(s) never mounted'] },
+        suggested_backend: 'scrapling-stealth',
+      } as any,
+    })
+
+    expect(record.status).toBe('error')
+    expect(record.captured_scroll_height).toBe(6000)
+    expect(record.dom_image_count).toBe(31)
+    expect(record.hydration_status).toBe('stable')
+    expect(record.empty_shell_count).toBe(12)
+    expect(record.empty_shells).toHaveLength(10)
+    expect(record.completeness_passed).toBe(false)
+    expect(record.completeness_reasons).toEqual(['2 feature-app shell(s) never mounted'])
+    expect(record.suggested_backend).toBe('scrapling-stealth')
+  })
+
+  it('leaves audit fields undefined when the capture had no audit', () => {
+    const record = buildDiagnosticsRecord({
+      oemId: 'mitsubishi-au',
+      modelSlug: 'asx',
+      sourceUrl: 'https://www.mitsubishi-motors.com.au/asx',
+      capturedAt: '2026-07-04T00:00:00.000Z',
+      result: { success: true, capture_time_ms: 1200, capture_backend: 'external-html' } as any,
+    })
+
+    expect(record.captured_scroll_height).toBeUndefined()
+    expect(record.hydration_status).toBeUndefined()
+    expect(record.empty_shell_count).toBeUndefined()
+  })
+})
