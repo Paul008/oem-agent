@@ -23,11 +23,11 @@ let bearer = '';
 let interactionsJson = '';
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
-  if (arg === '--slug') slug = readNext(argv, ++i, arg);
-  else if (arg === '--base') base = readNext(argv, ++i, arg);
-  else if (arg === '--manifest-url') manifestUrl = readNext(argv, ++i, arg);
-  else if (arg === '--bearer') bearer = readNext(argv, ++i, arg);
-  else if (arg === '--interactions-json') interactionsJson = readNext(argv, ++i, arg);
+  if (arg === '--slug') slug = readNext(argv, i++, arg);
+  else if (arg === '--base') base = readNext(argv, i++, arg);
+  else if (arg === '--manifest-url') manifestUrl = readNext(argv, i++, arg);
+  else if (arg === '--bearer') bearer = readNext(argv, i++, arg);
+  else if (arg === '--interactions-json') interactionsJson = readNext(argv, i++, arg);
 }
 if (!slug) {
   console.error('required: --slug <oem-slug>');
@@ -106,6 +106,19 @@ const CHECKS = {
   },
 };
 
+async function inspectLiveFrame(frame) {
+  try {
+    const summary = await frame.evaluate(() => ({
+      textLength: (document.body?.innerText ?? '').trim().length,
+      styleBytes: Array.from(document.querySelectorAll('style')).reduce((sum, el) => sum + (el.textContent?.length ?? 0), 0),
+      bodyHeight: Math.max(document.body?.scrollHeight ?? 0, document.documentElement?.scrollHeight ?? 0),
+    }));
+    return { ...summary, frame };
+  } catch {
+    return null;
+  }
+}
+
 const interactions = await loadInteractions();
 if (interactions.length === 0) {
   console.error('no interactions in manifest — nothing to test (is the page recompiled with the clone runtime?)');
@@ -120,7 +133,9 @@ try {
   console.log(`URL: ${url}`);
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 90_000 });
   await settlePage(page, 7000);
-  const frame = await pickRenderedFrame(page);
+  const descriptors = (await Promise.all(page.frames().map(inspectLiveFrame))).filter(Boolean);
+  const winner = pickRenderedFrame(descriptors);
+  const frame = winner?.frame ?? null;
   if (!frame) {
     console.error('✗ no rendered preview frame found');
     process.exit(1);
