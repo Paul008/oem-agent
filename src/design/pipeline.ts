@@ -22,6 +22,7 @@ import type {
 } from '../oem/types';
 import type { AiRouter } from '../ai/router';
 import { PageCapturer } from './page-capturer';
+import { buildDiagnosticsRecord, recordCaptureDiagnostics } from './capture-diagnostics';
 import { PageStructurer, type PageStructurerDeps } from './page-structurer';
 import { DesignMemoryManager } from './memory';
 import { SmartPromptBuilder } from './prompt-builder';
@@ -213,6 +214,19 @@ export class AdaptivePipeline {
         } else {
           console.log(`[Pipeline] Capturing page from ${sourceUrl} (${cloneDecision.reason})`);
           const cloneResult = await this.capturer.captureModelPage(oemId, modelSlug, sourceUrl, modelName);
+
+          try {
+            const diagnosticsRecord = buildDiagnosticsRecord({
+              oemId,
+              modelSlug,
+              sourceUrl,
+              capturedAt: new Date().toISOString(),
+              result: cloneResult,
+            });
+            await recordCaptureDiagnostics(this.r2Bucket, diagnosticsRecord);
+          } catch (err) {
+            console.warn('[Pipeline] Failed to record capture diagnostics', err);
+          }
 
           if (!cloneResult.success) {
             steps.push({

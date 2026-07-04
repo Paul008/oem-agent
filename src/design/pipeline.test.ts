@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { getCloneDecision } from './pipeline';
 
@@ -31,5 +32,40 @@ describe('getCloneDecision', () => {
 
     expect(decision.shouldClone).toBe(false);
     expect(decision.reason).toBe('clone already exists in R2');
+  });
+});
+
+describe('AdaptivePipeline CLONE step capture diagnostics wiring', () => {
+  it('records capture diagnostics after captureModelPage and before the success/failure branch', () => {
+    const source = readFileSync(new URL('./pipeline.ts', import.meta.url), 'utf8');
+    const captureCall = source.indexOf('const cloneResult = await this.capturer.captureModelPage(oemId, modelSlug, sourceUrl, modelName);');
+    const recordCall = source.indexOf('recordCaptureDiagnostics(', captureCall);
+    const failureCheck = source.indexOf('if (!cloneResult.success)', captureCall);
+
+    expect(captureCall).toBeGreaterThan(-1);
+    expect(recordCall).toBeGreaterThan(captureCall);
+    expect(failureCheck).toBeGreaterThan(recordCall);
+  });
+
+  it('imports buildDiagnosticsRecord and recordCaptureDiagnostics from capture-diagnostics', () => {
+    const source = readFileSync(new URL('./pipeline.ts', import.meta.url), 'utf8');
+
+    expect(source).toContain("from './capture-diagnostics'");
+    expect(source).toMatch(/buildDiagnosticsRecord/);
+    expect(source).toMatch(/recordCaptureDiagnostics/);
+  });
+
+  it('wraps diagnostics recording so a diagnostics failure never fails the pipeline', () => {
+    const source = readFileSync(new URL('./pipeline.ts', import.meta.url), 'utf8');
+    const captureCall = source.indexOf('const cloneResult = await this.capturer.captureModelPage(oemId, modelSlug, sourceUrl, modelName);');
+    const tryBlock = source.indexOf('try {', captureCall);
+    const recordCall = source.indexOf('recordCaptureDiagnostics(', captureCall);
+    const catchBlock = source.indexOf('} catch', recordCall);
+    const warnCall = source.indexOf("console.warn('[Pipeline] Failed to record capture diagnostics'", catchBlock);
+
+    expect(tryBlock).toBeGreaterThan(captureCall);
+    expect(tryBlock).toBeLessThan(recordCall);
+    expect(catchBlock).toBeGreaterThan(recordCall);
+    expect(warnCall).toBeGreaterThan(catchBlock);
   });
 });
