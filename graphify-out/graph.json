@@ -137,7 +137,7 @@
       "source_file": "vite.config.ts",
       "source_location": "L1",
       "id": "vite_config_ts",
-      "community": 231
+      "community": 232
     },
     {
       "label": "vitest.config.ts",
@@ -145,7 +145,7 @@
       "source_file": "vitest.config.ts",
       "source_location": "L1",
       "id": "vitest_config_ts",
-      "community": 232
+      "community": 233
     },
     {
       "label": "build-chunking.test.ts",
@@ -153,7 +153,7 @@
       "source_file": "dashboard/build-chunking.test.ts",
       "source_location": "L1",
       "id": "dashboard_build_chunking_test_ts",
-      "community": 147
+      "community": 148
     },
     {
       "label": "getProductionConfig()",
@@ -161,7 +161,7 @@
       "source_file": "dashboard/build-chunking.test.ts",
       "source_location": "L9",
       "id": "build_chunking_test_getproductionconfig",
-      "community": 147
+      "community": 148
     },
     {
       "label": "vite.config.ts",
@@ -169,7 +169,7 @@
       "source_file": "dashboard/vite.config.ts",
       "source_location": "L1",
       "id": "dashboard_vite_config_ts",
-      "community": 233
+      "community": 234
     },
     {
       "label": "download.ts",
@@ -241,7 +241,7 @@
       "source_file": "dashboard/src/main.ts",
       "source_location": "L1",
       "id": "dashboard_src_main_ts",
-      "community": 148
+      "community": 149
     },
     {
       "label": "bootstrap()",
@@ -249,7 +249,7 @@
       "source_file": "dashboard/src/main.ts",
       "source_location": "L14",
       "id": "main_bootstrap",
-      "community": 148
+      "community": 149
     },
     {
       "label": "vue-router-meta.d.ts",
@@ -257,7 +257,7 @@
       "source_file": "dashboard/src/types/vue-router-meta.d.ts",
       "source_location": "L1",
       "id": "dashboard_src_types_vue_router_meta_d_ts",
-      "community": 234
+      "community": 235
     },
     {
       "label": "auto-import.d.ts",
@@ -265,7 +265,7 @@
       "source_file": "dashboard/src/types/auto-import.d.ts",
       "source_location": "L1",
       "id": "dashboard_src_types_auto_import_d_ts",
-      "community": 235
+      "community": 236
     },
     {
       "label": "auto-import-components.d.ts",
@@ -273,7 +273,7 @@
       "source_file": "dashboard/src/types/auto-import-components.d.ts",
       "source_location": "L1",
       "id": "dashboard_src_types_auto_import_components_d_ts",
-      "community": 236
+      "community": 237
     },
     {
       "label": "vite-env.d.ts",
@@ -281,7 +281,7 @@
       "source_file": "dashboard/src/types/vite-env.d.ts",
       "source_location": "L1",
       "id": "dashboard_src_types_vite_env_d_ts",
-      "community": 237
+      "community": 238
     },
     {
       "label": "route-map.d.ts",
@@ -289,7 +289,7 @@
       "source_file": "dashboard/src/types/route-map.d.ts",
       "source_location": "L1",
       "id": "dashboard_src_types_route_map_d_ts",
-      "community": 238
+      "community": 239
     },
     {
       "label": "capture-tailwind-rules.test.ts",
@@ -297,7 +297,7 @@
       "source_file": "dashboard/src/composables/capture-tailwind-rules.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_capture_tailwind_rules_test_ts",
-      "community": 121
+      "community": 122
     },
     {
       "label": "makeReader()",
@@ -305,7 +305,7 @@
       "source_file": "dashboard/src/composables/capture-tailwind-rules.test.ts",
       "source_location": "L119",
       "id": "capture_tailwind_rules_test_makereader",
-      "community": 121
+      "community": 122
     },
     {
       "label": "uniform()",
@@ -313,7 +313,7 @@
       "source_file": "dashboard/src/composables/capture-tailwind-rules.test.ts",
       "source_location": "L122",
       "id": "capture_tailwind_rules_test_uniform",
-      "community": 121
+      "community": 122
     },
     {
       "label": "use-generated-pages.ts",
@@ -321,7 +321,7 @@
       "source_file": "dashboard/src/composables/use-generated-pages.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_generated_pages_ts",
-      "community": 149
+      "community": 150
     },
     {
       "label": "useGeneratedPages()",
@@ -329,7 +329,7 @@
       "source_file": "dashboard/src/composables/use-generated-pages.ts",
       "source_location": "L30",
       "id": "use_generated_pages_usegeneratedpages",
-      "community": 149
+      "community": 150
     },
     {
       "label": "use-template-gallery.ts",
@@ -337,7 +337,7 @@
       "source_file": "dashboard/src/composables/use-template-gallery.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_template_gallery_ts",
-      "community": 122
+      "community": 123
     },
     {
       "label": "useTemplateGallery()",
@@ -345,7 +345,7 @@
       "source_file": "dashboard/src/composables/use-template-gallery.ts",
       "source_location": "L28",
       "id": "use_template_gallery_usetemplategallery",
-      "community": 122
+      "community": 123
     },
     {
       "label": "countImages()",
@@ -353,7 +353,7 @@
       "source_file": "dashboard/src/composables/use-template-gallery.ts",
       "source_location": "L171",
       "id": "use_template_gallery_countimages",
-      "community": 122
+      "community": 123
     },
     {
       "label": "use-auth.ts",
@@ -361,7 +361,7 @@
       "source_file": "dashboard/src/composables/use-auth.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_auth_ts",
-      "community": 150
+      "community": 151
     },
     {
       "label": "useAuth()",
@@ -369,7 +369,7 @@
       "source_file": "dashboard/src/composables/use-auth.ts",
       "source_location": "L6",
       "id": "use_auth_useauth",
-      "community": 150
+      "community": 151
     },
     {
       "label": "use-portal-assets.ts",
@@ -377,7 +377,7 @@
       "source_file": "dashboard/src/composables/use-portal-assets.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_portal_assets_ts",
-      "community": 151
+      "community": 152
     },
     {
       "label": "usePortalAssets()",
@@ -385,7 +385,7 @@
       "source_file": "dashboard/src/composables/use-portal-assets.ts",
       "source_location": "L102",
       "id": "use_portal_assets_useportalassets",
-      "community": 151
+      "community": 152
     },
     {
       "label": "use-section-animation.ts",
@@ -393,7 +393,7 @@
       "source_file": "dashboard/src/composables/use-section-animation.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_section_animation_ts",
-      "community": 123
+      "community": 124
     },
     {
       "label": "ensureGsap()",
@@ -401,7 +401,7 @@
       "source_file": "dashboard/src/composables/use-section-animation.ts",
       "source_location": "L26",
       "id": "use_section_animation_ensuregsap",
-      "community": 123
+      "community": 124
     },
     {
       "label": "useSectionAnimation()",
@@ -409,7 +409,7 @@
       "source_file": "dashboard/src/composables/use-section-animation.ts",
       "source_location": "L52",
       "id": "use_section_animation_usesectionanimation",
-      "community": 123
+      "community": 124
     },
     {
       "label": "use-agents.ts",
@@ -417,7 +417,7 @@
       "source_file": "dashboard/src/composables/use-agents.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_agents_ts",
-      "community": 152
+      "community": 153
     },
     {
       "label": "useAgents()",
@@ -425,7 +425,7 @@
       "source_file": "dashboard/src/composables/use-agents.ts",
       "source_location": "L72",
       "id": "use_agents_useagents",
-      "community": 152
+      "community": 153
     },
     {
       "label": "use-onboarding.ts",
@@ -433,7 +433,7 @@
       "source_file": "dashboard/src/composables/use-onboarding.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_onboarding_ts",
-      "community": 153
+      "community": 154
     },
     {
       "label": "useOnboarding()",
@@ -441,7 +441,7 @@
       "source_file": "dashboard/src/composables/use-onboarding.ts",
       "source_location": "L41",
       "id": "use_onboarding_useonboarding",
-      "community": 153
+      "community": 154
     },
     {
       "label": "use-google-fonts.ts",
@@ -449,7 +449,7 @@
       "source_file": "dashboard/src/composables/use-google-fonts.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_google_fonts_ts",
-      "community": 154
+      "community": 155
     },
     {
       "label": "useGoogleFonts()",
@@ -457,7 +457,7 @@
       "source_file": "dashboard/src/composables/use-google-fonts.ts",
       "source_location": "L52",
       "id": "use_google_fonts_usegooglefonts",
-      "community": 154
+      "community": 155
     },
     {
       "label": "use-inline-edit.ts",
@@ -465,7 +465,7 @@
       "source_file": "dashboard/src/composables/use-inline-edit.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_inline_edit_ts",
-      "community": 155
+      "community": 156
     },
     {
       "label": "useInlineEdit()",
@@ -473,7 +473,7 @@
       "source_file": "dashboard/src/composables/use-inline-edit.ts",
       "source_location": "L8",
       "id": "use_inline_edit_useinlineedit",
-      "community": 155
+      "community": 156
     },
     {
       "label": "use-clipboard.ts",
@@ -481,7 +481,7 @@
       "source_file": "dashboard/src/composables/use-clipboard.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_clipboard_ts",
-      "community": 156
+      "community": 157
     },
     {
       "label": "useClipboard()",
@@ -489,7 +489,7 @@
       "source_file": "dashboard/src/composables/use-clipboard.ts",
       "source_location": "L9",
       "id": "use_clipboard_useclipboard",
-      "community": 156
+      "community": 157
     },
     {
       "label": "capture-pseudo-elements.test.ts",
@@ -497,7 +497,7 @@
       "source_file": "dashboard/src/composables/capture-pseudo-elements.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_capture_pseudo_elements_test_ts",
-      "community": 239
+      "community": 240
     },
     {
       "label": "capture-pseudo-elements.ts",
@@ -505,7 +505,7 @@
       "source_file": "dashboard/src/composables/capture-pseudo-elements.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_capture_pseudo_elements_ts",
-      "community": 157
+      "community": 158
     },
     {
       "label": "capturePseudoElementRules()",
@@ -513,7 +513,7 @@
       "source_file": "dashboard/src/composables/capture-pseudo-elements.ts",
       "source_location": "L4",
       "id": "capture_pseudo_elements_capturepseudoelementrules",
-      "community": 157
+      "community": 158
     },
     {
       "label": "use-cron-jobs.ts",
@@ -521,7 +521,7 @@
       "source_file": "dashboard/src/composables/use-cron-jobs.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_cron_jobs_ts",
-      "community": 158
+      "community": 159
     },
     {
       "label": "useCronJobs()",
@@ -529,7 +529,7 @@
       "source_file": "dashboard/src/composables/use-cron-jobs.ts",
       "source_location": "L55",
       "id": "use_cron_jobs_usecronjobs",
-      "community": 158
+      "community": 159
     },
     {
       "label": "use-stock-health.ts",
@@ -537,7 +537,7 @@
       "source_file": "dashboard/src/composables/use-stock-health.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_stock_health_ts",
-      "community": 106
+      "community": 107
     },
     {
       "label": "daysBetween()",
@@ -545,7 +545,7 @@
       "source_file": "dashboard/src/composables/use-stock-health.ts",
       "source_location": "L52",
       "id": "use_stock_health_daysbetween",
-      "community": 106
+      "community": 107
     },
     {
       "label": "computeHealthScore()",
@@ -553,7 +553,7 @@
       "source_file": "dashboard/src/composables/use-stock-health.ts",
       "source_location": "L60",
       "id": "use_stock_health_computehealthscore",
-      "community": 106
+      "community": 107
     },
     {
       "label": "useStockHealth()",
@@ -561,7 +561,7 @@
       "source_file": "dashboard/src/composables/use-stock-health.ts",
       "source_location": "L106",
       "id": "use_stock_health_usestockhealth",
-      "community": 106
+      "community": 107
     },
     {
       "label": "use-sidebar.ts",
@@ -569,7 +569,7 @@
       "source_file": "dashboard/src/composables/use-sidebar.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_sidebar_ts",
-      "community": 159
+      "community": 160
     },
     {
       "label": "useSidebar()",
@@ -577,7 +577,7 @@
       "source_file": "dashboard/src/composables/use-sidebar.ts",
       "source_location": "L5",
       "id": "use_sidebar_usesidebar",
-      "community": 159
+      "community": 160
     },
     {
       "label": "use-page-builder.test.ts",
@@ -585,7 +585,7 @@
       "source_file": "dashboard/src/composables/use-page-builder.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_page_builder_test_ts",
-      "community": 160
+      "community": 161
     },
     {
       "label": "region()",
@@ -593,7 +593,7 @@
       "source_file": "dashboard/src/composables/use-page-builder.test.ts",
       "source_location": "L246",
       "id": "use_page_builder_test_region",
-      "community": 160
+      "community": 161
     },
     {
       "label": "use-clipboard.test.ts",
@@ -601,7 +601,7 @@
       "source_file": "dashboard/src/composables/use-clipboard.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_clipboard_test_ts",
-      "community": 240
+      "community": 241
     },
     {
       "label": "use-system-theme.ts",
@@ -609,7 +609,7 @@
       "source_file": "dashboard/src/composables/use-system-theme.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_system_theme_ts",
-      "community": 161
+      "community": 162
     },
     {
       "label": "useSystemTheme()",
@@ -617,7 +617,7 @@
       "source_file": "dashboard/src/composables/use-system-theme.ts",
       "source_location": "L7",
       "id": "use_system_theme_usesystemtheme",
-      "community": 161
+      "community": 162
     },
     {
       "label": "use-agent-profile.ts",
@@ -625,7 +625,7 @@
       "source_file": "dashboard/src/composables/use-agent-profile.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_agent_profile_ts",
-      "community": 162
+      "community": 163
     },
     {
       "label": "useAgentProfile()",
@@ -633,7 +633,7 @@
       "source_file": "dashboard/src/composables/use-agent-profile.ts",
       "source_location": "L183",
       "id": "use_agent_profile_useagentprofile",
-      "community": 162
+      "community": 163
     },
     {
       "label": "capture-tailwind-rules.ts",
@@ -641,7 +641,7 @@
       "source_file": "dashboard/src/composables/capture-tailwind-rules.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_capture_tailwind_rules_ts",
-      "community": 163
+      "community": 164
     },
     {
       "label": "tailwindRules()",
@@ -649,7 +649,7 @@
       "source_file": "dashboard/src/composables/capture-tailwind-rules.ts",
       "source_location": "L9",
       "id": "capture_tailwind_rules_tailwindrules",
-      "community": 163
+      "community": 164
     },
     {
       "label": "use-capture-injection.test.ts",
@@ -657,7 +657,7 @@
       "source_file": "dashboard/src/composables/use-capture-injection.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_capture_injection_test_ts",
-      "community": 241
+      "community": 242
     },
     {
       "label": "use-axios.ts",
@@ -665,7 +665,7 @@
       "source_file": "dashboard/src/composables/use-axios.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_axios_ts",
-      "community": 164
+      "community": 165
     },
     {
       "label": "useAxios()",
@@ -673,7 +673,7 @@
       "source_file": "dashboard/src/composables/use-axios.ts",
       "source_location": "L7",
       "id": "use_axios_useaxios",
-      "community": 164
+      "community": 165
     },
     {
       "label": "use-page-builder.ts",
@@ -737,7 +737,7 @@
       "source_file": "dashboard/src/composables/use-realtime.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_realtime_ts",
-      "community": 165
+      "community": 166
     },
     {
       "label": "useRealtimeSubscription()",
@@ -745,7 +745,7 @@
       "source_file": "dashboard/src/composables/use-realtime.ts",
       "source_location": "L23",
       "id": "use_realtime_userealtimesubscription",
-      "community": 165
+      "community": 166
     },
     {
       "label": "use-oem-data.ts",
@@ -753,7 +753,7 @@
       "source_file": "dashboard/src/composables/use-oem-data.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_oem_data_ts",
-      "community": 166
+      "community": 167
     },
     {
       "label": "useOemData()",
@@ -761,7 +761,7 @@
       "source_file": "dashboard/src/composables/use-oem-data.ts",
       "source_location": "L239",
       "id": "use_oem_data_useoemdata",
-      "community": 166
+      "community": 167
     },
     {
       "label": "use-capture-injection.ts",
@@ -769,7 +769,7 @@
       "source_file": "dashboard/src/composables/use-capture-injection.ts",
       "source_location": "L1",
       "id": "dashboard_src_composables_use_capture_injection_ts",
-      "community": 167
+      "community": 168
     },
     {
       "label": "buildCaptureInjection()",
@@ -777,7 +777,7 @@
       "source_file": "dashboard/src/composables/use-capture-injection.ts",
       "source_location": "L9",
       "id": "use_capture_injection_buildcaptureinjection",
-      "community": 167
+      "community": 168
     },
     {
       "label": "index.ts",
@@ -785,7 +785,7 @@
       "source_file": "dashboard/src/plugins/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_index_ts",
-      "community": 168
+      "community": 169
     },
     {
       "label": "setupPlugins()",
@@ -793,7 +793,7 @@
       "source_file": "dashboard/src/plugins/index.ts",
       "source_location": "L11",
       "id": "index_setupplugins",
-      "community": 168
+      "community": 169
     },
     {
       "label": "setup.ts",
@@ -801,7 +801,7 @@
       "source_file": "dashboard/src/plugins/tanstack-vue-query/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_tanstack_vue_query_setup_ts",
-      "community": 169
+      "community": 170
     },
     {
       "label": "setupTanstackVueQuery()",
@@ -809,7 +809,7 @@
       "source_file": "dashboard/src/plugins/tanstack-vue-query/setup.ts",
       "source_location": "L13",
       "id": "setup_setuptanstackvuequery",
-      "community": 169
+      "community": 170
     },
     {
       "label": "setup.ts",
@@ -817,7 +817,7 @@
       "source_file": "dashboard/src/plugins/nprogress/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_nprogress_setup_ts",
-      "community": 170
+      "community": 171
     },
     {
       "label": "setupNProgress()",
@@ -825,7 +825,7 @@
       "source_file": "dashboard/src/plugins/nprogress/setup.ts",
       "source_location": "L6",
       "id": "setup_setupnprogress",
-      "community": 170
+      "community": 171
     },
     {
       "label": "setup.ts",
@@ -833,7 +833,7 @@
       "source_file": "dashboard/src/plugins/auto-animate/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_auto_animate_setup_ts",
-      "community": 171
+      "community": 172
     },
     {
       "label": "setupAutoAnimate()",
@@ -841,7 +841,7 @@
       "source_file": "dashboard/src/plugins/auto-animate/setup.ts",
       "source_location": "L5",
       "id": "setup_setupautoanimate",
-      "community": 171
+      "community": 172
     },
     {
       "label": "setup.ts",
@@ -849,7 +849,7 @@
       "source_file": "dashboard/src/plugins/pinia/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_pinia_setup_ts",
-      "community": 172
+      "community": 173
     },
     {
       "label": "setupPinia()",
@@ -857,7 +857,7 @@
       "source_file": "dashboard/src/plugins/pinia/setup.ts",
       "source_location": "L13",
       "id": "setup_setuppinia",
-      "community": 172
+      "community": 173
     },
     {
       "label": "setup.ts",
@@ -865,7 +865,7 @@
       "source_file": "dashboard/src/plugins/dayjs/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_dayjs_setup_ts",
-      "community": 173
+      "community": 174
     },
     {
       "label": "setupDayjs()",
@@ -873,7 +873,7 @@
       "source_file": "dashboard/src/plugins/dayjs/setup.ts",
       "source_location": "L5",
       "id": "setup_setupdayjs",
-      "community": 173
+      "community": 174
     },
     {
       "label": "setup.ts",
@@ -881,7 +881,7 @@
       "source_file": "dashboard/src/plugins/i18n/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_i18n_setup_ts",
-      "community": 174
+      "community": 175
     },
     {
       "label": "setupI18n()",
@@ -889,7 +889,7 @@
       "source_file": "dashboard/src/plugins/i18n/setup.ts",
       "source_location": "L8",
       "id": "setup_setupi18n",
-      "community": 174
+      "community": 175
     },
     {
       "label": "setup.ts",
@@ -897,7 +897,7 @@
       "source_file": "dashboard/src/plugins/router/setup.ts",
       "source_location": "L1",
       "id": "dashboard_src_plugins_router_setup_ts",
-      "community": 175
+      "community": 176
     },
     {
       "label": "setupRouter()",
@@ -905,7 +905,7 @@
       "source_file": "dashboard/src/plugins/router/setup.ts",
       "source_location": "L5",
       "id": "setup_setuprouter",
-      "community": 175
+      "community": 176
     },
     {
       "label": "pagination.ts",
@@ -913,7 +913,7 @@
       "source_file": "dashboard/src/constants/pagination.ts",
       "source_location": "L1",
       "id": "dashboard_src_constants_pagination_ts",
-      "community": 242
+      "community": 243
     },
     {
       "label": "route-path.ts",
@@ -921,7 +921,7 @@
       "source_file": "dashboard/src/constants/route-path.ts",
       "source_location": "L1",
       "id": "dashboard_src_constants_route_path_ts",
-      "community": 243
+      "community": 244
     },
     {
       "label": "themes.ts",
@@ -929,7 +929,7 @@
       "source_file": "dashboard/src/constants/themes.ts",
       "source_location": "L1",
       "id": "dashboard_src_constants_themes_ts",
-      "community": 244
+      "community": 245
     },
     {
       "label": "theme.ts",
@@ -937,7 +937,7 @@
       "source_file": "dashboard/src/stores/theme.ts",
       "source_location": "L1",
       "id": "dashboard_src_stores_theme_ts",
-      "community": 245
+      "community": 246
     },
     {
       "label": "auth.ts",
@@ -945,7 +945,7 @@
       "source_file": "dashboard/src/stores/auth.ts",
       "source_location": "L1",
       "id": "dashboard_src_stores_auth_ts",
-      "community": 246
+      "community": 247
     },
     {
       "label": "env.ts",
@@ -953,7 +953,7 @@
       "source_file": "dashboard/src/utils/env.ts",
       "source_location": "L1",
       "id": "dashboard_src_utils_env_ts",
-      "community": 247
+      "community": 248
     },
     {
       "label": "index.ts",
@@ -961,7 +961,7 @@
       "source_file": "dashboard/src/components/sva-ui/status-badge/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_sva_ui_status_badge_index_ts",
-      "community": 248
+      "community": 249
     },
     {
       "label": "index.ts",
@@ -969,7 +969,7 @@
       "source_file": "dashboard/src/components/sva-ui/inline-tip/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_sva_ui_inline_tip_index_ts",
-      "community": 249
+      "community": 250
     },
     {
       "label": "index.ts",
@@ -977,7 +977,7 @@
       "source_file": "dashboard/src/components/sva-ui/copy/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_sva_ui_copy_index_ts",
-      "community": 250
+      "community": 251
     },
     {
       "label": "index.ts",
@@ -985,7 +985,7 @@
       "source_file": "dashboard/src/components/ui/tabs/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_tabs_index_ts",
-      "community": 251
+      "community": 252
     },
     {
       "label": "utils.ts",
@@ -993,7 +993,7 @@
       "source_file": "dashboard/src/components/ui/sidebar/utils.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_sidebar_utils_ts",
-      "community": 252
+      "community": 253
     },
     {
       "label": "index.ts",
@@ -1001,7 +1001,7 @@
       "source_file": "dashboard/src/components/ui/sidebar/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_sidebar_index_ts",
-      "community": 253
+      "community": 254
     },
     {
       "label": "index.ts",
@@ -1009,7 +1009,7 @@
       "source_file": "dashboard/src/components/ui/kbd/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_kbd_index_ts",
-      "community": 254
+      "community": 255
     },
     {
       "label": "index.ts",
@@ -1017,7 +1017,7 @@
       "source_file": "dashboard/src/components/ui/drawer/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_drawer_index_ts",
-      "community": 255
+      "community": 256
     },
     {
       "label": "index.ts",
@@ -1025,7 +1025,7 @@
       "source_file": "dashboard/src/components/ui/pagination/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_pagination_index_ts",
-      "community": 256
+      "community": 257
     },
     {
       "label": "injectionKeys.ts",
@@ -1033,7 +1033,7 @@
       "source_file": "dashboard/src/components/ui/form/injectionKeys.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_form_injectionkeys_ts",
-      "community": 257
+      "community": 258
     },
     {
       "label": "useFormField.ts",
@@ -1041,7 +1041,7 @@
       "source_file": "dashboard/src/components/ui/form/useFormField.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_form_useformfield_ts",
-      "community": 176
+      "community": 177
     },
     {
       "label": "useFormField()",
@@ -1049,7 +1049,7 @@
       "source_file": "dashboard/src/components/ui/form/useFormField.ts",
       "source_location": "L5",
       "id": "useformfield_useformfield",
-      "community": 176
+      "community": 177
     },
     {
       "label": "index.ts",
@@ -1057,7 +1057,7 @@
       "source_file": "dashboard/src/components/ui/form/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_form_index_ts",
-      "community": 258
+      "community": 259
     },
     {
       "label": "index.ts",
@@ -1065,7 +1065,7 @@
       "source_file": "dashboard/src/components/ui/tooltip/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_tooltip_index_ts",
-      "community": 259
+      "community": 260
     },
     {
       "label": "index.ts",
@@ -1073,7 +1073,7 @@
       "source_file": "dashboard/src/components/ui/input-otp/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_input_otp_index_ts",
-      "community": 260
+      "community": 261
     },
     {
       "label": "index.ts",
@@ -1081,7 +1081,7 @@
       "source_file": "dashboard/src/components/ui/calendar/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_calendar_index_ts",
-      "community": 261
+      "community": 262
     },
     {
       "label": "index.ts",
@@ -1089,7 +1089,7 @@
       "source_file": "dashboard/src/components/ui/card/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_card_index_ts",
-      "community": 262
+      "community": 263
     },
     {
       "label": "index.ts",
@@ -1097,7 +1097,7 @@
       "source_file": "dashboard/src/components/ui/navigation-menu/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_navigation_menu_index_ts",
-      "community": 263
+      "community": 264
     },
     {
       "label": "index.ts",
@@ -1105,7 +1105,7 @@
       "source_file": "dashboard/src/components/ui/empty/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_empty_index_ts",
-      "community": 264
+      "community": 265
     },
     {
       "label": "index.ts",
@@ -1113,7 +1113,7 @@
       "source_file": "dashboard/src/components/ui/menubar/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_menubar_index_ts",
-      "community": 265
+      "community": 266
     },
     {
       "label": "index.ts",
@@ -1121,7 +1121,7 @@
       "source_file": "dashboard/src/components/ui/progress/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_progress_index_ts",
-      "community": 266
+      "community": 267
     },
     {
       "label": "index.ts",
@@ -1129,7 +1129,7 @@
       "source_file": "dashboard/src/components/ui/alert-dialog/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_alert_dialog_index_ts",
-      "community": 267
+      "community": 268
     },
     {
       "label": "index.ts",
@@ -1137,7 +1137,7 @@
       "source_file": "dashboard/src/components/ui/native-select/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_native_select_index_ts",
-      "community": 268
+      "community": 269
     },
     {
       "label": "index.ts",
@@ -1145,7 +1145,7 @@
       "source_file": "dashboard/src/components/ui/input/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_input_index_ts",
-      "community": 269
+      "community": 270
     },
     {
       "label": "index.ts",
@@ -1153,7 +1153,7 @@
       "source_file": "dashboard/src/components/ui/alert/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_alert_index_ts",
-      "community": 270
+      "community": 271
     },
     {
       "label": "index.ts",
@@ -1161,7 +1161,7 @@
       "source_file": "dashboard/src/components/ui/accordion/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_accordion_index_ts",
-      "community": 271
+      "community": 272
     },
     {
       "label": "index.ts",
@@ -1169,7 +1169,7 @@
       "source_file": "dashboard/src/components/ui/skeleton/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_skeleton_index_ts",
-      "community": 272
+      "community": 273
     },
     {
       "label": "index.ts",
@@ -1177,7 +1177,7 @@
       "source_file": "dashboard/src/components/ui/separator/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_separator_index_ts",
-      "community": 273
+      "community": 274
     },
     {
       "label": "index.ts",
@@ -1185,7 +1185,7 @@
       "source_file": "dashboard/src/components/ui/number-field/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_number_field_index_ts",
-      "community": 274
+      "community": 275
     },
     {
       "label": "utils.ts",
@@ -1193,7 +1193,7 @@
       "source_file": "dashboard/src/components/ui/chart/utils.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_chart_utils_ts",
-      "community": 124
+      "community": 125
     },
     {
       "label": "serializeKey()",
@@ -1201,7 +1201,7 @@
       "source_file": "dashboard/src/components/ui/chart/utils.ts",
       "source_location": "L9",
       "id": "utils_serializekey",
-      "community": 124
+      "community": 125
     },
     {
       "label": "componentToString()",
@@ -1209,7 +1209,7 @@
       "source_file": "dashboard/src/components/ui/chart/utils.ts",
       "source_location": "L22",
       "id": "utils_componenttostring",
-      "community": 124
+      "community": 125
     },
     {
       "label": "index.ts",
@@ -1217,7 +1217,7 @@
       "source_file": "dashboard/src/components/ui/chart/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_chart_index_ts",
-      "community": 275
+      "community": 276
     },
     {
       "label": "index.ts",
@@ -1225,7 +1225,7 @@
       "source_file": "dashboard/src/components/ui/hover-card/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_hover_card_index_ts",
-      "community": 276
+      "community": 277
     },
     {
       "label": "index.ts",
@@ -1233,7 +1233,7 @@
       "source_file": "dashboard/src/components/ui/checkbox/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_checkbox_index_ts",
-      "community": 277
+      "community": 278
     },
     {
       "label": "index.ts",
@@ -1241,7 +1241,7 @@
       "source_file": "dashboard/src/components/ui/label/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_label_index_ts",
-      "community": 278
+      "community": 279
     },
     {
       "label": "index.ts",
@@ -1249,7 +1249,7 @@
       "source_file": "dashboard/src/components/ui/dropdown-menu/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_dropdown_menu_index_ts",
-      "community": 279
+      "community": 280
     },
     {
       "label": "index.ts",
@@ -1257,7 +1257,7 @@
       "source_file": "dashboard/src/components/ui/slider/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_slider_index_ts",
-      "community": 280
+      "community": 281
     },
     {
       "label": "index.ts",
@@ -1265,7 +1265,7 @@
       "source_file": "dashboard/src/components/ui/stepper/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_stepper_index_ts",
-      "community": 281
+      "community": 282
     },
     {
       "label": "index.ts",
@@ -1273,7 +1273,7 @@
       "source_file": "dashboard/src/components/ui/spinner/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_spinner_index_ts",
-      "community": 282
+      "community": 283
     },
     {
       "label": "index.ts",
@@ -1281,7 +1281,7 @@
       "source_file": "dashboard/src/components/ui/field/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_field_index_ts",
-      "community": 283
+      "community": 284
     },
     {
       "label": "interface.ts",
@@ -1289,7 +1289,7 @@
       "source_file": "dashboard/src/components/ui/carousel/interface.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_carousel_interface_ts",
-      "community": 284
+      "community": 285
     },
     {
       "label": "index.ts",
@@ -1297,7 +1297,7 @@
       "source_file": "dashboard/src/components/ui/carousel/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_carousel_index_ts",
-      "community": 285
+      "community": 286
     },
     {
       "label": "useCarousel.ts",
@@ -1305,7 +1305,7 @@
       "source_file": "dashboard/src/components/ui/carousel/useCarousel.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_carousel_usecarousel_ts",
-      "community": 177
+      "community": 178
     },
     {
       "label": "useCarousel()",
@@ -1313,7 +1313,7 @@
       "source_file": "dashboard/src/components/ui/carousel/useCarousel.ts",
       "source_location": "L47",
       "id": "usecarousel_usecarousel",
-      "community": 177
+      "community": 178
     },
     {
       "label": "index.ts",
@@ -1321,7 +1321,7 @@
       "source_file": "dashboard/src/components/ui/combobox/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_combobox_index_ts",
-      "community": 286
+      "community": 287
     },
     {
       "label": "index.ts",
@@ -1329,7 +1329,7 @@
       "source_file": "dashboard/src/components/ui/toggle-group/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_toggle_group_index_ts",
-      "community": 287
+      "community": 288
     },
     {
       "label": "index.ts",
@@ -1337,7 +1337,7 @@
       "source_file": "dashboard/src/components/ui/context-menu/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_context_menu_index_ts",
-      "community": 288
+      "community": 289
     },
     {
       "label": "index.ts",
@@ -1345,7 +1345,7 @@
       "source_file": "dashboard/src/components/ui/tags-input/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_tags_input_index_ts",
-      "community": 289
+      "community": 290
     },
     {
       "label": "index.ts",
@@ -1353,7 +1353,7 @@
       "source_file": "dashboard/src/components/ui/toggle/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_toggle_index_ts",
-      "community": 290
+      "community": 291
     },
     {
       "label": "index.ts",
@@ -1361,7 +1361,7 @@
       "source_file": "dashboard/src/components/ui/dialog/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_dialog_index_ts",
-      "community": 291
+      "community": 292
     },
     {
       "label": "index.ts",
@@ -1369,7 +1369,7 @@
       "source_file": "dashboard/src/components/ui/popover/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_popover_index_ts",
-      "community": 292
+      "community": 293
     },
     {
       "label": "index.ts",
@@ -1377,7 +1377,7 @@
       "source_file": "dashboard/src/components/ui/input-group/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_input_group_index_ts",
-      "community": 293
+      "community": 294
     },
     {
       "label": "index.ts",
@@ -1385,7 +1385,7 @@
       "source_file": "dashboard/src/components/ui/sonner/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_sonner_index_ts",
-      "community": 294
+      "community": 295
     },
     {
       "label": "index.ts",
@@ -1393,7 +1393,7 @@
       "source_file": "dashboard/src/components/ui/textarea/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_textarea_index_ts",
-      "community": 295
+      "community": 296
     },
     {
       "label": "index.ts",
@@ -1401,7 +1401,7 @@
       "source_file": "dashboard/src/components/ui/button/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_button_index_ts",
-      "community": 296
+      "community": 297
     },
     {
       "label": "index.ts",
@@ -1409,7 +1409,7 @@
       "source_file": "dashboard/src/components/ui/scroll-area/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_scroll_area_index_ts",
-      "community": 297
+      "community": 298
     },
     {
       "label": "utils.ts",
@@ -1417,7 +1417,7 @@
       "source_file": "dashboard/src/components/ui/table/utils.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_table_utils_ts",
-      "community": 107
+      "community": 108
     },
     {
       "label": "valueUpdater()",
@@ -1425,7 +1425,7 @@
       "source_file": "dashboard/src/lib/utils.ts",
       "source_location": "L12",
       "id": "utils_valueupdater",
-      "community": 107
+      "community": 108
     },
     {
       "label": "index.ts",
@@ -1433,7 +1433,7 @@
       "source_file": "dashboard/src/components/ui/table/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_table_index_ts",
-      "community": 298
+      "community": 299
     },
     {
       "label": "index.ts",
@@ -1441,7 +1441,7 @@
       "source_file": "dashboard/src/components/ui/range-calendar/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_range_calendar_index_ts",
-      "community": 299
+      "community": 300
     },
     {
       "label": "index.ts",
@@ -1449,7 +1449,7 @@
       "source_file": "dashboard/src/components/ui/collapsible/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_collapsible_index_ts",
-      "community": 300
+      "community": 301
     },
     {
       "label": "index.ts",
@@ -1457,7 +1457,7 @@
       "source_file": "dashboard/src/components/ui/item/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_item_index_ts",
-      "community": 301
+      "community": 302
     },
     {
       "label": "index.ts",
@@ -1465,7 +1465,7 @@
       "source_file": "dashboard/src/components/ui/avatar/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_avatar_index_ts",
-      "community": 302
+      "community": 303
     },
     {
       "label": "index.ts",
@@ -1473,7 +1473,7 @@
       "source_file": "dashboard/src/components/ui/aspect-ratio/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_aspect_ratio_index_ts",
-      "community": 303
+      "community": 304
     },
     {
       "label": "index.ts",
@@ -1481,7 +1481,7 @@
       "source_file": "dashboard/src/components/ui/switch/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_switch_index_ts",
-      "community": 304
+      "community": 305
     },
     {
       "label": "index.ts",
@@ -1489,7 +1489,7 @@
       "source_file": "dashboard/src/components/ui/resizable/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_resizable_index_ts",
-      "community": 305
+      "community": 306
     },
     {
       "label": "index.ts",
@@ -1497,7 +1497,7 @@
       "source_file": "dashboard/src/components/ui/command/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_command_index_ts",
-      "community": 306
+      "community": 307
     },
     {
       "label": "index.ts",
@@ -1505,7 +1505,7 @@
       "source_file": "dashboard/src/components/ui/radio-group/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_radio_group_index_ts",
-      "community": 307
+      "community": 308
     },
     {
       "label": "index.ts",
@@ -1513,7 +1513,7 @@
       "source_file": "dashboard/src/components/ui/select/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_select_index_ts",
-      "community": 308
+      "community": 309
     },
     {
       "label": "index.ts",
@@ -1521,7 +1521,7 @@
       "source_file": "dashboard/src/components/ui/breadcrumb/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_breadcrumb_index_ts",
-      "community": 309
+      "community": 310
     },
     {
       "label": "index.ts",
@@ -1529,7 +1529,7 @@
       "source_file": "dashboard/src/components/ui/sheet/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_sheet_index_ts",
-      "community": 310
+      "community": 311
     },
     {
       "label": "index.ts",
@@ -1537,7 +1537,7 @@
       "source_file": "dashboard/src/components/ui/pin-input/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_pin_input_index_ts",
-      "community": 311
+      "community": 312
     },
     {
       "label": "index.ts",
@@ -1545,7 +1545,7 @@
       "source_file": "dashboard/src/components/ui/button-group/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_button_group_index_ts",
-      "community": 312
+      "community": 313
     },
     {
       "label": "index.ts",
@@ -1553,7 +1553,7 @@
       "source_file": "dashboard/src/components/ui/badge/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_ui_badge_index_ts",
-      "community": 313
+      "community": 314
     },
     {
       "label": "use-modal.ts",
@@ -1561,7 +1561,7 @@
       "source_file": "dashboard/src/components/prop-ui/modal/use-modal.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_prop_ui_modal_use_modal_ts",
-      "community": 178
+      "community": 179
     },
     {
       "label": "useModal()",
@@ -1569,7 +1569,7 @@
       "source_file": "dashboard/src/components/prop-ui/modal/use-modal.ts",
       "source_location": "L29",
       "id": "use_modal_usemodal",
-      "community": 178
+      "community": 179
     },
     {
       "label": "index.ts",
@@ -1577,7 +1577,7 @@
       "source_file": "dashboard/src/components/prop-ui/modal/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_prop_ui_modal_index_ts",
-      "community": 314
+      "community": 315
     },
     {
       "label": "types.ts",
@@ -1585,7 +1585,7 @@
       "source_file": "dashboard/src/components/app-sidebar/types.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_app_sidebar_types_ts",
-      "community": 315
+      "community": 316
     },
     {
       "label": "team.validator.ts",
@@ -1593,7 +1593,7 @@
       "source_file": "dashboard/src/components/app-sidebar/validators/team.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_app_sidebar_validators_team_validator_ts",
-      "community": 316
+      "community": 317
     },
     {
       "label": "sidebar-data.ts",
@@ -1601,7 +1601,7 @@
       "source_file": "dashboard/src/components/app-sidebar/data/sidebar-data.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_app_sidebar_data_sidebar_data_ts",
-      "community": 125
+      "community": 126
     },
     {
       "label": "useSidebarData()",
@@ -1609,7 +1609,7 @@
       "source_file": "dashboard/src/components/app-sidebar/data/sidebar-data.ts",
       "source_location": "L18",
       "id": "sidebar_data_usesidebardata",
-      "community": 125
+      "community": 126
     },
     {
       "label": "md5()",
@@ -1617,7 +1617,7 @@
       "source_file": "dashboard/src/components/app-sidebar/data/sidebar-data.ts",
       "source_location": "L37",
       "id": "sidebar_data_md5",
-      "community": 125
+      "community": 126
     },
     {
       "label": "types.ts",
@@ -1625,7 +1625,7 @@
       "source_file": "dashboard/src/components/sort-select/types.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_sort_select_types_ts",
-      "community": 317
+      "community": 318
     },
     {
       "label": "types.ts",
@@ -1633,7 +1633,7 @@
       "source_file": "dashboard/src/components/global-layout/types.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_global_layout_types_ts",
-      "community": 318
+      "community": 319
     },
     {
       "label": "index.ts",
@@ -1641,7 +1641,7 @@
       "source_file": "dashboard/src/components/global-layout/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_global_layout_index_ts",
-      "community": 319
+      "community": 320
     },
     {
       "label": "use-generate-vue-table.ts",
@@ -1649,7 +1649,7 @@
       "source_file": "dashboard/src/components/data-table/use-generate-vue-table.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_data_table_use_generate_vue_table_ts",
-      "community": 179
+      "community": 180
     },
     {
       "label": "generateVueTable()",
@@ -1657,7 +1657,7 @@
       "source_file": "dashboard/src/components/data-table/use-generate-vue-table.ts",
       "source_location": "L10",
       "id": "use_generate_vue_table_generatevuetable",
-      "community": 179
+      "community": 180
     },
     {
       "label": "types.ts",
@@ -1665,7 +1665,7 @@
       "source_file": "dashboard/src/components/data-table/types.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_data_table_types_ts",
-      "community": 320
+      "community": 321
     },
     {
       "label": "table-columns.ts",
@@ -1673,7 +1673,7 @@
       "source_file": "dashboard/src/components/data-table/table-columns.ts",
       "source_location": "L1",
       "id": "dashboard_src_components_data_table_table_columns_ts",
-      "community": 321
+      "community": 322
     },
     {
       "label": "oem-ids.test.ts",
@@ -1681,7 +1681,7 @@
       "source_file": "dashboard/src/lib/oem-ids.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_oem_ids_test_ts",
-      "community": 322
+      "community": 323
     },
     {
       "label": "capture-status.ts",
@@ -1689,7 +1689,7 @@
       "source_file": "dashboard/src/lib/capture-status.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_capture_status_ts",
-      "community": 180
+      "community": 181
     },
     {
       "label": "describeCaptureStatus()",
@@ -1697,7 +1697,7 @@
       "source_file": "dashboard/src/lib/capture-status.ts",
       "source_location": "L17",
       "id": "capture_status_describecapturestatus",
-      "community": 180
+      "community": 181
     },
     {
       "label": "capture-status.test.ts",
@@ -1705,7 +1705,7 @@
       "source_file": "dashboard/src/lib/capture-status.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_capture_status_test_ts",
-      "community": 181
+      "community": 182
     },
     {
       "label": "rec()",
@@ -1713,7 +1713,7 @@
       "source_file": "dashboard/src/lib/capture-status.test.ts",
       "source_location": "L7",
       "id": "capture_status_test_rec",
-      "community": 181
+      "community": 182
     },
     {
       "label": "recipes.ts",
@@ -1721,7 +1721,7 @@
       "source_file": "dashboard/src/lib/recipes.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_recipes_ts",
-      "community": 182
+      "community": 183
     },
     {
       "label": "normalizeRecipesResponse()",
@@ -1729,7 +1729,7 @@
       "source_file": "dashboard/src/lib/recipes.ts",
       "source_location": "L12",
       "id": "recipes_normalizerecipesresponse",
-      "community": 182
+      "community": 183
     },
     {
       "label": "markdown.ts",
@@ -1737,7 +1737,7 @@
       "source_file": "dashboard/src/lib/markdown.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_markdown_ts",
-      "community": 108
+      "community": 109
     },
     {
       "label": "renderMarkdown()",
@@ -1745,7 +1745,7 @@
       "source_file": "dashboard/src/lib/markdown.ts",
       "source_location": "L5",
       "id": "markdown_rendermarkdown",
-      "community": 108
+      "community": 109
     },
     {
       "label": "escapeHtml()",
@@ -1753,7 +1753,7 @@
       "source_file": "dashboard/src/lib/markdown.ts",
       "source_location": "L130",
       "id": "markdown_escapehtml",
-      "community": 108
+      "community": 109
     },
     {
       "label": "inline()",
@@ -1761,7 +1761,7 @@
       "source_file": "dashboard/src/lib/markdown.ts",
       "source_location": "L135",
       "id": "markdown_inline",
-      "community": 108
+      "community": 109
     },
     {
       "label": "utils.ts",
@@ -1769,7 +1769,7 @@
       "source_file": "dashboard/src/lib/utils.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_utils_ts",
-      "community": 107
+      "community": 108
     },
     {
       "label": "cn()",
@@ -1777,7 +1777,7 @@
       "source_file": "dashboard/src/lib/utils.ts",
       "source_location": "L8",
       "id": "utils_cn",
-      "community": 107
+      "community": 108
     },
     {
       "label": "recipes.test.ts",
@@ -1785,7 +1785,7 @@
       "source_file": "dashboard/src/lib/recipes.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_recipes_test_ts",
-      "community": 323
+      "community": 324
     },
     {
       "label": "scope-oem-css.test.ts",
@@ -1793,7 +1793,7 @@
       "source_file": "dashboard/src/lib/scope-oem-css.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_scope_oem_css_test_ts",
-      "community": 324
+      "community": 325
     },
     {
       "label": "scope-oem-css.ts",
@@ -2553,7 +2553,7 @@
       "source_file": "dashboard/src/lib/worker-api.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_worker_api_test_ts",
-      "community": 325
+      "community": 326
     },
     {
       "label": "supabase.ts",
@@ -2561,7 +2561,7 @@
       "source_file": "dashboard/src/lib/supabase.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_supabase_ts",
-      "community": 183
+      "community": 184
     },
     {
       "label": "noOpLock()",
@@ -2569,7 +2569,7 @@
       "source_file": "dashboard/src/lib/supabase.ts",
       "source_location": "L10",
       "id": "supabase_nooplock",
-      "community": 183
+      "community": 184
     },
     {
       "label": "oem-ids.ts",
@@ -2577,7 +2577,7 @@
       "source_file": "dashboard/src/lib/oem-ids.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_oem_ids_ts",
-      "community": 126
+      "community": 127
     },
     {
       "label": "isModelPageWriteProtected()",
@@ -2585,7 +2585,7 @@
       "source_file": "dashboard/src/lib/oem-ids.ts",
       "source_location": "L27",
       "id": "oem_ids_ismodelpagewriteprotected",
-      "community": 126
+      "community": 127
     },
     {
       "label": "getModelPageWriteProtectedMessage()",
@@ -2593,7 +2593,7 @@
       "source_file": "dashboard/src/lib/oem-ids.ts",
       "source_location": "L31",
       "id": "oem_ids_getmodelpagewriteprotectedmessage",
-      "community": 126
+      "community": 127
     },
     {
       "label": "scope-oem-section.test.ts",
@@ -2601,7 +2601,7 @@
       "source_file": "dashboard/src/lib/scope-oem-section.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_lib_scope_oem_section_test_ts",
-      "community": 326
+      "community": 327
     },
     {
       "label": "display.validator.ts",
@@ -2609,7 +2609,7 @@
       "source_file": "dashboard/src/pages/settings/validators/display.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_settings_validators_display_validator_ts",
-      "community": 327
+      "community": 328
     },
     {
       "label": "account.validator.ts",
@@ -2617,7 +2617,7 @@
       "source_file": "dashboard/src/pages/settings/validators/account.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_settings_validators_account_validator_ts",
-      "community": 328
+      "community": 329
     },
     {
       "label": "notifications.validator.ts",
@@ -2625,7 +2625,7 @@
       "source_file": "dashboard/src/pages/settings/validators/notifications.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_settings_validators_notifications_validator_ts",
-      "community": 329
+      "community": 330
     },
     {
       "label": "profile.validator.ts",
@@ -2633,7 +2633,7 @@
       "source_file": "dashboard/src/pages/settings/validators/profile.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_settings_validators_profile_validator_ts",
-      "community": 330
+      "community": 331
     },
     {
       "label": "appearance.validator.ts",
@@ -2641,7 +2641,7 @@
       "source_file": "dashboard/src/pages/settings/validators/appearance.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_settings_validators_appearance_validator_ts",
-      "community": 331
+      "community": 332
     },
     {
       "label": "columns.ts",
@@ -2649,7 +2649,7 @@
       "source_file": "dashboard/src/pages/tasks/components/columns.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_tasks_components_columns_ts",
-      "community": 332
+      "community": 333
     },
     {
       "label": "task.validator.ts",
@@ -2657,7 +2657,7 @@
       "source_file": "dashboard/src/pages/tasks/validators/task.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_tasks_validators_task_validator_ts",
-      "community": 333
+      "community": 334
     },
     {
       "label": "schema.ts",
@@ -2665,7 +2665,7 @@
       "source_file": "dashboard/src/pages/tasks/data/schema.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_tasks_data_schema_ts",
-      "community": 334
+      "community": 335
     },
     {
       "label": "data.ts",
@@ -2673,7 +2673,7 @@
       "source_file": "dashboard/src/pages/tasks/data/data.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_tasks_data_data_ts",
-      "community": 335
+      "community": 336
     },
     {
       "label": "index.ts",
@@ -2681,7 +2681,7 @@
       "source_file": "dashboard/src/pages/ai-talk/types/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_ai_talk_types_index_ts",
-      "community": 336
+      "community": 337
     },
     {
       "label": "talks.ts",
@@ -2689,7 +2689,7 @@
       "source_file": "dashboard/src/pages/ai-talk/data/talks.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_ai_talk_data_talks_ts",
-      "community": 337
+      "community": 338
     },
     {
       "label": "model-pages-status.ts",
@@ -2801,7 +2801,7 @@
       "source_file": "dashboard/src/pages/dashboard/model-pages-status.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_model_pages_status_test_ts",
-      "community": 338
+      "community": 339
     },
     {
       "label": "page-modes.ts",
@@ -2993,7 +2993,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/ai-model-options.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_page_builder_ai_model_options_test_ts",
-      "community": 339
+      "community": 340
     },
     {
       "label": "page-workflow.ts",
@@ -3081,7 +3081,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/toolbar-layout.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_page_builder_toolbar_layout_test_ts",
-      "community": 340
+      "community": 341
     },
     {
       "label": "ai-model-options.ts",
@@ -3089,7 +3089,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/ai-model-options.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_page_builder_ai_model_options_ts",
-      "community": 184
+      "community": 185
     },
     {
       "label": "getAiModelOverride()",
@@ -3097,7 +3097,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/ai-model-options.ts",
       "source_location": "L24",
       "id": "ai_model_options_getaimodeloverride",
-      "community": 184
+      "community": 185
     },
     {
       "label": "full-preview-workflow.test.ts",
@@ -3105,7 +3105,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/full-preview-workflow.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_page_builder_full_preview_workflow_test_ts",
-      "community": 341
+      "community": 342
     },
     {
       "label": "page-modes.test.ts",
@@ -3113,7 +3113,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/page-modes.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_page_builder_page_modes_test_ts",
-      "community": 342
+      "community": 343
     },
     {
       "label": "page-workflow.test.ts",
@@ -3121,7 +3121,7 @@
       "source_file": "dashboard/src/pages/dashboard/page-builder/page-workflow.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_page_builder_page_workflow_test_ts",
-      "community": 343
+      "community": 344
     },
     {
       "label": "variant-color-explorer-data.test.ts",
@@ -3129,7 +3129,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/variant-color-explorer-data.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_sections_variant_color_explorer_data_test_ts",
-      "community": 344
+      "community": 345
     },
     {
       "label": "variant-color-explorer-data.ts",
@@ -3185,7 +3185,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/sections/section-hero.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_sections_section_hero_test_ts",
-      "community": 345
+      "community": 346
     },
     {
       "label": "region-actions.test.ts",
@@ -3193,7 +3193,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/region-actions.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_region_actions_test_ts",
-      "community": 346
+      "community": 347
     },
     {
       "label": "section-registry.ts",
@@ -3201,7 +3201,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-registry.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_registry_ts",
-      "community": 185
+      "community": 186
     },
     {
       "label": "resolveSectionComponent()",
@@ -3209,7 +3209,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-registry.ts",
       "source_location": "L108",
       "id": "section_registry_resolvesectioncomponent",
-      "community": 185
+      "community": 186
     },
     {
       "label": "section-capture-options.test.ts",
@@ -3217,7 +3217,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-capture-options.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_capture_options_test_ts",
-      "community": 347
+      "community": 348
     },
     {
       "label": "section-registry.test.ts",
@@ -3225,7 +3225,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_registry_test_ts",
-      "community": 186
+      "community": 187
     },
     {
       "label": "expectComponentPath()",
@@ -3233,7 +3233,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-registry.test.ts",
       "source_location": "L25",
       "id": "section_registry_test_expectcomponentpath",
-      "community": 186
+      "community": 187
     },
     {
       "label": "clone-region-converter.test.ts",
@@ -3241,7 +3241,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-converter.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_region_converter_test_ts",
-      "community": 187
+      "community": 188
     },
     {
       "label": "compile()",
@@ -3249,7 +3249,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-converter.test.ts",
       "source_location": "L141",
       "id": "clone_region_converter_test_compile",
-      "community": 187
+      "community": 188
     },
     {
       "label": "section-templates.ts",
@@ -3329,7 +3329,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-components.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_components_test_ts",
-      "community": 127
+      "community": 128
     },
     {
       "label": "makeRegion()",
@@ -3337,7 +3337,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-components.test.ts",
       "source_location": "L13",
       "id": "clone_studio_components_test_makeregion",
-      "community": 127
+      "community": 128
     },
     {
       "label": "makeField()",
@@ -3345,7 +3345,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-components.test.ts",
       "source_location": "L27",
       "id": "clone_studio_components_test_makefield",
-      "community": 127
+      "community": 128
     },
     {
       "label": "clone-studio-html.ts",
@@ -3913,7 +3913,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-media.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_media_test_ts",
-      "community": 348
+      "community": 349
     },
     {
       "label": "section-templates.test.ts",
@@ -3921,7 +3921,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-templates.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_templates_test_ts",
-      "community": 349
+      "community": 350
     },
     {
       "label": "oem-templates.ts",
@@ -3929,7 +3929,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/oem-templates.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_oem_templates_ts",
-      "community": 350
+      "community": 351
     },
     {
       "label": "clone-studio-html.test.ts",
@@ -4649,7 +4649,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-icons.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_icons_ts",
-      "community": 188
+      "community": 189
     },
     {
       "label": "getSectionTypeIcon()",
@@ -4657,7 +4657,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-icons.ts",
       "source_location": "L60",
       "id": "section_icons_getsectiontypeicon",
-      "community": 188
+      "community": 189
     },
     {
       "label": "clone-studio-resize.test.ts",
@@ -4665,7 +4665,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-resize.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_resize_test_ts",
-      "community": 351
+      "community": 352
     },
     {
       "label": "recipe-patterns.ts",
@@ -4673,7 +4673,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/recipe-patterns.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_recipe_patterns_ts",
-      "community": 189
+      "community": 190
     },
     {
       "label": "getRecipePatternGroup()",
@@ -4681,7 +4681,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/recipe-patterns.ts",
       "source_location": "L41",
       "id": "recipe_patterns_getrecipepatterngroup",
-      "community": 189
+      "community": 190
     },
     {
       "label": "clone-studio-coords.test.ts",
@@ -4689,7 +4689,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-coords.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_coords_test_ts",
-      "community": 352
+      "community": 353
     },
     {
       "label": "recipe-patterns.test.ts",
@@ -4697,7 +4697,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/recipe-patterns.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_recipe_patterns_test_ts",
-      "community": 353
+      "community": 354
     },
     {
       "label": "region-actions.ts",
@@ -4705,7 +4705,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/region-actions.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_region_actions_ts",
-      "community": 109
+      "community": 110
     },
     {
       "label": "hasKind()",
@@ -4713,7 +4713,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/region-actions.ts",
       "source_location": "L12",
       "id": "region_actions_haskind",
-      "community": 109
+      "community": 110
     },
     {
       "label": "getRegionActions()",
@@ -4721,7 +4721,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/region-actions.ts",
       "source_location": "L16",
       "id": "region_actions_getregionactions",
-      "community": 109
+      "community": 110
     },
     {
       "label": "buildPatchPayload()",
@@ -4729,7 +4729,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/region-actions.ts",
       "source_location": "L40",
       "id": "region_actions_buildpatchpayload",
-      "community": 109
+      "community": 110
     },
     {
       "label": "section-capture-options.ts",
@@ -4737,7 +4737,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-capture-options.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_capture_options_ts",
-      "community": 354
+      "community": 355
     },
     {
       "label": "clone-preview-html.ts",
@@ -4745,7 +4745,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-preview-html.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_preview_html_ts",
-      "community": 128
+      "community": 129
     },
     {
       "label": "disableClonePreviewNavigation()",
@@ -4753,7 +4753,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-preview-html.ts",
       "source_location": "L1",
       "id": "clone_preview_html_disableclonepreviewnavigation",
-      "community": 128
+      "community": 129
     },
     {
       "label": "escapeHtmlAttribute()",
@@ -4761,7 +4761,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-preview-html.ts",
       "source_location": "L18",
       "id": "clone_preview_html_escapehtmlattribute",
-      "community": 128
+      "community": 129
     },
     {
       "label": "section-converter.test.ts",
@@ -4769,7 +4769,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-converter.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_converter_test_ts",
-      "community": 355
+      "community": 356
     },
     {
       "label": "section-media.ts",
@@ -4817,7 +4817,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/region-menu.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_region_menu_test_ts",
-      "community": 356
+      "community": 357
     },
     {
       "label": "section-icons.test.ts",
@@ -4825,7 +4825,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-icons.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_icons_test_ts",
-      "community": 357
+      "community": 358
     },
     {
       "label": "section-converter.ts",
@@ -4921,7 +4921,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/page-builder-canvas-preview.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_page_builder_canvas_preview_test_ts",
-      "community": 358
+      "community": 359
     },
     {
       "label": "style-guide-copy-affordances.test.ts",
@@ -4929,7 +4929,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/style-guide/style-guide-copy-affordances.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_style_guide_style_guide_copy_affordances_test_ts",
-      "community": 359
+      "community": 360
     },
     {
       "label": "columns.ts",
@@ -4937,7 +4937,7 @@
       "source_file": "dashboard/src/pages/users/components/columns.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_users_components_columns_ts",
-      "community": 360
+      "community": 361
     },
     {
       "label": "user.validator.ts",
@@ -4945,7 +4945,7 @@
       "source_file": "dashboard/src/pages/users/validators/user.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_users_validators_user_validator_ts",
-      "community": 361
+      "community": 362
     },
     {
       "label": "user-invite.validator.ts",
@@ -4953,7 +4953,7 @@
       "source_file": "dashboard/src/pages/users/validators/user-invite.validator.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_users_validators_user_invite_validator_ts",
-      "community": 362
+      "community": 363
     },
     {
       "label": "schema.ts",
@@ -4961,7 +4961,7 @@
       "source_file": "dashboard/src/pages/users/data/schema.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_users_data_schema_ts",
-      "community": 363
+      "community": 364
     },
     {
       "label": "data.ts",
@@ -4969,7 +4969,7 @@
       "source_file": "dashboard/src/pages/users/data/data.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_users_data_data_ts",
-      "community": 364
+      "community": 365
     },
     {
       "label": "users.ts",
@@ -4977,7 +4977,7 @@
       "source_file": "dashboard/src/pages/users/data/users.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_users_data_users_ts",
-      "community": 190
+      "community": 191
     },
     {
       "label": "fetchUsers()",
@@ -4985,7 +4985,7 @@
       "source_file": "dashboard/src/pages/users/data/users.ts",
       "source_location": "L5",
       "id": "users_fetchusers",
-      "community": 190
+      "community": 191
     },
     {
       "label": "preview-tailwind-toolbar.test.ts",
@@ -4993,7 +4993,7 @@
       "source_file": "dashboard/src/pages/preview/preview-tailwind-toolbar.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_preview_preview_tailwind_toolbar_test_ts",
-      "community": 365
+      "community": 366
     },
     {
       "label": "type.ts",
@@ -5001,7 +5001,7 @@
       "source_file": "dashboard/src/pages/apps/type.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_apps_type_ts",
-      "community": 366
+      "community": 367
     },
     {
       "label": "apps.ts",
@@ -5009,7 +5009,7 @@
       "source_file": "dashboard/src/pages/apps/data/apps.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_apps_data_apps_ts",
-      "community": 367
+      "community": 368
     },
     {
       "label": "type.ts",
@@ -5017,7 +5017,7 @@
       "source_file": "dashboard/src/pages/billing/components/transaction-card/type.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_billing_components_transaction_card_type_ts",
-      "community": 368
+      "community": 369
     },
     {
       "label": "columns.ts",
@@ -5025,7 +5025,7 @@
       "source_file": "dashboard/src/pages/billing/components/billing-history/columns.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_billing_components_billing_history_columns_ts",
-      "community": 369
+      "community": 370
     },
     {
       "label": "schema.ts",
@@ -5033,7 +5033,7 @@
       "source_file": "dashboard/src/pages/billing/components/billing-history/data/schema.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_billing_components_billing_history_data_schema_ts",
-      "community": 370
+      "community": 371
     },
     {
       "label": "data.ts",
@@ -5041,7 +5041,7 @@
       "source_file": "dashboard/src/pages/billing/components/billing-history/data/data.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_billing_components_billing_history_data_data_ts",
-      "community": 371
+      "community": 372
     },
     {
       "label": "response.type.ts",
@@ -5049,7 +5049,7 @@
       "source_file": "dashboard/src/services/types/response.type.ts",
       "source_location": "L1",
       "id": "dashboard_src_services_types_response_type_ts",
-      "community": 372
+      "community": 373
     },
     {
       "label": "example-tasks.api.ts",
@@ -5105,7 +5105,7 @@
       "source_file": "dashboard/src/router/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_router_index_ts",
-      "community": 373
+      "community": 374
     },
     {
       "label": "auth-guard.ts",
@@ -5113,7 +5113,7 @@
       "source_file": "dashboard/src/router/guard/auth-guard.ts",
       "source_location": "L1",
       "id": "dashboard_src_router_guard_auth_guard_ts",
-      "community": 191
+      "community": 192
     },
     {
       "label": "authGuard()",
@@ -5121,7 +5121,7 @@
       "source_file": "dashboard/src/router/guard/auth-guard.ts",
       "source_location": "L6",
       "id": "auth_guard_authguard",
-      "community": 191
+      "community": 192
     },
     {
       "label": "index.ts",
@@ -5129,7 +5129,7 @@
       "source_file": "dashboard/src/router/guard/index.ts",
       "source_location": "L1",
       "id": "dashboard_src_router_guard_index_ts",
-      "community": 129
+      "community": 130
     },
     {
       "label": "setupCommonGuard()",
@@ -5137,7 +5137,7 @@
       "source_file": "dashboard/src/router/guard/index.ts",
       "source_location": "L11",
       "id": "index_setupcommonguard",
-      "community": 129
+      "community": 130
     },
     {
       "label": "createRouterGuard()",
@@ -5145,7 +5145,7 @@
       "source_file": "dashboard/src/router/guard/index.ts",
       "source_location": "L22",
       "id": "index_createrouterguard",
-      "community": 129
+      "community": 130
     },
     {
       "label": "harvest-ford-catalogs.ts",
@@ -5273,7 +5273,7 @@
       "source_file": "scripts/trigger-toyota-sync.ts",
       "source_location": "L1",
       "id": "scripts_trigger_toyota_sync_ts",
-      "community": 192
+      "community": 193
     },
     {
       "label": "main()",
@@ -5281,7 +5281,7 @@
       "source_file": "scripts/trigger-toyota-sync.ts",
       "source_location": "L10",
       "id": "trigger_toyota_sync_main",
-      "community": 192
+      "community": 193
     },
     {
       "label": "populate-ford-from-brochures.ts",
@@ -5377,7 +5377,7 @@
       "source_file": "scripts/find-ford-response.ts",
       "source_location": "L1",
       "id": "scripts_find_ford_response_ts",
-      "community": 193
+      "community": 194
     },
     {
       "label": "check()",
@@ -5385,7 +5385,7 @@
       "source_file": "scripts/find-ford-response.ts",
       "source_location": "L12",
       "id": "find_ford_response_check",
-      "community": 193
+      "community": 194
     },
     {
       "label": "populate-ford-db.ts",
@@ -5449,7 +5449,7 @@
       "source_file": "scripts/fetch-ford-json.ts",
       "source_location": "L1",
       "id": "scripts_fetch_ford_json_ts",
-      "community": 130
+      "community": 131
     },
     {
       "label": "fetchFordVehicleMenu()",
@@ -5457,7 +5457,7 @@
       "source_file": "scripts/fetch-ford-json.ts",
       "source_location": "L9",
       "id": "fetch_ford_json_fetchfordvehiclemenu",
-      "community": 130
+      "community": 131
     },
     {
       "label": "analyzeStructure()",
@@ -5465,7 +5465,7 @@
       "source_file": "scripts/fetch-ford-json.ts",
       "source_location": "L102",
       "id": "fetch_ford_json_analyzestructure",
-      "community": 130
+      "community": 131
     },
     {
       "label": "backfill-ford-model-ids.ts",
@@ -5473,7 +5473,7 @@
       "source_file": "scripts/backfill-ford-model-ids.ts",
       "source_location": "L1",
       "id": "scripts_backfill_ford_model_ids_ts",
-      "community": 131
+      "community": 132
     },
     {
       "label": "normalize()",
@@ -5481,7 +5481,7 @@
       "source_file": "scripts/backfill-ford-model-ids.ts",
       "source_location": "L20",
       "id": "backfill_ford_model_ids_normalize",
-      "community": 131
+      "community": 132
     },
     {
       "label": "main()",
@@ -5489,7 +5489,7 @@
       "source_file": "scripts/backfill-ford-model-ids.ts",
       "source_location": "L24",
       "id": "backfill_ford_model_ids_main",
-      "community": 131
+      "community": 132
     },
     {
       "label": "populate-ford-accessories-rsc.ts",
@@ -5577,7 +5577,7 @@
       "source_file": "scripts/probe-ford-showroom-dom.ts",
       "source_location": "L1",
       "id": "scripts_probe_ford_showroom_dom_ts",
-      "community": 194
+      "community": 195
     },
     {
       "label": "main()",
@@ -5585,7 +5585,7 @@
       "source_file": "scripts/probe-ford-showroom-dom.ts",
       "source_location": "L15",
       "id": "probe_ford_showroom_dom_main",
-      "community": 194
+      "community": 195
     },
     {
       "label": "populate-ford-pricing-rsc.ts",
@@ -5865,7 +5865,7 @@
       "source_file": "scripts/ford-url-map.ts",
       "source_location": "L1",
       "id": "scripts_ford_url_map_ts",
-      "community": 110
+      "community": 111
     },
     {
       "label": "loadUrlMap()",
@@ -5873,7 +5873,7 @@
       "source_file": "scripts/ford-url-map.ts",
       "source_location": "L22",
       "id": "ford_url_map_loadurlmap",
-      "community": 110
+      "community": 111
     },
     {
       "label": "modelToUrlName()",
@@ -5881,7 +5881,7 @@
       "source_file": "scripts/ford-url-map.ts",
       "source_location": "L71",
       "id": "ford_url_map_modeltourlname",
-      "community": 110
+      "community": 111
     },
     {
       "label": "siblingSlugsFor()",
@@ -5889,7 +5889,7 @@
       "source_file": "scripts/ford-url-map.ts",
       "source_location": "L78",
       "id": "ford_url_map_siblingslugsfor",
-      "community": 110
+      "community": 111
     },
     {
       "label": "probe-ford-nukleus.ts",
@@ -5937,7 +5937,7 @@
       "source_file": "scripts/find-ford-full-brochures.ts",
       "source_location": "L1",
       "id": "scripts_find_ford_full_brochures_ts",
-      "community": 195
+      "community": 196
     },
     {
       "label": "main()",
@@ -5945,7 +5945,7 @@
       "source_file": "scripts/find-ford-full-brochures.ts",
       "source_location": "L16",
       "id": "find_ford_full_brochures_main",
-      "community": 195
+      "community": 196
     },
     {
       "label": "run-migrations.js",
@@ -5953,7 +5953,7 @@
       "source_file": "scripts/run-migrations.js",
       "source_location": "L1",
       "id": "scripts_run_migrations_js",
-      "community": 132
+      "community": 133
     },
     {
       "label": "runMigration()",
@@ -5961,7 +5961,7 @@
       "source_file": "scripts/run-migrations.js",
       "source_location": "L22",
       "id": "run_migrations_runmigration",
-      "community": 132
+      "community": 133
     },
     {
       "label": "main()",
@@ -5969,7 +5969,7 @@
       "source_file": "scripts/run-migrations.js",
       "source_location": "L72",
       "id": "run_migrations_main",
-      "community": 132
+      "community": 133
     },
     {
       "label": "populate-ford-builder-cards.ts",
@@ -6193,7 +6193,7 @@
       "source_file": "scripts/execute-sql.js",
       "source_location": "L1",
       "id": "scripts_execute_sql_js",
-      "community": 111
+      "community": 112
     },
     {
       "label": "execSql()",
@@ -6201,7 +6201,7 @@
       "source_file": "scripts/execute-sql.js",
       "source_location": "L15",
       "id": "execute_sql_execsql",
-      "community": 111
+      "community": 112
     },
     {
       "label": "createExecSqlFunction()",
@@ -6209,7 +6209,7 @@
       "source_file": "scripts/execute-sql.js",
       "source_location": "L38",
       "id": "execute_sql_createexecsqlfunction",
-      "community": 111
+      "community": 112
     },
     {
       "label": "runMigrations()",
@@ -6217,7 +6217,7 @@
       "source_file": "scripts/execute-sql.js",
       "source_location": "L74",
       "id": "execute_sql_runmigrations",
-      "community": 111
+      "community": 112
     },
     {
       "label": "setup-database.js",
@@ -6225,7 +6225,7 @@
       "source_file": "scripts/setup-database.js",
       "source_location": "L1",
       "id": "scripts_setup_database_js",
-      "community": 196
+      "community": 197
     },
     {
       "label": "setupDatabase()",
@@ -6233,7 +6233,7 @@
       "source_file": "scripts/setup-database.js",
       "source_location": "L19",
       "id": "setup_database_setupdatabase",
-      "community": 196
+      "community": 197
     },
     {
       "label": "verify-setup.js",
@@ -6241,7 +6241,7 @@
       "source_file": "scripts/verify-setup.js",
       "source_location": "L1",
       "id": "scripts_verify_setup_js",
-      "community": 197
+      "community": 198
     },
     {
       "label": "verify()",
@@ -6249,7 +6249,7 @@
       "source_file": "scripts/verify-setup.js",
       "source_location": "L17",
       "id": "verify_setup_verify",
-      "community": 197
+      "community": 198
     },
     {
       "label": "seed-ford-discovered-apis.ts",
@@ -6257,7 +6257,7 @@
       "source_file": "scripts/seed-ford-discovered-apis.ts",
       "source_location": "L1",
       "id": "scripts_seed_ford_discovered_apis_ts",
-      "community": 198
+      "community": 199
     },
     {
       "label": "main()",
@@ -6265,7 +6265,7 @@
       "source_file": "scripts/seed-ford-discovered-apis.ts",
       "source_location": "L189",
       "id": "seed_ford_discovered_apis_main",
-      "community": 198
+      "community": 199
     },
     {
       "label": "populate-ford-colour-pricing-rsc.ts",
@@ -6409,7 +6409,7 @@
       "source_file": "lib/index.ts",
       "source_location": "L1",
       "id": "lib_index_ts",
-      "community": 374
+      "community": 375
     },
     {
       "label": "types.ts",
@@ -6417,7 +6417,7 @@
       "source_file": "lib/shared/types.ts",
       "source_location": "L1",
       "id": "lib_shared_types_ts",
-      "community": 375
+      "community": 376
     },
     {
       "label": "index.ts",
@@ -6745,7 +6745,7 @@
       "source_file": "skills/cloudflare-browser/scripts/cdp-client.js",
       "source_location": "L1",
       "id": "skills_cloudflare_browser_scripts_cdp_client_js",
-      "community": 199
+      "community": 200
     },
     {
       "label": "createClient()",
@@ -6753,7 +6753,7 @@
       "source_file": "skills/cloudflare-browser/scripts/cdp-client.js",
       "source_location": "L27",
       "id": "cdp_client_createclient",
-      "community": 199
+      "community": 200
     },
     {
       "label": "screenshot.js",
@@ -6761,7 +6761,7 @@
       "source_file": "skills/cloudflare-browser/scripts/screenshot.js",
       "source_location": "L1",
       "id": "skills_cloudflare_browser_scripts_screenshot_js",
-      "community": 200
+      "community": 201
     },
     {
       "label": "main()",
@@ -6769,7 +6769,7 @@
       "source_file": "skills/cloudflare-browser/scripts/screenshot.js",
       "source_location": "L31",
       "id": "screenshot_main",
-      "community": 200
+      "community": 201
     },
     {
       "label": "video.js",
@@ -6777,7 +6777,7 @@
       "source_file": "skills/cloudflare-browser/scripts/video.js",
       "source_location": "L1",
       "id": "skills_cloudflare_browser_scripts_video_js",
-      "community": 201
+      "community": 202
     },
     {
       "label": "main()",
@@ -6785,7 +6785,7 @@
       "source_file": "skills/cloudflare-browser/scripts/video.js",
       "source_location": "L43",
       "id": "video_main",
-      "community": 201
+      "community": 202
     },
     {
       "label": "main.ts",
@@ -6793,7 +6793,7 @@
       "source_file": "apify/pdf-fetch/main.ts",
       "source_location": "L1",
       "id": "apify_pdf_fetch_main_ts",
-      "community": 376
+      "community": 377
     },
     {
       "label": "main.ts",
@@ -6801,7 +6801,7 @@
       "source_file": "apify/toyota-sync/main.ts",
       "source_location": "L1",
       "id": "apify_toyota_sync_main_ts",
-      "community": 202
+      "community": 203
     },
     {
       "label": "syncVariant()",
@@ -6809,7 +6809,7 @@
       "source_file": "apify/toyota-sync/main.ts",
       "source_location": "L241",
       "id": "main_syncvariant",
-      "community": 202
+      "community": 203
     },
     {
       "label": "index.test.ts",
@@ -6817,7 +6817,7 @@
       "source_file": "src/index.test.ts",
       "source_location": "L1",
       "id": "src_index_test_ts",
-      "community": 377
+      "community": 378
     },
     {
       "label": "openclaw-url-rewrite.test.ts",
@@ -6825,7 +6825,7 @@
       "source_file": "src/openclaw-url-rewrite.test.ts",
       "source_location": "L1",
       "id": "src_openclaw_url_rewrite_test_ts",
-      "community": 378
+      "community": 379
     },
     {
       "label": "orchestrator.ts",
@@ -7409,7 +7409,7 @@
       "source_file": "src/env.d.ts",
       "source_location": "L1",
       "id": "src_env_d_ts",
-      "community": 379
+      "community": 380
     },
     {
       "label": "scheduled.ts",
@@ -7417,7 +7417,7 @@
       "source_file": "src/scheduled.ts",
       "source_location": "L1",
       "id": "src_scheduled_ts",
-      "community": 133
+      "community": 134
     },
     {
       "label": "handleScheduled()",
@@ -7425,7 +7425,7 @@
       "source_file": "src/scheduled.ts",
       "source_location": "L143",
       "id": "scheduled_handlescheduled",
-      "community": 133
+      "community": 134
     },
     {
       "label": "createOrchestratorFromEnv()",
@@ -7433,7 +7433,7 @@
       "source_file": "src/scheduled.ts",
       "source_location": "L382",
       "id": "scheduled_createorchestratorfromenv",
-      "community": 133
+      "community": 134
     },
     {
       "label": "model-page-protection.ts",
@@ -7441,7 +7441,7 @@
       "source_file": "src/model-page-protection.ts",
       "source_location": "L1",
       "id": "src_model_page_protection_ts",
-      "community": 134
+      "community": 135
     },
     {
       "label": "isModelPageWriteProtected()",
@@ -7449,7 +7449,7 @@
       "source_file": "src/model-page-protection.ts",
       "source_location": "L5",
       "id": "model_page_protection_ismodelpagewriteprotected",
-      "community": 134
+      "community": 135
     },
     {
       "label": "getModelPageWriteProtectedMessage()",
@@ -7457,7 +7457,7 @@
       "source_file": "src/model-page-protection.ts",
       "source_location": "L9",
       "id": "model_page_protection_getmodelpagewriteprotectedmessage",
-      "community": 134
+      "community": 135
     },
     {
       "label": "logging.test.ts",
@@ -7465,7 +7465,7 @@
       "source_file": "src/logging.test.ts",
       "source_location": "L1",
       "id": "src_logging_test_ts",
-      "community": 380
+      "community": 381
     },
     {
       "label": "container.ts",
@@ -7473,7 +7473,7 @@
       "source_file": "src/container.ts",
       "source_location": "L1",
       "id": "src_container_ts",
-      "community": 135
+      "community": 136
     },
     {
       "label": "handleRequest()",
@@ -7481,7 +7481,7 @@
       "source_file": "src/container.ts",
       "source_location": "L34",
       "id": "container_handlerequest",
-      "community": 135
+      "community": 136
     },
     {
       "label": "executeCode()",
@@ -7489,7 +7489,7 @@
       "source_file": "src/container.ts",
       "source_location": "L100",
       "id": "container_executecode",
-      "community": 135
+      "community": 136
     },
     {
       "label": "test-utils.ts",
@@ -7545,7 +7545,7 @@
       "source_file": "src/sandbox-paths.ts",
       "source_location": "L1",
       "id": "src_sandbox_paths_ts",
-      "community": 136
+      "community": 137
     },
     {
       "label": "isProductionArtifactPath()",
@@ -7553,7 +7553,7 @@
       "source_file": "src/sandbox-paths.ts",
       "source_location": "L1",
       "id": "sandbox_paths_isproductionartifactpath",
-      "community": 136
+      "community": 137
     },
     {
       "label": "shouldAttachSandboxForPath()",
@@ -7561,7 +7561,7 @@
       "source_file": "src/sandbox-paths.ts",
       "source_location": "L5",
       "id": "sandbox_paths_shouldattachsandboxforpath",
-      "community": 136
+      "community": 137
     },
     {
       "label": "types.ts",
@@ -7569,7 +7569,7 @@
       "source_file": "src/types.ts",
       "source_location": "L1",
       "id": "src_types_ts",
-      "community": 381
+      "community": 382
     },
     {
       "label": "openclaw-url-rewrite.ts",
@@ -7577,7 +7577,7 @@
       "source_file": "src/openclaw-url-rewrite.ts",
       "source_location": "L1",
       "id": "src_openclaw_url_rewrite_ts",
-      "community": 137
+      "community": 138
     },
     {
       "label": "rewriteOpenClawNestedAssetPath()",
@@ -7585,7 +7585,7 @@
       "source_file": "src/openclaw-url-rewrite.ts",
       "source_location": "L8",
       "id": "openclaw_url_rewrite_rewriteopenclawnestedassetpath",
-      "community": 137
+      "community": 138
     },
     {
       "label": "rewriteOpenClawNestedAssetRequest()",
@@ -7593,7 +7593,7 @@
       "source_file": "src/openclaw-url-rewrite.ts",
       "source_location": "L24",
       "id": "openclaw_url_rewrite_rewriteopenclawnestedassetrequest",
-      "community": 137
+      "community": 138
     },
     {
       "label": "orchestrator.test.ts",
@@ -7601,7 +7601,7 @@
       "source_file": "src/orchestrator.test.ts",
       "source_location": "L1",
       "id": "src_orchestrator_test_ts",
-      "community": 382
+      "community": 383
     },
     {
       "label": "index.ts",
@@ -7689,7 +7689,7 @@
       "source_file": "src/config.ts",
       "source_location": "L1",
       "id": "src_config_ts",
-      "community": 203
+      "community": 204
     },
     {
       "label": "getR2BucketName()",
@@ -7697,7 +7697,7 @@
       "source_file": "src/config.ts",
       "source_location": "L18",
       "id": "config_getr2bucketname",
-      "community": 203
+      "community": 204
     },
     {
       "label": "assets.d.ts",
@@ -7705,7 +7705,7 @@
       "source_file": "src/assets.d.ts",
       "source_location": "L1",
       "id": "src_assets_d_ts",
-      "community": 383
+      "community": 384
     },
     {
       "label": "slack.ts",
@@ -7889,7 +7889,7 @@
       "source_file": "src/notify/index.ts",
       "source_location": "L1",
       "id": "src_notify_index_ts",
-      "community": 384
+      "community": 385
     },
     {
       "label": "change-detector.ts",
@@ -8465,7 +8465,7 @@
       "source_file": "src/design/model-page-write-protection.test.ts",
       "source_location": "L1",
       "id": "src_design_model_page_write_protection_test_ts",
-      "community": 385
+      "community": 386
     },
     {
       "label": "section-mapper.test.ts",
@@ -8473,7 +8473,7 @@
       "source_file": "src/design/section-mapper.test.ts",
       "source_location": "L1",
       "id": "src_design_section_mapper_test_ts",
-      "community": 386
+      "community": 387
     },
     {
       "label": "tailwind-style-normalizer.test.ts",
@@ -8481,7 +8481,7 @@
       "source_file": "src/design/tailwind-style-normalizer.test.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_style_normalizer_test_ts",
-      "community": 387
+      "community": 388
     },
     {
       "label": "capture-completeness.test.ts",
@@ -8489,7 +8489,7 @@
       "source_file": "src/design/capture-completeness.test.ts",
       "source_location": "L1",
       "id": "src_design_capture_completeness_test_ts",
-      "community": 204
+      "community": 205
     },
     {
       "label": "makeAudit()",
@@ -8497,7 +8497,7 @@
       "source_file": "src/design/capture-completeness.test.ts",
       "source_location": "L18",
       "id": "capture_completeness_test_makeaudit",
-      "community": 204
+      "community": 205
     },
     {
       "label": "legacy-importer.ts",
@@ -8657,7 +8657,7 @@
       "source_file": "src/design/pipeline.test.ts",
       "source_location": "L1",
       "id": "src_design_pipeline_test_ts",
-      "community": 388
+      "community": 389
     },
     {
       "label": "compiler-contracts.test.ts",
@@ -8665,7 +8665,7 @@
       "source_file": "src/design/compiler-contracts.test.ts",
       "source_location": "L1",
       "id": "src_design_compiler_contracts_test_ts",
-      "community": 389
+      "community": 390
     },
     {
       "label": "capture-profiles.ts",
@@ -8673,7 +8673,7 @@
       "source_file": "src/design/capture-profiles.ts",
       "source_location": "L1",
       "id": "src_design_capture_profiles_ts",
-      "community": 205
+      "community": 206
     },
     {
       "label": "resolveCaptureProfile()",
@@ -8681,7 +8681,7 @@
       "source_file": "src/design/capture-profiles.ts",
       "source_location": "L60",
       "id": "capture_profiles_resolvecaptureprofile",
-      "community": 205
+      "community": 206
     },
     {
       "label": "page-modes.ts",
@@ -8801,7 +8801,7 @@
       "source_file": "src/design/tailwind-recipe-types.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_recipe_types_ts",
-      "community": 112
+      "community": 113
     },
     {
       "label": "isRecord()",
@@ -8809,7 +8809,7 @@
       "source_file": "src/design/tailwind-recipe-types.ts",
       "source_location": "L48",
       "id": "tailwind_recipe_types_isrecord",
-      "community": 112
+      "community": 113
     },
     {
       "label": "isNode()",
@@ -8817,7 +8817,7 @@
       "source_file": "src/design/tailwind-recipe-types.ts",
       "source_location": "L52",
       "id": "tailwind_recipe_types_isnode",
-      "community": 112
+      "community": 113
     },
     {
       "label": "isTailwindRecipeArtifact()",
@@ -8825,7 +8825,7 @@
       "source_file": "src/design/tailwind-recipe-types.ts",
       "source_location": "L62",
       "id": "tailwind_recipe_types_istailwindrecipeartifact",
-      "community": 112
+      "community": 113
     },
     {
       "label": "tailwind-recipe-types.test.ts",
@@ -8833,7 +8833,7 @@
       "source_file": "src/design/tailwind-recipe-types.test.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_recipe_types_test_ts",
-      "community": 390
+      "community": 391
     },
     {
       "label": "gac-scraper.ts",
@@ -9153,7 +9153,7 @@
       "source_file": "src/design/clone-studio-audit-script.test.ts",
       "source_location": "L1",
       "id": "src_design_clone_studio_audit_script_test_ts",
-      "community": 391
+      "community": 392
     },
     {
       "label": "hosted-oem-fonts.ts",
@@ -9217,7 +9217,7 @@
       "source_file": "src/design/compiler-contracts.ts",
       "source_location": "L1",
       "id": "src_design_compiler_contracts_ts",
-      "community": 113
+      "community": 114
     },
     {
       "label": "isCompileJobStatus()",
@@ -9225,7 +9225,7 @@
       "source_file": "src/design/compiler-contracts.ts",
       "source_location": "L229",
       "id": "compiler_contracts_iscompilejobstatus",
-      "community": 113
+      "community": 114
     },
     {
       "label": "isRenderTarget()",
@@ -9233,7 +9233,7 @@
       "source_file": "src/design/compiler-contracts.ts",
       "source_location": "L233",
       "id": "compiler_contracts_isrendertarget",
-      "community": 113
+      "community": 114
     },
     {
       "label": "normalizeRenderTargets()",
@@ -9241,7 +9241,7 @@
       "source_file": "src/design/compiler-contracts.ts",
       "source_location": "L237",
       "id": "compiler_contracts_normalizerendertargets",
-      "community": 113
+      "community": 114
     },
     {
       "label": "capture-profiles.test.ts",
@@ -9249,7 +9249,7 @@
       "source_file": "src/design/capture-profiles.test.ts",
       "source_location": "L1",
       "id": "src_design_capture_profiles_test_ts",
-      "community": 392
+      "community": 393
     },
     {
       "label": "section-mapper.ts",
@@ -9361,7 +9361,7 @@
       "source_file": "src/design/recipe-response.test.ts",
       "source_location": "L1",
       "id": "src_design_recipe_response_test_ts",
-      "community": 206
+      "community": 207
     },
     {
       "label": "from()",
@@ -9369,7 +9369,7 @@
       "source_file": "src/design/recipe-response.test.ts",
       "source_location": "L124",
       "id": "recipe_response_test_from",
-      "community": 206
+      "community": 207
     },
     {
       "label": "agent.ts",
@@ -9489,7 +9489,7 @@
       "source_file": "src/design/hosted-oem-fonts.test.ts",
       "source_location": "L1",
       "id": "src_design_hosted_oem_fonts_test_ts",
-      "community": 207
+      "community": 208
     },
     {
       "label": "makeTokens()",
@@ -9497,7 +9497,7 @@
       "source_file": "src/design/hosted-oem-fonts.test.ts",
       "source_location": "L10",
       "id": "hosted_oem_fonts_test_maketokens",
-      "community": 207
+      "community": 208
     },
     {
       "label": "pipeline.ts",
@@ -9564,12 +9564,52 @@
       "community": 68
     },
     {
+      "label": "clone-annotator.ts",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L1",
+      "id": "src_design_clone_annotator_ts",
+      "community": 99
+    },
+    {
+      "label": "classAttr()",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L55",
+      "id": "clone_annotator_classattr",
+      "community": 99
+    },
+    {
+      "label": "stripForcedStyles()",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L59",
+      "id": "clone_annotator_stripforcedstyles",
+      "community": 99
+    },
+    {
+      "label": "resolveByPath()",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L74",
+      "id": "clone_annotator_resolvebypath",
+      "community": 99
+    },
+    {
+      "label": "annotateCloneInteractions()",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L85",
+      "id": "clone_annotator_annotatecloneinteractions",
+      "community": 99
+    },
+    {
       "label": "section-parser.test.ts",
       "file_type": "code",
       "source_file": "src/design/section-parser.test.ts",
       "source_location": "L1",
       "id": "src_design_section_parser_test_ts",
-      "community": 138
+      "community": 139
     },
     {
       "label": "resolveByPath()",
@@ -9577,7 +9617,7 @@
       "source_file": "src/design/section-parser.test.ts",
       "source_location": "L164",
       "id": "section_parser_test_resolvebypath",
-      "community": 138
+      "community": 139
     },
     {
       "label": "widget()",
@@ -9585,7 +9625,7 @@
       "source_file": "src/design/section-parser.test.ts",
       "source_location": "L189",
       "id": "section_parser_test_widget",
-      "community": 138
+      "community": 139
     },
     {
       "label": "capture-completeness.ts",
@@ -9593,7 +9633,7 @@
       "source_file": "src/design/capture-completeness.ts",
       "source_location": "L1",
       "id": "src_design_capture_completeness_ts",
-      "community": 208
+      "community": 209
     },
     {
       "label": "evaluateCaptureCompleteness()",
@@ -9601,7 +9641,7 @@
       "source_file": "src/design/capture-completeness.ts",
       "source_location": "L45",
       "id": "capture_completeness_evaluatecapturecompleteness",
-      "community": 208
+      "community": 209
     },
     {
       "label": "recipe-extractor.test.ts",
@@ -9609,7 +9649,7 @@
       "source_file": "src/design/recipe-extractor.test.ts",
       "source_location": "L1",
       "id": "src_design_recipe_extractor_test_ts",
-      "community": 393
+      "community": 394
     },
     {
       "label": "page-capturer.test.ts",
@@ -9730,6 +9770,14 @@
       "source_location": "L824",
       "id": "page_capturer_test_testmutationobserver_disconnect",
       "community": 32
+    },
+    {
+      "label": "clone-annotator.test.ts",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.test.ts",
+      "source_location": "L1",
+      "id": "src_design_clone_annotator_test_ts",
+      "community": 395
     },
     {
       "label": "page-generator.ts",
@@ -10009,7 +10057,7 @@
       "source_file": "src/design/tailwind-recipe-compiler.test.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_recipe_compiler_test_ts",
-      "community": 394
+      "community": 396
     },
     {
       "label": "component-generator.ts",
@@ -10489,7 +10537,7 @@
       "source_file": "src/design/extraction-runner.ts",
       "source_location": "L1",
       "id": "src_design_extraction_runner_ts",
-      "community": 114
+      "community": 115
     },
     {
       "label": "ExtractionRunner",
@@ -10497,7 +10545,7 @@
       "source_file": "src/design/extraction-runner.ts",
       "source_location": "L12",
       "id": "extraction_runner_extractionrunner",
-      "community": 114
+      "community": 115
     },
     {
       "label": ".constructor()",
@@ -10505,7 +10553,7 @@
       "source_file": "src/design/extraction-runner.ts",
       "source_location": "L13",
       "id": "extraction_runner_extractionrunner_constructor",
-      "community": 114
+      "community": 115
     },
     {
       "label": ".run()",
@@ -10513,7 +10561,7 @@
       "source_file": "src/design/extraction-runner.ts",
       "source_location": "L24",
       "id": "extraction_runner_extractionrunner_run",
-      "community": 114
+      "community": 115
     },
     {
       "label": "oem-scraper.ts",
@@ -10633,7 +10681,7 @@
       "source_file": "src/design/component-generator.test.ts",
       "source_location": "L1",
       "id": "src_design_component_generator_test_ts",
-      "community": 99
+      "community": 100
     },
     {
       "label": "makeProfile()",
@@ -10641,7 +10689,7 @@
       "source_file": "src/design/component-generator.test.ts",
       "source_location": "L18",
       "id": "component_generator_test_makeprofile",
-      "community": 99
+      "community": 100
     },
     {
       "label": "makeSection()",
@@ -10649,7 +10697,7 @@
       "source_file": "src/design/component-generator.test.ts",
       "source_location": "L44",
       "id": "component_generator_test_makesection",
-      "community": 99
+      "community": 100
     },
     {
       "label": "buildBrandContext()",
@@ -10657,7 +10705,7 @@
       "source_file": "src/design/component-generator.test.ts",
       "source_location": "L62",
       "id": "component_generator_test_buildbrandcontext",
-      "community": 99
+      "community": 100
     },
     {
       "label": "buildHtml()",
@@ -10665,7 +10713,7 @@
       "source_file": "src/design/component-generator.test.ts",
       "source_location": "L125",
       "id": "component_generator_test_buildhtml",
-      "community": 99
+      "community": 100
     },
     {
       "label": "production-css-scope.test.ts",
@@ -10673,7 +10721,7 @@
       "source_file": "src/design/production-css-scope.test.ts",
       "source_location": "L1",
       "id": "src_design_production_css_scope_test_ts",
-      "community": 395
+      "community": 397
     },
     {
       "label": "page-structurer.test.ts",
@@ -10841,7 +10889,7 @@
       "source_file": "src/design/tailwind-declaration-mapper.test.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_declaration_mapper_test_ts",
-      "community": 396
+      "community": 398
     },
     {
       "label": "memory.ts",
@@ -10929,7 +10977,7 @@
       "source_file": "src/design/page-modes.test.ts",
       "source_location": "L1",
       "id": "src_design_page_modes_test_ts",
-      "community": 397
+      "community": 399
     },
     {
       "label": "page-cloner.ts",
@@ -11001,7 +11049,7 @@
       "source_file": "src/design/index.ts",
       "source_location": "L1",
       "id": "src_design_index_ts",
-      "community": 398
+      "community": 400
     },
     {
       "label": "capture-diagnostics.ts",
@@ -11057,7 +11105,7 @@
       "source_file": "src/design/tailwind-style-normalizer.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_style_normalizer_ts",
-      "community": 115
+      "community": 116
     },
     {
       "label": "hasUsefulValue()",
@@ -11065,7 +11113,7 @@
       "source_file": "src/design/tailwind-style-normalizer.ts",
       "source_location": "L24",
       "id": "tailwind_style_normalizer_hasusefulvalue",
-      "community": 115
+      "community": 116
     },
     {
       "label": "visitNode()",
@@ -11073,7 +11121,7 @@
       "source_file": "src/design/tailwind-style-normalizer.ts",
       "source_location": "L33",
       "id": "tailwind_style_normalizer_visitnode",
-      "community": 115
+      "community": 116
     },
     {
       "label": "normalizeRegionStyles()",
@@ -11081,7 +11129,7 @@
       "source_file": "src/design/tailwind-style-normalizer.ts",
       "source_location": "L45",
       "id": "tailwind_style_normalizer_normalizeregionstyles",
-      "community": 115
+      "community": 116
     },
     {
       "label": "ux-knowledge.ts",
@@ -11145,7 +11193,7 @@
       "source_file": "src/design/recipe-response.ts",
       "source_location": "L1",
       "id": "src_design_recipe_response_ts",
-      "community": 209
+      "community": 210
     },
     {
       "label": "normalizeRecipeRows()",
@@ -11153,7 +11201,7 @@
       "source_file": "src/design/recipe-response.ts",
       "source_location": "L31",
       "id": "recipe_response_normalizereciperows",
-      "community": 209
+      "community": 210
     },
     {
       "label": "page-section-types.test.ts",
@@ -11161,7 +11209,7 @@
       "source_file": "src/design/page-section-types.test.ts",
       "source_location": "L1",
       "id": "src_design_page_section_types_test_ts",
-      "community": 399
+      "community": 401
     },
     {
       "label": "tailwind-declaration-mapper.ts",
@@ -11169,7 +11217,7 @@
       "source_file": "src/design/tailwind-declaration-mapper.ts",
       "source_location": "L1",
       "id": "src_design_tailwind_declaration_mapper_ts",
-      "community": 100
+      "community": 101
     },
     {
       "label": "rgbToHex()",
@@ -11177,7 +11225,7 @@
       "source_file": "src/design/tailwind-declaration-mapper.ts",
       "source_location": "L33",
       "id": "tailwind_declaration_mapper_rgbtohex",
-      "community": 100
+      "community": 101
     },
     {
       "label": "arbitrary()",
@@ -11185,7 +11233,7 @@
       "source_file": "src/design/tailwind-declaration-mapper.ts",
       "source_location": "L39",
       "id": "tailwind_declaration_mapper_arbitrary",
-      "community": 100
+      "community": 101
     },
     {
       "label": "mapDeclaration()",
@@ -11193,7 +11241,7 @@
       "source_file": "src/design/tailwind-declaration-mapper.ts",
       "source_location": "L43",
       "id": "tailwind_declaration_mapper_mapdeclaration",
-      "community": 100
+      "community": 101
     },
     {
       "label": "mapDeclarationsToTailwind()",
@@ -11201,7 +11249,7 @@
       "source_file": "src/design/tailwind-declaration-mapper.ts",
       "source_location": "L67",
       "id": "tailwind_declaration_mapper_mapdeclarationstotailwind",
-      "community": 100
+      "community": 101
     },
     {
       "label": "clone-runtime.ts",
@@ -11209,7 +11257,7 @@
       "source_file": "src/design/clone-runtime/clone-runtime.ts",
       "source_location": "L1",
       "id": "src_design_clone_runtime_clone_runtime_ts",
-      "community": 210
+      "community": 211
     },
     {
       "label": "buildCloneRuntimeScript()",
@@ -11217,7 +11265,7 @@
       "source_file": "src/design/clone-runtime/clone-runtime.ts",
       "source_location": "L139",
       "id": "clone_runtime_buildcloneruntimescript",
-      "community": 210
+      "community": 211
     },
     {
       "label": "clone-runtime.test.ts",
@@ -11225,7 +11273,7 @@
       "source_file": "src/design/clone-runtime/clone-runtime.test.ts",
       "source_location": "L1",
       "id": "src_design_clone_runtime_clone_runtime_test_ts",
-      "community": 400
+      "community": 402
     },
     {
       "label": "alpine-csp.ts",
@@ -11233,7 +11281,7 @@
       "source_file": "src/design/clone-runtime/alpine-csp.ts",
       "source_location": "L1",
       "id": "src_design_clone_runtime_alpine_csp_ts",
-      "community": 401
+      "community": 403
     },
     {
       "label": "middleware.ts",
@@ -11241,7 +11289,7 @@
       "source_file": "src/auth/middleware.ts",
       "source_location": "L1",
       "id": "src_auth_middleware_ts",
-      "community": 101
+      "community": 102
     },
     {
       "label": "isDevMode()",
@@ -11249,7 +11297,7 @@
       "source_file": "src/auth/middleware.ts",
       "source_location": "L18",
       "id": "middleware_isdevmode",
-      "community": 101
+      "community": 102
     },
     {
       "label": "isE2ETestMode()",
@@ -11257,7 +11305,7 @@
       "source_file": "src/auth/middleware.ts",
       "source_location": "L25",
       "id": "middleware_ise2etestmode",
-      "community": 101
+      "community": 102
     },
     {
       "label": "extractJWT()",
@@ -11265,7 +11313,7 @@
       "source_file": "src/auth/middleware.ts",
       "source_location": "L32",
       "id": "middleware_extractjwt",
-      "community": 101
+      "community": 102
     },
     {
       "label": "createAccessMiddleware()",
@@ -11273,7 +11321,7 @@
       "source_file": "src/auth/middleware.ts",
       "source_location": "L49",
       "id": "middleware_createaccessmiddleware",
-      "community": 101
+      "community": 102
     },
     {
       "label": "jwt.ts",
@@ -11281,7 +11329,7 @@
       "source_file": "src/auth/jwt.ts",
       "source_location": "L1",
       "id": "src_auth_jwt_ts",
-      "community": 211
+      "community": 212
     },
     {
       "label": "verifyAccessJWT()",
@@ -11289,7 +11337,7 @@
       "source_file": "src/auth/jwt.ts",
       "source_location": "L16",
       "id": "jwt_verifyaccessjwt",
-      "community": 211
+      "community": 212
     },
     {
       "label": "middleware.test.ts",
@@ -11297,7 +11345,7 @@
       "source_file": "src/auth/middleware.test.ts",
       "source_location": "L1",
       "id": "src_auth_middleware_test_ts",
-      "community": 139
+      "community": 140
     },
     {
       "label": "createMockContext()",
@@ -11305,7 +11353,7 @@
       "source_file": "src/auth/middleware.test.ts",
       "source_location": "L59",
       "id": "middleware_test_createmockcontext",
-      "community": 139
+      "community": 140
     },
     {
       "label": "createFullMockContext()",
@@ -11313,7 +11361,7 @@
       "source_file": "src/auth/middleware.test.ts",
       "source_location": "L136",
       "id": "middleware_test_createfullmockcontext",
-      "community": 139
+      "community": 140
     },
     {
       "label": "jwt.test.ts",
@@ -11321,7 +11369,7 @@
       "source_file": "src/auth/jwt.test.ts",
       "source_location": "L1",
       "id": "src_auth_jwt_test_ts",
-      "community": 402
+      "community": 404
     },
     {
       "label": "audit-log.ts",
@@ -11329,7 +11377,7 @@
       "source_file": "src/auth/audit-log.ts",
       "source_location": "L1",
       "id": "src_auth_audit_log_ts",
-      "community": 140
+      "community": 141
     },
     {
       "label": "logAudit()",
@@ -11337,7 +11385,7 @@
       "source_file": "src/auth/audit-log.ts",
       "source_location": "L18",
       "id": "audit_log_logaudit",
-      "community": 140
+      "community": 141
     },
     {
       "label": "auditMiddleware()",
@@ -11345,7 +11393,7 @@
       "source_file": "src/auth/audit-log.ts",
       "source_location": "L38",
       "id": "audit_log_auditmiddleware",
-      "community": 140
+      "community": 141
     },
     {
       "label": "index.ts",
@@ -11353,7 +11401,7 @@
       "source_file": "src/auth/index.ts",
       "source_location": "L1",
       "id": "src_auth_index_ts",
-      "community": 403
+      "community": 405
     },
     {
       "label": "rate-limit.ts",
@@ -11361,7 +11409,7 @@
       "source_file": "src/auth/rate-limit.ts",
       "source_location": "L1",
       "id": "src_auth_rate_limit_ts",
-      "community": 141
+      "community": 142
     },
     {
       "label": "checkRateLimit()",
@@ -11369,7 +11417,7 @@
       "source_file": "src/auth/rate-limit.ts",
       "source_location": "L15",
       "id": "rate_limit_checkratelimit",
-      "community": 141
+      "community": 142
     },
     {
       "label": "rateLimitMiddleware()",
@@ -11377,7 +11425,7 @@
       "source_file": "src/auth/rate-limit.ts",
       "source_location": "L40",
       "id": "rate_limit_ratelimitmiddleware",
-      "community": 141
+      "community": 142
     },
     {
       "label": "agent-spawner.ts",
@@ -11481,7 +11529,7 @@
       "source_file": "src/workflows/brochure-mirror.ts",
       "source_location": "L1",
       "id": "src_workflows_brochure_mirror_ts",
-      "community": 116
+      "community": 117
     },
     {
       "label": "BrochureMirrorWorkflow",
@@ -11489,7 +11537,7 @@
       "source_file": "src/workflows/brochure-mirror.ts",
       "source_location": "L60",
       "id": "brochure_mirror_brochuremirrorworkflow",
-      "community": 116
+      "community": 117
     },
     {
       "label": ".run()",
@@ -11497,7 +11545,7 @@
       "source_file": "src/workflows/brochure-mirror.ts",
       "source_location": "L61",
       "id": "brochure_mirror_brochuremirrorworkflow_run",
-      "community": 116
+      "community": 117
     },
     {
       "label": "fileNameFromUrl()",
@@ -11505,7 +11553,7 @@
       "source_file": "src/workflows/brochure-mirror.ts",
       "source_location": "L192",
       "id": "brochure_mirror_filenamefromurl",
-      "community": 116
+      "community": 117
     },
     {
       "label": "test-groq.ts",
@@ -11513,7 +11561,7 @@
       "source_file": "src/workflows/test-groq.ts",
       "source_location": "L1",
       "id": "src_workflows_test_groq_ts",
-      "community": 102
+      "community": 103
     },
     {
       "label": "testSimplePriceValidation()",
@@ -11521,7 +11569,7 @@
       "source_file": "src/workflows/test-groq.ts",
       "source_location": "L27",
       "id": "test_groq_testsimplepricevalidation",
-      "community": 102
+      "community": 103
     },
     {
       "label": "testComplexExtraction()",
@@ -11529,7 +11577,7 @@
       "source_file": "src/workflows/test-groq.ts",
       "source_location": "L101",
       "id": "test_groq_testcomplexextraction",
-      "community": 102
+      "community": 103
     },
     {
       "label": "testFallbackChain()",
@@ -11537,7 +11585,7 @@
       "source_file": "src/workflows/test-groq.ts",
       "source_location": "L177",
       "id": "test_groq_testfallbackchain",
-      "community": 102
+      "community": 103
     },
     {
       "label": "runAllTests()",
@@ -11545,7 +11593,7 @@
       "source_file": "src/workflows/test-groq.ts",
       "source_location": "L229",
       "id": "test_groq_runalltests",
-      "community": 102
+      "community": 103
     },
     {
       "label": "router.ts",
@@ -11633,7 +11681,7 @@
       "source_file": "src/workflows/test-integration.ts",
       "source_location": "L1",
       "id": "src_workflows_test_integration_ts",
-      "community": 212
+      "community": 213
     },
     {
       "label": "runIntegrationTest()",
@@ -11641,7 +11689,7 @@
       "source_file": "src/workflows/test-integration.ts",
       "source_location": "L18",
       "id": "test_integration_runintegrationtest",
-      "community": 212
+      "community": 213
     },
     {
       "label": "test-performance.ts",
@@ -11649,7 +11697,7 @@
       "source_file": "src/workflows/test-performance.ts",
       "source_location": "L1",
       "id": "src_workflows_test_performance_ts",
-      "community": 213
+      "community": 214
     },
     {
       "label": "runPerformanceTests()",
@@ -11657,7 +11705,7 @@
       "source_file": "src/workflows/test-performance.ts",
       "source_location": "L16",
       "id": "test_performance_runperformancetests",
-      "community": 213
+      "community": 214
     },
     {
       "label": "api-chainer.ts",
@@ -11753,7 +11801,7 @@
       "source_file": "src/utils/cron-runs.ts",
       "source_location": "L1",
       "id": "src_utils_cron_runs_ts",
-      "community": 117
+      "community": 118
     },
     {
       "label": "getRunHistory()",
@@ -11761,7 +11809,7 @@
       "source_file": "src/utils/cron-runs.ts",
       "source_location": "L19",
       "id": "cron_runs_getrunhistory",
-      "community": 117
+      "community": 118
     },
     {
       "label": "saveRun()",
@@ -11769,7 +11817,7 @@
       "source_file": "src/utils/cron-runs.ts",
       "source_location": "L40",
       "id": "cron_runs_saverun",
-      "community": 117
+      "community": 118
     },
     {
       "label": "cleanStaleRuns()",
@@ -11777,7 +11825,7 @@
       "source_file": "src/utils/cron-runs.ts",
       "source_location": "L73",
       "id": "cron_runs_cleanstaleruns",
-      "community": 117
+      "community": 118
     },
     {
       "label": "embeddings.ts",
@@ -11905,7 +11953,7 @@
       "source_file": "src/utils/image-proxy.ts",
       "source_location": "L1",
       "id": "src_utils_image_proxy_ts",
-      "community": 118
+      "community": 119
     },
     {
       "label": "encodeUrl()",
@@ -11913,7 +11961,7 @@
       "source_file": "src/utils/image-proxy.ts",
       "source_location": "L24",
       "id": "image_proxy_encodeurl",
-      "community": 118
+      "community": 119
     },
     {
       "label": "isAlreadyProxied()",
@@ -11921,7 +11969,7 @@
       "source_file": "src/utils/image-proxy.ts",
       "source_location": "L46",
       "id": "image_proxy_isalreadyproxied",
-      "community": 118
+      "community": 119
     },
     {
       "label": "proxyImage()",
@@ -11929,7 +11977,7 @@
       "source_file": "src/utils/image-proxy.ts",
       "source_location": "L57",
       "id": "image_proxy_proxyimage",
-      "community": 118
+      "community": 119
     },
     {
       "label": "image-proxy.test.ts",
@@ -11937,7 +11985,7 @@
       "source_file": "src/utils/image-proxy.test.ts",
       "source_location": "L1",
       "id": "src_utils_image_proxy_test_ts",
-      "community": 142
+      "community": 143
     },
     {
       "label": "decodeBase64Url()",
@@ -11945,7 +11993,7 @@
       "source_file": "src/utils/image-proxy.test.ts",
       "source_location": "L9",
       "id": "image_proxy_test_decodebase64url",
-      "community": 142
+      "community": 143
     },
     {
       "label": "extractPayload()",
@@ -11953,7 +12001,7 @@
       "source_file": "src/utils/image-proxy.test.ts",
       "source_location": "L18",
       "id": "image_proxy_test_extractpayload",
-      "community": 142
+      "community": 143
     },
     {
       "label": "network-capture.ts",
@@ -12209,7 +12257,7 @@
       "source_file": "src/utils/supabase.ts",
       "source_location": "L1",
       "id": "src_utils_supabase_ts",
-      "community": 214
+      "community": 215
     },
     {
       "label": "createSupabaseClient()",
@@ -12217,7 +12265,7 @@
       "source_file": "src/utils/supabase.ts",
       "source_location": "L15",
       "id": "supabase_createsupabaseclient",
-      "community": 214
+      "community": 215
     },
     {
       "label": "logging.ts",
@@ -12225,7 +12273,7 @@
       "source_file": "src/utils/logging.ts",
       "source_location": "L1",
       "id": "src_utils_logging_ts",
-      "community": 215
+      "community": 216
     },
     {
       "label": "redactSensitiveParams()",
@@ -12233,7 +12281,7 @@
       "source_file": "src/utils/logging.ts",
       "source_location": "L5",
       "id": "logging_redactsensitiveparams",
-      "community": 215
+      "community": 216
     },
     {
       "label": "auth.test.ts",
@@ -12241,7 +12289,7 @@
       "source_file": "src/mcp/auth.test.ts",
       "source_location": "L1",
       "id": "src_mcp_auth_test_ts",
-      "community": 216
+      "community": 217
     },
     {
       "label": "createMockContext()",
@@ -12249,7 +12297,7 @@
       "source_file": "src/mcp/auth.test.ts",
       "source_location": "L11",
       "id": "auth_test_createmockcontext",
-      "community": 216
+      "community": 217
     },
     {
       "label": "types.ts",
@@ -12257,7 +12305,7 @@
       "source_file": "src/mcp/types.ts",
       "source_location": "L1",
       "id": "src_mcp_types_ts",
-      "community": 404
+      "community": 406
     },
     {
       "label": "session.ts",
@@ -12401,7 +12449,7 @@
       "source_file": "src/mcp/index.ts",
       "source_location": "L1",
       "id": "src_mcp_index_ts",
-      "community": 405
+      "community": 407
     },
     {
       "label": "server.test.ts",
@@ -12409,7 +12457,7 @@
       "source_file": "src/mcp/server.test.ts",
       "source_location": "L1",
       "id": "src_mcp_server_test_ts",
-      "community": 119
+      "community": 120
     },
     {
       "label": "createMockDurableObjectState()",
@@ -12417,7 +12465,7 @@
       "source_file": "src/mcp/server.test.ts",
       "source_location": "L11",
       "id": "server_test_createmockdurableobjectstate",
-      "community": 119
+      "community": 120
     },
     {
       "label": "streamCollector()",
@@ -12425,7 +12473,7 @@
       "source_file": "src/mcp/server.test.ts",
       "source_location": "L26",
       "id": "server_test_streamcollector",
-      "community": 119
+      "community": 120
     },
     {
       "label": "postMessage()",
@@ -12433,7 +12481,7 @@
       "source_file": "src/mcp/server.test.ts",
       "source_location": "L66",
       "id": "server_test_postmessage",
-      "community": 119
+      "community": 120
     },
     {
       "label": "auth.ts",
@@ -12489,7 +12537,7 @@
       "source_file": "src/mcp/tools/recipe-tools.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_recipe_tools_ts",
-      "community": 406
+      "community": 408
     },
     {
       "label": "page-tools.ts",
@@ -12497,7 +12545,7 @@
       "source_file": "src/mcp/tools/page-tools.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_page_tools_ts",
-      "community": 217
+      "community": 218
     },
     {
       "label": "isValidOemId()",
@@ -12505,7 +12553,7 @@
       "source_file": "src/mcp/tools/page-tools.ts",
       "source_location": "L13",
       "id": "page_tools_isvalidoemid",
-      "community": 217
+      "community": 218
     },
     {
       "label": "catalog-tools.ts",
@@ -12513,7 +12561,7 @@
       "source_file": "src/mcp/tools/catalog-tools.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_catalog_tools_ts",
-      "community": 218
+      "community": 219
     },
     {
       "label": "validateOemId()",
@@ -12521,7 +12569,7 @@
       "source_file": "src/mcp/tools/catalog-tools.ts",
       "source_location": "L11",
       "id": "catalog_tools_validateoemid",
-      "community": 218
+      "community": 219
     },
     {
       "label": "search-tools.ts",
@@ -12529,7 +12577,7 @@
       "source_file": "src/mcp/tools/search-tools.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_search_tools_ts",
-      "community": 407
+      "community": 409
     },
     {
       "label": "sync-tools.ts",
@@ -12537,7 +12585,7 @@
       "source_file": "src/mcp/tools/sync-tools.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_sync_tools_ts",
-      "community": 219
+      "community": 220
     },
     {
       "label": "createOrchestrator()",
@@ -12545,7 +12593,7 @@
       "source_file": "src/mcp/tools/sync-tools.ts",
       "source_location": "L15",
       "id": "sync_tools_createorchestrator",
-      "community": 219
+      "community": 220
     },
     {
       "label": "oem-tools.ts",
@@ -12553,7 +12601,7 @@
       "source_file": "src/mcp/tools/oem-tools.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_oem_tools_ts",
-      "community": 408
+      "community": 410
     },
     {
       "label": "index.ts",
@@ -12561,7 +12609,7 @@
       "source_file": "src/mcp/tools/index.ts",
       "source_location": "L1",
       "id": "src_mcp_tools_index_ts",
-      "community": 120
+      "community": 121
     },
     {
       "label": "createToolRegistry()",
@@ -12569,7 +12617,7 @@
       "source_file": "src/mcp/tools/index.ts",
       "source_location": "L21",
       "id": "index_createtoolregistry",
-      "community": 120
+      "community": 121
     },
     {
       "label": "textResult()",
@@ -12577,7 +12625,7 @@
       "source_file": "src/mcp/tools/index.ts",
       "source_location": "L53",
       "id": "index_textresult",
-      "community": 120
+      "community": 121
     },
     {
       "label": "jsonResult()",
@@ -12585,7 +12633,7 @@
       "source_file": "src/mcp/tools/index.ts",
       "source_location": "L60",
       "id": "index_jsonresult",
-      "community": 120
+      "community": 121
     },
     {
       "label": "types.ts",
@@ -12593,7 +12641,7 @@
       "source_file": "src/oem/types.ts",
       "source_location": "L1",
       "id": "src_oem_types_ts",
-      "community": 409
+      "community": 411
     },
     {
       "label": "registry.ts",
@@ -12649,7 +12697,7 @@
       "source_file": "src/oem/index.ts",
       "source_location": "L1",
       "id": "src_oem_index_ts",
-      "community": 410
+      "community": 412
     },
     {
       "label": "scheduler.test.ts",
@@ -12657,7 +12705,7 @@
       "source_file": "src/crawl/scheduler.test.ts",
       "source_location": "L1",
       "id": "src_crawl_scheduler_test_ts",
-      "community": 220
+      "community": 221
     },
     {
       "label": "makePage()",
@@ -12665,7 +12713,7 @@
       "source_file": "src/crawl/scheduler.test.ts",
       "source_location": "L5",
       "id": "scheduler_test_makepage",
-      "community": 220
+      "community": 221
     },
     {
       "label": "scheduler.ts",
@@ -12817,7 +12865,7 @@
       "source_file": "src/crawl/index.ts",
       "source_location": "L1",
       "id": "src_crawl_index_ts",
-      "community": 411
+      "community": 413
     },
     {
       "label": "sales-rep.ts",
@@ -13257,7 +13305,7 @@
       "source_file": "src/ai/banner-graphics.test.ts",
       "source_location": "L1",
       "id": "src_ai_banner_graphics_test_ts",
-      "community": 412
+      "community": 414
     },
     {
       "label": "index.ts",
@@ -13265,7 +13313,7 @@
       "source_file": "src/ai/index.ts",
       "source_location": "L1",
       "id": "src_ai_index_ts",
-      "community": 413
+      "community": 415
     },
     {
       "label": "inline-data.test.ts",
@@ -13273,7 +13321,7 @@
       "source_file": "src/extract/inline-data.test.ts",
       "source_location": "L1",
       "id": "src_extract_inline_data_test_ts",
-      "community": 414
+      "community": 416
     },
     {
       "label": "self-heal.ts",
@@ -13361,7 +13409,7 @@
       "source_file": "src/extract/engine.test.ts",
       "source_location": "L1",
       "id": "src_extract_engine_test_ts",
-      "community": 415
+      "community": 417
     },
     {
       "label": "orchestrator.ts",
@@ -13441,7 +13489,7 @@
       "source_file": "src/extract/banner-data-filter.test.ts",
       "source_location": "L1",
       "id": "src_extract_banner_data_filter_test_ts",
-      "community": 143
+      "community": 144
     },
     {
       "label": "bannerItem()",
@@ -13449,7 +13497,7 @@
       "source_file": "src/extract/banner-data-filter.test.ts",
       "source_location": "L10",
       "id": "banner_data_filter_test_banneritem",
-      "community": 143
+      "community": 144
     },
     {
       "label": "completeBanner()",
@@ -13457,7 +13505,7 @@
       "source_file": "src/extract/banner-data-filter.test.ts",
       "source_location": "L310",
       "id": "banner_data_filter_test_completebanner",
-      "community": 143
+      "community": 144
     },
     {
       "label": "engine.ts",
@@ -14057,7 +14105,7 @@
       "source_file": "src/extract/index.ts",
       "source_location": "L1",
       "id": "src_extract_index_ts",
-      "community": 416
+      "community": 418
     },
     {
       "label": "inline-data.ts",
@@ -14457,7 +14505,7 @@
       "source_file": "src/sync/pdf-spec-extractor.test.ts",
       "source_location": "L1",
       "id": "src_sync_pdf_spec_extractor_test_ts",
-      "community": 221
+      "community": 222
     },
     {
       "label": "makeValidSpecs()",
@@ -14465,7 +14513,7 @@
       "source_file": "src/sync/pdf-spec-extractor.test.ts",
       "source_location": "L65",
       "id": "pdf_spec_extractor_test_makevalidspecs",
-      "community": 221
+      "community": 222
     },
     {
       "label": "crawl-doctor.ts",
@@ -14473,7 +14521,7 @@
       "source_file": "src/sync/crawl-doctor.ts",
       "source_location": "L1",
       "id": "src_sync_crawl_doctor_ts",
-      "community": 103
+      "community": 104
     },
     {
       "label": "executeCrawlDoctor()",
@@ -14481,7 +14529,7 @@
       "source_file": "src/sync/crawl-doctor.ts",
       "source_location": "L69",
       "id": "crawl_doctor_executecrawldoctor",
-      "community": 103
+      "community": 104
     },
     {
       "label": "checkAssetUrl()",
@@ -14489,7 +14537,7 @@
       "source_file": "src/sync/crawl-doctor.ts",
       "source_location": "L486",
       "id": "crawl_doctor_checkasseturl",
-      "community": 103
+      "community": 104
     },
     {
       "label": "executeBannerImageHealthCheck()",
@@ -14497,7 +14545,7 @@
       "source_file": "src/sync/crawl-doctor.ts",
       "source_location": "L535",
       "id": "crawl_doctor_executebannerimagehealthcheck",
-      "community": 103
+      "community": 104
     },
     {
       "label": "executePortalAssetHealthCheck()",
@@ -14505,7 +14553,7 @@
       "source_file": "src/sync/crawl-doctor.ts",
       "source_location": "L674",
       "id": "crawl_doctor_executeportalassethealthcheck",
-      "community": 103
+      "community": 104
     },
     {
       "label": "kia-colors.ts",
@@ -14585,7 +14633,7 @@
       "source_file": "src/sync/competitive-intel.ts",
       "source_location": "L1",
       "id": "src_sync_competitive_intel_ts",
-      "community": 222
+      "community": 223
     },
     {
       "label": "executeCompetitiveIntel()",
@@ -14593,7 +14641,7 @@
       "source_file": "src/sync/competitive-intel.ts",
       "source_location": "L45",
       "id": "competitive_intel_executecompetitiveintel",
-      "community": 222
+      "community": 223
     },
     {
       "label": "apify-client.ts",
@@ -14601,7 +14649,7 @@
       "source_file": "src/sync/apify-client.ts",
       "source_location": "L1",
       "id": "src_sync_apify_client_ts",
-      "community": 104
+      "community": 105
     },
     {
       "label": "runApifyActor()",
@@ -14609,7 +14657,7 @@
       "source_file": "src/sync/apify-client.ts",
       "source_location": "L30",
       "id": "apify_client_runapifyactor",
-      "community": 104
+      "community": 105
     },
     {
       "label": "fetchDatasetItems()",
@@ -14617,7 +14665,7 @@
       "source_file": "src/sync/apify-client.ts",
       "source_location": "L98",
       "id": "apify_client_fetchdatasetitems",
-      "community": 104
+      "community": 105
     },
     {
       "label": "getKeyValueRecord()",
@@ -14625,7 +14673,7 @@
       "source_file": "src/sync/apify-client.ts",
       "source_location": "L131",
       "id": "apify_client_getkeyvaluerecord",
-      "community": 104
+      "community": 105
     },
     {
       "label": "sleep()",
@@ -14633,7 +14681,7 @@
       "source_file": "src/sync/apify-client.ts",
       "source_location": "L146",
       "id": "apify_client_sleep",
-      "community": 104
+      "community": 105
     },
     {
       "label": "mitsubishi-sync.ts",
@@ -15033,7 +15081,7 @@
       "source_file": "src/sync/weekly-report.ts",
       "source_location": "L1",
       "id": "src_sync_weekly_report_ts",
-      "community": 223
+      "community": 224
     },
     {
       "label": "executeWeeklyReport()",
@@ -15041,7 +15089,7 @@
       "source_file": "src/sync/weekly-report.ts",
       "source_location": "L29",
       "id": "weekly_report_executeweeklyreport",
-      "community": 223
+      "community": 224
     },
     {
       "label": "suzuki-sync.ts",
@@ -15145,7 +15193,7 @@
       "source_file": "src/sync/orchestrator-controller.ts",
       "source_location": "L1",
       "id": "src_sync_orchestrator_controller_ts",
-      "community": 224
+      "community": 225
     },
     {
       "label": "executeOrchestratorController()",
@@ -15153,7 +15201,7 @@
       "source_file": "src/sync/orchestrator-controller.ts",
       "source_location": "L64",
       "id": "orchestrator_controller_executeorchestratorcontroller",
-      "community": 224
+      "community": 225
     },
     {
       "label": "all-oem-sync.ts",
@@ -15889,7 +15937,7 @@
       "source_file": "src/client/App.tsx",
       "source_location": "L1",
       "id": "src_client_app_tsx",
-      "community": 225
+      "community": 226
     },
     {
       "label": "App()",
@@ -15897,7 +15945,7 @@
       "source_file": "src/client/App.tsx",
       "source_location": "L4",
       "id": "app_app",
-      "community": 225
+      "community": 226
     },
     {
       "label": "main.tsx",
@@ -15905,7 +15953,7 @@
       "source_file": "src/client/main.tsx",
       "source_location": "L1",
       "id": "src_client_main_tsx",
-      "community": 417
+      "community": 419
     },
     {
       "label": "api.ts",
@@ -16145,7 +16193,7 @@
       "source_file": "src/routes/debug.ts",
       "source_location": "L1",
       "id": "src_routes_debug_ts",
-      "community": 418
+      "community": 420
     },
     {
       "label": "api.ts",
@@ -16153,7 +16201,7 @@
       "source_file": "src/routes/api.ts",
       "source_location": "L1",
       "id": "src_routes_api_ts",
-      "community": 419
+      "community": 421
     },
     {
       "label": "oem-agent.test.ts",
@@ -16161,7 +16209,7 @@
       "source_file": "src/routes/oem-agent.test.ts",
       "source_location": "L1",
       "id": "src_routes_oem_agent_test_ts",
-      "community": 105
+      "community": 106
     },
     {
       "label": "jsonObject()",
@@ -16169,7 +16217,7 @@
       "source_file": "src/routes/oem-agent.test.ts",
       "source_location": "L5",
       "id": "oem_agent_test_jsonobject",
-      "community": 105
+      "community": 106
     },
     {
       "label": "sha256Hex()",
@@ -16177,7 +16225,7 @@
       "source_file": "src/routes/oem-agent.test.ts",
       "source_location": "L13",
       "id": "oem_agent_test_sha256hex",
-      "community": 105
+      "community": 106
     },
     {
       "label": "scopedHtml()",
@@ -16185,7 +16233,7 @@
       "source_file": "src/routes/oem-agent.test.ts",
       "source_location": "L19",
       "id": "oem_agent_test_scopedhtml",
-      "community": 105
+      "community": 106
     },
     {
       "label": "throwingBucket()",
@@ -16193,7 +16241,7 @@
       "source_file": "src/routes/oem-agent.test.ts",
       "source_location": "L23",
       "id": "oem_agent_test_throwingbucket",
-      "community": 105
+      "community": 106
     },
     {
       "label": "oem-proxy.ts",
@@ -16329,7 +16377,7 @@
       "source_file": "src/routes/agents.ts",
       "source_location": "L1",
       "id": "src_routes_agents_ts",
-      "community": 226
+      "community": 227
     },
     {
       "label": "getSupabase()",
@@ -16337,7 +16385,7 @@
       "source_file": "src/routes/agents.ts",
       "source_location": "L14",
       "id": "agents_getsupabase",
-      "community": 226
+      "community": 227
     },
     {
       "label": "admin-ui.ts",
@@ -16345,7 +16393,7 @@
       "source_file": "src/routes/admin-ui.ts",
       "source_location": "L1",
       "id": "src_routes_admin_ui_ts",
-      "community": 420
+      "community": 422
     },
     {
       "label": "cdp.ts",
@@ -17041,7 +17089,7 @@
       "source_file": "src/routes/index.ts",
       "source_location": "L1",
       "id": "src_routes_index_ts",
-      "community": 421
+      "community": 423
     },
     {
       "label": "specs-api.ts",
@@ -17049,7 +17097,7 @@
       "source_file": "src/routes/specs-api.ts",
       "source_location": "L1",
       "id": "src_routes_specs_api_ts",
-      "community": 144
+      "community": 145
     },
     {
       "label": "flattenSpecs()",
@@ -17057,7 +17105,7 @@
       "source_file": "src/routes/specs-api.ts",
       "source_location": "L47",
       "id": "specs_api_flattenspecs",
-      "community": 144
+      "community": 145
     },
     {
       "label": "filterCategories()",
@@ -17065,7 +17113,7 @@
       "source_file": "src/routes/specs-api.ts",
       "source_location": "L57",
       "id": "specs_api_filtercategories",
-      "community": 144
+      "community": 145
     },
     {
       "label": "media.ts",
@@ -17121,7 +17169,7 @@
       "source_file": "src/routes/public.ts",
       "source_location": "L1",
       "id": "src_routes_public_ts",
-      "community": 422
+      "community": 424
     },
     {
       "label": "media.test.ts",
@@ -17129,7 +17177,7 @@
       "source_file": "src/routes/media.test.ts",
       "source_location": "L1",
       "id": "src_routes_media_test_ts",
-      "community": 423
+      "community": 425
     },
     {
       "label": "process.test.ts",
@@ -17137,7 +17185,7 @@
       "source_file": "src/gateway/process.test.ts",
       "source_location": "L1",
       "id": "src_gateway_process_test_ts",
-      "community": 227
+      "community": 228
     },
     {
       "label": "createFullMockProcess()",
@@ -17145,7 +17193,7 @@
       "source_file": "src/gateway/process.test.ts",
       "source_location": "L6",
       "id": "process_test_createfullmockprocess",
-      "community": 227
+      "community": 228
     },
     {
       "label": "r2.ts",
@@ -17153,7 +17201,7 @@
       "source_file": "src/gateway/r2.ts",
       "source_location": "L1",
       "id": "src_gateway_r2_ts",
-      "community": 145
+      "community": 146
     },
     {
       "label": "isR2Mounted()",
@@ -17161,7 +17209,7 @@
       "source_file": "src/gateway/r2.ts",
       "source_location": "L8",
       "id": "r2_isr2mounted",
-      "community": 145
+      "community": 146
     },
     {
       "label": "mountR2Storage()",
@@ -17169,7 +17217,7 @@
       "source_file": "src/gateway/r2.ts",
       "source_location": "L36",
       "id": "r2_mountr2storage",
-      "community": 145
+      "community": 146
     },
     {
       "label": "env.test.ts",
@@ -17177,7 +17225,7 @@
       "source_file": "src/gateway/env.test.ts",
       "source_location": "L1",
       "id": "src_gateway_env_test_ts",
-      "community": 424
+      "community": 426
     },
     {
       "label": "process.ts",
@@ -17185,7 +17233,7 @@
       "source_file": "src/gateway/process.ts",
       "source_location": "L1",
       "id": "src_gateway_process_ts",
-      "community": 146
+      "community": 147
     },
     {
       "label": "findExistingMoltbotProcess()",
@@ -17193,7 +17241,7 @@
       "source_file": "src/gateway/process.ts",
       "source_location": "L13",
       "id": "process_findexistingmoltbotprocess",
-      "community": 146
+      "community": 147
     },
     {
       "label": "ensureMoltbotGateway()",
@@ -17201,7 +17249,7 @@
       "source_file": "src/gateway/process.ts",
       "source_location": "L56",
       "id": "process_ensuremoltbotgateway",
-      "community": 146
+      "community": 147
     },
     {
       "label": "sync.test.ts",
@@ -17209,7 +17257,7 @@
       "source_file": "src/gateway/sync.test.ts",
       "source_location": "L1",
       "id": "src_gateway_sync_test_ts",
-      "community": 425
+      "community": 427
     },
     {
       "label": "utils.ts",
@@ -17217,7 +17265,7 @@
       "source_file": "src/gateway/utils.ts",
       "source_location": "L1",
       "id": "src_gateway_utils_ts",
-      "community": 228
+      "community": 229
     },
     {
       "label": "waitForProcess()",
@@ -17225,7 +17273,7 @@
       "source_file": "src/gateway/utils.ts",
       "source_location": "L12",
       "id": "utils_waitforprocess",
-      "community": 228
+      "community": 229
     },
     {
       "label": "index.ts",
@@ -17233,7 +17281,7 @@
       "source_file": "src/gateway/index.ts",
       "source_location": "L1",
       "id": "src_gateway_index_ts",
-      "community": 426
+      "community": 428
     },
     {
       "label": "env.ts",
@@ -17241,7 +17289,7 @@
       "source_file": "src/gateway/env.ts",
       "source_location": "L1",
       "id": "src_gateway_env_ts",
-      "community": 229
+      "community": 230
     },
     {
       "label": "buildEnvVars()",
@@ -17249,7 +17297,7 @@
       "source_file": "src/gateway/env.ts",
       "source_location": "L9",
       "id": "env_buildenvvars",
-      "community": 229
+      "community": 230
     },
     {
       "label": "r2.test.ts",
@@ -17257,7 +17305,7 @@
       "source_file": "src/gateway/r2.test.ts",
       "source_location": "L1",
       "id": "src_gateway_r2_test_ts",
-      "community": 427
+      "community": 429
     },
     {
       "label": "sync.ts",
@@ -17265,7 +17313,7 @@
       "source_file": "src/gateway/sync.ts",
       "source_location": "L1",
       "id": "src_gateway_sync_ts",
-      "community": 230
+      "community": 231
     },
     {
       "label": "syncToR2()",
@@ -17273,7 +17321,7 @@
       "source_file": "src/gateway/sync.ts",
       "source_location": "L32",
       "id": "sync_synctor2",
-      "community": 230
+      "community": 231
     }
   ],
   "links": [
@@ -37507,6 +37555,54 @@
       "_tgt": "pipeline_adaptivepipeline_validateextraction",
       "source": "pipeline_adaptivepipeline_run",
       "target": "pipeline_adaptivepipeline_validateextraction",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_src": "src_design_clone_annotator_ts",
+      "_tgt": "clone_annotator_classattr",
+      "source": "src_design_clone_annotator_ts",
+      "target": "clone_annotator_classattr",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L59",
+      "weight": 1.0,
+      "_src": "src_design_clone_annotator_ts",
+      "_tgt": "clone_annotator_stripforcedstyles",
+      "source": "src_design_clone_annotator_ts",
+      "target": "clone_annotator_stripforcedstyles",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L74",
+      "weight": 1.0,
+      "_src": "src_design_clone_annotator_ts",
+      "_tgt": "clone_annotator_resolvebypath",
+      "source": "src_design_clone_annotator_ts",
+      "target": "clone_annotator_resolvebypath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L85",
+      "weight": 1.0,
+      "_src": "src_design_clone_annotator_ts",
+      "_tgt": "clone_annotator_annotatecloneinteractions",
+      "source": "src_design_clone_annotator_ts",
+      "target": "clone_annotator_annotatecloneinteractions",
       "confidence_score": 1.0
     },
     {
