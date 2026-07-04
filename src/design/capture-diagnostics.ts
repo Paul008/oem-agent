@@ -32,6 +32,7 @@ export interface CaptureDiagnosticsRecord {
   images_uploaded?: number;
   /** Failure / blocked reason. Absent on success. */
   reason?: string;
+  captured_scroll_height?: number;
 }
 
 export interface CaptureDiagnostics {
@@ -116,4 +117,17 @@ export async function readCaptureDiagnostics(
   } catch {
     return null;
   }
+}
+
+/** Height of the most recent successful capture — the completeness gate's regression baseline. */
+export async function readLastGoodCapturedHeight(
+  r2Bucket: R2Bucket,
+  oemId: OemId | string,
+  modelSlug: string,
+): Promise<number | undefined> {
+  const diagnostics = await readCaptureDiagnostics(r2Bucket, oemId, modelSlug);
+  if (!diagnostics) return undefined;
+  const lastGood = [diagnostics.latest, ...diagnostics.history]
+    .find(record => record?.status === 'ok' && Number(record.captured_scroll_height ?? 0) > 0);
+  return lastGood?.captured_scroll_height;
 }

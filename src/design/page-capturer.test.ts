@@ -265,6 +265,84 @@ describe('external-html capture backend', () => {
   })
 })
 
+function fakeBrowserCapture(audit?: any) {
+  const body = Array.from({ length: 80 }, (_, index) => `<p>VW Amarok capture paragraph ${index}</p>`).join('')
+  return {
+    html: `<main><h1>Amarok</h1>${body}</main>`,
+    stylesheetLinks: ['<link rel="stylesheet" href="https://www.volkswagen.com.au/site.css">'],
+    imageUrls: [],
+    heroUrl: '',
+    title: 'Amarok',
+    elementCount: 90,
+    viewport: { width: 1440, height: 1080 },
+    audit,
+  }
+}
+
+describe('captureModelPage completeness gate', () => {
+  it('refuses to publish when feature-app shells never mounted, and suggests the next backend', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).captureDom = async () => fakeBrowserCapture({
+      captured_scroll_height: 6000,
+      dom_image_count: 30,
+      hydration_status: 'stable',
+      hydration_passes: [],
+      shells_checked: 3,
+      shells_recovered: 1,
+      empty_shells: ['[class*="CmsFeatureAppLoader"] [0]', '[class*="CmsFeatureAppLoader"] [2]'],
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [] })
+
+    const result = await capturer.captureModelPage('toyota-au' as any, 'rav4', 'https://www.toyota.com.au/rav4')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('Capture completeness gate failed')
+    expect(result.error).toContain('never mounted')
+    expect(result.suggested_backend).toBe('scrapling-stealth')
+    expect(result.capture_audit?.empty_shells).toHaveLength(2)
+    expect(writes.size).toBe(0)
+  })
+
+  it('publishes when the gate passes and reports the verdict', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).captureDom = async () => fakeBrowserCapture({
+      captured_scroll_height: 16000,
+      dom_image_count: 100,
+      hydration_status: 'stable',
+      hydration_passes: [],
+      shells_checked: 2,
+      shells_recovered: 2,
+      empty_shells: [],
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [] })
+    ;(capturer as any).downloadImages = async () => new Map()
+
+    const result = await capturer.captureModelPage('toyota-au' as any, 'rav4', 'https://www.toyota.com.au/rav4')
+
+    expect(result.success).toBe(true)
+    expect(result.completeness?.passed).toBe(true)
+    expect(result.capture_audit?.captured_scroll_height).toBe(16000)
+    expect(writes.size).toBeGreaterThan(0)
+  })
+
+  it('lets auditless external-html captures pass through the gate', async () => {
+    const { bucket, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).downloadImages = async () => new Map()
+
+    const result = await capturer.captureModelPage('mitsubishi-au' as any, 'asx', 'https://www.mitsubishi-motors.com.au/asx', 'ASX', {
+      backend: 'external-html',
+      externalCapture: { html: externalHtmlPage() },
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.completeness?.passed).toBe(true)
+    expect(result.completeness?.reasons[0]).toContain('gate skipped')
+  })
+})
+
 describe('buildDomCaptureFromHtml', () => {
   it('preserves in-page tab navigation while stripping site navigation', () => {
     const result = buildDomCaptureFromHtml({

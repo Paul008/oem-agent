@@ -19,6 +19,8 @@ import type { OemId, VehicleModelPage } from '../oem/types';
 import { applyCloneMode, type ModeAwarePage } from './page-modes';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
 import { resolveCaptureProfile, type OemCaptureProfile } from './capture-profiles';
+import { evaluateCaptureCompleteness, type CaptureCompletenessVerdict } from './capture-completeness';
+import { readLastGoodCapturedHeight } from './capture-diagnostics';
 
 // ============================================================================
 // Types
@@ -34,6 +36,9 @@ export interface PageCaptureResult {
   images_uploaded?: number;
   html_size_kb?: number;
   bot_blocked?: boolean;
+  capture_audit?: CaptureAudit;
+  completeness?: CaptureCompletenessVerdict;
+  suggested_backend?: CaptureBackend;
   error?: string;
 }
 
@@ -1987,6 +1992,26 @@ export class PageCapturer {
         }
       }
 
+      const captureAudit = 'audit' in capture ? capture.audit : undefined;
+      const lastGoodScrollHeight = await readLastGoodCapturedHeight(this.r2Bucket, oemId, modelSlug);
+      const completeness = evaluateCaptureCompleteness(
+        { audit: captureAudit, lastGoodScrollHeight },
+        profile.completeness,
+      );
+      if (!completeness.passed) {
+        const suggestedBackend = profile.backendOrder.find(candidate => candidate !== backend);
+        console.warn(`[PageCapturer] Completeness gate FAILED for ${oemId}/${modelSlug}: ${completeness.reasons.join('; ')}`);
+        return {
+          success: false,
+          capture_time_ms: Date.now() - startTime,
+          capture_backend: backend,
+          capture_audit: captureAudit,
+          completeness,
+          suggested_backend: suggestedBackend,
+          error: `Capture completeness gate failed: ${completeness.reasons.join('; ')}${suggestedBackend ? ` — suggested fallback backend: ${suggestedBackend}` : ''}`,
+        };
+      }
+
       console.log(`[PageCapturer] Captured via ${backend}: "${capture.title}", ${capture.elementCount} elements, ${capture.imageUrls.length} images`);
 
       // Download images to R2
@@ -2107,6 +2132,8 @@ export class PageCapturer {
         elements_captured: capture.elementCount,
         images_uploaded: urlMapping.size,
         html_size_kb: Math.round(html.length / 1024),
+        capture_audit: captureAudit,
+        completeness,
       };
     } catch (err: any) {
       console.error(`[PageCapturer] Error:`, err);
