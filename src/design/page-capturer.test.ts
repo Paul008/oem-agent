@@ -1696,9 +1696,11 @@ describe('runPacedHydrationSweepForCapture', () => {
   it('returns max-passes when every pass keeps growing the page', async () => {
     const { win } = createHydrationWindow({
       scrollHeight: 2000,
-      onScroll: (_y, activeWindow) => {
-        activeWindow.document.body.scrollHeight += 500
-        activeWindow.document.documentElement.scrollHeight += 500
+      onScroll: (y, activeWindow) => {
+        if (y === 0) {
+          activeWindow.document.body.scrollHeight += 1000
+          activeWindow.document.documentElement.scrollHeight += 1000
+        }
       },
     })
 
