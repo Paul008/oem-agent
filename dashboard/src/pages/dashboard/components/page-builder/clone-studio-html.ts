@@ -34,6 +34,13 @@ export interface CloneStudioHtmlOptions {
   /** OEM/model context used by Tailwind recipe capture artifacts. */
   oemId?: string
   modelSlug?: string
+  /**
+   * Trusted Alpine CSP runtime script body compiled for this page's stamped clone interactions
+   * (`content.modes.clone.runtime_js`). When present, it is appended as its own trusted
+   * `<script data-clone-studio-runtime="true">` immediately after the bridge script — never merged
+   * into the sanitized `rendered` body, and never rendered when absent/empty.
+   */
+  runtimeJs?: string
 }
 
 export type CloneStudioUrlContext = 'link' | 'media'
@@ -66,6 +73,13 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
   const editable = options.editable !== false
   const bridgeToken = safeJson(options.bridgeToken ?? createCloneStudioBridgeToken())
   const regionOverrides = safeJsonValue(normalizeCloneStudioRegionOverrides(options.regionOverrides))
+  // Also stamped `data-clone-studio-bridge="true"` so it is swept up by the bridge's own
+  // `[data-clone-studio-bridge]` scaffolding scan (getBodyHtml()/getRegionHtml() below) and never
+  // leaks into serialized/saved clone HTML — the same mechanism that already excludes the bridge
+  // script itself and its injected controls.
+  const runtimeScript = options.runtimeJs
+    ? `\n<script data-clone-studio-runtime="true" data-clone-studio-bridge="true">\n${options.runtimeJs.replace(/<\/script/gi, '<\\/script')}\n</script>`
+    : ''
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2582,8 +2596,13 @@ ${rendered}
     // function-scoped and mutated on every iteration; a handler that closed over the loop var directly
     // would, at click time, see the LAST region value and switch the wrong region. Routing through
     // wireRegion() gives each region a fresh scope, so the captured values are stable.
-    for (var i = 0; i < candidates.length; i++)
+    for (var i = 0; i < candidates.length; i++) {
+      // A region stamped by the compiler already ships its own trusted Alpine clone runtime script
+      // (injected as a separate trusted script tag) — never let this legacy heuristic shim wire it too.
+      if (candidates[i].closest('[data-clone-interaction]'))
+        continue
       wireRegion(candidates[i])
+    }
 
     installCarouselResizeHandler()
   }
@@ -4259,7 +4278,7 @@ ${rendered}
 
   post(MESSAGE_READY)
 })()
-</script>
+</script>${runtimeScript}
 </body>
 </html>`
 }

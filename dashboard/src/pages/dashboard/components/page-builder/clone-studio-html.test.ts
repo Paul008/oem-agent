@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -1282,6 +1283,56 @@ describe('buildCloneStudioHtml', () => {
     expect(handleBlock.slice(0, 200)).toContain('if (!EDITABLE)')
     // Read-only build still parses.
     expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('injects the clone runtime as a trusted script after the bridge when provided', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><section data-clone-interaction="tabs" data-clone-region-id="cr-1" x-data="cloneTabs"><p>Panel</p></section></main>',
+      title: 'Amarok',
+      baseHref: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      selectedRegionId: null,
+      runtimeJs: 'document.addEventListener(\'alpine:init\', function () {});',
+    })
+
+    const bridge = html.indexOf('data-clone-studio-bridge="true"')
+    const runtime = html.indexOf('data-clone-studio-runtime="true"')
+
+    expect(bridge).toBeGreaterThan(-1)
+    expect(runtime).toBeGreaterThan(bridge)
+    expect(html).toContain('alpine:init')
+  })
+
+  it('omits the runtime script when no runtimeJs is provided', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><p>No interactions here.</p></main>',
+      title: 'Amarok',
+      baseHref: 'https://example.com/',
+      selectedRegionId: null,
+    })
+
+    expect(html).not.toContain('data-clone-studio-runtime')
+  })
+
+  it('keeps stamped Alpine attributes through sanitization', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><section data-clone-interaction="tabs" x-data="cloneTabs"><button data-clone-tab="0" x-on:click="selectTab">A</button><div data-clone-panel="0">P</div></section></main>',
+      title: 'Amarok',
+      baseHref: 'https://example.com/',
+      selectedRegionId: null,
+    })
+
+    expect(html).toContain('x-data="cloneTabs"')
+    expect(html).toContain('x-on:click="selectTab"')
+    expect(html).toContain('data-clone-panel="0"')
+  })
+
+  it('legacy bridge interactivity skips stamped regions', () => {
+    const source = readFileSync(new URL('./clone-studio-html.ts', import.meta.url), 'utf8')
+    const enable = source.indexOf('function enableInteractivity')
+    const guard = source.indexOf('closest(\'[data-clone-interaction]\')', enable)
+
+    expect(enable).toBeGreaterThan(-1)
+    expect(guard).toBeGreaterThan(enable)
   })
 })
 

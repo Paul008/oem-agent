@@ -53,6 +53,7 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     .filter(region => typeof region.height_override === 'number')
     .map(region => ({ id: region.id, height_override: region.height_override }))
 
+  const runtimeJs = options.page?.content?.modes?.clone?.runtime_js
   return buildCloneStudioHtml({
     rendered: getCloneStudioHtml(options.page),
     title: options.title,
@@ -65,5 +66,6 @@ export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtml
     oemId: options.oemId,
     modelSlug: options.modelSlug,
     editable: options.editable !== false,
+    runtimeJs: typeof runtimeJs === 'string' && runtimeJs.length > 0 ? runtimeJs : undefined,
   })
 }
