@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-05)
 
 ## Corpus Check
-- 438 files · ~5,977,706 words
+- 438 files · ~8,998,658 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2168 nodes · 3119 edges · 432 communities detected
+- 2169 nodes · 3120 edges · 432 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -814,35 +814,35 @@ Cohesion: 0.47
 Nodes (4): createMockEnv(), createMockEnvWithR2(), createMockProcess(), createMockSandbox()
 
 ### Community 86 - "Community 86"
-Cohesion: 0.47
-Nodes (1): ComponentGenerator
-
-### Community 87 - "Community 87"
-Cohesion: 0.4
-Nodes (1): MemoryR2Bucket
-
-### Community 88 - "Community 88"
-Cohesion: 0.6
-Nodes (4): diagnosticsKey(), readCaptureDiagnostics(), readLastGoodCapturedHeight(), recordCaptureDiagnostics()
-
-### Community 89 - "Community 89"
-Cohesion: 0.53
-Nodes (4): mcpAuthMiddleware(), verifyCloudflareAccess(), verifyMcpToken(), verifySupabaseBearer()
-
-### Community 90 - "Community 90"
-Cohesion: 0.47
-Nodes (4): generateOemSeedData(), getAllOemDefinitions(), getOemDefinition(), resolveOemDefinition()
-
-### Community 91 - "Community 91"
-Cohesion: 0.6
-Nodes (5): cleanHtmlForLlm(), executeBannerTriage(), findBannerArrayInObject(), isAllowedUrl(), upsertBanner()
-
-### Community 92 - "Community 92"
 Cohesion: 0.33
 Nodes (0): 
 
-### Community 93 - "Community 93"
+### Community 87 - "Community 87"
+Cohesion: 0.47
+Nodes (1): ComponentGenerator
+
+### Community 88 - "Community 88"
 Cohesion: 0.4
+Nodes (1): MemoryR2Bucket
+
+### Community 89 - "Community 89"
+Cohesion: 0.6
+Nodes (4): diagnosticsKey(), readCaptureDiagnostics(), readLastGoodCapturedHeight(), recordCaptureDiagnostics()
+
+### Community 90 - "Community 90"
+Cohesion: 0.53
+Nodes (4): mcpAuthMiddleware(), verifyCloudflareAccess(), verifyMcpToken(), verifySupabaseBearer()
+
+### Community 91 - "Community 91"
+Cohesion: 0.47
+Nodes (4): generateOemSeedData(), getAllOemDefinitions(), getOemDefinition(), resolveOemDefinition()
+
+### Community 92 - "Community 92"
+Cohesion: 0.6
+Nodes (5): cleanHtmlForLlm(), executeBannerTriage(), findBannerArrayInObject(), isAllowedUrl(), upsertBanner()
+
+### Community 93 - "Community 93"
+Cohesion: 0.33
 Nodes (0): 
 
 ### Community 94 - "Community 94"
@@ -850,24 +850,24 @@ Cohesion: 0.4
 Nodes (0): 
 
 ### Community 95 - "Community 95"
-Cohesion: 0.7
-Nodes (4): countImagesInValue(), countSectionImages(), isRecord(), resolveSectionMediaPaths()
-
-### Community 96 - "Community 96"
 Cohesion: 0.4
 Nodes (0): 
+
+### Community 96 - "Community 96"
+Cohesion: 0.7
+Nodes (4): countImagesInValue(), countSectionImages(), isRecord(), resolveSectionMediaPaths()
 
 ### Community 97 - "Community 97"
 Cohesion: 0.4
 Nodes (0): 
 
 ### Community 98 - "Community 98"
-Cohesion: 0.7
-Nodes (4): bodyTypeFor(), fordPublicUrl(), main(), slugify()
-
-### Community 99 - "Community 99"
 Cohesion: 0.4
 Nodes (0): 
+
+### Community 99 - "Community 99"
+Cohesion: 0.7
+Nodes (4): bodyTypeFor(), fordPublicUrl(), main(), slugify()
 
 ### Community 100 - "Community 100"
 Cohesion: 0.4

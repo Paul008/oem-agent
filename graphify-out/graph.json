@@ -3367,7 +3367,7 @@
       "label": "stripCloneStudioScaffoldingForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4286",
+      "source_location": "L4299",
       "id": "clone_studio_html_stripclonestudioscaffoldingfortest",
       "community": 4
     },
@@ -3375,7 +3375,7 @@
       "label": "stripCloneStudioBridgeNodesForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4299",
+      "source_location": "L4312",
       "id": "clone_studio_html_stripclonestudiobridgenodesfortest",
       "community": 4
     },
@@ -3383,7 +3383,7 @@
       "label": "reassignClonedRegionIdsForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4319",
+      "source_location": "L4332",
       "id": "clone_studio_html_reassignclonedregionidsfortest",
       "community": 4
     },
@@ -3391,7 +3391,7 @@
       "label": "serializeCloneStudioBodyForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4327",
+      "source_location": "L4340",
       "id": "clone_studio_html_serializeclonestudiobodyfortest",
       "community": 4
     },
@@ -3399,7 +3399,7 @@
       "label": "sanitizeCloneStudioUrlForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4331",
+      "source_location": "L4344",
       "id": "clone_studio_html_sanitizeclonestudiourlfortest",
       "community": 4
     },
@@ -3407,7 +3407,7 @@
       "label": "sanitizeCloneStudioHtmlForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4335",
+      "source_location": "L4348",
       "id": "clone_studio_html_sanitizeclonestudiohtmlfortest",
       "community": 4
     },
@@ -3415,7 +3415,7 @@
       "label": "stopCloneStudioBlockedEventForTest()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4345",
+      "source_location": "L4358",
       "id": "clone_studio_html_stopclonestudioblockedeventfortest",
       "community": 4
     },
@@ -3423,7 +3423,7 @@
       "label": "buildOemStylesheetLinkTags()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4349",
+      "source_location": "L4362",
       "id": "clone_studio_html_buildoemstylesheetlinktags",
       "community": 4
     },
@@ -3431,7 +3431,7 @@
       "label": "normalizeCloneStudioMediaBase()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4372",
+      "source_location": "L4385",
       "id": "clone_studio_html_normalizeclonestudiomediabase",
       "community": 4
     },
@@ -3439,7 +3439,7 @@
       "label": "rewriteProxiedMediaUrls()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4392",
+      "source_location": "L4405",
       "id": "clone_studio_html_rewriteproxiedmediaurls",
       "community": 4
     },
@@ -3447,7 +3447,7 @@
       "label": "proxyCloneStudioHeadAssetUrls()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4401",
+      "source_location": "L4414",
       "id": "clone_studio_html_proxyclonestudioheadasseturls",
       "community": 4
     },
@@ -3455,7 +3455,7 @@
       "label": "proxyCloneStudioExternalAssetUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4422",
+      "source_location": "L4435",
       "id": "clone_studio_html_proxyclonestudioexternalasseturl",
       "community": 4
     },
@@ -3463,7 +3463,7 @@
       "label": "cloneStudioMediaProxyOemIdForUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4446",
+      "source_location": "L4459",
       "id": "clone_studio_html_clonestudiomediaproxyoemidforurl",
       "community": 4
     },
@@ -3471,7 +3471,7 @@
       "label": "encodeCloneStudioBase64Url()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4483",
+      "source_location": "L4496",
       "id": "clone_studio_html_encodeclonestudiobase64url",
       "community": 4
     },
@@ -3479,7 +3479,7 @@
       "label": "stripSourceDocumentImagePlaceholders()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4495",
+      "source_location": "L4508",
       "id": "clone_studio_html_stripsourcedocumentimageplaceholders",
       "community": 4
     },
@@ -3487,7 +3487,7 @@
       "label": "stripExternalSvgUseRefs()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4530",
+      "source_location": "L4543",
       "id": "clone_studio_html_stripexternalsvguserefs",
       "community": 4
     },
@@ -3495,7 +3495,7 @@
       "label": "isSourceDocumentImagePlaceholder()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4554",
+      "source_location": "L4567",
       "id": "clone_studio_html_issourcedocumentimageplaceholder",
       "community": 4
     },
@@ -3503,7 +3503,7 @@
       "label": "isLikelySourceDocumentImageUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4564",
+      "source_location": "L4577",
       "id": "clone_studio_html_islikelysourcedocumentimageurl",
       "community": 4
     },
@@ -3511,7 +3511,7 @@
       "label": "normalizeCloneStudioComparablePath()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4589",
+      "source_location": "L4602",
       "id": "clone_studio_html_normalizeclonestudiocomparablepath",
       "community": 4
     },
@@ -3519,7 +3519,7 @@
       "label": "hasRecoverableCloneStudioImageSource()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4594",
+      "source_location": "L4607",
       "id": "clone_studio_html_hasrecoverableclonestudioimagesource",
       "community": 4
     },
@@ -3527,7 +3527,7 @@
       "label": "normalizeCloneStudioComparableUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4600",
+      "source_location": "L4613",
       "id": "clone_studio_html_normalizeclonestudiocomparableurl",
       "community": 4
     },
@@ -3535,7 +3535,7 @@
       "label": "extractHeadParts()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4617",
+      "source_location": "L4630",
       "id": "clone_studio_html_extractheadparts",
       "community": 4
     },
@@ -3543,7 +3543,7 @@
       "label": "sanitizeCloneStudioHeadParts()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4627",
+      "source_location": "L4640",
       "id": "clone_studio_html_sanitizeclonestudioheadparts",
       "community": 4
     },
@@ -3551,7 +3551,7 @@
       "label": "sanitizeCloneStudioHeadPart()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4633",
+      "source_location": "L4646",
       "id": "clone_studio_html_sanitizeclonestudioheadpart",
       "community": 4
     },
@@ -3559,7 +3559,7 @@
       "label": "isStoredCloneStudioBridgeStyle()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4646",
+      "source_location": "L4659",
       "id": "clone_studio_html_isstoredclonestudiobridgestyle",
       "community": 4
     },
@@ -3567,7 +3567,7 @@
       "label": "sanitizeCloneStudioHeadLink()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4650",
+      "source_location": "L4663",
       "id": "clone_studio_html_sanitizeclonestudioheadlink",
       "community": 4
     },
@@ -3575,7 +3575,7 @@
       "label": "sanitizeCloneStudioHeadStyle()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4683",
+      "source_location": "L4696",
       "id": "clone_studio_html_sanitizeclonestudioheadstyle",
       "community": 4
     },
@@ -3583,7 +3583,7 @@
       "label": "neutralizeCssForStyleElement()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4695",
+      "source_location": "L4708",
       "id": "clone_studio_html_neutralizecssforstyleelement",
       "community": 4
     },
@@ -3591,7 +3591,7 @@
       "label": "parseCloneStudioTagAttributes()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4699",
+      "source_location": "L4712",
       "id": "clone_studio_html_parseclonestudiotagattributes",
       "community": 4
     },
@@ -3599,7 +3599,7 @@
       "label": "formatCloneStudioAttributes()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4718",
+      "source_location": "L4731",
       "id": "clone_studio_html_formatclonestudioattributes",
       "community": 4
     },
@@ -3607,7 +3607,7 @@
       "label": "serializeCloneStudioBody()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4724",
+      "source_location": "L4737",
       "id": "clone_studio_html_serializeclonestudiobody",
       "community": 4
     },
@@ -3615,7 +3615,7 @@
       "label": "stripClonePreviewInlineHandlers()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4728",
+      "source_location": "L4741",
       "id": "clone_studio_html_stripclonepreviewinlinehandlers",
       "community": 4
     },
@@ -3623,7 +3623,7 @@
       "label": "stripCloneStudioScaffolding()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4732",
+      "source_location": "L4745",
       "id": "clone_studio_html_stripclonestudioscaffolding",
       "community": 4
     },
@@ -3631,7 +3631,7 @@
       "label": "restorePreviewAnchor()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4736",
+      "source_location": "L4749",
       "id": "clone_studio_html_restorepreviewanchor",
       "community": 4
     },
@@ -3639,7 +3639,7 @@
       "label": "readHtmlAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4757",
+      "source_location": "L4770",
       "id": "clone_studio_html_readhtmlattribute",
       "community": 4
     },
@@ -3647,7 +3647,7 @@
       "label": "removeHtmlAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4763",
+      "source_location": "L4776",
       "id": "clone_studio_html_removehtmlattribute",
       "community": 4
     },
@@ -3655,7 +3655,7 @@
       "label": "setHtmlAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4768",
+      "source_location": "L4781",
       "id": "clone_studio_html_sethtmlattribute",
       "community": 4
     },
@@ -3663,7 +3663,7 @@
       "label": "decodeHtmlEntities()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4778",
+      "source_location": "L4791",
       "id": "clone_studio_html_decodehtmlentities",
       "community": 4
     },
@@ -3671,7 +3671,7 @@
       "label": "cssCodePoint()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4789",
+      "source_location": "L4802",
       "id": "clone_studio_html_csscodepoint",
       "community": 4
     },
@@ -3679,7 +3679,7 @@
       "label": "decodeCssEscapes()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4793",
+      "source_location": "L4806",
       "id": "clone_studio_html_decodecssescapes",
       "community": 4
     },
@@ -3687,7 +3687,7 @@
       "label": "isSafeRasterDataImage()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4815",
+      "source_location": "L4828",
       "id": "clone_studio_html_issaferasterdataimage",
       "community": 4
     },
@@ -3695,7 +3695,7 @@
       "label": "isRelativeUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4819",
+      "source_location": "L4832",
       "id": "clone_studio_html_isrelativeurl",
       "community": 4
     },
@@ -3703,7 +3703,7 @@
       "label": "sanitizeCloneStudioUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4833",
+      "source_location": "L4846",
       "id": "clone_studio_html_sanitizeclonestudiourl",
       "community": 4
     },
@@ -3711,7 +3711,7 @@
       "label": "sanitizeCloneStudioSrcset()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4855",
+      "source_location": "L4868",
       "id": "clone_studio_html_sanitizeclonestudiosrcset",
       "community": 4
     },
@@ -3719,7 +3719,7 @@
       "label": "sanitizeCloneStudioStyle()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4871",
+      "source_location": "L4884",
       "id": "clone_studio_html_sanitizeclonestudiostyle",
       "community": 4
     },
@@ -3727,7 +3727,7 @@
       "label": "urlPolicyForAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4889",
+      "source_location": "L4902",
       "id": "clone_studio_html_urlpolicyforattribute",
       "community": 4
     },
@@ -3735,7 +3735,7 @@
       "label": "sanitizeCloneStudioHtml()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4894",
+      "source_location": "L4907",
       "id": "clone_studio_html_sanitizeclonestudiohtml",
       "community": 4
     },
@@ -3743,7 +3743,7 @@
       "label": "sanitizeCloneStudioHtmlWithDom()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4901",
+      "source_location": "L4914",
       "id": "clone_studio_html_sanitizeclonestudiohtmlwithdom",
       "community": 4
     },
@@ -3751,7 +3751,7 @@
       "label": "sanitizeCloneStudioElementAttributes()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4921",
+      "source_location": "L4934",
       "id": "clone_studio_html_sanitizeclonestudioelementattributes",
       "community": 4
     },
@@ -3759,7 +3759,7 @@
       "label": "isCloneStudioLinkUrlAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4955",
+      "source_location": "L4968",
       "id": "clone_studio_html_isclonestudiolinkurlattribute",
       "community": 4
     },
@@ -3767,7 +3767,7 @@
       "label": "isCloneStudioMediaUrlAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4959",
+      "source_location": "L4972",
       "id": "clone_studio_html_isclonestudiomediaurlattribute",
       "community": 4
     },
@@ -3775,7 +3775,7 @@
       "label": "sanitizeCloneStudioHtmlFallback()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4963",
+      "source_location": "L4976",
       "id": "clone_studio_html_sanitizeclonestudiohtmlfallback",
       "community": 4
     },
@@ -3783,7 +3783,7 @@
       "label": "isCloneStudioVideoUrl()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4989",
+      "source_location": "L5002",
       "id": "clone_studio_html_isclonestudiovideourl",
       "community": 4
     },
@@ -3791,7 +3791,7 @@
       "label": "isCloneStudioTrustedVideoIframe()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5007",
+      "source_location": "L5020",
       "id": "clone_studio_html_isclonestudiotrustedvideoiframe",
       "community": 4
     },
@@ -3799,7 +3799,7 @@
       "label": "isCloneStudioTrustedIframeMarkup()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5012",
+      "source_location": "L5025",
       "id": "clone_studio_html_isclonestudiotrustediframemarkup",
       "community": 4
     },
@@ -3807,7 +3807,7 @@
       "label": "stopCloneStudioBlockedEvent()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5021",
+      "source_location": "L5034",
       "id": "clone_studio_html_stopclonestudioblockedevent",
       "community": 4
     },
@@ -3815,7 +3815,7 @@
       "label": "createCloneStudioBridgeToken()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5027",
+      "source_location": "L5040",
       "id": "clone_studio_html_createclonestudiobridgetoken",
       "community": 4
     },
@@ -3823,7 +3823,7 @@
       "label": "safeJson()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5039",
+      "source_location": "L5052",
       "id": "clone_studio_html_safejson",
       "community": 4
     },
@@ -3831,7 +3831,7 @@
       "label": "safeJsonValue()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5043",
+      "source_location": "L5056",
       "id": "clone_studio_html_safejsonvalue",
       "community": 4
     },
@@ -3839,7 +3839,7 @@
       "label": "normalizeCloneStudioRegionOverrides()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5047",
+      "source_location": "L5060",
       "id": "clone_studio_html_normalizeclonestudioregionoverrides",
       "community": 4
     },
@@ -3847,7 +3847,7 @@
       "label": "escapeHtmlAttribute()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5066",
+      "source_location": "L5079",
       "id": "clone_studio_html_escapehtmlattribute",
       "community": 4
     },
@@ -3855,7 +3855,7 @@
       "label": "escapeHtmlText()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5075",
+      "source_location": "L5088",
       "id": "clone_studio_html_escapehtmltext",
       "community": 4
     },
@@ -3863,7 +3863,7 @@
       "label": "escapeRegExp()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5082",
+      "source_location": "L5095",
       "id": "clone_studio_html_escaperegexp",
       "community": 4
     },
@@ -3873,7 +3873,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-sidebar-helpers.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_region_sidebar_helpers_ts",
-      "community": 93
+      "community": 94
     },
     {
       "label": "sortCloneRegions()",
@@ -3881,7 +3881,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-sidebar-helpers.ts",
       "source_location": "L3",
       "id": "clone_region_sidebar_helpers_sortcloneregions",
-      "community": 93
+      "community": 94
     },
     {
       "label": "cloneRegionSelectionPayload()",
@@ -3889,7 +3889,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-sidebar-helpers.ts",
       "source_location": "L7",
       "id": "clone_region_sidebar_helpers_cloneregionselectionpayload",
-      "community": 93
+      "community": 94
     },
     {
       "label": "cloneRegionFieldCount()",
@@ -3897,7 +3897,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-sidebar-helpers.ts",
       "source_location": "L11",
       "id": "clone_region_sidebar_helpers_cloneregionfieldcount",
-      "community": 93
+      "community": 94
     },
     {
       "label": "formatCloneRegionHeight()",
@@ -3905,7 +3905,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-region-sidebar-helpers.ts",
       "source_location": "L15",
       "id": "clone_region_sidebar_helpers_formatcloneregionheight",
-      "community": 93
+      "community": 94
     },
     {
       "label": "section-media.test.ts",
@@ -3937,7 +3937,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_test_ts",
-      "community": 94
+      "community": 95
     },
     {
       "label": "extractInitialBody()",
@@ -3945,7 +3945,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts",
       "source_location": "L15",
       "id": "clone_studio_html_test_extractinitialbody",
-      "community": 94
+      "community": 95
     },
     {
       "label": "extractDocumentHead()",
@@ -3953,7 +3953,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts",
       "source_location": "L19",
       "id": "clone_studio_html_test_extractdocumenthead",
-      "community": 94
+      "community": 95
     },
     {
       "label": "extractBridgeScript()",
@@ -3961,15 +3961,15 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts",
       "source_location": "L23",
       "id": "clone_studio_html_test_extractbridgescript",
-      "community": 94
+      "community": 95
     },
     {
       "label": "makeNode()",
       "file_type": "code",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts",
-      "source_location": "L1366",
+      "source_location": "L1408",
       "id": "clone_studio_html_test_makenode",
-      "community": 94
+      "community": 95
     },
     {
       "label": "clone-region-converter.ts",
@@ -4777,7 +4777,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-media.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_media_ts",
-      "community": 95
+      "community": 96
     },
     {
       "label": "isRecord()",
@@ -4785,7 +4785,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-media.ts",
       "source_location": "L20",
       "id": "section_media_isrecord",
-      "community": 95
+      "community": 96
     },
     {
       "label": "resolveSectionMediaPaths()",
@@ -4793,7 +4793,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-media.ts",
       "source_location": "L24",
       "id": "section_media_resolvesectionmediapaths",
-      "community": 95
+      "community": 96
     },
     {
       "label": "countImagesInValue()",
@@ -4801,7 +4801,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-media.ts",
       "source_location": "L43",
       "id": "section_media_countimagesinvalue",
-      "community": 95
+      "community": 96
     },
     {
       "label": "countSectionImages()",
@@ -4809,7 +4809,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-media.ts",
       "source_location": "L67",
       "id": "section_media_countsectionimages",
-      "community": 95
+      "community": 96
     },
     {
       "label": "region-menu.test.ts",
@@ -4833,7 +4833,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-converter.ts",
       "source_location": "L1",
       "id": "dashboard_src_pages_dashboard_components_page_builder_section_converter_ts",
-      "community": 96
+      "community": 97
     },
     {
       "label": "getConversionGridColumns()",
@@ -4841,7 +4841,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-converter.ts",
       "source_location": "L15",
       "id": "section_converter_getconversiongridcolumns",
-      "community": 96
+      "community": 97
     },
     {
       "label": "getConvertibleTypes()",
@@ -4849,7 +4849,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-converter.ts",
       "source_location": "L803",
       "id": "section_converter_getconvertibletypes",
-      "community": 96
+      "community": 97
     },
     {
       "label": "convertSectionData()",
@@ -4857,7 +4857,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-converter.ts",
       "source_location": "L814",
       "id": "section_converter_convertsectiondata",
-      "community": 96
+      "community": 97
     },
     {
       "label": "stripHtml()",
@@ -4865,7 +4865,7 @@
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/section-converter.ts",
       "source_location": "L856",
       "id": "section_converter_striphtml",
-      "community": 96
+      "community": 97
     },
     {
       "label": "clone-studio-canvas-helpers.ts",
@@ -5897,7 +5897,7 @@
       "source_file": "scripts/probe-ford-nukleus.ts",
       "source_location": "L1",
       "id": "scripts_probe_ford_nukleus_ts",
-      "community": 97
+      "community": 98
     },
     {
       "label": "isInteresting()",
@@ -5905,7 +5905,7 @@
       "source_file": "scripts/probe-ford-nukleus.ts",
       "source_location": "L27",
       "id": "probe_ford_nukleus_isinteresting",
-      "community": 97
+      "community": 98
     },
     {
       "label": "isNoise()",
@@ -5913,7 +5913,7 @@
       "source_file": "scripts/probe-ford-nukleus.ts",
       "source_location": "L36",
       "id": "probe_ford_nukleus_isnoise",
-      "community": 97
+      "community": 98
     },
     {
       "label": "capture()",
@@ -5921,7 +5921,7 @@
       "source_file": "scripts/probe-ford-nukleus.ts",
       "source_location": "L40",
       "id": "probe_ford_nukleus_capture",
-      "community": 97
+      "community": 98
     },
     {
       "label": "main()",
@@ -5929,7 +5929,7 @@
       "source_file": "scripts/probe-ford-nukleus.ts",
       "source_location": "L44",
       "id": "probe_ford_nukleus_main",
-      "community": 97
+      "community": 98
     },
     {
       "label": "find-ford-full-brochures.ts",
@@ -6369,7 +6369,7 @@
       "source_file": "scripts/sync-ford-models.ts",
       "source_location": "L1",
       "id": "scripts_sync_ford_models_ts",
-      "community": 98
+      "community": 99
     },
     {
       "label": "slugify()",
@@ -6377,7 +6377,7 @@
       "source_file": "scripts/sync-ford-models.ts",
       "source_location": "L25",
       "id": "sync_ford_models_slugify",
-      "community": 98
+      "community": 99
     },
     {
       "label": "fordPublicUrl()",
@@ -6385,7 +6385,7 @@
       "source_file": "scripts/sync-ford-models.ts",
       "source_location": "L29",
       "id": "sync_ford_models_fordpublicurl",
-      "community": 98
+      "community": 99
     },
     {
       "label": "bodyTypeFor()",
@@ -6393,7 +6393,7 @@
       "source_file": "scripts/sync-ford-models.ts",
       "source_location": "L36",
       "id": "sync_ford_models_bodytypefor",
-      "community": 98
+      "community": 99
     },
     {
       "label": "main()",
@@ -6401,7 +6401,7 @@
       "source_file": "scripts/sync-ford-models.ts",
       "source_location": "L47",
       "id": "sync_ford_models_main",
-      "community": 98
+      "community": 99
     },
     {
       "label": "index.ts",
@@ -9569,7 +9569,7 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L1",
       "id": "src_design_clone_annotator_ts",
-      "community": 99
+      "community": 86
     },
     {
       "label": "classAttr()",
@@ -9577,7 +9577,7 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L56",
       "id": "clone_annotator_classattr",
-      "community": 99
+      "community": 86
     },
     {
       "label": "stripForcedStyles()",
@@ -9585,23 +9585,31 @@
       "source_file": "src/design/clone-annotator.ts",
       "source_location": "L60",
       "id": "clone_annotator_stripforcedstyles",
-      "community": 99
+      "community": 86
+    },
+    {
+      "label": "resolveTabPanelsByAriaLabelledby()",
+      "file_type": "code",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L84",
+      "id": "clone_annotator_resolvetabpanelsbyarialabelledby",
+      "community": 86
     },
     {
       "label": "resolveByPath()",
       "file_type": "code",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L75",
+      "source_location": "L121",
       "id": "clone_annotator_resolvebypath",
-      "community": 99
+      "community": 86
     },
     {
       "label": "annotateCloneInteractions()",
       "file_type": "code",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L86",
+      "source_location": "L132",
       "id": "clone_annotator_annotatecloneinteractions",
-      "community": 99
+      "community": 86
     },
     {
       "label": "section-parser.test.ts",
@@ -10065,7 +10073,7 @@
       "source_file": "src/design/component-generator.ts",
       "source_location": "L1",
       "id": "src_design_component_generator_ts",
-      "community": 86
+      "community": 87
     },
     {
       "label": "ComponentGenerator",
@@ -10073,7 +10081,7 @@
       "source_file": "src/design/component-generator.ts",
       "source_location": "L33",
       "id": "component_generator_componentgenerator",
-      "community": 86
+      "community": 87
     },
     {
       "label": ".constructor()",
@@ -10081,7 +10089,7 @@
       "source_file": "src/design/component-generator.ts",
       "source_location": "L37",
       "id": "component_generator_componentgenerator_constructor",
-      "community": 86
+      "community": 87
     },
     {
       "label": ".generateComponent()",
@@ -10089,7 +10097,7 @@
       "source_file": "src/design/component-generator.ts",
       "source_location": "L45",
       "id": "component_generator_componentgenerator_generatecomponent",
-      "community": 86
+      "community": 87
     },
     {
       "label": ".buildBrandContext()",
@@ -10097,7 +10105,7 @@
       "source_file": "src/design/component-generator.ts",
       "source_location": "L214",
       "id": "component_generator_componentgenerator_buildbrandcontext",
-      "community": 86
+      "community": 87
     },
     {
       "label": ".buildHtml()",
@@ -10105,7 +10113,7 @@
       "source_file": "src/design/component-generator.ts",
       "source_location": "L236",
       "id": "component_generator_componentgenerator_buildhtml",
-      "community": 86
+      "community": 87
     },
     {
       "label": "section-parser.ts",
@@ -10361,7 +10369,7 @@
       "source_file": "src/design/capture-diagnostics.test.ts",
       "source_location": "L1",
       "id": "src_design_capture_diagnostics_test_ts",
-      "community": 87
+      "community": 88
     },
     {
       "label": "MemoryR2Bucket",
@@ -10369,7 +10377,7 @@
       "source_file": "src/design/capture-diagnostics.test.ts",
       "source_location": "L22",
       "id": "capture_diagnostics_test_memoryr2bucket",
-      "community": 87
+      "community": 88
     },
     {
       "label": ".get()",
@@ -10377,7 +10385,7 @@
       "source_file": "src/design/capture-diagnostics.test.ts",
       "source_location": "L24",
       "id": "capture_diagnostics_test_memoryr2bucket_get",
-      "community": 87
+      "community": 88
     },
     {
       "label": ".put()",
@@ -10385,7 +10393,7 @@
       "source_file": "src/design/capture-diagnostics.test.ts",
       "source_location": "L29",
       "id": "capture_diagnostics_test_memoryr2bucket_put",
-      "community": 87
+      "community": 88
     },
     {
       "label": ".readJson()",
@@ -10393,7 +10401,7 @@
       "source_file": "src/design/capture-diagnostics.test.ts",
       "source_location": "L32",
       "id": "capture_diagnostics_test_memoryr2bucket_readjson",
-      "community": 87
+      "community": 88
     },
     {
       "label": "result()",
@@ -10401,7 +10409,7 @@
       "source_file": "src/design/capture-diagnostics.test.ts",
       "source_location": "L39",
       "id": "capture_diagnostics_test_result",
-      "community": 87
+      "community": 88
     },
     {
       "label": "page-structurer.ts",
@@ -11057,7 +11065,7 @@
       "source_file": "src/design/capture-diagnostics.ts",
       "source_location": "L1",
       "id": "src_design_capture_diagnostics_ts",
-      "community": 88
+      "community": 89
     },
     {
       "label": "diagnosticsKey()",
@@ -11065,7 +11073,7 @@
       "source_file": "src/design/capture-diagnostics.ts",
       "source_location": "L53",
       "id": "capture_diagnostics_diagnosticskey",
-      "community": 88
+      "community": 89
     },
     {
       "label": "buildDiagnosticsRecord()",
@@ -11073,7 +11081,7 @@
       "source_file": "src/design/capture-diagnostics.ts",
       "source_location": "L66",
       "id": "capture_diagnostics_builddiagnosticsrecord",
-      "community": 88
+      "community": 89
     },
     {
       "label": "recordCaptureDiagnostics()",
@@ -11081,7 +11089,7 @@
       "source_file": "src/design/capture-diagnostics.ts",
       "source_location": "L112",
       "id": "capture_diagnostics_recordcapturediagnostics",
-      "community": 88
+      "community": 89
     },
     {
       "label": "readCaptureDiagnostics()",
@@ -11089,7 +11097,7 @@
       "source_file": "src/design/capture-diagnostics.ts",
       "source_location": "L127",
       "id": "capture_diagnostics_readcapturediagnostics",
-      "community": 88
+      "community": 89
     },
     {
       "label": "readLastGoodCapturedHeight()",
@@ -11097,7 +11105,7 @@
       "source_file": "src/design/capture-diagnostics.ts",
       "source_location": "L144",
       "id": "capture_diagnostics_readlastgoodcapturedheight",
-      "community": 88
+      "community": 89
     },
     {
       "label": "tailwind-style-normalizer.ts",
@@ -11263,7 +11271,7 @@
       "label": "buildCloneRuntimeScript()",
       "file_type": "code",
       "source_file": "src/design/clone-runtime/clone-runtime.ts",
-      "source_location": "L139",
+      "source_location": "L146",
       "id": "clone_runtime_buildcloneruntimescript",
       "community": 211
     },
@@ -12513,7 +12521,7 @@
       "source_file": "src/mcp/auth.ts",
       "source_location": "L1",
       "id": "src_mcp_auth_ts",
-      "community": 89
+      "community": 90
     },
     {
       "label": "getMcpAuthUser()",
@@ -12521,7 +12529,7 @@
       "source_file": "src/mcp/auth.ts",
       "source_location": "L21",
       "id": "auth_getmcpauthuser",
-      "community": 89
+      "community": 90
     },
     {
       "label": "verifySupabaseBearer()",
@@ -12529,7 +12537,7 @@
       "source_file": "src/mcp/auth.ts",
       "source_location": "L25",
       "id": "auth_verifysupabasebearer",
-      "community": 89
+      "community": 90
     },
     {
       "label": "verifyMcpToken()",
@@ -12537,7 +12545,7 @@
       "source_file": "src/mcp/auth.ts",
       "source_location": "L60",
       "id": "auth_verifymcptoken",
-      "community": 89
+      "community": 90
     },
     {
       "label": "verifyCloudflareAccess()",
@@ -12545,7 +12553,7 @@
       "source_file": "src/mcp/auth.ts",
       "source_location": "L73",
       "id": "auth_verifycloudflareaccess",
-      "community": 89
+      "community": 90
     },
     {
       "label": "mcpAuthMiddleware()",
@@ -12553,7 +12561,7 @@
       "source_file": "src/mcp/auth.ts",
       "source_location": "L91",
       "id": "auth_mcpauthmiddleware",
-      "community": 89
+      "community": 90
     },
     {
       "label": "recipe-tools.ts",
@@ -12673,7 +12681,7 @@
       "source_file": "src/oem/registry.ts",
       "source_location": "L1",
       "id": "src_oem_registry_ts",
-      "community": 90
+      "community": 91
     },
     {
       "label": "getOemDefinition()",
@@ -12681,7 +12689,7 @@
       "source_file": "src/oem/registry.ts",
       "source_location": "L657",
       "id": "registry_getoemdefinition",
-      "community": 90
+      "community": 91
     },
     {
       "label": "resolveOemDefinition()",
@@ -12689,7 +12697,7 @@
       "source_file": "src/oem/registry.ts",
       "source_location": "L665",
       "id": "registry_resolveoemdefinition",
-      "community": 90
+      "community": 91
     },
     {
       "label": "getAllOemDefinitions()",
@@ -12697,7 +12705,7 @@
       "source_file": "src/oem/registry.ts",
       "source_location": "L710",
       "id": "registry_getalloemdefinitions",
-      "community": 90
+      "community": 91
     },
     {
       "label": "getActiveOemDefinitions()",
@@ -12705,7 +12713,7 @@
       "source_file": "src/oem/registry.ts",
       "source_location": "L714",
       "id": "registry_getactiveoemdefinitions",
-      "community": 90
+      "community": 91
     },
     {
       "label": "generateOemSeedData()",
@@ -12713,7 +12721,7 @@
       "source_file": "src/oem/registry.ts",
       "source_location": "L722",
       "id": "registry_generateoemseeddata",
-      "community": 90
+      "community": 91
     },
     {
       "label": "index.ts",
@@ -15057,7 +15065,7 @@
       "source_file": "src/sync/banner-triage.ts",
       "source_location": "L1",
       "id": "src_sync_banner_triage_ts",
-      "community": 91
+      "community": 92
     },
     {
       "label": "isAllowedUrl()",
@@ -15065,7 +15073,7 @@
       "source_file": "src/sync/banner-triage.ts",
       "source_location": "L57",
       "id": "banner_triage_isallowedurl",
-      "community": 91
+      "community": 92
     },
     {
       "label": "findBannerArrayInObject()",
@@ -15073,7 +15081,7 @@
       "source_file": "src/sync/banner-triage.ts",
       "source_location": "L73",
       "id": "banner_triage_findbannerarrayinobject",
-      "community": 91
+      "community": 92
     },
     {
       "label": "cleanHtmlForLlm()",
@@ -15081,7 +15089,7 @@
       "source_file": "src/sync/banner-triage.ts",
       "source_location": "L112",
       "id": "banner_triage_cleanhtmlforllm",
-      "community": 91
+      "community": 92
     },
     {
       "label": "upsertBanner()",
@@ -15089,7 +15097,7 @@
       "source_file": "src/sync/banner-triage.ts",
       "source_location": "L156",
       "id": "banner_triage_upsertbanner",
-      "community": 91
+      "community": 92
     },
     {
       "label": "executeBannerTriage()",
@@ -15097,7 +15105,7 @@
       "source_file": "src/sync/banner-triage.ts",
       "source_location": "L201",
       "id": "banner_triage_executebannertriage",
-      "community": 91
+      "community": 92
     },
     {
       "label": "weekly-report.ts",
@@ -17145,7 +17153,7 @@
       "source_file": "src/routes/media.ts",
       "source_location": "L1",
       "id": "src_routes_media_ts",
-      "community": 92
+      "community": 93
     },
     {
       "label": "decodeUrl()",
@@ -17153,7 +17161,7 @@
       "source_file": "src/routes/media.ts",
       "source_location": "L122",
       "id": "media_decodeurl",
-      "community": 92
+      "community": 93
     },
     {
       "label": "resolveUrl()",
@@ -17161,7 +17169,7 @@
       "source_file": "src/routes/media.ts",
       "source_location": "L137",
       "id": "media_resolveurl",
-      "community": 92
+      "community": 93
     },
     {
       "label": "isCssUrlRewritable()",
@@ -17169,7 +17177,7 @@
       "source_file": "src/routes/media.ts",
       "source_location": "L143",
       "id": "media_iscssurlrewritable",
-      "community": 92
+      "community": 93
     },
     {
       "label": "rewriteCssAssetUrlsForMediaProxy()",
@@ -17177,7 +17185,7 @@
       "source_file": "src/routes/media.ts",
       "source_location": "L150",
       "id": "media_rewritecssasseturlsformediaproxy",
-      "community": 92
+      "community": 93
     },
     {
       "label": "servePageAsset()",
@@ -17185,7 +17193,7 @@
       "source_file": "src/routes/media.ts",
       "source_location": "L225",
       "id": "media_servepageasset",
-      "community": 92
+      "community": 93
     },
     {
       "label": "public.ts",
@@ -22537,7 +22545,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4286",
+      "source_location": "L4299",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stripclonestudioscaffoldingfortest",
@@ -22549,7 +22557,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4299",
+      "source_location": "L4312",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stripclonestudiobridgenodesfortest",
@@ -22561,7 +22569,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4319",
+      "source_location": "L4332",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_reassignclonedregionidsfortest",
@@ -22573,7 +22581,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4327",
+      "source_location": "L4340",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_serializeclonestudiobodyfortest",
@@ -22585,7 +22593,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4331",
+      "source_location": "L4344",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiourlfortest",
@@ -22597,7 +22605,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4335",
+      "source_location": "L4348",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtmlfortest",
@@ -22609,7 +22617,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4345",
+      "source_location": "L4358",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stopclonestudioblockedeventfortest",
@@ -22621,7 +22629,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4349",
+      "source_location": "L4362",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_buildoemstylesheetlinktags",
@@ -22633,7 +22641,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4372",
+      "source_location": "L4385",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_normalizeclonestudiomediabase",
@@ -22645,7 +22653,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4392",
+      "source_location": "L4405",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_rewriteproxiedmediaurls",
@@ -22657,7 +22665,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4401",
+      "source_location": "L4414",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_proxyclonestudioheadasseturls",
@@ -22669,7 +22677,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4422",
+      "source_location": "L4435",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_proxyclonestudioexternalasseturl",
@@ -22681,7 +22689,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4446",
+      "source_location": "L4459",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_clonestudiomediaproxyoemidforurl",
@@ -22693,7 +22701,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4483",
+      "source_location": "L4496",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_encodeclonestudiobase64url",
@@ -22705,7 +22713,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4495",
+      "source_location": "L4508",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stripsourcedocumentimageplaceholders",
@@ -22717,7 +22725,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4530",
+      "source_location": "L4543",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stripexternalsvguserefs",
@@ -22729,7 +22737,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4554",
+      "source_location": "L4567",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_issourcedocumentimageplaceholder",
@@ -22741,7 +22749,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4564",
+      "source_location": "L4577",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_islikelysourcedocumentimageurl",
@@ -22753,7 +22761,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4589",
+      "source_location": "L4602",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_normalizeclonestudiocomparablepath",
@@ -22765,7 +22773,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4594",
+      "source_location": "L4607",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_hasrecoverableclonestudioimagesource",
@@ -22777,7 +22785,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4600",
+      "source_location": "L4613",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_normalizeclonestudiocomparableurl",
@@ -22789,7 +22797,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4617",
+      "source_location": "L4630",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_extractheadparts",
@@ -22801,7 +22809,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4627",
+      "source_location": "L4640",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudioheadparts",
@@ -22813,7 +22821,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4633",
+      "source_location": "L4646",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudioheadpart",
@@ -22825,7 +22833,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4646",
+      "source_location": "L4659",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isstoredclonestudiobridgestyle",
@@ -22837,7 +22845,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4650",
+      "source_location": "L4663",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudioheadlink",
@@ -22849,7 +22857,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4683",
+      "source_location": "L4696",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudioheadstyle",
@@ -22861,7 +22869,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4695",
+      "source_location": "L4708",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_neutralizecssforstyleelement",
@@ -22873,7 +22881,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4699",
+      "source_location": "L4712",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_parseclonestudiotagattributes",
@@ -22885,7 +22893,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4718",
+      "source_location": "L4731",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_formatclonestudioattributes",
@@ -22897,7 +22905,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4724",
+      "source_location": "L4737",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_serializeclonestudiobody",
@@ -22909,7 +22917,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4728",
+      "source_location": "L4741",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stripclonepreviewinlinehandlers",
@@ -22921,7 +22929,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4732",
+      "source_location": "L4745",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stripclonestudioscaffolding",
@@ -22933,7 +22941,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4736",
+      "source_location": "L4749",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_restorepreviewanchor",
@@ -22945,7 +22953,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4757",
+      "source_location": "L4770",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_readhtmlattribute",
@@ -22957,7 +22965,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4763",
+      "source_location": "L4776",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_removehtmlattribute",
@@ -22969,7 +22977,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4768",
+      "source_location": "L4781",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sethtmlattribute",
@@ -22981,7 +22989,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4778",
+      "source_location": "L4791",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_decodehtmlentities",
@@ -22993,7 +23001,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4789",
+      "source_location": "L4802",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_csscodepoint",
@@ -23005,7 +23013,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4793",
+      "source_location": "L4806",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_decodecssescapes",
@@ -23017,7 +23025,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4815",
+      "source_location": "L4828",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_issaferasterdataimage",
@@ -23029,7 +23037,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4819",
+      "source_location": "L4832",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isrelativeurl",
@@ -23041,7 +23049,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4833",
+      "source_location": "L4846",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiourl",
@@ -23053,7 +23061,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4855",
+      "source_location": "L4868",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiosrcset",
@@ -23065,7 +23073,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4871",
+      "source_location": "L4884",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiostyle",
@@ -23077,7 +23085,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4889",
+      "source_location": "L4902",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_urlpolicyforattribute",
@@ -23089,7 +23097,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4894",
+      "source_location": "L4907",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtml",
@@ -23101,7 +23109,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4901",
+      "source_location": "L4914",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtmlwithdom",
@@ -23113,7 +23121,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4921",
+      "source_location": "L4934",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudioelementattributes",
@@ -23125,7 +23133,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4955",
+      "source_location": "L4968",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isclonestudiolinkurlattribute",
@@ -23137,7 +23145,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4959",
+      "source_location": "L4972",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isclonestudiomediaurlattribute",
@@ -23149,7 +23157,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4963",
+      "source_location": "L4976",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtmlfallback",
@@ -23161,7 +23169,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4989",
+      "source_location": "L5002",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isclonestudiovideourl",
@@ -23173,7 +23181,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5007",
+      "source_location": "L5020",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isclonestudiotrustedvideoiframe",
@@ -23185,7 +23193,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5012",
+      "source_location": "L5025",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_isclonestudiotrustediframemarkup",
@@ -23197,7 +23205,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5021",
+      "source_location": "L5034",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_stopclonestudioblockedevent",
@@ -23209,7 +23217,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5027",
+      "source_location": "L5040",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_createclonestudiobridgetoken",
@@ -23221,7 +23229,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5039",
+      "source_location": "L5052",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_safejson",
@@ -23233,7 +23241,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5043",
+      "source_location": "L5056",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_safejsonvalue",
@@ -23245,7 +23253,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5047",
+      "source_location": "L5060",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_normalizeclonestudioregionoverrides",
@@ -23257,7 +23265,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5066",
+      "source_location": "L5079",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_escapehtmlattribute",
@@ -23269,7 +23277,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5075",
+      "source_location": "L5088",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_escapehtmltext",
@@ -23281,7 +23289,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5082",
+      "source_location": "L5095",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_ts",
       "_tgt": "clone_studio_html_escaperegexp",
@@ -23473,7 +23481,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4287",
+      "source_location": "L4300",
       "weight": 1.0,
       "_src": "clone_studio_html_stripclonestudioscaffoldingfortest",
       "_tgt": "clone_studio_html_stripclonestudioscaffolding",
@@ -23485,7 +23493,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4328",
+      "source_location": "L4341",
       "weight": 1.0,
       "_src": "clone_studio_html_serializeclonestudiobodyfortest",
       "_tgt": "clone_studio_html_serializeclonestudiobody",
@@ -23497,7 +23505,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4332",
+      "source_location": "L4345",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiourlfortest",
       "_tgt": "clone_studio_html_sanitizeclonestudiourl",
@@ -23509,7 +23517,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4336",
+      "source_location": "L4349",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiohtmlfortest",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtml",
@@ -23521,7 +23529,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4346",
+      "source_location": "L4359",
       "weight": 1.0,
       "_src": "clone_studio_html_stopclonestudioblockedeventfortest",
       "_tgt": "clone_studio_html_stopclonestudioblockedevent",
@@ -23533,7 +23541,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4367",
+      "source_location": "L4380",
       "weight": 1.0,
       "_src": "clone_studio_html_buildoemstylesheetlinktags",
       "_tgt": "clone_studio_html_escapehtmlattribute",
@@ -23545,7 +23553,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4438",
+      "source_location": "L4451",
       "weight": 1.0,
       "_src": "clone_studio_html_proxyclonestudioexternalasseturl",
       "_tgt": "clone_studio_html_clonestudiomediaproxyoemidforurl",
@@ -23557,7 +23565,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4439",
+      "source_location": "L4452",
       "weight": 1.0,
       "_src": "clone_studio_html_proxyclonestudioexternalasseturl",
       "_tgt": "clone_studio_html_encodeclonestudiobase64url",
@@ -23569,7 +23577,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4496",
+      "source_location": "L4509",
       "weight": 1.0,
       "_src": "clone_studio_html_stripsourcedocumentimageplaceholders",
       "_tgt": "clone_studio_html_normalizeclonestudiocomparableurl",
@@ -23581,7 +23589,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4504",
+      "source_location": "L4517",
       "weight": 1.0,
       "_src": "clone_studio_html_stripsourcedocumentimageplaceholders",
       "_tgt": "clone_studio_html_issourcedocumentimageplaceholder",
@@ -23593,7 +23601,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4557",
+      "source_location": "L4570",
       "weight": 1.0,
       "_src": "clone_studio_html_issourcedocumentimageplaceholder",
       "_tgt": "clone_studio_html_hasrecoverableclonestudioimagesource",
@@ -23605,7 +23613,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4561",
+      "source_location": "L4574",
       "weight": 1.0,
       "_src": "clone_studio_html_issourcedocumentimageplaceholder",
       "_tgt": "clone_studio_html_islikelysourcedocumentimageurl",
@@ -23617,7 +23625,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4565",
+      "source_location": "L4578",
       "weight": 1.0,
       "_src": "clone_studio_html_islikelysourcedocumentimageurl",
       "_tgt": "clone_studio_html_normalizeclonestudiocomparableurl",
@@ -23629,7 +23637,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4576",
+      "source_location": "L4589",
       "weight": 1.0,
       "_src": "clone_studio_html_islikelysourcedocumentimageurl",
       "_tgt": "clone_studio_html_normalizeclonestudiocomparablepath",
@@ -23641,7 +23649,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4635",
+      "source_location": "L4648",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadpart",
       "_tgt": "clone_studio_html_sanitizeclonestudioheadlink",
@@ -23653,7 +23661,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4638",
+      "source_location": "L4651",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadpart",
       "_tgt": "clone_studio_html_isstoredclonestudiobridgestyle",
@@ -23665,7 +23673,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4640",
+      "source_location": "L4653",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadpart",
       "_tgt": "clone_studio_html_sanitizeclonestudioheadstyle",
@@ -23677,7 +23685,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4651",
+      "source_location": "L4664",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadlink",
       "_tgt": "clone_studio_html_parseclonestudiotagattributes",
@@ -23689,7 +23697,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4664",
+      "source_location": "L4677",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadlink",
       "_tgt": "clone_studio_html_sanitizeclonestudiourl",
@@ -23701,7 +23709,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4680",
+      "source_location": "L4693",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadlink",
       "_tgt": "clone_studio_html_formatclonestudioattributes",
@@ -23713,7 +23721,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4688",
+      "source_location": "L4701",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadstyle",
       "_tgt": "clone_studio_html_neutralizecssforstyleelement",
@@ -23725,7 +23733,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4688",
+      "source_location": "L4701",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioheadstyle",
       "_tgt": "clone_studio_html_sanitizeclonestudiostyle",
@@ -23737,7 +23745,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4725",
+      "source_location": "L4738",
       "weight": 1.0,
       "_src": "clone_studio_html_serializeclonestudiobody",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtml",
@@ -23749,7 +23757,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4725",
+      "source_location": "L4738",
       "weight": 1.0,
       "_src": "clone_studio_html_serializeclonestudiobody",
       "_tgt": "clone_studio_html_stripclonestudioscaffolding",
@@ -23761,7 +23769,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4737",
+      "source_location": "L4750",
       "weight": 1.0,
       "_src": "clone_studio_html_restorepreviewanchor",
       "_tgt": "clone_studio_html_readhtmlattribute",
@@ -23773,7 +23781,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4741",
+      "source_location": "L4754",
       "weight": 1.0,
       "_src": "clone_studio_html_restorepreviewanchor",
       "_tgt": "clone_studio_html_removehtmlattribute",
@@ -23785,7 +23793,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4747",
+      "source_location": "L4760",
       "weight": 1.0,
       "_src": "clone_studio_html_restorepreviewanchor",
       "_tgt": "clone_studio_html_sethtmlattribute",
@@ -23797,7 +23805,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4758",
+      "source_location": "L4771",
       "weight": 1.0,
       "_src": "clone_studio_html_readhtmlattribute",
       "_tgt": "clone_studio_html_escaperegexp",
@@ -23809,7 +23817,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4764",
+      "source_location": "L4777",
       "weight": 1.0,
       "_src": "clone_studio_html_removehtmlattribute",
       "_tgt": "clone_studio_html_escaperegexp",
@@ -23821,7 +23829,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4770",
+      "source_location": "L4783",
       "weight": 1.0,
       "_src": "clone_studio_html_sethtmlattribute",
       "_tgt": "clone_studio_html_escaperegexp",
@@ -23833,7 +23841,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4835",
+      "source_location": "L4848",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiourl",
       "_tgt": "clone_studio_html_decodehtmlentities",
@@ -23845,7 +23853,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4872",
+      "source_location": "L4885",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiostyle",
       "_tgt": "clone_studio_html_decodecssescapes",
@@ -23857,7 +23865,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4843",
+      "source_location": "L4856",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiourl",
       "_tgt": "clone_studio_html_issaferasterdataimage",
@@ -23869,7 +23877,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4849",
+      "source_location": "L4862",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiourl",
       "_tgt": "clone_studio_html_isrelativeurl",
@@ -23881,7 +23889,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4946",
+      "source_location": "L4959",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioelementattributes",
       "_tgt": "clone_studio_html_sanitizeclonestudiourl",
@@ -23893,7 +23901,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5008",
+      "source_location": "L5021",
       "weight": 1.0,
       "_src": "clone_studio_html_isclonestudiotrustedvideoiframe",
       "_tgt": "clone_studio_html_sanitizeclonestudiourl",
@@ -23905,7 +23913,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4941",
+      "source_location": "L4954",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioelementattributes",
       "_tgt": "clone_studio_html_sanitizeclonestudiosrcset",
@@ -23917,7 +23925,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4932",
+      "source_location": "L4945",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioelementattributes",
       "_tgt": "clone_studio_html_sanitizeclonestudiostyle",
@@ -23929,7 +23937,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4896",
+      "source_location": "L4909",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiohtml",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtmlwithdom",
@@ -23941,7 +23949,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4898",
+      "source_location": "L4911",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiohtml",
       "_tgt": "clone_studio_html_sanitizeclonestudiohtmlfallback",
@@ -23953,7 +23961,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4911",
+      "source_location": "L4924",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiohtmlwithdom",
       "_tgt": "clone_studio_html_isclonestudiotrustedvideoiframe",
@@ -23965,7 +23973,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4916",
+      "source_location": "L4929",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudiohtmlwithdom",
       "_tgt": "clone_studio_html_sanitizeclonestudioelementattributes",
@@ -23977,7 +23985,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4945",
+      "source_location": "L4958",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioelementattributes",
       "_tgt": "clone_studio_html_isclonestudiolinkurlattribute",
@@ -23989,7 +23997,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L4950",
+      "source_location": "L4963",
       "weight": 1.0,
       "_src": "clone_studio_html_sanitizeclonestudioelementattributes",
       "_tgt": "clone_studio_html_isclonestudiomediaurlattribute",
@@ -24001,7 +24009,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5009",
+      "source_location": "L5022",
       "weight": 1.0,
       "_src": "clone_studio_html_isclonestudiotrustedvideoiframe",
       "_tgt": "clone_studio_html_isclonestudiovideourl",
@@ -24013,7 +24021,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.ts",
-      "source_location": "L5018",
+      "source_location": "L5031",
       "weight": 1.0,
       "_src": "clone_studio_html_isclonestudiotrustediframemarkup",
       "_tgt": "clone_studio_html_isclonestudiotrustedvideoiframe",
@@ -24109,7 +24117,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dashboard/src/pages/dashboard/components/page-builder/clone-studio-html.test.ts",
-      "source_location": "L1366",
+      "source_location": "L1408",
       "weight": 1.0,
       "_src": "dashboard_src_pages_dashboard_components_page_builder_clone_studio_html_test_ts",
       "_tgt": "clone_studio_html_test_makenode",
@@ -37609,7 +37617,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L75",
+      "source_location": "L84",
+      "weight": 1.0,
+      "_src": "src_design_clone_annotator_ts",
+      "_tgt": "clone_annotator_resolvetabpanelsbyarialabelledby",
+      "source": "src_design_clone_annotator_ts",
+      "target": "clone_annotator_resolvetabpanelsbyarialabelledby",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/design/clone-annotator.ts",
+      "source_location": "L121",
       "weight": 1.0,
       "_src": "src_design_clone_annotator_ts",
       "_tgt": "clone_annotator_resolvebypath",
@@ -37621,7 +37641,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/clone-annotator.ts",
-      "source_location": "L86",
+      "source_location": "L132",
       "weight": 1.0,
       "_src": "src_design_clone_annotator_ts",
       "_tgt": "clone_annotator_annotatecloneinteractions",
@@ -41413,7 +41433,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/design/clone-runtime/clone-runtime.ts",
-      "source_location": "L139",
+      "source_location": "L146",
       "weight": 1.0,
       "_src": "src_design_clone_runtime_clone_runtime_ts",
       "_tgt": "clone_runtime_buildcloneruntimescript",
