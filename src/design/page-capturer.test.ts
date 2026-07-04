@@ -17,6 +17,7 @@ import {
   CAPTURE_STATIC_CLONE_SAFETY_CSS,
   CAPTURE_STATIC_MEDIA_FRAME_CSS,
   collectCaptureHeadPartsFromHtml,
+  countEmptyFeatureAppShellsInHtml,
   isCaptureBlockedBySecurityPage,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
@@ -287,9 +288,9 @@ function fakeBrowserCapture(audit?: any) {
  * matches zero). This capture intentionally has no `audit` field, mirroring a real
  * SSR fetch that never ran the browser hydration sweep.
  */
-function fakeInitialDocumentCapture() {
+function fakeInitialDocumentCapture(options?: { extraHtml?: string }) {
   const classNames = Array.from({ length: 25 }, (_, index) => `sc-${index}`)
-  const html = `<main>${classNames.map(name => `<div class="${name}">SSR content</div>`).join('')}</main>`
+  const html = `<main>${classNames.map(name => `<div class="${name}">SSR content</div>`).join('')}${options?.extraHtml ?? ''}</main>`
   const css = classNames.map(name => `.${name} { color: red; }`).join('\n')
   return {
     html,
@@ -301,6 +302,38 @@ function fakeInitialDocumentCapture() {
     viewport: { width: 1440, height: 1080 },
   }
 }
+
+describe('countEmptyFeatureAppShellsInHtml', () => {
+  it('counts an empty feature-app shell matching the selector', () => {
+    const html = '<html><body><div class="CmsFeatureAppLoaderX"></div></body></html>'
+
+    const result = countEmptyFeatureAppShellsInHtml(html, ['[class*="CmsFeatureAppLoader"]'])
+
+    expect(result).toEqual(['[class*="CmsFeatureAppLoader"] [0]'])
+  })
+
+  it('skips a shell containing media', () => {
+    const html = '<html><body><div class="CmsFeatureAppLoaderX"><img src="hero.jpg"></div></body></html>'
+
+    const result = countEmptyFeatureAppShellsInHtml(html, ['[class*="CmsFeatureAppLoader"]'])
+
+    expect(result).toEqual([])
+  })
+
+  it('skips a shell with 40 or more characters of text', () => {
+    const html = `<html><body><div class="CmsFeatureAppLoaderX">${'x'.repeat(40)}</div></body></html>`
+
+    const result = countEmptyFeatureAppShellsInHtml(html, ['[class*="CmsFeatureAppLoader"]'])
+
+    expect(result).toEqual([])
+  })
+
+  it('returns an empty array for an empty selector list', () => {
+    const html = '<html><body><div class="CmsFeatureAppLoaderX"></div></body></html>'
+
+    expect(countEmptyFeatureAppShellsInHtml(html, [])).toEqual([])
+  })
+})
 
 describe('captureModelPage completeness gate', () => {
   it('refuses to publish when feature-app shells never mounted, and suggests the next backend', async () => {
@@ -373,9 +406,9 @@ describe('captureModelPage completeness gate', () => {
       dom_image_count: 30,
       hydration_status: 'stable',
       hydration_passes: [],
-      shells_checked: 0,
+      shells_checked: 1,
       shells_recovered: 0,
-      empty_shells: [],
+      empty_shells: ['[class*="CmsFeatureAppLoader"] [0]'],
     })
     ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [], capture: fakeInitialDocumentCapture() })
     ;(capturer as any).downloadImages = async () => new Map()
@@ -387,6 +420,77 @@ describe('captureModelPage completeness gate', () => {
     expect(result.completeness?.passed).toBe(true)
     expect(result.completeness?.reasons.some(reason => reason.includes('initial-document'))).toBe(true)
     expect(writes.size).toBeGreaterThan(0)
+  })
+
+  it('never swaps to the initial document when the browser capture already passes its gate', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).captureDom = async () => fakeBrowserCapture({
+      captured_scroll_height: 16000,
+      dom_image_count: 100,
+      hydration_status: 'stable',
+      hydration_passes: [],
+      shells_checked: 2,
+      shells_recovered: 2,
+      empty_shells: [],
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [], capture: fakeInitialDocumentCapture() })
+    ;(capturer as any).downloadImages = async () => new Map()
+
+    const result = await capturer.captureModelPage('volkswagen-au' as any, 'amarok', 'https://www.volkswagen.com.au/en/models/amarok.html')
+
+    expect(result.success).toBe(true)
+    expect(result.initial_document_preferred).toBeUndefined()
+    const stored = writes.get('pages/definitions/volkswagen-au/amarok/latest.json')
+    expect(stored).toBeDefined()
+    const page = JSON.parse(stored!)
+    expect(page.content.modes.clone.rendered).toContain('VW Amarok capture paragraph')
+  })
+
+  it('fails loud when the browser gate fails and the SSR fallback also has empty feature-app shells', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).captureDom = async () => fakeBrowserCapture({
+      captured_scroll_height: 6000,
+      dom_image_count: 30,
+      hydration_status: 'stable',
+      hydration_passes: [],
+      shells_checked: 1,
+      shells_recovered: 0,
+      empty_shells: ['[class*="CmsFeatureAppLoader"] [0]'],
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({
+      headParts: [],
+      capture: fakeInitialDocumentCapture({ extraHtml: '<div class="CmsFeatureAppLoaderX"></div>' }),
+    })
+
+    const result = await capturer.captureModelPage('volkswagen-au' as any, 'amarok', 'https://www.volkswagen.com.au/en/models/amarok.html')
+
+    expect(result.success).toBe(false)
+    expect(writes.size).toBe(0)
+    expect(result.error).toContain('browser render')
+    expect(result.error).toContain('initial-document fallback also incomplete')
+  })
+
+  it('allows the swap when the browser gate fails but the SSR fallback has no empty feature-app shells', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).captureDom = async () => fakeBrowserCapture({
+      captured_scroll_height: 6000,
+      dom_image_count: 30,
+      hydration_status: 'stable',
+      hydration_passes: [],
+      shells_checked: 1,
+      shells_recovered: 0,
+      empty_shells: ['[class*="CmsFeatureAppLoader"] [0]'],
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [], capture: fakeInitialDocumentCapture() })
+    ;(capturer as any).downloadImages = async () => new Map()
+
+    const result = await capturer.captureModelPage('volkswagen-au' as any, 'amarok', 'https://www.volkswagen.com.au/en/models/amarok.html')
+
+    expect(result.success).toBe(true)
+    expect(result.initial_document_preferred).toBe(true)
   })
 })
 

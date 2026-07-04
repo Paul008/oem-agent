@@ -895,6 +895,43 @@ export function isCaptureBlockedBySecurityPage(input: { html: string; title?: st
   return hasCloudflareContext && hasChallengeCopy;
 }
 
+/**
+ * Worker-side (cheerio) check for empty feature-app shells in raw HTML. Used when an
+ * SSR/initial-document capture is being considered as a fallback for a browser
+ * capture that failed its completeness gate: SSR markup never runs the browser
+ * hydration sweep, so it deserves the same emptiness scrutiny before it's trusted
+ * over a rejected render. Mirrors waitForFeatureAppMountsForCapture's heuristic
+ * (no media/interactive descendant + under 40 chars of text), but runs statically.
+ */
+export function countEmptyFeatureAppShellsInHtml(html: string, shellSelectors: string[]): string[] {
+  const selectors = (shellSelectors ?? [])
+    .map(selector => String(selector || '').trim())
+    .filter(Boolean);
+
+  if (!html || selectors.length === 0)
+    return [];
+
+  const $ = load(html);
+  const emptyShells: string[] = [];
+
+  for (const selector of selectors) {
+    try {
+      $(selector).each((index, el) => {
+        const $el = $(el);
+        const hasInteractiveOrMedia = $el
+          .find('img, picture, video, iframe, canvas, svg, button, a, input, select, textarea')
+          .length > 0;
+        if (!hasInteractiveOrMedia && $el.text().trim().length < 40)
+          emptyShells.push(`${selector} [${index}]`);
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return emptyShells;
+}
+
 export function normalizePseudoElementContentForCapture(content: string | null | undefined): string | null {
   const raw = String(content ?? '').trim();
   if (!raw)
@@ -1985,23 +2022,61 @@ export class PageCapturer {
         };
       }
 
+      const lastGoodScrollHeight = await readLastGoodCapturedHeight(this.r2Bucket, oemId, modelSlug);
+      const browserGate = evaluateCaptureCompleteness(
+        { audit: ('audit' in capture ? capture.audit : undefined), lastGoodScrollHeight },
+        profile.completeness,
+      );
+
       let initialDocumentPreferred = false;
       if (backend === 'cloudflare-browser') {
         const initialDocument = await this.fetchInitialDocumentCapture(sourceUrl);
-        if (initialDocument.capture && shouldPreferInitialDocumentCapture(capture, initialDocument.capture)) {
-          capture = initialDocument.capture;
-          initialDocumentPreferred = true;
-        } else if (initialDocument.headParts.length > 0) {
+        const ssrPreferred = Boolean(
+          initialDocument.capture && shouldPreferInitialDocumentCapture(capture, initialDocument.capture),
+        );
+
+        if (ssrPreferred && !browserGate.passed) {
+          // The hydrated browser render already failed its own completeness gate —
+          // only then is trading it for SSR HTML worth considering. SSR markup never
+          // ran the hydration sweep, so give it the same emptiness scrutiny before
+          // trusting it over a render we just rejected.
+          const emptyShells = countEmptyFeatureAppShellsInHtml(
+            initialDocument.capture!.html,
+            profile.featureAppShellSelectors,
+          );
+
+          if (emptyShells.length <= profile.completeness.maxEmptyShells) {
+            capture = initialDocument.capture!;
+            initialDocumentPreferred = true;
+          } else {
+            const suggestedBackend = profile.backendOrder.find(candidate => candidate !== backend);
+            const browserAudit = 'audit' in capture ? capture.audit : undefined;
+            const errorMessage = `Capture completeness gate failed: browser render: ${browserGate.reasons.join('; ')}; initial-document fallback also incomplete: ${emptyShells.length} empty feature-app shell(s)`;
+            console.warn(`[PageCapturer] ${errorMessage}`);
+            return {
+              success: false,
+              capture_time_ms: Date.now() - startTime,
+              capture_backend: backend,
+              capture_audit: browserAudit,
+              completeness: browserGate,
+              suggested_backend: suggestedBackend,
+              error: errorMessage,
+            };
+          }
+        }
+
+        // Browser render already passing its gate (even if SSR "wins" the styled-class
+        // preference contest) or SSR simply not preferred: never swap it away. Still
+        // merge SSR head parts so CSS enrichment applies to the kept browser render.
+        if (!initialDocumentPreferred && initialDocument.headParts.length > 0) {
           capture.stylesheetLinks = mergeCaptureHeadParts(capture.stylesheetLinks, initialDocument.headParts);
         }
       }
 
       const captureAudit = 'audit' in capture ? capture.audit : undefined;
-      const lastGoodScrollHeight = await readLastGoodCapturedHeight(this.r2Bucket, oemId, modelSlug);
-      const completeness = evaluateCaptureCompleteness(
-        { audit: captureAudit, lastGoodScrollHeight },
-        profile.completeness,
-      );
+      const completeness = initialDocumentPreferred
+        ? evaluateCaptureCompleteness({ audit: captureAudit, lastGoodScrollHeight }, profile.completeness)
+        : browserGate;
       if (initialDocumentPreferred) {
         completeness.reasons.push('initial-document capture preferred over browser render; hydration audit not applicable');
       }
