@@ -39,6 +39,8 @@ export interface PageCaptureResult {
   capture_audit?: CaptureAudit;
   completeness?: CaptureCompletenessVerdict;
   suggested_backend?: CaptureBackend;
+  /** True when an SSR/initial-document fetch replaced the browser render (no hydration audit ran). */
+  initial_document_preferred?: boolean;
   error?: string;
 }
 
@@ -1983,10 +1985,12 @@ export class PageCapturer {
         };
       }
 
+      let initialDocumentPreferred = false;
       if (backend === 'cloudflare-browser') {
         const initialDocument = await this.fetchInitialDocumentCapture(sourceUrl);
         if (initialDocument.capture && shouldPreferInitialDocumentCapture(capture, initialDocument.capture)) {
           capture = initialDocument.capture;
+          initialDocumentPreferred = true;
         } else if (initialDocument.headParts.length > 0) {
           capture.stylesheetLinks = mergeCaptureHeadParts(capture.stylesheetLinks, initialDocument.headParts);
         }
@@ -1998,6 +2002,9 @@ export class PageCapturer {
         { audit: captureAudit, lastGoodScrollHeight },
         profile.completeness,
       );
+      if (initialDocumentPreferred) {
+        completeness.reasons.push('initial-document capture preferred over browser render; hydration audit not applicable');
+      }
       if (!completeness.passed) {
         const suggestedBackend = profile.backendOrder.find(candidate => candidate !== backend);
         console.warn(`[PageCapturer] Completeness gate FAILED for ${oemId}/${modelSlug}: ${completeness.reasons.join('; ')}`);
@@ -2008,6 +2015,7 @@ export class PageCapturer {
           capture_audit: captureAudit,
           completeness,
           suggested_backend: suggestedBackend,
+          initial_document_preferred: initialDocumentPreferred || undefined,
           error: `Capture completeness gate failed: ${completeness.reasons.join('; ')}${suggestedBackend ? ` — suggested fallback backend: ${suggestedBackend}` : ''}`,
         };
       }
@@ -2134,6 +2142,7 @@ export class PageCapturer {
         html_size_kb: Math.round(html.length / 1024),
         capture_audit: captureAudit,
         completeness,
+        initial_document_preferred: initialDocumentPreferred || undefined,
       };
     } catch (err: any) {
       console.error(`[PageCapturer] Error:`, err);

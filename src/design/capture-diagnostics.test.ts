@@ -171,4 +171,33 @@ describe('buildDiagnosticsRecord capture audit fields', () => {
     expect(record.hydration_status).toBeUndefined()
     expect(record.empty_shell_count).toBeUndefined()
   })
+
+  it('maps initial_document_preferred onto the record when the result flags it', () => {
+    const record = buildDiagnosticsRecord({
+      oemId: 'volkswagen-au',
+      modelSlug: 'amarok',
+      sourceUrl: 'https://www.volkswagen.com.au/en/models/amarok.html',
+      capturedAt: '2026-07-04T00:00:00.000Z',
+      result: {
+        success: true,
+        capture_time_ms: 1200,
+        capture_backend: 'cloudflare-browser',
+        initial_document_preferred: true,
+      } as any,
+    })
+
+    expect(record.initial_document_preferred).toBe(true)
+  })
+
+  it('leaves initial_document_preferred undefined when the result does not set it', () => {
+    const record = buildDiagnosticsRecord({
+      oemId: 'mitsubishi-au',
+      modelSlug: 'asx',
+      sourceUrl: 'https://www.mitsubishi-motors.com.au/asx',
+      capturedAt: '2026-07-04T00:00:00.000Z',
+      result: { success: true, capture_time_ms: 1200, capture_backend: 'external-html' } as any,
+    })
+
+    expect(record.initial_document_preferred).toBeUndefined()
+  })
 })

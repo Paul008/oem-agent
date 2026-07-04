@@ -41,6 +41,8 @@ export interface CaptureDiagnosticsRecord {
   completeness_passed?: boolean;
   completeness_reasons?: string[];
   suggested_backend?: string;
+  /** True when an SSR/initial-document fetch replaced the browser render (no hydration audit ran). */
+  initial_document_preferred?: boolean;
 }
 
 export interface CaptureDiagnostics {
@@ -102,6 +104,7 @@ export function buildDiagnosticsRecord(input: BuildDiagnosticsInput): CaptureDia
     completeness_passed: result.completeness?.passed,
     completeness_reasons: result.completeness?.reasons?.slice(0, 5),
     suggested_backend: result.suggested_backend,
+    initial_document_preferred: result.initial_document_preferred,
   };
 }
 

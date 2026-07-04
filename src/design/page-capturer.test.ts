@@ -279,6 +279,29 @@ function fakeBrowserCapture(audit?: any) {
   }
 }
 
+/**
+ * A "winning" initial-document (SSR) capture per shouldPreferInitialDocumentCapture:
+ * its stylesheetLinks must contain 'data-styled' CSS and >=20 classes from its own
+ * html that are also present as selectors in that CSS (>2x whatever the browser
+ * capture matches — the fake browser capture above has no data-styled CSS, so it
+ * matches zero). This capture intentionally has no `audit` field, mirroring a real
+ * SSR fetch that never ran the browser hydration sweep.
+ */
+function fakeInitialDocumentCapture() {
+  const classNames = Array.from({ length: 25 }, (_, index) => `sc-${index}`)
+  const html = `<main>${classNames.map(name => `<div class="${name}">SSR content</div>`).join('')}</main>`
+  const css = classNames.map(name => `.${name} { color: red; }`).join('\n')
+  return {
+    html,
+    stylesheetLinks: [`<style data-styled="true" data-styled-version="5.3.0">${css}</style>`],
+    imageUrls: [],
+    heroUrl: '',
+    title: 'Amarok SSR',
+    elementCount: classNames.length,
+    viewport: { width: 1440, height: 1080 },
+  }
+}
+
 describe('captureModelPage completeness gate', () => {
   it('refuses to publish when feature-app shells never mounted, and suggests the next backend', async () => {
     const { bucket, writes, browser } = createMemoryBucket()
@@ -340,6 +363,30 @@ describe('captureModelPage completeness gate', () => {
     expect(result.success).toBe(true)
     expect(result.completeness?.passed).toBe(true)
     expect(result.completeness?.reasons[0]).toContain('gate skipped')
+  })
+
+  it('flags initial-document preference and surfaces the gate bypass in completeness reasons', async () => {
+    const { bucket, writes, browser } = createMemoryBucket()
+    const capturer = new PageCapturer({ r2Bucket: bucket as any, browser })
+    ;(capturer as any).captureDom = async () => fakeBrowserCapture({
+      captured_scroll_height: 6000,
+      dom_image_count: 30,
+      hydration_status: 'stable',
+      hydration_passes: [],
+      shells_checked: 0,
+      shells_recovered: 0,
+      empty_shells: [],
+    })
+    ;(capturer as any).fetchInitialDocumentCapture = async () => ({ headParts: [], capture: fakeInitialDocumentCapture() })
+    ;(capturer as any).downloadImages = async () => new Map()
+
+    const result = await capturer.captureModelPage('volkswagen-au' as any, 'amarok', 'https://www.volkswagen.com.au/en/models/amarok.html')
+
+    expect(result.success).toBe(true)
+    expect(result.initial_document_preferred).toBe(true)
+    expect(result.completeness?.passed).toBe(true)
+    expect(result.completeness?.reasons.some(reason => reason.includes('initial-document'))).toBe(true)
+    expect(writes.size).toBeGreaterThan(0)
   })
 })
 
