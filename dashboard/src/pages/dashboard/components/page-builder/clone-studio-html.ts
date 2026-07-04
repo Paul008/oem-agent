@@ -2599,7 +2599,13 @@ ${rendered}
     for (var i = 0; i < candidates.length; i++) {
       // A region stamped by the compiler already ships its own trusted Alpine clone runtime script
       // (injected as a separate trusted script tag) — never let this legacy heuristic shim wire it too.
-      if (candidates[i].closest('[data-clone-interaction]'))
+      // The ancestor-or-self check alone is not enough: broad heuristics like [class*="tab"] false-positive
+      // on unrelated wrapper classes (e.g. AEM's ubiquitous "EditableComponent__..." — "tab" is a substring
+      // of "Editable"), which can pull in a generic ancestor of a clone-annotated region as a "candidate".
+      // classifyRegion()/collectPanels() then search that candidate's whole subtree and pick up the
+      // Alpine-owned region's own triggers/panels, double-driving them independently of cloneTabs/cloneAccordion.
+      // Guard both directions so a stamped region is never adopted whether the candidate is inside it or wraps it.
+      if (candidates[i].closest('[data-clone-interaction]') || candidates[i].querySelector('[data-clone-interaction]'))
         continue
       wireRegion(candidates[i])
     }

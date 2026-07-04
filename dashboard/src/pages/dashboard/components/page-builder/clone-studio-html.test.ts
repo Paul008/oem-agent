@@ -1022,6 +1022,25 @@ describe('buildCloneStudioHtml', () => {
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
+  it('never lets the legacy heuristic shim adopt a region that a compiler-stamped clone-interaction region wraps or is wrapped by', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    // Some OEM markup (e.g. a broad AEM "EditableComponent__..." wrapper — note "tab" is a literal
+    // substring of "Editable", a real false-positive against the [class*="tab"] heuristic below)
+    // wraps a compiler-stamped clone-interaction region as a descendant rather than an ancestor. The
+    // closest()-only guard only catches the ancestor-or-self direction; classifyRegion()/collectPanels()
+    // then search the WHOLE candidate subtree and can pick up (and double-drive) an already
+    // Alpine-owned nested region's own triggers/panels. Guard both directions.
+    const loopBody = bridgeScript.slice(
+      bridgeScript.indexOf('function enableInteractivity()'),
+      bridgeScript.indexOf('function wireRegion('),
+    )
+    expect(loopBody).toContain('candidates[i].closest(\'[data-clone-interaction]\')')
+    expect(loopBody).toContain('candidates[i].querySelector(\'[data-clone-interaction]\')')
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
   it('supports Ford/Slick multi-card carousel windows without Alpine', () => {
     const html = buildCloneStudioHtml({
       rendered: `
