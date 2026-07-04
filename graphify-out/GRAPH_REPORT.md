@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-05)
 
 ## Corpus Check
-- 438 files · ~11,578,512 words
+- 438 files · ~11,578,860 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2171 nodes · 3123 edges · 432 communities detected
+- 2172 nodes · 3125 edges · 432 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -746,48 +746,48 @@ Cohesion: 0.39
 Nodes (3): AdaptivePipeline, getCloneDecision(), normalizeSourceUrl()
 
 ### Community 69 - "Community 69"
-Cohesion: 0.39
-Nodes (1): PageCloner
+Cohesion: 0.29
+Nodes (2): collapseDuplicatePanel(), stripForcedStyles()
 
 ### Community 70 - "Community 70"
 Cohesion: 0.39
-Nodes (5): analyzeBannerGraphics(), buildBannerGraphicsPrompt(), clampConfidence(), normaliseGraphicsTags(), parseBannerGraphicsResponse()
+Nodes (1): PageCloner
 
 ### Community 71 - "Community 71"
+Cohesion: 0.39
+Nodes (5): analyzeBannerGraphics(), buildBannerGraphicsPrompt(), clampConfidence(), normaliseGraphicsTags(), parseBannerGraphicsResponse()
+
+### Community 72 - "Community 72"
 Cohesion: 0.36
 Nodes (3): isBannerData(), isObjectArray(), looksLikeBannerArray()
 
-### Community 72 - "Community 72"
+### Community 73 - "Community 73"
 Cohesion: 0.46
 Nodes (7): extractInlineData(), extractJsonLdBanners(), extractNextData(), extractNuxtData(), extractWindowGlobals(), fetchAemModelJson(), fetchGatsbyPageData()
 
-### Community 73 - "Community 73"
+### Community 74 - "Community 74"
 Cohesion: 0.33
 Nodes (2): normalizeStoredMediaUrl(), normalizeStoredMediaUrls()
 
-### Community 74 - "Community 74"
+### Community 75 - "Community 75"
 Cohesion: 0.43
 Nodes (4): rewriteIds(), rewriteInlineAnimations(), scopeClassForSection(), scopeOemSection()
 
-### Community 75 - "Community 75"
+### Community 76 - "Community 76"
 Cohesion: 0.52
 Nodes (6): emptyCodes(), harvestFromBody(), isNukleus(), main(), parseHar(), slugify()
 
-### Community 76 - "Community 76"
+### Community 77 - "Community 77"
 Cohesion: 0.52
 Nodes (6): extractColorsFromData(), extractGalleryImagesFromData(), extractVariantsFromData(), fetchFordPricingData(), fordPublicUrl(), populateFordInventory()
 
-### Community 77 - "Community 77"
+### Community 78 - "Community 78"
 Cohesion: 0.52
 Nodes (6): createBrowser(), fetchTrim(), fetchVariant(), main(), refreshSession(), upsertVariantProduct()
 
-### Community 78 - "Community 78"
+### Community 79 - "Community 79"
 Cohesion: 0.52
 Nodes (5): enrichBrandTokensWithHostedFontFaces(), firstFontFamily(), fontFacesFromCdnUrls(), hostedOemFontConfig(), hostedOemFontFaces()
-
-### Community 79 - "Community 79"
-Cohesion: 0.29
-Nodes (0): 
 
 ### Community 80 - "Community 80"
 Cohesion: 0.43
