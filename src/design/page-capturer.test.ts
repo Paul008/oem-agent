@@ -33,6 +33,7 @@ import {
   waitForCaptureDomQuietForCapture,
   waitForCaptureFontsForCapture,
   waitForCaptureImagesForCapture,
+  waitForFeatureAppMountsForCapture,
 } from './page-capturer'
 
 function createLazyMediaElement(attrs: Record<string, string> = {}, props: { loading?: string; sources?: any[] } = {}) {
@@ -178,6 +179,44 @@ function createMemoryBucket() {
 function externalHtmlPage() {
   const body = Array.from({ length: 80 }, (_, index) => `<p>External Mitsubishi capture paragraph ${index}</p>`).join('')
   return `<!doctype html><html><head><title>Mitsubishi ASX</title><link rel="stylesheet" href="/etc.clientlibs/mmal/site.css"></head><body><main><h1>Mitsubishi ASX</h1>${body}</main></body></html>`
+}
+
+function createShellElement(options: { populated?: boolean; populateAfterPolls?: number } = {}) {
+  let polls = 0
+  const element: any = {
+    scrolledIntoView: false,
+    populated: options.populated ?? false,
+    scrollIntoView() {
+      element.scrolledIntoView = true
+    },
+    querySelector(_selector: string) {
+      if (options.populateAfterPolls !== undefined && polls >= options.populateAfterPolls)
+        element.populated = true
+      polls++
+      return element.populated ? {} : null
+    },
+    get textContent() {
+      return element.populated ? 'Feature app content rendered here for the customer.' : ''
+    },
+  }
+  return element
+}
+
+function createShellWindow(shellsBySelector: Record<string, any[]>) {
+  let nowMs = 0
+  const win: any = {
+    Date: { now: () => nowMs },
+    setTimeout: ((callback: () => void) => {
+      nowMs += 100
+      callback()
+      return 0 as any
+    }) as typeof setTimeout,
+    scrollTo: () => {},
+    document: {
+      querySelectorAll: (selector: string) => shellsBySelector[selector] ?? [],
+    },
+  }
+  return win
 }
 
 describe('external-html capture backend', () => {
@@ -1754,5 +1793,50 @@ describe('runPacedHydrationSweepForCapture', () => {
     })
 
     expect(report.status).toBe('unsupported')
+  })
+})
+
+describe('waitForFeatureAppMountsForCapture', () => {
+  it('recovers a shell that mounts while waiting and reports the one that never does', async () => {
+    const recovering = createShellElement({ populateAfterPolls: 2 })
+    const neverMounts = createShellElement()
+    const win = createShellWindow({ '[class*="CmsFeatureAppLoader"]': [recovering, neverMounts] })
+
+    const report = await waitForFeatureAppMountsForCapture({
+      shellSelectors: ['[class*="CmsFeatureAppLoader"]'],
+      mountWaitMs: 1_000,
+      budgetMs: 10_000,
+      pollDelayMs: 100,
+      win,
+    })
+
+    expect(report.checked).toBe(2)
+    expect(report.recovered).toBe(1)
+    expect(report.still_empty).toEqual(['[class*="CmsFeatureAppLoader"] [1]'])
+    expect(recovering.scrolledIntoView).toBe(true)
+  })
+
+  it('skips shells that already have content', async () => {
+    const populated = createShellElement({ populated: true })
+    const win = createShellWindow({ '.featureAppSection': [populated] })
+
+    const report = await waitForFeatureAppMountsForCapture({
+      shellSelectors: ['.featureAppSection'],
+      mountWaitMs: 500,
+      budgetMs: 5_000,
+      win,
+    })
+
+    expect(report.checked).toBe(0)
+    expect(report.recovered).toBe(0)
+    expect(report.still_empty).toEqual([])
+  })
+
+  it('returns an empty report when no selectors are configured', async () => {
+    const win = createShellWindow({})
+
+    const report = await waitForFeatureAppMountsForCapture({ shellSelectors: [], win })
+
+    expect(report).toEqual({ checked: 0, recovered: 0, still_empty: [] })
   })
 })

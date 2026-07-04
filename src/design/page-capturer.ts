@@ -623,6 +623,98 @@ export async function runPacedHydrationSweepForCapture(options?: {
   }
 }
 
+export interface CaptureFeatureAppMountReport {
+  checked: number;
+  recovered: number;
+  still_empty: string[];
+}
+
+/**
+ * Some OEM feature apps (e.g. VW CmsFeatureAppLoader) render an empty shell
+ * until their bundle mounts. After the hydration sweep, give each still-empty
+ * shell one bounded, scrolled-into-view second chance and report the holdouts —
+ * the completeness gate uses still_empty to refuse publishing a gutted page.
+ */
+export async function waitForFeatureAppMountsForCapture(options?: {
+  shellSelectors?: string[];
+  mountWaitMs?: number;
+  budgetMs?: number;
+  pollDelayMs?: number;
+  win?: {
+    document?: { querySelectorAll?: (selector: string) => ArrayLike<unknown> };
+    Date?: { now: () => number };
+    setTimeout?: typeof setTimeout;
+    scrollTo?: (x: number, y: number) => void;
+  };
+}): Promise<CaptureFeatureAppMountReport> {
+  const activeWindow = options?.win ?? (typeof window !== 'undefined' ? window as any : undefined);
+  const activeDocument = activeWindow?.document ?? (typeof document !== 'undefined' ? document as any : undefined);
+  const report: CaptureFeatureAppMountReport = { checked: 0, recovered: 0, still_empty: [] };
+  const selectors = (options?.shellSelectors ?? [])
+    .map(selector => String(selector || '').trim())
+    .filter(Boolean);
+
+  if (!activeDocument || typeof activeDocument.querySelectorAll !== 'function' || selectors.length === 0)
+    return report;
+
+  const mountWaitMs = Math.max(0, options?.mountWaitMs ?? 4_000);
+  const budgetMs = Math.max(0, options?.budgetMs ?? 20_000);
+  const pollDelayMs = Math.max(1, options?.pollDelayMs ?? 250);
+  const clock = activeWindow?.Date ?? Date;
+  const timer = activeWindow?.setTimeout ?? setTimeout;
+  const sleep = (delayMs: number) => new Promise<void>((resolve) => {
+    timer(resolve, delayMs);
+  });
+  const startedAt = clock.now();
+  const budgetLeft = () => budgetMs - (clock.now() - startedAt);
+
+  const isEmptyShell = (element: any): boolean => {
+    try {
+      if (typeof element?.querySelector === 'function'
+        && element.querySelector('img, picture, video, iframe, canvas, svg, button, a, input, select, textarea'))
+        return false;
+      return String(element?.textContent ?? '').trim().length < 40;
+    } catch {
+      return true;
+    }
+  };
+
+  for (const selector of selectors) {
+    let shells: any[] = [];
+    try {
+      shells = Array.from(activeDocument.querySelectorAll(selector));
+    } catch {
+      continue;
+    }
+
+    for (let index = 0; index < shells.length; index++) {
+      const shell = shells[index];
+      if (!isEmptyShell(shell))
+        continue;
+
+      report.checked++;
+      try {
+        shell.scrollIntoView?.({ block: 'center' });
+      } catch { /* fake elements may not implement scrollIntoView options */ }
+
+      const deadline = clock.now() + Math.min(mountWaitMs, Math.max(0, budgetLeft()));
+      while (clock.now() < deadline && isEmptyShell(shell))
+        await sleep(pollDelayMs);
+
+      if (isEmptyShell(shell))
+        report.still_empty.push(`${selector} [${index}]`);
+      else
+        report.recovered++;
+    }
+  }
+
+  try {
+    activeWindow?.scrollTo?.(0, 0);
+  } catch { /* ignore */ }
+
+  return report;
+}
+
 export async function waitForCaptureImagesForCapture(
   timeoutMs = 3000,
   doc?: { images?: ArrayLike<{ complete?: boolean; decode?: () => Promise<unknown> }> },
