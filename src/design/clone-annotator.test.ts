@@ -1,3 +1,4 @@
+import { load } from 'cheerio'
 import { describe, expect, it } from 'vitest'
 
 import { annotateCloneInteractions } from './clone-annotator'
@@ -84,6 +85,13 @@ describe('annotateCloneInteractions', () => {
     // Only the 2 resolved panels are stamped/stripped — the other 2 duplicate clones are left
     // completely untouched (unstamped, forced styles intact) since the runtime never manages them.
     expect((result.html.match(/data-clone-panel=/g) ?? [])).toHaveLength(2)
+
+    // Trigger 0 resolves to a panel whose only duplicates were all inert (never the live/rendered
+    // slide at capture time); the stamped copy must still have `inert` cleared, since the runtime
+    // now force-shows it directly and a leftover `inert` would make it pointer-events:none and
+    // invisible to the accessibility tree even after the display fix.
+    const $ = load(result.html)
+    expect($('[data-clone-panel][inert]').length).toBe(0)
   })
 
   it('stamps carousel track, slides, and existing prev/next controls', () => {

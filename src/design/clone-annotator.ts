@@ -180,9 +180,9 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
       const resolvedPanels = resolveTabPanelsByAriaLabelledby(triggers, panels);
       triggers.each((i, el) => { $(el).attr('data-clone-tab', String(i)); $(el).attr('x-on:click', 'selectTab'); });
       if (resolvedPanels) {
-        resolvedPanels.forEach((panelEl, i) => { const $panel = $(panelEl); $panel.attr('data-clone-panel', String(i)); stripForcedStyles($panel); });
+        resolvedPanels.forEach((panelEl, i) => { const $panel = $(panelEl); $panel.attr('data-clone-panel', String(i)); stripForcedStyles($panel); $panel.removeAttr('inert'); });
       } else {
-        panels.each((i, el) => { $(el).attr('data-clone-panel', String(i)); stripForcedStyles($(el)); });
+        panels.each((i, el) => { $(el).attr('data-clone-panel', String(i)); stripForcedStyles($(el)); $(el).removeAttr('inert'); });
       }
       interactions.push({ id, type: region.type, trigger_count: triggers.length, panel_count: (resolvedPanels ?? panels).length });
     }
