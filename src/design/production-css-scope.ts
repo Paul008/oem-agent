@@ -15,6 +15,7 @@ export interface ScopeProductionCloneDiagnostics {
   externalStylesheetsBlocked: number;
   rulesScoped: number;
   rulesSkipped: number;
+  warnings: string[];
 }
 
 export interface ScopeProductionCloneResult {
@@ -115,8 +116,37 @@ function scopeOneSelector(selector: string, scope: string): string {
   return `${scope} ${selector}`;
 }
 
-export function scopeCss(css: string, scope: string): { css: string; rulesScoped: number; rulesSkipped: number } {
-  const root = postcss.parse(css);
+// Captured production CSS (e.g. styled-components output) can contain orphan declaration
+// tokens with no property/value pair, such as the literal `false;` seen in VW's captured
+// stylesheets: `.eLFisM{padding-top:0;false;padding-bottom:var(--size-dynamic0270);}`.
+// Browsers silently skip these per CSS error-recovery rules; postcss's strict parser does not.
+// Strip any bare identifier sitting directly between a `;`/`{` boundary and the next `;` that
+// contains no `:` — this can only be an orphan token, never a real declaration or selector.
+const ORPHAN_DECLARATION_RE = /([;{])\s*[A-Za-z_$][\w$-]*\s*;/g;
+
+function sanitizeOrphanDeclarations(css: string): string {
+  return css.replace(ORPHAN_DECLARATION_RE, '$1');
+}
+
+export function scopeCss(css: string, scope: string): { css: string; rulesScoped: number; rulesSkipped: number; warnings: string[] } {
+  const sanitized = sanitizeOrphanDeclarations(css);
+
+  let root;
+  try {
+    root = postcss.parse(sanitized);
+  } catch (error) {
+    // Catastrophically malformed CSS (unbalanced strings/braces, etc.) that survives
+    // sanitization must never bubble up as a route 500 — degrade to passing the original
+    // stylesheet through unscoped and record a diagnostics warning instead.
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      css,
+      rulesScoped: 0,
+      rulesSkipped: 0,
+      warnings: [`CSS parse failed; stylesheet passed through unscoped: ${message}`],
+    };
+  }
+
   let rulesScoped = 0;
   let rulesSkipped = 0;
 
@@ -136,7 +166,7 @@ export function scopeCss(css: string, scope: string): { css: string; rulesScoped
     }
   });
 
-  return { css: root.toString(), rulesScoped, rulesSkipped };
+  return { css: root.toString(), rulesScoped, rulesSkipped, warnings: [] };
 }
 
 async function defaultFetchCss(url: string): Promise<string | null> {
@@ -172,6 +202,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
   let externalStylesheetsBlocked = 0;
   let rulesScoped = 0;
   let rulesSkipped = 0;
+  const warnings: string[] = [];
   const fetchCss = options.fetchCss || defaultFetchCss;
 
   $('style').each((_index, element) => {
@@ -181,6 +212,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
     styleTagsScoped += 1;
     rulesScoped += scoped.rulesScoped;
     rulesSkipped += scoped.rulesSkipped;
+    warnings.push(...scoped.warnings);
   });
 
   const stylesheetLinks = $('link').toArray();
@@ -203,6 +235,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
     externalStylesheetsScoped += 1;
     rulesScoped += scoped.rulesScoped;
     rulesSkipped += scoped.rulesSkipped;
+    warnings.push(...scoped.warnings);
   }
 
   const root = $('[data-oem-scope-root="true"]').first();
@@ -220,6 +253,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
       externalStylesheetsBlocked,
       rulesScoped,
       rulesSkipped,
+      warnings,
     },
   };
 }

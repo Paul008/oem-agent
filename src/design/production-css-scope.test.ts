@@ -36,6 +36,28 @@ describe('scopeCss', () => {
     expect(result.css).not.toContain(`${scope} 0%`);
     expect(result.css).toContain(`${scope} .loader`);
   });
+
+  it('sanitizes orphan declaration tokens (e.g. captured styled-components "false;") and still scopes valid declarations', () => {
+    const result = scopeCss('.x{padding-top:0;false;padding-bottom:4px;}', scope);
+
+    expect(result.css).toContain(`${scope} .x`);
+    expect(result.css).toContain('padding-top:0');
+    expect(result.css).toContain('padding-bottom:4px');
+    expect(result.css).not.toContain('false');
+    expect(result.rulesScoped).toBe(1);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('passes catastrophically malformed CSS through unscoped with a recorded warning instead of throwing', () => {
+    const malformed = '.broken { color: "unterminated string; }';
+
+    const result = scopeCss(malformed, scope);
+
+    expect(result.css).toBe(malformed);
+    expect(result.css).not.toContain(scope);
+    expect(result.rulesScoped).toBe(0);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
 });
 
 describe('scopeProductionCloneHtml', () => {
@@ -117,5 +139,27 @@ describe('scopeProductionCloneHtml', () => {
     expect(result.html).not.toContain(' href="https://example.com/oem.css"');
     expect(result.diagnostics.externalStylesheetsScoped).toBe(0);
     expect(result.diagnostics.externalStylesheetsBlocked).toBe(1);
+  });
+
+  it('tolerates a captured stylesheet with an orphan declaration token without throwing', async () => {
+    const result = await scopeProductionCloneHtml(
+      '<style>.eLFisM{padding-top:0;false;padding-bottom:var(--size-dynamic0270);}</style><section class="eLFisM"></section>',
+      { oemId: 'volkswagen-au', modelSlug: 'amarok' },
+    );
+
+    expect(result.html).toContain('padding-top:0');
+    expect(result.html).toContain('padding-bottom:var(--size-dynamic0270)');
+    expect(result.html).not.toContain('false');
+    expect(result.diagnostics.warnings).toEqual([]);
+  });
+
+  it('degrades a catastrophically malformed style tag to unscoped passthrough with a warning, never throwing', async () => {
+    const result = await scopeProductionCloneHtml(
+      '<style>.broken { color: "unterminated string; }</style><section class="broken"></section>',
+      { oemId: 'volkswagen-au', modelSlug: 'amarok' },
+    );
+
+    expect(result.html).toContain('unterminated string');
+    expect(result.diagnostics.warnings.length).toBeGreaterThan(0);
   });
 });

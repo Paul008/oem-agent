@@ -2336,6 +2336,7 @@ app.get('/pages/:slug/production-manifest', async (c) => {
       external_stylesheets_blocked: artifact.scope.externalStylesheetsBlocked,
       rules_scoped: artifact.scope.rulesScoped,
       rules_skipped: artifact.scope.rulesSkipped,
+      warnings: artifact.scope.warnings,
     } : null,
     updated_at: page?.updated_at ?? null,
     generated_at: page?.generated_at ?? null,
