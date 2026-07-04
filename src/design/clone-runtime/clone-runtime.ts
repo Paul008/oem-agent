@@ -41,7 +41,11 @@ document.addEventListener('alpine:init', function () {
         this.panels.forEach(function (panel) {
           var i = Number(panel.getAttribute('data-clone-panel'));
           if (i === index) {
-            panel.style.removeProperty('display');
+            // Force-show rather than removeProperty(): the annotator strips forced display styles
+            // from every stamped panel (including whichever was active at capture time), so falling
+            // back to the captured stylesheet is not reliable — OEM markup frequently has no class-based
+            // "visible" rule at all (visibility was driven by JS/inline styles we intentionally stripped).
+            panel.style.setProperty('display', 'block', 'important');
           } else {
             panel.style.setProperty('display', 'none', 'important');
           }
@@ -73,7 +77,10 @@ document.addEventListener('alpine:init', function () {
         if (!panel) return;
         var hidden = panel.style.display === 'none';
         if (hidden) {
-          panel.style.removeProperty('display');
+          // Same reasoning as cloneTabs.show(): force-show rather than removeProperty(), since the
+          // annotator strips forced display styles from stamped accordion panels too, and the captured
+          // stylesheet cannot be relied on to provide a visible default.
+          panel.style.setProperty('display', 'block', 'important');
           trigger.setAttribute('aria-expanded', 'true');
         } else {
           panel.style.setProperty('display', 'none', 'important');

@@ -36,6 +36,18 @@ describe('buildCloneRuntimeScript', () => {
     expect(script).toContain("setProperty('display', 'none', 'important')")
   })
 
+  it('force-shows the active tab panel and expanded accordion panel instead of relying on removeProperty', () => {
+    const script = buildCloneRuntimeScript()
+
+    // The annotator strips forced display styles from every stamped panel (see clone-annotator.ts
+    // stripForcedStyles), including whichever one was active at capture time, so falling back to
+    // the captured stylesheet via removeProperty('display') is not reliable — OEM markup frequently
+    // has no class-based "visible" rule at all. Both cloneTabs.show() and cloneAccordion.togglePanel()
+    // must force display:block !important on reveal, matching the hide path's !important priority.
+    expect(script).toContain("setProperty('display', 'block', 'important')")
+    expect(script).not.toContain("removeProperty('display')")
+  })
+
   it('exposes stable attribute names and version', () => {
     expect(CLONE_INTERACTION_ATTR).toBe('data-clone-interaction')
     expect(CLONE_REGION_ID_ATTR).toBe('data-clone-region-id')
