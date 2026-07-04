@@ -4128,7 +4128,14 @@ ${rendered}
     // data-clone-studio-interactive-control. The document-level navigation guard runs at capture
     // phase BEFORE the control's own capture-phase click handler, so without this exemption
     // stopImmediatePropagation() would swallow the click and the control would never switch/toggle.
-    return !!(target && target.closest && (target.closest('[data-clone-studio-bridge], [data-clone-studio-interactive-control]') || isMediaInteractionElement(target)))
+    // Compiler-stamped Alpine clone-runtime triggers (data-clone-tab, data-clone-acc-trigger,
+    // data-clone-prev/-next, data-clone-gallery-thumb — see clone-annotator.ts) bind their own trusted
+    // bubble-phase click listeners (x-on:click) directly on the trigger element. None of these carry
+    // data-clone-studio-bridge/-interactive-control, so without this clause this SAME capture-phase
+    // listener would stopImmediatePropagation() every click before cloneTabs/cloneAccordion/etc. ever see
+    // it. Scoped to the trigger elements themselves (not the whole data-clone-interaction region) so
+    // clicking elsewhere in a stamped region still selects it for editing as before.
+    return !!(target && target.closest && (target.closest('[data-clone-studio-bridge], [data-clone-studio-interactive-control], [data-clone-tab], [data-clone-acc-trigger], [data-clone-prev], [data-clone-next], [data-clone-gallery-thumb]') || isMediaInteractionElement(target)))
   }
 
   function handleNavigationEvent(event) {

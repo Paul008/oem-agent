@@ -1017,8 +1017,31 @@ describe('buildCloneStudioHtml', () => {
     expect(interactivityBlock).toContain('preventDefault')
     expect(interactivityBlock).toContain('stopImmediatePropagation')
     expect(bridgeScript).toContain('data-clone-studio-interactive-control')
-    expect(bridgeScript).toContain('[data-clone-studio-bridge], [data-clone-studio-interactive-control]')
+    expect(bridgeScript).toContain('[data-clone-studio-bridge], [data-clone-studio-interactive-control], [data-clone-tab], [data-clone-acc-trigger], [data-clone-prev], [data-clone-next], [data-clone-gallery-thumb]')
     // Read-only build still parses.
+    expect(() => new Function(bridgeScript)).not.toThrow()
+  })
+
+  it('exempts compiler-stamped Alpine clone-runtime triggers from the document click-navigation guard', () => {
+    const html = buildCloneStudioHtml({ rendered: '<main data-oem-region-id="r1"><h1>X</h1></main>', title: 't', baseHref: '/', selectedRegionId: null, bridgeToken: 'tok', editable: false })
+    const bridgeScript = extractBridgeScript(html)
+
+    // Alpine's cloneTabs/cloneAccordion/cloneCarousel/cloneGallery bind x-on:click directly on
+    // data-clone-tab / data-clone-acc-trigger / data-clone-prev / data-clone-next /
+    // data-clone-gallery-thumb (see clone-annotator.ts) — none of those carry
+    // data-clone-studio-bridge or -interactive-control. Without this exemption, the document-level
+    // capture-phase click guard (handleNavigationEvent) calls stopImmediatePropagation() on every
+    // click before Alpine's own bubble-phase listener ever runs, so a stamped tab/accordion/carousel/
+    // gallery trigger would silently never respond to clicks in the read-only preview.
+    const isBridgeOwnedTargetBlock = bridgeScript.slice(
+      bridgeScript.indexOf('function isBridgeOwnedTarget(target)'),
+      bridgeScript.indexOf('function handleNavigationEvent('),
+    )
+    expect(isBridgeOwnedTargetBlock).toContain('[data-clone-tab]')
+    expect(isBridgeOwnedTargetBlock).toContain('[data-clone-acc-trigger]')
+    expect(isBridgeOwnedTargetBlock).toContain('[data-clone-prev]')
+    expect(isBridgeOwnedTargetBlock).toContain('[data-clone-next]')
+    expect(isBridgeOwnedTargetBlock).toContain('[data-clone-gallery-thumb]')
     expect(() => new Function(bridgeScript)).not.toThrow()
   })
 
