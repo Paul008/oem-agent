@@ -124,8 +124,58 @@ function scopeOneSelector(selector: string, scope: string): string {
 // contains no `:` — this can only be an orphan token, never a real declaration or selector.
 const ORPHAN_DECLARATION_RE = /([;{])\s*[A-Za-z_$][\w$-]*\s*;/g;
 
-function sanitizeOrphanDeclarations(css: string): string {
-  return css.replace(ORPHAN_DECLARATION_RE, '$1');
+// A `;` living inside a quoted string (`content: "Sale; ends;"`) or a `/* ... */` comment is
+// literal text, not a declaration boundary — applying ORPHAN_DECLARATION_RE across it would
+// corrupt real content. Tokenize-lite: walk the stylesheet, carve out string/comment spans and
+// re-emit them verbatim, and only run the regex over the code spans between them.
+export function sanitizeOrphanDeclarations(css: string): string {
+  let out = '';
+  let code = '';
+  const flushCode = () => {
+    out += code.replace(ORPHAN_DECLARATION_RE, '$1');
+    code = '';
+  };
+
+  const n = css.length;
+  let i = 0;
+  while (i < n) {
+    const char = css[i];
+
+    // /* ... */ comment: copy through to the closing delimiter (or end of input).
+    if (char === '/' && css[i + 1] === '*') {
+      flushCode();
+      const end = css.indexOf('*/', i + 2);
+      const stop = end === -1 ? n : end + 2;
+      out += css.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    // Quoted string: copy through to the matching unescaped quote (or end of input).
+    if (char === '"' || char === "'") {
+      flushCode();
+      out += char;
+      i += 1;
+      while (i < n) {
+        const c = css[i];
+        if (c === '\\' && i + 1 < n) {
+          out += c + css[i + 1];
+          i += 2;
+          continue;
+        }
+        out += c;
+        i += 1;
+        if (c === char) break;
+      }
+      continue;
+    }
+
+    code += char;
+    i += 1;
+  }
+
+  flushCode();
+  return out;
 }
 
 export function scopeCss(css: string, scope: string): { css: string; rulesScoped: number; rulesSkipped: number; warnings: string[] } {

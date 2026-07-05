@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scopeCss, scopeProductionCloneHtml } from './production-css-scope';
+import { sanitizeOrphanDeclarations, scopeCss, scopeProductionCloneHtml } from './production-css-scope';
 
 const scope = '.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"]';
 
@@ -57,6 +57,40 @@ describe('scopeCss', () => {
     expect(result.css).not.toContain(scope);
     expect(result.rulesScoped).toBe(0);
     expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('does not strip an orphan-looking segment out of a quoted content value', () => {
+    // `content: "Sale; ends;"` — the `; ends;` inside the string looks like an orphan
+    // declaration to a naive regex but is real string content that must survive scoping.
+    const result = scopeCss('.badge::before { content: "Sale; ends;"; }', scope);
+
+    expect(result.css).toContain('content: "Sale; ends;"');
+    expect(result.warnings).toEqual([]);
+  });
+});
+
+describe('sanitizeOrphanDeclarations', () => {
+  it('preserves an orphan-looking segment inside a double-quoted string byte-identically', () => {
+    const css = '.badge::before{content:"Sale; ends;"}';
+
+    expect(sanitizeOrphanDeclarations(css)).toBe(css);
+  });
+
+  it('preserves an orphan-looking segment inside a single-quoted string byte-identically', () => {
+    const css = ".badge::after{content:'Buy; now;'}";
+
+    expect(sanitizeOrphanDeclarations(css)).toBe(css);
+  });
+
+  it('preserves an orphan-looking middle segment inside a /* */ comment byte-identically', () => {
+    const css = '.a{color:red}/* keep; this; text */.b{color:blue}';
+
+    expect(sanitizeOrphanDeclarations(css)).toBe(css);
+  });
+
+  it('still strips a genuine orphan declaration token that sits outside strings and comments', () => {
+    expect(sanitizeOrphanDeclarations('.x{padding-top:0;false;padding-bottom:4px;}'))
+      .toBe('.x{padding-top:0;padding-bottom:4px;}');
   });
 });
 
