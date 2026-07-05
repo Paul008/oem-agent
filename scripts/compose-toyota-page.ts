@@ -19,7 +19,7 @@ import { exemplarAbsolutePath, loadCatalog, type LoadedCatalog } from './lib/cat
 import { createDraftPage, loginToCms } from './lib/cms-client';
 import { assembleDocument, buildReport, type SectionPlan } from './lib/composer-assembly';
 import { aiExtractProps, extractProps, type Extraction } from './lib/prop-extractor';
-import { matchSection, type ExemplarImage } from './lib/preset-matcher';
+import { matchSection, matchSectionWithGemini, type ExemplarImage } from './lib/preset-matcher';
 import {
   CaptureBlockedError,
   captureSectionedPage,
@@ -40,6 +40,7 @@ export type ComposerArgs = {
   aiExtract: boolean;
   title: string;
   slug: string;
+  provider: 'gemini' | 'together';
 };
 
 export function parseComposerArgs(argv: string[]): ComposerArgs {
@@ -61,6 +62,7 @@ export function parseComposerArgs(argv: string[]): ComposerArgs {
     aiExtract: argv.includes('--ai-extract'),
     title: value('--title'),
     slug: value('--slug'),
+    provider: 'gemini',
   };
 
   const rawConfidence = value('--min-confidence');
@@ -70,6 +72,14 @@ export function parseComposerArgs(argv: string[]): ComposerArgs {
       throw new Error(`--min-confidence must be a number in [0,1], got: ${rawConfidence}`);
     }
     args.minConfidence = parsed;
+  }
+
+  const rawProvider = value('--provider');
+  if (rawProvider) {
+    if (rawProvider !== 'gemini' && rawProvider !== 'together') {
+      throw new Error('--provider must be gemini or together');
+    }
+    args.provider = rawProvider;
   }
 
   if (!args.url && !args.from) throw new Error('Provide --url or --from option');
@@ -84,10 +94,17 @@ async function main(): Promise<number> {
   }
 
   const args = parseComposerArgs(process.argv.slice(2));
-  const apiKey = process.env.TOGETHER_API_KEY || '';
+  const apiKeyEnvVar = args.provider === 'together' ? 'TOGETHER_API_KEY' : 'GEMINI_API_KEY';
+  const apiKey = process.env[apiKeyEnvVar] || '';
   if (!apiKey) {
-    console.error('TOGETHER_API_KEY is not set (expected in oem-agent/.env)');
+    console.error(`${apiKeyEnvVar} is not set (expected in oem-agent/.env)`);
     return 1;
+  }
+
+  let aiExtractEnabled = args.aiExtract;
+  if (aiExtractEnabled && args.provider !== 'together') {
+    console.warn('--ai-extract currently supports the together provider only; skipping ai fallback');
+    aiExtractEnabled = false;
   }
 
   const catalog = await loadCatalog(args.catalogDir);
@@ -131,14 +148,16 @@ async function main(): Promise<number> {
   const plans: SectionPlan[] = [];
   for (const section of bundle.sections) {
     const sectionBase64 = readFileSync(join(captureDir, section.screenshotFile)).toString('base64');
-    const match = await matchSection({ sectionBase64, exemplars, catalog, apiKey });
+    const match = args.provider === 'together'
+      ? await matchSection({ sectionBase64, exemplars, catalog, apiKey })
+      : await matchSectionWithGemini({ sectionBase64, exemplars, catalog, apiKey });
     const accepted = match.presetId !== null && match.confidence >= args.minConfidence;
     const preset = accepted ? catalog.presets.find((entry) => entry.id === match.presetId) ?? null : null;
 
     let extraction: Extraction | null = null;
     if (preset) {
       extraction = extractProps(section.html, preset, bundle.url);
-      if (args.aiExtract && extraction.filledRatio < 0.5) {
+      if (aiExtractEnabled && extraction.filledRatio < 0.5) {
         try {
           const aiExtraction = await aiExtractProps({
             sectionHtml: section.html, preset, sourceUrl: bundle.url, apiKey,

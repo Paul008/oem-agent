@@ -12,6 +12,7 @@ describe('parseComposerArgs', () => {
       minConfidence: 0.5,
       aiExtract: false,
       from: '',
+      provider: 'gemini',
     });
   });
 
@@ -37,5 +38,14 @@ describe('parseComposerArgs', () => {
 
   it('throws on invalid --min-confidence', () => {
     expect(() => parseComposerArgs(['--url', 'x', '--min-confidence', 'nope'])).toThrow(/min-confidence/);
+  });
+
+  it('honours --provider together override', () => {
+    const args = parseComposerArgs(['--url', 'x', '--provider', 'together']);
+    expect(args.provider).toBe('together');
+  });
+
+  it('throws on an invalid --provider value', () => {
+    expect(() => parseComposerArgs(['--url', 'x', '--provider', 'kimi'])).toThrow(/--provider must be gemini or together/);
   });
 });

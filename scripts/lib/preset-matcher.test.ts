@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { LoadedCatalog } from './catalog';
 import {
+  buildGeminiParts,
   buildMatchContent,
   buildPresetMenu,
   matchSection,
+  matchSectionWithGemini,
   parseMatchResponse,
 } from './preset-matcher';
 
@@ -107,6 +109,54 @@ describe('matchSection', () => {
   it('retries once then resolves with a null match carrying the error', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'boom', json: async () => ({}) });
     const match = await matchSection({
+      sectionBase64: 'SEC', exemplars: EXEMPLARS, catalog: CATALOG,
+      apiKey: 'k', fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(match.presetId).toBeNull();
+    expect(match.error).toMatch(/500/);
+  });
+});
+
+describe('buildGeminiParts', () => {
+  it('mirrors the Together content contract: menu, section label, section image, labelled exemplar images, JSON instruction', () => {
+    const parts = buildGeminiParts('SEC', EXEMPLARS, 'MENU');
+    expect(parts[0].text).toContain('MENU');
+    expect(parts[1]).toEqual({ text: 'SECTION TO MATCH:' });
+    expect(parts[2]).toEqual({ inline_data: { mime_type: 'image/png', data: 'SEC' } });
+    expect(parts[3]).toMatchObject({ text: expect.stringContaining('hero-standard') });
+    expect(parts[4]).toEqual({ inline_data: { mime_type: 'image/png', data: 'AAA' } });
+    expect(parts[5]).toMatchObject({ text: expect.stringContaining('toyota-ideal-cards') });
+    expect(parts[6]).toEqual({ inline_data: { mime_type: 'image/png', data: 'BBB' } });
+    expect(parts.at(-1)?.text).toContain('Respond with ONLY this JSON object');
+  });
+});
+
+describe('matchSectionWithGemini', () => {
+  it('returns the parsed verdict on success', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => '',
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ presetId: 'hero-standard', confidence: 0.8, runnersUp: [], reason: 'r' }) }] } }],
+      }),
+    });
+    const match = await matchSectionWithGemini({
+      sectionBase64: 'SEC', exemplars: EXEMPLARS, catalog: CATALOG,
+      apiKey: 'k', fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url as string).toContain(':generateContent?key=k');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.generationConfig.responseMimeType).toBe('application/json');
+    expect(match.presetId).toBe('hero-standard');
+    expect(match.confidence).toBe(0.8);
+  });
+
+  it('retries once then resolves with a null match carrying the error', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'boom', json: async () => ({}) });
+    const match = await matchSectionWithGemini({
       sectionBase64: 'SEC', exemplars: EXEMPLARS, catalog: CATALOG,
       apiKey: 'k', fetchImpl: fetchImpl as unknown as typeof fetch,
     });

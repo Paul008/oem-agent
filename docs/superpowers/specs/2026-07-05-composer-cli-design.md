@@ -8,6 +8,7 @@
 2. **Proof-experiment target ("page 1"):** the toyota.com.au RAV4 page (`--url` stays generic; RAV4 is the documented default run).
 3. **No-match handling:** unmatched sections become `legacy_html` carrier sections in the draft (spec-sanctioned interim carrier), flagged in the report for the future Slice-3 proposal flow.
 4. **Posting default:** dry-run. `--post` is required to actually create the CMS draft.
+5. **Amendment (Paul, 2026-07-05):** the stored Together credential proved invalid (sk-kimi key rejected by Together/Moonshot/kimi.com). Default vision provider switched to Gemini 2.5 Pro (GEMINI_API_KEY, verified live); Kimi-via-Together path retained behind --provider together for a future valid key.
 
 ## Shape: one pipeline CLI with stage-cached artifacts
 
