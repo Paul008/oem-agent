@@ -48,6 +48,18 @@ describe('buildCloneRuntimeScript', () => {
     expect(script).not.toContain("removeProperty('display')")
   })
 
+  it('resolves the carousel track on the root itself when the root IS the track', () => {
+    const script = buildCloneRuntimeScript()
+
+    // When the annotator's nearestCommonAncestor lands data-clone-track on the same element as
+    // x-data (ARIA carousel whose slides are direct children of the carousel root),
+    // this.root.querySelector('[data-clone-track]') never matches self and the track would be null,
+    // making the carousel inert. init() must fall back to `this.root` when root itself is the track.
+    expect(script).toContain(
+      "this.track = this.root.matches('[data-clone-track]') ? this.root : this.root.querySelector('[data-clone-track]')",
+    )
+  })
+
   it('exposes stable attribute names and version', () => {
     expect(CLONE_INTERACTION_ATTR).toBe('data-clone-interaction')
     expect(CLONE_REGION_ID_ATTR).toBe('data-clone-region-id')

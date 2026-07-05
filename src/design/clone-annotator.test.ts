@@ -63,6 +63,21 @@ const ARIA_CAROUSEL = `
   </div>
 </div>`
 
+// ARIA carousel whose slides are DIRECT children of the carousel root — so the slides' nearest
+// common ancestor resolves to the root itself, landing data-clone-track on the same element as
+// x-data. This is the shape cloneCarousel.init()'s `matches('[data-clone-track]') ? this.root : ...`
+// guard exists to handle: querySelector('[data-clone-track]') can never match self.
+const ARIA_CAROUSEL_ROOT_TRACK = `
+<div aria-roledescription="carousel" class="sc-root">
+  <div role="group" aria-roledescription="slide" class="sc-s1"><img src="/1.jpg"></div>
+  <div role="group" aria-roledescription="slide" class="sc-s2"><img src="/2.jpg"></div>
+  <div role="group" aria-roledescription="slide" class="sc-s3"><img src="/3.jpg"></div>
+  <div data-testid="content-slider-arrows">
+    <button aria-label="Previous slide">‹</button>
+    <button aria-label="Next slide">›</button>
+  </div>
+</div>`
+
 describe('annotateCloneInteractions', () => {
   it('stamps a tabs region with component, triggers, panels, and region id', () => {
     const result = annotateCloneInteractions(TABS_ARIA)
@@ -171,6 +186,25 @@ describe('annotateCloneInteractions', () => {
     const trackMatch = result.html.match(/<div[^>]*data-clone-track[^>]*>/)?.[0] ?? ''
     expect(trackMatch).toContain('sc-hKFxyN')
     expect(trackMatch).not.toContain('aria-roledescription="carousel"')
+  })
+
+  it('stamps x-data and data-clone-track on the SAME element when carousel slides are direct children of the root', () => {
+    const result = annotateCloneInteractions(ARIA_CAROUSEL_ROOT_TRACK)
+    const $ = load(result.html)
+
+    // nearestCommonAncestor of the direct-child slides is the carousel root itself, so the root
+    // carries BOTH x-data (cloneCarousel) and data-clone-track — the exact shape the runtime's
+    // `this.root.matches('[data-clone-track]') ? this.root : ...` guard resolves.
+    const root = $('[aria-roledescription="carousel"]')
+    expect(root).toHaveLength(1)
+    expect(root.attr('x-data')).toBe('cloneCarousel')
+    expect(root.is('[data-clone-track]')).toBe(true)
+
+    // The slides are still stamped, and no descendant wrapper stole the track attribute.
+    expect(result.html).toContain('data-clone-slide="0"')
+    expect(result.html).toContain('data-clone-slide="2"')
+    expect($('[data-clone-track]')).toHaveLength(1)
+    expect(result.interactions[0]).toMatchObject({ type: 'carousel', panel_count: 3 })
   })
 
   it('leaves unrecognized content byte-identical', () => {

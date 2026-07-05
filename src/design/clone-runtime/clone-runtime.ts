@@ -110,7 +110,10 @@ document.addEventListener('alpine:init', function () {
       root: null,
       init: function () {
         this.root = this.$el;
-        this.track = this.root.querySelector('[data-clone-track]');
+        // The annotator lands data-clone-track on the slides' nearest common ancestor, which for an
+        // ARIA carousel whose slides are direct children of the carousel root IS the root (same
+        // element as x-data). querySelector never matches self, so fall back to the root itself.
+        this.track = this.root.matches('[data-clone-track]') ? this.root : this.root.querySelector('[data-clone-track]');
         this.slides = this.track ? Array.from(this.track.querySelectorAll('[data-clone-slide]')) : [];
         if (this.track) {
           this.track.style.setProperty('display', 'flex', 'important');
