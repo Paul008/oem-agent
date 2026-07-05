@@ -1,6 +1,6 @@
 # Addendum: Block-Composition Path (Toyota-first) — Decision Record
 
-**Date:** 2026-07-05 · **Status:** Approved direction; Slice 1 (catalog generator) shipped in toyota-theme-nuxt branch feat/cms-catalog-slice1; proof experiment pending Slice 2
+**Date:** 2026-07-05 · **Status:** Approved direction; Slice 1 shipped (toyota-theme-nuxt); Slice 2 composer CLI shipped (oem-agent feat/composer-cli-slice2); proof experiment: dry-run executed, --post pending operator run
 **Parent spec:** 2026-07-04-oem-clone-enterprise-design.md (unchanged; this path is ADDITIVE)
 
 ## Decisions (Paul, 2026-07-05)
