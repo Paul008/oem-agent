@@ -12,7 +12,7 @@
 
 - **Working repo:** `/Users/paulgiurin/Documents/GitHub/toyota-theme-nuxt` (NOT oem-agent). All paths below are relative to that root unless absolute.
 - **Branch:** all work on `feat/cms-catalog-slice1`, branched from `main`. Never commit to main directly.
-- **Pre-existing dirty file:** `README.md` has an unstaged edit that predates this work. NEVER stage or commit it. Always `git add` explicit paths — never `git add -A` or `git add .`.
+- **Baseline:** the branch starts from checkpoint commit `d88a45a` (`wip: toyota cms page builder…`), which committed 155 files of pre-existing session work so this slice is self-contained. The tree is clean at task start. Still `git add` explicit paths — never `git add -A` or `git add .`.
 - **Additive only** (spec decision 1): do not modify `app/types/cmsPageBuilder.ts`, `app/utils/cmsPageBuilder.ts`, `app/utils/cmsPageBuilderPresets.ts`, or `server/utils/cmsPages.ts`. New files + `package.json` script/devDep additions only.
 - **Test command convention:** `npx tsx --test test/<file>.test.ts` (node:test runner; the repo has no `npm test` script — do not add one).
 - **Catalog contract (consumed by Slice 2 composer in oem-agent):** `catalog/catalog.json` with entries `{id, type, categoryId, categoryLabel, name, description, propSchema, demoProps, screenshotPath}`; screenshots at `catalog/screenshots/<preset-id>.png`, path recorded relative to `catalog/`.
@@ -21,21 +21,10 @@
 
 ---
 
-### Task 0: Branch setup
+### Task 0: Branch setup — DONE (controller)
 
-**Files:** none (git only)
-
-- [ ] **Step 1: Create the feature branch**
-
-```bash
-cd /Users/paulgiurin/Documents/GitHub/toyota-theme-nuxt
-git checkout -b feat/cms-catalog-slice1 main
-```
-
-- [ ] **Step 2: Verify clean starting point (only README.md may be dirty)**
-
-Run: `git status --short`
-Expected: exactly ` M README.md` and nothing else. If anything else appears, STOP and report.
+- [x] Branch `feat/cms-catalog-slice1` created from `main`.
+- [x] Pre-existing 155-file WIP (Toyota CMS page builder session work) checkpoint-committed as `d88a45a` per Paul's decision 2026-07-05. Working tree clean.
 
 ---
 
@@ -876,9 +865,9 @@ Expected: 28 tests (18 + 6 + 4), all PASS.
 - [ ] **Step 2: Confirm nothing unintended is staged or dirty**
 
 Run: `cd /Users/paulgiurin/Documents/GitHub/toyota-theme-nuxt && git status --short`
-Expected: only ` M README.md` (the pre-existing edit, untouched).
+Expected: empty (clean tree).
 
 - [ ] **Step 3: Confirm branch log**
 
 Run: `git log --oneline main..feat/cms-catalog-slice1`
-Expected: 6 commits (Tasks 1–6, toyota side).
+Expected: 7 commits (wip checkpoint `d88a45a` + Tasks 1–6 toyota side).
