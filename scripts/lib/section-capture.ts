@@ -72,15 +72,14 @@ export async function captureSectionedPage(
     // Scroll through the page to trigger lazy-loading (same approach as
     // the Worker's /admin/capture-screenshot route in src/routes/oem-agent.ts).
     await page.evaluate(async () => {
-      const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       const step = window.innerHeight;
       const maxScroll = document.body.scrollHeight;
       for (let y = 0; y < maxScroll; y += step) {
         window.scrollTo(0, y);
-        await delay(300);
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
       window.scrollTo(0, 0);
-      await delay(500);
+      await new Promise((resolve) => setTimeout(resolve, 500));
     });
     await settlePage(page, opts.settleMs ?? 1500);
 
