@@ -216,14 +216,30 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
       triggers.each((i, el) => { $(el).attr('data-clone-tab', String(i)); $(el).attr('x-on:click', 'selectTab'); });
       if (resolvedPanels) {
         const resolvedSet = new Set<CheerioNode>(resolvedPanels);
+        // The identity of a resolved panel: its id and its aria-labelledby target. A non-resolved
+        // panel is only an infinite-loop clone if it shares one of these — otherwise it is unrelated
+        // unique content that the runtime never manages and must not touch.
+        const resolvedIds = new Set<string>();
+        const resolvedLabelledBy = new Set<string>();
+        resolvedPanels.forEach((panelEl) => {
+          const id = String(panelEl.attribs?.id ?? '');
+          if (id) resolvedIds.add(id);
+          const labelledBy = String(panelEl.attribs?.['aria-labelledby'] ?? '');
+          if (labelledBy) resolvedLabelledBy.add(labelledBy);
+        });
         resolvedPanels.forEach((panelEl, i) => { const $panel = $(panelEl); $panel.attr('data-clone-panel', String(i)); stripForcedStyles($panel); $panel.removeAttr('inert'); });
         // Infinite-loop slider clones: tabpanels sharing a resolved panel's id/aria-labelledby target
         // but not selected as the live copy. They keep the capture-forced-visible inline styles and
         // would each render at full slide height, stacking the whole stage (VW Amarok: ~1.8k px of
-        // excess). They duplicate content already stamped as the real panel, so collapse them — this
-        // marks and force-hides duplicates only, never hiding unique content.
+        // excess). They duplicate content already stamped as the real panel, so collapse them — but
+        // ONLY genuine duplicates: a non-resolved panel that matches no resolved id/aria-labelledby is
+        // unrelated content and is left completely untouched.
         panels.each((_i, el) => {
           if (resolvedSet.has(el)) return;
+          const id = String(el.attribs?.id ?? '');
+          const labelledBy = String(el.attribs?.['aria-labelledby'] ?? '');
+          const isDuplicate = (id && resolvedIds.has(id)) || (labelledBy && resolvedLabelledBy.has(labelledBy));
+          if (!isDuplicate) return;
           const $dup = $(el);
           $dup.attr('data-clone-panel-duplicate', '');
           collapseDuplicatePanel($dup);

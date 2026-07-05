@@ -35,6 +35,22 @@ const TABS_WITH_DUPLICATE_PANELS = `
   <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" inert style="${FORCED_VISIBLE}">First slide (clone B, inert)</div>
 </div>`
 
+// A duplicate-id slider (so aria-labelledby resolution engages) that ALSO contains an unrelated
+// tabpanel whose aria-labelledby target (`unrelated-trigger`) corresponds to no resolved tab and
+// whose id (`orphan-panel`) matches no resolved panel. The collapse pass must leave that orphan
+// completely alone — it is legitimate unique content, not an infinite-loop clone.
+const TABS_WITH_ORPHAN_PANEL = `
+<div role="region" aria-label="Carousel">
+  <div role="tablist">
+    <button role="tab" id="bullet-0" aria-controls="panel-0" aria-selected="true">First</button>
+    <button role="tab" id="bullet-1" aria-controls="panel-1" aria-selected="false">Second</button>
+  </div>
+  <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" style="${FORCED_VISIBLE}">First slide (LIVE)</div>
+  <div aria-labelledby="bullet-0" id="panel-0" role="tabpanel" inert style="${FORCED_VISIBLE}">First slide (clone)</div>
+  <div aria-labelledby="bullet-1" id="panel-1" role="tabpanel" style="${FORCED_VISIBLE}">Second slide (LIVE)</div>
+  <div aria-labelledby="unrelated-trigger" id="orphan-panel" role="tabpanel" style="${FORCED_VISIBLE}">Unrelated content that must stay put</div>
+</div>`
+
 const CAROUSEL = `
 <div class="offers-carousel swiper">
   <button class="carousel-prev">‹</button>
@@ -153,6 +169,30 @@ describe('annotateCloneInteractions', () => {
     expect($('[data-clone-panel]').length).toBe(2)
     // A duplicate and its resolved twin are never both left visible.
     expect($('[data-clone-panel-duplicate]').filter((_i, el) => /display\s*:\s*block/.test(String($(el).attr('style') ?? ''))).length).toBe(0)
+  })
+
+  it('collapses only genuine duplicates and leaves an unrelated orphan tabpanel completely untouched', () => {
+    const result = annotateCloneInteractions(TABS_WITH_ORPHAN_PANEL)
+    const $ = load(result.html)
+
+    // The orphan panel shares neither id nor aria-labelledby target with any resolved panel, so it
+    // must be left exactly as captured: no duplicate marker, no data-clone-panel, no display:none,
+    // and its capture-forced visible style intact.
+    const orphan = $('#orphan-panel')
+    expect(orphan).toHaveLength(1)
+    expect(orphan.is('[data-clone-panel-duplicate]')).toBe(false)
+    expect(orphan.is('[data-clone-panel]')).toBe(false)
+    const orphanStyle = String(orphan.attr('style') ?? '')
+    expect(orphanStyle).not.toMatch(/display\s*:\s*none/)
+    expect(orphanStyle).toMatch(/display\s*:\s*block/)
+
+    // The genuine infinite-loop clone (same id/aria-labelledby as a resolved panel) is still collapsed.
+    const dups = $('[data-clone-panel-duplicate]')
+    expect(dups.length).toBe(1)
+    expect(String(dups.attr('style') ?? '')).toMatch(/display\s*:\s*none\s*!important/)
+
+    // Exactly the 2 resolved panels are runtime-managed.
+    expect($('[data-clone-panel]').length).toBe(2)
   })
 
   it('stamps carousel track, slides, and existing prev/next controls', () => {
