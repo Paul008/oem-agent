@@ -99,6 +99,28 @@ describe('extractProps — cards', () => {
   });
 });
 
+const NESTED_HTML = `
+<section>
+  <div class="wrap">
+    <div class="hero"><h1>Big banner</h1><div><h4>deco</h4></div></div>
+    <div class="grid">
+      <div class="card"><img src="/a.jpg" alt="A img"><h3>A</h3><p>aa</p><a href="/a">Go A</a></div>
+      <div class="card"><img src="/b.jpg" alt="B img"><h3>B</h3><p>bb</p><a href="/b">Go B</a></div>
+    </div>
+    <div class="cta"><h3>Sign up</h3></div>
+    <div class="foot"><h4>Useful links</h4></div>
+  </div>
+</section>`;
+
+describe('extractProps — nested wrapper does not beat the real grid', () => {
+  it('extracts items from the leaf-most repeating card structure', () => {
+    const extraction = extractProps(NESTED_HTML, CARDS_PRESET, 'https://www.toyota.com.au/rav4');
+    const items = extraction.props.items as Array<Record<string, unknown>>;
+    expect(items.map((item) => item.title)).toEqual(['A', 'B']);
+    expect(items[0].href).toBe('https://www.toyota.com.au/a');
+  });
+});
+
 describe('extractProps — sparse section', () => {
   it('reports missing keys and partial ratio', () => {
     const extraction = extractProps('<section><h2>Just a title</h2></section>', HERO_PRESET, 'https://x.com');

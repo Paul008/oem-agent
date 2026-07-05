@@ -128,8 +128,7 @@ function extractItems(
   itemSchema: Record<string, CatalogPropSchemaValue>,
   sourceUrl: string,
 ): Array<Record<string, unknown>> {
-  let bestParent: Cheerio<any> | null = null;
-  let bestCount = 0;
+  const candidates: Array<{ element: any; cardLikeCount: number }> = [];
   for (const el of $('*').toArray()) {
     const children = $(el).children().toArray();
     if (children.length < 2) continue;
@@ -145,9 +144,27 @@ function extractItems(
       const $child = $(child);
       return $child.find('img').length > 0 || $child.find('h3, h4, h5, h6').length > 0;
     });
-    if (cardLike.length >= 2 && cardLike.length > bestCount) {
-      bestCount = cardLike.length;
-      bestParent = $(el);
+    if (cardLike.length >= 2) {
+      candidates.push({ element: el, cardLikeCount: cardLike.length });
+    }
+  }
+
+  // Discard any candidate that is an ancestor of another candidate — the
+  // leaf-most repeating structure is the real grid, not a page-level wrapper
+  // that happens to contain other card-like sibling blocks (hero/cta/footer).
+  const survivors = candidates.filter((candidate) => {
+    return !candidates.some((other) => {
+      if (other === candidate) return false;
+      return $(other.element).parents().toArray().includes(candidate.element);
+    });
+  });
+
+  let bestParent: Cheerio<any> | null = null;
+  let bestCount = 0;
+  for (const candidate of survivors) {
+    if (candidate.cardLikeCount > bestCount) {
+      bestCount = candidate.cardLikeCount;
+      bestParent = $(candidate.element);
     }
   }
   if (!bestParent) return [];
