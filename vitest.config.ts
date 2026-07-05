@@ -4,12 +4,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.mjs'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'scripts/**/*.test.mjs'],
     exclude: ['src/client/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      exclude: ['src/client/**', 'node_modules/**', '**/*.test.ts', 'scripts/**/*.test.mjs'],
+      exclude: ['src/client/**', 'node_modules/**', '**/*.test.ts', 'scripts/**/*.test.mjs', 'scripts/**/*.test.ts'],
     },
   },
 })
