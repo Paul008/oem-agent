@@ -1,6 +1,6 @@
 # Addendum: Block-Composition Path (Toyota-first) — Decision Record
 
-**Date:** 2026-07-05 · **Status:** Approved direction; Slice 1 shipped (toyota-theme-nuxt); Slice 2 composer CLI shipped (oem-agent feat/composer-cli-slice2); proof experiment: dry-run executed, --post pending operator run
+**Date:** 2026-07-05 · **Status:** Approved direction; Slice 1 shipped (toyota-theme-nuxt); Slice 2 composer CLI shipped (oem-agent feat/composer-cli-slice2); proof experiment PASSED: 41/54 RAV4 sections matched (76% vs >60% target, gemini-2.5-pro, zero call failures; docs/superpowers/proof-runs/2026-07-05-rav4-composer-report.md); --post pending operator run
 **Parent spec:** 2026-07-04-oem-clone-enterprise-design.md (unchanged; this path is ADDITIVE)
 
 ## Decisions (Paul, 2026-07-05)
