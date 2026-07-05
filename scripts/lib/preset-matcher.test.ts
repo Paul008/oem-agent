@@ -147,7 +147,9 @@ describe('matchSectionWithGemini', () => {
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = fetchImpl.mock.calls[0];
-    expect(url as string).toContain(':generateContent?key=k');
+    expect(url as string).toContain(':generateContent');
+    expect(url as string).not.toContain('key=');
+    expect((init as RequestInit).headers).toMatchObject({ 'x-goog-api-key': 'k' });
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body.generationConfig).toEqual({
       temperature: 0.2,

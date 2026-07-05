@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CatalogPreset } from './catalog';
 import {
+  aiExtractProps,
   buildAiExtractPrompt,
   extractProps,
   parseAiExtractResponse,
@@ -128,6 +129,50 @@ describe('extractProps — sparse section', () => {
     expect(extraction.missing).toContain('imageUrl');
     expect(extraction.filledRatio).toBeGreaterThan(0);
     expect(extraction.filledRatio).toBeLessThan(1);
+  });
+});
+
+const AI_PRESET: CatalogPreset = {
+  id: 'ai-preset', type: 'feature_grid', categoryId: 'inventory', categoryLabel: 'Inventory',
+  name: 'AI Preset', description: 'For ai-extract absolutization test', screenshotPath: 'screenshots/ai.png',
+  propSchema: {
+    heading: { type: 'string' },
+    imageUrl: { type: 'string' },
+    items: {
+      type: 'array',
+      item: { title: { type: 'string' }, href: { type: 'string' } },
+    },
+  },
+  demoProps: {},
+};
+
+describe('aiExtractProps', () => {
+  it('absolutizes imageUrl and item hrefs against the source url', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => '',
+      json: async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              heading: 'H',
+              imageUrl: '/rel/img.jpg',
+              items: [{ title: 'T', href: '/rel/a' }],
+            }),
+          },
+        }],
+      }),
+    });
+    const extraction = await aiExtractProps({
+      sectionHtml: '<section></section>',
+      preset: AI_PRESET,
+      sourceUrl: 'https://www.toyota.com.au/rav4',
+      apiKey: 'k',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(extraction.props.imageUrl).toBe('https://www.toyota.com.au/rel/img.jpg');
+    const items = extraction.props.items as Array<Record<string, unknown>>;
+    expect(items[0].href).toBe('https://www.toyota.com.au/rel/a');
   });
 });
 

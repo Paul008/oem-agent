@@ -16,7 +16,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exemplarAbsolutePath, loadCatalog, type LoadedCatalog } from './lib/catalog';
+import { exemplarAbsolutePath, loadCatalog } from './lib/catalog';
 import { createDraftPage, loginToCms } from './lib/cms-client';
 import { assembleDocument, buildReport, type SectionPlan } from './lib/composer-assembly';
 import { aiExtractProps, extractProps, type Extraction } from './lib/prop-extractor';
@@ -197,7 +197,7 @@ async function main(): Promise<number> {
     }
     try {
       const session = await loginToCms(args.cmsUrl, email, password);
-      const pagePath = new URL(bundle.url).pathname.replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'page';
+      const pagePath = urlToSlug(bundle.url);
       const result = await createDraftPage(session, {
         title: args.title || `Composed: ${pagePath}`,
         slug: args.slug || `composed-${pagePath}`,
@@ -217,14 +217,16 @@ async function main(): Promise<number> {
 }
 
 function runSlug(args: ComposerArgs): string {
-  if (args.url) {
-    try {
-      return new URL(args.url).pathname.replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'page';
-    } catch {
-      return 'page';
-    }
-  }
+  if (args.url) return urlToSlug(args.url);
   return 'replay';
+}
+
+function urlToSlug(url: string): string {
+  try {
+    return new URL(url).pathname.replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'page';
+  } catch {
+    return 'page';
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

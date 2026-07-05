@@ -263,6 +263,30 @@ export function parseAiExtractResponse(
   return Object.fromEntries(Object.entries(parsed).filter(([key]) => allowed.has(key)));
 }
 
+const AI_URL_KEYS = ['imageUrl', 'buttonHref', 'mapHref'] as const;
+const AI_ITEM_URL_KEYS = ['imageUrl', 'href'] as const;
+
+function absolutizeAiProps(props: Record<string, unknown>, sourceUrl: string): void {
+  for (const key of AI_URL_KEYS) {
+    const value = props[key];
+    if (typeof value === 'string' && value) {
+      props[key] = absolutize(value, sourceUrl);
+    }
+  }
+  if (Array.isArray(props.items)) {
+    for (const item of props.items) {
+      if (!item || typeof item !== 'object') continue;
+      const record = item as Record<string, unknown>;
+      for (const key of AI_ITEM_URL_KEYS) {
+        const value = record[key];
+        if (typeof value === 'string' && value) {
+          record[key] = absolutize(value, sourceUrl);
+        }
+      }
+    }
+  }
+}
+
 export async function aiExtractProps(opts: {
   sectionHtml: string;
   preset: CatalogPreset;
@@ -289,6 +313,7 @@ export async function aiExtractProps(opts: {
   }
   const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
   const props = parseAiExtractResponse(data.choices?.[0]?.message?.content || '{}', opts.preset);
+  absolutizeAiProps(props, opts.sourceUrl);
   const keys = Object.keys(opts.preset.propSchema);
   const missing = keys.filter((key) => !isFilled(props[key]));
   return { props, filledRatio: keys.length ? (keys.length - missing.length) / keys.length : 1, missing };

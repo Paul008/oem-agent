@@ -117,7 +117,7 @@ export async function matchSection(opts: {
       const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
       return { ...parseMatchResponse(data.choices?.[0]?.message?.content || '', validIds) };
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = String((error as Error)?.message ?? error);
     }
   }
   return { presetId: null, confidence: 0, runnersUp: [], reason: 'match call failed', error: lastError };
@@ -175,14 +175,14 @@ export async function matchSectionWithGemini(opts: {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const validIds = new Set(opts.catalog.presets.map((preset) => preset.id));
   const parts = buildGeminiParts(opts.sectionBase64, opts.exemplars, buildPresetMenu(opts.catalog));
-  const url = `${opts.apiBase ?? GEMINI_API_BASE}/models/${opts.model ?? GEMINI_MODEL}:generateContent?key=${opts.apiKey}`;
+  const url = `${opts.apiBase ?? GEMINI_API_BASE}/models/${opts.model ?? GEMINI_MODEL}:generateContent`;
 
   let lastError = '';
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const response = await fetchImpl(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': opts.apiKey },
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
           generationConfig: {
@@ -210,13 +210,14 @@ export async function matchSectionWithGemini(opts: {
       }
       return { ...verdict };
     } catch (error) {
-      lastError = redactApiKey((error as Error).message, opts.apiKey);
+      lastError = redactApiKey(String((error as Error)?.message ?? error), opts.apiKey);
     }
   }
   return { presetId: null, confidence: 0, runnersUp: [], reason: 'match call failed', error: lastError };
 }
 
 function redactApiKey(text: string, apiKey: string): string {
-  if (!apiKey) return text;
-  return text.split(apiKey).join('***');
+  const safeText = String(text ?? '');
+  if (!apiKey) return safeText;
+  return safeText.split(apiKey).join('***');
 }
