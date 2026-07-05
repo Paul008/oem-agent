@@ -149,7 +149,12 @@ describe('matchSectionWithGemini', () => {
     const [url, init] = fetchImpl.mock.calls[0];
     expect(url as string).toContain(':generateContent?key=k');
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body.generationConfig.responseMimeType).toBe('application/json');
+    expect(body.generationConfig).toEqual({
+      temperature: 0.2,
+      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingBudget: 1024 },
+      responseMimeType: 'application/json',
+    });
     expect(match.presetId).toBe('hero-standard');
     expect(match.confidence).toBe(0.8);
   });
@@ -163,5 +168,37 @@ describe('matchSectionWithGemini', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(match.presetId).toBeNull();
     expect(match.error).toMatch(/500/);
+  });
+
+  it('surfaces finishReason when thinking exhausts the token budget', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => '',
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: '' }] }, finishReason: 'MAX_TOKENS' }],
+      }),
+    });
+    const match = await matchSectionWithGemini({
+      sectionBase64: 'SEC', exemplars: EXEMPLARS, catalog: CATALOG,
+      apiKey: 'k', fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(match.presetId).toBeNull();
+    expect(match.reason).toContain('MAX_TOKENS');
+  });
+
+  it('redacts the api key from stored error text', async () => {
+    const apiKey = 'super-secret-key';
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => `boom key=${apiKey} leaked`,
+      json: async () => ({}),
+    });
+    const match = await matchSectionWithGemini({
+      sectionBase64: 'SEC', exemplars: EXEMPLARS, catalog: CATALOG,
+      apiKey, fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(match.error).not.toContain(apiKey);
+    expect(match.error).toContain('***');
   });
 });

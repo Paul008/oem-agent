@@ -187,25 +187,36 @@ export async function matchSectionWithGemini(opts: {
           contents: [{ role: 'user', parts }],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 8192,
+            thinkingConfig: { thinkingBudget: 1024 },
             responseMimeType: 'application/json',
           },
         }),
       });
       if (!response.ok) {
-        lastError = `Gemini error ${response.status}: ${(await response.text()).slice(0, 300)}`;
+        lastError = redactApiKey(`Gemini error ${response.status}: ${(await response.text()).slice(0, 300)}`, opts.apiKey);
         continue;
       }
       const data = await response.json() as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
       };
+      const finishReason = data.candidates?.[0]?.finishReason;
       const content = (data.candidates?.[0]?.content?.parts ?? [])
         .map((part) => part.text || '')
         .join('');
-      return { ...parseMatchResponse(content, validIds) };
+      const verdict = parseMatchResponse(content, validIds);
+      if (verdict.reason === 'unparseable model response' && finishReason) {
+        return { ...verdict, reason: `unparseable model response (finishReason: ${finishReason})` };
+      }
+      return { ...verdict };
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = redactApiKey((error as Error).message, opts.apiKey);
     }
   }
   return { presetId: null, confidence: 0, runnersUp: [], reason: 'match call failed', error: lastError };
+}
+
+function redactApiKey(text: string, apiKey: string): string {
+  if (!apiKey) return text;
+  return text.split(apiKey).join('***');
 }

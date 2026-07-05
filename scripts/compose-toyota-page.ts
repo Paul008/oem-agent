@@ -3,8 +3,9 @@
  * Composer CLI (block-composition Slice 2).
  *
  * Captures a Toyota page with local real Chrome, segments it, vision-matches
- * each section against the toyota-theme-nuxt catalog (Kimi K2.5 via Together),
- * extracts props from the DOM, and assembles a draft CmsPageBuilderDocument.
+ * each section against the toyota-theme-nuxt catalog (Gemini 2.5 Pro by default;
+ * --provider together for Kimi K2.5), extracts props from the DOM, and assembles
+ * a draft CmsPageBuilderDocument.
  * Dry-run by default; --post creates the draft via the CMS admin API.
  *
  * Usage:
