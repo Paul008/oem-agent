@@ -58,20 +58,54 @@ const EXTRACT_SCRIPT = `(() => {
       const paragraphs = Array.from(card.querySelectorAll('p'))
         .map((p) => clean(p.textContent || ''))
         .filter((t) => t.length > 30 && !/ask your/i.test(t));
-      const img = card.querySelector('img');
       const cardText = clean(card.textContent || '');
+      let cardImage = null;
+      for (const i of Array.from(card.querySelectorAll('img'))) {
+        const s = (i.currentSrc || i.getAttribute('src') || i.getAttribute('data-src') || '');
+        if (s && !s.includes('/icons/') && !s.split('?')[0].endsWith('.svg')) { cardImage = s.startsWith('http') ? s : (location.origin + s); break; }
+      }
       results.push({
         name,
         description: paragraphs[0] || '',
-        image: img ? (img.currentSrc || img.src || null) : null,
+        image: cardImage,
         popular: /\\bPOPULAR\\b/.test(cardText.slice(0, 200)),
       });
     }
-    return results;
+    // Image backfill: cards often keep their image in a sibling column the
+    // card-walk misses, but page images carry accessory names as alt text.
+    const imgSrc = (i) => {
+      let src = i.currentSrc || i.getAttribute('src') || i.getAttribute('data-src') || '';
+      if (!src) {
+        const srcset = i.getAttribute('srcset') || i.getAttribute('data-srcset') ||
+          (i.closest('picture')?.querySelector('source')?.getAttribute('srcset')) || '';
+        src = srcset.split(',')[0]?.trim().split(' ')[0] || '';
+      }
+      return src;
+    };
+    const altMap = {};
+    document.querySelectorAll('img').forEach((i) => {
+      const src = imgSrc(i);
+      const alt = clean(i.alt || '').toLowerCase();
+      if (!src || !alt || alt.length < 4) return;
+      if (src.includes('global-navigation') || src.includes('/icons/') || src.split('?')[0].endsWith('.svg')) return;
+      if (!altMap[alt]) altMap[alt] = src.startsWith('http') ? src : (location.origin + src);
+    });
+    const altKeys = Object.keys(altMap);
+    for (const item of results) {
+      if (item.image && !item.image.endsWith('.svg')) continue;
+      const n = item.name.toLowerCase();
+      const hit = altMap[n] ? n : altKeys.find((k) => k.includes(n) || n.includes(k));
+      if (hit) item.image = altMap[typeof hit === 'string' && altMap[hit] ? hit : n] || altMap[hit];
+    }
+    // Personalise-only pages (Camry/Yaris/Fortuner) render the 360 configurator
+    // with no catalog — signal it so the caller can log a clean skip.
+    const bodyText = clean(document.body.innerText || '').slice(0, 4000);
+    const personaliseOnly = results.length === 0 && /PERSONALISE/.test(bodyText) && /BUILD AND PRICE/.test(bodyText);
+    return { results, personaliseOnly };
   })()`;
 
-async function extractAccessories(page: any): Promise<ExtractedAccessory[]> {
-  return await page.evaluate(EXTRACT_SCRIPT) as ExtractedAccessory[];
+async function extractAccessories(page: any): Promise<{ results: ExtractedAccessory[]; personaliseOnly: boolean }> {
+  return await page.evaluate(EXTRACT_SCRIPT) as { results: ExtractedAccessory[]; personaliseOnly: boolean };
 }
 
 async function main() {
@@ -108,12 +142,36 @@ async function main() {
         console.log(`  [skip] ${model.slug}: ${resp?.status()} ${url}`);
         continue;
       }
-      await new Promise((r) => setTimeout(r, 2500));
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await new Promise((r) => setTimeout(r, 2000));
+      // Stepwise scroll so lazy-loaded card images resolve before extraction
+      for (let step = 0; step <= 8; step++) {
+        await page.evaluate(`window.scrollTo(0, document.body.scrollHeight * ${step} / 8)`);
+        await new Promise((r) => setTimeout(r, 600));
+      }
+      await new Promise((r) => setTimeout(r, 1500));
 
-      const items = await extractAccessories(page);
-      console.log(`[${model.slug}] ${items.length} accessories from ${url}`);
+      // Expand collapsed accordions/tabs so card panels (and their images) mount.
+      for (let round = 0; round < 3; round++) {
+        const clicked = await page.evaluate(`(() => {
+          const triggers = Array.from(document.querySelectorAll('[aria-expanded="false"], [role="tab"][aria-selected="false"]'))
+            .filter((el) => el.closest('main, [class*="accessor"], [id*="accessor"]') || true)
+            .slice(0, 15);
+          triggers.forEach((el) => { try { el.click(); } catch {} });
+          return triggers.length;
+        })()`);
+        await new Promise((r) => setTimeout(r, 1200));
+        if (!clicked) break;
+      }
+      await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+      await new Promise((r) => setTimeout(r, 1500));
+
+      const { results: items, personaliseOnly } = await extractAccessories(page);
+      if (personaliseOnly) {
+        console.log(`  [skip-personalise] ${model.slug}: accessories live in the 360 configurator only`);
+        continue;
+      }
+      const withImages = items.filter((i) => i.image).length;
+      console.log(`[${model.slug}] ${items.length} accessories (${withImages} with images) from ${url}`);
 
       for (const item of items) {
         const externalKey = slugify(item.name);
