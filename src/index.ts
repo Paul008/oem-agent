@@ -30,7 +30,7 @@ import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
-import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy } from './routes';
+import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy, nissanOfficialAdmin } from './routes';
 import mcpRoutes from './mcp';
 import { handleScheduled as handleOemScheduled } from './scheduled';
 import { redactSensitiveParams } from './utils/logging';
@@ -368,6 +368,9 @@ app.route('/api', api);
 
 // Mount OEM Agent routes (protected by Cloudflare Access)
 app.route('/api/v1/oem-agent', oemAgent);
+
+// Official Nissan dry-run and review-candidate controls (protected by admin auth + operator allowlist).
+app.route('/api/v1/oem-agent/admin/nissan-official', nissanOfficialAdmin);
 
 // Mount Specs API routes (public + admin, protected by Cloudflare Access for admin paths)
 app.route('/api/v1', specsApi);

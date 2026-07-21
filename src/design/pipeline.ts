@@ -47,6 +47,7 @@ export interface CloneDecisionOptions {
 
 export interface AdaptivePipelineRunOptions {
   forceClone?: boolean;
+  validateSections?: import('./page-structurer').PageSectionValidator;
 }
 
 function normalizeSourceUrl(url: string | null | undefined): string {
@@ -87,6 +88,16 @@ export function getCloneDecision(
   }
 
   return { shouldClone: false, reason: 'clone already exists in R2' };
+}
+
+export function getStructuringFailure(result: {
+  success: boolean;
+  sections_extracted: number;
+  error?: string;
+}): string | null {
+  if (!result.success) return result.error || 'Page structuring failed';
+  if (result.sections_extracted < 1) return 'Page structuring returned no publishable sections';
+  return null;
 }
 
 // ============================================================================
@@ -153,7 +164,7 @@ export class AdaptivePipeline {
     let sections: PageSection[] = [];
     let qualityScore = 0;
 
-    if (isModelPageWriteProtected(oemId)) {
+    if (isModelPageWriteProtected(oemId, modelSlug)) {
       const message = getModelPageWriteProtectedMessage(oemId);
       return {
         success: false,
@@ -326,7 +337,14 @@ export class AdaptivePipeline {
       // ================================================================
       const step3Start = Date.now();
       try {
-        const result = await this.structurer.structurePage(oemId, modelSlug);
+        const result = await this.structurer.structurePage(
+          oemId,
+          modelSlug,
+          undefined,
+          options.validateSections,
+        );
+        const structuringFailure = getStructuringFailure(result);
+        if (structuringFailure) throw new Error(structuringFailure);
         sections = result.page?.content?.sections || [];
         const extractTokens = result.gemini_tokens_used || 0;
         const extractCost = result.gemini_cost_usd || 0;

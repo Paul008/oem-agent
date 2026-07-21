@@ -176,8 +176,9 @@ export const getOemModelTool: RegisteredTool = {
     if (includeOffers) {
       const { data: offers } = await supabase
         .from('offers')
-        .select('id, title, description, price_amount, saving_amount, start_date, end_date, applicable_models')
+        .select('id, title, description, price_amount, saving_amount, validity_start, validity_end, applicable_models')
         .eq('oem_id', oemId)
+        .eq('lifecycle_status', 'active')
         .order('updated_at', { ascending: false })
         .limit(20);
       result.offers = offers ?? [];

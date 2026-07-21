@@ -8,6 +8,7 @@ export interface MoltbotEnv {
   McpSession: DurableObjectNamespace<import('./mcp/session').McpSession>;
   ASSETS: Fetcher; // Assets binding for admin UI static files
   MOLTBOT_BUCKET: R2Bucket; // R2 bucket for persistent storage
+  OEM_PAGE_BUCKET?: R2Bucket; // Explicit page-builder/candidate storage; Nissan never falls back to MOLTBOT_BUCKET
   // Cloudflare AI Gateway configuration (preferred)
   CF_AI_GATEWAY_ACCOUNT_ID?: string; // Cloudflare account ID for AI Gateway
   CF_AI_GATEWAY_GATEWAY_ID?: string; // AI Gateway ID
@@ -70,6 +71,18 @@ export interface MoltbotEnv {
   // External scraping services
   APIFY_TOKEN?: string;         // Apify API token for actor-based scraping
   TOYOTA_DEALER_ID?: string;    // Toyota TDP/NavCategory dealer ID for model discovery (default: Werribee 36948)
+  // Nissan Australia official API credentials. Keep these in Worker secrets;
+  // never store them in OEM config, source code, logs, or model-page artifacts.
+  NISSAN_PACE_API_KEY?: string;
+  NISSAN_CHOICES_API_KEY?: string;
+  NISSAN_CHOICES_CLIENT_KEY?: string;
+  NISSAN_OFFICIAL_OPERATORS?: string; // Comma-separated emails authorized for Nissan dry-run/stage/review/build/publish actions
+  NISSAN_STAGED_WRITES_ENABLED?: string; // Exact string "true" enables operator-confirmed inactive catalog writes
+  NISSAN_CATALOG_PROMOTION_ENABLED?: string; // Exact string "true" enables reviewed staged-to-active promotion
+  NISSAN_CATALOG_ROLLBACK_ENABLED?: string; // Exact string "true" enables inverse reviewed catalog rollback
+  NISSAN_OFFER_STAGING_ENABLED?: string; // Exact string "true" enables confirmed inactive official offer writes
+  NISSAN_OFFER_PROMOTION_ENABLED?: string; // Exact string "true" enables reviewed staged offer activation
+  NISSAN_OFFER_ROLLBACK_ENABLED?: string; // Exact string "true" enables inverse reviewed offer rollback
   APIFY_PDF_FETCH_ACTOR_ID?: string; // Apify actor id for the generic PDF fetcher (brochure mirror)
   // Cloudflare Workflows
   BROCHURE_MIRROR?: Workflow;   // Durable brochure mirror → R2 → extract workflow

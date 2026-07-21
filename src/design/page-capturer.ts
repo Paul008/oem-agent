@@ -1983,7 +1983,7 @@ export class PageCapturer {
     const backend = options.backend ?? 'cloudflare-browser';
 
     try {
-      if (isModelPageWriteProtected(oemId)) {
+      if (isModelPageWriteProtected(oemId, modelSlug)) {
         return {
           success: false,
           capture_time_ms: Date.now() - startTime,
@@ -2947,7 +2947,7 @@ export class PageCapturer {
   ): Promise<Map<string, string>> {
     const screenshots = new Map<string, string>();
 
-    if (isModelPageWriteProtected(oemId)) {
+    if (isModelPageWriteProtected(oemId, modelSlug)) {
       console.warn(`[PageCapturer] Skipping section screenshots for protected model page writes: ${oemId}/${modelSlug}`);
       return screenshots;
     }
