@@ -88,6 +88,7 @@ const ALLOWED_HOSTS = new Set([
   'www.kia.com',
   'kia.com',
   'www.nissan.com.au',
+  'navara.nissan.com.au',
   'www-asia.nissan-cdn.net',
   'ms-prd.apn.mediaserver.heliosnissan.net',
   'a.storyblok.com',
@@ -114,6 +115,10 @@ const ALLOWED_HOSTS = new Set([
   'eu-www-resouce-cdn.gacgroup.com',
   'eu-www-resource-cdn.gacgroup.com',
 ]);
+
+export function isAllowedMediaHost(hostname: string): boolean {
+  return ALLOWED_HOSTS.has(hostname.toLowerCase());
+}
 
 /**
  * Decode a base64url string to the original URL.
@@ -292,7 +297,7 @@ media.get('/:oemId/:encodedUrl', async (c) => {
     return c.text('Invalid URL', 400);
   }
 
-  if (!ALLOWED_HOSTS.has(hostname)) {
+  if (!isAllowedMediaHost(hostname)) {
     return c.text('Host not allowed', 403);
   }
 
@@ -312,6 +317,10 @@ media.get('/:oemId/:encodedUrl', async (c) => {
     Accept: 'text/css,font/woff2,font/woff,font/ttf,application/font-woff,application/octet-stream,image/webp,image/avif,image/png,image/jpeg,image/*,*/*',
     ...OEM_HEADERS[oemId],
   };
+  if (oemId === 'nissan-au' && hostname === 'navara.nissan.com.au') {
+    headers.Origin = 'https://navara.nissan.com.au';
+    headers.Referer = 'https://navara.nissan.com.au/';
+  }
 
   const originResp = await fetch(resolved, { headers });
 

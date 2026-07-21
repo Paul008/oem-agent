@@ -249,6 +249,7 @@ async function assembleModelData(
     .from('offers')
     .select('title, offer_type, price_amount, saving_amount')
     .eq('oem_id', oemId)
+    .eq('lifecycle_status', 'active')
     .or(`applicable_models.cs.{${model.name}},applicable_models.cs.{${modelSlug}}`)
     .limit(10);
 
@@ -928,7 +929,7 @@ export class PageGenerator {
     const startTime = Date.now();
     const validationErrors: string[] = [];
 
-    if (isModelPageWriteProtected(oemId)) {
+    if (isModelPageWriteProtected(oemId, modelSlug)) {
       return {
         success: false,
         generation_time_ms: Date.now() - startTime,
@@ -1257,7 +1258,7 @@ export class PageGenerator {
     const finalConfig = { ...DEFAULT_REGENERATION_CONFIG, ...config };
     const checksDone: string[] = [];
 
-    if (isModelPageWriteProtected(oemId)) {
+    if (isModelPageWriteProtected(oemId, modelSlug)) {
       checksDone.push('write_protection');
       return {
         shouldRegenerate: false,
@@ -1357,6 +1358,7 @@ export class PageGenerator {
           .from('offers')
           .select('updated_at')
           .eq('oem_id', oemId)
+          .eq('lifecycle_status', 'active')
           .order('updated_at', { ascending: false })
           .limit(1)
           .single(),

@@ -134,7 +134,7 @@ export class PageCloner {
     const startTime = Date.now();
 
     try {
-      if (isModelPageWriteProtected(oemId)) {
+      if (isModelPageWriteProtected(oemId, modelSlug)) {
         return {
           success: false,
           clone_time_ms: Date.now() - startTime,

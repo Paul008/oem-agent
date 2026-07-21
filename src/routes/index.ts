@@ -10,3 +10,4 @@ export { default as agentRoutes } from './agents';
 export { dealerApi } from './dealer-api';
 export { specsApi } from './specs-api';
 export { oemProxy } from './oem-proxy';
+export { nissanOfficialAdmin } from './nissan-official-admin';

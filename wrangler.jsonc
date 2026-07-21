@@ -13,6 +13,10 @@
     {
       "binding": "MOLTBOT_BUCKET",
       "bucket_name": "oem-agent-assets"
+    },
+    {
+      "binding": "OEM_PAGE_BUCKET",
+      "bucket_name": "oem-agent-assets"
     }
   ],
 
@@ -84,6 +88,12 @@
     "ENVIRONMENT": "production",
     "SANDBOX_SLEEP_AFTER": "never",
     "DEV_MODE": "false",
+    "NISSAN_STAGED_WRITES_ENABLED": "false",
+    "NISSAN_CATALOG_PROMOTION_ENABLED": "false",
+    "NISSAN_CATALOG_ROLLBACK_ENABLED": "false",
+    "NISSAN_OFFER_STAGING_ENABLED": "false",
+    "NISSAN_OFFER_PROMOTION_ENABLED": "false",
+    "NISSAN_OFFER_ROLLBACK_ENABLED": "false",
     "OPENCLAW_DEV_MODE": "false",
     "R2_BUCKET_NAME": "oem-agent-assets",
     "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
@@ -142,6 +152,12 @@
         "ENVIRONMENT": "development",
         "SANDBOX_SLEEP_AFTER": "never",
         "DEV_MODE": "true",
+        "NISSAN_STAGED_WRITES_ENABLED": "false",
+        "NISSAN_CATALOG_PROMOTION_ENABLED": "false",
+        "NISSAN_CATALOG_ROLLBACK_ENABLED": "false",
+        "NISSAN_OFFER_STAGING_ENABLED": "false",
+        "NISSAN_OFFER_PROMOTION_ENABLED": "false",
+        "NISSAN_OFFER_ROLLBACK_ENABLED": "false",
         "OPENCLAW_DEV_MODE": "true",
         "R2_BUCKET_NAME": "oem-agent-assets-dev",
         "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
@@ -152,6 +168,10 @@
       "r2_buckets": [
         {
           "binding": "MOLTBOT_BUCKET",
+          "bucket_name": "oem-agent-assets-dev"
+        },
+        {
+          "binding": "OEM_PAGE_BUCKET",
           "bucket_name": "oem-agent-assets-dev"
         }
       ],

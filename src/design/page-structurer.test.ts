@@ -100,6 +100,39 @@ function makeBasePage(overrides: Record<string, unknown> = {}): any {
 }
 
 describe('PageStructurer page mode integration', () => {
+  it('does not overwrite latest.json when a publication validator rejects extracted sections', async () => {
+    const bucket = new MemoryR2Bucket({ [LATEST_KEY]: makeBasePage() })
+    const ai = makeAiRouter({
+      sections: [{
+        id: 'section-hero-0',
+        type: 'hero',
+        order: 0,
+        heading: 'Incomplete Hero',
+        sub_heading: '',
+        cta_text: '',
+        cta_url: '',
+        desktop_image_url: 'https://www.ford.com.au/hero.jpg',
+        mobile_image_url: 'https://www.ford.com.au/hero.jpg',
+        background_image_url: null,
+        video_url: null,
+      }],
+    })
+    const structurer = new PageStructurer({ aiRouter: ai.router, r2Bucket: bucket as any })
+
+    const result = await structurer.structurePage(
+      'ford-au',
+      'mustang',
+      undefined,
+      () => ['missing color-picker section'],
+    )
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('missing color-picker section')
+    const stored = bucket.readJson<any>(LATEST_KEY)
+    expect(stored.version).toBe(3)
+    expect(stored.content.sections).toEqual([])
+  })
+
   it('structures clone HTML from clone mode when legacy rendered HTML is missing', async () => {
     const page = makeBasePage({
       content: {

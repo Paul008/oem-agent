@@ -39,6 +39,7 @@ import { SlackNotifier, MultiChannelNotifier } from './notify/slack';
 import { SalesRepAgent } from './ai/sales-rep';
 import { DesignAgent } from './design/agent';
 import { getOemDefinition } from './oem/registry';
+import { requiresDedicatedOfficialConnector } from './sync/oem-sync-policy';
 
 // ============================================================================
 // Helpers
@@ -357,6 +358,11 @@ export class OemAgentOrchestrator {
       oems = oems.filter((o: any) => allow.has(o.id));
       console.log(`[Orchestrator] Filtered ${beforeCount} → ${oems.length} OEMs by oemIds filter`);
     }
+    const genericCrawlCount = oems.length;
+    oems = oems.filter((oem: any) => !requiresDedicatedOfficialConnector(String(oem.id)));
+    if (oems.length !== genericCrawlCount) {
+      console.warn('[Orchestrator] Skipped OEMs reserved for dedicated official connectors');
+    }
     await reportProgress('oems_fetched', 0, oems.length, []);
 
     if (oemsError) {
@@ -500,6 +506,11 @@ export class OemAgentOrchestrator {
     errors: number;
     importRunId: string | null;
   }> {
+    if (requiresDedicatedOfficialConnector(oemId)) {
+      console.warn(`[Orchestrator] Generic crawl refused for ${oemId}; use its dedicated official connector`);
+      return { jobsProcessed: 0, pagesChanged: 0, errors: 1, importRunId: null };
+    }
+
     console.log(`[Orchestrator] Crawling OEM: ${oemId}${pageTypes ? ` (page types: ${pageTypes.join(', ')})` : ''}`);
 
     // Create import run record

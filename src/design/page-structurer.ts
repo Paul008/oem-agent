@@ -87,6 +87,7 @@ export interface PageMapAndPersistResult extends PageStructuringResult {
 }
 
 type ModelOverride = { provider?: AiProvider; model?: string };
+export type PageSectionValidator = (sections: PageSection[]) => string[];
 
 const R2_PREFIX = 'pages/definitions';
 
@@ -238,11 +239,16 @@ export class PageStructurer {
     }
   }
 
-  async structurePage(oemId: OemId, modelSlug: string, modelOverride?: ModelOverride): Promise<PageStructuringResult> {
+  async structurePage(
+    oemId: OemId,
+    modelSlug: string,
+    modelOverride?: ModelOverride,
+    publicationValidator?: PageSectionValidator,
+  ): Promise<PageStructuringResult> {
     const startTime = Date.now();
 
     try {
-      if (isModelPageWriteProtected(oemId)) {
+      if (isModelPageWriteProtected(oemId, modelSlug)) {
         return {
           success: false,
           structuring_time_ms: Date.now() - startTime,
@@ -344,6 +350,29 @@ export class PageStructurer {
         };
       }
 
+      const sectionTypes = [...new Set(sections.map(s => s.type))] as PageSectionType[];
+
+      if (publicationValidator) {
+        let rejectionReasons: string[];
+        try {
+          rejectionReasons = publicationValidator(sections);
+        } catch (error) {
+          rejectionReasons = [
+            `publication validator failed: ${error instanceof Error ? error.message : String(error)}`,
+          ];
+        }
+        if (rejectionReasons.length > 0) {
+          return {
+            success: false,
+            structuring_time_ms: Date.now() - startTime,
+            sections_extracted: sections.length,
+            section_types: sectionTypes,
+            gemini_tokens_used: response.usage.total_tokens,
+            error: `Page publication rejected: ${rejectionReasons.join('; ')}`,
+          };
+        }
+      }
+
       // 5. Calculate cost
       const promptM = response.usage.prompt_tokens / 1_000_000;
       const completionM = response.usage.completion_tokens / 1_000_000;
@@ -373,8 +402,6 @@ export class PageStructurer {
           customMetadata: { pipeline: 'structurer-v1' },
         }),
       ]);
-
-      const sectionTypes = [...new Set(sections.map(s => s.type))] as PageSectionType[];
 
       console.log(`[PageStructurer] Extracted ${sections.length} sections [${sectionTypes.join(', ')}] for ${oemId}/${modelSlug} ($${costUsd.toFixed(4)})`);
 
@@ -442,7 +469,7 @@ export class PageStructurer {
   async mapAndPersist(oemId: OemId, modelSlug: string, modelOverride?: ModelOverride): Promise<PageMapAndPersistResult> {
     const startTime = Date.now();
 
-    if (isModelPageWriteProtected(oemId)) {
+    if (isModelPageWriteProtected(oemId, modelSlug)) {
       return {
         success: false, mapping_source: 'deterministic',
         structuring_time_ms: Date.now() - startTime, sections_extracted: 0, section_types: [],
@@ -536,7 +563,7 @@ export class PageStructurer {
     const startTime = Date.now();
 
     try {
-      if (isModelPageWriteProtected(oemId)) {
+      if (isModelPageWriteProtected(oemId, modelSlug)) {
         return {
           success: false,
           structuring_time_ms: Date.now() - startTime,

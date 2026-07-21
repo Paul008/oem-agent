@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { getCloneDecision } from './pipeline';
+import { getCloneDecision, getStructuringFailure } from './pipeline';
 
 describe('getCloneDecision', () => {
   it('refreshes an existing clone when the requested source URL changed', () => {
@@ -32,6 +32,23 @@ describe('getCloneDecision', () => {
 
     expect(decision.shouldClone).toBe(false);
     expect(decision.reason).toBe('clone already exists in R2');
+  });
+});
+
+describe('getStructuringFailure', () => {
+  it('fails closed when structuring was rejected before publication', () => {
+    expect(getStructuringFailure({
+      success: false,
+      sections_extracted: 7,
+      error: 'Page publication rejected: missing color-picker section',
+    })).toBe('Page publication rejected: missing color-picker section');
+  });
+
+  it('rejects an empty successful response and accepts extracted sections', () => {
+    expect(getStructuringFailure({ success: true, sections_extracted: 0 })).toBe(
+      'Page structuring returned no publishable sections',
+    );
+    expect(getStructuringFailure({ success: true, sections_extracted: 7 })).toBeNull();
   });
 });
 

@@ -2911,17 +2911,19 @@ export async function syncGac(supabase: SupabaseClient): Promise<AllOemSyncResul
 // GENERIC — Refresh variant_pricing from products.price_amount for all OEMs
 // ============================================================================
 
+export const GENERIC_PRICING_OEM_IDS = [
+  'isuzu-au', 'subaru-au',
+  'gmsv-au', 'ldv-au',
+  'kgm-au', 'chery-au', 'renault-au',
+] as const;
+
 async function syncGenericPricing(supabase: SupabaseClient): Promise<AllOemSyncResult['generic_pricing']> {
   const result = { oems: 0, products: 0 };
 
   // OEMs without dedicated pricing sync — just ensure variant_pricing matches products
-  const genericOems = [
-    'nissan-au', 'isuzu-au', 'subaru-au',
-    'gmsv-au', 'ldv-au',
-    'kgm-au', 'chery-au', 'renault-au',
-  ];
-
-  for (const oemId of genericOems) {
+  // Nissan is intentionally excluded: its state prices may only come from
+  // the dedicated official Choices connector in nissan-sync.ts.
+  for (const oemId of GENERIC_PRICING_OEM_IDS) {
     const { data: products } = await supabase
       .from('products')
       .select('id, price_amount')
