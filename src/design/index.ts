@@ -6,6 +6,8 @@ export * from './agent';
 export * from './component-generator';
 export * from './extraction-runner';
 export * from './memory';
+export * from './nissan-page-builder';
+export * from './nissan-page-candidates';
 export * from './page-capturer';
 export * from './page-structurer';
 export * from './pipeline';

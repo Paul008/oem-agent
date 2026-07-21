@@ -50,3 +50,20 @@ MOLTBOT_GATEWAY_TOKEN=dev-token-change-in-prod
 
 # Toyota TDP/NavCategory dealer ID for model discovery (defaults to Werribee Toyota: 36948).
 # TOYOTA_DEALER_ID=36948
+
+# Nissan Australia official APIs (optional; required only for Nissan sync work).
+# Obtain approved values from the secret owner and use `wrangler secret put` in deployed environments.
+# NISSAN_PACE_API_KEY=approved-pace-api-key
+# NISSAN_CHOICES_API_KEY=approved-choices-api-key
+# NISSAN_CHOICES_CLIENT_KEY=approved-choices-client-key
+# Comma-separated authenticated emails allowed to dry-run, stage, build, review, or publish Nissan artifacts.
+# NISSAN_OFFICIAL_OPERATORS=developer@example.com
+# Disabled by default. This permits only confirmed inactive catalog writes; it does not stage offers or publish pages.
+# NISSAN_STAGED_WRITES_ENABLED=false
+# Separately disabled catalog lifecycle controls. Enable only for a reviewed operation window.
+# NISSAN_CATALOG_PROMOTION_ENABLED=false
+# NISSAN_CATALOG_ROLLBACK_ENABLED=false
+# Separately disabled offer lifecycle controls. Offer writes remain non-public until promoted.
+# NISSAN_OFFER_STAGING_ENABLED=false
+# NISSAN_OFFER_PROMOTION_ENABLED=false
+# NISSAN_OFFER_ROLLBACK_ENABLED=false

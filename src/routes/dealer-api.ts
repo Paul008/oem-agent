@@ -15,6 +15,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { proxyImage } from '../utils/image-proxy';
+import { resolveDealerDriveawayAmount } from './dealer-pricing';
 
 const dealerApi = new Hono<AppEnv>();
 
@@ -251,8 +252,8 @@ interface WpColour {
   swatch_image: string;
   colour_name: string;
   paint_price: string;
-  images_360: string;
-  images_360_roof: string;
+  images_360: string[];
+  images_360_roof: string[];
   roof_color: string;
   roof_price: string;
 }
@@ -389,13 +390,15 @@ function transformProduct(
   offers: OfferSummary[] = [],
   brochureUrl: string | null = null,
 ): WpVariant {
+  const regionalPricing = pricingRows.find((p: any) => p.price_type === 'driveaway');
   const stdPricing = pricingRows.find((p: any) => p.price_type === 'standard');
   const rrpPricing = pricingRows.find((p: any) => p.price_type === 'rrp');
-  const pricing = stdPricing || rrpPricing;
+  const mlpPricing = pricingRows.find((p: any) => p.price_type === 'mlp');
+  const pricing = regionalPricing || stdPricing || rrpPricing || mlpPricing;
   const meta = product.meta_json || {};
   const specs = product.specs_json || {};
 
-  const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
+  const driveawayAmount = resolveDealerDriveawayAmount(pricingRows);
 
   // EGC (Excluding Government Charges) — derived from the OEM pricing
   // breakdown when present (Ford via Nukleus, others as schemas land).
@@ -437,6 +440,12 @@ function transformProduct(
     const galleryArr: string[] = Array.isArray(rawGallery)
       ? rawGallery.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
       : [];
+    const exterior360: string[] = Array.isArray(clr.exterior_360_urls)
+      ? clr.exterior_360_urls.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+      : [];
+    const interior360: string[] = Array.isArray(clr.interior_360_urls)
+      ? clr.interior_360_urls.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+      : [];
     return {
       images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
       // Re-proxy defensively — already-proxied URLs are a no-op via isAlreadyProxied().
@@ -445,8 +454,8 @@ function transformProduct(
       swatch_image: clr.swatch_url || '',
       colour_name: clr.color_name || '',
       paint_price: String(clr.price_delta ?? (clr.is_standard ? '0' : '')),
-      images_360: '',
-      images_360_roof: '',
+      images_360: exterior360.map(u => proxyImage(u, { oemId, workerOrigin })),
+      images_360_roof: interior360.map(u => proxyImage(u, { oemId, workerOrigin })),
       roof_color: '',
       roof_price: '',
     };
@@ -478,7 +487,9 @@ function transformProduct(
     seats: String(product.seats || meta.seats || specs.dimensions?.seats || ''),
     doors: String(product.doors || meta.doors || specs.dimensions?.doors || ''),
     colours: wpColours,
-    drive_away: formatDriveaway(driveawayAmount) || product.price_raw_string || '',
+    // Never format an MLP/RRP fallback as driveaway. Only a row with genuine
+    // state driveaway fields may populate this legacy display field.
+    drive_away: formatDriveaway(driveawayAmount),
     drive_away_manual: '',
     driveaway_retail_price: driveawayRetail,
     driveaway_abn_price: driveawayAbn,
@@ -607,7 +618,7 @@ dealerApi.get('/variants', async (c) => {
 
     const [colorsSettled, pricingSettled, paletteSettled, offersSettled] = await Promise.allSettled([
       supabase.from('variant_colors')
-        .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
+        .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, exterior_360_urls, interior_360_urls, price_delta, is_standard, sort_order')
         .in('product_id', productIds)
         .order('sort_order', { ascending: true }),
       supabase.from('variant_pricing')
@@ -619,6 +630,7 @@ dealerApi.get('/variants', async (c) => {
         .eq('is_active', true),
       supabase.from('offer_products')
         .select('product_id, offers!inner(id, title, description, offer_type, price_raw_string, saving_amount, disclaimer_text, hero_image_r2_key, cta_text, cta_url, validity_end, source_url)')
+        .eq('offers.lifecycle_status', 'active')
         .in('product_id', productIds),
     ]);
 
@@ -805,7 +817,7 @@ dealerApi.get('/catalog', async (c) => {
     const [colorsSettled, pricingSettled, paletteSettled, offersSettled] = await Promise.allSettled([
       productIds.length > 0
         ? supabase.from('variant_colors')
-            .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
+            .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, exterior_360_urls, interior_360_urls, price_delta, is_standard, sort_order')
             .in('product_id', productIds)
             .order('sort_order', { ascending: true })
         : { data: [], error: null },
@@ -821,6 +833,7 @@ dealerApi.get('/catalog', async (c) => {
       productIds.length > 0
         ? supabase.from('offer_products')
             .select('product_id, offers!inner(id, title, description, offer_type, price_raw_string, saving_amount, disclaimer_text, hero_image_r2_key, cta_text, cta_url, validity_end, source_url)')
+            .eq('offers.lifecycle_status', 'active')
             .in('product_id', productIds)
         : { data: [], error: null },
     ]);
@@ -970,7 +983,7 @@ dealerApi.get('/variants-import', async (c) => {
 
     const [colorsSettled, pricingSettled, paletteSettled] = await Promise.allSettled([
       supabase.from('variant_colors')
-        .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, price_delta, is_standard, sort_order')
+        .select('product_id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, exterior_360_urls, interior_360_urls, price_delta, is_standard, sort_order')
         .in('product_id', productIds)
         .order('sort_order', { ascending: true }),
       supabase.from('variant_pricing')
@@ -994,13 +1007,15 @@ dealerApi.get('/variants-import', async (c) => {
       const modelName = model?.name || '';
       const pricingRows = pricingByProduct[product.id] || [];
       const colors = colorsByProduct[product.id] || [];
+      const regionalPricing = pricingRows.find((p: any) => p.price_type === 'driveaway');
       const stdPricing = pricingRows.find((p: any) => p.price_type === 'standard');
       const rrpPricing = pricingRows.find((p: any) => p.price_type === 'rrp');
-      const pricing = stdPricing || rrpPricing;
+      const mlpPricing = pricingRows.find((p: any) => p.price_type === 'mlp');
+      const pricing = regionalPricing || stdPricing || rrpPricing || mlpPricing;
       const meta = product.meta_json || {};
       const specs = product.specs_json || {};
 
-      const driveawayAmount = pricing?.driveaway_vic ?? pricing?.driveaway_nsw ?? pricing?.rrp ?? product.price_amount ?? null;
+      const driveawayAmount = resolveDealerDriveawayAmount(pricingRows);
 
       const wpColors = colors.map((clr: any) => ({
         images: proxyImage(clr.hero_image_url, { oemId, workerOrigin }),
@@ -1008,7 +1023,8 @@ dealerApi.get('/variants-import', async (c) => {
         swatch_colour_: hexByCode[clr.color_code] || '',
         colour_main_frame_code: clr.color_code || '',
         colour_name: clr.color_name || '',
-        images_360: clr.gallery_urls || [],
+        images_360: clr.exterior_360_urls || [],
+        images_360_roof: clr.interior_360_urls || [],
       }));
 
       return {
@@ -1035,7 +1051,7 @@ dealerApi.get('/variants-import', async (c) => {
         offer_title: '&nbsp;',
         offer_preview: '&nbsp;',
         offer_disclaimer: '&nbsp;',
-        drive_away: formatDriveaway(driveawayAmount) || product.price_raw_string || '',
+        drive_away: formatDriveaway(driveawayAmount),
         disclaimer: product.disclaimer_text || product.price_qualifier || pricing?.price_qualifier || '',
         colors: {
           images: wpColors,

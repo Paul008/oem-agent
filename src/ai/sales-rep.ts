@@ -321,13 +321,14 @@ export class SalesRepAgent {
 
       let query = this.supabaseClient
         .from('offers')
-        .select('id, title, offer_type, price_amount, saving_amount, validity_raw_string, applicable_models')
+        .select('id, title, offer_type, price_amount, saving_amount, validity_raw, applicable_models')
         .eq('oem_id', input.oem_id)
+        .eq('lifecycle_status', 'active')
         .order('created_at', { ascending: false });
 
       if (input.active_only !== false) {
         // Filter for active offers (no end_date or end_date in future)
-        query = query.or('end_date.is.null,end_date.gte.now()');
+        query = query.or('validity_end.is.null,validity_end.gte.now()');
       }
 
       const { data, error } = await query;
@@ -362,6 +363,7 @@ export class SalesRepAgent {
         .from('offers')
         .select('*')
         .eq('oem_id', input.oem_id)
+        .eq('lifecycle_status', 'active')
         .eq('id', input.offer_id)
         .single();
 
@@ -570,6 +572,7 @@ export class SalesRepAgent {
         .from('offers')
         .select('*')
         .eq('oem_id', input.oem_id)
+        .eq('lifecycle_status', 'active')
         .limit(3);
 
       const offer = offers?.[0];

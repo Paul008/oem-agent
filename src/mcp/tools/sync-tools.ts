@@ -10,6 +10,7 @@ import { OemAgentOrchestrator } from '../../orchestrator';
 import { allOemIds } from '../../oem/registry';
 import { resolveOemDefinition } from '../../oem/registry';
 import type { OemId } from '../../oem/types';
+import { requiresDedicatedOfficialConnector } from '../../sync/oem-sync-policy';
 import { jsonResult, textResult } from '.';
 
 function createOrchestrator(env: import('../../types').MoltbotEnv): OemAgentOrchestrator {
@@ -79,6 +80,12 @@ export const triggerOemSyncTool: RegisteredTool = {
     if (oemId) {
       if (!allOemIds.includes(oemId as OemId)) {
         return textResult(`Unknown OEM: ${oemId}`, true);
+      }
+      if (requiresDedicatedOfficialConnector(oemId)) {
+        return textResult(
+          `${oemId} is reserved for its dedicated official connector; generic MCP crawl is disabled`,
+          true,
+        );
       }
       const def = await resolveOemDefinition(oemId as OemId, supabase);
       if (!def) {

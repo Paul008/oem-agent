@@ -872,6 +872,7 @@ app.get('/oems/:oemId/offers', async (c) => {
     .from('offers')
     .select('id, title, offer_type, price_amount, saving_amount, validity_raw, applicable_models, last_seen_at')
     .eq('oem_id', oemId)
+    .eq('lifecycle_status', 'active')
     .or('validity_end.is.null,validity_end.gte.now()')
     .order('created_at', { ascending: false });
 

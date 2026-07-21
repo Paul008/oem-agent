@@ -7,6 +7,7 @@ import { createSupabaseClient } from '../../utils/supabase';
 import { allOemIds } from '../../oem/registry';
 import type { OemId } from '../../oem/types';
 import { jsonResult, textResult } from '.';
+import { selectEffectivePricingRow } from './catalog-normalization';
 
 function validateOemId(value: string): value is OemId {
   return allOemIds.includes(value as OemId);
@@ -137,32 +138,33 @@ export const getProductTool: RegisteredTool = {
       return textResult(`Product not found: ${error?.message || productId}`, true);
     }
 
-    const oemId = product.oem_id as OemId;
-
-    const [{ data: colors }, { data: pricing }, { data: offers }] = await Promise.all([
+    const [{ data: colors }, { data: pricingRows }, { data: offerLinks }] = await Promise.all([
       supabase
         .from('variant_colors')
-        .select('color_name, color_code, swatch_url, hero_image_url, color_type, price_delta, is_standard')
+        .select('color_name, color_code, swatch_url, hero_image_url, gallery_urls, exterior_360_urls, interior_360_urls, color_type, price_delta, is_standard, source_swatch_url, source_hero_url, source_gallery_urls')
         .eq('product_id', productId)
         .order('is_standard', { ascending: false }),
       supabase
         .from('variant_pricing')
-        .select('driveaway_nsw, driveaway_vic, driveaway_qld, driveaway_wa, driveaway_sa, driveaway_tas, driveaway_act, driveaway_nt')
-        .eq('product_id', productId)
-        .maybeSingle(),
+        .select('price_type, rrp, driveaway_nsw, driveaway_vic, driveaway_qld, driveaway_wa, driveaway_sa, driveaway_tas, driveaway_act, driveaway_nt, price_qualifier, source_url, source_price_type, source_postcodes, fetched_at')
+        .eq('product_id', productId),
       supabase
-        .from('offers')
-        .select('id, title, description, price_amount, saving_amount, start_date, end_date')
-        .eq('oem_id', oemId)
-        .order('updated_at', { ascending: false })
-        .limit(20),
+        .from('offer_products')
+        .select('offers!inner(id, title, description, offer_type, price_amount, price_raw_string, saving_amount, validity_start, validity_end, disclaimer_text, applicable_models, source_url, meta_json)')
+        .eq('offers.lifecycle_status', 'active')
+        .eq('product_id', productId),
     ]);
+
+    const normalizedPricingRows = pricingRows ?? [];
+    const offers = (offerLinks ?? [])
+      .flatMap((link: { offers?: unknown }) => link.offers ? [link.offers] : []);
 
     return jsonResult({
       product,
       colors: colors ?? [],
-      pricing: pricing ?? null,
-      offers: offers ?? [],
+      pricing: selectEffectivePricingRow(normalizedPricingRows),
+      pricing_rows: normalizedPricingRows,
+      offers,
     });
   },
 };
@@ -206,7 +208,7 @@ export const listVariantColorsTool: RegisteredTool = {
     const { data: colors, error } = await supabase
       .from('variant_colors')
       .select(
-        'id, color_name, color_code, swatch_url, hero_image_url, color_type, price_delta, is_standard, availability',
+        'id, color_name, color_code, swatch_url, hero_image_url, gallery_urls, exterior_360_urls, interior_360_urls, color_type, price_delta, is_standard, availability, source_swatch_url, source_hero_url, source_gallery_urls',
       )
       .eq('product_id', productId)
       .order('is_standard', { ascending: false });
