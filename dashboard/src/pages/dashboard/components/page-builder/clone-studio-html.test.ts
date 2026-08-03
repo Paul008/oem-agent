@@ -97,6 +97,26 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('src="/media/')
   })
 
+  it('falls back to the captured img source when a picture source candidate fails', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<picture><source media="(min-width: 720px)" srcset="/media/pages/assets/nissan-au/ariya/voice.jpg.ximg.l_8_m.smart.jpg"><img src="/media/pages/assets/nissan-au/ariya/voice.jpg" srcset="/media/pages/assets/nissan-au/ariya/voice.jpg" alt="Voice controls"></picture>',
+      title: 'Ariya',
+      baseHref: 'https://www.nissan.com.au/vehicles/browse-range/ariya.html',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const bridgeScript = extractBridgeScript(html)
+    expect(bridgeScript).toContain('function installBrokenPictureFallbacks()')
+    expect(bridgeScript).toContain('function recoverBrokenPictureImage(image)')
+    expect(bridgeScript).toContain('document.addEventListener(\'error\', handleBrokenPictureImage, true)')
+    expect(bridgeScript).toContain('picture.querySelectorAll(\'source[srcset]\')')
+    expect(bridgeScript).toContain('sources[i].removeAttribute(\'srcset\')')
+    expect(bridgeScript).toContain('image.removeAttribute(\'srcset\')')
+    expect(bridgeScript).toContain('image.setAttribute(\'src\', fallbackUrl)')
+    expect(bridgeScript).toContain('installBrokenPictureFallbacks()')
+  })
+
   it('emits OEM stylesheet links from stylesheetUrls so styling survives body-only edits', () => {
     const html = buildCloneStudioHtml({
       // edited_rendered is body-only (head links stripped on a prior edit)

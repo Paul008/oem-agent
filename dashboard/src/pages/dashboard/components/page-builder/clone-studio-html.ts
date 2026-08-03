@@ -2310,6 +2310,54 @@ ${rendered}
     return className
   }
 
+  function recoverBrokenPictureImage(image) {
+    if (!image || !image.getAttribute || image.__cloneStudioPictureFallbackAttempted)
+      return false
+
+    var picture = image.closest ? image.closest('picture') : null
+    var fallbackUrl = sanitizeUrl(image.getAttribute('src'), 'media')
+    if (!picture || !fallbackUrl)
+      return false
+
+    var currentUrl = absoluteCloneStudioUrl(image.currentSrc)
+    var absoluteFallbackUrl = absoluteCloneStudioUrl(fallbackUrl)
+    if (currentUrl && absoluteFallbackUrl && currentUrl === absoluteFallbackUrl)
+      return false
+
+    var sources = picture.querySelectorAll('source[srcset]')
+    if (!sources.length && !image.hasAttribute('srcset'))
+      return false
+
+    image.__cloneStudioPictureFallbackAttempted = true
+    for (var i = 0; i < sources.length; i++)
+      sources[i].removeAttribute('srcset')
+    image.removeAttribute('srcset')
+    image.removeAttribute('sizes')
+    image.setAttribute('src', fallbackUrl)
+    return true
+  }
+
+  function handleBrokenPictureImage(event) {
+    var image = event && event.target
+    if (!image || String(image.tagName || '').toLowerCase() !== 'img')
+      return
+    recoverBrokenPictureImage(image)
+  }
+
+  function recoverCompletedBrokenPictureImages() {
+    var images = document.querySelectorAll('picture img')
+    for (var i = 0; i < images.length; i++) {
+      if (images[i].complete && !images[i].naturalWidth)
+        recoverBrokenPictureImage(images[i])
+    }
+  }
+
+  function installBrokenPictureFallbacks() {
+    document.addEventListener('error', handleBrokenPictureImage, true)
+    recoverCompletedBrokenPictureImages()
+    window.addEventListener('load', recoverCompletedBrokenPictureImages, false)
+  }
+
   function proxiedResponsiveImageUrl(rawUrl) {
     var absolute = absoluteCloneStudioUrl(rawUrl)
     if (!absolute)
@@ -4279,6 +4327,7 @@ ${rendered}
 
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
   applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
+  installBrokenPictureFallbacks()
   markResponsiveImageVariants()
   recoverMissingResponsiveImagePairs()
   markResponsiveContentVariants()
