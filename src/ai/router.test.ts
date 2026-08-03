@@ -1,10 +1,30 @@
-import { describe, expect, it } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  AiRouter,
   AVAILABLE_MODELS,
   KIMI_K3_CONFIG,
   TASK_ROUTING,
   calculateInferenceCost,
 } from './router';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function moonshotResponse(content = '{"sections":[]}') {
+  return new Response(JSON.stringify({
+    choices: [{ message: { content } }],
+    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+function geminiResponse(content = '{"sections":[]}') {
+  return new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text: content }] } }],
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
 
 const pageBuilderTasks = [
   'design_vision',
@@ -48,5 +68,114 @@ describe('Kimi K3 Page Builder defaults', () => {
       prompt_tokens: 1_000_000,
       completion_tokens: 1_000_000,
     })).toBe(18);
+  });
+
+  it('sends K3 reasoning, image, and JSON fields to Moonshot', async () => {
+    const fetchMock = vi.fn(async () => moonshotResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const router = new AiRouter({ moonshot: 'test-key' });
+
+    const response = await router.route({
+      taskType: 'page_structuring',
+      prompt: 'Return structured sections',
+      imageBase64: 'aW1hZ2U=',
+      imageMimeType: 'image/png',
+      requireJson: true,
+      maxTokens: 4096,
+    });
+
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(String(request.body));
+    expect(response).toMatchObject({ provider: 'moonshot', model: 'kimi-k3', wasFallback: false });
+    expect(body).toMatchObject({
+      model: 'kimi-k3',
+      reasoning_effort: 'high',
+      max_tokens: 4096,
+      response_format: { type: 'json_object' },
+    });
+    expect(body.messages[0].content[0].image_url.url).toBe('data:image/png;base64,aW1hZ2U=');
+  });
+
+  it('does not send K3-only reasoning effort to legacy Moonshot models', async () => {
+    const fetchMock = vi.fn(async () => moonshotResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const router = new AiRouter({ moonshot: 'test-key' });
+
+    await router.route({
+      taskType: 'page_structuring',
+      prompt: 'Return structured sections',
+      overrideRoute: { provider: 'moonshot', model: 'kimi-k2.5' },
+    });
+
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(String(request.body));
+    expect(body.model).toBe('kimi-k2.5');
+    expect(body.reasoning_effort).toBeUndefined();
+  });
+
+  it('keeps per-request overrides above the K3 task default', async () => {
+    const fetchMock = vi.fn(async () => geminiResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const router = new AiRouter({ google: 'test-key' });
+
+    const result = await router.route({
+      taskType: 'page_structuring',
+      prompt: 'Return structured sections',
+      overrideRoute: { provider: 'google_gemini', model: 'gemini-2.5-pro' },
+    });
+
+    expect(result).toMatchObject({
+      provider: 'google_gemini',
+      model: 'gemini-2.5-pro',
+      wasFallback: false,
+    });
+  });
+
+  it('keeps database overrides above the K3 task default', async () => {
+    const supabase = {
+      from(table: string) {
+        if (table === 'workflow_settings') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    async single() {
+                      return {
+                        data: {
+                          config: {
+                            ai_model_overrides: {
+                              page_structuring: {
+                                provider: 'google_gemini',
+                                model: 'gemini-3.1-pro-preview',
+                              },
+                            },
+                          },
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+
+        return { async insert() { return { error: null }; } };
+      },
+    } as unknown as SupabaseClient;
+    vi.stubGlobal('fetch', vi.fn(async () => geminiResponse()));
+    const router = new AiRouter({ google: 'test-key' }, supabase);
+
+    const result = await router.route({
+      taskType: 'page_structuring',
+      prompt: 'Return structured sections',
+    });
+
+    expect(result).toMatchObject({
+      provider: 'google_gemini',
+      model: 'gemini-3.1-pro-preview',
+      wasFallback: false,
+    });
   });
 });

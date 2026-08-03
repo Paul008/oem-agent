@@ -363,6 +363,59 @@ describe('oem-agent production HTML route', () => {
   });
 });
 
+describe('oem-agent AI model canary route', () => {
+  it('runs a fixed non-publishing Kimi K3 structuring inference', async () => {
+    let moonshotRequestBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/rest/v1/workflow_settings')) {
+        return new Response(JSON.stringify({ config: { ai_model_overrides: {} } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/v1/chat/completions')) {
+        moonshotRequestBody = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          choices: [{ message: { content: '{"ok":true}' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('/rest/v1/ai_inference_log')) {
+        return new Response(JSON.stringify([]), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/ai-model-canary', {
+      method: 'POST',
+    }, {
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      MOONSHOT_API_KEY: 'moonshot-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      taskType: 'page_structuring',
+      provider: 'moonshot',
+      model: 'kimi-k3',
+      wasFallback: false,
+    });
+    expect(moonshotRequestBody).toMatchObject({
+      model: 'kimi-k3',
+      reasoning_effort: 'high',
+      max_tokens: 128,
+    });
+  });
+});
+
 describe('oem-agent compile status route', () => {
   it('returns a queued placeholder when no compile run has been recorded', async () => {
     const bucket = {

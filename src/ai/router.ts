@@ -866,7 +866,9 @@ export class AiRouter {
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: messageContent }],
-        // Kimi K2.5 is a reasoning model — only temperature=1 is allowed
+        ...(model === KIMI_K3_CONFIG.model
+          ? { reasoning_effort: KIMI_K3_CONFIG.default_params.reasoning_effort }
+          : {}),
         ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
         ...(request.requireJson !== false ? { response_format: { type: 'json_object' } } : {}),
       }),

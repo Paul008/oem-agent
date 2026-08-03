@@ -16,7 +16,14 @@ import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
 import { encodeUrl } from './media';
 import { proxyImage } from '../utils/image-proxy';
-import { AiRouter, TASK_ROUTING, AVAILABLE_MODELS, TASK_TYPE_GROUPS, TASK_TYPE_LABELS } from '../ai/router';
+import {
+  AiRouter,
+  KIMI_K3_CONFIG,
+  TASK_ROUTING,
+  AVAILABLE_MODELS,
+  TASK_TYPE_GROUPS,
+  TASK_TYPE_LABELS,
+} from '../ai/router';
 import type { RouteDecision } from '../ai/router';
 import { analyzeBannerGraphics, arrayBufferToBase64, inferImageMimeType } from '../ai/banner-graphics';
 import { SalesRepAgent } from '../ai/sales-rep';
@@ -4888,6 +4895,41 @@ app.put('/admin/ai-model-config', async (c) => {
   }
 
   return c.json({ success: true, overridesCount: Object.keys(body.overrides).length });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/ai-model-canary
+ * Run a fixed, non-publishing Kimi K3 inference to verify production credentials.
+ */
+app.post('/admin/ai-model-canary', async (c) => {
+  const supabase = createSupabaseClient({
+    url: c.env.SUPABASE_URL,
+    serviceRoleKey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const aiRouter = new AiRouter({
+    moonshot: c.env.MOONSHOT_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, supabase, c.env.AI);
+
+  const result = await aiRouter.route({
+    taskType: 'page_structuring',
+    prompt: 'Return exactly this JSON object: {"ok":true}',
+    requireJson: true,
+    maxTokens: 128,
+    overrideRoute: {
+      provider: 'moonshot',
+      model: KIMI_K3_CONFIG.model,
+    },
+  });
+
+  return c.json({
+    success: true,
+    taskType: 'page_structuring',
+    provider: result.provider,
+    model: result.model,
+    wasFallback: result.wasFallback,
+  });
 });
 
 // ============================================================================
