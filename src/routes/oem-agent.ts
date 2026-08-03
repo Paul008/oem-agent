@@ -91,10 +91,53 @@ function getProductionCloneStylesheetUrls(page: any): string[] {
   }))];
 }
 
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function stylesheetLinksHtml(page: any): string {
   return getProductionCloneStylesheetUrls(page)
-    .map((url) => `<link rel="stylesheet" href="${url.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`)
+    .map((url) => `<link rel="stylesheet" href="${escapeHtmlAttribute(url)}">`)
     .join('');
+}
+
+function productionBodyDocument(
+  page: any,
+  bodyHtml: string,
+  slugParts: { oemId: string; modelSlug: string },
+): string {
+  const sourceUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
+  const baseTag = typeof sourceUrl === 'string' && /^https?:\/\//i.test(sourceUrl)
+    ? `<base href="${escapeHtmlAttribute(sourceUrl)}">`
+    : '';
+  const message = JSON.stringify({
+    type: 'oem-production-body-height',
+    oemId: slugParts.oemId,
+    modelSlug: slugParts.modelSlug,
+  }).replace(/</g, '\\u003c');
+
+  return [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    baseTag,
+    stylesheetLinksHtml(page),
+    '<style>html,body{margin:0;padding:0;width:100%;overflow-x:hidden}</style>',
+    '</head>',
+    '<body>',
+    bodyHtml,
+    '<script data-oem-embed-resize="true">',
+    `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`,
+    '</script>',
+    '</body>',
+    '</html>',
+  ].join('');
 }
 
 function absoluteMediaUrls(html: string, origin: string): string {
@@ -132,6 +175,26 @@ async function buildProductionCloneArtifact(
     return null;
   }
 
+  const runtimeJs = page?.content?.modes?.clone?.runtime_js;
+  const runtime = typeof runtimeJs === 'string' ? runtimeJs : undefined;
+  if (options.bodyOnly && slugParts) {
+    const body = productionBodyDocument(
+      page,
+      injectCloneRuntimeScript(absoluteMediaUrls(html, origin), runtime),
+      slugParts,
+    );
+    const bytes = new TextEncoder().encode(body).byteLength;
+    const sha256 = await sha256Hex(body);
+
+    return {
+      body,
+      bytes,
+      sha256,
+      etag: `"sha256-${sha256}"`,
+      scope: null,
+    };
+  }
+
   const absoluteHtml = `${stylesheetLinksHtml(page)}${absoluteMediaUrls(html, origin)}`;
   const baseUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
   const scoped = slugParts
@@ -140,8 +203,7 @@ async function buildProductionCloneArtifact(
         baseUrl: typeof baseUrl === 'string' ? baseUrl : undefined,
       })
     : { html: absoluteHtml, diagnostics: null };
-  const runtimeJs = page?.content?.modes?.clone?.runtime_js;
-  const body = injectCloneRuntimeScript(scoped.html, typeof runtimeJs === 'string' ? runtimeJs : undefined);
+  const body = injectCloneRuntimeScript(scoped.html, runtime);
   const bytes = new TextEncoder().encode(body).byteLength;
   const sha256 = await sha256Hex(body);
 

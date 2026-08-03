@@ -173,6 +173,7 @@ describe('oem-agent production HTML route', () => {
               '<div data-compid="simple-hero-comp"><h1>All-electric Nissan ARIYA</h1></div>',
               '<section id="grades"><h2>Choose your ARIYA</h2></section>',
             ].join(''),
+            stylesheet_urls: ['https://cdn.nissan.test/ariya.css'],
           },
         },
       },
@@ -182,6 +183,8 @@ describe('oem-agent production HTML route', () => {
         return key === latestKey ? jsonObject(pageData) : null;
       },
     };
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
 
     const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html', {}, {
       MOLTBOT_BUCKET: bucket,
@@ -193,9 +196,13 @@ describe('oem-agent production HTML route', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('X-OEM-Body-Only')).toBe('true');
     const html = await response.text();
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('<link rel="stylesheet" href="https://cdn.nissan.test/ariya.css">');
+    expect(html).toContain('oem-production-body-height');
     expect(html).toContain('Choose your ARIYA');
     expect(html).not.toContain('All-electric Nissan ARIYA');
     expect(html).not.toContain('simple-hero-comp');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns production HTML metadata on HEAD without downloading the body', async () => {
