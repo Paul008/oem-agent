@@ -258,6 +258,94 @@ function productionCloneHtmlHeaders(
   };
 }
 
+function productionArtifactCacheRequest(
+  requestUrl: string,
+  sourceObject: { httpEtag?: string; etag?: string },
+  page: any,
+  bodyOnly: boolean,
+): Request | null {
+  const fingerprint = sourceObject.httpEtag
+    || sourceObject.etag
+    || (page?.version != null ? `version-${page.version}` : null)
+    || page?.updated_at
+    || page?.generated_at;
+  if (!fingerprint) return null;
+
+  const url = new URL(requestUrl);
+  url.search = '';
+  url.searchParams.set('__oem_artifact', `${bodyOnly ? 'body' : 'full'}:${fingerprint}`);
+  return new Request(url, { method: 'GET' });
+}
+
+async function serveProductionCloneArtifact(
+  c: Context<OemAgentEnv>,
+  page: any,
+  sourceObject: { httpEtag?: string; etag?: string },
+  parsed: { oemId: OemId; modelSlug: string },
+  options: { bodyOnly?: boolean; headOnly?: boolean } = {},
+): Promise<Response> {
+  const bodyOnly = options.bodyOnly === true;
+  const cache = typeof caches !== 'undefined'
+    ? (caches as CacheStorage & { readonly default: Cache }).default
+    : null;
+  let cacheRequest = cache
+    ? productionArtifactCacheRequest(c.req.url, sourceObject, page, bodyOnly)
+    : null;
+
+  if (cache && cacheRequest) {
+    try {
+      const cached = await cache.match(cacheRequest);
+      if (cached) {
+        const headers = new Headers(cached.headers);
+        headers.set('X-OEM-Artifact-Cache', 'HIT');
+        return new Response(options.headOnly ? null : cached.body, {
+          status: cached.status,
+          statusText: cached.statusText,
+          headers,
+        });
+      }
+    } catch (error) {
+      console.warn('[Production Artifact Cache] cache lookup failed:', error);
+      cacheRequest = null;
+    }
+  }
+
+  const artifact = await buildProductionCloneArtifact(
+    page,
+    new URL(c.req.url).origin,
+    parsed,
+    { bodyOnly },
+  );
+  if (!artifact) {
+    return options.headOnly
+      ? new Response(null, { status: 409 })
+      : c.json({
+          error: bodyOnly
+            ? 'Production clone body HTML is not available for this page'
+            : 'Production clone HTML is not available for this page',
+          slug: `${parsed.oemId}-${parsed.modelSlug}`,
+          active_mode: page?.active_mode ?? null,
+        }, 409);
+  }
+
+  const headers = new Headers(productionCloneHtmlHeaders(page, artifact, { bodyOnly }));
+  headers.set('X-OEM-Artifact-Cache', cacheRequest ? 'MISS' : 'SKIP');
+  const cacheableResponse = new Response(artifact.body, { headers });
+
+  if (cache && cacheRequest) {
+    c.executionCtx.waitUntil(
+      cache.put(cacheRequest, cacheableResponse.clone()).catch((error: unknown) => {
+        console.warn('[Production Artifact Cache] cache write failed:', error);
+      }),
+    );
+  }
+
+  if (options.headOnly) {
+    return new Response(null, { headers });
+  }
+  return cacheableResponse;
+}
+
 function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
   if (!isModelPageWriteProtected(oemId)) {
     return null;
@@ -2368,18 +2456,7 @@ app.get('/pages/:slug/production-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed);
-  if (!artifact) {
-    return c.json({
-      error: 'Production clone HTML is not available for this page',
-      slug,
-      active_mode: page?.active_mode ?? null,
-    }, 409);
-  }
-
-  return new Response(artifact.body, {
-    headers: productionCloneHtmlHeaders(page, artifact),
-  });
+  return serveProductionCloneArtifact(c, page, obj, parsed);
 });
 
 /**
@@ -2400,14 +2477,7 @@ app.on('HEAD', '/pages/:slug/production-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed);
-  if (!artifact) {
-    return new Response(null, { status: 409 });
-  }
-
-  return new Response(null, {
-    headers: productionCloneHtmlHeaders(page, artifact),
-  });
+  return serveProductionCloneArtifact(c, page, obj, parsed, { headOnly: true });
 });
 
 /**
@@ -2428,18 +2498,7 @@ app.get('/pages/:slug/production-body-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed, { bodyOnly: true });
-  if (!artifact) {
-    return c.json({
-      error: 'Production clone body HTML is not available for this page',
-      slug,
-      active_mode: page?.active_mode ?? null,
-    }, 409);
-  }
-
-  return new Response(artifact.body, {
-    headers: productionCloneHtmlHeaders(page, artifact, { bodyOnly: true }),
-  });
+  return serveProductionCloneArtifact(c, page, obj, parsed, { bodyOnly: true });
 });
 
 /**
@@ -2460,14 +2519,7 @@ app.on('HEAD', '/pages/:slug/production-body-html', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed, { bodyOnly: true });
-  if (!artifact) {
-    return new Response(null, { status: 409 });
-  }
-
-  return new Response(null, {
-    headers: productionCloneHtmlHeaders(page, artifact, { bodyOnly: true }),
-  });
+  return serveProductionCloneArtifact(c, page, obj, parsed, { bodyOnly: true, headOnly: true });
 });
 
 /**

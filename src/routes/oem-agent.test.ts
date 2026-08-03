@@ -39,6 +39,7 @@ function throwingBucket() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('oem-agent production HTML route', () => {
@@ -159,6 +160,118 @@ describe('oem-agent production HTML route', () => {
     expect(html).toContain(`data-oem-scoped-stylesheet-href="${stylesheetUrl}"`);
     expect(html).toContain('.oem-production-scope[data-oem-id="nissan-au"][data-model-slug="ariya"] .ariya-body');
     expect(html).toContain('https://cdn.nissan.test/ariya-bg.png');
+  });
+
+  it('reuses the derived production artifact while the page object fingerprint is unchanged', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const stylesheetUrl = 'https://cdn.nissan.test/ariya.css';
+    const pageData = {
+      active_mode: 'clone',
+      version: 14,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main class="ariya-body">Cached ARIYA</main>',
+            stylesheet_urls: [stylesheetUrl],
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey
+          ? { ...jsonObject(pageData), httpEtag: '"ariya-page-v14"' }
+          : null;
+      },
+    };
+    const entries = new Map<string, Response>();
+    const cache = {
+      async match(request: Request) {
+        return entries.get(request.url)?.clone();
+      },
+      async put(request: Request, response: Response) {
+        entries.set(request.url, response.clone());
+      },
+    };
+    vi.stubGlobal('caches', { default: cache });
+    const fetchMock = vi.fn(async () => new Response('.ariya-body { color: red; }', {
+      headers: { 'Content-Type': 'text/css' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const env = {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never;
+    const executionCtx = { waitUntil: (promise: Promise<unknown>) => promise } as never;
+
+    const first = await oemAgentApp.request(
+      '/pages/nissan-au-ariya/production-html',
+      {},
+      env,
+      executionCtx,
+    );
+    await first.text();
+    const second = await oemAgentApp.request(
+      '/pages/nissan-au-ariya/production-html',
+      {},
+      env,
+      executionCtx,
+    );
+
+    expect(second.status).toBe(200);
+    expect(second.headers.get('X-OEM-Artifact-Cache')).toBe('HIT');
+    expect(await second.text()).toContain('Cached ARIYA');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders normally when the edge artifact cache lookup is unavailable', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const stylesheetUrl = 'https://cdn.nissan.test/ariya.css';
+    const pageData = {
+      active_mode: 'clone',
+      version: 14,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main class="ariya-body">Resilient ARIYA</main>',
+            stylesheet_urls: [stylesheetUrl],
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey
+          ? { ...jsonObject(pageData), httpEtag: '"ariya-page-v14"' }
+          : null;
+      },
+    };
+    vi.stubGlobal('caches', {
+      default: {
+        async match() {
+          throw new Error('cache unavailable');
+        },
+        async put() {},
+      },
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('.ariya-body { color: red; }', {
+      headers: { 'Content-Type': 'text/css' },
+    })));
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-OEM-Artifact-Cache')).toBe('SKIP');
+    expect(await response.text()).toContain('Resilient ARIYA');
   });
 
   it('serves a body-only artifact without duplicating the captured hero', async () => {
