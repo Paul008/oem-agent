@@ -71,7 +71,7 @@ describe('Kimi K3 Page Builder defaults', () => {
   });
 
   it('sends K3 reasoning, image, and JSON fields to Moonshot', async () => {
-    const fetchMock = vi.fn(async () => moonshotResponse());
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => moonshotResponse());
     vi.stubGlobal('fetch', fetchMock);
     const router = new AiRouter({ moonshot: 'test-key' });
 
@@ -97,7 +97,7 @@ describe('Kimi K3 Page Builder defaults', () => {
   });
 
   it('does not send K3-only reasoning effort to legacy Moonshot models', async () => {
-    const fetchMock = vi.fn(async () => moonshotResponse());
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => moonshotResponse());
     vi.stubGlobal('fetch', fetchMock);
     const router = new AiRouter({ moonshot: 'test-key' });
 
