@@ -7,6 +7,7 @@ describe('aI model options', () => {
   it('provides page-builder AI model choices in display order', () => {
     expect(AI_MODEL_OPTIONS.map(option => ({ value: option.value, label: option.label }))).toEqual([
       { value: 'default', label: 'Default (from settings)' },
+      { value: 'moonshot::kimi-k3', label: 'Kimi K3' },
       { value: 'google_gemini::gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro' },
       { value: 'google_gemini::gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
       { value: 'moonshot::kimi-k2.6', label: 'Kimi K2.6' },
@@ -17,9 +18,9 @@ describe('aI model options', () => {
 
   it('converts a selected model value into an override for AI-backed actions', () => {
     expect(getAiModelOverride('default')).toBeUndefined()
-    expect(getAiModelOverride('moonshot::kimi-k2.6')).toEqual({
+    expect(getAiModelOverride('moonshot::kimi-k3')).toEqual({
       provider: 'moonshot',
-      model: 'kimi-k2.6',
+      model: 'kimi-k3',
     })
     expect(getAiModelOverride('unknown')).toBeUndefined()
   })

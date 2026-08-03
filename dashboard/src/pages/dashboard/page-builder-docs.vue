@@ -48,7 +48,7 @@ Each extraction run feeds back into the system, making the next run smarter.
 
 | Component | Per Page | Monthly (132 models) |
 | --- | --- | --- |
-| Gemini 3.1 Pro (extraction) | $0.02-0.05 | $2.64-6.60 |
+| Kimi K3 (page generation and structuring) | Usage dependent | Usage dependent |
 | Groq (classification + validation) | $0.001-0.003 | $0.13-0.40 |
 | Claude (bespoke components, 10%) | $0.03-0.05 | $0.40-0.66 |
 | Google Embeddings | $0.001 | $0.13 |
@@ -112,7 +112,7 @@ Results inform the extraction step with visual context. Low-confidence classific
 
 ## Step 3: EXTRACT
 
-**Model**: Gemini 3.1 Pro + Memory Injection — $0.02-0.05/page
+**Model**: Kimi K3 + Memory Injection — usage dependent
 
 This is the core extraction step. The \`PageStructurer\` reads the cloned HTML from R2 and extracts structured \`PageSection[]\` JSON.
 
@@ -594,7 +594,7 @@ The \`skills/oem-ux-knowledge/SKILL.md\` file contains static UX patterns that c
     icon: Cpu,
     content: `# AI Model Routing
 
-The \`AiRouter\` class (\`src/ai/router.ts\`) manages multi-provider AI routing with fallback chains. The page builder uses 4 task types routed to different models.
+The \`AiRouter\` class (\`src/ai/router.ts\`) manages multi-provider AI routing with fallback chains. Kimi K3 is the default for Page Builder generation, visual extraction, screenshot-to-code, design vision, content generation, and structuring tasks.
 
 ## Task Routing Table
 
@@ -602,7 +602,7 @@ The \`AiRouter\` class (\`src/ai/router.ts\`) manages multi-provider AI routing 
 | --- | --- | --- | --- | --- |
 | \`quick_scan\` | Groq | Llama 3.3 (fast_classify) | ~$0.001 | Screenshot classification |
 | \`extraction_quality_check\` | Groq | Llama 3.3 (balanced) | ~$0.001 | Quality validation |
-| \`page_structuring\` | Google Gemini | Gemini 3.1 Pro | ~$0.03 | Main HTML extraction |
+| \`page_structuring\` | Moonshot | Kimi K3 | Usage dependent | Main HTML extraction |
 | \`bespoke_component\` | Anthropic | Claude Sonnet 4.5 | ~$0.05 | Section regeneration |
 
 ## Groq (Classification + Validation)
@@ -617,14 +617,23 @@ Used for two fast, cheap operations:
 1. **Quick scan**: Classify screenshot layout type with vision
 2. **Quality check**: Score extraction quality and identify issues
 
-## Google Gemini (Extraction)
+## Moonshot Kimi K3 (Page Builder Default)
+
+- **API**: \`api.moonshot.ai/v1\`
+- **Key env**: \`MOONSHOT_API_KEY\`
+- **Model**: Kimi K3 with high reasoning effort
+- **Supports vision**: Yes
+
+The default model for Page Builder AI tasks. Gemini, Workers AI, and Kimi K2.5 remain configured fallbacks where appropriate.
+
+## Google Gemini (Fallback Extraction)
 
 - **API**: \`generativelanguage.googleapis.com/v1beta\`
 - **Key env**: \`GOOGLE_API_KEY\`
 - **Model**: Gemini 3.1 Pro (or 2.5 Pro fallback)
 - **Context**: ~1M tokens
 
-The main extraction model. Receives cleaned HTML + memory-injected prompt and returns structured \`PageSection[]\` JSON.
+A fallback extraction model. Receives cleaned HTML + memory-injected prompt and returns structured \`PageSection[]\` JSON.
 
 ## Anthropic Claude (Bespoke Components)
 
@@ -649,7 +658,7 @@ Each task type has a fallback provider:
 
 - \`quick_scan\`: Groq fast_classify -> Groq balanced
 - \`extraction_quality_check\`: Groq balanced -> Groq powerful
-- \`page_structuring\`: Gemini 3.1 Pro -> Gemini 2.5 Pro
+- \`page_structuring\`: Kimi K3 -> Gemini 3.1 Pro
 - \`bespoke_component\`: Claude Sonnet -> Gemini 2.5 Pro`,
   },
   {
@@ -731,8 +740,8 @@ This data is visible on the **Design Memory** dashboard page.`,
 | \`src/design/pipeline.ts\` | \`AdaptivePipeline\` | 6-step orchestrator |
 | \`src/design/page-structurer.ts\` | \`PageStructurer\` | HTML -> PageSection[] extraction |
 | \`src/design/page-capturer.ts\` | \`PageCapturer\` | Puppeteer page download + section screenshots |
-| \`src/design/page-cloner.ts\` | \`PageCloner\` | Full page clone with Kimi K2 generation |
-| \`src/design/page-generator.ts\` | \`PageGenerator\` | Two-stage Gemini+Claude generation |
+| \`src/design/page-cloner.ts\` | \`PageCloner\` | Full page clone with routed AI generation |
+| \`src/design/page-generator.ts\` | \`PageGenerator\` | Routed screenshot and content generation |
 
 ## Memory & Intelligence
 
@@ -775,7 +784,8 @@ This data is visible on the **Design Memory** dashboard page.`,
 | Method | Path | Purpose |
 | --- | --- | --- |
 | POST | \`/admin/adaptive-pipeline/:oemId/:modelSlug\` | Run full 6-step adaptive pipeline |
-| POST | \`/admin/generate-page/:oemId/:modelSlug\` | Generate page (Kimi/Gemini+Claude) |
+| POST | \`/admin/generate-page/:oemId/:modelSlug\` | Generate page with the configured Page Builder model |
+| POST | \`/admin/ai-model-canary\` | Verify Kimi K3 credentials without publishing a page |
 | POST | \`/admin/clone-page/:oemId/:modelSlug\` | Clone page via Puppeteer + AI |
 | POST | \`/admin/structure-page/:oemId/:modelSlug\` | Structure page from cloned HTML |
 | GET | \`/design-memory/:oemId\` | Get OEM design profile |
@@ -802,6 +812,7 @@ This data is visible on the **Design Memory** dashboard page.`,
 | \`GOOGLE_API_KEY\` | Google AI | Gemini extraction + text-embedding-004 |
 | \`GROQ_API_KEY\` | Groq | Quick scan + quality validation |
 | \`ANTHROPIC_API_KEY\` | Anthropic | Bespoke component generation |
+| \`MOONSHOT_API_KEY\` | Moonshot AI | Kimi K3 Page Builder default |
 | \`TOGETHER_API_KEY\` | Together AI | Kimi K2.6 screenshot-to-code |
 | \`SUPABASE_URL\` | Supabase | Database access |
 | \`SUPABASE_SERVICE_ROLE_KEY\` | Supabase | Service role for writes |
