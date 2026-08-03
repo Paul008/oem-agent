@@ -267,6 +267,7 @@ export function stripProductionHeroHtml(html: string): string {
 
   root.find([
     '[data-compid="simple-hero-comp"]',
+    '[data-compid="grade-walk-comp"]',
     '[data-oem-section-type="hero"]',
     '[data-section-type="hero"]',
   ].join(',')).remove();

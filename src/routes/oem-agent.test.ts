@@ -171,7 +171,9 @@ describe('oem-agent production HTML route', () => {
           clone: {
             rendered: [
               '<div data-compid="simple-hero-comp"><h1>All-electric Nissan ARIYA</h1></div>',
-              '<section id="grades"><h2>Choose your ARIYA</h2></section>',
+              '<section data-compid="grade-walk-comp" id="grades"><h2>Choose your ARIYA</h2></section>',
+              '<section data-compid="story-section-comp"><div class="full-viewport-height">Story</div></section>',
+              '<section id="features"><h2>Explore ARIYA</h2></section>',
             ].join(''),
             stylesheet_urls: ['https://cdn.nissan.test/ariya.css'],
           },
@@ -199,9 +201,13 @@ describe('oem-agent production HTML route', () => {
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('<link rel="stylesheet" href="https://cdn.nissan.test/ariya.css">');
     expect(html).toContain('oem-production-body-height');
-    expect(html).toContain('Choose your ARIYA');
+    expect(html).toContain('data-compid="story-section-comp"');
+    expect(html).toContain('height:clamp(420px,56.25vw,720px)!important');
+    expect(html).toContain('Explore ARIYA');
     expect(html).not.toContain('All-electric Nissan ARIYA');
+    expect(html).not.toContain('Choose your ARIYA');
     expect(html).not.toContain('simple-hero-comp');
+    expect(html).not.toContain('grade-walk-comp');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
