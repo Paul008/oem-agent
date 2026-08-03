@@ -244,6 +244,36 @@ function stylesheetHref($: ReturnType<typeof load>, element: any, baseUrl?: stri
   }
 }
 
+function absolutizeCssAssetUrls(css: string, stylesheetUrl: string): string {
+  return css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote: string, rawUrl: string) => {
+    const value = rawUrl.trim();
+    if (!value || /^(?:data:|blob:|https?:|\/\/|#)/i.test(value)) {
+      return match;
+    }
+
+    try {
+      const absolute = new URL(value, stylesheetUrl).href;
+      const delimiter = quote || '"';
+      return `url(${delimiter}${absolute}${delimiter})`;
+    } catch {
+      return match;
+    }
+  });
+}
+
+export function stripProductionHeroHtml(html: string): string {
+  const $ = load(`<div data-oem-body-root="true">${html}</div>`);
+  const root = $('[data-oem-body-root="true"]').first();
+
+  root.find([
+    '[data-compid="simple-hero-comp"]',
+    '[data-oem-section-type="hero"]',
+    '[data-section-type="hero"]',
+  ].join(',')).remove();
+
+  return root.html() || '';
+}
+
 export async function scopeProductionCloneHtml(html: string, options: ScopeProductionCloneOptions): Promise<ScopeProductionCloneResult> {
   const scopeSelector = scopeSelectorFor(options);
   const $ = load(`<div data-oem-scope-root="true">${html}</div>`);
@@ -280,7 +310,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
       continue;
     }
 
-    const scoped = scopeCss(css, scopeSelector);
+    const scoped = scopeCss(absolutizeCssAssetUrls(css, href), scopeSelector);
     $(element).replaceWith(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${scoped.css}</style>`);
     externalStylesheetsScoped += 1;
     rulesScoped += scoped.rulesScoped;

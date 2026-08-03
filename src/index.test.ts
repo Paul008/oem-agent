@@ -5,6 +5,7 @@ import { isProductionArtifactPath, shouldAttachSandboxForPath } from './sandbox-
 describe('isProductionArtifactPath', () => {
   it.each([
     '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-html',
+    '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-body-html',
     '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-manifest',
   ])('matches external production artifact endpoint %s', (pathname) => {
     expect(isProductionArtifactPath(pathname)).toBe(true);
@@ -25,6 +26,7 @@ describe('shouldAttachSandboxForPath', () => {
     '/media',
     '/media/pages/assets/mitsubishi-au/outlander/hero.jpg',
     '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-html',
+    '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-body-html',
     '/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-manifest',
   ])('does not attach the OpenClaw sandbox for lightweight public artifact path %s', (pathname) => {
     expect(shouldAttachSandboxForPath(pathname)).toBe(false);

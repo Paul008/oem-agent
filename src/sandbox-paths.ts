@@ -1,5 +1,5 @@
 export function isProductionArtifactPath(pathname: string): boolean {
-  return /^\/api\/v1\/oem-agent\/pages\/[^/]+\/production-(html|manifest)$/.test(pathname);
+  return /^\/api\/v1\/oem-agent\/pages\/[^/]+\/production-(?:html|body-html|manifest)$/.test(pathname);
 }
 
 export function shouldAttachSandboxForPath(pathname: string): boolean {

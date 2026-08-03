@@ -25,7 +25,11 @@ import { allOemIds, getOemDefinition, resolveOemDefinition } from '../oem/regist
 import type { AiProvider, OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
 import { applyCloneEdit } from '../design/page-modes';
-import { scopeProductionCloneHtml, type ScopeProductionCloneDiagnostics } from '../design/production-css-scope';
+import {
+  scopeProductionCloneHtml,
+  stripProductionHeroHtml,
+  type ScopeProductionCloneDiagnostics,
+} from '../design/production-css-scope';
 import { injectCloneRuntimeScript } from '../design/clone-runtime/inject';
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
@@ -71,6 +75,28 @@ function getProductionCloneHtml(page: any): string {
   return '';
 }
 
+function getProductionCloneStylesheetUrls(page: any): string[] {
+  const urls = page?.content?.modes?.clone?.stylesheet_urls;
+  if (!Array.isArray(urls)) {
+    return [];
+  }
+
+  return [...new Set(urls.filter((url): url is string => {
+    if (typeof url !== 'string') return false;
+    try {
+      return ['http:', 'https:'].includes(new URL(url).protocol);
+    } catch {
+      return false;
+    }
+  }))];
+}
+
+function stylesheetLinksHtml(page: any): string {
+  return getProductionCloneStylesheetUrls(page)
+    .map((url) => `<link rel="stylesheet" href="${url.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`)
+    .join('');
+}
+
 function absoluteMediaUrls(html: string, origin: string): string {
   const base = origin.replace(/\/+$/, '');
   return html.replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${base}/media/`);
@@ -98,13 +124,15 @@ async function buildProductionCloneArtifact(
   page: any,
   origin: string,
   slugParts?: { oemId: string; modelSlug: string },
+  options: { bodyOnly?: boolean } = {},
 ): Promise<ProductionCloneArtifact | null> {
-  const html = getProductionCloneHtml(page);
+  const cloneHtml = getProductionCloneHtml(page);
+  const html = options.bodyOnly ? stripProductionHeroHtml(cloneHtml) : cloneHtml;
   if (!html) {
     return null;
   }
 
-  const absoluteHtml = absoluteMediaUrls(html, origin);
+  const absoluteHtml = `${stylesheetLinksHtml(page)}${absoluteMediaUrls(html, origin)}`;
   const baseUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
   const scoped = slugParts
     ? await scopeProductionCloneHtml(absoluteHtml, {
@@ -126,7 +154,11 @@ async function buildProductionCloneArtifact(
   };
 }
 
-function productionCloneHtmlHeaders(page: any, artifact: ProductionCloneArtifact) {
+function productionCloneHtmlHeaders(
+  page: any,
+  artifact: ProductionCloneArtifact,
+  options: { bodyOnly?: boolean } = {},
+) {
   return {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
@@ -136,6 +168,7 @@ function productionCloneHtmlHeaders(page: any, artifact: ProductionCloneArtifact
     'X-OEM-Page-Mode': 'clone',
     'X-OEM-Page-Version': String(page?.version ?? ''),
     'X-OEM-CSS-Scope': artifact.scope?.scopeSelector ?? '',
+    ...(options.bodyOnly ? { 'X-OEM-Body-Only': 'true' } : {}),
   };
 }
 
@@ -2292,6 +2325,66 @@ app.on('HEAD', '/pages/:slug/production-html', async (c) => {
 });
 
 /**
+ * GET /api/v1/oem-agent/pages/:slug/production-body-html
+ * Return the production clone below its captured hero for hosts that own the page hero.
+ */
+app.get('/pages/:slug/production-body-html', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  const page = await obj.json() as any;
+  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed, { bodyOnly: true });
+  if (!artifact) {
+    return c.json({
+      error: 'Production clone body HTML is not available for this page',
+      slug,
+      active_mode: page?.active_mode ?? null,
+    }, 409);
+  }
+
+  return new Response(artifact.body, {
+    headers: productionCloneHtmlHeaders(page, artifact, { bodyOnly: true }),
+  });
+});
+
+/**
+ * HEAD /api/v1/oem-agent/pages/:slug/production-body-html
+ * Return body-only production clone metadata without downloading the HTML body.
+ */
+app.on('HEAD', '/pages/:slug/production-body-html', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return new Response(null, { status: 400 });
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return new Response(null, { status: 404 });
+  }
+
+  const page = await obj.json() as any;
+  const artifact = await buildProductionCloneArtifact(page, new URL(c.req.url).origin, parsed, { bodyOnly: true });
+  if (!artifact) {
+    return new Response(null, { status: 409 });
+  }
+
+  return new Response(null, {
+    headers: productionCloneHtmlHeaders(page, artifact, { bodyOnly: true }),
+  });
+});
+
+/**
  * GET /api/v1/oem-agent/pages/:slug/production-manifest
  * Return production clone metadata without downloading the full HTML artifact.
  */
@@ -2327,6 +2420,7 @@ app.get('/pages/:slug/production-manifest', async (c) => {
     active_mode: page?.active_mode ?? null,
     version: page?.version ?? null,
     html_url: `${origin}/api/v1/oem-agent/pages/${slug}/production-html`,
+    body_html_url: `${origin}/api/v1/oem-agent/pages/${slug}/production-body-html`,
     html_bytes: artifact.bytes,
     html_sha256: artifact.sha256,
     etag: artifact.etag,

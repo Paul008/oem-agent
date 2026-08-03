@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import oemAgentApp from './oem-agent';
 
@@ -36,6 +36,10 @@ function throwingBucket() {
     },
   };
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('oem-agent production HTML route', () => {
   it('serves edited clone HTML as the production artifact even when sections mode is active', async () => {
@@ -115,6 +119,83 @@ describe('oem-agent production HTML route', () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe(scopedHtml('ford-au', 'mustang', '<main>Original Mustang Clone</main>'));
+  });
+
+  it('inlines and scopes captured stylesheets stored outside the clone HTML', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const stylesheetUrl = 'https://cdn.nissan.test/ariya.css';
+    const pageData = {
+      active_mode: 'clone',
+      version: 14,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main class="ariya-body">Styled ARIYA</main>',
+            stylesheet_urls: [stylesheetUrl],
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+    const fetchMock = vi.fn(async () => new Response('.ariya-body { color: red; background-image: url("./ariya-bg.png"); }', {
+      headers: { 'Content-Type': 'text/css' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(fetchMock).toHaveBeenCalledWith(stylesheetUrl);
+    expect(html).toContain(`data-oem-scoped-stylesheet-href="${stylesheetUrl}"`);
+    expect(html).toContain('.oem-production-scope[data-oem-id="nissan-au"][data-model-slug="ariya"] .ariya-body');
+    expect(html).toContain('https://cdn.nissan.test/ariya-bg.png');
+  });
+
+  it('serves a body-only artifact without duplicating the captured hero', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const pageData = {
+      active_mode: 'clone',
+      version: 14,
+      content: {
+        modes: {
+          clone: {
+            rendered: [
+              '<div data-compid="simple-hero-comp"><h1>All-electric Nissan ARIYA</h1></div>',
+              '<section id="grades"><h2>Choose your ARIYA</h2></section>',
+            ].join(''),
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-OEM-Body-Only')).toBe('true');
+    const html = await response.text();
+    expect(html).toContain('Choose your ARIYA');
+    expect(html).not.toContain('All-electric Nissan ARIYA');
+    expect(html).not.toContain('simple-hero-comp');
   });
 
   it('returns production HTML metadata on HEAD without downloading the body', async () => {
@@ -242,6 +323,7 @@ describe('oem-agent production HTML route', () => {
       active_mode: 'clone',
       version: 10,
       html_url: 'http://localhost/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-html',
+      body_html_url: 'http://localhost/api/v1/oem-agent/pages/mitsubishi-au-outlander/production-body-html',
       html_bytes: new TextEncoder().encode(expectedHtml).byteLength,
       html_sha256: expectedSha,
       etag: `"sha256-${expectedSha}"`,
