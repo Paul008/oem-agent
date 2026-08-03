@@ -57,6 +57,22 @@ export const MOONSHOT_CONFIG = {
   supports_vision: true,
 };
 
+// Kimi K3 flagship multimodal model (Moonshot direct API).
+// Official docs: https://platform.kimi.ai/docs/guide/kimi-k3-quickstart
+export const KIMI_K3_CONFIG = {
+  api_base: 'https://api.moonshot.ai/v1',
+  api_key_env: 'MOONSHOT_API_KEY',
+  model: 'kimi-k3',
+  cost_per_m_input: 3.00,
+  cost_per_m_output: 15.00,
+  max_context: 1_048_576,
+  supports_vision: true,
+  supports_tools: true,
+  default_params: {
+    reasoning_effort: 'high' as const,
+  },
+};
+
 // Gemma 4 26B A4B config (Workers AI — on-network vision, zero egress)
 export const GEMMA4_CONFIG = {
   model: '@cf/google/gemma-4-26b-a4b-it',
@@ -169,6 +185,8 @@ export const AVAILABLE_MODELS: AvailableModel[] = [
   { id: 'groq-gpt-oss-20b', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.balanced.model, displayName: 'GPT-OSS 20B (Groq)', costTier: 'free', capabilities: ['json_mode', 'tools'] },
   { id: 'groq-gpt-oss-120b', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.powerful.model, displayName: 'GPT-OSS 120B (Groq)', costTier: 'low', capabilities: ['json_mode', 'tools'] },
   { id: 'groq-kimi-k2', provider: 'groq', model: AI_ROUTER_CONFIG.groq.models.reasoning.model, displayName: 'Kimi K2 Instruct (Groq)', costTier: 'low', capabilities: ['json_mode', 'reasoning', 'tools'] },
+  // Kimi K3 (Moonshot)
+  { id: 'kimi-k3-moonshot', provider: 'moonshot', model: KIMI_K3_CONFIG.model, displayName: 'Kimi K3 (Moonshot)', costTier: 'high', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
   // Kimi K2.5 (Together / Moonshot)
   { id: 'kimi-k2.5-together', provider: 'together', model: AI_ROUTER_CONFIG.kimi_k2_5.model, displayName: 'Kimi K2.5 (Together)', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
   { id: 'kimi-k2.5-moonshot', provider: 'moonshot', model: MOONSHOT_CONFIG.model, displayName: 'Kimi K2.5 (Moonshot)', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
@@ -305,10 +323,10 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
   // Design Agent — Brand token extraction (VISION REQUIRED)
   design_vision: {
     provider: 'moonshot',
-    model: MOONSHOT_CONFIG.model,
+    model: KIMI_K3_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'together',
-    fallbackModel: AI_ROUTER_CONFIG.kimi_k2_5.model,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_31_CONFIG.model,
   },
   
   // Sales Rep — Conversational agent
@@ -331,17 +349,17 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
 
   // Brand Ambassador — Page generation (VISION REQUIRED) [legacy single-stage]
   page_generation: {
-    provider: 'google_gemini',
-    model: GEMINI_31_CONFIG.model,
+    provider: 'moonshot',
+    model: KIMI_K3_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'workers_ai',
-    fallbackModel: GEMMA4_CONFIG.model,
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_31_CONFIG.model,
   },
 
   // Brand Ambassador — Stage 1: Visual extraction (Gemini sees the page)
   page_visual_extraction: {
-    provider: 'google_gemini',
-    model: GEMINI_31_CONFIG.model,
+    provider: 'moonshot',
+    model: KIMI_K3_CONFIG.model,
     modelConfig: null,
     fallbackProvider: 'workers_ai',
     fallbackModel: GEMMA4_CONFIG.model,
@@ -349,17 +367,17 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
 
   // Brand Ambassador — Stage 2: Content generation (Gemini 3.1 Pro writes structured HTML)
   page_content_generation: {
-    provider: 'google_gemini',
-    model: GEMINI_31_CONFIG.model,
+    provider: 'moonshot',
+    model: KIMI_K3_CONFIG.model,
     modelConfig: null,
-    fallbackProvider: 'anthropic',
-    fallbackModel: 'claude-sonnet-4-5-20250929',
+    fallbackProvider: 'google_gemini',
+    fallbackModel: GEMINI_31_CONFIG.model,
   },
 
   // Brand Ambassador — Screenshot-to-code (Kimi K2.5 replicates the OEM page)
   page_screenshot_to_code: {
     provider: 'moonshot',
-    model: MOONSHOT_CONFIG.model,
+    model: KIMI_K3_CONFIG.model,
     modelConfig: null,
     fallbackProvider: 'together',
     fallbackModel: AI_ROUTER_CONFIG.kimi_k2_5.model,
@@ -367,11 +385,11 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
 
   // Brand Ambassador — Structured section extraction from cloned HTML
   page_structuring: {
-    provider: 'google_gemini',
-    model: GEMINI_31_CONFIG.model,
+    provider: 'moonshot',
+    model: KIMI_K3_CONFIG.model,
     modelConfig: null,
     fallbackProvider: 'google_gemini',
-    fallbackModel: GEMINI_CONFIG.model,
+    fallbackModel: GEMINI_31_CONFIG.model,
   },
 
   // Adaptive Pipeline — Quick layout classification (fast, cheap)
@@ -464,6 +482,58 @@ export interface InferenceResponse {
   model: string;
   latency_ms: number;
   wasFallback: boolean;
+}
+
+export function calculateInferenceCost(
+  provider: AiProvider,
+  model: string,
+  usage?: { prompt_tokens: number; completion_tokens: number },
+): number | null {
+  if (!usage) return null;
+
+  const promptM = usage.prompt_tokens / 1_000_000;
+  const completionM = usage.completion_tokens / 1_000_000;
+
+  if (provider === 'groq') {
+    const groqModel = Object.values(AI_ROUTER_CONFIG.groq.models).find(candidate => candidate.model === model);
+    if (groqModel) {
+      return promptM * groqModel.cost_per_m_input + completionM * groqModel.cost_per_m_output;
+    }
+  }
+
+  if (provider === 'together' && model === AI_ROUTER_CONFIG.kimi_k2_5.model) {
+    return promptM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_input
+      + completionM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_output;
+  }
+
+  if (provider === 'moonshot' && model === KIMI_K3_CONFIG.model) {
+    return promptM * KIMI_K3_CONFIG.cost_per_m_input
+      + completionM * KIMI_K3_CONFIG.cost_per_m_output;
+  }
+
+  if (provider === 'moonshot' && model === MOONSHOT_CONFIG.model) {
+    return promptM * MOONSHOT_CONFIG.cost_per_m_input
+      + completionM * MOONSHOT_CONFIG.cost_per_m_output;
+  }
+
+  if (provider === 'anthropic') {
+    return promptM * 3 + completionM * 15;
+  }
+
+  if (provider === 'workers_ai') {
+    return 0;
+  }
+
+  if (provider === 'google_gemini') {
+    if (model === GEMINI_31_CONFIG.model) {
+      return promptM * GEMINI_31_CONFIG.cost_per_m_input
+        + completionM * GEMINI_31_CONFIG.cost_per_m_output;
+    }
+    return promptM * GEMINI_CONFIG.cost_per_m_input
+      + completionM * GEMINI_CONFIG.cost_per_m_output;
+  }
+
+  return null;
 }
 
 export class AiRouter {
@@ -1084,48 +1154,7 @@ export class AiRouter {
     model: string,
     usage?: { prompt_tokens: number; completion_tokens: number }
   ): number | null {
-    if (!usage) return null;
-
-    const promptM = usage.prompt_tokens / 1_000_000;
-    const completionM = usage.completion_tokens / 1_000_000;
-
-    if (provider === 'groq') {
-      const groqModel = Object.values(AI_ROUTER_CONFIG.groq.models).find(m => m.model === model);
-      if (groqModel) {
-        return promptM * groqModel.cost_per_m_input + completionM * groqModel.cost_per_m_output;
-      }
-    }
-
-    if (provider === 'together' && model === AI_ROUTER_CONFIG.kimi_k2_5.model) {
-      return promptM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_input +
-             completionM * AI_ROUTER_CONFIG.kimi_k2_5.cost_per_m_output;
-    }
-
-    if (provider === 'moonshot') {
-      return promptM * MOONSHOT_CONFIG.cost_per_m_input +
-             completionM * MOONSHOT_CONFIG.cost_per_m_output;
-    }
-
-    // Anthropic costs vary by model
-    if (provider === 'anthropic') {
-      // Claude Sonnet 4.5: ~$3/1M input, ~$15/1M output
-      return promptM * 3 + completionM * 15;
-    }
-
-    // Workers AI (included tier — free)
-    if (provider === 'workers_ai') {
-      return 0;
-    }
-
-    // Gemini models
-    if (provider === 'google_gemini') {
-      if (model === GEMINI_31_CONFIG.model) {
-        return promptM * GEMINI_31_CONFIG.cost_per_m_input + completionM * GEMINI_31_CONFIG.cost_per_m_output;
-      }
-      return promptM * GEMINI_CONFIG.cost_per_m_input + completionM * GEMINI_CONFIG.cost_per_m_output;
-    }
-
-    return null;
+    return calculateInferenceCost(provider, model, usage);
   }
 
   private async hashString(str: string): Promise<string> {
