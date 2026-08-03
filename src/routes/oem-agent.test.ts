@@ -173,6 +173,9 @@ describe('oem-agent production HTML route', () => {
               '<div data-compid="simple-hero-comp"><h1>All-electric Nissan ARIYA</h1></div>',
               '<section data-compid="grade-walk-comp" id="grades"><h2>Choose your ARIYA</h2></section>',
               '<section data-compid="story-section-comp"><div class="full-viewport-height">Story</div></section>',
+              '<section data-compid="faq-level1-comp" data-compprops="{&quot;faqItems&quot;:[{&quot;faqQuestion&quot;:&quot;FAQ question&quot;,&quot;faqAnswer&quot;:&quot;&lt;p&gt;FAQ answer&lt;/p&gt;&quot;}]}">',
+              '<div class="question-container"><div class="question"><h3 aria-expanded="false" role="button" tabindex="0">FAQ question</h3><img src="" alt="expand-icon"></div><p class="answer" id="answer-0"></p></div>',
+              '</section>',
               '<section id="features"><h2>Explore ARIYA</h2></section>',
             ].join(''),
             stylesheet_urls: ['https://cdn.nissan.test/ariya.css'],
@@ -203,6 +206,11 @@ describe('oem-agent production HTML route', () => {
     expect(html).toContain('oem-production-body-height');
     expect(html).toContain('data-compid="story-section-comp"');
     expect(html).toContain('height:clamp(420px,56.25vw,720px)!important');
+    expect(html).not.toContain('max-width:1440px');
+    expect(html).toContain('data-oem-faq-trigger="true"');
+    expect(html).toContain('<p>FAQ answer</p>');
+    expect(html).toContain('data-oem-production-interactions="true"');
+    expect(html).not.toContain('src=""');
     expect(html).toContain('Explore ARIYA');
     expect(html).not.toContain('All-electric Nissan ARIYA');
     expect(html).not.toContain('Choose your ARIYA');

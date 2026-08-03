@@ -26,6 +26,7 @@ import type { AiProvider, OemId } from '../oem/types';
 import { normalizeRecipeRows } from '../design/recipe-response';
 import { applyCloneEdit } from '../design/page-modes';
 import {
+  hydrateProductionInteractions,
   scopeProductionCloneHtml,
   stripProductionHeroHtml,
   type ScopeProductionCloneDiagnostics,
@@ -131,8 +132,13 @@ function productionBodyDocument(
     [
       '<style>',
       'html,body{margin:0;padding:0;width:100%;overflow-x:hidden}',
-      '[data-compid="story-section-comp"]{max-width:1440px;margin-inline:auto}',
+      '[data-compid="story-section-comp"]{width:100%;max-width:none;margin-inline:0}',
       '[data-compid="story-section-comp"]>.full-viewport-height{height:clamp(420px,56.25vw,720px)!important;min-height:0!important}',
+      '[data-oem-faq-answer="true"][hidden]{display:none!important}',
+      '[data-oem-faq-answer="true"]:not([hidden]){display:block!important;height:auto!important;max-height:none!important;opacity:1!important;visibility:visible!important}',
+      '.oem-faq-toggle-icon{align-items:center;border:1px solid #b8b8b8;display:inline-flex;flex:0 0 32px;height:32px;justify-content:center;width:32px}',
+      '.oem-faq-toggle-icon:before{content:"+";font:400 24px/1 Arial,sans-serif}',
+      '[data-oem-faq-trigger="true"][aria-expanded="true"]~.oem-faq-toggle-icon:before{content:"−"}',
       '</style>',
     ].join(''),
     '</head>',
@@ -140,6 +146,9 @@ function productionBodyDocument(
     bodyHtml,
     '<script data-oem-embed-resize="true">',
     `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`,
+    '</script>',
+    '<script data-oem-production-interactions="true">',
+    `(()=>{const selector='[data-oem-faq-trigger="true"]';const toggle=(trigger)=>{const id=trigger.getAttribute('aria-controls');const answer=id?document.getElementById(id):null;if(!answer)return;const open=trigger.getAttribute('aria-expanded')!=='true';trigger.setAttribute('aria-expanded',String(open));answer.hidden=!open;answer.setAttribute('aria-hidden',String(!open));trigger.closest('.question-container')?.classList.toggle('oem-faq-open',open)};document.addEventListener('click',(event)=>{const target=event.target instanceof Element?event.target.closest(selector):null;if(target)toggle(target)});document.addEventListener('keydown',(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;const target=event.target instanceof Element?event.target.closest(selector):null;if(!target)return;event.preventDefault();toggle(target)})})();`,
     '</script>',
     '</body>',
     '</html>',
@@ -176,7 +185,9 @@ async function buildProductionCloneArtifact(
   options: { bodyOnly?: boolean } = {},
 ): Promise<ProductionCloneArtifact | null> {
   const cloneHtml = getProductionCloneHtml(page);
-  const html = options.bodyOnly ? stripProductionHeroHtml(cloneHtml) : cloneHtml;
+  const html = options.bodyOnly
+    ? hydrateProductionInteractions(stripProductionHeroHtml(cloneHtml))
+    : cloneHtml;
   if (!html) {
     return null;
   }

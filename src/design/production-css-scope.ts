@@ -275,6 +275,63 @@ export function stripProductionHeroHtml(html: string): string {
   return root.html() || '';
 }
 
+interface CapturedFaqItem {
+  faqAnswer?: unknown;
+}
+
+/**
+ * Restores data that Nissan's client-side FAQ component normally hydrates at
+ * runtime. The body-only artifact intentionally does not load the OEM app, so
+ * captured answer nodes would otherwise remain empty and non-interactive.
+ */
+export function hydrateProductionInteractions(html: string): string {
+  const $ = load(`<div data-oem-interaction-root="true">${html}</div>`);
+  const documentRoot = $('[data-oem-interaction-root="true"]').first();
+
+  documentRoot.find('[data-compid="faq-level1-comp"]').each((faqIndex, faqElement) => {
+    let items: CapturedFaqItem[] = [];
+    try {
+      const props = JSON.parse($(faqElement).attr('data-compprops') || '{}') as { faqItems?: unknown };
+      if (Array.isArray(props.faqItems)) {
+        items = props.faqItems as CapturedFaqItem[];
+      }
+    } catch {
+      return;
+    }
+
+    $(faqElement).find('[data-id="question-container"], .question-container').each((itemIndex, containerElement) => {
+      const container = $(containerElement);
+      const trigger = container.find('[role="button"]').first();
+      const capturedAnswer = container.find('.answer').first();
+      if (!trigger.length || !capturedAnswer.length) return;
+
+      const answerId = `oem-faq-answer-${faqIndex}-${itemIndex}`;
+      const item = items[itemIndex];
+      const answerHtml = typeof item?.faqAnswer === 'string' ? item.faqAnswer : capturedAnswer.html() || '';
+      const answer = $('<div></div>')
+        .attr(capturedAnswer.attr() || {})
+        .attr('id', answerId)
+        .attr('data-oem-faq-answer', 'true')
+        .attr('aria-hidden', 'true')
+        .attr('hidden', '')
+        .html(answerHtml);
+
+      capturedAnswer.replaceWith(answer);
+      trigger
+        .attr('data-oem-faq-trigger', 'true')
+        .attr('aria-expanded', 'false')
+        .attr('aria-controls', answerId);
+
+      const emptyIcon = container.find('.question img[src=""]').first();
+      if (emptyIcon.length) {
+        emptyIcon.replaceWith('<span class="oem-faq-toggle-icon" aria-hidden="true"></span>');
+      }
+    });
+  });
+
+  return documentRoot.html() || '';
+}
+
 export async function scopeProductionCloneHtml(html: string, options: ScopeProductionCloneOptions): Promise<ScopeProductionCloneResult> {
   const scopeSelector = scopeSelectorFor(options);
   const $ = load(`<div data-oem-scope-root="true">${html}</div>`);

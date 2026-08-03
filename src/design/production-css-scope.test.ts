@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeOrphanDeclarations, scopeCss, scopeProductionCloneHtml } from './production-css-scope';
+import {
+  hydrateProductionInteractions,
+  sanitizeOrphanDeclarations,
+  scopeCss,
+  scopeProductionCloneHtml,
+} from './production-css-scope';
 
 const scope = '.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"]';
 
@@ -91,6 +96,47 @@ describe('sanitizeOrphanDeclarations', () => {
   it('still strips a genuine orphan declaration token that sits outside strings and comments', () => {
     expect(sanitizeOrphanDeclarations('.x{padding-top:0;false;padding-bottom:4px;}'))
       .toBe('.x{padding-top:0;padding-bottom:4px;}');
+  });
+});
+
+describe('hydrateProductionInteractions', () => {
+  it('hydrates captured Nissan FAQ answers and accessible accordion controls from component props', () => {
+    const props = JSON.stringify({
+      faqItems: [
+        {
+          faqQuestion: 'WHERE CAN I CHARGE MY NISSAN ARIYA?',
+          faqAnswer: '<p>Charge at home or at a public charging station.</p>',
+        },
+      ],
+    }).replace(/"/g, '&quot;');
+    const html = [
+      `<section data-compid="faq-level1-comp" data-compprops="${props}">`,
+      '<div class="question-container initial" data-id="question-container">',
+      '<div class="question">',
+      '<h3 aria-expanded="false" role="button" tabindex="0">WHERE CAN I CHARGE MY NISSAN ARIYA?</h3>',
+      '<img alt="expand-icon" aria-hidden="true" src="">',
+      '</div>',
+      '<p aria-hidden="true" class="answer answer-fade-in" id="answer-0"></p>',
+      '</div>',
+      '</section>',
+    ].join('');
+
+    const result = hydrateProductionInteractions(html);
+
+    expect(result).toContain('data-oem-faq-trigger="true"');
+    expect(result).toContain('aria-controls="oem-faq-answer-0-0"');
+    expect(result).toContain('id="oem-faq-answer-0-0"');
+    expect(result).toContain('hidden=""');
+    expect(result).toContain('<p>Charge at home or at a public charging station.</p>');
+    expect(result).toContain('class="oem-faq-toggle-icon"');
+    expect(result).not.toContain('src=""');
+  });
+
+  it('leaves malformed FAQ component data intact instead of failing the artifact', () => {
+    const html = '<section data-compid="faq-level1-comp" data-compprops="not-json"><h3 role="button">Question</h3></section>';
+
+    expect(() => hydrateProductionInteractions(html)).not.toThrow();
+    expect(hydrateProductionInteractions(html)).toContain('Question');
   });
 });
 
