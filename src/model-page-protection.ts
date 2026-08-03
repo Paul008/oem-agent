@@ -1,13 +1,17 @@
 export const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = ['foton-au', 'gac-au', 'nissan-au'] as const;
 
+export type ModelPageWriteIntent = 'automation' | 'manual-editor';
+
 const protectedModelPageWriteOems = new Set<string>(PROTECTED_MODEL_PAGE_WRITE_OEM_IDS);
 const nissanReviewCandidateSlug = /^[a-z0-9][a-z0-9-]*--candidate-[a-z0-9][a-z0-9-]{0,80}$/;
 
 export function isModelPageWriteProtected(
   oemId: string | null | undefined,
   modelSlug?: string | null,
+  intent: ModelPageWriteIntent = 'automation',
 ): boolean {
   if (typeof oemId !== 'string' || !protectedModelPageWriteOems.has(oemId)) return false;
+  if (oemId === 'nissan-au' && intent === 'manual-editor') return false;
   if (oemId === 'nissan-au' && modelSlug && nissanReviewCandidateSlug.test(modelSlug)) return false;
   return true;
 }

@@ -44,6 +44,8 @@ describe('model page write protection', () => {
   it('identifies live OEMs that must remain read-only', () => {
     expect(isModelPageWriteProtected('gac-au')).toBe(true);
     expect(isModelPageWriteProtected('foton-au')).toBe(true);
+    expect(isModelPageWriteProtected('nissan-au', 'ariya')).toBe(true);
+    expect(isModelPageWriteProtected('nissan-au', 'ariya', 'manual-editor')).toBe(false);
     expect(isModelPageWriteProtected('mazda-au')).toBe(false);
   });
 

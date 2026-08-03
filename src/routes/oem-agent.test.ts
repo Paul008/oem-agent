@@ -760,6 +760,118 @@ describe('oem-agent clone update route', () => {
 });
 
 describe('oem-agent protected model page writes', () => {
+  it('allows a versioned manual clone edit for a live Nissan model page', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const pageData = {
+      id: 'nissan-au-ariya',
+      oem_id: 'nissan-au',
+      slug: 'ariya',
+      active_mode: 'clone',
+      version: 14,
+      content: {
+        rendered: '<main>Original ARIYA clone</main>',
+        modes: {
+          clone: {
+            rendered: '<main>Original ARIYA clone</main>',
+            section_index: [],
+          },
+        },
+      },
+    };
+    const puts: Array<{ key: string; value: string }> = [];
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+      async put(key: string, value: string) {
+        puts.push({ key, value });
+        return null;
+      },
+    };
+    const waitUntilPromises: Promise<unknown>[] = [];
+
+    const response = await oemAgentApp.request('/admin/update-clone/nissan-au/ariya', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        edited_rendered: '<main>Manually edited ARIYA clone markup</main>',
+        section_index: [],
+      }),
+    }, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never, {
+      waitUntil: (promise: Promise<unknown>) => waitUntilPromises.push(promise),
+    } as never);
+
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(puts.some(put => put.key === latestKey)).toBe(true);
+    expect(puts.some(put => /^pages\/definitions\/nissan-au\/ariya\/v\d+\.json$/.test(put.key))).toBe(true);
+
+    const latestPut = puts.find(put => put.key === latestKey);
+    const savedPage = JSON.parse(latestPut!.value);
+    expect(savedPage.version).toBe(15);
+    expect(savedPage.manually_edited).toBe(true);
+    expect(savedPage.content.modes.clone.edited_rendered).toContain('Manually edited ARIYA');
+  });
+
+  it('allows a versioned manual sections edit for a live Nissan model page', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const pageData = {
+      id: 'nissan-au-ariya',
+      oem_id: 'nissan-au',
+      slug: 'ariya',
+      active_mode: 'sections',
+      version: 14,
+      header: { slides: [{ heading: 'ARIYA' }] },
+      content: {
+        sections: [{ id: 'hero-1', type: 'hero', heading: 'Original ARIYA' }],
+      },
+    };
+    const puts: Array<{ key: string; value: string }> = [];
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+      async put(key: string, value: string) {
+        puts.push({ key, value });
+        return null;
+      },
+    };
+    const waitUntilPromises: Promise<unknown>[] = [];
+
+    const response = await oemAgentApp.request('/admin/update-sections/nissan-au/ariya', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sections: [{ id: 'hero-1', type: 'hero', heading: 'Manually edited ARIYA' }],
+      }),
+    }, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never, {
+      waitUntil: (promise: Promise<unknown>) => waitUntilPromises.push(promise),
+    } as never);
+
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(puts.some(put => put.key === latestKey)).toBe(true);
+    expect(puts.some(put => /^pages\/definitions\/nissan-au\/ariya\/v\d+\.json$/.test(put.key))).toBe(true);
+
+    const latestPut = puts.find(put => put.key === latestKey);
+    const savedPage = JSON.parse(latestPut!.value);
+    expect(savedPage.version).toBe(15);
+    expect(savedPage.manually_edited).toBe(true);
+    expect(savedPage.content.sections[0].heading).toBe('Manually edited ARIYA');
+  });
+
   it.each([
     {
       method: 'POST',
@@ -784,6 +896,7 @@ describe('oem-agent protected model page writes', () => {
       body: { template_id: 'basic-landing', oem_id: 'foton-au', model_slug: 'tunland' },
     },
     { method: 'POST', path: '/admin/adaptive-pipeline/gac-au/emkoo' },
+    { method: 'POST', path: '/admin/adaptive-pipeline/nissan-au/ariya' },
     { method: 'POST', path: '/admin/create-custom-page/foton-au/warranty' },
     { method: 'POST', path: '/admin/create-subpage/gac-au/emkoo/specs' },
     { method: 'DELETE', path: '/admin/delete-subpage/foton-au/tunland/specs' },

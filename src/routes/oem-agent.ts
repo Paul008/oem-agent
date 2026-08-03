@@ -46,7 +46,11 @@ import type { CompileRunStatus } from '../design/compiler-contracts';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
 import { auditMiddleware } from '../auth/audit-log';
-import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+import {
+  getModelPageWriteProtectedMessage,
+  isModelPageWriteProtected,
+  type ModelPageWriteIntent,
+} from '../model-page-protection';
 
 type PageBuilderModelOverride = { provider?: AiProvider; model?: string };
 
@@ -346,8 +350,13 @@ async function serveProductionCloneArtifact(
   return cacheableResponse;
 }
 
-function rejectProtectedModelPageWrite(c: Context, oemId: string | null | undefined) {
-  if (!isModelPageWriteProtected(oemId)) {
+function rejectProtectedModelPageWrite(
+  c: Context,
+  oemId: string | null | undefined,
+  modelSlug?: string | null,
+  intent: ModelPageWriteIntent = 'automation',
+) {
+  if (!isModelPageWriteProtected(oemId, modelSlug, intent)) {
     return null;
   }
 
@@ -3153,7 +3162,7 @@ app.post('/admin/map-and-structure/:oemId/:modelSlug', async (c) => {
 app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
-  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId, modelSlug, 'manual-editor');
   if (protectedWrite) return protectedWrite;
 
   const body = await c.req.json<{ sections: any[] }>();
@@ -3245,7 +3254,7 @@ app.put('/admin/update-sections/:oemId/:modelSlug', async (c) => {
 app.put('/admin/update-clone/:oemId/:modelSlug', async (c) => {
   const oemId = c.req.param('oemId') as OemId;
   const modelSlug = c.req.param('modelSlug');
-  const protectedWrite = rejectProtectedModelPageWrite(c, oemId);
+  const protectedWrite = rejectProtectedModelPageWrite(c, oemId, modelSlug, 'manual-editor');
   if (protectedWrite) return protectedWrite;
 
   const body = await c.req.json<{ edited_rendered: string; section_index?: any[] }>();
