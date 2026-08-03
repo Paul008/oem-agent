@@ -1,11 +1,8 @@
 /**
- * Page Generator — Two-stage AI pipeline for OEM model page generation
+ * Page Generator — routed AI pipeline for OEM model page generation
  *
- * Stage 1 (Gemini 2.5 Pro Vision): Analyzes screenshot + HTML to extract
- * structured visual data — hero images, section layout, image URLs, key specs.
- *
- * Stage 2 (Claude Sonnet 4.5): Takes Gemini's extraction + DB data and
- * generates the final VehicleModelPage JSON with polished HTML content.
+ * The AI router selects the configured model for visual extraction,
+ * screenshot-to-code, and content generation tasks.
  *
  * Output matches the VehicleModelPage interface consumed by
  * the promotion-knoxgwmhaval Nuxt app at pages/models/[slug].vue.
@@ -17,7 +14,7 @@ import type {
   VehicleModelPage,
   PageGenerationResult,
 } from '../oem/types';
-import type { AiRouter, InferenceResponse } from '../ai/router';
+import { calculateInferenceCost, type AiRouter, type InferenceResponse } from '../ai/router';
 import type { DesignAgent } from './agent';
 import { OEM_BRAND_NOTES } from './agent';
 import type { DesignMemoryManager } from './memory';
@@ -1025,7 +1022,7 @@ export class PageGenerator {
       }
 
       // ================================================================
-      // AI Generation: Kimi K2.5 (screenshot) or Gemini+Claude (fallback)
+      // AI Generation: routed screenshot-to-code or routed no-screenshot fallback
       // ================================================================
 
       // Load design profile for brand token injection (prefer memory over hardcoded)
@@ -1048,8 +1045,8 @@ export class PageGenerator {
       const recipeContext = await this.getRecipesForPrompt(oemId);
 
       if (screenshotBase64) {
-        // ── PRIMARY: Kimi K2.5 Screenshot-to-Code ──────────────────────
-        console.log(`[PageGenerator] Using Kimi K2.5 screenshot-to-code for ${oemId}/${modelSlug}`);
+        // ── PRIMARY: Routed Screenshot-to-Code ─────────────────────────
+        console.log(`[PageGenerator] Using routed screenshot-to-code for ${oemId}/${modelSlug}`);
 
         const kimiPrompt = buildScreenshotToCodePrompt(oemId, modelData, urlMapping, designProfile) + recipeContext;
 
@@ -1065,8 +1062,11 @@ export class PageGenerator {
 
         // Track as "claude" cost slots for backward compat in response
         claudeTokens = kimiResponse.usage.total_tokens;
-        claudeCost = (kimiResponse.usage.prompt_tokens / 1_000_000) * 0.60 +
-                     (kimiResponse.usage.completion_tokens / 1_000_000) * 2.50;
+        claudeCost = calculateInferenceCost(
+          kimiResponse.provider,
+          kimiResponse.model,
+          kimiResponse.usage,
+        ) ?? 0;
 
         try {
           const parsed = JSON.parse(stripCodeFences(kimiResponse.content));
@@ -1086,7 +1086,7 @@ export class PageGenerator {
             claude_cost_usd: claudeCost,
             total_cost_usd: claudeCost,
             images_uploaded: urlMapping.size,
-            error: `Failed to parse Kimi K2.5 response as JSON: ${parseError}`,
+            error: `Failed to parse ${kimiResponse.model} response as JSON: ${parseError}`,
           };
         }
       } else {
@@ -1112,8 +1112,11 @@ export class PageGenerator {
         });
 
         claudeTokens = claudeResponse.usage.total_tokens;
-        claudeCost = (claudeResponse.usage.prompt_tokens / 1_000_000) * 3.0 +
-                     (claudeResponse.usage.completion_tokens / 1_000_000) * 15.0;
+        claudeCost = calculateInferenceCost(
+          claudeResponse.provider,
+          claudeResponse.model,
+          claudeResponse.usage,
+        ) ?? 0;
 
         try {
           const parsed = JSON.parse(stripCodeFences(claudeResponse.content));
@@ -1139,7 +1142,7 @@ export class PageGenerator {
             claude_cost_usd: claudeCost,
             total_cost_usd: claudeCost,
             images_uploaded: urlMapping.size,
-            error: `Failed to parse Claude response as JSON: ${parseError}`,
+            error: `Failed to parse ${claudeResponse.model} response as JSON: ${parseError}`,
           };
         }
       }
