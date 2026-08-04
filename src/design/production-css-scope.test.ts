@@ -3,6 +3,7 @@ import {
   hydrateProductionInteractions,
   sanitizeOrphanDeclarations,
   scopeCss,
+  scopeProductionAssetHtml,
   scopeProductionCloneHtml,
 } from './production-css-scope';
 
@@ -71,6 +72,19 @@ describe('scopeCss', () => {
 
     expect(result.css).toContain('content: "Sale; ends;"');
     expect(result.warnings).toEqual([]);
+  });
+});
+
+describe('scopeProductionAssetHtml', () => {
+  it('inlines stylesheets into a caller-owned scope without adding a clone wrapper', async () => {
+    const result = await scopeProductionAssetHtml(
+      '<link rel="stylesheet" href="/assets/page.css"><section class="feature">Feature</section>',
+      { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: 'https://www.nissan.com.au/vehicles/ariya/', fetchCss: async () => '.feature{background:url("../images/feature.webp")}' },
+    );
+    expect(result.html).toContain('[data-oem-publication-body="true"] .feature');
+    expect(result.html).toContain('https://www.nissan.com.au/images/feature.webp');
+    expect(result.html).not.toContain('rel="stylesheet"');
+    expect(result.html).not.toContain('oem-production-scope');
   });
 });
 
