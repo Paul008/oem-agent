@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, createSSRApp, defineComponent, h, nextTick, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
@@ -10,7 +10,7 @@ import type { PublicationHistoryEntry, PublicationValidationSummary } from '@/li
 
 import PublicationControls from './PublicationControls.vue'
 
-const componentPath = resolve(process.cwd(), 'src/pages/dashboard/components/page-builder/PublicationControls.vue')
+const componentUrl = new URL('./PublicationControls.vue', pathToFileURL(import.meta.filename))
 
 const history: PublicationHistoryEntry[] = [{
   pageId: 'nissan-au-ariya',
@@ -51,8 +51,8 @@ function findButton(root: ParentNode, label: string): HTMLButtonElement | null {
 
 describe('publicationControls', () => {
   it('shows saved draft, production, candidate, validation, and history state', async () => {
-    expect(existsSync(componentPath)).toBe(true)
-    if (!existsSync(componentPath))
+    expect(existsSync(componentUrl)).toBe(true)
+    if (!existsSync(componentUrl))
       return
 
     const rendered = await renderToString(createSSRApp(PublicationControls, {
@@ -96,7 +96,7 @@ describe('publicationControls', () => {
   })
 
   it('keeps candidate creation, publish, preview, and rollback as explicit separate actions', () => {
-    const source = existsSync(componentPath) ? readFileSync(componentPath, 'utf8') : ''
+    const source = existsSync(componentUrl) ? readFileSync(componentUrl, 'utf8') : ''
 
     expect(source).toContain('emit(\'buildCandidate\')')
     expect(source).toContain('emit(\'previewCandidate\')')
