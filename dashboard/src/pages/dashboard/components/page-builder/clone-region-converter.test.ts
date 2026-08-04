@@ -410,8 +410,8 @@ describe('buildPreviewReplacementHtmlFromCloneRegion', () => {
 })
 
 describe('convertCloneRegionsToTailwindSections', () => {
-  it('blocks fail-closed bulk conversion when a page wrapper contains nested regions', async () => {
-    let compileAttempts = 0
+  it('converts leaf regions while skipping their page wrapper and hidden regions', async () => {
+    const compiledRegionIds: string[] = []
     const result = await convertCloneRegionsToTailwindSections({
       failClosed: true,
       regions: [
@@ -468,19 +468,25 @@ describe('convertCloneRegionsToTailwindSections', () => {
           tailwindRecipeArtifact: { region_id: 'hidden-modal' },
         },
       ],
-      compileTailwindRecipeArtifact: async () => {
-        compileAttempts += 1
-        return { success: true, result: { confidence: 1, section: { type: 'content-block' } } }
+      compileTailwindRecipeArtifact: async (artifact) => {
+        compiledRegionIds.push(artifact.region_id)
+        return {
+          success: true,
+          result: {
+            confidence: 1,
+            section: { type: 'content-block', title: artifact.region_id },
+          },
+        }
       },
     })
 
-    expect(result.sections).toEqual([])
-    expect(result.blocked).toMatchObject({
-      reason: 'overlapping-regions',
-      regionIds: ['page-wrapper', 'hero', 'details'],
-    })
+    expect(result.blocked).toBeUndefined()
+    expect(result.sections).toHaveLength(2)
+    expect(result.sections.map(section => section._clone_region_id)).toEqual(['hero', 'details'])
+    expect(result.sections.map(section => section.title)).toEqual(['hero', 'details'])
+    expect(result.skipped).toContainEqual({ id: 'page-wrapper', label: 'Page wrapper', reason: 'container-region' })
     expect(result.skipped).toContainEqual({ id: 'hidden-modal', label: 'Hidden modal', reason: 'hidden-region' })
-    expect(compileAttempts).toBe(0)
+    expect(compiledRegionIds).toEqual(['hero', 'details'])
   })
 
   it('blocks fail-closed bulk conversion when authenticated compilation fails', async () => {
