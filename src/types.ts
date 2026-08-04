@@ -9,6 +9,7 @@ export interface MoltbotEnv {
   ASSETS: Fetcher; // Assets binding for admin UI static files
   MOLTBOT_BUCKET: R2Bucket; // R2 bucket for persistent storage
   OEM_PAGE_BUCKET?: R2Bucket; // Explicit page-builder/candidate storage; Nissan never falls back to MOLTBOT_BUCKET
+  MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS?: string; // Exact comma-separated publication allowlist
   // Cloudflare AI Gateway configuration (preferred)
   CF_AI_GATEWAY_ACCOUNT_ID?: string; // Cloudflare account ID for AI Gateway
   CF_AI_GATEWAY_GATEWAY_ID?: string; // AI Gateway ID

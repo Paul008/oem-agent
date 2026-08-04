@@ -593,6 +593,30 @@ describe('model page publication service', () => {
     expect(production?.body.etag).toBe(composedCandidate().etag)
   })
 
+  it('resolves only explicitly selected revisions that were previously published', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+    const unpublished = await readyCandidate(bucket)
+
+    const historical = await getProductionPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      revision: first.revision,
+    })
+    const candidate = await getProductionPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      revision: unpublished.revision,
+    })
+
+    expect(historical?.manifest.revision).toBe(first.revision)
+    expect(historical?.body.key).toBe(publicationKeys(pageId, first.revision).body)
+    expect(candidate).toBeNull()
+  })
+
   it('verifies production body integrity before resolving it', async () => {
     const bucket = new MemoryR2Bucket()
     const candidate = await readyCandidate(bucket)

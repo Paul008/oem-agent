@@ -87,6 +87,16 @@ export class PublicationServiceConflictError extends Error {
   }
 }
 
+export class PublicationServiceNotFoundError extends Error {
+  readonly status = 404
+  readonly code = 'publication_revision_not_found'
+
+  constructor(message = 'Publication revision is incomplete') {
+    super(message)
+    this.name = 'PublicationServiceNotFoundError'
+  }
+}
+
 export async function buildCandidate(input: {
   bucket: R2Bucket
   browser?: Fetcher
@@ -322,10 +332,13 @@ export async function rollbackPublication(input: {
 export async function getProductionPublication(input: {
   bucket: R2Bucket
   pageId: string
+  revision?: number
 }): Promise<ProductionPublication | null> {
   const observed = await readPublicationState(input.bucket, input.pageId)
-  const revision = observed?.value.published_revision
-  if (!observed || revision == null) return null
+  if (!observed) return null
+  const revision = input.revision ?? observed.value.published_revision
+  if (revision == null
+    || (input.revision !== undefined && !observed.value.history.includes(revision))) return null
   const selected = await loadCompleteRevision(input.bucket, input.pageId, revision)
   return {
     state: observed.value,
@@ -385,7 +398,7 @@ async function loadCompleteRevision(
     bucket.get(keys.validation),
   ])
   if (!manifest || !bodyObject || !validationObject) {
-    throw new Error('Publication revision is incomplete')
+    throw new PublicationServiceNotFoundError()
   }
   let validationValue: unknown
   try {

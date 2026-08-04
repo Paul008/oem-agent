@@ -218,6 +218,7 @@ app.use('*', cors({
     'X-OEM-Content-SHA256',
     'X-OEM-Page-Mode',
     'X-OEM-Page-Version',
+    'X-OEM-Published-Revision',
     'X-OEM-CSS-Scope',
   ],
 }));
