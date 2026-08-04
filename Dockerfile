@@ -1,7 +1,7 @@
-FROM docker.io/cloudflare/sandbox:0.7.0
+FROM docker.io/cloudflare/sandbox:0.12.4
 
-# Install Node.js 22 (required by OpenClaw) and rclone (for R2 persistence)
-# The base image has Node 20, we need to replace it with Node 22
+# Install Node.js 22 (required by OpenClaw) and rsync (for mounted R2 persistence)
+# The 0.12.4 base image defaults to Node 24; OpenClaw is pinned to Node 22 here
 # Using direct binary download for reliability
 ENV NODE_VERSION=22.16.0
 RUN ARCH="$(dpkg --print-architecture)" \
@@ -10,7 +10,7 @@ RUN ARCH="$(dpkg --print-architecture)" \
          arm64) NODE_ARCH="arm64" ;; \
          *) echo "Unsupported architecture: ${ARCH}" >&2; exit 1 ;; \
        esac \
-    && apt-get update && apt-get install -y xz-utils ca-certificates rclone \
+    && apt-get update && apt-get install -y xz-utils ca-certificates rsync \
     && curl -fsSLk https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \

@@ -201,48 +201,41 @@ adminApi.post('/devices/approve-all', async (c) => {
 // GET /api/admin/storage - Get R2 storage status and last sync time
 adminApi.get('/storage', async (c) => {
   const sandbox = c.get('sandbox');
-  const hasCredentials = !!(
-    c.env.R2_ACCESS_KEY_ID &&
-    c.env.R2_SECRET_ACCESS_KEY &&
-    c.env.CF_ACCOUNT_ID
-  );
-
-  // Check which credentials are missing
-  const missing: string[] = [];
-  if (!c.env.R2_ACCESS_KEY_ID) missing.push('R2_ACCESS_KEY_ID');
-  if (!c.env.R2_SECRET_ACCESS_KEY) missing.push('R2_SECRET_ACCESS_KEY');
-  if (!c.env.CF_ACCOUNT_ID) missing.push('CF_ACCOUNT_ID');
-
+  const configured = !!c.env.MOLTBOT_BUCKET;
+  const missing = configured ? undefined : ['MOLTBOT_BUCKET'];
+  let mounted = false;
   let lastSync: string | null = null;
 
-  // If R2 is configured, check for last sync timestamp
-  if (hasCredentials) {
+  if (configured) {
     try {
-      // Mount R2 if not already mounted
-      await mountR2Storage(sandbox, c.env);
+      mounted = await mountR2Storage(sandbox, c.env);
 
-      // Check for sync marker file
-      const proc = await sandbox.startProcess(
-        `cat ${R2_MOUNT_PATH}/.last-sync 2>/dev/null || echo ""`,
-      );
-      await waitForProcess(proc, 5000);
-      const logs = await proc.getLogs();
-      const timestamp = logs.stdout?.trim();
-      if (timestamp && timestamp !== '') {
-        lastSync = timestamp;
+      if (mounted) {
+        const proc = await sandbox.startProcess(
+          `cat ${R2_MOUNT_PATH}/.last-sync 2>/dev/null || echo ""`,
+        );
+        await waitForProcess(proc, 5000);
+        const logs = await proc.getLogs();
+        const timestamp = logs.stdout?.trim();
+        if (timestamp) {
+          lastSync = timestamp;
+        }
       }
     } catch {
-      // Ignore errors checking sync status
+      mounted = false;
     }
   }
 
   return c.json({
-    configured: hasCredentials,
-    missing: missing.length > 0 ? missing : undefined,
+    configured,
+    mounted,
+    missing,
     lastSync,
-    message: hasCredentials
-      ? 'R2 storage is configured. Your data will persist across container restarts.'
-      : 'R2 storage is not configured. Paired devices and conversations will be lost when the container restarts.',
+    message: mounted
+      ? 'R2 storage is mounted. Your data will persist across container restarts.'
+      : configured
+        ? 'R2 storage is configured but is not mounted. Data is not currently persistent.'
+        : 'R2 storage binding is not configured. Data will not persist across container restarts.',
   });
 });
 

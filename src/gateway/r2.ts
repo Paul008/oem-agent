@@ -1,6 +1,6 @@
 import type { Sandbox } from '@cloudflare/sandbox';
 import type { MoltbotEnv } from '../types';
-import { R2_MOUNT_PATH, getR2BucketName } from '../config';
+import { R2_MOUNT_PATH } from '../config';
 
 /**
  * Check if R2 is already mounted by looking at the mount table
@@ -17,7 +17,7 @@ async function isR2Mounted(sandbox: Sandbox): Promise<boolean> {
     }
     const logs = await proc.getLogs();
     // If stdout has content, the mount exists
-    const mounted = !!(logs.stdout && logs.stdout.includes('s3fs'));
+    const mounted = !!(logs.stdout && logs.stdout.includes(` on ${R2_MOUNT_PATH} `));
     console.log('isR2Mounted check:', mounted, 'stdout:', logs.stdout?.slice(0, 100));
     return mounted;
   } catch (err) {
@@ -34,11 +34,8 @@ async function isR2Mounted(sandbox: Sandbox): Promise<boolean> {
  * @returns true if mounted successfully, false otherwise
  */
 export async function mountR2Storage(sandbox: Sandbox, env: MoltbotEnv): Promise<boolean> {
-  // Skip if R2 credentials are not configured
-  if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.CF_ACCOUNT_ID) {
-    console.log(
-      'R2 storage not configured (missing R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, or CF_ACCOUNT_ID)',
-    );
+  if (!env.MOLTBOT_BUCKET) {
+    console.log('R2 storage binding MOLTBOT_BUCKET is unavailable');
     return false;
   }
 
@@ -48,17 +45,13 @@ export async function mountR2Storage(sandbox: Sandbox, env: MoltbotEnv): Promise
     return true;
   }
 
-  const bucketName = getR2BucketName(env);
   try {
-    console.log('Mounting R2 bucket', bucketName, 'at', R2_MOUNT_PATH);
-    await sandbox.mountBucket(bucketName, R2_MOUNT_PATH, {
-      endpoint: `https://${env.CF_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      // Pass credentials explicitly since we use R2_* naming instead of AWS_*
-      credentials: {
-        accessKeyId: env.R2_ACCESS_KEY_ID,
-        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-      },
-    });
+    console.log('Mounting R2 binding MOLTBOT_BUCKET at', R2_MOUNT_PATH);
+    if (env.LOCAL_R2_MOUNT === 'true') {
+      await sandbox.mountBucket('MOLTBOT_BUCKET', R2_MOUNT_PATH, { localBucket: true });
+    } else {
+      await sandbox.mountBucket('MOLTBOT_BUCKET', R2_MOUNT_PATH, {});
+    }
     console.log('R2 bucket mounted successfully - moltbot data will persist across sessions');
     return true;
   } catch (err) {

@@ -23,7 +23,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { cors } from 'hono/cors';
-import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
+import { ContainerProxy, getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
 import { McpSession } from './mcp';
 
 import type { AppEnv, MoltbotEnv } from './types';
@@ -54,7 +54,7 @@ function transformErrorMessage(message: string, host: string): string {
   return message;
 }
 
-export { Sandbox };
+export { ContainerProxy, Sandbox };
 export { McpSession };
 export { BrochureMirrorWorkflow } from './workflows/brochure-mirror';
 

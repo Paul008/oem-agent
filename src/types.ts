@@ -46,6 +46,7 @@ export interface MoltbotEnv {
   R2_SECRET_ACCESS_KEY?: string;
   R2_BUCKET_NAME?: string; // Override bucket name (default: 'moltbot-data')
   CF_ACCOUNT_ID?: string; // Cloudflare account ID for R2 endpoint
+  LOCAL_R2_MOUNT?: string; // Exact string "true" enables SDK local-bucket mode
   // Workers AI binding (for quick scan classification)
   AI?: Ai;
   // Vectorize binding (UX knowledge base)

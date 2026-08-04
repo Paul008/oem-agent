@@ -1,4 +1,5 @@
 import type { MoltbotEnv } from '../types';
+import { R2_MOUNT_PATH } from '../config';
 
 /**
  * Build environment variables to pass to the OpenClaw container process
@@ -7,7 +8,9 @@ import type { MoltbotEnv } from '../types';
  * @returns Environment variables record
  */
 export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
-  const envVars: Record<string, string> = {};
+  const envVars: Record<string, string> = {
+    MOLTBOT_STORAGE_PATH: R2_MOUNT_PATH,
+  };
 
   // Cloudflare AI Gateway configuration (new native provider)
   if (env.CLOUDFLARE_AI_GATEWAY_API_KEY) {
@@ -51,11 +54,6 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.CF_ACCOUNT_ID) envVars.CF_ACCOUNT_ID = env.CF_ACCOUNT_ID;
   if (env.CDP_SECRET) envVars.CDP_SECRET = env.CDP_SECRET;
   if (env.WORKER_URL) envVars.WORKER_URL = env.WORKER_URL;
-
-  // R2 credentials for rclone sync (conversation persistence)
-  if (env.R2_ACCESS_KEY_ID) envVars.R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID;
-  if (env.R2_SECRET_ACCESS_KEY) envVars.R2_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY;
-  if (env.R2_BUCKET_NAME) envVars.R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 
   // OEM Agent secrets
   if (env.SUPABASE_URL) envVars.SUPABASE_URL = env.SUPABASE_URL;
