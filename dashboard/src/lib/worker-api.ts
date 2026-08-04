@@ -204,11 +204,12 @@ export async function publishModelPagePublicationCandidate(
 export async function rollbackModelPagePublication(
   pageId: string,
   targetRevision: number,
+  expectedPublishedRevision: number,
 ): Promise<PublicationTransitionResponse> {
   const response = await workerFetch(publicationPath(pageId, 'rollback'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetRevision }),
+    body: JSON.stringify({ targetRevision, expectedPublishedRevision }),
   })
   return parsePublicationTransitionResponse(response, { action: 'rollback', targetRevision })
 }

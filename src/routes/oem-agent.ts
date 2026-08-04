@@ -62,7 +62,11 @@ import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts
 import type { CompileRunStatus } from '../design/compiler-contracts';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
-import { auditMiddleware, setPublicationAuditMetadata } from '../auth/audit-log';
+import {
+  auditMiddleware,
+  setPublicationAuditMetadata,
+  writeImmutablePublicationTransitionAudit,
+} from '../auth/audit-log';
 import {
   getModelPageWriteProtectedMessage,
   isModelPageWriteProtected,
@@ -2746,15 +2750,26 @@ async function publicationRequestBody(c: Context<OemAgentEnv>): Promise<Record<s
   }
 }
 
-async function deliverPublicationWebhook(input: PublicationWebhookDeliveryInput): Promise<{ status: number }> {
+async function deliverPublicationWebhook(
+  input: PublicationWebhookDeliveryInput,
+  secret: string | undefined,
+): Promise<{ status: number }> {
+  if (!secret) throw new Error('MODEL_PAGE_WEBHOOK_SECRET is not configured');
   const response = await fetch(input.webhook.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-oem-model-page-webhook-secret': secret,
+    },
     body: JSON.stringify({
       event: input.event,
       timestamp: input.timestamp,
+      oem_code: input.oem_code,
+      model_slug: input.model_slug,
       data: input.data,
     }),
+    redirect: 'error',
+    signal: AbortSignal.timeout(5_000),
   });
   return { status: response.status };
 }
@@ -2851,7 +2866,7 @@ app.post('/admin/pages/:pageId/publication/publish', async (c) => {
       actor: c.get('accessUser')?.email || 'unknown',
       loadCurrentPage: requestedPageId => loadCurrentModelPage(c.env.MOLTBOT_BUCKET, requestedPageId),
       hooks: await loadWebhooks(c.env.MOLTBOT_BUCKET),
-      deliverWebhook: deliverPublicationWebhook,
+      deliverWebhook: input => deliverPublicationWebhook(input, c.env.MODEL_PAGE_WEBHOOK_SECRET),
     });
     setPublicationAuditMetadata(c, result.audit);
     const { audit: _audit, ...response } = result;
@@ -2868,8 +2883,11 @@ app.post('/admin/pages/:pageId/publication/rollback', async (c) => {
   if (resources instanceof Response) return resources;
   const body = await publicationRequestBody(c);
   const targetRevision = positiveInteger(body?.targetRevision);
-  if (targetRevision === null) {
-    return c.json({ error: 'targetRevision must be a positive integer' }, 400);
+  const expectedPublishedRevision = positiveInteger(body?.expectedPublishedRevision);
+  if (targetRevision === null || expectedPublishedRevision === null) {
+    return c.json({
+      error: 'targetRevision and expectedPublishedRevision must be positive integers',
+    }, 400);
   }
 
   try {
@@ -2877,9 +2895,11 @@ app.post('/admin/pages/:pageId/publication/rollback', async (c) => {
       bucket: resources.bucket,
       pageId,
       targetRevision,
+      expectedPublishedRevision,
       actor: c.get('accessUser')?.email || 'unknown',
+      writeAudit: entry => writeImmutablePublicationTransitionAudit(c.env.MOLTBOT_BUCKET, entry),
       hooks: await loadWebhooks(c.env.MOLTBOT_BUCKET),
-      deliverWebhook: deliverPublicationWebhook,
+      deliverWebhook: input => deliverPublicationWebhook(input, c.env.MODEL_PAGE_WEBHOOK_SECRET),
     });
     setPublicationAuditMetadata(c, result.audit);
     const { audit: _audit, ...response } = result;

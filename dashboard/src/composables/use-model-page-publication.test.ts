@@ -281,6 +281,7 @@ describe('useModelPagePublication', () => {
 
     await publication.rollback(9)
 
+    expect(rollbackModelPagePublication).toHaveBeenCalledWith('nissan-au-ariya', 9, 9)
     expect(publication.publishedRevision.value).toBe(9)
     expect(publication.candidate.value?.revision).toBe(12)
     expect(buildModelPagePublicationCandidate).not.toHaveBeenCalled()

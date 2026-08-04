@@ -14,6 +14,21 @@ export interface PublicationAuditMetadata {
   action?: string;
 }
 
+export interface PublicationTransitionAuditRecord {
+  schema_version: 1;
+  intent_id: string;
+  phase: 'intent' | 'outcome';
+  timestamp: string;
+  actor: string;
+  page_id: string;
+  target_revision: number;
+  expected_published_revision: number;
+  current_published_revision: number;
+  outcome?: 'applied' | 'conflict' | 'failed';
+  resulting_published_revision?: number;
+  error?: string;
+}
+
 declare module 'hono' {
   interface ContextVariableMap {
     publicationAudit?: PublicationAuditMetadata;
@@ -61,6 +76,20 @@ export async function logAudit(bucket: R2Bucket, entry: AuditEntry): Promise<voi
   await bucket.put(key, content, {
     httpMetadata: { contentType: 'application/x-ndjson' },
   });
+}
+
+/** Store a publication transition phase as a write-once object. */
+export async function writeImmutablePublicationTransitionAudit(
+  bucket: R2Bucket,
+  entry: PublicationTransitionAuditRecord,
+): Promise<void> {
+  const date = entry.timestamp.slice(0, 10);
+  const key = `audit/publication-transitions/${date}/${entry.intent_id}-${entry.phase}.json`;
+  const stored = await bucket.put(key, JSON.stringify(entry), {
+    onlyIf: new Headers({ 'if-none-match': '*' }),
+    httpMetadata: { contentType: 'application/json' },
+  });
+  if (!stored) throw new Error('Publication transition audit record already exists');
 }
 
 export function auditMiddleware() {

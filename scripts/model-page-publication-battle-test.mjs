@@ -954,6 +954,8 @@ export function evaluatePublicationReport(report) {
     else if (comparison.mismatchPercent >= 0.2)
       addFinding(warnings, 'visual-mismatch-warning', `${comparison.viewport} ${comparison.pair} differs by ${(comparison.mismatchPercent * 100).toFixed(2)}%`)
   }
+  if (report.mutation?.restoration?.concurrentTransition)
+    addFinding(blocking, 'concurrent-transition', report.mutation.restoration.error || 'Production changed outside the battle-test transition; restoration was not attempted')
   if (report.mutation?.requested && !report.mutation?.restoration?.verified)
     addFinding(blocking, 'rollback-restoration-failed', `Starting revision was not restored${report.mutation?.restoration?.error ? `: ${report.mutation.restoration.error}` : ''}`)
   for (const error of report.finalizationErrors || [])
@@ -1144,6 +1146,29 @@ function dealerCapturePassed(capture, expectedRevision) {
     && (audit.blockedRequests || []).length === 0
 }
 
+export function conditionalRestorationDecision({
+  currentPublishedRevision,
+  harnessPublishedRevision,
+  startingRevision,
+}) {
+  if (currentPublishedRevision === startingRevision)
+    return { restore: false, alreadyRestored: true }
+  if (currentPublishedRevision === harnessPublishedRevision) {
+    return {
+      restore: true,
+      requestBody: {
+        targetRevision: startingRevision,
+        expectedPublishedRevision: harnessPublishedRevision,
+      },
+    }
+  }
+  return {
+    restore: false,
+    concurrentTransition: true,
+    error: `published revision changed from ${harnessPublishedRevision} to ${currentPublishedRevision ?? 'none'}`,
+  }
+}
+
 async function captureDealerPhase(browser, options, phase, revision) {
   const captures = []
   const bodyUrl = `${options.urls.publishedBodyBase}?revision=${revision}`
@@ -1210,7 +1235,10 @@ async function exerciseMutation(browser, options, state, report) {
     }
     else {
       transitionAttempted = true
-      report.mutation.transition = await transition(options, options.urls.rollback, { targetRevision: options.rollbackRevision })
+      report.mutation.transition = await transition(options, options.urls.rollback, {
+        targetRevision: options.rollbackRevision,
+        expectedPublishedRevision: startingRevision,
+      })
       report.mutation.verification = await verifyPublishedRevision(options, options.rollbackRevision)
       const dealerCaptures = await captureDealerPhase(browser, options, 'post-publish', options.rollbackRevision)
       report.captures.push(...dealerCaptures)
@@ -1220,23 +1248,42 @@ async function exerciseMutation(browser, options, state, report) {
   }
   finally {
     if (transitionAttempted) {
-      report.mutation.restoration.attempted = true
       const restorationErrors = []
+      const harnessPublishedRevision = options.publish ? candidate.revision : options.rollbackRevision
+      let safeToCaptureRestoration = false
       try {
-        await transition(options, options.urls.rollback, { targetRevision: startingRevision })
-        await verifyPublishedRevision(options, startingRevision)
+        const current = await publicationState(options)
+        const decision = conditionalRestorationDecision({
+          currentPublishedRevision: current?.state?.published_revision ?? null,
+          harnessPublishedRevision,
+          startingRevision,
+        })
+        if (decision.concurrentTransition) {
+          report.mutation.restoration.concurrentTransition = true
+          restorationErrors.push(decision.error)
+        }
+        else {
+          if (decision.restore) {
+            report.mutation.restoration.attempted = true
+            await transition(options, options.urls.rollback, decision.requestBody)
+          }
+          await verifyPublishedRevision(options, startingRevision)
+          safeToCaptureRestoration = true
+        }
       }
       catch (error) {
         restorationErrors.push(error instanceof Error ? error.message : String(error))
       }
-      try {
-        const restoredCaptures = await captureDealerPhase(browser, options, 'restored', startingRevision)
-        report.captures.push(...restoredCaptures)
-        if (!restoredCaptures.every(capture => dealerCapturePassed(capture, startingRevision)))
-          restorationErrors.push(`Dealer did not restore revision ${startingRevision}`)
-      }
-      catch (error) {
-        restorationErrors.push(`Restoration capture failed: ${error instanceof Error ? error.message : String(error)}`)
+      if (safeToCaptureRestoration) {
+        try {
+          const restoredCaptures = await captureDealerPhase(browser, options, 'restored', startingRevision)
+          report.captures.push(...restoredCaptures)
+          if (!restoredCaptures.every(capture => dealerCapturePassed(capture, startingRevision)))
+            restorationErrors.push(`Dealer did not restore revision ${startingRevision}`)
+        }
+        catch (error) {
+          restorationErrors.push(`Restoration capture failed: ${error instanceof Error ? error.message : String(error)}`)
+        }
       }
       report.mutation.restoration.verified = restorationErrors.length === 0
       if (restorationErrors.length > 0)

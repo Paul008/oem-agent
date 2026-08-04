@@ -344,7 +344,10 @@ export function useModelPagePublication(input: {
     error.value = null
     reconciliationError.value = null
     try {
-      const response = await rollbackModelPagePublication(pageId, targetRevision)
+      const expectedPublishedRevision = publishedRevision.value
+      if (expectedPublishedRevision == null)
+        throw new Error('No published revision is available to roll back')
+      const response = await rollbackModelPagePublication(pageId, targetRevision, expectedPublishedRevision)
       if (!isCurrent(context))
         return response
       commitTransition(response)

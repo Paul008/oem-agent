@@ -1,4 +1,7 @@
-import type { PublicationAuditMetadata } from '../../auth/audit-log'
+import type {
+  PublicationAuditMetadata,
+  PublicationTransitionAuditRecord,
+} from '../../auth/audit-log'
 import { composePublicationCandidate } from './composer'
 import {
   PublicationConflictError,
@@ -34,6 +37,8 @@ export interface PublicationWebhookDeliveryInput {
   webhook: PublicationWebhook
   event: 'page.updated'
   timestamp: string
+  oem_code: string
+  model_slug: string
   data: {
     page_id: string
     draft_revision: number
@@ -46,6 +51,10 @@ export interface PublicationWebhookDeliveryInput {
 export type DeliverPublicationWebhook = (
   input: PublicationWebhookDeliveryInput,
 ) => Promise<{ status: number }>
+
+export type WritePublicationTransitionAudit = (
+  entry: PublicationTransitionAuditRecord,
+) => Promise<void>
 
 export interface PublicationCandidateResult {
   status: 'ready' | 'failed'
@@ -293,22 +302,72 @@ export async function rollbackPublication(input: {
   bucket: R2Bucket
   pageId: string
   targetRevision: number
+  expectedPublishedRevision: number
   actor: string
+  writeAudit: WritePublicationTransitionAudit
   now?: () => string
 } & WebhookTransitionInput): Promise<PublicationTransitionResult> {
   const observed = await requirePublicationState(input.bucket, input.pageId)
+  if (observed.value.published_revision !== input.expectedPublishedRevision) {
+    throw new PublicationServiceConflictError(
+      'Published revision no longer matches the rollback expectation',
+      'published_revision_conflict',
+    )
+  }
   if (!observed.value.history.includes(input.targetRevision)) {
     throw new PublicationServiceConflictError('Rollback target was never published', 'rollback_target_conflict')
   }
   const target = await loadCompleteRevision(input.bucket, input.pageId, input.targetRevision)
   const rolledBackAt = timestamp(input.now)
-  const previousPublishedRevision = observed.value.published_revision
-  const stored = await updateState(input.bucket, input.pageId, observed.etag, {
-    ...observed.value,
-    published_revision: input.targetRevision,
-    published_at: rolledBackAt,
-    published_by: input.actor,
-    history: [input.targetRevision, ...observed.value.history],
+  const previousPublishedRevision = input.expectedPublishedRevision
+  const intentId = `rollback-${crypto.randomUUID()}`
+  const auditBase = {
+    schema_version: 1 as const,
+    intent_id: intentId,
+    timestamp: rolledBackAt,
+    actor: input.actor,
+    page_id: input.pageId,
+    target_revision: input.targetRevision,
+    expected_published_revision: input.expectedPublishedRevision,
+    current_published_revision: input.expectedPublishedRevision,
+  }
+  await input.writeAudit({ ...auditBase, phase: 'intent' })
+
+  let stored: PublicationStateRecord
+  try {
+    stored = await updateState(input.bucket, input.pageId, observed.etag, {
+      ...observed.value,
+      published_revision: input.targetRevision,
+      published_at: rolledBackAt,
+      published_by: input.actor,
+      history: [input.targetRevision, ...observed.value.history],
+    })
+  }
+  catch (error) {
+    try {
+      await input.writeAudit({
+        ...auditBase,
+        phase: 'outcome',
+        outcome: error instanceof PublicationServiceConflictError ? 'conflict' : 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+    catch (auditError) {
+      if (error instanceof PublicationServiceConflictError) {
+        throw new PublicationServiceConflictError(
+          `${error.message}; rollback outcome audit failed: ${auditError instanceof Error ? auditError.message : String(auditError)}`,
+          error.code,
+        )
+      }
+      throw auditError
+    }
+    throw error
+  }
+  await input.writeAudit({
+    ...auditBase,
+    phase: 'outcome',
+    outcome: 'applied',
+    resulting_published_revision: stored.value.published_revision ?? undefined,
   })
   const propagation = await propagatePublication(input, {
     event: 'page.updated',
@@ -455,19 +514,27 @@ async function loadCompleteRevision(
 
 async function propagatePublication(
   input: WebhookTransitionInput,
-  delivery: Omit<PublicationWebhookDeliveryInput, 'webhook'>,
+  delivery: Omit<PublicationWebhookDeliveryInput, 'webhook' | 'oem_code' | 'model_slug'>,
 ): Promise<PublicationPropagation> {
   const hooks = (input.hooks || []).filter(hook => hook.events.includes('page.updated'))
   if (hooks.length === 0) return 'delivered'
   if (!input.deliverWebhook) return 'pending'
+  const identity = publicationWebhookIdentity(delivery.data.page_id)
+  if (!identity) return 'failed'
   const results = await Promise.allSettled(hooks.map(webhook => (
-    Promise.resolve().then(() => input.deliverWebhook!({ webhook, ...delivery }))
+    Promise.resolve().then(() => input.deliverWebhook!({ webhook, ...delivery, ...identity }))
   )))
   return results.every(result => (
     result.status === 'fulfilled'
     && result.value.status >= 200
     && result.value.status < 300
   )) ? 'delivered' : 'failed'
+}
+
+function publicationWebhookIdentity(pageId: string): { oem_code: string; model_slug: string } | null {
+  const match = /^([a-z0-9]+-au)-([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(pageId)
+  if (!match || `${match[1]}-${match[2]}` !== pageId) return null
+  return { oem_code: match[1], model_slug: match[2] }
 }
 
 function assertSavedDraftVersion(page: Record<string, any> | null, expectedVersion: number): void {

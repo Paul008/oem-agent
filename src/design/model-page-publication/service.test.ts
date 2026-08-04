@@ -40,6 +40,7 @@ class MemoryR2Bucket {
   readonly objects = new Map<string, StoredObject>()
   readonly puts: Array<{ key: string; options?: R2PutOptions }> = []
   onGet?: (key: string) => void
+  onPut?: (key: string) => void
   private etagSequence = 0
 
   async get(key: string): Promise<any> {
@@ -62,6 +63,7 @@ class MemoryR2Bucket {
   }
 
   async put(key: string, value: any, options?: R2PutOptions): Promise<any> {
+    this.onPut?.(key)
     this.puts.push({ key, options })
     const current = this.objects.get(key)
     const onlyIf = options?.onlyIf
@@ -596,8 +598,10 @@ describe('model page publication service', () => {
       bucket: bucket as unknown as R2Bucket,
       pageId,
       targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
       actor: 'rollback@test',
       now,
+      writeAudit: async () => {},
     })
 
     expect(rolledBack.published_revision).toBe(first.revision)
@@ -619,11 +623,171 @@ describe('model page publication service', () => {
       bucket: bucket as unknown as R2Bucket,
       pageId,
       targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
       actor: 'rollback@test',
       now,
+      writeAudit: async () => {},
     })).rejects.toThrow('Publication body integrity does not match its manifest')
     expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision)
       .toBe(second.revision)
+  })
+
+  it('rejects rollback when the observed published revision differs from the required expectation', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+    const writeAudit = vi.fn()
+
+    await expect(rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      expectedPublishedRevision: first.revision,
+      actor: 'rollback@test',
+      now,
+      writeAudit,
+    })).rejects.toMatchObject({ status: 409, code: 'published_revision_conflict' })
+    expect(writeAudit).not.toHaveBeenCalled()
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision)
+      .toBe(second.revision)
+  })
+
+  it('durably records rollback intent before the pointer and outcome after it', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+    const events: string[] = []
+    bucket.onPut = key => {
+      if (key === publicationKeys(pageId).state) events.push('pointer')
+    }
+
+    const result = await rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
+      actor: 'rollback@test',
+      now,
+      writeAudit: async entry => {
+        events.push(`audit:${entry.phase}`)
+        expect(entry).toMatchObject({
+          actor: 'rollback@test',
+          page_id: pageId,
+          target_revision: first.revision,
+          expected_published_revision: second.revision,
+          current_published_revision: second.revision,
+        })
+      },
+    })
+
+    expect(result.published_revision).toBe(first.revision)
+    expect(events).toEqual(['audit:intent', 'pointer', 'audit:outcome'])
+  })
+
+  it('does not move the pointer when rollback intent audit storage fails', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+
+    await expect(rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
+      actor: 'rollback@test',
+      now,
+      writeAudit: async () => { throw new Error('audit unavailable') },
+    })).rejects.toThrow('audit unavailable')
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision)
+      .toBe(second.revision)
+  })
+
+  it('maps a post-intent pointer race to conflict and records its outcome', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+    const phases: string[] = []
+
+    await expect(rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
+      actor: 'rollback@test',
+      now,
+      writeAudit: async entry => {
+        phases.push(`${entry.phase}:${entry.outcome || 'pending'}`)
+        if (entry.phase === 'intent') {
+          const key = publicationKeys(pageId).state
+          const state = await storedJson<PublicationState>(bucket, key)
+          await bucket.put(key, JSON.stringify({ ...state, published_by: 'concurrent@test' }))
+        }
+      },
+    })).rejects.toMatchObject({ status: 409, code: 'publication_state_conflict' })
+    expect(phases).toEqual(['intent:pending', 'outcome:conflict'])
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision)
+      .toBe(second.revision)
+  })
+
+  it('preserves 409 semantics when a CAS conflict outcome audit also fails', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+
+    await expect(rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
+      actor: 'rollback@test',
+      now,
+      writeAudit: async entry => {
+        if (entry.phase === 'intent') {
+          const key = publicationKeys(pageId).state
+          const state = await storedJson<PublicationState>(bucket, key)
+          await bucket.put(key, JSON.stringify({ ...state, published_by: 'concurrent@test' }))
+        }
+        else {
+          throw new Error('outcome audit unavailable')
+        }
+      },
+    })).rejects.toMatchObject({
+      status: 409,
+      code: 'publication_state_conflict',
+      message: expect.stringContaining('outcome audit unavailable'),
+    })
+  })
+
+  it('surfaces a failed outcome audit after the pointer has moved', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+
+    await expect(rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      expectedPublishedRevision: second.revision,
+      actor: 'rollback@test',
+      now,
+      writeAudit: async entry => {
+        if (entry.phase === 'outcome') throw new Error('outcome audit unavailable')
+      },
+    })).rejects.toThrow('outcome audit unavailable')
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision)
+      .toBe(first.revision)
   })
 
   it('prunes revisions outside the retained history without deleting rollback protection', async () => {

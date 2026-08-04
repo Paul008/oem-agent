@@ -463,12 +463,12 @@ describe('worker-api publication requests', () => {
     }))
   })
 
-  it('sends only the published target revision when rolling back', async () => {
-    await rollbackModelPagePublication('nissan-au-ariya', 9)
+  it('sends the rollback target and currently observed published revision', async () => {
+    await rollbackModelPagePublication('nissan-au-ariya', 9, 12)
 
     const [, options] = vi.mocked(fetch).mock.calls[0]
     expect(options?.method).toBe('POST')
-    expect(options?.body).toBe(JSON.stringify({ targetRevision: 9 }))
+    expect(options?.body).toBe(JSON.stringify({ targetRevision: 9, expectedPublishedRevision: 12 }))
   })
 
   it('fetches candidate HTML with the same session authentication as JSON requests', async () => {
@@ -764,7 +764,7 @@ describe('worker-api publication requests', () => {
       propagation: 'delivered',
     })
 
-    await expect(rollbackModelPagePublication('nissan-au-ariya', 9))
+    await expect(rollbackModelPagePublication('nissan-au-ariya', 9, 12))
       .rejects
       .toThrow('Invalid model page publication rollback response')
   })
@@ -779,7 +779,7 @@ describe('worker-api publication requests', () => {
       propagation: 'delivered',
     }), { headers: { 'content-type': 'application/json' } })))
 
-    await expect(rollbackModelPagePublication('nissan-au-ariya', 9))
+    await expect(rollbackModelPagePublication('nissan-au-ariya', 9, 12))
       .rejects
       .toThrow('Invalid model page publication rollback response')
   })

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   atomicWriteFile,
   authorizeBrowserRequest,
+  conditionalRestorationDecision,
   evaluatePublicationReport,
   fetchKnown,
   finalizePublicationReport,
@@ -125,6 +126,24 @@ describe('evaluatePublicationReport', () => {
     })
 
     expect(result.blocking).toContainEqual(expect.objectContaining({ code: 'rollback-restoration-failed' }))
+  })
+
+  it('records a concurrent publication during restoration as its own blocking finding', () => {
+    const result = evaluatePublicationReport({
+      mutation: {
+        requested: true,
+        restoration: {
+          attempted: false,
+          verified: false,
+          concurrentTransition: true,
+          error: 'published revision changed from 22 to 23',
+        },
+      },
+      captures: [],
+      comparisons: [],
+    })
+
+    expect(result.blocking).toContainEqual(expect.objectContaining({ code: 'concurrent-transition' }))
   })
 
   it('passes consistent captures and blocks an unknown rendered revision', () => {
@@ -337,6 +356,28 @@ describe('browser safety seams', () => {
 })
 
 describe('artifact finalization seams', () => {
+  it('restores only when production still matches the harness transition', () => {
+    expect(conditionalRestorationDecision({
+      currentPublishedRevision: 22,
+      harnessPublishedRevision: 22,
+      startingRevision: 21,
+    })).toEqual({
+      restore: true,
+      requestBody: { targetRevision: 21, expectedPublishedRevision: 22 },
+    })
+  })
+
+  it('blocks restoration without a rollback request after a concurrent publication', () => {
+    expect(conditionalRestorationDecision({
+      currentPublishedRevision: 23,
+      harnessPublishedRevision: 22,
+      startingRevision: 21,
+    })).toMatchObject({
+      restore: false,
+      concurrentTransition: true,
+    })
+  })
+
   it('recognizes only task-owned artifact inventory names', () => {
     expect(isTaskArtifactName('report.json')).toBe(true)
     expect(isTaskArtifactName('dealer-restored-mobile-attempt-2.png')).toBe(true)
