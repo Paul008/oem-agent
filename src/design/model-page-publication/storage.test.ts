@@ -228,4 +228,16 @@ describe('publication R2 storage', () => {
     expect(bucket.has(publicationKeys('nissan-au-ariya', 4).manifest)).toBe(true)
     expect(bucket.has(publicationKeys('toyota-au-rav4', 99).manifest)).toBe(true)
   })
+
+  it('keeps an old previous production revision without moving the retention cutoff', async () => {
+    const bucket = await bucketWithRevisions(1, 20)
+    const deleted = await prunePublicationRevisions(bucket as unknown as R2Bucket, 'nissan-au-ariya', {
+      retained: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+      publishedRevision: 20,
+      previousPublishedRevision: 1,
+    })
+
+    expect(deleted).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10])
+    expect(bucket.has(publicationKeys('nissan-au-ariya', 1).manifest)).toBe(true)
+  })
 })

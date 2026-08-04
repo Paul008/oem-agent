@@ -186,11 +186,12 @@ export async function prunePublicationRevisions(
 ): Promise<number[]> {
   const keys = publicationKeys(pageId)
   const retained = new Set(options.retained.filter(isRevision))
-  if (isRevision(options.publishedRevision)) retained.add(options.publishedRevision)
-  if (isRevision(options.previousPublishedRevision)) retained.add(options.previousPublishedRevision)
   if (retained.size === 0) return []
 
   const oldestRetained = Math.min(...retained)
+  const protectedRevisions = new Set(
+    [options.publishedRevision, options.previousPublishedRevision].filter(isRevision),
+  )
   const byRevision = new Map<number, string[]>()
   for (const object of await listAll(bucket, keys.revisionsPrefix)) {
     const suffix = object.key.slice(keys.revisionsPrefix.length)
@@ -205,7 +206,7 @@ export async function prunePublicationRevisions(
 
   const deleted: number[] = []
   for (const [revision, revisionKeys] of byRevision) {
-    if (revision >= oldestRetained || retained.has(revision)) continue
+    if (revision >= oldestRetained || retained.has(revision) || protectedRevisions.has(revision)) continue
     await bucket.delete(revisionKeys)
     deleted.push(revision)
   }
