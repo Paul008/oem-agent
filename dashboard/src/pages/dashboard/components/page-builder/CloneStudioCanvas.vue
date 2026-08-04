@@ -7,7 +7,7 @@ import {
   buildCloneStudioFrameHtmlForCanvas,
   cloneStudioIframeSandbox,
   computeCloneFrameScale,
-  computeCloneToolbarAnchor,
+  computeCloneToolbarPlacement,
   translateFramePoint,
 } from './clone-studio-canvas-helpers'
 
@@ -126,7 +126,7 @@ function enrichRegionForHost(region: any): any {
   const top = Number.isFinite(viewportTop) ? viewportTop : Number(region.top) || 0
   const width = Number(region.width) || 0
   const height = Number(region.height) || 0
-  const anchor = computeCloneToolbarAnchor(
+  const placement = computeCloneToolbarPlacement(
     { left, top, width, height },
     {
       width: activeFrameWidth.value,
@@ -134,7 +134,7 @@ function enrichRegionForHost(region: any): any {
     },
   )
   const pt = translateFramePoint(
-    anchor,
+    placement,
     rect,
     frameScale.value,
   )
@@ -149,6 +149,7 @@ function enrichRegionForHost(region: any): any {
     ...region,
     toolbar_x: Math.min(maxX, Math.max(minX, pt.x)),
     toolbar_y: Math.min(maxY, Math.max(8, pt.y)),
+    toolbar_visible: placement.visible,
   }
 }
 

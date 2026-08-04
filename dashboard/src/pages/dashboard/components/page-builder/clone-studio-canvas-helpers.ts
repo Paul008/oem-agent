@@ -64,6 +64,28 @@ export function computeCloneToolbarAnchor(
   }
 }
 
+export interface CloneToolbarPlacement {
+  x: number
+  y: number
+  visible: boolean
+}
+
+export function computeCloneToolbarPlacement(
+  region: { left: number, top: number, width: number, height: number },
+  viewport: { width: number, height: number },
+  inset = 12,
+): CloneToolbarPlacement {
+  const right = region.left + region.width
+  const bottom = region.top + region.height
+  const visible = right > 0 && region.left < viewport.width && bottom > 0 && region.top < viewport.height
+
+  return {
+    x: Math.max(0, Math.min(viewport.width, region.left + region.width / 2)),
+    y: Math.max(inset, Math.min(viewport.height, Math.max(0, region.top) + inset)),
+    visible,
+  }
+}
+
 export function formatCloneToolbarRegionLabel(region: { id?: string, label?: string } | null | undefined): string {
   const label = String(region?.label || '').trim()
   if (label)

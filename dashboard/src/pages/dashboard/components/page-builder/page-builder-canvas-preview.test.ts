@@ -474,6 +474,19 @@ describe('cloneStudioCanvas duplicate-region relay', () => {
     expect(geometryBlock).not.toContain("emit('selectRegion'")
   })
 
+  it('merges selection geometry without cancelling active toolbar editors', () => {
+    const source = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const handlerStart = source.indexOf('function onCloneRegionGeometry(region: any)')
+    const handlerEnd = source.indexOf('\nfunction ', handlerStart + 1)
+    const handler = source.slice(handlerStart, handlerEnd)
+
+    expect(source).toContain('@region-geometry="onCloneRegionGeometry"')
+    expect(source).toContain('cloneToolbarRegion.value.toolbar_visible !== false')
+    expect(handler).toContain('toolbar_visible: region.toolbar_visible !== false')
+    expect(handler).not.toContain('cancelCloneToolbar')
+    expect(handler).not.toContain("emit('selectCloneRegion'")
+  })
+
   it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 

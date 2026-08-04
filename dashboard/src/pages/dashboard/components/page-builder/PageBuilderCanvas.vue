@@ -166,6 +166,7 @@ interface CloneMenuRegion {
   tailwindRecipeArtifact?: any
   toolbar_x?: number
   toolbar_y?: number
+  toolbar_visible?: boolean
   height?: number
 }
 interface CloneMenuState {
@@ -204,6 +205,7 @@ const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
   && !props.readOnly
   && cloneToolbarRegion.value
+  && cloneToolbarRegion.value.toolbar_visible !== false
   && props.selectedCloneRegionId === cloneToolbarRegion.value.id,
 ))
 const cloneToolbarStyle = computed<Record<string, string>>(() => {
@@ -269,6 +271,7 @@ function onCloneRegionSelected(region: any) {
       tailwindRecipeArtifact: region.tailwindRecipeArtifact,
       toolbar_x: Number(region.toolbar_x) || 0,
       toolbar_y: Number(region.toolbar_y) || 0,
+      toolbar_visible: region.toolbar_visible !== false,
       height: Number(region.height) || 0,
     }
   }
@@ -277,6 +280,18 @@ function onCloneRegionSelected(region: any) {
   }
 
   emit('selectCloneRegion', region)
+}
+
+function onCloneRegionGeometry(region: any) {
+  if (!cloneToolbarRegion.value || region?.id !== cloneToolbarRegion.value.id)
+    return
+
+  cloneToolbarRegion.value = {
+    ...cloneToolbarRegion.value,
+    toolbar_x: Number(region.toolbar_x) || 0,
+    toolbar_y: Number(region.toolbar_y) || 0,
+    toolbar_visible: region.toolbar_visible !== false,
+  }
 }
 
 function hasCloneTextField(region: CloneMenuRegion | null | undefined): boolean {
@@ -1051,6 +1066,7 @@ watch(
             :allow-same-origin-sandbox="allowSameOriginSandbox"
             :selected-region-id="selectedCloneRegionId"
             @select-region="onCloneRegionSelected"
+            @region-geometry="onCloneRegionGeometry"
             @dom-updated="!props.readOnly && emit('cloneDomUpdated', $event)"
             @region-added="!props.readOnly && emit('cloneRegionAdded', $event)"
             @region-height="onRegionHeight"
