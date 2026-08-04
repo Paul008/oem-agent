@@ -1378,22 +1378,53 @@ function shouldCountCssDeclaration(prop: string, value: string): boolean {
 export interface ConvertCloneRegionsToTailwindSectionsInput {
   regions: CloneRegion[]
   compileTailwindRecipeArtifact?: (artifact: any) => Promise<any>
+  failClosed?: boolean
+}
+
+export interface BulkTailwindConversionBlock {
+  reason: 'overlapping-regions' | 'compiler-failed' | 'unsafe-output'
+  message: string
+  regionIds: string[]
 }
 
 export interface ConvertCloneRegionsToTailwindSectionsResult {
   sections: Record<string, any>[]
-  skipped: Array<{ id: string, label: string, reason: 'missing-source' | 'conversion-failed' }>
+  skipped: Array<{ id: string, label: string, reason: 'missing-source' | 'conversion-failed' | 'hidden-region' }>
+  blocked?: BulkTailwindConversionBlock
 }
 
 export async function convertCloneRegionsToTailwindSections(input: ConvertCloneRegionsToTailwindSectionsInput): Promise<ConvertCloneRegionsToTailwindSectionsResult> {
-  const orderedRegions = [...(input.regions || [])].sort((a, b) => {
+  const skipped: ConvertCloneRegionsToTailwindSectionsResult['skipped'] = []
+  const visibleRegions = [...(input.regions || [])].filter((region) => {
+    if (!isExplicitlyHiddenCloneRegion(region))
+      return true
+
+    skipped.push({ id: region.id, label: region.label || region.id, reason: 'hidden-region' })
+    return false
+  })
+
+  if (input.failClosed) {
+    const overlap = findOverlappingCloneRegions(visibleRegions)
+    if (overlap) {
+      return {
+        sections: [],
+        skipped,
+        blocked: {
+          reason: 'overlapping-regions',
+          message: `Bulk conversion stopped because the outer page wrapper overlaps ${overlap.children.length} editable region${overlap.children.length === 1 ? '' : 's'}. Convert individual sections until the page regions no longer overlap.`,
+          regionIds: [overlap.parent.id, ...overlap.children.map(region => region.id)],
+        },
+      }
+    }
+  }
+
+  const orderedRegions = visibleRegions.sort((a, b) => {
     const topDelta = (Number(a.top) || 0) - (Number(b.top) || 0)
     if (topDelta !== 0)
       return topDelta
     return (Number(a.left) || 0) - (Number(b.left) || 0)
   })
   const converted: Array<{ region: CloneRegion, section: Record<string, any> }> = []
-  const skipped: ConvertCloneRegionsToTailwindSectionsResult['skipped'] = []
 
   for (const region of orderedRegions) {
     const hasSource = Boolean(region.html || region.tailwindRecipeArtifact)
@@ -1402,15 +1433,51 @@ export async function convertCloneRegionsToTailwindSections(input: ConvertCloneR
       continue
     }
 
-    const section = await buildEditableSectionFromCloneRegion({
-      html: region.html,
-      tailwindRecipeArtifact: region.tailwindRecipeArtifact,
-      compileTailwindRecipeArtifact: input.compileTailwindRecipeArtifact,
-    })
+    let section: Record<string, any> | null
+    if (input.failClosed && region.tailwindRecipeArtifact && input.compileTailwindRecipeArtifact) {
+      try {
+        const response = await input.compileTailwindRecipeArtifact(region.tailwindRecipeArtifact)
+        const result = response?.result
+        if (!response?.success || !result?.section || Number(result.confidence) < 0.7) {
+          return blockedBulkConversion(
+            skipped,
+            'compiler-failed',
+            region,
+            `Bulk conversion stopped because ${region.label || region.id} could not be compiled safely.`,
+          )
+        }
+        section = result.section
+      }
+      catch (error: any) {
+        const detail = error?.message ? `: ${error.message}` : ''
+        return blockedBulkConversion(
+          skipped,
+          'compiler-failed',
+          region,
+          `Bulk conversion stopped because ${region.label || region.id} could not be compiled${detail}`,
+        )
+      }
+    }
+    else {
+      section = await buildEditableSectionFromCloneRegion({
+        html: region.html,
+        tailwindRecipeArtifact: region.tailwindRecipeArtifact,
+        compileTailwindRecipeArtifact: input.compileTailwindRecipeArtifact,
+      })
+    }
 
     if (!section) {
       skipped.push({ id: region.id, label: region.label || region.id, reason: 'conversion-failed' })
       continue
+    }
+
+    if (input.failClosed && hasUncompiledGeneratedHtml(section)) {
+      return blockedBulkConversion(
+        skipped,
+        'unsafe-output',
+        region,
+        `Bulk conversion stopped because ${region.label || region.id} produced Tailwind HTML without compiled CSS.`,
+      )
     }
 
     converted.push({ region, section })
@@ -1418,6 +1485,53 @@ export async function convertCloneRegionsToTailwindSections(input: ConvertCloneR
 
   const sections = buildSectionsFromConvertedCloneRegions(converted)
   return { sections, skipped }
+}
+
+function blockedBulkConversion(
+  skipped: ConvertCloneRegionsToTailwindSectionsResult['skipped'],
+  reason: BulkTailwindConversionBlock['reason'],
+  region: CloneRegion,
+  message: string,
+): ConvertCloneRegionsToTailwindSectionsResult {
+  return {
+    sections: [],
+    skipped,
+    blocked: {
+      reason,
+      message,
+      regionIds: [region.id],
+    },
+  }
+}
+
+function isExplicitlyHiddenCloneRegion(region: CloneRegion): boolean {
+  const hasZeroDimension = (value: unknown) => value != null && Number.isFinite(Number(value)) && Number(value) <= 1
+  return hasZeroDimension(region.width) || hasZeroDimension(region.height)
+}
+
+function findOverlappingCloneRegions(regions: CloneRegion[]): { parent: CloneRegion, children: CloneRegion[] } | null {
+  for (const parent of regions) {
+    const html = String(parent.html || '')
+    if (!html)
+      continue
+
+    const children = regions.filter(region => region.id !== parent.id && htmlContainsRegionId(html, region.id))
+    if (children.length)
+      return { parent, children }
+  }
+
+  return null
+}
+
+function htmlContainsRegionId(html: string, regionId: string): boolean {
+  const escapedId = escapeRegExp(regionId)
+  return new RegExp(`data-oem-region-id\\s*=\\s*["']${escapedId}["']`, 'i').test(html)
+}
+
+function hasUncompiledGeneratedHtml(section: Record<string, any>): boolean {
+  const html = typeof section._generated_html === 'string' ? section._generated_html.trim() : ''
+  const css = typeof section._generated_css === 'string' ? section._generated_css.trim() : ''
+  return Boolean(html && !css)
 }
 
 function buildSectionsFromConvertedCloneRegions(converted: Array<{ region: CloneRegion, section: Record<string, any> }>): Record<string, any>[] {

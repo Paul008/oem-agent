@@ -410,6 +410,147 @@ describe('buildPreviewReplacementHtmlFromCloneRegion', () => {
 })
 
 describe('convertCloneRegionsToTailwindSections', () => {
+  it('blocks fail-closed bulk conversion when a page wrapper contains nested regions', async () => {
+    let compileAttempts = 0
+    const result = await convertCloneRegionsToTailwindSections({
+      failClosed: true,
+      regions: [
+        {
+          id: 'page-wrapper',
+          label: 'Page wrapper',
+          selector: '[data-oem-region-id="page-wrapper"]',
+          tag: 'div',
+          classes: [],
+          top: 0,
+          width: 1440,
+          height: 12361,
+          editable_fields: [],
+          html: '<div data-oem-region-id="page-wrapper"><section data-oem-region-id="hero">Hero</section><section data-oem-region-id="details">Details</section></div>',
+          tailwindRecipeArtifact: { region_id: 'page-wrapper' },
+        },
+        {
+          id: 'hero',
+          label: 'Hero',
+          selector: '[data-oem-region-id="hero"]',
+          tag: 'section',
+          classes: [],
+          top: 0,
+          width: 1440,
+          height: 1614,
+          editable_fields: [],
+          html: '<section data-oem-region-id="hero">Hero</section>',
+          tailwindRecipeArtifact: { region_id: 'hero' },
+        },
+        {
+          id: 'details',
+          label: 'Details',
+          selector: '[data-oem-region-id="details"]',
+          tag: 'section',
+          classes: [],
+          top: 1984,
+          width: 1440,
+          height: 859,
+          editable_fields: [],
+          html: '<section data-oem-region-id="details">Details</section>',
+          tailwindRecipeArtifact: { region_id: 'details' },
+        },
+        {
+          id: 'hidden-modal',
+          label: 'Hidden modal',
+          selector: '[data-oem-region-id="hidden-modal"]',
+          tag: 'div',
+          classes: [],
+          top: 0,
+          width: 0,
+          height: 0,
+          editable_fields: [],
+          html: '<div data-oem-region-id="hidden-modal" hidden>Modal</div>',
+          tailwindRecipeArtifact: { region_id: 'hidden-modal' },
+        },
+      ],
+      compileTailwindRecipeArtifact: async () => {
+        compileAttempts += 1
+        return { success: true, result: { confidence: 1, section: { type: 'content-block' } } }
+      },
+    })
+
+    expect(result.sections).toEqual([])
+    expect(result.blocked).toMatchObject({
+      reason: 'overlapping-regions',
+      regionIds: ['page-wrapper', 'hero', 'details'],
+    })
+    expect(result.skipped).toContainEqual({ id: 'hidden-modal', label: 'Hidden modal', reason: 'hidden-region' })
+    expect(compileAttempts).toBe(0)
+  })
+
+  it('blocks fail-closed bulk conversion when authenticated compilation fails', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      failClosed: true,
+      regions: [
+        {
+          id: 'hero',
+          label: 'Hero',
+          selector: '[data-oem-region-id="hero"]',
+          tag: 'section',
+          classes: [],
+          top: 0,
+          width: 1440,
+          height: 900,
+          editable_fields: [],
+          html: '<section data-oem-region-id="hero">Hero</section>',
+          tailwindRecipeArtifact: { region_id: 'hero' },
+        },
+      ],
+      compileTailwindRecipeArtifact: async () => {
+        throw new Error('Worker API error 401: Unauthorized')
+      },
+    })
+
+    expect(result.sections).toEqual([])
+    expect(result.blocked).toMatchObject({
+      reason: 'compiler-failed',
+      regionIds: ['hero'],
+    })
+    expect(result.blocked?.message).toContain('Worker API error 401')
+  })
+
+  it('blocks fail-closed bulk output that depends on uncompiled runtime Tailwind classes', async () => {
+    const result = await convertCloneRegionsToTailwindSections({
+      failClosed: true,
+      regions: [
+        {
+          id: 'hero',
+          label: 'Hero',
+          selector: '[data-oem-region-id="hero"]',
+          tag: 'section',
+          classes: [],
+          top: 0,
+          width: 1440,
+          height: 900,
+          editable_fields: [],
+          html: '<section data-oem-region-id="hero">Hero</section>',
+          tailwindRecipeArtifact: { region_id: 'hero' },
+        },
+      ],
+      compileTailwindRecipeArtifact: async () => ({
+        success: true,
+        result: {
+          confidence: 0.95,
+          section: {
+            type: 'content-block',
+            _generated_html: '<section class="w-[375px] xl:w-[1280px]">Hero</section>',
+          },
+        },
+      }),
+    })
+
+    expect(result.sections).toEqual([])
+    expect(result.blocked).toMatchObject({
+      reason: 'unsafe-output',
+      regionIds: ['hero'],
+    })
+  })
+
   it('converts all clone regions with captured HTML or Tailwind artifacts into ordered section drafts', async () => {
     const result = await convertCloneRegionsToTailwindSections({
       regions: [
