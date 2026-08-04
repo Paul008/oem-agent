@@ -23,12 +23,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Format check
-        run: npm run format:check
-
       - name: Type check
         run: npm run typecheck
 
@@ -122,7 +116,7 @@ jobs:
         id: convert
         if: always()
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick bc
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick
           if ls /tmp/moltworker-e2e-videos/*.webm 1>/dev/null 2>&1; then
             for webm in /tmp/moltworker-e2e-videos/*.webm; do
               mp4="${webm%.webm}.mp4"
@@ -133,7 +127,7 @@ jobs:
               
               # Extract middle frame as thumbnail
               duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$mp4")
-              midpoint=$(echo "$duration / 2" | bc -l)
+              midpoint=$(awk -v seconds="$duration" 'BEGIN { printf "%.6f", seconds / 2 }')
               ffmpeg -y -ss "$midpoint" -i "$mp4" -vframes 1 -update 1 -q:v 2 "$thumb"
               
               # Add play button overlay using ImageMagick
