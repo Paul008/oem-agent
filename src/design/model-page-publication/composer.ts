@@ -20,6 +20,7 @@ export interface ComposedRegion {
 }
 
 export interface ComposedPublicationCandidate {
+  revision: number;
   body: string;
   referenceBody: string;
   regions: ComposedRegion[];
@@ -31,6 +32,7 @@ export interface ComposedPublicationCandidate {
 
 interface ProductionBodyDocumentOptions {
   candidate?: boolean;
+  revision?: number;
 }
 
 export const PUBLICATION_SCRIPT_MARKERS = {
@@ -67,12 +69,30 @@ function cloneStylesheetLinks(page: Record<string, any>): string {
     .map(url => `<link rel="stylesheet" href="${escapeAttribute(url)}">`).join('');
 }
 
-export function publicationResizeScript(slugParts: { oemId: string; modelSlug: string }): string {
-  const message = JSON.stringify({ type: 'oem-production-body-height', ...slugParts }).replace(/</g, '\\u003c');
+interface PublicationResizeIdentity {
+  oemId: string;
+  modelSlug: string;
+  revision?: number;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) > 0;
+}
+
+export function publicationResizeScript(identity: PublicationResizeIdentity): string {
+  if (identity.revision !== undefined && !isPositiveInteger(identity.revision)) {
+    throw new Error('Publication resize revision must be a positive integer');
+  }
+  const message = JSON.stringify({
+    type: 'oem-production-body-height',
+    oemId: identity.oemId,
+    modelSlug: identity.modelSlug,
+    ...(identity.revision === undefined ? {} : { revision: identity.revision }),
+  }).replace(/</g, '\\u003c');
   return `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`;
 }
 
-export function isPublicationResizeScript(body: string): boolean {
+function matchesPublicationResizeScript(body: string, expectedRevision?: number): boolean {
   const prefix = '(()=>{const message=';
   const separator = ';let lastHeight=0;';
   if (!body.startsWith(prefix)) return false;
@@ -80,14 +100,29 @@ export function isPublicationResizeScript(body: string): boolean {
   if (separatorIndex < 0) return false;
   try {
     const message = JSON.parse(body.slice(prefix.length, separatorIndex)) as Record<string, unknown>;
+    const hasRevision = Object.hasOwn(message, 'revision');
     if (message.type !== 'oem-production-body-height'
       || typeof message.oemId !== 'string'
       || typeof message.modelSlug !== 'string'
-      || Object.keys(message).sort().join(',') !== 'modelSlug,oemId,type') return false;
-    return body === publicationResizeScript({ oemId: message.oemId, modelSlug: message.modelSlug });
+      || (hasRevision && !isPositiveInteger(message.revision))
+      || (expectedRevision !== undefined && message.revision !== expectedRevision)
+      || Object.keys(message).sort().join(',') !== (hasRevision ? 'modelSlug,oemId,revision,type' : 'modelSlug,oemId,type')) return false;
+    return body === publicationResizeScript({
+      oemId: message.oemId,
+      modelSlug: message.modelSlug,
+      ...(hasRevision ? { revision: message.revision as number } : {}),
+    });
   } catch {
     return false;
   }
+}
+
+export function isPublicationResizeScript(body: string): boolean {
+  return matchesPublicationResizeScript(body);
+}
+
+export function isPublicationResizeScriptForRevision(body: string, expectedRevision: number): boolean {
+  return isPositiveInteger(expectedRevision) && matchesPublicationResizeScript(body, expectedRevision);
 }
 
 async function sha256Bytes(value: string): Promise<Uint8Array> {
@@ -120,7 +155,13 @@ export async function productionBodyDocument(
   const sourceUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
   const baseTag = !options.candidate && typeof sourceUrl === 'string' && /^https?:\/\//i.test(sourceUrl)
     ? `<base href="${escapeAttribute(sourceUrl)}">` : '';
-  const resize = publicationResizeScript(slugParts);
+  if (options.candidate && !isPositiveInteger(options.revision)) {
+    throw new Error('Publication candidate revision must be a positive integer');
+  }
+  const resize = publicationResizeScript({
+    ...slugParts,
+    ...(options.revision === undefined ? {} : { revision: options.revision }),
+  });
   const scripts = options.candidate ? [
     { attr: `${PUBLICATION_SCRIPT_MARKERS.alpine}="true"`, body: PUBLICATION_ALPINE_RUNTIME_SCRIPT },
     { attr: `${PUBLICATION_SCRIPT_MARKERS.resize}="true"`, body: resize },
@@ -208,9 +249,13 @@ function wrapRegion(region: Omit<ComposedRegion, 'html'>, html: string, css?: st
 
 export async function composePublicationCandidate(input: {
   pageId: string;
+  revision: number;
   page: Record<string, any>;
   origin: string;
 }): Promise<ComposedPublicationCandidate> {
+  if (!isPositiveInteger(input.revision)) {
+    throw new Error('Publication candidate revision must be a positive integer');
+  }
   const clone = input.page?.content?.modes?.clone || {};
   const sourceUrl = typeof clone.source_url === 'string' ? clone.source_url : input.page?.source_url;
   const indexedRegions = (Array.isArray(clone.section_index) ? clone.section_index : [])
@@ -283,8 +328,8 @@ export async function composePublicationCandidate(input: {
   const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
   warnings.push(...bodyAssets.diagnostics.warnings, ...referenceAssets.diagnostics.warnings);
   const parts = slugParts(input.pageId);
-  const body = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${bodyAssets.html}</main>`, parts, { candidate: true });
-  const referenceBody = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${referenceAssets.html}</main>`, parts, { candidate: true });
+  const body = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${bodyAssets.html}</main>`, parts, { candidate: true, revision: input.revision });
+  const referenceBody = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${referenceAssets.html}</main>`, parts, { candidate: true, revision: input.revision });
   const sha256 = await sha256Hex(body);
-  return { body, referenceBody, regions, warnings, bytes: new TextEncoder().encode(body).byteLength, sha256, etag: `"sha256-${sha256}"` };
+  return { revision: input.revision, body, referenceBody, regions, warnings, bytes: new TextEncoder().encode(body).byteLength, sha256, etag: `"sha256-${sha256}"` };
 }

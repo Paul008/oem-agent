@@ -5,7 +5,7 @@ import {
   PUBLICATION_ALPINE_RUNTIME_SCRIPT,
   PUBLICATION_INTERACTION_SCRIPT,
   PUBLICATION_SCRIPT_MARKERS,
-  isPublicationResizeScript,
+  isPublicationResizeScriptForRevision,
   publicationContentSecurityPolicy,
   type ComposedPublicationCandidate,
 } from './composer';
@@ -245,11 +245,15 @@ function styleIsScoped(css: string): boolean {
   }
 }
 
-async function validateTrustedScripts(label: 'candidate' | 'reference', $: ReturnType<typeof load>): Promise<PublicationFinding[]> {
+async function validateTrustedScripts(
+  label: 'candidate' | 'reference',
+  $: ReturnType<typeof load>,
+  expectedRevision: number,
+): Promise<PublicationFinding[]> {
   const scripts = $('script').toArray();
   const markerEntries = [
     { marker: PUBLICATION_SCRIPT_MARKERS.alpine, valid: (body: string) => body === PUBLICATION_ALPINE_RUNTIME_SCRIPT },
-    { marker: PUBLICATION_SCRIPT_MARKERS.resize, valid: isPublicationResizeScript },
+    { marker: PUBLICATION_SCRIPT_MARKERS.resize, valid: (body: string) => isPublicationResizeScriptForRevision(body, expectedRevision) },
     { marker: PUBLICATION_SCRIPT_MARKERS.interactions, valid: (body: string) => body === PUBLICATION_INTERACTION_SCRIPT },
   ];
   const bodies: string[] = [];
@@ -288,7 +292,7 @@ async function validateTrustedScripts(label: 'candidate' | 'reference', $: Retur
   return findings;
 }
 
-async function validateMarkup(label: 'candidate' | 'reference', html: string): Promise<PublicationFinding[]> {
+async function validateMarkup(label: 'candidate' | 'reference', html: string, expectedRevision: number): Promise<PublicationFinding[]> {
   const findings: PublicationFinding[] = [];
   const $ = load(html);
   $('iframe,object,embed,base').each((_index, element) => {
@@ -328,7 +332,7 @@ async function validateMarkup(label: 'candidate' | 'reference', html: string): P
       addUnique(findings, finding('unscoped-style', `${label} body contains a style block outside the publication scope`));
     }
   });
-  findings.push(...await validateTrustedScripts(label, $));
+  findings.push(...await validateTrustedScripts(label, $, expectedRevision));
   return findings;
 }
 
@@ -393,8 +397,8 @@ export async function validatePublicationCandidate(
   options: PublicationValidationOptions = {},
 ): Promise<PublicationValidationReport> {
   const blocking: PublicationFinding[] = [
-    ...await validateMarkup('candidate', candidate.body),
-    ...await validateMarkup('reference', candidate.referenceBody),
+    ...await validateMarkup('candidate', candidate.body, candidate.revision),
+    ...await validateMarkup('reference', candidate.referenceBody, candidate.revision),
     ...validateRegions(candidate),
     ...await validateIntegrity(candidate),
   ];

@@ -135,9 +135,13 @@ export async function buildCandidate(input: {
   try {
     const candidate = await composePublicationCandidate({
       pageId: input.pageId,
+      revision,
       page: input.page,
       origin: input.origin,
     })
+    if (candidate.revision !== revision) {
+      throw new Error('Composed publication revision does not match allocated revision')
+    }
     const keys = publicationKeys(input.pageId, revision)
     const validation = await validatePublicationCandidate(candidate, {
       browser: input.browser,

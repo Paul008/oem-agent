@@ -27,7 +27,7 @@ function browserCandidate(): ComposedPublicationCandidate {
     html: `<section data-oem-region-id="region-${interactionKind}"></section>`,
   }));
   const body = `<main>${regions.map(region => region.html).join('')}</main>`;
-  return { body, referenceBody: body, regions, warnings: [], bytes: body.length, sha256: 'candidate-sha', etag: 'candidate-etag' };
+  return { revision: 21, body, referenceBody: body, regions, warnings: [], bytes: body.length, sha256: 'candidate-sha', etag: 'candidate-etag' };
 }
 
 interface FakeBrowserOptions {

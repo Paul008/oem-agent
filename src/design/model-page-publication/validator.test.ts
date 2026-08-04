@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { productionBodyDocument, type ComposedPublicationCandidate } from './composer';
+import {
+  productionBodyDocument,
+  publicationContentSecurityPolicy,
+  type ComposedPublicationCandidate,
+} from './composer';
 import { validatePublicationCandidate } from './validator';
 
 const { validateInBrowser } = vi.hoisted(() => ({ validateInBrowser: vi.fn() }));
@@ -20,10 +24,11 @@ async function candidateWith(fragment: string, overrides: Partial<ComposedPublic
     {},
     `<main data-oem-publication-body="true"><div data-oem-region-id="features" data-oem-published-renderer="tailwind" data-oem-interaction-kind="none">${fragment}</div></main>`,
     { oemId: 'nissan-au', modelSlug: 'ariya' },
-    { candidate: true },
+    { candidate: true, revision: 21 },
   );
   const hash = await sha256(body);
   return {
+    revision: 21,
     body,
     referenceBody: body,
     regions: [{ regionId: 'features', order: 0, renderer: 'tailwind', interactionKind: 'none', html: fragment }],
@@ -73,6 +78,20 @@ describe('validatePublicationCandidate static gates', () => {
     const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
 
     expect(report.blocking.filter(item => ['unsafe-markup', 'unscoped-style'].includes(item.code))).toEqual([]);
+  });
+
+  it('rejects an exactly hashed resize script for a different publication revision', async () => {
+    const candidate = await candidateWith('safe');
+    candidate.body = candidate.body.replace('"revision":21', '"revision":20');
+    const scripts = [...candidate.body.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+    const csp = await publicationContentSecurityPolicy(scripts);
+    candidate.body = candidate.body.replace(/Content-Security-Policy" content="[^"]+/, `Content-Security-Policy" content="${csp}`);
+    await rehash(candidate);
+
+    const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
+
+    expect(report.blocking.some(item => item.code === 'unsafe-script')).toBe(true);
+    expect(validateInBrowser).not.toHaveBeenCalled();
   });
 
   it('rejects forged trusted markers and a mismatched CSP before browser validation', async () => {

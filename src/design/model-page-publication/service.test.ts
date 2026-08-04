@@ -98,9 +98,10 @@ const pageId = 'nissan-au-ariya'
 const actor = 'editor@test'
 const now = () => '2026-08-04T01:02:03.000Z'
 
-function composedCandidate(): ComposedPublicationCandidate {
+function composedCandidate(revision = 1): ComposedPublicationCandidate {
   const body = '<main data-oem-publication-body="true"><div>revision</div></main>'
   return {
+    revision,
     body,
     referenceBody: body,
     regions: [{
@@ -191,8 +192,29 @@ async function replaceCandidateDigest(bucket: MemoryR2Bucket, digest: string): P
 
 describe('model page publication service', () => {
   beforeEach(() => {
-    publicationMocks.compose.mockReset().mockResolvedValue(composedCandidate())
+    publicationMocks.compose.mockReset().mockImplementation(async input => composedCandidate(input.revision))
     publicationMocks.validate.mockReset().mockResolvedValue(validationReport())
+  })
+
+  it('composes the immutable candidate with its allocated publication revision', async () => {
+    const bucket = new MemoryR2Bucket()
+
+    await buildCandidate(buildInput(bucket))
+
+    expect(publicationMocks.compose).toHaveBeenCalledWith(expect.objectContaining({ revision: 1 }))
+    expect(publicationMocks.validate).toHaveBeenCalledWith(
+      expect.objectContaining({ revision: 1 }),
+      expect.any(Object),
+    )
+  })
+
+  it('rejects a composed artifact whose revision differs from its allocation', async () => {
+    const bucket = new MemoryR2Bucket()
+    publicationMocks.compose.mockResolvedValueOnce(composedCandidate(99))
+
+    await expect(buildCandidate(buildInput(bucket)))
+      .rejects.toThrow('Composed publication revision does not match allocated revision')
+    expect(publicationMocks.validate).not.toHaveBeenCalled()
   })
 
   it('rejects a stale draft with 409 semantics before allocating a revision', async () => {
