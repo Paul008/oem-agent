@@ -1067,12 +1067,51 @@ ${rendered}
     return target.closest(REGION_SELECTOR)
   }
 
+  function meaningfulRegionFrom(eventTarget) {
+    if (!eventTarget || !eventTarget.closest)
+      return null
+
+    var immersiveRegion = eventTarget.closest('.full-viewport-height, .ns-inview-trigger')
+    if (immersiveRegion)
+      return immersiveRegion
+
+    return eventTarget.closest('[data-oem-field], [data-oem-field-key], [data-clone-field], [data-clone-studio-field], [data-field], section, article, main, header, footer, nav, aside, figure')
+  }
+
+  function isWholePageShellRegion(region) {
+    if (!region || !region.getBoundingClientRect)
+      return false
+
+    var rect = region.getBoundingClientRect()
+    var doc = document.documentElement || {}
+    var body = document.body || {}
+    var documentWidth = Math.max(doc.scrollWidth || 0, body.scrollWidth || 0, window.innerWidth || 0)
+    var documentHeight = Math.max(doc.scrollHeight || 0, body.scrollHeight || 0, window.innerHeight || 0)
+
+    return documentWidth > 0
+      && documentHeight > 0
+      && rect.width >= documentWidth * 0.9
+      && rect.height >= documentHeight * 0.8
+  }
+
   function candidateFrom(eventTarget) {
     if (!eventTarget || !eventTarget.closest)
       return null
 
-    return eventTarget.closest(REGION_SELECTOR)
-      || eventTarget.closest('[data-oem-field], [data-oem-field-key], [data-clone-field], [data-clone-studio-field], [data-field], section, article, main, header, footer, nav, aside, figure, li, a, button, img, h1, h2, h3, h4, h5, h6, p, div')
+    var persistedRegion = eventTarget.closest(REGION_SELECTOR)
+    var meaningfulRegion = meaningfulRegionFrom(eventTarget)
+
+    if (persistedRegion
+      && meaningfulRegion
+      && persistedRegion !== meaningfulRegion
+      && persistedRegion.contains
+      && persistedRegion.contains(meaningfulRegion)
+      && isWholePageShellRegion(persistedRegion))
+      return meaningfulRegion
+
+    return persistedRegion
+      || meaningfulRegion
+      || eventTarget.closest('li, a, button, img, h1, h2, h3, h4, h5, h6, p, div')
   }
 
   function ensureRegionId(element) {
@@ -1250,6 +1289,7 @@ ${rendered}
     return previewText(element.getAttribute('aria-label')
       || element.getAttribute('alt')
       || element.getAttribute('title')
+      || element.getAttribute('id')
       || element.textContent
       || String(element.tagName || '').toLowerCase())
   }
@@ -4421,7 +4461,7 @@ function buildOemStylesheetLinkTags(stylesheetUrls: string[] | undefined, existi
 
   const existingHrefs = new Set(
     existingHeadParts
-      .flatMap(part => [...part.matchAll(/\bhref=["']([^"']+)["']/gi)].map(match => match[1])),
+      .flatMap(part => Array.from(part.matchAll(/\bhref=["']([^"']+)["']/gi), match => match[1])),
   )
 
   const seen = new Set<string>()

@@ -46,6 +46,31 @@ export function translateFramePoint(p: { x: number, y: number }, originRect: { l
   return { x: originRect.left + p.x * scale, y: originRect.top + p.y * scale }
 }
 
+/**
+ * Place the quick-edit toolbar just inside the visible top edge of its selected iframe region.
+ * This keeps tall or partially scrolled regions visually connected to the toolbar instead of
+ * deriving the anchor from an off-screen bottom edge.
+ */
+export function computeCloneToolbarAnchor(
+  region: { left: number, top: number, width: number, height: number },
+  viewport: { width: number, height: number },
+  inset = 12,
+): { x: number, y: number } {
+  const regionCenter = region.left + region.width / 2
+  const visibleTop = Math.max(0, Math.min(viewport.height, region.top))
+  return {
+    x: Math.max(0, Math.min(viewport.width, regionCenter)),
+    y: Math.max(inset, Math.min(viewport.height, visibleTop + inset)),
+  }
+}
+
+export function formatCloneToolbarRegionLabel(region: { id?: string, label?: string } | null | undefined): string {
+  const label = String(region?.label || '').trim()
+  if (label)
+    return label
+  return String(region?.id || '').trim() || 'Selected section'
+}
+
 export function buildCloneStudioFrameHtmlForCanvas(options: CloneStudioFrameHtmlForCanvasOptions): string {
   // Saved per-region height crops live in section_index (not the rendered HTML), so re-apply them to
   // the iframe on load — otherwise persisted crops would not render until the user re-set them.

@@ -754,6 +754,80 @@ describe('buildCloneStudioHtml', () => {
     expect(bridgeScript).toContain('root: root')
   })
 
+  it('prefers a meaningful immersive section over a persisted whole-page shell', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<div class="root responsivegrid" data-oem-region-id="page-root"><div id="overview" class="full-viewport-height"><img src="/ariya.jpg" alt="ARIYA"></div></div>',
+      title: 'ARIYA',
+      baseHref: 'https://www.nissan.com.au/vehicles/browse-range/ariya.html',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const bridgeScript = extractBridgeScript(html)
+    const candidateBlock = bridgeScript.slice(
+      bridgeScript.indexOf('function closestRegion(target)'),
+      bridgeScript.indexOf('function ensureRegionId(element)'),
+    )
+    const semanticRegion = { id: 'overview' }
+    const innerLayoutSection = { id: 'height-filler' }
+    const pageShell = {
+      id: 'page-root',
+      contains: (element: unknown) => element === semanticRegion,
+      getBoundingClientRect: () => ({ width: 1252, height: 11_362 }),
+    }
+    const eventTarget = {
+      closest: (selector: string) => {
+        if (selector === '[data-oem-region-id]')
+          return pageShell
+        if (selector === '.full-viewport-height, .ns-inview-trigger')
+          return semanticRegion
+        if (selector.includes('section'))
+          return innerLayoutSection
+        return null
+      },
+    }
+    const resolveCandidate = new Function(
+      'document',
+      'window',
+      'eventTarget',
+      `var REGION_SELECTOR = '[data-oem-region-id]'; ${candidateBlock}; return candidateFrom(eventTarget);`,
+    )
+
+    expect(resolveCandidate(
+      { documentElement: { scrollWidth: 1252, scrollHeight: 11_364 }, body: { scrollWidth: 1252, scrollHeight: 11_364 } },
+      { innerWidth: 1252, innerHeight: 900 },
+      eventTarget,
+    )).toBe(semanticRegion)
+  })
+
+  it('uses the original section id as the region label before long body text', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<section id="overview">A long ARIYA overview description</section>',
+      title: 'ARIYA',
+      baseHref: 'https://www.nissan.com.au/vehicles/browse-range/ariya.html',
+      selectedRegionId: null,
+      bridgeToken: 'test-token',
+    })
+    const bridgeScript = extractBridgeScript(html)
+    const previewBlock = bridgeScript.slice(
+      bridgeScript.indexOf('function previewText(value)'),
+      bridgeScript.indexOf('function isTextBearingElement(element)'),
+    )
+    const labelBlock = bridgeScript.slice(
+      bridgeScript.indexOf('function regionLabel(element)'),
+      bridgeScript.indexOf('function matchesAny(element, selector)'),
+    )
+    const readLabel = new Function(
+      'element',
+      `${previewBlock}; ${labelBlock}; return regionLabel(element);`,
+    )
+
+    expect(readLabel({
+      getAttribute: (name: string) => name === 'id' ? 'overview' : '',
+      tagName: 'SECTION',
+      textContent: 'A long ARIYA overview description',
+    })).toBe('overview')
+  })
+
   it('uses message.html for html patch-field messages', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main data-oem-region-id="r1"><p>Mustang</p></main>',

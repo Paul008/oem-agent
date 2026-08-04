@@ -9,6 +9,7 @@ import type { CloneFieldPatchPayload } from './CloneRegionEditor.vue'
 import type { RegionAction, RegionActionId } from './region-actions'
 
 import { getCloneViewport } from '../../page-builder/page-modes'
+import { formatCloneToolbarRegionLabel } from './clone-studio-canvas-helpers'
 import CloneStudioCanvas from './CloneStudioCanvas.vue'
 import EditToolbar from './EditToolbar.vue'
 import MediaLibraryDialog from './MediaLibraryDialog.vue'
@@ -158,6 +159,7 @@ defineExpose({
 // off the emitted region payload and routed through the CloneStudioCanvas relay.
 interface CloneMenuRegion {
   id: string
+  label?: string
   editable_fields: any[]
   type_hint: any
   html?: string
@@ -196,6 +198,7 @@ const cloneToolbarHasText = computed(() => hasCloneTextField(cloneToolbarRegion.
 const cloneToolbarHasImage = computed(() => hasCloneImageField(cloneToolbarRegion.value))
 const cloneToolbarHasLink = computed(() => hasCloneLinkField(cloneToolbarRegion.value))
 const cloneToolbarHasPanels = computed(() => hasClonePanelControls(cloneToolbarRegion.value))
+const cloneToolbarRegionLabel = computed(() => formatCloneToolbarRegionLabel(cloneToolbarRegion.value))
 const cloneHasMediaContext = computed(() => Boolean(props.oemId))
 const cloneToolbarVisible = computed(() => Boolean(
   showCloneFrame.value
@@ -259,6 +262,7 @@ function onCloneRegionSelected(region: any) {
   if (region && region.id) {
     cloneToolbarRegion.value = {
       id: region.id,
+      label: typeof region.label === 'string' ? region.label : '',
       editable_fields: Array.isArray(region.editable_fields) ? region.editable_fields : [],
       type_hint: region.type_hint,
       html: region.html,
@@ -1063,6 +1067,11 @@ watch(
             @contextmenu.stop.prevent
             @mousedown.stop
           >
+            <div class="flex min-w-0 max-w-48 items-center gap-1 px-1.5" :title="cloneToolbarRegionLabel">
+              <GripVertical class="size-3.5 shrink-0 text-sky-600" />
+              <span class="truncate text-xs font-medium text-foreground">{{ cloneToolbarRegionLabel }}</span>
+            </div>
+            <div class="h-6 w-px bg-border" aria-hidden="true" />
             <template v-if="cloneToolbarLinkEditing">
               <Link class="mx-1 size-3.5 shrink-0 text-muted-foreground" />
               <input
