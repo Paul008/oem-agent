@@ -567,6 +567,9 @@ describe('clone region conversion wiring', () => {
     expect(builderSource).toContain('action === \'convert-tailwind-selected\'')
     expect(builderSource).toContain('action === \'convert-tailwind-all\'')
     expect(builderSource).toContain('convertCloneRegionsToTailwindSections')
+    expect(builderSource).toContain('failClosed: true')
+    expect(builderSource).toContain('if (result.blocked)')
+    expect(builderSource).toContain('toast.error(result.blocked.message)')
   })
 })
 

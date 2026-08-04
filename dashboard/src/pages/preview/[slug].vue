@@ -781,7 +781,13 @@ async function convertPageToTailwind() {
     const result = await convertCloneRegionsToTailwindSections({
       regions: collectedRegions?.length ? collectedRegions : cloneRegionsForSave.value,
       compileTailwindRecipeArtifact,
+      failClosed: true,
     })
+
+    if (result.blocked) {
+      toast.error(result.blocked.message)
+      return
+    }
 
     if (!result.sections.length) {
       toast.error('No clone regions are ready to convert')
