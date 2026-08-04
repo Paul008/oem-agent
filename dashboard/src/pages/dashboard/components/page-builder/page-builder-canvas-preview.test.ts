@@ -463,6 +463,17 @@ describe('cloneStudioCanvas duplicate-region relay', () => {
     expect(domUpdatedBlock).toContain('emit(\'selectRegion\', enrichRegionForHost(data.region))')
   })
 
+  it('relays scroll geometry without re-emitting selection', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+    const geometryStart = source.indexOf("if (data.type === 'clone-studio:selected-geometry'")
+    const geometryEnd = source.indexOf("if (data.type === 'clone-studio:dom-updated')", geometryStart)
+    const geometryBlock = source.slice(geometryStart, geometryEnd)
+
+    expect(source).toContain('regionGeometry: [region: any]')
+    expect(geometryBlock).toContain("emit('regionGeometry', enrichRegionForHost(data.region))")
+    expect(geometryBlock).not.toContain("emit('selectRegion'")
+  })
+
   it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
 
