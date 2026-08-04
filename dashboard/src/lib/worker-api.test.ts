@@ -333,6 +333,43 @@ describe('worker-api protected model page writes', () => {
   })
 })
 
+function publicationStatePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    schema_version: 1,
+    next_revision: 13,
+    published_revision: 9,
+    published_at: '2026-08-04T08:00:00.000Z',
+    published_by: 'editor@example.com',
+    candidate: null,
+    history: [9],
+    ...overrides,
+  }
+}
+
+function historyManifestPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    pageId: 'nissan-au-ariya',
+    revision: 9,
+    draftVersion: 20,
+    format: 'composed-html-body',
+    bodyPath: 'model-pages/nissan-au-ariya/publication/revisions/9/body.html',
+    publishedAt: null,
+    publishedBy: null,
+    platformRegions: ['hero', 'variants', 'inventory'],
+    etag: '"sha256-body-9"',
+    bodyBytes: 1400,
+    bodySha256: 'sha256-body-9',
+    regionRenderers: [{ regionId: 'intro', renderer: 'clone', interactionKind: 'none' }],
+    ...overrides,
+  }
+}
+
+function stubPublicationJson(value: unknown) {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(value), {
+    headers: { 'content-type': 'application/json' },
+  })))
+}
+
 describe('worker-api publication requests', () => {
   beforeEach(() => {
     vi.stubGlobal(
@@ -380,14 +417,11 @@ describe('worker-api publication requests', () => {
             headers: { 'content-type': 'application/json' },
           })
         }
+        const isPublish = url.endsWith('/publish')
         return new Response(JSON.stringify({
-          schema_version: 1,
-          next_revision: 13,
-          published_revision: 9,
-          published_at: '2026-08-04T08:00:00.000Z',
-          published_by: 'editor@example.com',
-          candidate: null,
-          history: [9],
+          ...publicationStatePayload(isPublish
+            ? { published_revision: 12, history: [12, 9] }
+            : undefined),
           propagation: 'delivered',
         }), {
           headers: { 'content-type': 'application/json' },
@@ -487,6 +521,157 @@ describe('worker-api publication requests', () => {
       .toThrow('Invalid model page publication history response')
   })
 
+  it('rejects publication state whose published revision is absent from retained history', async () => {
+    stubPublicationJson({
+      state: publicationStatePayload({ history: [] }),
+      history: [],
+      candidateValidation: null,
+    })
+
+    await expect(fetchModelPagePublicationState('nissan-au-ariya'))
+      .rejects
+      .toThrow('Invalid model page publication history response')
+  })
+
+  it('rejects a candidate revision that is not below the next allocated revision', async () => {
+    stubPublicationJson({
+      status: 'ready',
+      revision: 13,
+      validation: {
+        publishable: true,
+        blocking: [],
+        warnings: [],
+        viewports: [],
+        digest: 'sha256-validation-13',
+      },
+      state: publicationStatePayload({
+        candidate: {
+          revision: 13,
+          draft_version: 24,
+          status: 'ready',
+          validation_digest: 'sha256-validation-13',
+          created_at: '2026-08-04T08:10:00.000Z',
+          created_by: 'editor@example.com',
+        },
+      }),
+    })
+
+    await expect(buildModelPagePublicationCandidate('nissan-au-ariya', 24))
+      .rejects
+      .toThrow('Invalid model page publication candidate response')
+  })
+
+  it.each([
+    ['wrong page', { pageId: 'nissan-au-qashqai' }],
+    ['unretained revision', { revision: 8 }],
+  ])('rejects a history manifest with %s identity', async (_, manifestOverrides) => {
+    stubPublicationJson({
+      state: publicationStatePayload(),
+      history: [historyManifestPayload(manifestOverrides)],
+      candidateValidation: null,
+    })
+
+    await expect(fetchModelPagePublicationState('nissan-au-ariya'))
+      .rejects
+      .toThrow('Invalid model page publication history response')
+  })
+
+  it('accepts candidate validation only with explicit matching candidate identity', async () => {
+    const failedValidation = {
+      publishable: false,
+      blocking: [{ code: 'visual-mismatch', message: 'Candidate mismatch is blocking' }],
+      warnings: [],
+      viewports: [],
+      digest: 'sha256-failed-12',
+    }
+    stubPublicationJson({
+      state: publicationStatePayload({
+        candidate: {
+          revision: 12,
+          draft_version: 24,
+          status: 'failed',
+          validation_digest: failedValidation.digest,
+          created_at: '2026-08-04T08:10:00.000Z',
+          created_by: 'editor@example.com',
+        },
+      }),
+      history: [historyManifestPayload()],
+      candidateValidation: {
+        revision: 12,
+        status: 'failed',
+        validation: failedValidation,
+      },
+    })
+
+    await expect(fetchModelPagePublicationState('nissan-au-ariya')).resolves.toMatchObject({
+      candidateValidation: { revision: 12, status: 'failed' },
+    })
+  })
+
+  it.each([
+    ['revision', { revision: 11, status: 'failed', validationDigest: 'sha256-failed-12' }],
+    ['status', { revision: 12, status: 'ready', validationDigest: 'sha256-failed-12' }],
+    ['digest', { revision: 12, status: 'failed', validationDigest: 'sha256-other' }],
+  ])('rejects candidate validation with mismatched %s identity', async (_, identity) => {
+    const failedValidation = {
+      publishable: false,
+      blocking: [{ code: 'visual-mismatch', message: 'Candidate mismatch is blocking' }],
+      warnings: [],
+      viewports: [],
+      digest: identity.validationDigest,
+    }
+    stubPublicationJson({
+      state: publicationStatePayload({
+        candidate: {
+          revision: 12,
+          draft_version: 24,
+          status: 'failed',
+          validation_digest: 'sha256-failed-12',
+          created_at: '2026-08-04T08:10:00.000Z',
+          created_by: 'editor@example.com',
+        },
+      }),
+      history: [historyManifestPayload()],
+      candidateValidation: {
+        revision: identity.revision,
+        status: identity.status,
+        validation: failedValidation,
+      },
+    })
+
+    await expect(fetchModelPagePublicationState('nissan-au-ariya'))
+      .rejects
+      .toThrow('Invalid model page publication history response')
+  })
+
+  it('rejects candidate validation whose status contradicts the current candidate', async () => {
+    const validation = {
+      publishable: true,
+      blocking: [],
+      warnings: [],
+      viewports: [],
+      digest: 'sha256-validation-12',
+    }
+    stubPublicationJson({
+      state: publicationStatePayload({
+        candidate: {
+          revision: 12,
+          draft_version: 24,
+          status: 'failed',
+          validation_digest: validation.digest,
+          created_at: '2026-08-04T08:10:00.000Z',
+          created_by: 'editor@example.com',
+        },
+      }),
+      history: [historyManifestPayload()],
+      candidateValidation: validation,
+    })
+
+    await expect(fetchModelPagePublicationState('nissan-au-ariya'))
+      .rejects
+      .toThrow('Invalid model page publication history response')
+  })
+
   it('rejects candidate responses whose revision and digest do not match state', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
       status: 'ready',
@@ -534,6 +719,54 @@ describe('worker-api publication requests', () => {
       expectedDraftVersion: 24,
       validationDigest: 'sha256-validation-12',
     })).rejects.toThrow('Invalid model page publication publish response')
+  })
+
+  it('rejects publish responses for a different revision', async () => {
+    stubPublicationJson({
+      ...publicationStatePayload({ published_revision: 9 }),
+      propagation: 'delivered',
+    })
+
+    await expect(publishModelPagePublicationCandidate('nissan-au-ariya', {
+      revision: 12,
+      expectedDraftVersion: 24,
+      validationDigest: 'sha256-validation-12',
+    })).rejects.toThrow('Invalid model page publication publish response')
+  })
+
+  it('rejects publish responses that retain a candidate', async () => {
+    stubPublicationJson({
+      ...publicationStatePayload({
+        published_revision: 12,
+        history: [12, 9],
+        candidate: {
+          revision: 11,
+          draft_version: 24,
+          status: 'ready',
+          validation_digest: 'sha256-validation-11',
+          created_at: '2026-08-04T08:10:00.000Z',
+          created_by: 'editor@example.com',
+        },
+      }),
+      propagation: 'delivered',
+    })
+
+    await expect(publishModelPagePublicationCandidate('nissan-au-ariya', {
+      revision: 12,
+      expectedDraftVersion: 24,
+      validationDigest: 'sha256-validation-12',
+    })).rejects.toThrow('Invalid model page publication publish response')
+  })
+
+  it('rejects rollback responses that do not select the requested target', async () => {
+    stubPublicationJson({
+      ...publicationStatePayload({ published_revision: 12, history: [12, 9] }),
+      propagation: 'delivered',
+    })
+
+    await expect(rollbackModelPagePublication('nissan-au-ariya', 9))
+      .rejects
+      .toThrow('Invalid model page publication rollback response')
   })
 
   it('rejects rollback responses with invalid revision history', async () => {

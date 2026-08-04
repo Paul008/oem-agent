@@ -2898,12 +2898,19 @@ app.get('/admin/pages/:pageId/publication/history', async (c) => {
   try {
     const state = await readPublicationState(resources.bucket, pageId);
     const publishedRevisions = new Set(state?.value.history || []);
-    const candidateValidation = state
+    const candidateValidationReport = state
       ? await getPublicationCandidateValidation({
           bucket: resources.bucket,
           pageId,
           state: state.value,
         })
+      : null;
+    const candidateValidation = candidateValidationReport && state?.value.candidate
+      ? {
+          revision: state.value.candidate.revision,
+          status: state.value.candidate.status,
+          validation: candidateValidationReport,
+        }
       : null;
     return c.json({
       state: state?.value || null,

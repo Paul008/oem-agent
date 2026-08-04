@@ -12,7 +12,9 @@ import {
 import {
   validateInBrowser,
   type BrowserValidationOptions,
+  type PublicationEvidenceRecord,
   type PublicationFinding,
+  type PublicationViewportName,
   type PublicationViewportValidation,
 } from './browser-validator';
 
@@ -64,6 +66,139 @@ function canonicalJson(value: unknown): string {
 
 export async function validationDigest(report: Omit<PublicationValidationReport, 'digest'>): Promise<string> {
   return sha256Hex(canonicalJson(report));
+}
+
+export async function parsePublicationValidationReport(value: unknown): Promise<PublicationValidationReport> {
+  if (!isRecord(value)
+    || typeof value.publishable !== 'boolean'
+    || !Array.isArray(value.blocking)
+    || !Array.isArray(value.warnings)
+    || !Array.isArray(value.viewports)
+    || !isNonEmptyString(value.digest)) {
+    throw new Error('Publication revision validation is malformed');
+  }
+  const reportWithoutDigest: Omit<PublicationValidationReport, 'digest'> = {
+    publishable: value.publishable,
+    blocking: value.blocking.map(parsePublicationFinding),
+    warnings: value.warnings.map(parsePublicationFinding),
+    viewports: value.viewports.map(parseViewportValidation),
+  };
+  const digest = await validationDigest(reportWithoutDigest);
+  if (value.digest !== digest) {
+    throw new Error('Publication validation digest does not match its report');
+  }
+  return { ...reportWithoutDigest, digest: value.digest };
+}
+
+function parsePublicationFinding(value: unknown): PublicationFinding {
+  const viewport = isRecord(value) ? value.viewport : undefined;
+  if (!isRecord(value)
+    || !isNonEmptyString(value.code)
+    || !isNonEmptyString(value.message)
+    || (viewport !== undefined && !isViewportName(viewport))
+    || (value.regionId !== undefined && !isNonEmptyString(value.regionId))) {
+    throw new Error('Publication revision validation is malformed');
+  }
+  return {
+    code: value.code,
+    message: value.message,
+    ...(viewport !== undefined ? { viewport } : {}),
+    ...(value.regionId !== undefined ? { regionId: value.regionId } : {}),
+  };
+}
+
+function parseViewportValidation(value: unknown): PublicationViewportValidation {
+  if (!isRecord(value)
+    || !isViewportName(value.name)
+    || !isNonNegativeFiniteNumber(value.mismatchPercent)
+    || !isNonNegativeFiniteNumber(value.horizontalOverflowPx)
+    || !isNonNegativeFiniteNumber(value.bodyHeight)
+    || !isStringArray(value.consoleErrors)
+    || !isStringArray(value.failedRequests)
+    || !Array.isArray(value.interactions)
+    || (value.screenshotKey !== undefined && !isNonEmptyString(value.screenshotKey))
+    || (value.diffScreenshotKey !== undefined && !isNonEmptyString(value.diffScreenshotKey))) {
+    throw new Error('Publication revision validation is malformed');
+  }
+  return {
+    name: value.name,
+    mismatchPercent: value.mismatchPercent,
+    horizontalOverflowPx: value.horizontalOverflowPx,
+    bodyHeight: value.bodyHeight,
+    consoleErrors: value.consoleErrors,
+    failedRequests: value.failedRequests,
+    interactions: value.interactions.map(parseInteractionResult),
+    ...(value.screenshotKey !== undefined ? { screenshotKey: value.screenshotKey } : {}),
+    ...(value.diffScreenshotKey !== undefined ? { diffScreenshotKey: value.diffScreenshotKey } : {}),
+    ...(value.sourceSize !== undefined ? { sourceSize: parseDimensions(value.sourceSize) } : {}),
+    ...(value.candidateSize !== undefined ? { candidateSize: parseDimensions(value.candidateSize) } : {}),
+    ...(value.evidence !== undefined ? { evidence: parseEvidence(value.evidence) } : {}),
+  };
+}
+
+function parseInteractionResult(value: unknown): PublicationViewportValidation['interactions'][number] {
+  if (!isRecord(value)
+    || !isNonEmptyString(value.regionId)
+    || !isNonEmptyString(value.kind)
+    || typeof value.passed !== 'boolean'
+    || typeof value.detail !== 'string') {
+    throw new Error('Publication revision validation is malformed');
+  }
+  return {
+    regionId: value.regionId,
+    kind: value.kind,
+    passed: value.passed,
+    detail: value.detail,
+  };
+}
+
+function parseDimensions(value: unknown): { width: number; height: number } {
+  if (!isRecord(value)
+    || !isNonNegativeFiniteNumber(value.width)
+    || !isNonNegativeFiniteNumber(value.height)) {
+    throw new Error('Publication revision validation is malformed');
+  }
+  return { width: value.width, height: value.height };
+}
+
+function parseEvidence(value: unknown): NonNullable<PublicationViewportValidation['evidence']> {
+  if (!isRecord(value)) throw new Error('Publication revision validation is malformed');
+  return {
+    source: parseEvidenceRecord(value.source),
+    candidate: parseEvidenceRecord(value.candidate),
+    diff: parseEvidenceRecord(value.diff),
+  };
+}
+
+function parseEvidenceRecord(value: unknown): PublicationEvidenceRecord {
+  if (!isRecord(value)
+    || !isNonEmptyString(value.key)
+    || !Number.isInteger(value.byteLength)
+    || !isNonNegativeFiniteNumber(value.byteLength)
+    || !isNonEmptyString(value.sha256)) {
+    throw new Error('Publication revision validation is malformed');
+  }
+  return { key: value.key, byteLength: value.byteLength, sha256: value.sha256 };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === 'string');
+}
+
+function isViewportName(value: unknown): value is PublicationViewportName {
+  return value === 'desktop' || value === 'tablet' || value === 'mobile';
 }
 
 function addUnique(findings: PublicationFinding[], next: PublicationFinding): void {

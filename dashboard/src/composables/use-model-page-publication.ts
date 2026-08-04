@@ -31,6 +31,7 @@ export function useModelPagePublication(input: {
   const savedDraftVersion = ref<number | null>(input.draftVersion.value)
   const pendingOperations = ref(0)
   const error = ref<string | null>(null)
+  const reconciliationError = ref<string | null>(null)
   const propagation = ref<PublicationPropagation | null>(null)
   let pageGeneration = 0
   let requestSequence = 0
@@ -175,7 +176,7 @@ export function useModelPagePublication(input: {
     }
     state.value = response.state
     history.value = response.history
-    validation.value = response.candidateValidation
+    validation.value = response.candidateValidation?.validation ?? null
     candidateIsStale.value = Boolean(
       nextCandidate
       && nextCandidate.draft_version !== savedDraftVersion.value,
@@ -188,12 +189,51 @@ export function useModelPagePublication(input: {
     error.value = cause instanceof Error ? cause.message : String(cause)
   }
 
+  function commitTransition(response: PublicationState & { propagation: PublicationPropagation }) {
+    const { propagation: nextPropagation, ...nextState } = response
+    const previousCandidate = state.value?.candidate
+    const nextCandidate = nextState.candidate
+    const candidateMatches = previousCandidate?.revision === nextCandidate?.revision
+      && previousCandidate?.status === nextCandidate?.status
+      && previousCandidate?.validation_digest === nextCandidate?.validation_digest
+    state.value = nextState
+    candidateIsStale.value = Boolean(
+      nextCandidate
+      && nextCandidate.draft_version !== savedDraftVersion.value,
+    )
+    if (!candidateMatches) {
+      validation.value = null
+      clearCandidatePreview()
+    }
+    propagation.value = nextPropagation
+  }
+
+  async function reconcileTransition(
+    context: OperationContext,
+    transition: PublicationState & { propagation: PublicationPropagation },
+  ) {
+    try {
+      const snapshot = await fetchAndCommitSnapshot(context)
+      if (!isCurrent(context))
+        return
+      propagation.value = snapshot.state?.published_revision === transition.published_revision
+        ? transition.propagation
+        : null
+      reconciliationError.value = null
+    }
+    catch (cause) {
+      if (isCurrent(context))
+        reconciliationError.value = cause instanceof Error ? cause.message : String(cause)
+    }
+  }
+
   async function refresh() {
     const pageId = requirePageId()
     if (activeMutation)
       throw new Error('Another publication change is already in progress')
     const context = beginOperation(pageId)
     error.value = null
+    reconciliationError.value = null
     try {
       const response = await fetchAndCommitSnapshot(context)
       if (isCurrent(context))
@@ -215,6 +255,7 @@ export function useModelPagePublication(input: {
     const expectedDraftVersion = requireDraftVersion()
     const context = beginMutation(pageId)
     error.value = null
+    reconciliationError.value = null
     propagation.value = null
     try {
       const response = await buildModelPagePublicationCandidate(pageId, expectedDraftVersion)
@@ -251,6 +292,7 @@ export function useModelPagePublication(input: {
     }
     const context = beginMutation(pageId)
     error.value = null
+    reconciliationError.value = null
     try {
       const response = await publishModelPagePublicationCandidate(pageId, {
         revision: readyCandidate.revision,
@@ -259,9 +301,8 @@ export function useModelPagePublication(input: {
       })
       if (!isCurrent(context))
         return response
-      await fetchAndCommitSnapshot(context)
-      if (isCurrent(context))
-        propagation.value = response.propagation
+      commitTransition(response)
+      await reconcileTransition(context, response)
       return response
     }
     catch (cause) {
@@ -278,13 +319,13 @@ export function useModelPagePublication(input: {
     const pageId = requirePageId()
     const context = beginMutation(pageId)
     error.value = null
+    reconciliationError.value = null
     try {
       const response = await rollbackModelPagePublication(pageId, targetRevision)
       if (!isCurrent(context))
         return response
-      await fetchAndCommitSnapshot(context)
-      if (isCurrent(context))
-        propagation.value = response.propagation
+      commitTransition(response)
+      await reconcileTransition(context, response)
       return response
     }
     catch (cause) {
@@ -323,6 +364,7 @@ export function useModelPagePublication(input: {
     candidateIsStale.value = false
     propagation.value = null
     error.value = null
+    reconciliationError.value = null
     clearCandidatePreview()
   }, { flush: 'sync' })
 
@@ -345,6 +387,7 @@ export function useModelPagePublication(input: {
     propagation,
     isLoading,
     error,
+    reconciliationError,
     refresh,
     buildCandidate,
     publish,

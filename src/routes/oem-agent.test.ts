@@ -1131,7 +1131,11 @@ describe('oem-agent model page publication admin routes', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       state: { candidate: { revision: 22, status: 'failed' } },
-      candidateValidation: failedValidation,
+      candidateValidation: {
+        revision: 22,
+        status: 'failed',
+        validation: failedValidation,
+      },
     });
   });
 

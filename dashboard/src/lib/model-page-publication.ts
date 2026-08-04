@@ -88,7 +88,13 @@ export interface PublicationHistoryEntry {
 export interface PublicationHistoryResponse {
   state: PublicationState | null
   history: PublicationHistoryEntry[]
-  candidateValidation: PublicationValidationSummary | null
+  candidateValidation: PublicationCandidateValidation | null
+}
+
+export interface PublicationCandidateValidation {
+  revision: number
+  status: 'ready' | 'failed'
+  validation: PublicationValidationSummary
 }
 
 export interface PublicationCandidateResponse {
@@ -139,6 +145,13 @@ const publicationStateSchema = z.object({
   published_by: optionalNullableStringSchema,
   candidate: candidateSummarySchema.nullable(),
   history: z.array(positiveIntegerSchema),
+}).superRefine((state, context) => {
+  if (state.published_revision !== null && !state.history.includes(state.published_revision)) {
+    context.addIssue({ code: 'custom', message: 'published revision is absent from retained history' })
+  }
+  if (state.candidate && state.candidate.revision >= state.next_revision) {
+    context.addIssue({ code: 'custom', message: 'candidate revision must be below next revision' })
+  }
 })
 
 const findingSchema = z.object({
@@ -212,21 +225,42 @@ const historyEntrySchema = z.object({
   })),
 })
 
-const historyResponseSchema = z.object({
-  state: publicationStateSchema.nullable(),
-  history: z.array(historyEntrySchema),
-  candidateValidation: validationSummarySchema.nullable(),
-}).superRefine((response, context) => {
-  if (response.candidateValidation) {
-    const candidate = response.state?.candidate
-    if (!candidate || candidate.validation_digest !== response.candidateValidation.digest) {
-      context.addIssue({
-        code: 'custom',
-        message: 'candidate validation does not match current candidate',
-      })
-    }
-  }
+const candidateValidationSchema = z.object({
+  revision: positiveIntegerSchema,
+  status: z.enum(['ready', 'failed']),
+  validation: validationSummarySchema,
 })
+
+function publicationHistoryResponseSchema(pageId: string) {
+  return z.object({
+    state: publicationStateSchema.nullable(),
+    history: z.array(historyEntrySchema),
+    candidateValidation: candidateValidationSchema.nullable(),
+  }).superRefine((response, context) => {
+    for (const manifest of response.history) {
+      if (manifest.pageId !== pageId || !response.state?.history.includes(manifest.revision)) {
+        context.addIssue({ code: 'custom', message: 'history manifest identity does not match publication state' })
+      }
+    }
+    if (response.candidateValidation) {
+      const candidate = response.state?.candidate
+      const report = response.candidateValidation.validation
+      const statusMatchesValidation = response.candidateValidation.status === 'ready'
+        ? report.publishable && report.blocking.length === 0
+        : !report.publishable || report.blocking.length > 0
+      if (!candidate
+        || candidate.revision !== response.candidateValidation.revision
+        || candidate.status !== response.candidateValidation.status
+        || candidate.validation_digest !== report.digest
+        || !statusMatchesValidation) {
+        context.addIssue({
+          code: 'custom',
+          message: 'candidate validation does not match current candidate',
+        })
+      }
+    }
+  })
+}
 
 const candidateResponseSchema = z.object({
   status: z.enum(['ready', 'failed']),
@@ -263,8 +297,8 @@ function parsePublicationResponse<T>(
   throw new Error(`Invalid model page publication ${label} response: ${detail}`)
 }
 
-export function parsePublicationHistoryResponse(value: unknown): PublicationHistoryResponse {
-  return parsePublicationResponse(historyResponseSchema, value, 'history')
+export function parsePublicationHistoryResponse(value: unknown, pageId: string): PublicationHistoryResponse {
+  return parsePublicationResponse(publicationHistoryResponseSchema(pageId), value, 'history')
 }
 
 export function parsePublicationCandidateResponse(value: unknown): PublicationCandidateResponse {
@@ -273,7 +307,13 @@ export function parsePublicationCandidateResponse(value: unknown): PublicationCa
 
 export function parsePublicationTransitionResponse(
   value: unknown,
-  action: 'publish' | 'rollback',
+  input: { action: 'publish', revision: number } | { action: 'rollback', targetRevision: number },
 ): PublicationTransitionResponse {
-  return parsePublicationResponse(transitionResponseSchema, value, action)
+  const response = parsePublicationResponse(transitionResponseSchema, value, input.action)
+  const expectedRevision = input.action === 'publish' ? input.revision : input.targetRevision
+  if (response.published_revision !== expectedRevision
+    || (input.action === 'publish' && response.candidate !== null)) {
+    throw new Error(`Invalid model page publication ${input.action} response: transition identity does not match request`)
+  }
+  return response
 }

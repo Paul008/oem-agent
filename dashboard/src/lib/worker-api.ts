@@ -165,7 +165,7 @@ function publicationPath(pageId: string, action: string): string {
 }
 
 export async function fetchModelPagePublicationState(pageId: string): Promise<PublicationHistoryResponse> {
-  return parsePublicationHistoryResponse(await workerFetch(publicationPath(pageId, 'history')))
+  return parsePublicationHistoryResponse(await workerFetch(publicationPath(pageId, 'history')), pageId)
 }
 
 export async function buildModelPagePublicationCandidate(
@@ -198,7 +198,7 @@ export async function publishModelPagePublicationCandidate(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
-  return parsePublicationTransitionResponse(response, 'publish')
+  return parsePublicationTransitionResponse(response, { action: 'publish', revision: input.revision })
 }
 
 export async function rollbackModelPagePublication(
@@ -210,7 +210,7 @@ export async function rollbackModelPagePublication(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ targetRevision }),
   })
-  return parsePublicationTransitionResponse(response, 'rollback')
+  return parsePublicationTransitionResponse(response, { action: 'rollback', targetRevision })
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {

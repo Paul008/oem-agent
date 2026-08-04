@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComposedPublicationCandidate } from './composer'
-import type { PublicationValidationOptions } from './validator'
+import { validationDigest, type PublicationValidationOptions } from './validator'
 
 const publicationMocks = vi.hoisted(() => ({
   compose: vi.fn(),
@@ -273,6 +273,25 @@ describe('model page publication service', () => {
     })).resolves.toBeNull()
   })
 
+  it('does not restore matching-digest validation with malformed nested findings', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    const malformed = {
+      publishable: true,
+      blocking: [],
+      warnings: [{ code: 42, message: 'Malformed nested finding' }],
+      viewports: [],
+    }
+    const digest = await validationDigest(malformed as never)
+    overwriteJson(bucket, publicationKeys(pageId, candidate.revision).validation, { ...malformed, digest })
+    await replaceCandidateDigest(bucket, digest)
+
+    await expect(getPublicationCandidateValidation({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+    })).resolves.toBeNull()
+  })
+
   it('rejects non-monotonic state before any evidence is written', async () => {
     const bucket = new MemoryR2Bucket()
     await bucket.put(publicationKeys(pageId).state, JSON.stringify({
@@ -355,6 +374,7 @@ describe('model page publication service', () => {
     expect(published.published_revision).toBe(candidate.revision)
     expect(published.published_at).toBe('2026-08-04T01:02:03.000Z')
     expect(published.published_by).toBe(actor)
+    expect(published.candidate).toBeNull()
     expect(published.propagation).toBe('delivered')
     expect(published.audit.action).toBe('publication.publish')
     expect(published.audit.published_revision).toBe(candidate.revision)

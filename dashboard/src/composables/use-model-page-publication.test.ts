@@ -71,7 +71,14 @@ const revisionNine = {
 } satisfies PublicationHistoryEntry
 
 function historyResponse(state = publicationState()): PublicationHistoryResponse {
-  return { state, history: [revisionNine], candidateValidation: validation } as PublicationHistoryResponse
+  const candidate = state.candidate
+  return {
+    state,
+    history: [revisionNine],
+    candidateValidation: candidate && candidate.status !== 'building'
+      ? { revision: candidate.revision, status: candidate.status, validation }
+      : null,
+  } as PublicationHistoryResponse
 }
 
 function deferred<T>() {
@@ -391,7 +398,11 @@ describe('useModelPagePublication', () => {
     vi.mocked(fetchModelPagePublicationState).mockResolvedValueOnce({
       state: failedState,
       history: [revisionNine],
-      candidateValidation: failedValidation,
+      candidateValidation: {
+        revision: 13,
+        status: 'failed',
+        validation: failedValidation,
+      },
     } as PublicationHistoryResponse)
     vi.mocked(fetchModelPagePublicationCandidateHtml).mockResolvedValueOnce('<main>Failed candidate 13</main>')
     const scope = effectScope()
@@ -460,6 +471,96 @@ describe('useModelPagePublication', () => {
 
     expect(publication.history.value.map(entry => entry.revision)).toEqual([12, 9])
     expect(publication.publishedRevision.value).toBe(12)
+    scope.stop()
+  })
+
+  it('keeps authoritative publish success when history reconciliation fails', async () => {
+    const published = publicationState({
+      candidate: null,
+      published_revision: 12,
+      published_at: '2026-08-04T09:30:00.000Z',
+      history: [12, 9],
+    }) as PublicationTransitionResponse
+    published.propagation = 'delivered'
+    vi.mocked(publishModelPagePublicationCandidate).mockResolvedValueOnce(published)
+    vi.mocked(fetchModelPagePublicationState)
+      .mockResolvedValueOnce(historyResponse())
+      .mockRejectedValueOnce(new Error('History temporarily unavailable'))
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+    await publication.refresh()
+
+    await expect(publication.publish()).resolves.toBe(published)
+
+    expect(publication.publishedRevision.value).toBe(12)
+    expect(publication.candidate.value).toBeNull()
+    expect(publication.canPublish.value).toBe(false)
+    expect(publication.propagation.value).toBe('delivered')
+    expect(publication.error.value).toBeNull()
+    expect(publication.reconciliationError.value).toBe('History temporarily unavailable')
+    scope.stop()
+  })
+
+  it('keeps authoritative rollback success when history reconciliation fails', async () => {
+    const rolledBack = publicationState({ published_revision: 9 }) as PublicationTransitionResponse
+    rolledBack.propagation = 'delivered'
+    vi.mocked(rollbackModelPagePublication).mockResolvedValueOnce(rolledBack)
+    vi.mocked(fetchModelPagePublicationState)
+      .mockResolvedValueOnce(historyResponse())
+      .mockRejectedValueOnce(new Error('History temporarily unavailable'))
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+    await publication.refresh()
+
+    await expect(publication.rollback(9)).resolves.toBe(rolledBack)
+
+    expect(publication.publishedRevision.value).toBe(9)
+    expect(publication.candidate.value?.revision).toBe(12)
+    expect(publication.propagation.value).toBe('delivered')
+    expect(publication.error.value).toBeNull()
+    expect(publication.reconciliationError.value).toBe('History temporarily unavailable')
+    scope.stop()
+  })
+
+  it('does not attach local propagation to a later external transition snapshot', async () => {
+    const published = publicationState({
+      candidate: null,
+      published_revision: 12,
+      published_at: '2026-08-04T09:30:00.000Z',
+      history: [12, 9],
+    }) as PublicationTransitionResponse
+    published.propagation = 'delivered'
+    const externalState = publicationState({
+      candidate: null,
+      published_revision: 9,
+      history: [12, 9],
+    })
+    vi.mocked(publishModelPagePublicationCandidate).mockResolvedValueOnce(published)
+    vi.mocked(fetchModelPagePublicationState)
+      .mockResolvedValueOnce(historyResponse())
+      .mockResolvedValueOnce({
+        state: externalState,
+        history: [revisionNine],
+        candidateValidation: null,
+      } as PublicationHistoryResponse)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+    await publication.refresh()
+
+    await publication.publish()
+
+    expect(publication.publishedRevision.value).toBe(9)
+    expect(publication.propagation.value).toBeNull()
+    expect(publication.reconciliationError.value).toBeNull()
     scope.stop()
   })
 

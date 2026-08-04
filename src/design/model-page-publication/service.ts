@@ -16,6 +16,7 @@ import type {
   PublicationStateRecord,
 } from './types'
 import {
+  parsePublicationValidationReport,
   validatePublicationCandidate,
   validationDigest,
   type PublicationValidationReport,
@@ -358,7 +359,7 @@ export async function getPublicationCandidateValidation(input: {
   const object = await input.bucket.get(publicationKeys(input.pageId, candidate.revision).validation)
   if (!object) return null
   try {
-    const validation = await parseCanonicalValidation(await object.json<unknown>())
+    const validation = await parsePublicationValidationReport(await object.json<unknown>())
     return validation.digest === candidate.validation_digest ? validation : null
   }
   catch {
@@ -520,40 +521,14 @@ async function isCanonicalPublishableValidation(report: PublicationValidationRep
 }
 
 async function parseCanonicalPublishableValidation(value: unknown): Promise<PublicationValidationReport> {
-  const report = await parseCanonicalValidation(value)
+  const report = await parsePublicationValidationReport(value)
   if (!report.publishable || report.blocking.length !== 0) {
     throw new Error('Publication validation is not publishable')
   }
   return report
 }
 
-async function parseCanonicalValidation(value: unknown): Promise<PublicationValidationReport> {
-  if (!isRecord(value)
-    || typeof value.publishable !== 'boolean'
-    || !Array.isArray(value.blocking)
-    || !Array.isArray(value.warnings)
-    || !Array.isArray(value.viewports)
-    || typeof value.digest !== 'string') {
-    throw new Error('Publication revision validation is malformed')
-  }
-  const reportWithoutDigest: Omit<PublicationValidationReport, 'digest'> = {
-    publishable: value.publishable,
-    blocking: value.blocking as PublicationValidationReport['blocking'],
-    warnings: value.warnings as PublicationValidationReport['warnings'],
-    viewports: value.viewports as PublicationValidationReport['viewports'],
-  }
-  const digest = await validationDigest(reportWithoutDigest)
-  if (value.digest !== digest) {
-    throw new Error('Publication validation digest does not match its report')
-  }
-  return { ...reportWithoutDigest, digest: value.digest }
-}
-
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
