@@ -158,6 +158,26 @@ export async function compareAndSetPublicationState(
   return { value, etag: object.etag }
 }
 
+/** Read and validate only the manifest stored at the requested revision key. */
+export async function readPublicationRevisionManifest(
+  bucket: R2Bucket,
+  pageId: string,
+  revision: number,
+): Promise<PublicationRevisionManifest | null> {
+  const keys = publicationKeys(pageId, revision)
+  const object = await bucket.get(keys.manifest)
+  if (!object) return null
+  let value: unknown
+  try {
+    value = await object.json<unknown>()
+  } catch {
+    throw new Error(`Malformed publication revision manifest: ${keys.manifest}`)
+  }
+  const manifest = parsePublicationRevisionManifest(value, pageId, revision)
+  if (manifest.bodyPath !== keys.body) throw new Error('Malformed publication revision manifest')
+  return manifest
+}
+
 /** Read all valid immutable revision manifests for one page, newest first. */
 export async function listPublicationHistory(
   bucket: R2Bucket,
@@ -178,7 +198,8 @@ export async function listPublicationHistory(
     } catch {
       throw new Error(`Malformed publication revision manifest: ${manifestKey}`)
     }
-    return parsePublicationRevisionManifest(value, pageId)
+    const expectedRevision = Number(manifestKey.slice(keys.revisionsPrefix.length).split('/')[0])
+    return parsePublicationRevisionManifest(value, pageId, expectedRevision)
   }))
   return manifests.sort((left, right) => right.revision - left.revision)
 }
@@ -250,7 +271,7 @@ function normalizePublicationState(value: PublicationState, previousPublishedRev
   const parsed = parsePublicationState(value)
   const protectedRevisions = [parsed.published_revision, previousPublishedRevision].filter(isRevision)
   const history = uniqueRevisions([...protectedRevisions, ...parsed.history]).slice(0, HISTORY_LIMIT)
-  return { ...parsed, history }
+  return parsePublicationState({ ...parsed, history })
 }
 
 function parsePublicationState(value: unknown): PublicationState {
@@ -265,21 +286,36 @@ function parsePublicationState(value: unknown): PublicationState {
     || !(value.candidate === null || isPublicationCandidate(value.candidate))) {
     throw new PublicationStateValidationError()
   }
+  const candidate = value.candidate === null ? null : { ...value.candidate }
+  const nextRevision = value.next_revision as number
+  const referencedRevisions = [
+    value.published_revision,
+    candidate?.revision,
+    ...value.history,
+  ].filter(isRevision)
+  if (referencedRevisions.some(revision => revision >= nextRevision)) {
+    throw new PublicationStateValidationError()
+  }
   return {
     schema_version: 1,
     next_revision: value.next_revision,
     published_revision: value.published_revision,
     ...('published_at' in value ? { published_at: value.published_at as string | null } : {}),
     ...('published_by' in value ? { published_by: value.published_by as string | null } : {}),
-    candidate: value.candidate === null ? null : { ...value.candidate },
+    candidate,
     history: [...value.history],
   }
 }
 
-function parsePublicationRevisionManifest(value: unknown, pageId: string): PublicationRevisionManifest {
+function parsePublicationRevisionManifest(
+  value: unknown,
+  pageId: string,
+  expectedRevision?: number,
+): PublicationRevisionManifest {
   if (!isRecord(value)
     || value.pageId !== pageId
     || !isRevision(value.revision)
+    || (expectedRevision !== undefined && value.revision !== expectedRevision)
     || !isRevision(value.draftVersion)
     || value.format !== 'composed-html-body'
     || !isString(value.bodyPath)

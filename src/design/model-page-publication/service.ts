@@ -1,15 +1,12 @@
 import type { PublicationAuditMetadata } from '../../auth/audit-log'
-import {
-  composePublicationCandidate,
-  type ComposedPublicationCandidate,
-} from './composer'
+import { composePublicationCandidate } from './composer'
 import {
   PublicationConflictError,
   PublicationRevisionConflictError,
   compareAndSetPublicationState,
-  listPublicationHistory,
   publicationKeys,
   prunePublicationRevisions,
+  readPublicationRevisionManifest,
   readPublicationState,
   writeImmutableRevision,
 } from './storage'
@@ -20,7 +17,7 @@ import type {
 } from './types'
 import {
   validatePublicationCandidate,
-  type PublicationValidationOptions,
+  validationDigest,
   type PublicationValidationReport,
 } from './validator'
 
@@ -74,17 +71,6 @@ export interface ProductionPublication {
   }
 }
 
-type ComposeCandidate = (input: {
-  pageId: string
-  page: Record<string, any>
-  origin: string
-}) => Promise<ComposedPublicationCandidate>
-
-type ValidateCandidate = (
-  candidate: ComposedPublicationCandidate,
-  options?: PublicationValidationOptions,
-) => Promise<PublicationValidationReport>
-
 interface WebhookTransitionInput {
   hooks?: PublicationWebhook[]
   deliverWebhook?: DeliverPublicationWebhook
@@ -110,8 +96,6 @@ export async function buildCandidate(input: {
   actor: string
   origin: string
   now?: () => string
-  composeCandidate?: ComposeCandidate
-  validateCandidate?: ValidateCandidate
 }): Promise<PublicationCandidateResult> {
   assertSavedDraftVersion(input.page, input.expectedDraftVersion)
   const observed = await readPublicationState(input.bucket, input.pageId)
@@ -138,11 +122,13 @@ export async function buildCandidate(input: {
   )
 
   try {
-    const compose = input.composeCandidate || composePublicationCandidate
-    const candidate = await compose({ pageId: input.pageId, page: input.page, origin: input.origin })
+    const candidate = await composePublicationCandidate({
+      pageId: input.pageId,
+      page: input.page,
+      origin: input.origin,
+    })
     const keys = publicationKeys(input.pageId, revision)
-    const validate = input.validateCandidate || validatePublicationCandidate
-    const validation = await validate(candidate, {
+    const validation = await validatePublicationCandidate(candidate, {
       browser: input.browser,
       evidencePrefix: keys.evidencePrefix,
       writeEvidence: async artifact => {
@@ -180,7 +166,7 @@ export async function buildCandidate(input: {
       validation,
     })
 
-    const status = validation.publishable ? 'ready' : 'failed'
+    const status = await isCanonicalPublishableValidation(validation) ? 'ready' : 'failed'
     const stored = await updateState(input.bucket, input.pageId, allocated.etag, {
       ...allocated.value,
       candidate: {
@@ -234,8 +220,6 @@ export async function publishCandidate(input: {
   if (revision.manifest.draftVersion !== input.expectedDraftVersion
     || revision.manifest.publishedAt !== null
     || revision.manifest.publishedBy !== null
-    || !isRecord(revision.validation)
-    || revision.validation.publishable !== true
     || revision.validation.digest !== input.validationDigest) {
     throw new PublicationServiceConflictError('Immutable publication candidate does not match', 'candidate_conflict')
   }
@@ -391,34 +375,42 @@ async function loadCompleteRevision(
   revision: number,
 ): Promise<{
   manifest: PublicationRevisionManifest
-  validation: unknown
+  validation: PublicationValidationReport
   body: ProductionPublication['body']
 }> {
-  const manifest = (await listPublicationHistory(bucket, pageId))
-    .find(item => item.revision === revision)
   const keys = publicationKeys(pageId, revision)
-  const [bodyObject, validationObject] = await Promise.all([
+  const [manifest, bodyObject, validationObject] = await Promise.all([
+    readPublicationRevisionManifest(bucket, pageId, revision),
     bucket.get(keys.body),
     bucket.get(keys.validation),
   ])
-  if (!manifest || !bodyObject || !validationObject || manifest.bodyPath !== keys.body) {
+  if (!manifest || !bodyObject || !validationObject) {
     throw new Error('Publication revision is incomplete')
   }
-  let validation: unknown
+  let validationValue: unknown
   try {
-    validation = await validationObject.json<unknown>()
+    validationValue = await validationObject.json<unknown>()
   } catch {
     throw new Error('Publication revision validation is malformed')
   }
+  const validation = await parseCanonicalPublishableValidation(validationValue)
   const text = await bodyObject.text()
+  const bytes = new TextEncoder().encode(text).byteLength
+  const sha256 = await sha256Hex(text)
+  const etag = `"sha256-${sha256}"`
+  if (manifest.bodyBytes !== bytes
+    || manifest.bodySha256 !== sha256
+    || manifest.etag !== etag) {
+    throw new Error('Publication body integrity does not match its manifest')
+  }
   return {
     manifest,
     validation,
     body: {
       key: keys.body,
       text,
-      etag: bodyObject.etag,
-      bytes: bodyObject.size,
+      etag: manifest.etag,
+      bytes,
       contentType: bodyObject.httpMetadata?.contentType || 'text/html; charset=utf-8',
     },
   }
@@ -432,7 +424,7 @@ async function propagatePublication(
   if (hooks.length === 0) return 'delivered'
   if (!input.deliverWebhook) return 'pending'
   const results = await Promise.allSettled(hooks.map(webhook => (
-    input.deliverWebhook!({ webhook, ...delivery })
+    Promise.resolve().then(() => input.deliverWebhook!({ webhook, ...delivery }))
   )))
   return results.every(result => (
     result.status === 'fulfilled'
@@ -484,6 +476,45 @@ function publicationAudit(
 
 function timestamp(now?: () => string): string {
   return now ? now() : new Date().toISOString()
+}
+
+async function isCanonicalPublishableValidation(report: PublicationValidationReport): Promise<boolean> {
+  try {
+    await parseCanonicalPublishableValidation(report)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function parseCanonicalPublishableValidation(value: unknown): Promise<PublicationValidationReport> {
+  if (!isRecord(value)
+    || typeof value.publishable !== 'boolean'
+    || !Array.isArray(value.blocking)
+    || !Array.isArray(value.warnings)
+    || !Array.isArray(value.viewports)
+    || typeof value.digest !== 'string') {
+    throw new Error('Publication revision validation is malformed')
+  }
+  const reportWithoutDigest: Omit<PublicationValidationReport, 'digest'> = {
+    publishable: value.publishable,
+    blocking: value.blocking as PublicationValidationReport['blocking'],
+    warnings: value.warnings as PublicationValidationReport['warnings'],
+    viewports: value.viewports as PublicationValidationReport['viewports'],
+  }
+  const digest = await validationDigest(reportWithoutDigest)
+  if (value.digest !== digest) {
+    throw new Error('Publication validation digest does not match its report')
+  }
+  if (!value.publishable || value.blocking.length !== 0) {
+    throw new Error('Publication validation is not publishable')
+  }
+  return { ...reportWithoutDigest, digest: value.digest }
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

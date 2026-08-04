@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComposedPublicationCandidate } from './composer'
+import type { PublicationValidationOptions } from './validator'
+
+const publicationMocks = vi.hoisted(() => ({
+  compose: vi.fn(),
+  validate: vi.fn(),
+}))
+
+vi.mock('./composer', () => ({
+  composePublicationCandidate: publicationMocks.compose,
+}))
+
+vi.mock('./validator', async importOriginal => {
+  const actual = await importOriginal<typeof import('./validator')>()
+  return { ...actual, validatePublicationCandidate: publicationMocks.validate }
+})
+
 import {
   PublicationServiceConflictError,
   buildCandidate,
@@ -95,18 +111,20 @@ function composedCandidate(): ComposedPublicationCandidate {
     }],
     warnings: [],
     bytes: new TextEncoder().encode(body).byteLength,
-    sha256: 'candidate-sha256',
-    etag: '"sha256-candidate-sha256"',
+    sha256: '8a33575abf07021e55727c5b48416fa5eda75c8a839a86c8dbe97c7c93dd88de',
+    etag: '"sha256-8a33575abf07021e55727c5b48416fa5eda75c8a839a86c8dbe97c7c93dd88de"',
   }
 }
 
-function validationReport(publishable = true, digest = 'validation-ready'): PublicationValidationReport {
+function validationReport(publishable = true, digest?: string): PublicationValidationReport {
   return {
     publishable,
     blocking: publishable ? [] : [{ code: 'visual-mismatch', message: 'Candidate mismatch is blocking' }],
     warnings: [],
     viewports: [],
-    digest,
+    digest: digest || (publishable
+      ? '2976d29373b8c5ff8a0057beedcd49f9d2917bd45d2fa76fefdde544275ca74b'
+      : '62725a008c945bfeed32893595e8bfbb3482c11a0e7d6dfd61986ebbd8a31226'),
   }
 }
 
@@ -122,8 +140,6 @@ function buildInput(
     actor,
     origin: 'https://admin.test',
     now,
-    composeCandidate: async () => composedCandidate(),
-    validateCandidate: async () => validationReport(),
     ...overrides,
   }
 }
@@ -150,7 +166,34 @@ function publishInput(
   }
 }
 
+async function storedJson<T>(bucket: MemoryR2Bucket, key: string): Promise<T> {
+  const object = await bucket.get(key)
+  if (!object) throw new Error(`Missing test object: ${key}`)
+  return object.json() as Promise<T>
+}
+
+function overwriteJson(bucket: MemoryR2Bucket, key: string, value: unknown): void {
+  const object = bucket.objects.get(key)
+  if (!object) throw new Error(`Missing test object: ${key}`)
+  object.body = JSON.stringify(value)
+}
+
+async function replaceCandidateDigest(bucket: MemoryR2Bucket, digest: string): Promise<void> {
+  const key = publicationKeys(pageId).state
+  const state = await storedJson<PublicationState>(bucket, key)
+  if (!state.candidate) throw new Error('Missing test candidate')
+  overwriteJson(bucket, key, {
+    ...state,
+    candidate: { ...state.candidate, validation_digest: digest },
+  })
+}
+
 describe('model page publication service', () => {
+  beforeEach(() => {
+    publicationMocks.compose.mockReset().mockResolvedValue(composedCandidate())
+    publicationMocks.validate.mockReset().mockResolvedValue(validationReport())
+  })
+
   it('rejects a stale draft with 409 semantics before allocating a revision', async () => {
     const bucket = new MemoryR2Bucket()
 
@@ -171,9 +214,8 @@ describe('model page publication service', () => {
 
   it('does not move production when candidate validation fails', async () => {
     const bucket = new MemoryR2Bucket()
-    const result = await buildCandidate(buildInput(bucket, {
-      validateCandidate: async () => validationReport(false, 'validation-failed'),
-    }))
+    publicationMocks.validate.mockResolvedValueOnce(validationReport(false))
+    const result = await buildCandidate(buildInput(bucket))
 
     expect(result.status).toBe('failed')
     expect(result.state.published_revision).toBeNull()
@@ -187,19 +229,58 @@ describe('model page publication service', () => {
     expect(bucket.objects.has(publicationKeys(pageId, 1).manifest)).toBe(true)
   })
 
+  it('ignores caller-supplied composer and validator properties', async () => {
+    const bucket = new MemoryR2Bucket()
+    publicationMocks.validate.mockResolvedValueOnce(validationReport(false))
+    const input = {
+      ...buildInput(bucket),
+      composeCandidate: async () => composedCandidate(),
+      validateCandidate: async () => validationReport(true),
+    } as Parameters<typeof buildCandidate>[0]
+
+    const result = await buildCandidate(input)
+
+    expect(result.status).toBe('failed')
+    expect(result.validation.publishable).toBe(false)
+  })
+
+  it('rejects non-monotonic state before any evidence is written', async () => {
+    const bucket = new MemoryR2Bucket()
+    await bucket.put(publicationKeys(pageId).state, JSON.stringify({
+      schema_version: 1,
+      next_revision: 1,
+      published_revision: null,
+      candidate: null,
+      history: [1],
+    }))
+    publicationMocks.validate.mockImplementationOnce(async (
+      _candidate: ComposedPublicationCandidate,
+      options: PublicationValidationOptions,
+    ) => {
+      await options.writeEvidence!({
+        key: `${publicationKeys(pageId, 1).evidencePrefix}desktop/candidate.png`,
+        bytes: new Uint8Array([1]),
+        contentType: 'image/png',
+      })
+      return validationReport()
+    })
+
+    await expect(buildCandidate(buildInput(bucket))).rejects.toThrow('Malformed publication state')
+    expect([...bucket.objects.keys()].some(key => key.includes('/evidence/'))).toBe(false)
+  })
+
   it('allocates each revision under state CAS and rejects a stale competing state write', async () => {
     const bucket = new MemoryR2Bucket()
     let releaseComposition!: () => void
     const compositionPaused = new Promise<void>(resolve => { releaseComposition = resolve })
     let compositionStarted!: () => void
     const started = new Promise<void>(resolve => { compositionStarted = resolve })
-    const firstBuild = buildCandidate(buildInput(bucket, {
-      composeCandidate: async () => {
-        compositionStarted()
-        await compositionPaused
-        return composedCandidate()
-      },
-    }))
+    publicationMocks.compose.mockImplementationOnce(async () => {
+      compositionStarted()
+      await compositionPaused
+      return composedCandidate()
+    })
+    const firstBuild = buildCandidate(buildInput(bucket))
     await started
 
     const second = await readyCandidate(bucket)
@@ -212,15 +293,17 @@ describe('model page publication service', () => {
 
   it('uses a revision-scoped create-only evidence writer', async () => {
     const bucket = new MemoryR2Bucket()
-    const result = await buildCandidate(buildInput(bucket, {
-      validateCandidate: async (_candidate: unknown, options: any) => {
-        const key = `${publicationKeys(pageId, 1).evidencePrefix}desktop/candidate.png`
-        await options.writeEvidence({ key, bytes: new Uint8Array([1, 2, 3]), contentType: 'image/png' })
-        await expect(options.writeEvidence({ key, bytes: new Uint8Array([4]), contentType: 'image/png' }))
-          .rejects.toThrow('Publication revision already exists')
-        return validationReport()
-      },
-    }))
+    publicationMocks.validate.mockImplementationOnce(async (
+      _candidate: ComposedPublicationCandidate,
+      options: PublicationValidationOptions,
+    ) => {
+      const key = `${publicationKeys(pageId, 1).evidencePrefix}desktop/candidate.png`
+      await options.writeEvidence!({ key, bytes: new Uint8Array([1, 2, 3]), contentType: 'image/png' })
+      await expect(options.writeEvidence!({ key, bytes: new Uint8Array([4]), contentType: 'image/png' }))
+        .rejects.toThrow('Publication revision already exists')
+      return validationReport()
+    })
+    const result = await buildCandidate(buildInput(bucket))
 
     const evidencePut = bucket.puts.find(({ key }) => key.endsWith('/evidence/desktop/candidate.png'))
     expect(result.status).toBe('ready')
@@ -294,6 +377,87 @@ describe('model page publication service', () => {
       .rejects.toThrow('Publication revision is incomplete')
   })
 
+  it('rejects a self-consistent publishable report that still has blocking findings', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    const forgedDigest = '13e6fa8f7f00b1fea95fad4402ff41d14de7ce56c4cc338682e259a6f2723889'
+    overwriteJson(bucket, publicationKeys(pageId, candidate.revision).validation, {
+      publishable: true,
+      blocking: [{ code: 'forged', message: 'Still blocking' }],
+      warnings: [],
+      viewports: [],
+      digest: forgedDigest,
+    })
+    await replaceCandidateDigest(bucket, forgedDigest)
+
+    await expect(publishCandidate(publishInput(bucket, candidate, {
+      validationDigest: forgedDigest,
+    }))).rejects.toThrow('Publication validation is not publishable')
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision).toBeNull()
+  })
+
+  it('rejects a stored validation digest that is not canonical for its report', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    overwriteJson(bucket, publicationKeys(pageId, candidate.revision).validation, {
+      ...validationReport(),
+      digest: 'forged-digest',
+    })
+    await replaceCandidateDigest(bucket, 'forged-digest')
+
+    await expect(publishCandidate(publishInput(bucket, candidate, {
+      validationDigest: 'forged-digest',
+    }))).rejects.toThrow('Publication validation digest does not match its report')
+  })
+
+  it('reads only the selected manifest and ignores malformed unrelated revisions', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    await bucket.put(publicationKeys(pageId, 99).manifest, '{malformed')
+
+    const published = await publishCandidate(publishInput(bucket, candidate))
+
+    expect(published.published_revision).toBe(candidate.revision)
+  })
+
+  it('does not select a matching embedded revision from the wrong directory', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    const keys = publicationKeys(pageId, candidate.revision)
+    const manifest = await storedJson(bucket, keys.manifest)
+    await bucket.put(publicationKeys(pageId, 99).manifest, JSON.stringify(manifest))
+    bucket.objects.delete(keys.manifest)
+
+    await expect(publishCandidate(publishInput(bucket, candidate)))
+      .rejects.toThrow('Publication revision is incomplete')
+  })
+
+  it.each([
+    ['byte length', (manifest: Record<string, any>) => ({ ...manifest, bodyBytes: manifest.bodyBytes + 1 })],
+    ['SHA-256', (manifest: Record<string, any>) => ({ ...manifest, bodySha256: '0'.repeat(64) })],
+    ['ETag', (manifest: Record<string, any>) => ({ ...manifest, etag: '"sha256-forged"' })],
+  ])('rejects a manifest with mismatched body %s', async (_label, mutate) => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    const key = publicationKeys(pageId, candidate.revision).manifest
+    const manifest = await storedJson<Record<string, any>>(bucket, key)
+    overwriteJson(bucket, key, mutate(manifest))
+
+    await expect(publishCandidate(publishInput(bucket, candidate)))
+      .rejects.toThrow('Publication body integrity does not match its manifest')
+  })
+
+  it('rejects changed body bytes before moving production', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    const body = bucket.objects.get(publicationKeys(pageId, candidate.revision).body)!
+    body.body = '<main>tampered</main>'
+
+    await expect(publishCandidate(publishInput(bucket, candidate)))
+      .rejects.toThrow('Publication body integrity does not match its manifest')
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision).toBeNull()
+  })
+
   it('keeps the successful pointer and reports failed propagation for delivery errors or non-2xx', async () => {
     const hooks: PublicationWebhook[] = [
       { id: 'dealer-a', url: 'https://dealer-a.test/hook', events: ['page.updated'] },
@@ -320,6 +484,22 @@ describe('model page publication service', () => {
       deliverWebhook: async () => ({ status: 503 }),
     }))
     expect(non2xx.propagation).toBe('failed')
+  })
+
+  it('keeps the successful pointer when the webhook adapter throws synchronously', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    const deliverWebhook: DeliverPublicationWebhook = () => {
+      throw new Error('synchronous adapter failure')
+    }
+
+    const result = await publishCandidate(publishInput(bucket, candidate, {
+      hooks: [{ id: 'dealer-a', url: 'https://dealer-a.test/hook', events: ['page.updated'] }],
+      deliverWebhook,
+    }))
+
+    expect(result.propagation).toBe('failed')
+    expect(result.published_revision).toBe(candidate.revision)
   })
 
   it('reports pending propagation when registered hooks have no delivery adapter', async () => {
@@ -354,6 +534,25 @@ describe('model page publication service', () => {
     expect(rolledBack.next_revision).toBe(4)
     expect(rolledBack.history).toEqual(expect.arrayContaining([first.revision, second.revision]))
     expect(rolledBack.audit.action).toBe('publication.rollback')
+  })
+
+  it('verifies rollback target body integrity before moving the pointer', async () => {
+    const bucket = new MemoryR2Bucket()
+    const first = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, first))
+    const second = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, second))
+    bucket.objects.get(publicationKeys(pageId, first.revision).body)!.body = '<main>tampered rollback</main>'
+
+    await expect(rollbackPublication({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+      targetRevision: first.revision,
+      actor: 'rollback@test',
+      now,
+    })).rejects.toThrow('Publication body integrity does not match its manifest')
+    expect((await storedJson<PublicationState>(bucket, publicationKeys(pageId).state)).published_revision)
+      .toBe(second.revision)
   })
 
   it('prunes revisions outside the retained history without deleting rollback protection', async () => {
@@ -391,6 +590,16 @@ describe('model page publication service', () => {
     expect(production?.body.text).toContain('data-oem-publication-body')
     expect(production?.body.key).toBe(publicationKeys(pageId, candidate.revision).body)
     expect(production?.body.contentType).toBe('text/html; charset=utf-8')
-    expect(production?.body.etag).toMatch(/^etag-/)
+    expect(production?.body.etag).toBe(composedCandidate().etag)
+  })
+
+  it('verifies production body integrity before resolving it', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    await publishCandidate(publishInput(bucket, candidate))
+    bucket.objects.get(publicationKeys(pageId, candidate.revision).body)!.body = '<main>tampered production</main>'
+
+    await expect(getProductionPublication({ bucket: bucket as unknown as R2Bucket, pageId }))
+      .rejects.toThrow('Publication body integrity does not match its manifest')
   })
 })

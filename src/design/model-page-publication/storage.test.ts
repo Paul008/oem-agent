@@ -144,6 +144,7 @@ describe('publication R2 storage', () => {
       'nissan-au-ariya',
       legacy.etag,
       initialPublicationState({
+        next_revision: 2,
         published_revision: 1,
         published_at: '2026-08-04T01:02:03.000Z',
         published_by: 'publisher@test',
@@ -165,6 +166,50 @@ describe('publication R2 storage', () => {
 
     await expect(readPublicationState(bucket as unknown as R2Bucket, 'nissan-au-ariya'))
       .rejects.toThrow('Malformed publication state')
+  })
+
+  it.each([
+    ['published pointer', { published_revision: 21, candidate: null, history: [] }],
+    ['candidate', {
+      published_revision: null,
+      candidate: {
+        revision: 21,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: 'digest',
+        created_at: '2026-08-04T01:02:03.000Z',
+        created_by: 'editor@test',
+      },
+      history: [],
+    }],
+    ['history', { published_revision: null, candidate: null, history: [21] }],
+  ])('rejects state whose next revision could reuse a referenced %s revision', async (_label, references) => {
+    const bucket = new MemoryR2Bucket()
+    await bucket.put(publicationKeys('nissan-au-ariya').state, JSON.stringify({
+      schema_version: 1,
+      next_revision: 21,
+      ...references,
+    }))
+
+    await expect(readPublicationState(bucket as unknown as R2Bucket, 'nissan-au-ariya'))
+      .rejects.toThrow('Malformed publication state')
+  })
+
+  it('rejects a CAS that lowers next revision below the protected previous production revision', async () => {
+    const bucket = new MemoryR2Bucket()
+    const current = await compareAndSetPublicationState(
+      bucket as unknown as R2Bucket,
+      'nissan-au-ariya',
+      null,
+      initialPublicationState({ next_revision: 22, published_revision: 21, history: [21] }),
+    )
+
+    await expect(compareAndSetPublicationState(
+      bucket as unknown as R2Bucket,
+      'nissan-au-ariya',
+      current.etag,
+      initialPublicationState(),
+    )).rejects.toThrow('Malformed publication state')
   })
 
   it('writes revision objects before atomically selecting the revision', async () => {
