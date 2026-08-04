@@ -7,6 +7,7 @@ import {
   fetchKnown,
   finalizePublicationReport,
   installRequestConfinement,
+  inspectOuterDocumentSafety,
   isSafeInteractionDescriptor,
   isTaskArtifactName,
   parsePublicationArgs,
@@ -211,6 +212,22 @@ describe('evaluatePublicationReport', () => {
       'capture-failed', 'revision-mismatch', 'rollback-restoration-failed',
     ]))
   })
+
+  it('blocks History API document URL mutations recorded without a network request', () => {
+    const result = evaluatePublicationReport({
+      mutation: { requested: false },
+      captures: [{
+        target: 'editor-candidate', phase: 'pre-publish', viewport: 'desktop', expectedRevision: 22, revision: 22,
+        response: { status: 200 },
+        audit: {
+          failedAssets: [], brokenImages: [], consoleErrors: [], interactions: [],
+          documentUrlViolations: [{ stage: 'tabs:before', url: 'https://dashboard.example/preview/page' }],
+        },
+      }],
+      comparisons: [],
+    })
+    expect(result.blocking).toContainEqual(expect.objectContaining({ code: 'document-url-mutation' }))
+  })
 })
 
 describe('browser safety seams', () => {
@@ -234,6 +251,23 @@ describe('browser safety seams', () => {
     expect(sameKnownDocument('https://example.com/body?revision=22', 'https://example.com/body?revision=22')).toBe(true)
     expect(sameKnownDocument('https://example.com/body?revision=22', 'https://example.com/body')).toBe(false)
     expect(sameKnownDocument('https://example.com/preview?id=x&view=candidate', 'https://example.com/preview?id=x&view=production')).toBe(false)
+  })
+
+  it('detects on-load and pre-probe History API query mutations on a fake page', () => {
+    const expected = 'https://dashboard.example/preview/nissan-au-ariya?view=candidate'
+    expect(inspectOuterDocumentSafety({
+      url: () => 'https://dashboard.example/preview/nissan-au-ariya?view=production',
+    }, expected, {
+      outerAuditUrl: 'https://dashboard.example/preview/nissan-au-ariya?view=production',
+      probeUrls: [
+        { stage: 'accordion:before', url: expected },
+        { stage: 'accordion:after', url: 'https://dashboard.example/preview/nissan-au-ariya' },
+      ],
+    })).toEqual(expect.arrayContaining([
+      expect.objectContaining({ stage: 'page-final' }),
+      expect.objectContaining({ stage: 'outer-audit' }),
+      expect.objectContaining({ stage: 'accordion:after' }),
+    ]))
   })
 
   it('authorizes only exact Worker history and candidate HTML requests', () => {
@@ -288,10 +322,14 @@ describe('browser safety seams', () => {
     expect(records.map(record => record.reason)).toEqual(['non-idempotent-request', 'unexpected-navigation'])
   })
 
-  it('rejects anchors, form-associated/default-submit buttons, and navigation-capable controls', () => {
+  it('allows common untyped interaction buttons outside forms while rejecting submit/navigation controls', () => {
     expect(isSafeInteractionDescriptor({ tagName: 'A', href: '/buy' })).toBe(false)
     expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: true, type: 'button' })).toBe(false)
-    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: '' })).toBe(false)
+    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: true, type: '' })).toBe(false)
+    for (const kind of ['accordion', 'tabs', 'carousel', 'modal']) {
+      expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: '', kind })).toBe(true)
+    }
+    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: 'submit' })).toBe(false)
     expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: 'button' })).toBe(true)
     expect(isSafeInteractionDescriptor({ tagName: 'INPUT', formAssociated: false, type: 'range' })).toBe(true)
     expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: 'button', target: '_blank' })).toBe(false)
@@ -341,6 +379,37 @@ describe('artifact finalization seams', () => {
         init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
       }),
     })).rejects.toMatchObject({ name: 'TimeoutError' })
+  })
+
+  it('keeps public fetches credential-free and authorizes only explicit admin calls', async () => {
+    const options = parsePublicationArgs([], { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' })
+    const requests = []
+    const response = {
+      ok: true,
+      status: 200,
+      url: options.urls.manifest,
+      headers: { get: () => null },
+    }
+    const fetchImpl = async (url, init) => {
+      requests.push({ url, headers: init.headers })
+      return { ...response, url }
+    }
+
+    await fetchKnown(options.urls.manifest, options, {}, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } })
+    await fetchKnown(options.urls.publishedBodyBase + '?revision=22', options, {}, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } })
+    await fetchKnown(options.urls.history, options, { authorize: true }, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } })
+    await fetchKnown(options.urls.candidateHtmlBase + '?revision=22', options, { authorize: true }, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } })
+    await fetchKnown(options.urls.publish, options, { authorize: true, method: 'POST' }, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } })
+    await fetchKnown(options.urls.rollback, options, { authorize: true, method: 'POST' }, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } })
+
+    expect(requests[0].headers).not.toHaveProperty('Authorization')
+    expect(requests[1].headers).not.toHaveProperty('Authorization')
+    for (const request of requests.slice(2))
+      expect(request.headers.Authorization).toBe('Bearer secret-token')
+    await expect(fetchKnown(options.urls.manifest, options, { authorize: true }, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } }))
+      .rejects.toThrow('not an authorized publication admin endpoint')
+    await expect(fetchKnown(options.urls.candidateHtmlBase + '?revision=22&next=/admin', options, { authorize: true }, { fetchImpl, env: { OEM_PUBLICATION_AUTHORIZATION: 'secret-token' } }))
+      .rejects.toThrow('not an authorized publication admin endpoint')
   })
 
   it('records browser close failure while still atomically writing both reports', async () => {

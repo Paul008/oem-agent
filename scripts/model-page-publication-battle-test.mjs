@@ -301,15 +301,24 @@ function requestHeaders(options, env = process.env) {
 export async function fetchKnown(url, options, init = {}, deps = {}) {
   const fetchImpl = deps.fetchImpl || fetch
   const timeoutSignal = AbortSignal.timeout(options.timeoutMs || DEFAULT_TIMEOUT_MS)
-  const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal
+  const {
+    accept = 'application/json',
+    authorize = false,
+    headers: suppliedHeaders = {},
+    signal: suppliedSignal,
+    ...fetchInit
+  } = init
+  if (authorize && !isAuthorizedProgrammaticAdminUrl(url, options))
+    throw new Error(`Authorization requested for ${url}, which is not an authorized publication admin endpoint`)
+  const signal = suppliedSignal ? AbortSignal.any([suppliedSignal, timeoutSignal]) : timeoutSignal
   const response = await fetchImpl(url, {
-    ...init,
+    ...fetchInit,
     redirect: 'error',
     signal,
     headers: {
-      Accept: init.accept || 'application/json',
-      ...requestHeaders(options),
-      ...(init.headers || {}),
+      Accept: accept,
+      ...(authorize ? requestHeaders(options, deps.env) : {}),
+      ...suppliedHeaders,
     },
   })
   const headers = safeResponseHeaders(Object.fromEntries(SAFE_RESPONSE_HEADERS.map(name => [name, response.headers.get(name)])))
@@ -325,6 +334,27 @@ export async function fetchKnown(url, options, init = {}, deps = {}) {
     throw Object.assign(new Error(`${init.method || 'GET'} ${url} failed: ${response.status} ${body}`), { evidence })
   }
   return { response, evidence }
+}
+
+function isAuthorizedProgrammaticAdminUrl(url, options) {
+  const urls = options.urls || {}
+  if ([urls.history, urls.publish, urls.rollback].some(allowed => allowed && sameKnownDocument(allowed, url)))
+    return true
+  if (!urls.candidateHtmlBase)
+    return false
+  try {
+    const candidate = new URL(url)
+    const base = new URL(urls.candidateHtmlBase)
+    const revision = candidate.searchParams.get('revision')
+    return candidate.origin === base.origin
+      && candidate.pathname === base.pathname
+      && candidate.searchParams.size === 1
+      && /^\d+$/.test(revision || '')
+      && Number(revision) > 0
+  }
+  catch {
+    return false
+  }
 }
 
 async function fetchJsonKnown(url, options, init = {}) {
@@ -431,7 +461,7 @@ async function exerciseInteractions(frame) {
       if (tagName === 'A' || tagName === 'AREA' || value.href || value.formAction || value.target || value.formAssociated)
         return false
       if (tagName === 'BUTTON')
-        return type === 'button'
+        return type === '' || type === 'button'
       if (tagName === 'INPUT')
         return type === 'range'
       return !['FORM', 'SELECT', 'TEXTAREA'].includes(tagName)
@@ -460,6 +490,7 @@ async function exerciseInteractions(frame) {
     }
     const results = []
     for (const [kind, definition] of Object.entries(definitions)) {
+      const observedUrls = [{ stage: `${kind}:before`, url: location.href }]
       const roots = [...new Set([...document.querySelectorAll(definition.roots)])].filter(visible).slice(0, 8)
       let attempted = 0
       let passed = 0
@@ -475,6 +506,7 @@ async function exerciseInteractions(frame) {
         attempted++
         const before = snapshot(root)
         const beforeUrl = location.href
+        observedUrls.push({ stage: `${kind}:control-${attempted}:before`, url: beforeUrl })
         if (kind === 'slider' && control.matches('input[type="range"]')) {
           const min = Number(control.min || 0)
           const max = Number(control.max || 100)
@@ -488,13 +520,15 @@ async function exerciseInteractions(frame) {
         await wait()
         const after = snapshot(root)
         const navigationChanged = location.href !== beforeUrl
+        observedUrls.push({ stage: `${kind}:control-${attempted}:after`, url: location.href })
         const dialogVisible = kind === 'modal' && [...document.querySelectorAll('[role="dialog"],dialog')].some(visible)
         const didPass = !navigationChanged && (changed(before, after) || dialogVisible)
         if (didPass)
           passed++
         details.push(navigationChanged ? 'document URL changed' : didPass ? 'state changed' : 'no observable state change')
       }
-      results.push({ kind, found: roots.length, attempted, passed, blocked, details })
+      observedUrls.push({ stage: `${kind}:after`, url: location.href })
+      results.push({ kind, found: roots.length, attempted, passed, blocked, details, observedUrls })
     }
     return results
   })
@@ -516,6 +550,17 @@ export function sameKnownDocument(expected, actual) {
   }
 }
 
+export function inspectOuterDocumentSafety(page, expectedUrl, observations = {}) {
+  const candidates = [
+    { stage: 'page-final', url: page.url() },
+    ...(observations.outerAuditUrl ? [{ stage: 'outer-audit', url: observations.outerAuditUrl }] : []),
+    ...(observations.probeUrls || []),
+  ]
+  return candidates
+    .filter(candidate => !sameKnownDocument(expectedUrl, candidate.url))
+    .map(candidate => ({ ...candidate, expectedUrl }))
+}
+
 export function authorizeBrowserRequest(url, authorizedUrls) {
   return Object.values(authorizedUrls || {}).some(allowed => sameKnownDocument(allowed, url))
 }
@@ -528,7 +573,7 @@ export function isSafeInteractionDescriptor(descriptor) {
   if (descriptor?.formAssociated)
     return false
   if (tagName === 'BUTTON')
-    return type === 'button'
+    return type === '' || type === 'button'
   if (tagName === 'INPUT')
     return type === 'range'
   return !['FORM', 'SELECT', 'TEXTAREA'].includes(tagName)
@@ -662,6 +707,8 @@ async function captureBrowserTarget(browser, options, input) {
     }
     await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}' }).catch(() => null)
     await settlePage(page, options.settleMs)
+    const settledPageUrl = page.url()
+    const settledOuterAudit = await collectAudit(page.mainFrame())
     const frame = await selectRenderedFrame(page, target)
     const interactions = await exerciseInteractions(frame)
     await settlePage(page, Math.min(250, options.settleMs))
@@ -693,6 +740,22 @@ async function captureBrowserTarget(browser, options, input) {
     audit.interactions = interactions
     await page.screenshot({ path: contextScreenshotPath, fullPage: true, type: 'png' })
     await screenshotFrame(page, frame, screenshotPath)
+    if (fixtureHtml == null) {
+      const outerAuditUrl = (outerAudit || contentAudit).documentUrl
+      const preProbeViolations = inspectOuterDocumentSafety({ url: () => settledPageUrl }, requestedUrl, {
+        outerAuditUrl: settledOuterAudit.documentUrl,
+      })
+      const finalOuterViolations = inspectOuterDocumentSafety(page, requestedUrl, { outerAuditUrl })
+      const frameExpectedUrl = frame === page.mainFrame() ? requestedUrl : allowedFrameUrls[0]
+      const probeViolations = interactions
+        .flatMap(interaction => interaction.observedUrls || [])
+        .filter(observation => !frameExpectedUrl || !sameKnownDocument(frameExpectedUrl, observation.url))
+        .map(observation => ({ ...observation, expectedUrl: frameExpectedUrl || '(missing frame allowlist)' }))
+      audit.documentUrlViolations = [...preProbeViolations, ...finalOuterViolations, ...probeViolations]
+    }
+    else {
+      audit.documentUrlViolations = []
+    }
     const responseRecord = fixtureHtml != null
       ? { requestedUrl: `fixture:${target}`, finalUrl: `fixture:${target}`, status: 200, cacheControl: 'no-store', headers: {} }
       : responseEvidence(response, requestedUrl)
@@ -855,6 +918,8 @@ export function evaluatePublicationReport(report) {
       addFinding(blocking, 'horizontal-overflow', `${capture.target}/${capture.viewport} overflows horizontally by ${capture.audit.horizontalOverflowPx}px`, capture)
     if ((capture.audit?.blockedRequests || []).length > 0)
       addFinding(blocking, 'blocked-side-effect-attempt', `${capture.target}/${capture.viewport} attempted ${capture.audit.blockedRequests.length} blocked write/navigation request(s)`, capture)
+    if ((capture.audit?.documentUrlViolations || []).length > 0)
+      addFinding(blocking, 'document-url-mutation', `${capture.target}/${capture.viewport} changed or dropped required document query state ${capture.audit.documentUrlViolations.length} time(s)`, capture)
     for (const error of capture.audit?.consoleErrors || []) {
       addFinding(/content security policy|\bcsp\b/i.test(error) ? blocking : warnings, /content security policy|\bcsp\b/i.test(error) ? 'csp-error' : 'console-error', `${capture.target}/${capture.viewport}: ${error}`, capture)
     }
@@ -1034,7 +1099,7 @@ async function publicationState(options) {
       candidateValidation: null,
     }
   }
-  return (await fetchJsonKnown(options.urls.history, options)).value
+  return (await fetchJsonKnown(options.urls.history, options, { authorize: true })).value
 }
 
 async function publishedManifest(options) {
@@ -1045,6 +1110,7 @@ async function publishedManifest(options) {
 
 async function transition(options, url, body) {
   return (await fetchJsonKnown(url, options, {
+    authorize: true,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
