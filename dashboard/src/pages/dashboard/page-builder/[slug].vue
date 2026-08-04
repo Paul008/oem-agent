@@ -40,7 +40,7 @@ import type { CloneFieldPatchPayload } from '../components/page-builder/CloneReg
 import type { RegionActionId } from '../components/page-builder/region-actions'
 import type { CloneRegion, PageMode } from './page-modes'
 
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion } from '../components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, convertCloneRegionsToTailwindSections } from '../components/page-builder/clone-region-converter'
 import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
@@ -139,6 +139,7 @@ const cloneEditorOpen = ref(false)
 const pageBuilderCanvas = ref<{
   patchCloneField: (payload: CloneFieldPatchPayload) => void
   duplicateRegion: (regionId: string) => void
+  collectCloneRegions: () => Promise<CloneRegion[]>
 } | null>(null)
 const editorSectionId = ref<string | null>(null)
 const editorSection = computed(() =>
@@ -243,7 +244,7 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     pageBuilderCanvas.value?.duplicateRegion(regionId)
     return
   }
-  if (action === 'convert') {
+  if (action === 'convert' || action === 'convert-tailwind-selected') {
     const section = await buildEditableSectionFromCloneRegion({
       html,
       tailwindRecipeArtifact,
@@ -257,6 +258,22 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     setActiveMode('sections')
     cloneEditorOpen.value = false
     toast.success('Region converted to editable section')
+    return
+  }
+  if (action === 'convert-tailwind-all') {
+    const collectedRegions = await pageBuilderCanvas.value?.collectCloneRegions()
+    const result = await convertCloneRegionsToTailwindSections({
+      regions: collectedRegions?.length ? collectedRegions : cloneRegionsForSave.value,
+      compileTailwindRecipeArtifact,
+    })
+    if (!result.sections.length) {
+      toast.error('No clone regions are ready to convert')
+      return
+    }
+    replaceSections(result.sections)
+    setActiveMode('sections')
+    const skippedSuffix = result.skipped.length ? ` (${result.skipped.length} skipped)` : ''
+    toast.success(`Converted ${result.sections.length} region${result.sections.length === 1 ? '' : 's'} to Tailwind sections${skippedSuffix}`)
     return
   }
   if (action === 'bind-catalog') {

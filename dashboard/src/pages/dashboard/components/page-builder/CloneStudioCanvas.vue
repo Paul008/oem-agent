@@ -7,7 +7,7 @@ import {
   buildCloneStudioFrameHtmlForCanvas,
   cloneStudioIframeSandbox,
   computeCloneFrameScale,
-  computeCloneToolbarAnchor,
+  computeCloneToolbarPlacement,
   translateFramePoint,
 } from './clone-studio-canvas-helpers'
 
@@ -42,6 +42,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   selectRegion: [region: any]
+  regionGeometry: [region: any]
   domUpdated: [html: string]
   regionAdded: [region: CloneRegion]
   contextMenu: [menu: { regionId: any, fields: any, typeHint: any, html: string, tailwindRecipeArtifact?: any, x: number, y: number }]
@@ -125,7 +126,7 @@ function enrichRegionForHost(region: any): any {
   const top = Number.isFinite(viewportTop) ? viewportTop : Number(region.top) || 0
   const width = Number(region.width) || 0
   const height = Number(region.height) || 0
-  const anchor = computeCloneToolbarAnchor(
+  const placement = computeCloneToolbarPlacement(
     { left, top, width, height },
     {
       width: activeFrameWidth.value,
@@ -133,7 +134,7 @@ function enrichRegionForHost(region: any): any {
     },
   )
   const pt = translateFramePoint(
-    anchor,
+    placement,
     rect,
     frameScale.value,
   )
@@ -148,6 +149,7 @@ function enrichRegionForHost(region: any): any {
     ...region,
     toolbar_x: Math.min(maxX, Math.max(minX, pt.x)),
     toolbar_y: Math.min(maxY, Math.max(8, pt.y)),
+    toolbar_visible: placement.visible,
   }
 }
 
@@ -169,6 +171,11 @@ function onMessage(event: MessageEvent) {
 
   if (data.type === 'clone-studio:select-region' && data.region) {
     emit('selectRegion', enrichRegionForHost(data.region))
+    return
+  }
+
+  if (data.type === 'clone-studio:selected-geometry' && data.region) {
+    emit('regionGeometry', enrichRegionForHost(data.region))
     return
   }
 

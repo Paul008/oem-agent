@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeCloneToolbarAnchor, formatCloneToolbarRegionLabel, translateFramePoint } from './clone-studio-canvas-helpers'
+import { computeCloneToolbarAnchor, computeCloneToolbarPlacement, formatCloneToolbarRegionLabel, translateFramePoint } from './clone-studio-canvas-helpers'
 
 describe('translateFramePoint', () => {
   it('scales iframe coords by frame scale and adds the iframe origin', () => {
@@ -17,6 +17,29 @@ describe('computeCloneToolbarAnchor', () => {
     )
 
     expect(anchor).toEqual({ x: 626, y: 12 })
+  })
+})
+
+describe('computeCloneToolbarPlacement', () => {
+  it('follows the visible top edge of a selected region', () => {
+    expect(computeCloneToolbarPlacement(
+      { left: 100, top: 80, width: 400, height: 300 },
+      { width: 1280, height: 720 },
+    )).toEqual({ x: 300, y: 92, visible: true })
+  })
+
+  it('pins while the selected region still intersects the viewport', () => {
+    expect(computeCloneToolbarPlacement(
+      { left: 100, top: -200, width: 400, height: 500 },
+      { width: 1280, height: 720 },
+    )).toEqual({ x: 300, y: 12, visible: true })
+  })
+
+  it('hides after the selected region leaves the viewport', () => {
+    expect(computeCloneToolbarPlacement(
+      { left: 100, top: -600, width: 400, height: 300 },
+      { width: 1280, height: 720 },
+    )).toEqual({ x: 300, y: 12, visible: false })
   })
 })
 

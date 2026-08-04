@@ -39,6 +39,21 @@ describe('buildCloneStudioHtml', () => {
     expect(html).toContain('clone-studio:dom-updated')
   })
 
+  it('throttles selected-region geometry updates during iframe scroll and resize', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main data-oem-region-id="r1"><h1>ARIYA</h1></main>',
+      title: 'ARIYA',
+      baseHref: 'https://www.nissan.com.au/vehicles/browse-range/ariya.html',
+      selectedRegionId: 'r1',
+    })
+
+    expect(html).toContain("var MESSAGE_SELECTED_GEOMETRY = 'clone-studio:selected-geometry'")
+    expect(html).toContain('function postSelectedGeometry()')
+    expect(html).toContain("window.addEventListener('scroll', scheduleSelectedGeometry, true)")
+    expect(html).toContain("window.addEventListener('resize', scheduleSelectedGeometry, false)")
+    expect(html).toContain('window.requestAnimationFrame(postSelectedGeometry)')
+  })
+
   it('strips external SVG <use> icon refs (WebKit blocks them cross-origin) but keeps same-document refs', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main>'

@@ -2,10 +2,12 @@ import type { CloneRegion } from '../../page-builder/page-modes'
 
 export type RegionActionId
   = | 'edit-text' | 'replace-image' | 'alt-text' | 'edit-link' | 'background'
-    | 'height' | 'bind-catalog' | 'convert' | 'hide' | 'duplicate' | 'delete'
+    | 'height' | 'bind-catalog' | 'convert' | 'convert-tailwind'
+    | 'convert-tailwind-selected' | 'convert-tailwind-all'
+    | 'hide' | 'duplicate' | 'delete'
     | 'next-panel' | 'prev-panel'
 
-export interface RegionAction { id: RegionActionId, label: string, group: 'content' | 'layout' | 'region' }
+export interface RegionAction { id: RegionActionId, label: string, group: 'content' | 'layout' | 'region', children?: RegionAction[] }
 
 export interface PatchPayload { regionId: string, kind: 'text' | 'image' | 'link' | 'alt' | 'background' | 'visibility', value?: string | boolean }
 
@@ -30,7 +32,15 @@ export function getRegionActions(region: CloneRegion): RegionAction[] {
     out.push({ id: 'prev-panel', label: 'Previous panel', group: 'layout' })
   }
   out.push({ id: 'height', label: 'Set visible height…', group: 'layout' })
-  out.push({ id: 'convert', label: 'Convert to editable section…', group: 'layout' })
+  out.push({
+    id: 'convert-tailwind',
+    label: 'Convert to Tailwind',
+    group: 'layout',
+    children: [
+      { id: 'convert-tailwind-selected', label: 'Selected section', group: 'layout' },
+      { id: 'convert-tailwind-all', label: 'All sections', group: 'layout' },
+    ],
+  })
   out.push({ id: 'hide', label: 'Hide region', group: 'region' })
   out.push({ id: 'duplicate', label: 'Duplicate', group: 'region' })
   out.push({ id: 'delete', label: 'Delete region', group: 'region' })

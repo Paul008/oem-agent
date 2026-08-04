@@ -529,6 +529,7 @@ ${rendered}
   var MESSAGE_DUPLICATE_REGION = 'clone-studio:duplicate-region'
   var MESSAGE_LIST_REGIONS = 'clone-studio:list-regions'
   var MESSAGE_REGIONS_LIST = 'clone-studio:regions-list'
+  var MESSAGE_SELECTED_GEOMETRY = 'clone-studio:selected-geometry'
   var RESIZE_HANDLE_MIN_HEIGHT = 40
   var resizeHandle = null
   var resizeDrag = null
@@ -538,6 +539,7 @@ ${rendered}
   var hoverRegion = null
   var generatedRegionId = 1
   var carouselResizeTimer = null
+  var selectedGeometryFrame = 0
 
   function post(type, extra) {
     var bodyHtml = getBodyHtml()
@@ -556,6 +558,19 @@ ${rendered}
     }
 
     window.parent.postMessage(message, '*')
+  }
+
+  function postSelectedGeometry() {
+    selectedGeometryFrame = 0
+    if (!selectedRegion)
+      return
+    post(MESSAGE_SELECTED_GEOMETRY, { region: regionPayload(selectedRegion) })
+  }
+
+  function scheduleSelectedGeometry() {
+    if (selectedGeometryFrame)
+      return
+    selectedGeometryFrame = window.requestAnimationFrame(postSelectedGeometry)
   }
 
   function getBodyHtml() {
@@ -1436,6 +1451,7 @@ ${rendered}
     }
 
     positionResizeHandle()
+    scheduleSelectedGeometry()
 
     if (shouldPost) {
       var selectedRegionId = selectedRegion ? ensureRegionId(selectedRegion) : null
@@ -4266,6 +4282,8 @@ ${rendered}
     // Keep the bottom-edge resize handle pinned to the selected region as the page scrolls/resizes.
     window.addEventListener('scroll', positionResizeHandle, true)
     window.addEventListener('resize', positionResizeHandle, false)
+    window.addEventListener('scroll', scheduleSelectedGeometry, true)
+    window.addEventListener('resize', scheduleSelectedGeometry, false)
   }
 
   document.addEventListener('click', handleNavigationEvent, true)
