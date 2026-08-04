@@ -2,8 +2,8 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
-import { createApp, createSSRApp } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createApp, createSSRApp, defineComponent, h, nextTick, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import type { PublicationHistoryEntry, PublicationValidationSummary } from '@/lib/model-page-publication'
@@ -35,6 +35,20 @@ const validation: PublicationValidationSummary = {
   digest: 'validation-22',
 }
 
+afterEach(() => {
+  document.body.innerHTML = ''
+})
+
+function findDialog(title: string): HTMLElement | null {
+  return Array.from(document.body.querySelectorAll<HTMLElement>('[data-slot="alert-dialog-content"]'))
+    .find(dialog => dialog.textContent?.includes(title)) ?? null
+}
+
+function findButton(root: ParentNode, label: string): HTMLButtonElement | null {
+  return Array.from(root.querySelectorAll<HTMLButtonElement>('button'))
+    .find(button => button.textContent?.trim() === label) ?? null
+}
+
 describe('publicationControls', () => {
   it('shows saved draft, production, candidate, validation, and history state', async () => {
     expect(existsSync(componentPath)).toBe(true)
@@ -56,9 +70,29 @@ describe('publicationControls', () => {
     expect(rendered).toContain('Draft 24 saved')
     expect(rendered).toContain('Production 21')
     expect(rendered).toContain('Candidate 22 ready')
-    expect(rendered).toContain('Validation passed')
-    expect(rendered).toContain('Desktop differs by 0.4%')
-    expect(rendered).toContain('Revision 20')
+
+    const container = document.createElement('div')
+    document.body.append(container)
+    const app = createApp(PublicationControls, {
+      draftVersion: 24,
+      publishedRevision: 21,
+      candidateRevision: 22,
+      candidateStatus: 'ready',
+      canBuild: true,
+      canPublish: true,
+      busy: false,
+      validation,
+      history,
+    })
+    app.mount(container)
+    container.querySelector<HTMLElement>('[data-publication-mobile-menu="true"] [data-slot="popover-trigger"]')?.click()
+    await nextTick()
+    const menu = document.body.querySelector<HTMLElement>('[data-publication-mobile-menu-content="true"]')
+    expect(menu?.textContent).toContain('Validation passed')
+    expect(menu?.textContent).toContain('Desktop differs by 0.4%')
+    expect(menu?.textContent).toContain('Revision 20')
+    app.unmount()
+    container.remove()
   })
 
   it('keeps candidate creation, publish, preview, and rollback as explicit separate actions', () => {
@@ -96,9 +130,12 @@ describe('publicationControls', () => {
     })
     app.mount(container)
 
+    container.querySelector<HTMLElement>('[data-publication-desktop-actions="true"] [data-slot="popover-trigger"]')?.click()
+    await nextTick()
+
     const buildButton = container.querySelector<HTMLButtonElement>('[title="Build and validate a candidate from the saved draft"]')
     const publishButton = container.querySelector<HTMLButtonElement>('[title="Publish validated candidate"]')
-    const rollbackButton = container.querySelector<HTMLButtonElement>('[data-publication-rollback="20"]')
+    const rollbackButton = document.body.querySelector<HTMLButtonElement>('[data-publication-rollback="20"]')
 
     expect(buildButton?.disabled).toBe(true)
     expect(publishButton?.disabled).toBe(true)
@@ -107,6 +144,71 @@ describe('publicationControls', () => {
     publishButton?.click()
     expect(onBuildCandidate).not.toHaveBeenCalled()
     expect(onPublish).not.toHaveBeenCalled()
+    app.unmount()
+    container.remove()
+  })
+
+  it('keeps open publish and rollback confirmations inert when busy begins', async () => {
+    const busy = ref(false)
+    const onPublish = vi.fn()
+    const onRollback = vi.fn()
+    const container = document.createElement('div')
+    document.body.append(container)
+    const app = createApp(defineComponent({
+      setup: () => () => h(PublicationControls, {
+        draftVersion: 24,
+        publishedRevision: 21,
+        candidateRevision: 22,
+        candidateStatus: 'ready',
+        canBuild: true,
+        canPublish: true,
+        busy: busy.value,
+        validation,
+        history,
+        onPublish,
+        onRollback,
+      }),
+    }))
+    app.mount(container)
+
+    const publicationTrigger = container.querySelector<HTMLButtonElement>('[data-publication-desktop-actions="true"] [data-slot="popover-trigger"]')
+    publicationTrigger?.click()
+    await nextTick()
+    document.body.querySelector<HTMLButtonElement>('[data-publication-rollback="20"]')?.click()
+    container.querySelector<HTMLButtonElement>('[title="Publish validated candidate"]')?.click()
+    await nextTick()
+
+    const publishDialog = findDialog('Publish candidate?')
+    const rollbackDialog = findDialog('Roll back production?')
+    expect(publishDialog).not.toBeNull()
+    expect(rollbackDialog).not.toBeNull()
+
+    busy.value = true
+    await nextTick()
+
+    const publishConfirm = findButton(publishDialog!, 'Publish candidate')
+    const rollbackConfirm = findButton(rollbackDialog!, 'Roll back')
+    expect(publishConfirm?.disabled).toBe(true)
+    expect(rollbackConfirm?.disabled).toBe(true)
+    publishConfirm?.click()
+    rollbackConfirm?.click()
+    expect(onPublish).not.toHaveBeenCalled()
+    expect(onRollback).not.toHaveBeenCalled()
+
+    findButton(rollbackDialog!, 'Cancel')?.click()
+    await nextTick()
+    expect(findDialog('Roll back production?')?.dataset.state).toBe('closed')
+    if (publicationTrigger?.dataset.state !== 'open') {
+      publicationTrigger?.click()
+      await nextTick()
+    }
+    const busyRollbackTrigger = document.body.querySelector<HTMLButtonElement>('[data-publication-rollback="20"]')
+    expect(busyRollbackTrigger?.disabled).toBe(true)
+    busyRollbackTrigger?.click()
+    await nextTick()
+    expect(findDialog('Roll back production?')?.dataset.state).toBe('closed')
+    expect(onRollback).not.toHaveBeenCalled()
+
     app.unmount()
     container.remove()
   })
@@ -128,6 +230,41 @@ describe('publicationControls', () => {
     expect(rendered).toContain('hidden items-center gap-1.5 sm:flex')
     expect(rendered).toContain('data-publication-mobile-menu="true"')
     expect(rendered).toContain('sm:hidden')
-    expect(rendered).toContain('max-w-[calc(100vw-1rem)]')
+  })
+
+  it('opens the 375px publication menu outside the toolbar clipping ancestor', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 })
+    const toolbar = document.createElement('div')
+    toolbar.dataset.oemPreviewToolbar = 'true'
+    toolbar.style.width = '375px'
+    toolbar.style.overflowX = 'auto'
+    toolbar.style.overflowY = 'hidden'
+    document.body.append(toolbar)
+    const app = createApp(PublicationControls, {
+      draftVersion: 24,
+      publishedRevision: 21,
+      candidateRevision: 22,
+      candidateStatus: 'ready',
+      canBuild: true,
+      canPublish: true,
+      busy: false,
+      validation,
+      history,
+    })
+    app.mount(toolbar)
+
+    const mobileMenu = toolbar.querySelector<HTMLElement>('[data-publication-mobile-menu="true"]')
+    const trigger = mobileMenu?.querySelector<HTMLElement>('summary, button')
+    trigger?.click()
+    await nextTick()
+
+    const menuContent = Array.from(document.body.querySelectorAll<HTMLElement>('.w-72'))
+      .find(element => element.textContent?.includes('Validation passed')) ?? null
+    expect(menuContent).not.toBeNull()
+    expect(menuContent?.classList.contains('max-w-[calc(100vw-1rem)]')).toBe(true)
+    expect(toolbar.contains(menuContent)).toBe(false)
+
+    app.unmount()
+    toolbar.remove()
   })
 })

@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const props = defineProps<{
   draftVersion: number | null
@@ -137,12 +138,14 @@ function confirmRollback() {
         <span class="hidden sm:inline">Publish</span>
       </Button>
 
-      <details class="relative">
-        <summary class="flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border px-2 text-xs font-medium hover:bg-muted">
-          <History class="size-3.5" />
-          <span class="hidden 2xl:inline">Publication</span>
-        </summary>
-        <div class="absolute right-0 z-[80] mt-2 w-80 max-w-[calc(100vw-1rem)] space-y-3 rounded-lg border bg-popover p-3 text-popover-foreground shadow-xl">
+      <Popover>
+        <PopoverTrigger as-child>
+          <button type="button" class="flex h-8 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-medium hover:bg-muted">
+            <History class="size-3.5" />
+            <span class="hidden 2xl:inline">Publication</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" side="bottom" :side-offset="8" class="z-[80] w-80 max-w-[calc(100vw-1rem)] space-y-3 p-3">
           <div class="grid grid-cols-2 gap-2 text-xs xl:hidden">
             <div class="rounded border bg-muted/30 p-2">
               Draft {{ draftVersion ?? '—' }} saved
@@ -192,99 +195,109 @@ function confirmRollback() {
               </Button>
             </div>
           </div>
-        </div>
-      </details>
+        </PopoverContent>
+      </Popover>
     </div>
 
-    <details data-publication-mobile-menu="true" class="relative sm:hidden">
-      <summary class="flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border px-2 text-xs font-medium hover:bg-muted">
-        <History class="size-3.5" />
-        <span>Publication</span>
-      </summary>
-      <div class="absolute right-0 z-[80] mt-2 w-72 max-w-[calc(100vw-1rem)] space-y-3 rounded-lg border bg-popover p-3 text-popover-foreground shadow-xl">
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="rounded border bg-muted/30 p-2">
-            Draft {{ draftVersion ?? '—' }} saved
+    <div data-publication-mobile-menu="true" class="relative sm:hidden">
+      <Popover>
+        <PopoverTrigger as-child>
+          <button type="button" class="flex h-8 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-medium hover:bg-muted">
+            <History class="size-3.5" />
+            <span>Publication</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          data-publication-mobile-menu-content="true"
+          align="end"
+          side="bottom"
+          :side-offset="8"
+          class="z-[80] w-72 max-w-[calc(100vw-1rem)] space-y-3 p-3"
+        >
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded border bg-muted/30 p-2">
+              Draft {{ draftVersion ?? '—' }} saved
+            </div>
+            <div class="rounded border bg-muted/30 p-2">
+              Production {{ publishedRevision ?? 'none' }}
+            </div>
+            <div class="col-span-2 rounded border bg-muted/30 p-2">
+              {{ candidateLabel }}
+            </div>
           </div>
-          <div class="rounded border bg-muted/30 p-2">
-            Production {{ publishedRevision ?? 'none' }}
-          </div>
-          <div class="col-span-2 rounded border bg-muted/30 p-2">
-            {{ candidateLabel }}
-          </div>
-        </div>
 
-        <div class="grid gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            class="w-full justify-start"
-            :disabled="busy || !canBuild || candidateStatus === 'building'"
-            title="Build and validate a candidate from the saved draft"
-            @click="requestBuildCandidate"
-          >
-            <WandSparkles class="mr-1 size-3.5" /> Build Candidate
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            class="w-full justify-start"
-            :disabled="candidateRevision == null || candidateStatus === 'building' || candidateStatus === 'stale'"
-            title="Preview candidate"
-            @click="emit('previewCandidate')"
-          >
-            <Eye class="mr-1 size-3.5" /> Candidate
-          </Button>
-          <Button
-            size="sm"
-            class="w-full justify-start"
-            :disabled="busy || !canPublish"
-            title="Publish validated candidate"
-            @click="requestPublish"
-          >
-            <Rocket class="mr-1 size-3.5" /> Publish
-          </Button>
-        </div>
-
-        <div class="space-y-1 text-xs">
-          <p class="font-medium">
-            {{ validationLabel }}
-          </p>
-          <p v-for="finding in validation?.blocking ?? []" :key="`mobile-blocking-${finding.code}-${finding.message}`" class="text-destructive">
-            {{ finding.message }}
-          </p>
-          <p v-for="finding in validation?.warnings ?? []" :key="`mobile-warning-${finding.code}-${finding.message}`" class="text-amber-600 dark:text-amber-400">
-            {{ finding.message }}
-          </p>
-        </div>
-
-        <div class="space-y-1 border-t pt-2">
-          <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            History
-          </p>
-          <p v-if="history.length === 0" class="text-xs text-muted-foreground">
-            No published revisions yet.
-          </p>
-          <div v-for="entry in history" :key="entry.revision" class="flex items-center justify-between gap-2 rounded border px-2 py-1.5 text-xs">
-            <span>
-              Revision {{ entry.revision }}
-              <span v-if="entry.revision === publishedRevision" class="text-muted-foreground">(production)</span>
-            </span>
+          <div class="grid gap-2">
             <Button
-              v-if="rollbackHistory.some(item => item.revision === entry.revision)"
               size="sm"
-              variant="ghost"
-              class="h-7 px-2"
-              :data-publication-rollback="String(entry.revision)"
-              :disabled="busy"
-              @click="requestRollback(entry.revision)"
+              variant="outline"
+              class="w-full justify-start"
+              :disabled="busy || !canBuild || candidateStatus === 'building'"
+              title="Build and validate a candidate from the saved draft"
+              @click="requestBuildCandidate"
             >
-              <RotateCcw class="mr-1 size-3" /> Roll back
+              <WandSparkles class="mr-1 size-3.5" /> Build Candidate
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              class="w-full justify-start"
+              :disabled="candidateRevision == null || candidateStatus === 'building' || candidateStatus === 'stale'"
+              title="Preview candidate"
+              @click="emit('previewCandidate')"
+            >
+              <Eye class="mr-1 size-3.5" /> Candidate
+            </Button>
+            <Button
+              size="sm"
+              class="w-full justify-start"
+              :disabled="busy || !canPublish"
+              title="Publish validated candidate"
+              @click="requestPublish"
+            >
+              <Rocket class="mr-1 size-3.5" /> Publish
             </Button>
           </div>
-        </div>
-      </div>
-    </details>
+
+          <div class="space-y-1 text-xs">
+            <p class="font-medium">
+              {{ validationLabel }}
+            </p>
+            <p v-for="finding in validation?.blocking ?? []" :key="`mobile-blocking-${finding.code}-${finding.message}`" class="text-destructive">
+              {{ finding.message }}
+            </p>
+            <p v-for="finding in validation?.warnings ?? []" :key="`mobile-warning-${finding.code}-${finding.message}`" class="text-amber-600 dark:text-amber-400">
+              {{ finding.message }}
+            </p>
+          </div>
+
+          <div class="space-y-1 border-t pt-2">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              History
+            </p>
+            <p v-if="history.length === 0" class="text-xs text-muted-foreground">
+              No published revisions yet.
+            </p>
+            <div v-for="entry in history" :key="entry.revision" class="flex items-center justify-between gap-2 rounded border px-2 py-1.5 text-xs">
+              <span>
+                Revision {{ entry.revision }}
+                <span v-if="entry.revision === publishedRevision" class="text-muted-foreground">(production)</span>
+              </span>
+              <Button
+                v-if="rollbackHistory.some(item => item.revision === entry.revision)"
+                size="sm"
+                variant="ghost"
+                class="h-7 px-2"
+                :data-publication-rollback="String(entry.revision)"
+                :disabled="busy"
+                @click="requestRollback(entry.revision)"
+              >
+                <RotateCcw class="mr-1 size-3" /> Roll back
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
 
     <AlertDialog v-model:open="publishDialogOpen">
       <AlertDialogContent>
