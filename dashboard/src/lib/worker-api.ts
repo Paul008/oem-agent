@@ -6,6 +6,11 @@ import type {
 } from '@/lib/model-page-publication'
 import type { Recipe } from '@/lib/recipes'
 
+import {
+  parsePublicationCandidateResponse,
+  parsePublicationHistoryResponse,
+  parsePublicationTransitionResponse,
+} from '@/lib/model-page-publication'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { normalizeRecipesResponse } from '@/lib/recipes'
 import { supabase } from '@/lib/supabase'
@@ -21,6 +26,10 @@ function assertModelPageWriteAllowed(oemId: string) {
 
 type WorkerFetchOptions = RequestInit & {
   skipAuthHeader?: boolean
+}
+
+type WorkerTextFetchOptions = WorkerFetchOptions & {
+  expectedContentType?: string
 }
 
 export async function workerFetch(path: string, options?: WorkerFetchOptions) {
@@ -43,8 +52,8 @@ export async function workerFetch(path: string, options?: WorkerFetchOptions) {
   return res.json()
 }
 
-export async function workerTextFetch(path: string, options?: WorkerFetchOptions): Promise<string> {
-  const { skipAuthHeader, ...fetchOptions } = options ?? {}
+export async function workerTextFetch(path: string, options?: WorkerTextFetchOptions): Promise<string> {
+  const { expectedContentType, skipAuthHeader, ...fetchOptions } = options ?? {}
   const headers = await buildWorkerHeaders(fetchOptions.headers, { skipAuthHeader })
   const res = await fetch(`${WORKER_BASE}${path}`, {
     credentials: 'include',
@@ -54,6 +63,11 @@ export async function workerTextFetch(path: string, options?: WorkerFetchOptions
   if (!res.ok) {
     const text = await res.text().catch(() => 'No response body')
     throw new Error(`Worker API error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const contentType = res.headers.get('content-type') || ''
+  if (expectedContentType && !contentType.includes(expectedContentType)) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Expected ${expectedContentType} from ${path} but got ${contentType || 'unknown'}: ${text.slice(0, 200)}`)
   }
   return res.text()
 }
@@ -151,47 +165,52 @@ function publicationPath(pageId: string, action: string): string {
 }
 
 export async function fetchModelPagePublicationState(pageId: string): Promise<PublicationHistoryResponse> {
-  return workerFetch(publicationPath(pageId, 'history'))
+  return parsePublicationHistoryResponse(await workerFetch(publicationPath(pageId, 'history')))
 }
 
 export async function buildModelPagePublicationCandidate(
   pageId: string,
   expectedDraftVersion: number,
 ): Promise<PublicationCandidateResponse> {
-  return workerFetch(publicationPath(pageId, 'candidate'), {
+  const response = await workerFetch(publicationPath(pageId, 'candidate'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ expectedDraftVersion }),
   })
+  return parsePublicationCandidateResponse(response)
 }
 
 export async function fetchModelPagePublicationCandidateHtml(
   pageId: string,
   revision: number,
 ): Promise<string> {
-  return workerTextFetch(`${publicationPath(pageId, 'candidate-html')}?revision=${revision}`)
+  return workerTextFetch(`${publicationPath(pageId, 'candidate-html')}?revision=${revision}`, {
+    expectedContentType: 'text/html',
+  })
 }
 
 export async function publishModelPagePublicationCandidate(
   pageId: string,
   input: PublishModelPagePublicationInput,
 ): Promise<PublicationTransitionResponse> {
-  return workerFetch(publicationPath(pageId, 'publish'), {
+  const response = await workerFetch(publicationPath(pageId, 'publish'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
+  return parsePublicationTransitionResponse(response, 'publish')
 }
 
 export async function rollbackModelPagePublication(
   pageId: string,
   targetRevision: number,
 ): Promise<PublicationTransitionResponse> {
-  return workerFetch(publicationPath(pageId, 'rollback'), {
+  const response = await workerFetch(publicationPath(pageId, 'rollback'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ targetRevision }),
   })
+  return parsePublicationTransitionResponse(response, 'rollback')
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {

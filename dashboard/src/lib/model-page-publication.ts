@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface PublicationCandidateSummary {
   revision: number
   draft_version: number
@@ -86,6 +88,7 @@ export interface PublicationHistoryEntry {
 export interface PublicationHistoryResponse {
   state: PublicationState | null
   history: PublicationHistoryEntry[]
+  candidateValidation: PublicationValidationSummary | null
 }
 
 export interface PublicationCandidateResponse {
@@ -105,4 +108,172 @@ export interface PublishModelPagePublicationInput {
   revision: number
   expectedDraftVersion: number
   validationDigest: string
+}
+
+const positiveIntegerSchema = z.number().int().positive()
+const optionalNullableStringSchema = z.string().nullable().optional()
+const candidateStatusSchema = z.enum(['building', 'ready', 'failed'])
+const propagationSchema = z.enum(['pending', 'delivered', 'failed'])
+const viewportNameSchema = z.enum(['desktop', 'tablet', 'mobile'])
+
+const candidateSummarySchema = z.object({
+  revision: positiveIntegerSchema,
+  draft_version: positiveIntegerSchema,
+  status: candidateStatusSchema,
+  validation_digest: z.string().min(1).nullable(),
+  created_at: z.string().min(1),
+  created_by: z.string().min(1),
+}).superRefine((candidate, context) => {
+  const hasDigest = candidate.validation_digest != null
+  if ((candidate.status === 'building' && hasDigest)
+    || (candidate.status !== 'building' && !hasDigest)) {
+    context.addIssue({ code: 'custom', message: 'candidate status and validation digest do not match' })
+  }
+})
+
+const publicationStateSchema = z.object({
+  schema_version: z.literal(1),
+  next_revision: positiveIntegerSchema,
+  published_revision: positiveIntegerSchema.nullable(),
+  published_at: optionalNullableStringSchema,
+  published_by: optionalNullableStringSchema,
+  candidate: candidateSummarySchema.nullable(),
+  history: z.array(positiveIntegerSchema),
+})
+
+const findingSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  viewport: viewportNameSchema.optional(),
+  regionId: z.string().min(1).optional(),
+})
+
+const interactionSchema = z.object({
+  regionId: z.string().min(1),
+  kind: z.string().min(1),
+  passed: z.boolean(),
+  detail: z.string(),
+})
+
+const evidenceRecordSchema = z.object({
+  key: z.string().min(1),
+  byteLength: z.number().int().nonnegative(),
+  sha256: z.string().min(1),
+})
+
+const sizeSchema = z.object({
+  width: z.number().nonnegative(),
+  height: z.number().nonnegative(),
+})
+
+const viewportValidationSchema = z.object({
+  name: viewportNameSchema,
+  mismatchPercent: z.number().nonnegative(),
+  horizontalOverflowPx: z.number().nonnegative(),
+  bodyHeight: z.number().nonnegative(),
+  consoleErrors: z.array(z.string()),
+  failedRequests: z.array(z.string()),
+  interactions: z.array(interactionSchema),
+  screenshotKey: z.string().min(1).optional(),
+  diffScreenshotKey: z.string().min(1).optional(),
+  sourceSize: sizeSchema.optional(),
+  candidateSize: sizeSchema.optional(),
+  evidence: z.object({
+    source: evidenceRecordSchema,
+    candidate: evidenceRecordSchema,
+    diff: evidenceRecordSchema,
+  }).optional(),
+})
+
+const validationSummarySchema = z.object({
+  publishable: z.boolean(),
+  blocking: z.array(findingSchema),
+  warnings: z.array(findingSchema),
+  viewports: z.array(viewportValidationSchema),
+  digest: z.string().min(1),
+})
+
+const historyEntrySchema = z.object({
+  pageId: z.string().min(1),
+  revision: positiveIntegerSchema,
+  draftVersion: positiveIntegerSchema,
+  format: z.literal('composed-html-body'),
+  bodyPath: z.string().min(1),
+  publishedAt: z.string().nullable(),
+  publishedBy: z.string().nullable(),
+  platformRegions: z.array(z.enum(['hero', 'variants', 'inventory'])),
+  etag: z.string().min(1),
+  bodyBytes: z.number().int().nonnegative(),
+  bodySha256: z.string().min(1),
+  regionRenderers: z.array(z.object({
+    regionId: z.string().min(1),
+    renderer: z.enum(['clone', 'tailwind']),
+    interactionKind: z.string().min(1),
+  })),
+})
+
+const historyResponseSchema = z.object({
+  state: publicationStateSchema.nullable(),
+  history: z.array(historyEntrySchema),
+  candidateValidation: validationSummarySchema.nullable(),
+}).superRefine((response, context) => {
+  if (response.candidateValidation) {
+    const candidate = response.state?.candidate
+    if (!candidate || candidate.validation_digest !== response.candidateValidation.digest) {
+      context.addIssue({
+        code: 'custom',
+        message: 'candidate validation does not match current candidate',
+      })
+    }
+  }
+})
+
+const candidateResponseSchema = z.object({
+  status: z.enum(['ready', 'failed']),
+  revision: positiveIntegerSchema,
+  validation: validationSummarySchema,
+  state: publicationStateSchema,
+}).superRefine((response, context) => {
+  const candidate = response.state.candidate
+  const statusMatchesValidation = response.status === 'ready'
+    ? response.validation.publishable && response.validation.blocking.length === 0
+    : !response.validation.publishable || response.validation.blocking.length > 0
+  if (!candidate
+    || candidate.revision !== response.revision
+    || candidate.status !== response.status
+    || candidate.validation_digest !== response.validation.digest
+    || !statusMatchesValidation) {
+    context.addIssue({ code: 'custom', message: 'candidate identity does not match response' })
+  }
+})
+
+const transitionResponseSchema = publicationStateSchema.extend({
+  propagation: propagationSchema,
+})
+
+function parsePublicationResponse<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  label: string,
+): T {
+  const result = schema.safeParse(value)
+  if (result.success)
+    return result.data
+  const detail = result.error.issues[0]?.message || 'unknown validation error'
+  throw new Error(`Invalid model page publication ${label} response: ${detail}`)
+}
+
+export function parsePublicationHistoryResponse(value: unknown): PublicationHistoryResponse {
+  return parsePublicationResponse(historyResponseSchema, value, 'history')
+}
+
+export function parsePublicationCandidateResponse(value: unknown): PublicationCandidateResponse {
+  return parsePublicationResponse(candidateResponseSchema, value, 'candidate')
+}
+
+export function parsePublicationTransitionResponse(
+  value: unknown,
+  action: 'publish' | 'rollback',
+): PublicationTransitionResponse {
+  return parsePublicationResponse(transitionResponseSchema, value, action)
 }

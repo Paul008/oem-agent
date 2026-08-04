@@ -345,7 +345,7 @@ describe('worker-api publication requests', () => {
           })
         }
         if (url.endsWith('/history')) {
-          return new Response(JSON.stringify({ state: null, history: [] }), {
+          return new Response(JSON.stringify({ state: null, history: [], candidateValidation: null }), {
             headers: { 'content-type': 'application/json' },
           })
         }
@@ -467,5 +467,97 @@ describe('worker-api publication requests', () => {
     await expect(workerTextFetch('/admin/pages/nissan-au-ariya/publication/candidate-html?revision=12'))
       .rejects
       .toThrow('Worker API error 409: {"error":"Ready publication candidate no longer matches","code":"candidate_conflict"}')
+  })
+
+  it('rejects malformed history state before returning it to the composable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      state: {
+        schema_version: 2,
+        next_revision: 13,
+        published_revision: null,
+        candidate: null,
+        history: [],
+      },
+      history: [],
+      candidateValidation: null,
+    }), { headers: { 'content-type': 'application/json' } })))
+
+    await expect(fetchModelPagePublicationState('nissan-au-ariya'))
+      .rejects
+      .toThrow('Invalid model page publication history response')
+  })
+
+  it('rejects candidate responses whose revision and digest do not match state', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      status: 'ready',
+      revision: 13,
+      validation: {
+        publishable: true,
+        blocking: [],
+        warnings: [],
+        viewports: [],
+        digest: 'sha256-wrong',
+      },
+      state: {
+        schema_version: 1,
+        next_revision: 13,
+        published_revision: 9,
+        candidate: {
+          revision: 12,
+          draft_version: 24,
+          status: 'ready',
+          validation_digest: 'sha256-validation-12',
+          created_at: '2026-08-04T08:10:00.000Z',
+          created_by: 'editor@example.com',
+        },
+        history: [9],
+      },
+    }), { headers: { 'content-type': 'application/json' } })))
+
+    await expect(buildModelPagePublicationCandidate('nissan-au-ariya', 24))
+      .rejects
+      .toThrow('Invalid model page publication candidate response')
+  })
+
+  it('rejects publish responses with an unknown propagation status', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      schema_version: 1,
+      next_revision: 13,
+      published_revision: 12,
+      candidate: null,
+      history: [12, 9],
+      propagation: 'complete',
+    }), { headers: { 'content-type': 'application/json' } })))
+
+    await expect(publishModelPagePublicationCandidate('nissan-au-ariya', {
+      revision: 12,
+      expectedDraftVersion: 24,
+      validationDigest: 'sha256-validation-12',
+    })).rejects.toThrow('Invalid model page publication publish response')
+  })
+
+  it('rejects rollback responses with invalid revision history', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      schema_version: 1,
+      next_revision: 13,
+      published_revision: 0,
+      candidate: null,
+      history: [0],
+      propagation: 'delivered',
+    }), { headers: { 'content-type': 'application/json' } })))
+
+    await expect(rollbackModelPagePublication('nissan-au-ariya', 9))
+      .rejects
+      .toThrow('Invalid model page publication rollback response')
+  })
+
+  it('rejects non-HTML candidate responses before preview creation', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"html":"not html"}', {
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    await expect(fetchModelPagePublicationCandidateHtml('nissan-au-ariya', 12))
+      .rejects
+      .toThrow('Expected text/html')
   })
 })

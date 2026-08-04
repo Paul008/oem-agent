@@ -19,6 +19,7 @@ vi.mock('./validator', async importOriginal => {
 import {
   PublicationServiceConflictError,
   buildCandidate,
+  getPublicationCandidateValidation,
   getProductionPublication,
   publishCandidate,
   rollbackPublication,
@@ -242,6 +243,34 @@ describe('model page publication service', () => {
 
     expect(result.status).toBe('failed')
     expect(result.validation.publishable).toBe(false)
+  })
+
+  it('restores the exact canonical validation report for a failed current candidate', async () => {
+    const bucket = new MemoryR2Bucket()
+    publicationMocks.validate.mockResolvedValueOnce(validationReport(false))
+    const candidate = await buildCandidate(buildInput(bucket))
+
+    const restored = await getPublicationCandidateValidation({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+    })
+
+    expect(candidate.status).toBe('failed')
+    expect(restored).toEqual(validationReport(false))
+  })
+
+  it('does not restore candidate validation when its stored digest is not canonical', async () => {
+    const bucket = new MemoryR2Bucket()
+    const candidate = await readyCandidate(bucket)
+    overwriteJson(bucket, publicationKeys(pageId, candidate.revision).validation, {
+      ...validationReport(),
+      digest: 'forged-digest',
+    })
+
+    await expect(getPublicationCandidateValidation({
+      bucket: bucket as unknown as R2Bucket,
+      pageId,
+    })).resolves.toBeNull()
   })
 
   it('rejects non-monotonic state before any evidence is written', async () => {

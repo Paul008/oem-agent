@@ -81,6 +81,14 @@ const readyValidation = {
   digest: '2976d29373b8c5ff8a0057beedcd49f9d2917bd45d2fa76fefdde544275ca74b',
 };
 
+const failedValidation = {
+  publishable: false,
+  blocking: [{ code: 'visual-mismatch', message: 'Candidate mismatch is blocking' }],
+  warnings: [],
+  viewports: [],
+  digest: '62725a008c945bfeed32893595e8bfbb3482c11a0e7d6dfd61986ebbd8a31226',
+};
+
 const publicationRouteEnv = {
   SUPABASE_URL: 'https://supabase.test',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
@@ -1092,6 +1100,39 @@ describe('oem-agent model page publication admin routes', () => {
       history: [{ pageId: 'nissan-au-ariya', revision: 21, draftVersion: 24 }],
     });
     expect(body.history.map(entry => entry.revision)).toEqual([21]);
+  });
+
+  it('returns canonical failed candidate validation with publication history', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
+    publicationBucket.seed(publicationKeys('nissan-au-ariya', 22).validation, failedValidation);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 23,
+      candidate: {
+        revision: 22,
+        draft_version: 25,
+        status: 'failed',
+        validation_digest: failedValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/history', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      state: { candidate: { revision: 22, status: 'failed' } },
+      candidateValidation: failedValidation,
+    });
   });
 
   it('rolls production back to a retained published revision', async () => {

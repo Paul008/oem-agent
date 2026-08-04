@@ -71,7 +71,17 @@ const revisionNine = {
 } satisfies PublicationHistoryEntry
 
 function historyResponse(state = publicationState()): PublicationHistoryResponse {
-  return { state, history: [revisionNine] }
+  return { state, history: [revisionNine], candidateValidation: validation } as PublicationHistoryResponse
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
 }
 
 describe('useModelPagePublication', () => {
@@ -199,6 +209,14 @@ describe('useModelPagePublication', () => {
     }) as PublicationTransitionResponse
     published.propagation = 'delivered'
     vi.mocked(publishModelPagePublicationCandidate).mockResolvedValue(published)
+    const { propagation: _propagation, ...publishedState } = published
+    vi.mocked(fetchModelPagePublicationState)
+      .mockResolvedValueOnce(historyResponse())
+      .mockResolvedValueOnce({
+        state: publishedState,
+        history: [{ ...revisionNine, revision: 12, draftVersion: 24 }, revisionNine],
+        candidateValidation: null,
+      } as PublicationHistoryResponse)
     const scope = effectScope()
     const publication = scope.run(() => useModelPagePublication({
       pageId: ref('nissan-au-ariya'),
@@ -231,6 +249,260 @@ describe('useModelPagePublication', () => {
     expect(publication.publishedRevision.value).toBe(9)
     expect(publication.candidate.value?.revision).toBe(12)
     expect(buildModelPagePublicationCandidate).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('discards an old page response after the page changes', async () => {
+    const oldPage = deferred<PublicationHistoryResponse>()
+    const newState = publicationState({
+      next_revision: 31,
+      candidate: {
+        revision: 30,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: validation.digest,
+        created_at: '2026-08-04T09:00:00.000Z',
+        created_by: 'editor@example.com',
+      },
+    })
+    vi.mocked(fetchModelPagePublicationState)
+      .mockReturnValueOnce(oldPage.promise)
+      .mockResolvedValueOnce(historyResponse(newState))
+    const pageId = ref<string | null>('nissan-au-ariya')
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({ pageId, draftVersion: ref(24) }))!
+
+    const oldRefresh = publication.refresh()
+    pageId.value = 'nissan-au-qashqai'
+    await publication.refresh()
+    oldPage.resolve(historyResponse())
+    await oldRefresh
+
+    expect(publication.candidate.value?.revision).toBe(30)
+    expect(publication.candidatePreviewUrl.value).toBe('blob:candidate-1')
+    scope.stop()
+  })
+
+  it('keeps the newest same-page refresh when responses finish out of order', async () => {
+    const first = deferred<PublicationHistoryResponse>()
+    const second = deferred<PublicationHistoryResponse>()
+    const newestState = publicationState({
+      next_revision: 23,
+      candidate: {
+        revision: 22,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: validation.digest,
+        created_at: '2026-08-04T09:00:00.000Z',
+        created_by: 'editor@example.com',
+      },
+    })
+    vi.mocked(fetchModelPagePublicationState)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    const firstRefresh = publication.refresh()
+    const secondRefresh = publication.refresh()
+    second.resolve(historyResponse(newestState))
+    await secondRefresh
+    first.resolve(historyResponse())
+    await firstRefresh
+
+    expect(publication.candidate.value?.revision).toBe(22)
+    expect(publication.candidatePreviewUrl.value).toBe('blob:candidate-1')
+    scope.stop()
+  })
+
+  it('does not create a blob URL when scope disposal happens during HTML fetch', async () => {
+    const html = deferred<string>()
+    vi.mocked(fetchModelPagePublicationCandidateHtml).mockReturnValueOnce(html.promise)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    const refresh = publication.refresh()
+    await vi.waitFor(() => expect(fetchModelPagePublicationCandidateHtml).toHaveBeenCalledOnce())
+    scope.stop()
+    html.resolve('<main>Late candidate</main>')
+    await refresh
+
+    expect(createdUrls).toEqual([])
+    expect(revokedUrls).toEqual([])
+  })
+
+  it('clears an old preview and keeps matching state when replacement HTML fails', async () => {
+    const nextState = publicationState({
+      next_revision: 14,
+      candidate: {
+        revision: 13,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: validation.digest,
+        created_at: '2026-08-04T09:00:00.000Z',
+        created_by: 'editor@example.com',
+      },
+    })
+    vi.mocked(fetchModelPagePublicationState)
+      .mockResolvedValueOnce(historyResponse())
+      .mockResolvedValueOnce(historyResponse(nextState))
+    vi.mocked(fetchModelPagePublicationCandidateHtml)
+      .mockResolvedValueOnce('<main>Candidate 12</main>')
+      .mockRejectedValueOnce(new Error('Candidate HTML unavailable'))
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+    await publication.refresh()
+
+    await expect(publication.refresh()).rejects.toThrow('Candidate HTML unavailable')
+
+    expect(publication.candidate.value?.revision).toBe(12)
+    expect(publication.candidatePreviewUrl.value).toBeNull()
+    expect(revokedUrls).toEqual(['blob:candidate-1'])
+    scope.stop()
+  })
+
+  it('restores failed candidate validation and HTML on refresh', async () => {
+    const failedValidation = {
+      ...validation,
+      publishable: false,
+      blocking: [{ code: 'horizontal-overflow', message: 'Mobile layout overflows', viewport: 'mobile' as const }],
+      digest: 'sha256-failed-13',
+    }
+    const failedState = publicationState({
+      next_revision: 14,
+      candidate: {
+        revision: 13,
+        draft_version: 24,
+        status: 'failed',
+        validation_digest: failedValidation.digest,
+        created_at: '2026-08-04T09:00:00.000Z',
+        created_by: 'editor@example.com',
+      },
+    })
+    vi.mocked(fetchModelPagePublicationState).mockResolvedValueOnce({
+      state: failedState,
+      history: [revisionNine],
+      candidateValidation: failedValidation,
+    } as PublicationHistoryResponse)
+    vi.mocked(fetchModelPagePublicationCandidateHtml).mockResolvedValueOnce('<main>Failed candidate 13</main>')
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    await publication.refresh()
+
+    expect(publication.status.value).toBe('failed')
+    expect(publication.validation.value).toEqual(failedValidation)
+    expect(publication.candidatePreviewUrl.value).toBe('blob:candidate-1')
+    scope.stop()
+  })
+
+  it('stays loading until every overlapping read finishes', async () => {
+    const first = deferred<PublicationHistoryResponse>()
+    const second = deferred<PublicationHistoryResponse>()
+    vi.mocked(fetchModelPagePublicationState)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    const firstRefresh = publication.refresh()
+    const secondRefresh = publication.refresh()
+    expect(publication.isLoading.value).toBe(true)
+    second.resolve({ state: null, history: [], candidateValidation: null } as PublicationHistoryResponse)
+    await secondRefresh
+    expect(publication.isLoading.value).toBe(true)
+    first.resolve({ state: null, history: [], candidateValidation: null } as PublicationHistoryResponse)
+    await firstRefresh
+    expect(publication.isLoading.value).toBe(false)
+    scope.stop()
+  })
+
+  it('refreshes immutable manifest history after publish', async () => {
+    const published = publicationState({
+      candidate: null,
+      published_revision: 12,
+      published_at: '2026-08-04T09:30:00.000Z',
+      history: [12, 9],
+    }) as PublicationTransitionResponse
+    published.propagation = 'delivered'
+    const revisionTwelve = { ...revisionNine, revision: 12, draftVersion: 24 }
+    vi.mocked(publishModelPagePublicationCandidate).mockResolvedValueOnce(published)
+    vi.mocked(fetchModelPagePublicationState)
+      .mockResolvedValueOnce(historyResponse())
+      .mockResolvedValueOnce({
+        state: published,
+        history: [revisionTwelve, revisionNine],
+        candidateValidation: null,
+      } as PublicationHistoryResponse)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+    await publication.refresh()
+
+    await publication.publish()
+
+    expect(publication.history.value.map(entry => entry.revision)).toEqual([12, 9])
+    expect(publication.publishedRevision.value).toBe(12)
+    scope.stop()
+  })
+
+  it('rejects a second publication mutation while one is in flight', async () => {
+    const candidateBuild = deferred<PublicationCandidateResponse>()
+    vi.mocked(buildModelPagePublicationCandidate).mockReturnValueOnce(candidateBuild.promise)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    const build = publication.buildCandidate()
+    await expect(publication.rollback(9)).rejects.toThrow('Another publication change is already in progress')
+    candidateBuild.resolve({
+      status: 'ready',
+      revision: 12,
+      validation,
+      state: publicationState(),
+    })
+    await build
+    scope.stop()
+  })
+
+  it('keeps mutation gating after a saved draft change invalidates its response', async () => {
+    const candidateBuild = deferred<PublicationCandidateResponse>()
+    vi.mocked(buildModelPagePublicationCandidate).mockReturnValueOnce(candidateBuild.promise)
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    const build = publication.buildCandidate()
+    publication.markDraftChanged(25)
+    await expect(publication.rollback(9)).rejects.toThrow('Another publication change is already in progress')
+    candidateBuild.resolve({
+      status: 'ready',
+      revision: 12,
+      validation,
+      state: publicationState(),
+    })
+    await build
     scope.stop()
   })
 })

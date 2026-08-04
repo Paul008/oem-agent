@@ -29,12 +29,25 @@ export function useModelPagePublication(input: {
   const candidatePreviewUrl = ref<string | null>(null)
   const candidateIsStale = ref(false)
   const savedDraftVersion = ref<number | null>(input.draftVersion.value)
-  const isLoading = ref(false)
+  const pendingOperations = ref(0)
   const error = ref<string | null>(null)
   const propagation = ref<PublicationPropagation | null>(null)
+  let pageGeneration = 0
+  let requestSequence = 0
+  let latestRequest = 0
+  let disposed = false
+
+  interface OperationContext {
+    pageId: string
+    pageGeneration: number
+    requestId: number
+  }
+
+  let activeMutation: OperationContext | null = null
 
   const candidate = computed(() => state.value?.candidate ?? null)
   const publishedRevision = computed(() => state.value?.published_revision ?? null)
+  const isLoading = computed(() => pendingOperations.value > 0)
   const status = computed<ModelPagePublicationStatus>(() => {
     if (!candidate.value)
       return 'none'
@@ -45,6 +58,8 @@ export function useModelPagePublication(input: {
   const canPublish = computed(() => (
     status.value === 'ready'
     && candidate.value?.validation_digest != null
+    && validation.value?.publishable === true
+    && validation.value.digest === candidate.value.validation_digest
   ))
   const statusLabel = computed(() => {
     switch (status.value) {
@@ -80,11 +95,93 @@ export function useModelPagePublication(input: {
     candidatePreviewUrl.value = null
   }
 
-  async function replaceCandidatePreview(pageId: string, revision: number) {
-    const html = await fetchModelPagePublicationCandidateHtml(pageId, revision)
-    const nextUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+  function beginOperation(pageId: string): OperationContext {
+    if (disposed)
+      throw new Error('Model page publication scope has been disposed')
+    const context = {
+      pageId,
+      pageGeneration,
+      requestId: ++requestSequence,
+    }
+    latestRequest = context.requestId
+    pendingOperations.value += 1
+    return context
+  }
+
+  function beginMutation(pageId: string): OperationContext {
+    if (activeMutation)
+      throw new Error('Another publication change is already in progress')
+    const context = beginOperation(pageId)
+    activeMutation = context
+    return context
+  }
+
+  function isCurrent(context: OperationContext): boolean {
+    return !disposed
+      && context.pageGeneration === pageGeneration
+      && context.requestId === latestRequest
+      && context.pageId === input.pageId.value
+  }
+
+  function finishOperation(context: OperationContext) {
+    pendingOperations.value = Math.max(0, pendingOperations.value - 1)
+    if (activeMutation === context)
+      activeMutation = null
+  }
+
+  function invalidateRequests(options: { releaseMutation?: boolean } = {}) {
+    pageGeneration += 1
+    latestRequest = ++requestSequence
+    if (options.releaseMutation)
+      activeMutation = null
+  }
+
+  async function fetchCandidatePreview(
+    context: OperationContext,
+    revision: number,
+  ): Promise<string | null> {
+    if (!isCurrent(context))
+      return null
     clearCandidatePreview()
-    candidatePreviewUrl.value = nextUrl
+    const html = await fetchModelPagePublicationCandidateHtml(context.pageId, revision)
+    if (!isCurrent(context))
+      return null
+    const nextUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+    if (!isCurrent(context)) {
+      URL.revokeObjectURL(nextUrl)
+      return null
+    }
+    return nextUrl
+  }
+
+  async function fetchAndCommitSnapshot(context: OperationContext) {
+    const response = await fetchModelPagePublicationState(context.pageId)
+    if (!isCurrent(context))
+      return response
+    const nextCandidate = response.state?.candidate
+    let nextPreviewUrl: string | null = null
+    if (nextCandidate?.status === 'ready' || nextCandidate?.status === 'failed') {
+      nextPreviewUrl = await fetchCandidatePreview(context, nextCandidate.revision)
+      if (!isCurrent(context))
+        return response
+    }
+    else {
+      clearCandidatePreview()
+    }
+    if (!isCurrent(context)) {
+      if (nextPreviewUrl)
+        URL.revokeObjectURL(nextPreviewUrl)
+      return response
+    }
+    state.value = response.state
+    history.value = response.history
+    validation.value = response.candidateValidation
+    candidateIsStale.value = Boolean(
+      nextCandidate
+      && nextCandidate.draft_version !== savedDraftVersion.value,
+    )
+    candidatePreviewUrl.value = nextPreviewUrl
+    return response
   }
 
   function captureError(cause: unknown) {
@@ -93,56 +190,52 @@ export function useModelPagePublication(input: {
 
   async function refresh() {
     const pageId = requirePageId()
-    isLoading.value = true
+    if (activeMutation)
+      throw new Error('Another publication change is already in progress')
+    const context = beginOperation(pageId)
     error.value = null
     try {
-      const previousCandidateRevision = state.value?.candidate?.revision
-      const response = await fetchModelPagePublicationState(pageId)
-      state.value = response.state
-      history.value = response.history
-      propagation.value = null
-      candidateIsStale.value = Boolean(
-        response.state?.candidate
-        && response.state.candidate.draft_version !== savedDraftVersion.value,
-      )
-      if (response.state?.candidate?.status === 'ready') {
-        await replaceCandidatePreview(pageId, response.state.candidate.revision)
-      }
-      else {
-        clearCandidatePreview()
-      }
-      if (response.state?.candidate?.revision !== previousCandidateRevision)
-        validation.value = null
+      const response = await fetchAndCommitSnapshot(context)
+      if (isCurrent(context))
+        propagation.value = null
+      return response
     }
     catch (cause) {
-      captureError(cause)
+      if (isCurrent(context))
+        captureError(cause)
       throw cause
     }
     finally {
-      isLoading.value = false
+      finishOperation(context)
     }
   }
 
   async function buildCandidate() {
     const pageId = requirePageId()
     const expectedDraftVersion = requireDraftVersion()
-    isLoading.value = true
+    const context = beginMutation(pageId)
     error.value = null
     propagation.value = null
     try {
       const response = await buildModelPagePublicationCandidate(pageId, expectedDraftVersion)
+      if (!isCurrent(context))
+        return response
+      const nextPreviewUrl = await fetchCandidatePreview(context, response.revision)
+      if (!isCurrent(context))
+        return response
       state.value = response.state
       validation.value = response.validation
       candidateIsStale.value = response.state.candidate?.draft_version !== savedDraftVersion.value
-      await replaceCandidatePreview(pageId, response.revision)
+      candidatePreviewUrl.value = nextPreviewUrl
       return response
     }
     catch (cause) {
-      captureError(cause)
+      if (isCurrent(context))
+        captureError(cause)
       throw cause
     }
     finally {
-      isLoading.value = false
+      finishOperation(context)
     }
   }
 
@@ -156,7 +249,7 @@ export function useModelPagePublication(input: {
       || !readyCandidate.validation_digest) {
       throw new Error(`Build a candidate for saved draft ${expectedDraftVersion} before publishing`)
     }
-    isLoading.value = true
+    const context = beginMutation(pageId)
     error.value = null
     try {
       const response = await publishModelPagePublicationCandidate(pageId, {
@@ -164,48 +257,48 @@ export function useModelPagePublication(input: {
         expectedDraftVersion,
         validationDigest: readyCandidate.validation_digest,
       })
-      const { propagation: nextPropagation, ...nextState } = response
-      state.value = nextState
-      propagation.value = nextPropagation
-      validation.value = null
-      candidateIsStale.value = false
-      clearCandidatePreview()
+      if (!isCurrent(context))
+        return response
+      await fetchAndCommitSnapshot(context)
+      if (isCurrent(context))
+        propagation.value = response.propagation
       return response
     }
     catch (cause) {
-      captureError(cause)
+      if (isCurrent(context))
+        captureError(cause)
       throw cause
     }
     finally {
-      isLoading.value = false
+      finishOperation(context)
     }
   }
 
   async function rollback(targetRevision: number) {
     const pageId = requirePageId()
-    isLoading.value = true
+    const context = beginMutation(pageId)
     error.value = null
     try {
       const response = await rollbackModelPagePublication(pageId, targetRevision)
-      const { propagation: nextPropagation, ...nextState } = response
-      state.value = nextState
-      propagation.value = nextPropagation
-      candidateIsStale.value = Boolean(
-        nextState.candidate
-        && nextState.candidate.draft_version !== savedDraftVersion.value,
-      )
+      if (!isCurrent(context))
+        return response
+      await fetchAndCommitSnapshot(context)
+      if (isCurrent(context))
+        propagation.value = response.propagation
       return response
     }
     catch (cause) {
-      captureError(cause)
+      if (isCurrent(context))
+        captureError(cause)
       throw cause
     }
     finally {
-      isLoading.value = false
+      finishOperation(context)
     }
   }
 
   function markDraftChanged(version: number) {
+    invalidateRequests()
     savedDraftVersion.value = version
     candidateIsStale.value = Boolean(
       candidate.value
@@ -214,6 +307,7 @@ export function useModelPagePublication(input: {
   }
 
   watch(input.draftVersion, (version) => {
+    invalidateRequests()
     savedDraftVersion.value = version
     candidateIsStale.value = Boolean(
       candidate.value
@@ -222,6 +316,7 @@ export function useModelPagePublication(input: {
   }, { flush: 'sync' })
 
   watch(input.pageId, () => {
+    invalidateRequests({ releaseMutation: true })
     state.value = null
     history.value = []
     validation.value = null
@@ -231,7 +326,11 @@ export function useModelPagePublication(input: {
     clearCandidatePreview()
   }, { flush: 'sync' })
 
-  onScopeDispose(clearCandidatePreview)
+  onScopeDispose(() => {
+    disposed = true
+    invalidateRequests({ releaseMutation: true })
+    clearCandidatePreview()
+  })
 
   return {
     state,

@@ -347,6 +347,25 @@ export async function getProductionPublication(input: {
   }
 }
 
+export async function getPublicationCandidateValidation(input: {
+  bucket: R2Bucket
+  pageId: string
+  state?: PublicationState
+}): Promise<PublicationValidationReport | null> {
+  const state = input.state ?? (await readPublicationState(input.bucket, input.pageId))?.value
+  const candidate = state?.candidate
+  if (!candidate?.validation_digest) return null
+  const object = await input.bucket.get(publicationKeys(input.pageId, candidate.revision).validation)
+  if (!object) return null
+  try {
+    const validation = await parseCanonicalValidation(await object.json<unknown>())
+    return validation.digest === candidate.validation_digest ? validation : null
+  }
+  catch {
+    return null
+  }
+}
+
 async function requirePublicationState(bucket: R2Bucket, pageId: string): Promise<PublicationStateRecord> {
   const state = await readPublicationState(bucket, pageId)
   if (!state) throw new PublicationServiceConflictError('Publication state does not exist', 'publication_not_found')
@@ -501,6 +520,14 @@ async function isCanonicalPublishableValidation(report: PublicationValidationRep
 }
 
 async function parseCanonicalPublishableValidation(value: unknown): Promise<PublicationValidationReport> {
+  const report = await parseCanonicalValidation(value)
+  if (!report.publishable || report.blocking.length !== 0) {
+    throw new Error('Publication validation is not publishable')
+  }
+  return report
+}
+
+async function parseCanonicalValidation(value: unknown): Promise<PublicationValidationReport> {
   if (!isRecord(value)
     || typeof value.publishable !== 'boolean'
     || !Array.isArray(value.blocking)
@@ -518,9 +545,6 @@ async function parseCanonicalPublishableValidation(value: unknown): Promise<Publ
   const digest = await validationDigest(reportWithoutDigest)
   if (value.digest !== digest) {
     throw new Error('Publication validation digest does not match its report')
-  }
-  if (!value.publishable || value.blocking.length !== 0) {
-    throw new Error('Publication validation is not publishable')
   }
   return { ...reportWithoutDigest, digest: value.digest }
 }

@@ -44,6 +44,7 @@ import {
   PublicationServiceConflictError,
   PublicationServiceNotFoundError,
   buildCandidate,
+  getPublicationCandidateValidation,
   getProductionPublication,
   publishCandidate,
   rollbackPublication,
@@ -2897,8 +2898,16 @@ app.get('/admin/pages/:pageId/publication/history', async (c) => {
   try {
     const state = await readPublicationState(resources.bucket, pageId);
     const publishedRevisions = new Set(state?.value.history || []);
+    const candidateValidation = state
+      ? await getPublicationCandidateValidation({
+          bucket: resources.bucket,
+          pageId,
+          state: state.value,
+        })
+      : null;
     return c.json({
       state: state?.value || null,
+      candidateValidation,
       history: state
         ? (await listPublicationHistory(resources.bucket, pageId))
             .filter(manifest => publishedRevisions.has(manifest.revision))
