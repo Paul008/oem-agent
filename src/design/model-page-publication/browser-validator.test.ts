@@ -37,6 +37,12 @@ interface FakeBrowserOptions {
   brokenMedia?: boolean;
   interactionFailure?: PublicationInteractionKind;
   networkSettleFailure?: boolean;
+  responseFailures?: Array<{ url: string; status: number; resourceType: string }>;
+  duplicateResponseFailures?: boolean;
+  successfulResponses?: Array<{ url: string; resourceType: string }>;
+  sourceWidth?: number;
+  sourceHeight?: number;
+  candidateWidth?: number;
   candidateHeight?: number;
 }
 
@@ -55,6 +61,29 @@ function fakeBrowser(options: FakeBrowserOptions = {}) {
       this.html = html;
       if (options.brokenMedia && html === browserCandidate().body) {
         this.handlers.get('requestfailed')?.({ url: () => 'https://cdn.test/broken.webp', failure: () => ({ errorText: 'net::ERR_FAILED' }) });
+      }
+      if (html === browserCandidate().body) {
+        for (const response of options.responseFailures ?? []) {
+          const request = { url: () => response.url, resourceType: () => response.resourceType };
+          if (options.duplicateResponseFailures) {
+            this.handlers.get('requestfailed')?.({ ...request, failure: () => ({ errorText: 'net::ERR_FAILED' }) });
+          }
+          this.handlers.get('response')?.({
+            url: () => response.url,
+            status: () => response.status,
+            statusText: () => response.status === 404 ? 'Not Found' : 'Server Error',
+            request: () => request,
+          });
+        }
+        for (const response of options.successfulResponses ?? []) {
+          const request = { url: () => response.url, resourceType: () => response.resourceType };
+          this.handlers.get('response')?.({
+            url: () => response.url,
+            status: () => 200,
+            statusText: () => 'OK',
+            request: () => request,
+          });
+        }
       }
     }
     async addStyleTag() {}
@@ -87,8 +116,8 @@ function fakeBrowser(options: FakeBrowserOptions = {}) {
       if (fn === compareScreenshotsInPage) {
         return {
           mismatchPercent: options.mismatch ?? 0.1,
-          sourceSize: { width: 1440, height: 1200 },
-          candidateSize: { width: 1440, height: options.candidateHeight ?? 1200 },
+          sourceSize: { width: options.sourceWidth ?? 1440, height: options.sourceHeight ?? 1200 },
+          candidateSize: { width: options.candidateWidth ?? 1440, height: options.candidateHeight ?? 1200 },
           diffDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
         };
       }
@@ -139,10 +168,18 @@ describe('browser publication validation', () => {
     ).mismatchPercent).toBe(1);
   });
 
-  it('compares the natural-size minimum canvas and reports dimension mismatch without scaling', async () => {
+  it.each([
+    ['truncated height', { width: 2, height: 2 }, { width: 2, height: 3 }],
+    ['truncated width', { width: 2, height: 2 }, { width: 3, height: 2 }],
+  ])('compares a padded maximum canvas for %s without scaling', async (_label, sourceSize, candidateSize) => {
+    const opaquePixels = ({ width, height }: { width: number; height: number }) => {
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let index = 0; index < data.length; index += 4) data.set([10, 10, 10, 255], index);
+      return data;
+    };
     const pixels = new Map([
-      ['source', { width: 2, height: 2, data: new Uint8ClampedArray(16).fill(10) }],
-      ['candidate', { width: 2, height: 3, data: new Uint8ClampedArray(24).fill(10) }],
+      ['source', { ...sourceSize, data: opaquePixels(sourceSize) }],
+      ['candidate', { ...candidateSize, data: opaquePixels(candidateSize) }],
     ]);
     class FakeImage {
       naturalWidth = 0; naturalHeight = 0; data = new Uint8ClampedArray();
@@ -156,7 +193,12 @@ describe('browser publication validation', () => {
           drawImage: (image: FakeImage) => { this.image = image; },
           getImageData: (_x: number, _y: number, width: number, height: number) => {
             const data = new Uint8ClampedArray(width * height * 4);
-            for (let y = 0; y < height; y += 1) data.set(this.image!.data.subarray(y * this.image!.naturalWidth * 4, y * this.image!.naturalWidth * 4 + width * 4), y * width * 4);
+            for (let y = 0; y < Math.min(height, this.image!.naturalHeight); y += 1) {
+              for (let x = 0; x < Math.min(width, this.image!.naturalWidth); x += 1) {
+                const sourceIndex = (y * this.image!.naturalWidth + x) * 4;
+                data.set(this.image!.data.subarray(sourceIndex, sourceIndex + 4), (y * width + x) * 4);
+              }
+            }
             return { data };
           },
           createImageData: (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) }),
@@ -170,9 +212,9 @@ describe('browser publication validation', () => {
 
     const result = await compareScreenshotsInPage({ sourceUrl: 'source', candidateUrl: 'candidate', threshold: 0.1 });
 
-    expect(result.mismatchPercent).toBe(0);
-    expect(result.sourceSize).toEqual({ width: 2, height: 2 });
-    expect(result.candidateSize).toEqual({ width: 2, height: 3 });
+    expect(result.mismatchPercent).toBeCloseTo(1 / 3);
+    expect(result.sourceSize).toEqual(sourceSize);
+    expect(result.candidateSize).toEqual(candidateSize);
   });
 
   it('executes real interaction transitions and enforces final ARIA and panel state', async () => {
@@ -255,15 +297,67 @@ describe('browser publication validation', () => {
     expect(result.viewports.every(viewport => viewport.evidence?.candidate.byteLength === 5)).toBe(true);
   });
 
-  it('surfaces natural screenshot dimension mismatches', async () => {
-    launch.mockResolvedValue(fakeBrowser({ candidateHeight: 1300 }));
+  it.each([
+    ['height', { candidateHeight: 1300 }],
+    ['width', { candidateWidth: 1300 }],
+  ])('blocks material screenshot %s truncation and records its classification', async (_axis, dimensions) => {
+    launch.mockResolvedValue(fakeBrowser(dimensions));
     const result = await validateInBrowser(browserCandidate(), {
       browser: {} as Fetcher,
       evidencePrefix: 'model-pages/nissan-au-ariya/publication/revisions/21/evidence',
       writeEvidence: async () => {},
     });
 
+    expect(result.blocking.filter(item => item.code === 'screenshot-dimension-mismatch')).toHaveLength(3);
+    expect(result.viewports.every(item => item.dimensionClassification === 'blocking')).toBe(true);
+    expect(result.viewports.every(item => typeof item.dimensionMismatchPercent === 'number' && item.dimensionMismatchPercent > 0.01)).toBe(true);
+  });
+
+  it('allows a tiny screenshot dimension tolerance while retaining evidence', async () => {
+    launch.mockResolvedValue(fakeBrowser({ candidateHeight: 1201 }));
+    const result = await validateInBrowser(browserCandidate(), {
+      browser: {} as Fetcher,
+      evidencePrefix: 'model-pages/nissan-au-ariya/publication/revisions/21/evidence',
+      writeEvidence: async () => {},
+    });
+
+    expect(result.blocking.filter(item => item.code === 'screenshot-dimension-mismatch')).toEqual([]);
     expect(result.warnings.filter(item => item.code === 'screenshot-dimension-mismatch')).toHaveLength(3);
+    expect(result.viewports.every(item => item.dimensionClassification === 'warning')).toBe(true);
+  });
+
+  it('blocks HTTP failures for render-critical assets and ignores successful assets and analytics', async () => {
+    launch.mockResolvedValue(fakeBrowser({
+      responseFailures: [
+        { url: 'https://nissan.test/assets/page.css#cache', status: 404, resourceType: 'stylesheet' },
+        { url: 'https://nissan.test/assets/nissan.woff2', status: 404, resourceType: 'font' },
+        { url: 'https://nissan.test/assets/background.webp', status: 404, resourceType: 'image' },
+        { url: 'https://nissan.test/assets/hero.mp4', status: 500, resourceType: 'media' },
+        { url: 'https://analytics.test/collect', status: 404, resourceType: 'fetch' },
+      ],
+      duplicateResponseFailures: true,
+      successfulResponses: [
+        { url: 'https://nissan.test/assets/working.webp', resourceType: 'image' },
+        { url: 'https://nissan.test/assets/working.css', resourceType: 'stylesheet' },
+      ],
+    }));
+
+    const result = await validateInBrowser(browserCandidate(), {
+      browser: {} as Fetcher,
+      evidencePrefix: 'model-pages/nissan-au-ariya/publication/revisions/21/evidence',
+      writeEvidence: async () => {},
+    });
+
+    expect(result.blocking.filter(item => item.code === 'media-request-failed')).toHaveLength(3);
+    expect(result.viewports.flatMap(item => item.failedRequests)).toEqual(expect.arrayContaining([
+      'https://nissan.test/assets/page.css 404 Not Found (stylesheet)',
+      'https://nissan.test/assets/nissan.woff2 404 Not Found (font)',
+      'https://nissan.test/assets/background.webp 404 Not Found (image)',
+      'https://nissan.test/assets/hero.mp4 500 Server Error (media)',
+    ]));
+    expect(result.viewports.every(item => item.failedRequests.length === 4)).toBe(true);
+    expect(result.viewports.flatMap(item => item.failedRequests).join('\n')).not.toContain('analytics.test');
+    expect(result.viewports.flatMap(item => item.failedRequests).join('\n')).not.toContain('working');
   });
 
   it('returns no evidence keys when persistence fails', async () => {

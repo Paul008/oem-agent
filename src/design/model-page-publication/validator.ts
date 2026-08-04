@@ -132,6 +132,12 @@ function parseViewportValidation(value: unknown): PublicationViewportValidation 
     ...(value.diffScreenshotKey !== undefined ? { diffScreenshotKey: value.diffScreenshotKey } : {}),
     ...(value.sourceSize !== undefined ? { sourceSize: parseDimensions(value.sourceSize) } : {}),
     ...(value.candidateSize !== undefined ? { candidateSize: parseDimensions(value.candidateSize) } : {}),
+    ...(value.dimensionMismatchPercent !== undefined
+      ? { dimensionMismatchPercent: parseNonNegativeFiniteNumber(value.dimensionMismatchPercent) }
+      : {}),
+    ...(value.dimensionClassification !== undefined
+      ? { dimensionClassification: parseMismatchClassification(value.dimensionClassification) }
+      : {}),
     ...(value.evidence !== undefined ? { evidence: parseEvidence(value.evidence) } : {}),
   };
 }
@@ -159,6 +165,18 @@ function parseDimensions(value: unknown): { width: number; height: number } {
     throw new Error('Publication revision validation is malformed');
   }
   return { width: value.width, height: value.height };
+}
+
+function parseNonNegativeFiniteNumber(value: unknown): number {
+  if (!isNonNegativeFiniteNumber(value)) throw new Error('Publication revision validation is malformed');
+  return value;
+}
+
+function parseMismatchClassification(value: unknown): PublicationViewportValidation['dimensionClassification'] {
+  if (value !== 'pass' && value !== 'warning' && value !== 'blocking') {
+    throw new Error('Publication revision validation is malformed');
+  }
+  return value;
 }
 
 function parseEvidence(value: unknown): NonNullable<PublicationViewportValidation['evidence']> {

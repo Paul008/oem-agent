@@ -29,6 +29,8 @@ export interface PublicationViewportValidation {
   diffScreenshotKey?: string;
   sourceSize?: { width: number; height: number };
   candidateSize?: { width: number; height: number };
+  dimensionMismatchPercent?: number;
+  dimensionClassification?: VisualMismatchClassification;
   evidence?: {
     source: PublicationEvidenceRecord;
     candidate: PublicationEvidenceRecord;
@@ -69,7 +71,9 @@ const VIEWPORTS = [
 ];
 
 const PIXEL_CHANNEL_THRESHOLD = 0.1;
+const DIMENSION_MISMATCH_BLOCKING_THRESHOLD = 0.01;
 const RESOURCE_TIMEOUT_MS = 5_000;
+const RENDER_CRITICAL_RESOURCE_TYPES = new Set(['stylesheet', 'font', 'image', 'media']);
 const REVISION_EVIDENCE_PREFIX = /^model-pages\/[^/]+\/publication\/revisions\/[1-9]\d*\/evidence\/?$/;
 const DISABLE_MOTION_CSS = '*,*::before,*::after{animation-delay:0s!important;animation-duration:0s!important;scroll-behavior:auto!important;transition-delay:0s!important;transition-duration:0s!important}';
 
@@ -77,6 +81,21 @@ export function classifyVisualMismatch(mismatchPercent: number): VisualMismatchC
   if (mismatchPercent > 0.35) return 'blocking';
   if (mismatchPercent >= 0.20) return 'warning';
   return 'pass';
+}
+
+export function classifyDimensionMismatch(
+  source: { width: number; height: number },
+  candidate: { width: number; height: number },
+): { mismatchPercent: number; classification: VisualMismatchClassification } {
+  const widthMismatch = Math.abs(source.width - candidate.width) / Math.max(source.width, candidate.width, 1);
+  const heightMismatch = Math.abs(source.height - candidate.height) / Math.max(source.height, candidate.height, 1);
+  const mismatchPercent = Math.max(widthMismatch, heightMismatch);
+  return {
+    mismatchPercent,
+    classification: mismatchPercent > DIMENSION_MISMATCH_BLOCKING_THRESHOLD
+      ? 'blocking'
+      : mismatchPercent > 0 ? 'warning' : 'pass',
+  };
 }
 
 /** The same max-channel delta comparison used by scripts/oem-fidelity-report.mjs. */
@@ -112,6 +131,43 @@ function evidenceKeys(prefix: string, viewport: PublicationViewportName) {
 
 function sortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort();
+}
+
+function canonicalUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function failureKey(value: string): string {
+  const firstToken = value.split(/\s/, 1)[0];
+  return /^https?:\/\//i.test(firstToken) ? canonicalUrl(firstToken) : value;
+}
+
+function deduplicateFailures(values: string[]): string[] {
+  const failures = new Map<string, string>();
+  for (const value of values) {
+    const key = failureKey(value);
+    const current = failures.get(key);
+    if (!current || value.length > current.length) failures.set(key, value);
+  }
+  return [...failures.values()].sort();
+}
+
+function browserResourceType(request: any): string {
+  try {
+    return String(request?.resourceType?.() || '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function isRenderCriticalResource(request: any): boolean {
+  return RENDER_CRITICAL_RESOURCE_TYPES.has(browserResourceType(request));
 }
 
 function syntheticViewports(candidate: ComposedPublicationCandidate): PublicationViewportValidation[] {
@@ -317,12 +373,12 @@ export async function compareScreenshotsInPage(
       return image;
     };
     const [sourceImage, candidateImage] = await Promise.all([loadImage(sourceUrl), loadImage(candidateUrl)]);
-    const width = Math.min(sourceImage.naturalWidth, candidateImage.naturalWidth);
-    const height = Math.min(sourceImage.naturalHeight, candidateImage.naturalHeight);
+    const width = Math.max(sourceImage.naturalWidth, candidateImage.naturalWidth);
+    const height = Math.max(sourceImage.naturalHeight, candidateImage.naturalHeight);
     const draw = (image: HTMLImageElement): ImageData => {
       const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+      canvas.width = width;
+      canvas.height = height;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('2D canvas context is unavailable');
       context.drawImage(image, 0, 0);
@@ -385,11 +441,25 @@ async function captureDocument(browser: any, html: string, viewport: { width: nu
   const page = await browser.newPage();
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
+  const failedAssets = new Map<string, { message: string; priority: number }>();
+  const recordAssetFailure = (urlValue: string, message: string, priority: number) => {
+    const url = canonicalUrl(urlValue);
+    const current = failedAssets.get(url);
+    if (!current || priority > current.priority) failedAssets.set(url, { message: `${url} ${message}`, priority });
+  };
   page.on('console', (message: any) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
   page.on('requestfailed', (request: any) => {
-    failedRequests.push(`${request.url()} ${request.failure()?.errorText || 'request failed'}`);
+    if (!isRenderCriticalResource(request)) return;
+    recordAssetFailure(request.url(), `${request.failure()?.errorText || 'request failed'} (${browserResourceType(request)})`, 1);
+  });
+  page.on('response', (response: any) => {
+    const status = Number(response.status());
+    const request = response.request();
+    if (status < 400 || !isRenderCriticalResource(request)) return;
+    const statusText = String(response.statusText?.() || '').trim();
+    recordAssetFailure(response.url(), `${status}${statusText ? ` ${statusText}` : ''} (${browserResourceType(request)})`, 2);
   });
   await page.setViewport(viewport);
   await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30_000 });
@@ -401,7 +471,7 @@ async function captureDocument(browser: any, html: string, viewport: { width: nu
   }
   const readiness = await page.evaluate(waitForPublicationResources, { timeoutMs: RESOURCE_TIMEOUT_MS });
   if (readiness.timedOut) failedRequests.push(`resource-readiness ${readiness.stalledResources.join(',') || 'timeout'}`);
-  return { page, consoleErrors, failedRequests };
+  return { page, consoleErrors, failedRequests: [...failedAssets.values()].map(item => item.message).concat(failedRequests) };
 }
 
 export async function validateInBrowser(
@@ -459,7 +529,8 @@ export async function validateInBrowser(
         await writeEvidence({ key: keys.candidate, bytes: candidateBytes, contentType: 'image/png' });
         await writeEvidence({ key: keys.diff, bytes: comparison.diffBytes, contentType: 'image/png' });
         const consoleErrors = sortedUnique([...sourceCapture.consoleErrors, ...candidateCapture.consoleErrors]);
-        const failedRequests = sortedUnique([...sourceCapture.failedRequests, ...candidateCapture.failedRequests, ...audit.brokenMedia]);
+        const failedRequests = deduplicateFailures([...sourceCapture.failedRequests, ...candidateCapture.failedRequests, ...audit.brokenMedia]);
+        const dimension = classifyDimensionMismatch(comparison.sourceSize, comparison.candidateSize);
         const result: PublicationViewportValidation = {
           name: viewport.name,
           mismatchPercent: comparison.mismatchPercent,
@@ -472,6 +543,8 @@ export async function validateInBrowser(
           diffScreenshotKey: keys.diff,
           sourceSize: comparison.sourceSize,
           candidateSize: comparison.candidateSize,
+          dimensionMismatchPercent: dimension.mismatchPercent,
+          dimensionClassification: dimension.classification,
           evidence: { source: sourceEvidence, candidate: candidateEvidence, diff: diffEvidence },
         };
         viewports.push(result);
@@ -479,8 +552,10 @@ export async function validateInBrowser(
         const classification = classifyVisualMismatch(result.mismatchPercent);
         if (classification === 'blocking') blocking.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% exceeds 35%` });
         if (classification === 'warning') warnings.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% is at least 20%` });
-        if (comparison.sourceSize.width !== comparison.candidateSize.width || comparison.sourceSize.height !== comparison.candidateSize.height) {
-          warnings.push({ code: 'screenshot-dimension-mismatch', viewport: viewport.name, message: `Screenshot dimensions differ: source ${comparison.sourceSize.width}x${comparison.sourceSize.height}, candidate ${comparison.candidateSize.width}x${comparison.candidateSize.height}` });
+        if (dimension.classification !== 'pass') {
+          const finding = { code: 'screenshot-dimension-mismatch', viewport: viewport.name, message: `Screenshot dimensions differ by ${(dimension.mismatchPercent * 100).toFixed(2)}%: source ${comparison.sourceSize.width}x${comparison.sourceSize.height}, candidate ${comparison.candidateSize.width}x${comparison.candidateSize.height}` };
+          if (dimension.classification === 'blocking') blocking.push(finding);
+          else warnings.push(finding);
         }
         if (result.horizontalOverflowPx > 0) blocking.push({ code: 'horizontal-overflow', viewport: viewport.name, message: `Page overflows horizontally by ${result.horizontalOverflowPx}px` });
         if (!Number.isFinite(result.bodyHeight) || result.bodyHeight <= 0) blocking.push({ code: 'invalid-body-height', viewport: viewport.name, message: 'Page body height is not a positive finite number' });
