@@ -101,6 +101,11 @@ async function sha256Base64(value: string): Promise<string> {
   return btoa(binary);
 }
 
+export async function publicationContentSecurityPolicy(scriptBodies: readonly string[]): Promise<string> {
+  const scriptHashes = await Promise.all(scriptBodies.map(sha256Base64));
+  return `default-src 'none'; img-src https: data:; media-src https: data: blob:; font-src https: data:; style-src 'unsafe-inline'; script-src ${scriptHashes.map(hash => `'sha256-${hash}'`).join(' ')}; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action https:`;
+}
+
 async function sha256Hex(value: string): Promise<string> {
   return Array.from(await sha256Bytes(value), byte => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -124,9 +129,7 @@ export async function productionBodyDocument(
     { attr: `${PUBLICATION_SCRIPT_MARKERS.resize}="true"`, body: resize },
     { attr: `${PUBLICATION_SCRIPT_MARKERS.interactions}="true"`, body: PUBLICATION_INTERACTION_SCRIPT },
   ];
-  const csp = options.candidate
-    ? `default-src 'none'; img-src https: data:; media-src https: data: blob:; font-src https: data:; style-src 'unsafe-inline'; script-src ${(await Promise.all(scripts.map(script => sha256Base64(script.body)))).map(hash => `'sha256-${hash}'`).join(' ')}; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action https:`
-    : '';
+  const csp = options.candidate ? await publicationContentSecurityPolicy(scripts.map(script => script.body)) : '';
 
   return [
     '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">',

@@ -6,6 +6,7 @@ import {
   PUBLICATION_INTERACTION_SCRIPT,
   PUBLICATION_SCRIPT_MARKERS,
   isPublicationResizeScript,
+  publicationContentSecurityPolicy,
   type ComposedPublicationCandidate,
 } from './composer';
 import {
@@ -87,7 +88,10 @@ function styleIsScoped(css: string): boolean {
     const root = postcss.parse(stripped);
     let safe = true;
     root.walkAtRules(rule => {
-      if (['import', 'namespace', 'document', 'font-face', 'property', 'counter-style', 'page'].includes(rule.name.toLowerCase())) safe = false;
+      const name = rule.name.toLowerCase();
+      const isKeyframes = /^(?:-webkit-)?keyframes$/.test(name);
+      const isSafeContainer = ['media', 'supports', 'container', 'layer'].includes(name) && Array.isArray(rule.nodes);
+      if (!isKeyframes && !isSafeContainer) safe = false;
     });
     root.walkDecls(declaration => {
       if (declaration.parent?.type === 'root') safe = false;
@@ -114,31 +118,39 @@ async function validateTrustedScripts(label: 'candidate' | 'reference', $: Retur
     { marker: PUBLICATION_SCRIPT_MARKERS.interactions, valid: (body: string) => body === PUBLICATION_INTERACTION_SCRIPT },
   ];
   const bodies: string[] = [];
-  let trusted = scripts.length === markerEntries.length;
+  let scriptsTrusted = scripts.length === markerEntries.length;
   for (const entry of markerEntries) {
     const matches = scripts.filter(script => $(script).attr(entry.marker) === 'true');
     if (matches.length !== 1) {
-      trusted = false;
+      scriptsTrusted = false;
       continue;
     }
     const script = matches[0];
     const attributes = Object.keys((script as { attribs?: Record<string, string> }).attribs || {});
     const body = $(script).text();
-    if (attributes.length !== 1 || $(script).attr('src') || !entry.valid(body)) trusted = false;
+    if (attributes.length !== 1 || $(script).attr('src') || !entry.valid(body)) scriptsTrusted = false;
     bodies.push(body);
   }
 
   const cspMetas = $('meta').toArray().filter(meta => ($(meta).attr('http-equiv') || '').toLowerCase() === 'content-security-policy');
-  if (cspMetas.length !== 1) trusted = false;
   const csp = cspMetas.length === 1 ? $(cspMetas[0]).attr('content') || '' : '';
   const scriptDirective = csp.split(';').map(item => item.trim()).find(item => /^script-src(?:\s|$)/i.test(item));
   const tokens = scriptDirective?.split(/\s+/).slice(1) || [];
   const expectedTokens = bodies.length === 3
     ? await Promise.all(bodies.map(async body => `'sha256-${await sha256Base64(body)}'`))
     : [];
-  if (tokens.length !== 3
-    || [...tokens].sort().join(' ') !== [...expectedTokens].sort().join(' ')) trusted = false;
-  return trusted ? [] : [finding('unsafe-script', `${label} body does not contain the exact composer-owned scripts and CSP hashes`)];
+  const scriptHashesTrusted = tokens.length === 3
+    && [...tokens].sort().join(' ') === [...expectedTokens].sort().join(' ');
+  const expectedCsp = bodies.length === 3 ? await publicationContentSecurityPolicy(bodies) : '';
+  const cspTrusted = cspMetas.length === 1 && csp === expectedCsp;
+  const findings: PublicationFinding[] = [];
+  if (!scriptsTrusted || !scriptHashesTrusted) {
+    findings.push(finding('unsafe-script', `${label} body does not contain the exact composer-owned scripts and CSP hashes`));
+  }
+  if (!cspTrusted) {
+    findings.push(finding('unsafe-csp', `${label} body CSP does not match the complete composer-owned policy`));
+  }
+  return findings;
 }
 
 async function validateMarkup(label: 'candidate' | 'reference', html: string): Promise<PublicationFinding[]> {

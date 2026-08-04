@@ -90,6 +90,21 @@ describe('validatePublicationCandidate static gates', () => {
   });
 
   it.each([
+    ["connect-src 'none'", 'connect-src https:'],
+    ["style-src 'unsafe-inline'", "style-src 'unsafe-inline' https:"],
+    ['img-src https: data:', 'img-src https: data: blob:'],
+  ])('rejects a broadened full CSP directive %s before browser validation', async (owned, broadened) => {
+    const candidate = await candidateWith('safe');
+    candidate.body = candidate.body.replace(owned, broadened);
+    await rehash(candidate);
+
+    const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
+
+    expect(report.blocking.some(item => item.code === 'unsafe-csp')).toBe(true);
+    expect(validateInBrowser).not.toHaveBeenCalled();
+  });
+
+  it.each([
     'java&#x09;script:steal()',
     'java&#x0a;script:steal()',
     'java&#x0d;script:steal()',
@@ -153,6 +168,29 @@ describe('validatePublicationCandidate static gates', () => {
           : '@page{margin:0}';
     const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
     expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(true);
+  });
+
+  it.each([
+    '@font-feature-values Font{ @styleset{nice:1} }',
+    '@font-palette-values --brand{font-family:Font;base-palette:1}',
+    '@custom-media --narrow (max-width:600px)',
+    '@custom-selector :--heading h1,h2',
+  ])('blocks unapproved global CSS at-rule %s', async css => {
+    const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
+    expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(true);
+  });
+
+  it('accepts scoped rules nested in approved containers and owned keyframes', async () => {
+    const css = [
+      '@media (max-width:600px){[data-oem-publication-body="true"] .a{display:none}}',
+      '@supports (display:grid){[data-oem-publication-body="true"] .b{display:grid}}',
+      '@container card (min-width:300px){[data-oem-publication-body="true"] .c{display:block}}',
+      '@layer components{[data-oem-publication-body="true"] .d{color:red}}',
+      '@keyframes fade{from{opacity:0}to{opacity:1}}',
+    ].join('');
+    const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
+
+    expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(false);
   });
 
   it('blocks stale size, digest, and ETag integrity metadata', async () => {
