@@ -44,21 +44,25 @@ export CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID"
 # Generate a temporary wrangler config with unique worker name
 # This ensures the container name is also unique (container name = worker-name + class-name)
 E2E_CONFIG="$PROJECT_DIR/.wrangler-e2e-$WORKER_NAME.jsonc"
+trap 'rm -f "$E2E_CONFIG"' EXIT
 echo "Generating e2e config: $E2E_CONFIG" >&2
 
-# Copy config and replace the name field (sed handles JSONC comments fine)
-sed 's/"name": "moltbot-sandbox"/"name": "'"$WORKER_NAME"'"/' "$PROJECT_DIR/wrangler.jsonc" > "$E2E_CONFIG"
+# Build an allowlisted config and fail before deployment unless the Worker name
+# and every stateful binding are isolated from production.
+node "$PROJECT_DIR/test/e2e/fixture/server/generate-config.mjs" \
+    "$PROJECT_DIR/wrangler.jsonc" \
+    "$E2E_CONFIG" \
+    "$WORKER_NAME" \
+    "$R2_BUCKET"
 
 # Deploy using the e2e-specific config
 echo "Deploying worker: $WORKER_NAME to account $CLOUDFLARE_ACCOUNT_ID" >&2
 npx wrangler deploy \
     --config "$E2E_CONFIG" \
+    --name "$WORKER_NAME" \
     --var "DEBUG_ROUTES:true" \
     --var "E2E_TEST_MODE:true" \
     >&2
-
-# Clean up temp config
-rm -f "$E2E_CONFIG"
 
 # Set secrets for the deployed worker
 echo "Setting worker secrets..." >&2

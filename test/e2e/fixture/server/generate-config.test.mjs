@@ -1,0 +1,161 @@
+import assert from 'node:assert/strict';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const generator = new URL('./generate-config.mjs', import.meta.url);
+const deploy = fileURLToPath(new URL('./deploy', import.meta.url));
+const projectRoot = fileURLToPath(new URL('../../../../', import.meta.url));
+
+function sourceConfig(overrides = {}) {
+  return `{
+    // JSONC is intentional: the production Wrangler config contains comments.
+    "name": "${overrides.name ?? 'oem-agent'}",
+    "main": "src/index.ts",
+    "workers_dev": true,
+    "r2_buckets": ${JSON.stringify(overrides.r2_buckets ?? [
+      { binding: 'MOLTBOT_BUCKET', bucket_name: 'oem-agent-assets' },
+      { binding: 'OEM_PAGE_BUCKET', bucket_name: 'oem-agent-assets' },
+    ])},
+    "browser": { "binding": "BROWSER" },
+    "ai": { "binding": "AI" },
+    "vectorize": [{ "binding": "UX_KNOWLEDGE", "index_name": "ux-knowledge-base" }],
+    "workflows": [{ "binding": "BROCHURE_MIRROR", "name": "brochure-mirror", "class_name": "BrochureMirrorWorkflow" }],
+    "containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
+    "durable_objects": { "bindings": [{ "name": "Sandbox", "class_name": "Sandbox" }] },
+    "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] }],
+    "vars": {
+      "ENVIRONMENT": "production",
+      "R2_BUCKET_NAME": "oem-agent-assets",
+      "CF_ACCOUNT_ID": "production-account-id",
+      "MEDIA_BASE_URL": "https://media.example.test",
+      "APIFY_PDF_FETCH_ACTOR_ID": "production-actor-id",
+      "SAFE_FLAG": "preserved"
+    },
+    "routes": [{ "pattern": "media.example.test", "custom_domain": true }],
+    "triggers": { "crons": ["0 17 * * *"] },
+    "env": { "dev": { "name": "oem-agent-dev" } },
+    "kv_namespaces": [{ "binding": "PRODUCTION_KV", "id": "production-kv-id" }]
+  }`;
+}
+
+function runGenerator(config = sourceConfig(), workerName = 'moltbot-sandbox-e2e-123-base', bucket = 'moltbot-e2e-123-base') {
+  const directory = mkdtempSync(join(tmpdir(), 'oem-e2e-config-'));
+  const source = join(directory, 'wrangler.jsonc');
+  const output = join(directory, 'wrangler.e2e.json');
+  writeFileSync(source, config);
+  const result = spawnSync(process.execPath, [generator.pathname, source, output, workerName, bucket], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+  return { ...result, output, exists: () => {
+    try { readFileSync(output); return true; } catch { return false; }
+  } };
+}
+
+test('generates an isolated worker config with both R2 bindings on the ephemeral bucket', () => {
+  const result = runGenerator();
+
+  assert.equal(result.status, 0, result.stderr);
+  const config = JSON.parse(readFileSync(result.output, 'utf8'));
+  assert.equal(config.name, 'moltbot-sandbox-e2e-123-base');
+  assert.deepEqual(config.r2_buckets, [
+    { binding: 'MOLTBOT_BUCKET', bucket_name: 'moltbot-e2e-123-base' },
+    { binding: 'OEM_PAGE_BUCKET', bucket_name: 'moltbot-e2e-123-base' },
+  ]);
+  assert.equal(config.workers_dev, true);
+  assert.equal(config.routes, undefined);
+  assert.equal(config.triggers, undefined);
+  assert.equal(config.vectorize, undefined);
+  assert.equal(config.workflows, undefined);
+  assert.equal(config.env, undefined);
+  assert.equal(config.kv_namespaces, undefined);
+  assert.deepEqual(config.browser, { binding: 'BROWSER' });
+  assert.deepEqual(config.ai, { binding: 'AI' });
+  assert.deepEqual(config.containers, [{ class_name: 'Sandbox', image: './Dockerfile' }]);
+  assert.deepEqual(config.durable_objects, { bindings: [{ name: 'Sandbox', class_name: 'Sandbox' }] });
+  assert.deepEqual(config.migrations, [{ tag: 'v1', new_sqlite_classes: ['Sandbox'] }]);
+  assert.deepEqual(config.vars, {
+    ENVIRONMENT: 'e2e',
+    SANDBOX_SLEEP_AFTER: 'never',
+    DEV_MODE: 'false',
+    OPENCLAW_DEV_MODE: 'false',
+    R2_BUCKET_NAME: 'moltbot-e2e-123-base',
+    MEDIA_BASE_URL: '',
+  });
+  assert.doesNotMatch(JSON.stringify(config), /oem-agent-assets|production-account-id|production-actor-id|media\.example\.test/);
+});
+
+test('fails closed without writing a deployable config when a required R2 binding is absent', () => {
+  const result = runGenerator(sourceConfig({
+    r2_buckets: [{ binding: 'MOLTBOT_BUCKET', bucket_name: 'oem-agent-assets' }],
+  }));
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /OEM_PAGE_BUCKET/);
+  assert.equal(result.exists(), false);
+});
+
+test('rejects production-shaped worker and bucket targets', () => {
+  const worker = runGenerator(sourceConfig(), 'oem-agent');
+  const bucket = runGenerator(sourceConfig(), 'moltbot-sandbox-e2e-123-base', 'oem-agent-assets');
+
+  assert.notEqual(worker.status, 0);
+  assert.match(worker.stderr, /E2E worker name/);
+  assert.equal(worker.exists(), false);
+  assert.notEqual(bucket.status, 0);
+  assert.match(bucket.stderr, /E2E R2 bucket/);
+  assert.equal(bucket.exists(), false);
+});
+
+test('deploy aborts before Wrangler when isolated config generation fails', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'oem-e2e-deploy-'));
+  const binaryDirectory = join(directory, 'bin');
+  const npxLog = join(directory, 'npx.log');
+  const fixturePath = join(projectRoot, 'test/e2e');
+  mkdirSync(binaryDirectory);
+
+  for (const [name, contents] of Object.entries({
+    npm: '#!/bin/sh\nexit 0\n',
+    jq: `#!/bin/sh\ncase "$2" in\n  .worker_name.value) echo oem-agent ;;\n  .r2_bucket_name.value) echo moltbot-e2e-static-failure ;;\nesac\n`,
+    npx: '#!/bin/sh\nprintf "%s\\n" "$*" >> "$NPX_LOG"\nexit 0\n',
+  })) {
+    const path = join(binaryDirectory, name);
+    writeFileSync(path, contents);
+    chmodSync(path, 0o755);
+  }
+
+  const result = spawnSync('bash', [deploy, '{}'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${binaryDirectory}:${process.env.PATH}`,
+      NPX_LOG: npxLog,
+      CCTR_TEST_PATH: fixturePath,
+      CLOUDFLARE_API_TOKEN: 'e2e-token',
+      CF_ACCOUNT_ID: 'e2e-account',
+      R2_ACCESS_KEY_ID: 'e2e-access-key',
+      R2_SECRET_ACCESS_KEY: 'e2e-secret-key',
+      MOLTBOT_GATEWAY_TOKEN: 'e2e-gateway-token',
+      CF_ACCESS_TEAM_DOMAIN: 'e2e-access.example.test',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /E2E worker name/);
+  assert.equal(existsSync(npxLog), false, 'Wrangler must not run after config generation fails');
+});
+
+test('cloud-mutating E2E job requires an explicit dispatch and E2E environment', () => {
+  const workflow = readFileSync(join(projectRoot, '.github/workflows/test.yml'), 'utf8');
+  const e2eJob = workflow.slice(workflow.indexOf('\n  e2e:'));
+
+  assert.match(e2eJob, /if: github\.event_name == 'workflow_dispatch'/);
+  assert.match(e2eJob, /environment: e2e/);
+  assert.match(e2eJob, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.E2E_CLOUDFLARE_API_TOKEN \|\| secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+  assert.match(e2eJob, /CF_ACCOUNT_ID: \$\{\{ vars\.E2E_CF_ACCOUNT_ID \|\| secrets\.E2E_CF_ACCOUNT_ID \|\| secrets\.CF_ACCOUNT_ID \}\}/);
+});
