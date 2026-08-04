@@ -1382,14 +1382,14 @@ export interface ConvertCloneRegionsToTailwindSectionsInput {
 }
 
 export interface BulkTailwindConversionBlock {
-  reason: 'overlapping-regions' | 'compiler-failed' | 'unsafe-output'
+  reason: 'compiler-failed' | 'unsafe-output'
   message: string
   regionIds: string[]
 }
 
 export interface ConvertCloneRegionsToTailwindSectionsResult {
   sections: Record<string, any>[]
-  skipped: Array<{ id: string, label: string, reason: 'missing-source' | 'conversion-failed' | 'hidden-region' }>
+  skipped: Array<{ id: string, label: string, reason: 'missing-source' | 'conversion-failed' | 'hidden-region' | 'container-region' }>
   blocked?: BulkTailwindConversionBlock
 }
 
@@ -1403,22 +1403,15 @@ export async function convertCloneRegionsToTailwindSections(input: ConvertCloneR
     return false
   })
 
-  if (input.failClosed) {
-    const overlap = findOverlappingCloneRegions(visibleRegions)
-    if (overlap) {
-      return {
-        sections: [],
-        skipped,
-        blocked: {
-          reason: 'overlapping-regions',
-          message: `Bulk conversion stopped because the outer page wrapper overlaps ${overlap.children.length} editable region${overlap.children.length === 1 ? '' : 's'}. Convert individual sections until the page regions no longer overlap.`,
-          regionIds: [overlap.parent.id, ...overlap.children.map(region => region.id)],
-        },
-      }
-    }
-  }
+  const leafRegions = visibleRegions.filter((region) => {
+    if (!cloneRegionContainsOtherRegion(region, visibleRegions))
+      return true
 
-  const orderedRegions = visibleRegions.sort((a, b) => {
+    skipped.push({ id: region.id, label: region.label || region.id, reason: 'container-region' })
+    return false
+  })
+
+  const orderedRegions = leafRegions.sort((a, b) => {
     const topDelta = (Number(a.top) || 0) - (Number(b.top) || 0)
     if (topDelta !== 0)
       return topDelta
@@ -1509,18 +1502,9 @@ function isExplicitlyHiddenCloneRegion(region: CloneRegion): boolean {
   return hasZeroDimension(region.width) || hasZeroDimension(region.height)
 }
 
-function findOverlappingCloneRegions(regions: CloneRegion[]): { parent: CloneRegion, children: CloneRegion[] } | null {
-  for (const parent of regions) {
-    const html = String(parent.html || '')
-    if (!html)
-      continue
-
-    const children = regions.filter(region => region.id !== parent.id && htmlContainsRegionId(html, region.id))
-    if (children.length)
-      return { parent, children }
-  }
-
-  return null
+function cloneRegionContainsOtherRegion(region: CloneRegion, regions: CloneRegion[]): boolean {
+  const html = String(region.html || '')
+  return Boolean(html && regions.some(candidate => candidate.id !== region.id && htmlContainsRegionId(html, candidate.id)))
 }
 
 function htmlContainsRegionId(html: string, regionId: string): boolean {
