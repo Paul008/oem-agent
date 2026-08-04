@@ -676,8 +676,13 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     return
   }
 
-  if (action === 'convert') {
+  if (action === 'convert' || action === 'convert-tailwind-selected') {
     await replaceCloneRegionWithTailwind({ regionId, html, tailwindRecipeArtifact })
+    return
+  }
+
+  if (action === 'convert-tailwind-all') {
+    await convertPageToTailwind()
     return
   }
 

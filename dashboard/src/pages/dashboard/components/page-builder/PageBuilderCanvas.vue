@@ -82,6 +82,7 @@ const cloneFrameWidth = computed(() => {
     return 375
   return cloneViewport.value.width
 })
+const cloneToolbarViewport = ref({ width: 1024, height: 768 })
 
 function responsivePreviewWidth(width: number): PreviewWidth {
   if (width < 640)
@@ -176,6 +177,7 @@ interface CloneMenuState {
   actions: RegionAction[]
 }
 const cloneMenu = ref<CloneMenuState | null>(null)
+const cloneSubmenuActionId = ref<RegionActionId | null>(null)
 // Sub-popover for actions needing input (URL / alt text / colour / height).
 const cloneInput = ref<{ action: RegionActionId, value: string } | null>(null)
 const cloneHasEyeDropper = typeof window !== 'undefined' && 'EyeDropper' in window
@@ -190,7 +192,6 @@ const cloneToolbarAltEditing = ref(false)
 const cloneToolbarAltValue = ref('')
 const cloneToolbarHeightEditing = ref(false)
 const cloneToolbarHeightValue = ref('')
-const cloneToolbarViewport = ref({ width: 1024, height: 768 })
 const cloneToolbarEdgeThreshold = 168
 const cloneToolbarVerticalGutter = 8
 const cloneToolbarApproxHeight = 48
@@ -253,6 +254,7 @@ function onCloneContextMenu(menu: { regionId: any, fields: any, typeHint: any, h
     actions: getRegionActions(region as any),
   }
   cloneInput.value = null
+  cloneSubmenuActionId.value = null
 }
 
 function onCloneRegionSelected(region: any) {
@@ -483,7 +485,7 @@ function quickCloneConvertRegion() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
     return
-  emit('regionAction', { action: 'convert', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
+  emit('regionAction', { action: 'convert-tailwind-selected', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
   clearCloneToolbarSelection()
 }
 
@@ -563,6 +565,11 @@ function onCloneMediaLibrarySelect(url: string) {
 function closeCloneMenu() {
   cloneMenu.value = null
   cloneInput.value = null
+  cloneSubmenuActionId.value = null
+}
+
+function toggleCloneSubmenu(actionId: RegionActionId) {
+  cloneSubmenuActionId.value = cloneSubmenuActionId.value === actionId ? null : actionId
 }
 
 function openCloneInput(action: RegionActionId, initial = '') {
@@ -685,6 +692,8 @@ function runCloneAction(id: RegionActionId) {
       break
     }
     case 'convert':
+    case 'convert-tailwind-selected':
+    case 'convert-tailwind-all':
     case 'duplicate':
     case 'delete':
       // Parent (Task 9) owns destructive / structural region operations.
@@ -1289,7 +1298,7 @@ watch(
               </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Convert to editable section"
+                title="Convert selected section to Tailwind"
                 @click="quickCloneConvertRegion"
               >
                 <Wand2 class="size-3.5" />
@@ -1329,19 +1338,38 @@ watch(
           >
             <template v-for="(grp, gi) in cloneMenuGroups" :key="grp.group">
               <div v-if="gi > 0" class="h-px bg-border my-1" />
-              <template v-for="action in grp.actions" :key="action.id">
+              <div v-for="action in grp.actions" :key="action.id" class="relative">
                 <button
                   class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted text-left"
                   :class="action.id === 'delete' ? 'text-destructive' : ''"
-                  @click="runCloneAction(action.id)"
+                  :aria-haspopup="action.children?.length ? 'menu' : undefined"
+                  :aria-expanded="action.children?.length ? cloneSubmenuActionId === action.id : undefined"
+                  @click="action.children?.length ? toggleCloneSubmenu(action.id) : runCloneAction(action.id)"
                 >
                   <component
-                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert' ? Wand2 : action.id === 'bind-catalog' ? Database : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
+                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert-tailwind' ? Wand2 : action.id === 'bind-catalog' ? Database : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
                     class="size-3.5"
                     :class="action.id === 'delete' ? '' : 'text-muted-foreground'"
                   />
-                  {{ action.label }}
+                  <span class="flex-1">{{ action.label }}</span>
+                  <ChevronRight v-if="action.children?.length" class="size-3.5 text-muted-foreground" />
                 </button>
+                <div
+                  v-if="action.children?.length && cloneSubmenuActionId === action.id"
+                  class="absolute left-full top-0 z-[57] ml-1 min-w-[190px] rounded-lg border bg-card py-1 shadow-xl"
+                  role="menu"
+                >
+                  <button
+                    v-for="child in action.children"
+                    :key="child.id"
+                    class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted"
+                    role="menuitem"
+                    @click="runCloneAction(child.id)"
+                  >
+                    <Wand2 class="size-3.5 text-muted-foreground" />
+                    {{ child.label }}
+                  </button>
+                </div>
                 <!-- Inline background colour picker -->
                 <div v-if="action.id === 'background' && cloneInput?.action === 'background'" class="px-3 py-2 flex items-center gap-1.5">
                   <input type="color" value="#ffffff" class="size-7 rounded cursor-pointer border-0 p-0" @input="onCloneBgColorInput">
@@ -1367,7 +1395,7 @@ watch(
                     Apply
                   </button>
                 </div>
-              </template>
+              </div>
             </template>
           </div>
         </Teleport>

@@ -100,7 +100,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('emit(\'updateField\', region.id, \'height_override\', n)')
     expect(source).toContain('cloneStudioCanvas.value?.switchPanel(region.id, next)')
     expect(source).toContain('emit(\'regionAction\', { action: \'duplicate\', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
-    expect(source).toContain('emit(\'regionAction\', { action: \'convert\', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
+    expect(source).toContain('emit(\'regionAction\', { action: \'convert-tailwind-selected\', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
     expect(source).toContain('emit(\'regionAction\', { action: \'delete\', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })')
     expect(source).toContain('@click="quickCloneReplaceImage"')
     expect(source).toContain('@click="quickCloneEditAlt"')
@@ -137,7 +137,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(source).toContain('title="Next panel"')
     expect(source).toContain('title="Set visible height"')
     expect(source).toContain('title="Duplicate region"')
-    expect(source).toContain('title="Convert to editable section"')
+    expect(source).toContain('title="Convert selected section to Tailwind"')
     expect(source).toContain('title="Hide region"')
     expect(source).toContain('title="Delete region"')
     expect(source).toContain('title="Background color"')
@@ -465,13 +465,13 @@ describe('cloneStudioCanvas duplicate-region relay', () => {
 
   it('relays scroll geometry without re-emitting selection', () => {
     const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
-    const geometryStart = source.indexOf("if (data.type === 'clone-studio:selected-geometry'")
-    const geometryEnd = source.indexOf("if (data.type === 'clone-studio:dom-updated')", geometryStart)
+    const geometryStart = source.indexOf('if (data.type === \'clone-studio:selected-geometry\'')
+    const geometryEnd = source.indexOf('if (data.type === \'clone-studio:dom-updated\')', geometryStart)
     const geometryBlock = source.slice(geometryStart, geometryEnd)
 
     expect(source).toContain('regionGeometry: [region: any]')
-    expect(geometryBlock).toContain("emit('regionGeometry', enrichRegionForHost(data.region))")
-    expect(geometryBlock).not.toContain("emit('selectRegion'")
+    expect(geometryBlock).toContain('emit(\'regionGeometry\', enrichRegionForHost(data.region))')
+    expect(geometryBlock).not.toContain('emit(\'selectRegion\'')
   })
 
   it('merges selection geometry without cancelling active toolbar editors', () => {
@@ -484,7 +484,7 @@ describe('cloneStudioCanvas duplicate-region relay', () => {
     expect(source).toContain('cloneToolbarRegion.value.toolbar_visible !== false')
     expect(handler).toContain('toolbar_visible: region.toolbar_visible !== false')
     expect(handler).not.toContain('cancelCloneToolbar')
-    expect(handler).not.toContain("emit('selectCloneRegion'")
+    expect(handler).not.toContain('emit(\'selectCloneRegion\'')
   })
 
   it('exposes duplicateRegion and re-emits the bridge newRegion as regionAdded', () => {
@@ -553,6 +553,20 @@ describe('clone region conversion wiring', () => {
     expect(previewSource).toContain('patchCloneField({')
     expect(previewSource).toContain('kind: \'outer-html\'')
     expect(previewSource).toContain('html: replacementHtml')
+  })
+
+  it('renders a nested Tailwind conversion menu and routes selected/all leaves', () => {
+    const canvasSource = readFileSync(new URL('./PageBuilderCanvas.vue', import.meta.url), 'utf8')
+    const builderSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+
+    expect(canvasSource).toContain('const cloneSubmenuActionId = ref<RegionActionId | null>(null)')
+    expect(canvasSource).toContain('action.children?.length')
+    expect(canvasSource).toContain('runCloneAction(child.id)')
+    expect(canvasSource).toContain('case \'convert-tailwind-selected\':')
+    expect(canvasSource).toContain('case \'convert-tailwind-all\':')
+    expect(builderSource).toContain('action === \'convert-tailwind-selected\'')
+    expect(builderSource).toContain('action === \'convert-tailwind-all\'')
+    expect(builderSource).toContain('convertCloneRegionsToTailwindSections')
   })
 })
 

@@ -48,6 +48,15 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('Convert Page')
   })
 
+  it('routes deterministic context-menu leaves to selected and whole-page conversion', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('action === \'convert-tailwind-selected\'')
+    expect(source).toContain('action === \'convert-tailwind-all\'')
+    expect(source).toContain('await replaceCloneRegionWithTailwind({ regionId, html, tailwindRecipeArtifact })')
+    expect(source).toContain('await convertPageToTailwind()')
+  })
+
   it('adds a read-only Tailwind source view for converted sections', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
 
