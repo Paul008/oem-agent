@@ -1,7 +1,22 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+import { resolvePublicationPreviewView } from '@/composables/use-model-page-publication'
+
+vi.mock('@/lib/worker-api', () => ({}))
 
 describe('preview Tailwind conversion toolbar', () => {
+  it('redirects a direct stale candidate route before candidate HTML can render', () => {
+    expect(resolvePublicationPreviewView('candidate', 'stale', null)).toBe('edit')
+    expect(resolvePublicationPreviewView('candidate', 'ready', null)).toBe('edit')
+    expect(resolvePublicationPreviewView('candidate', 'ready', 'blob:candidate-22')).toBe('candidate')
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+    expect(source).toContain('enforceCandidatePreviewRoute()')
+    expect(source).toContain('publication.status.value !== \'stale\' && publication.candidatePreviewUrl.value')
+    expect(source).toContain('overflow-x-auto overflow-y-hidden whitespace-nowrap')
+    expect(source).toContain('[&>*]:shrink-0')
+  })
+
   it('converts the selected preview clone region in place without leaving clone mode', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
     const convertFunction = source.slice(

@@ -145,9 +145,37 @@ describe('useModelPagePublication', () => {
 
     expect(publication.status.value).toBe('stale')
     expect(publication.canPublish.value).toBe(false)
+    expect(publication.candidatePreviewUrl.value).toBeNull()
+    expect(revokedUrls).toEqual(['blob:candidate-1'])
     expect(publication.statusLabel.value).toContain('Candidate required')
     await expect(publication.publish()).rejects.toThrow('Build a candidate for saved draft 25 before publishing')
     expect(publishModelPagePublicationCandidate).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('never fetches or retains candidate HTML when a deep-linked candidate is stale', async () => {
+    vi.mocked(fetchModelPagePublicationState).mockResolvedValueOnce(historyResponse(publicationState({
+      candidate: {
+        revision: 12,
+        draft_version: 23,
+        status: 'ready',
+        validation_digest: validation.digest,
+        created_at: '2026-08-04T08:10:00.000Z',
+        created_by: 'editor@example.com',
+      },
+    })))
+    const scope = effectScope()
+    const publication = scope.run(() => useModelPagePublication({
+      pageId: ref('nissan-au-ariya'),
+      draftVersion: ref(24),
+    }))!
+
+    await publication.refresh()
+
+    expect(publication.status.value).toBe('stale')
+    expect(publication.candidatePreviewUrl.value).toBeNull()
+    expect(fetchModelPagePublicationCandidateHtml).not.toHaveBeenCalled()
+    expect(createdUrls).toEqual([])
     scope.stop()
   })
 

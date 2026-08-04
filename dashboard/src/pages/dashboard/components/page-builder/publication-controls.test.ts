@@ -1,13 +1,16 @@
+// @vitest-environment jsdom
+
 import { existsSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
-import { createSSRApp } from 'vue'
+import { resolve } from 'node:path'
+import { describe, expect, it, vi } from 'vitest'
+import { createApp, createSSRApp } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import type { PublicationHistoryEntry, PublicationValidationSummary } from '@/lib/model-page-publication'
 
-const componentUrl = new URL('./PublicationControls.vue', import.meta.url)
-const componentPath = fileURLToPath(componentUrl)
+import PublicationControls from './PublicationControls.vue'
+
+const componentPath = resolve(process.cwd(), 'src/pages/dashboard/components/page-builder/PublicationControls.vue')
 
 const history: PublicationHistoryEntry[] = [{
   pageId: 'nissan-au-ariya',
@@ -38,7 +41,6 @@ describe('publicationControls', () => {
     if (!existsSync(componentPath))
       return
 
-    const { default: PublicationControls } = await import(/* @vite-ignore */ componentUrl.href)
     const rendered = await renderToString(createSSRApp(PublicationControls, {
       draftVersion: 24,
       publishedRevision: 21,
@@ -46,6 +48,7 @@ describe('publicationControls', () => {
       candidateStatus: 'ready',
       canBuild: true,
       canPublish: true,
+      busy: false,
       validation,
       history,
     }))
@@ -71,5 +74,60 @@ describe('publicationControls', () => {
     const rollbackStart = source.indexOf('function confirmRollback')
     const rollbackEnd = source.indexOf('</script>', rollbackStart)
     expect(source.slice(rollbackStart, rollbackEnd)).not.toContain('emit(\'buildCandidate\')')
+  })
+
+  it('disables mounted publication mutations while an operation is busy', async () => {
+    const onBuildCandidate = vi.fn()
+    const onPublish = vi.fn()
+    const container = document.createElement('div')
+    document.body.append(container)
+    const app = createApp(PublicationControls, {
+      draftVersion: 24,
+      publishedRevision: 21,
+      candidateRevision: 22,
+      candidateStatus: 'ready',
+      canBuild: true,
+      canPublish: true,
+      busy: true,
+      validation,
+      history,
+      onBuildCandidate,
+      onPublish,
+    })
+    app.mount(container)
+
+    const buildButton = container.querySelector<HTMLButtonElement>('[title="Build and validate a candidate from the saved draft"]')
+    const publishButton = container.querySelector<HTMLButtonElement>('[title="Publish validated candidate"]')
+    const rollbackButton = container.querySelector<HTMLButtonElement>('[data-publication-rollback="20"]')
+
+    expect(buildButton?.disabled).toBe(true)
+    expect(publishButton?.disabled).toBe(true)
+    expect(rollbackButton?.disabled).toBe(true)
+    buildButton?.click()
+    publishButton?.click()
+    expect(onBuildCandidate).not.toHaveBeenCalled()
+    expect(onPublish).not.toHaveBeenCalled()
+    app.unmount()
+    container.remove()
+  })
+
+  it('provides a bounded mobile publication menu without removing desktop actions', async () => {
+    const rendered = await renderToString(createSSRApp(PublicationControls, {
+      draftVersion: 24,
+      publishedRevision: 21,
+      candidateRevision: 22,
+      candidateStatus: 'ready',
+      canBuild: true,
+      canPublish: true,
+      busy: false,
+      validation,
+      history,
+    }))
+
+    expect(rendered).toContain('data-publication-desktop-actions="true"')
+    expect(rendered).toContain('hidden items-center gap-1.5 sm:flex')
+    expect(rendered).toContain('data-publication-mobile-menu="true"')
+    expect(rendered).toContain('sm:hidden')
+    expect(rendered).toContain('max-w-[calc(100vw-1rem)]')
   })
 })

@@ -1019,6 +1019,7 @@ watch(
           :candidate-status="publication.status.value"
           :can-build="draftVersion != null && !publication.isLoading.value && !saving && !isDirty"
           :can-publish="publication.canPublish.value && !publication.isLoading.value"
+          :busy="publication.isLoading.value || saving"
           :validation="publication.validation.value"
           :history="publication.history.value"
           @build-candidate="buildPublicationCandidate"

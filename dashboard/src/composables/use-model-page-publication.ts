@@ -19,6 +19,16 @@ import {
 
 export type ModelPagePublicationStatus = 'none' | 'building' | 'ready' | 'failed' | 'stale'
 
+export function resolvePublicationPreviewView(
+  requestedView: string,
+  candidateStatus: ModelPagePublicationStatus,
+  candidatePreviewUrl: string | null,
+): string {
+  if (requestedView === 'candidate' && (candidateStatus === 'stale' || !candidatePreviewUrl))
+    return 'edit'
+  return requestedView
+}
+
 export function useModelPagePublication(input: {
   pageId: Ref<string | null>
   draftVersion: Ref<number | null>
@@ -96,6 +106,13 @@ export function useModelPagePublication(input: {
     candidatePreviewUrl.value = null
   }
 
+  function candidateMatchesSavedDraft(candidateToCheck: PublicationState['candidate'] | undefined): boolean {
+    return Boolean(
+      candidateToCheck
+      && candidateToCheck.draft_version === savedDraftVersion.value,
+    )
+  }
+
   function beginOperation(pageId: string): OperationContext {
     if (disposed)
       throw new Error('Model page publication scope has been disposed')
@@ -161,7 +178,8 @@ export function useModelPagePublication(input: {
       return response
     const nextCandidate = response.state?.candidate
     let nextPreviewUrl: string | null = null
-    if (nextCandidate?.status === 'ready' || nextCandidate?.status === 'failed') {
+    const candidateIsCurrentDraft = candidateMatchesSavedDraft(nextCandidate)
+    if (candidateIsCurrentDraft && (nextCandidate?.status === 'ready' || nextCandidate?.status === 'failed')) {
       nextPreviewUrl = await fetchCandidatePreview(context, nextCandidate.revision)
       if (!isCurrent(context))
         return response
@@ -177,10 +195,7 @@ export function useModelPagePublication(input: {
     state.value = response.state
     history.value = response.history
     validation.value = response.candidateValidation?.validation ?? null
-    candidateIsStale.value = Boolean(
-      nextCandidate
-      && nextCandidate.draft_version !== savedDraftVersion.value,
-    )
+    candidateIsStale.value = Boolean(nextCandidate && !candidateIsCurrentDraft)
     candidatePreviewUrl.value = nextPreviewUrl
     return response
   }
@@ -195,13 +210,14 @@ export function useModelPagePublication(input: {
     const nextCandidate = nextState.candidate
     const candidateMatches = previousCandidate?.revision === nextCandidate?.revision
       && previousCandidate?.status === nextCandidate?.status
+      && previousCandidate?.draft_version === nextCandidate?.draft_version
       && previousCandidate?.validation_digest === nextCandidate?.validation_digest
     state.value = nextState
     candidateIsStale.value = Boolean(
       nextCandidate
       && nextCandidate.draft_version !== savedDraftVersion.value,
     )
-    if (!candidateMatches) {
+    if (!candidateMatches || candidateIsStale.value) {
       validation.value = null
       clearCandidatePreview()
     }
@@ -261,12 +277,19 @@ export function useModelPagePublication(input: {
       const response = await buildModelPagePublicationCandidate(pageId, expectedDraftVersion)
       if (!isCurrent(context))
         return response
-      const nextPreviewUrl = await fetchCandidatePreview(context, response.revision)
+      const nextCandidate = response.state.candidate
+      const candidateIsCurrentDraft = candidateMatchesSavedDraft(nextCandidate)
+      const nextPreviewUrl = candidateIsCurrentDraft
+        && (nextCandidate?.status === 'ready' || nextCandidate?.status === 'failed')
+        ? await fetchCandidatePreview(context, response.revision)
+        : null
       if (!isCurrent(context))
         return response
+      if (!candidateIsCurrentDraft)
+        clearCandidatePreview()
       state.value = response.state
       validation.value = response.validation
-      candidateIsStale.value = response.state.candidate?.draft_version !== savedDraftVersion.value
+      candidateIsStale.value = Boolean(nextCandidate && !candidateIsCurrentDraft)
       candidatePreviewUrl.value = nextPreviewUrl
       return response
     }
@@ -345,6 +368,8 @@ export function useModelPagePublication(input: {
       candidate.value
       && candidate.value.draft_version !== version,
     )
+    if (candidateIsStale.value)
+      clearCandidatePreview()
   }
 
   watch(input.draftVersion, (version) => {
@@ -354,6 +379,8 @@ export function useModelPagePublication(input: {
       candidate.value
       && candidate.value.draft_version !== version,
     )
+    if (candidateIsStale.value)
+      clearCandidatePreview()
   }, { flush: 'sync' })
 
   watch(input.pageId, () => {

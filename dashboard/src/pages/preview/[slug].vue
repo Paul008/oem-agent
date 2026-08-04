@@ -9,7 +9,7 @@ import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useModelPagePublication } from '@/composables/use-model-page-publication'
+import { resolvePublicationPreviewView, useModelPagePublication } from '@/composables/use-model-page-publication'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
@@ -92,6 +92,7 @@ const draftVersion = computed(() => {
 })
 const publication = useModelPagePublication({ pageId: publicationPageId, draftVersion })
 const candidatePreviewWidth = ref<CandidatePreviewWidth>('desktop')
+const publicationStateLoaded = ref(false)
 const candidatePreviewClass = computed(() => {
   if (candidatePreviewWidth.value === 'tablet')
     return 'w-[768px] max-w-full'
@@ -180,8 +181,27 @@ watch([oemId, previewView], async ([nextOemId, nextPreviewView]) => {
 watch(
   () => route.query.view,
   (value) => {
-    previewView.value = normalizePreviewView(value)
+    const requestedView = normalizePreviewView(value)
+    const resolvedView = publicationStateLoaded.value
+      ? resolvePublicationPreviewView(
+        requestedView,
+        publication.status.value,
+        publication.candidatePreviewUrl.value,
+      ) as PreviewView
+      : requestedView
+    previewView.value = resolvedView
+    if (resolvedView !== requestedView)
+      replacePreviewViewQuery(resolvedView)
   },
+)
+
+watch(
+  [publication.status, publication.candidatePreviewUrl],
+  () => {
+    if (publicationStateLoaded.value)
+      enforceCandidatePreviewRoute()
+  },
+  { flush: 'post' },
 )
 
 function setPreviewView(view: PreviewView) {
@@ -877,10 +897,25 @@ async function refreshPublicationState() {
     return
   try {
     await publication.refresh()
+    publicationStateLoaded.value = true
+    enforceCandidatePreviewRoute()
   }
   catch (cause: any) {
     toast.error(`Failed to load publication state: ${cause?.message || 'Unknown error'}`)
   }
+}
+
+function enforceCandidatePreviewRoute() {
+  const resolvedView = resolvePublicationPreviewView(
+    previewView.value,
+    publication.status.value,
+    publication.candidatePreviewUrl.value,
+  ) as PreviewView
+  if (resolvedView === previewView.value)
+    return
+  previewView.value = resolvedView
+  replacePreviewViewQuery(resolvedView)
+  toast.warning('Candidate preview is unavailable because the saved draft has changed')
 }
 
 async function buildPublicationCandidate() {
@@ -894,7 +929,7 @@ async function buildPublicationCandidate() {
 }
 
 function previewCandidate() {
-  if (!publication.candidatePreviewUrl.value) {
+  if (publication.status.value === 'stale' || !publication.candidatePreviewUrl.value) {
     toast.error('Build or refresh a candidate before previewing it')
     return
   }
@@ -936,7 +971,7 @@ async function rollbackPublication(revision: number) {
     </div>
 
     <div v-else-if="page" class="h-screen">
-      <div data-oem-preview-toolbar="true" class="fixed right-2 top-2 z-[70] flex max-w-[calc(100vw-1rem)] items-center gap-1.5 rounded-lg border bg-background/95 px-1.5 py-1.5 shadow-lg backdrop-blur sm:right-3 sm:top-3 sm:gap-2 sm:px-2">
+      <div data-oem-preview-toolbar="true" class="fixed right-2 top-2 z-[70] flex max-w-[calc(100vw-1rem)] items-center gap-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap rounded-lg border bg-background/95 px-1.5 py-1.5 shadow-lg backdrop-blur [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden sm:right-3 sm:top-3 sm:gap-2 sm:px-2">
         <div class="inline-flex h-8 items-center rounded-md border bg-muted/40 p-0.5">
           <button
             type="button"
@@ -1013,6 +1048,7 @@ async function rollbackPublication(revision: number) {
           :candidate-status="publication.status.value"
           :can-build="draftVersion != null && !publication.isLoading.value && !saving && !isDirty"
           :can-publish="publication.canPublish.value && !publication.isLoading.value"
+          :busy="publication.isLoading.value || saving"
           :validation="publication.validation.value"
           :history="publication.history.value"
           @build-candidate="buildPublicationCandidate"
@@ -1370,7 +1406,7 @@ async function rollbackPublication(revision: number) {
         </div>
         <div class="flex min-h-0 flex-1 justify-center overflow-auto bg-muted/30">
           <iframe
-            v-if="publication.candidatePreviewUrl.value"
+            v-if="publication.status.value !== 'stale' && publication.candidatePreviewUrl.value"
             class="h-full min-h-[720px] border-0 bg-white transition-[width] duration-200"
             :class="candidatePreviewClass"
             :src="publication.candidatePreviewUrl.value || undefined"
