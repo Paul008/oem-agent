@@ -1,7 +1,9 @@
 # Embedded Page Fidelity and AI Tailwind Compiler
 
 **Date:** 2026-08-04  
-**Status:** Approved for implementation planning
+**Status:** Revised after external R&D; awaiting written-spec review
+
+**Research:** [Embedded Page Fidelity R&D](../research/2026-08-04-embedded-page-fidelity-rd.md)
 
 ## Problem
 
@@ -61,12 +63,23 @@ The existing production CSS scoping pipeline remains the baseline. The compiler 
 
 This is full-page CSS compilation, not critical-CSS extraction. Critical CSS may be derived later for performance but cannot replace the complete scoped stylesheet.
 
+Browser capture supplies the compiler with:
+
+- a CDP DOM snapshot containing flattened DOM, selected computed styles, layout rectangles, and optional paint order when supported;
+- initial and interaction-state CSS coverage;
+- ARIA snapshots and control-state attributes;
+- event-listener metadata as discovery evidence only;
+- screenshots, network diagnostics, and console errors for each explored state.
+
+The compiler falls back to the existing DOM/computed-style capture if experimental CDP capabilities are unavailable. CSS coverage never proves that an uncovered rule is safe to delete. A manifest-derived safelist retains active, open, selected, expanded, hidden, modal, slide, and gallery state selectors. Uncertain rules remain in the artifact and are reported rather than removed.
+
 ### Interaction Discovery and Runtime
 
-Interaction discovery has two stages:
+Interaction discovery has three stages:
 
-1. Deterministic detection uses ARIA roles, relationships, IDs, data attributes, class patterns, DOM topology, and captured state.
-2. Kimi K3 is used only when deterministic detection is incomplete or low-confidence.
+1. Deterministic detection uses ARIA roles, relationships, IDs, data attributes, class patterns, DOM topology, captured state, and event-listener evidence.
+2. A safe state explorer activates local UI candidates in isolated restored states and records DOM, ARIA, layout, screenshot, and CSS-coverage changes.
+3. Kimi K3 is used only when the resulting trigger-to-target graph is incomplete or low-confidence.
 
 Kimi returns a validated JSON interaction manifest. It never returns executable JavaScript. The manifest identifies:
 
@@ -90,6 +103,21 @@ Approved runtime types for the first release are:
 The compiler stamps only known `data-clone-*` attributes and approved Alpine CSP directives. The existing runtime components remain the executable source of truth. Modal support and any missing detector mappings are added to that owned runtime.
 
 Unknown interactions remain static and generate a visible QA warning. They do not receive generated JavaScript.
+
+The state explorer may activate clicks, keyboard controls, previous/next controls, open, and close actions. It must reject navigation, form submission, downloads, purchases, permissions, and other external side effects. Each candidate is explored from a restored page state so one control cannot contaminate another candidate's evidence.
+
+## Embed Isolation Modes
+
+The default output remains scoped host-DOM HTML because it supports the current `production-body-html` consumer contract, search indexing, and dealer-page DOM access.
+
+Two isolation implementations are recognized:
+
+1. **Compatibility baseline:** rewritten selectors beneath a unique artifact root plus an explicit root reset for inherited host properties.
+2. **Future opt-in:** a web-component adapter that attaches the artifact to an open Shadow DOM root for consumers with severe style collisions.
+
+Native CSS `@scope` may later reduce selector rewriting for consumers whose browser policy supports it, but it does not prevent inherited host styles and is not the initial compatibility baseline.
+
+Declarative Shadow DOM is not emitted into the existing raw body endpoint because the consumer currently injects HTML and `innerHTML` does not reliably instantiate declarative shadow roots. A Shadow DOM mode therefore requires an explicit consumer adapter using `attachShadow` and must be verified separately for fonts, modal placement, focus, analytics, and SEO expectations.
 
 ## Tailwind Conversion UX
 
@@ -227,6 +255,8 @@ The QA run captures desktop, tablet, and mobile screenshots and records:
 - artifact version and checksum received by the consumer;
 - presence and count of expected sections.
 
+Visual comparison runs in a pinned browser environment with deterministic fonts, animations disabled, and consistent device scale. Pixel diffs are paired with ARIA snapshots and targeted DOM assertions so a visually similar but inert control cannot pass.
+
 It also exercises interaction states:
 
 - every tab trigger changes the active panel;
@@ -290,6 +320,9 @@ Rules:
 - whole-page conversion progress, partial failure, cancellation, and review;
 - captured interaction manifest through annotator to Alpine runtime;
 - Worker artifact retains scoped CSS, runtime script, asset URLs, and checksum metadata.
+- state exploration accumulates CSS coverage and restores the page between safe candidates;
+- interaction manifests generate safelists for all runtime-toggled state selectors;
+- unsupported or unsafe candidate actions remain unexecuted and produce diagnostics.
 
 ### Browser Verification
 
@@ -304,9 +337,11 @@ Rules:
 2. Add the context-menu Tailwind submenu using existing deterministic selected/page converters.
 3. Add the authenticated non-mutating Kimi region-recreation endpoint and preview/apply dialog.
 4. Add batch AI conversion with progress, cancellation, and review.
-5. Expand interaction manifests and the owned Alpine runtime, beginning with modal support and Nissan detector gaps.
-6. Add admin-configurable consumer targets and embed fidelity QA.
-7. Use QA results to decide which sections need Tailwind or Kimi repair rather than rewriting every page by default.
+5. Add CDP capture evidence, safe state exploration, and manifest-derived CSS safelisting behind fallbacks.
+6. Expand interaction manifests and the owned Alpine runtime, beginning with modal support and Nissan detector gaps.
+7. Add admin-configurable consumer targets and state-aware embed fidelity QA.
+8. Prototype Shadow DOM output only if scoped-host-DOM QA still shows consumer style collisions.
+9. Use QA results to decide which sections need Tailwind or Kimi repair rather than rewriting every page by default.
 
 ## Acceptance Criteria
 
@@ -317,4 +352,5 @@ Rules:
 - The quick-edit toolbar remains attached only while its selected section is visible.
 - Known tabs, accordions, carousels, galleries, and modals work without OEM JavaScript.
 - The production artifact includes scoped CSS and reports CSS/runtime diagnostics in its manifest.
+- CSS needed by discovered interaction states remains present even when it was absent from the initial rendered state.
 - The fidelity workflow compares the real consumer render, including interaction states, rather than declaring success from the dashboard preview alone.
