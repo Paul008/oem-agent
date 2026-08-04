@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Code2, Columns2, ExternalLink, Eye, FileCode, Loader2, Lock, Pencil, Save, Wand2 } from 'lucide-vue-next'
+import { Code2, Columns2, ExternalLink, Eye, FileCode, Loader2, Lock, Monitor, Pencil, Save, Smartphone, Tablet, Wand2 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -9,6 +9,7 @@ import type { CloneRegion } from '@/pages/dashboard/page-builder/page-modes'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useModelPagePublication } from '@/composables/use-model-page-publication'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
@@ -17,13 +18,15 @@ import { compileTailwindRecipeArtifact, fetchStyleGuide } from '@/lib/worker-api
 import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import { buildCloneStudioFrameHtmlForCanvas } from '@/pages/dashboard/components/page-builder/clone-studio-canvas-helpers'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
+import PublicationControls from '@/pages/dashboard/components/page-builder/PublicationControls.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
 
 // Standalone, chrome-free preview of a model page as the builder renders it.
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
 // the same right-click editing affordances as the builder, with a small preview-local save bar.
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
-type PreviewView = 'edit' | 'production' | 'source' | 'compare' | 'standalone'
+type PreviewView = 'edit' | 'production' | 'candidate' | 'source' | 'compare' | 'standalone'
+type CandidatePreviewWidth = 'desktop' | 'tablet' | 'mobile'
 type CompareLayoutMode = 'accurate' | 'fit'
 interface StyleGuideFontFace {
   family: string
@@ -82,15 +85,30 @@ const editorSectionId = ref<string | null>(null)
 const styleGuideTokens = ref<Record<string, any> | null>(null)
 const compareLayoutMode = ref<CompareLayoutMode>('accurate')
 const pageSlug = computed(() => (route.params as { slug?: string }).slug ?? '')
+const publicationPageId = computed(() => pageSlug.value || null)
+const draftVersion = computed(() => {
+  const version = Number(page.value?.version)
+  return Number.isInteger(version) && version > 0 ? version : null
+})
+const publication = useModelPagePublication({ pageId: publicationPageId, draftVersion })
+const candidatePreviewWidth = ref<CandidatePreviewWidth>('desktop')
+const candidatePreviewClass = computed(() => {
+  if (candidatePreviewWidth.value === 'tablet')
+    return 'w-[768px] max-w-full'
+  if (candidatePreviewWidth.value === 'mobile')
+    return 'w-[375px] max-w-full'
+  return 'w-full'
+})
 const builderUrl = computed(() => pageSlug.value ? `/dashboard/page-builder/${pageSlug.value}` : '/dashboard/model-pages')
 const isWriteProtectedPage = computed(() => isModelPageWriteProtected(oemId.value))
 const writeProtectedMessage = computed(() => getModelPageWriteProtectedMessage(page.value?.name ?? oemId.value))
 const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))
 const isProductionView = computed(() => previewView.value === 'production')
+const isCandidateView = computed(() => previewView.value === 'candidate')
 const isSourceView = computed(() => previewView.value === 'source')
 const isCompareView = computed(() => previewView.value === 'compare')
 const isStandaloneView = computed(() => previewView.value === 'standalone')
-const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)
+const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)
 
 const canEditPreview = computed(() => !previewReadOnly.value)
 const hasTailwindSource = computed(() => Boolean(
@@ -129,7 +147,7 @@ const catalogModelSlug = computed(() =>
 
 function normalizePreviewView(value: unknown): PreviewView {
   const raw = Array.isArray(value) ? value[0] : value
-  return raw === 'production' || raw === 'source' || raw === 'compare' || raw === 'standalone' ? raw : 'edit'
+  return raw === 'production' || raw === 'candidate' || raw === 'source' || raw === 'compare' || raw === 'standalone' ? raw : 'edit'
 }
 
 function shouldLoadStyleGuideForPreview(view: PreviewView): boolean {
@@ -138,8 +156,10 @@ function shouldLoadStyleGuideForPreview(view: PreviewView): boolean {
 
 onMounted(async () => {
   const slug = pageSlug.value
-  if (slug)
+  if (slug) {
     await loadPage(slug)
+    await refreshPublicationState()
+  }
 })
 
 watch([oemId, previewView], async ([nextOemId, nextPreviewView]) => {
@@ -176,6 +196,8 @@ function replacePreviewViewQuery(view: PreviewView) {
   const query = { ...route.query }
   if (view === 'production')
     query.view = 'production'
+  else if (view === 'candidate')
+    query.view = 'candidate'
   else if (view === 'source')
     query.view = 'source'
   else if (view === 'compare')
@@ -808,7 +830,7 @@ async function convertPageToTailwind() {
 }
 
 async function savePreview() {
-  if (isProductionView.value || isSourceView.value || isCompareView.value || isStandaloneView.value) {
+  if (isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value) {
     toast.error('Switch to Edit view to save changes')
     return
   }
@@ -822,14 +844,83 @@ async function savePreview() {
     const saved = await saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegionsForSave.value)
     if (saved) {
       cloneDraftHtml.value = null
+      if (page.value?.version) {
+        publication.markDraftChanged(page.value.version)
+        try {
+          await publication.refresh()
+        }
+        catch (cause: any) {
+          toast.warning(`Draft saved; publication state could not refresh: ${cause?.message || 'Unknown error'}`)
+        }
+      }
       toast.success('Preview edits saved')
     }
     return
   }
 
+  const previousVersion = page.value?.version
   await saveSections()
-  if (!error.value)
+  if (!isDirty.value && page.value?.version && page.value.version !== previousVersion) {
+    publication.markDraftChanged(page.value.version)
+    try {
+      await publication.refresh()
+    }
+    catch (cause: any) {
+      toast.warning(`Draft saved; publication state could not refresh: ${cause?.message || 'Unknown error'}`)
+    }
     toast.success('Preview edits saved')
+  }
+}
+
+async function refreshPublicationState() {
+  if (!publicationPageId.value)
+    return
+  try {
+    await publication.refresh()
+  }
+  catch (cause: any) {
+    toast.error(`Failed to load publication state: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+async function buildPublicationCandidate() {
+  try {
+    await publication.buildCandidate()
+    toast.success(publication.canPublish.value ? 'Candidate passed validation' : 'Candidate validation needs attention')
+  }
+  catch (cause: any) {
+    toast.error(`Failed to build candidate: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+function previewCandidate() {
+  if (!publication.candidatePreviewUrl.value) {
+    toast.error('Build or refresh a candidate before previewing it')
+    return
+  }
+  setPreviewView('candidate')
+}
+
+async function publishCandidate() {
+  try {
+    const response = await publication.publish()
+    setPreviewView('production')
+    toast.success(`Revision ${response.published_revision} is now production`)
+  }
+  catch (cause: any) {
+    toast.error(`Failed to publish candidate: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+async function rollbackPublication(revision: number) {
+  try {
+    await publication.rollback(revision)
+    setPreviewView('production')
+    toast.success(`Production rolled back to revision ${revision}`)
+  }
+  catch (cause: any) {
+    toast.error(`Failed to roll back production: ${cause?.message || 'Unknown error'}`)
+  }
 }
 </script>
 
@@ -903,10 +994,10 @@ async function savePreview() {
         <div
           v-if="previewReadOnly"
           class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300"
-          :title="isCompareView ? 'Tailwind compare view disables editing and save actions' : (isSourceView ? 'Tailwind source view disables editing and save actions' : (isStandaloneView ? 'Standalone HTML view disables editing overlays and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage)))"
+          :title="isCandidateView ? 'Candidate preview disables editing and save actions' : (isCompareView ? 'Tailwind compare view disables editing and save actions' : (isSourceView ? 'Tailwind source view disables editing and save actions' : (isStandaloneView ? 'Standalone HTML view disables editing overlays and save actions' : (isProductionView ? 'Production view disables editing overlays and save actions' : writeProtectedMessage))))"
         >
           <Lock class="size-3.5" />
-          {{ isCompareView ? 'Compare' : (isSourceView ? 'Source' : (isStandaloneView ? 'HTML' : (isProductionView ? 'Production' : 'Read-only'))) }}
+          {{ isCandidateView ? 'Candidate' : (isCompareView ? 'Compare' : (isSourceView ? 'Source' : (isStandaloneView ? 'HTML' : (isProductionView ? 'Production' : 'Read-only')))) }}
         </div>
         <div v-else class="hidden items-center gap-1.5 px-1 text-xs text-muted-foreground sm:flex">
           <span
@@ -915,6 +1006,20 @@ async function savePreview() {
           />
           {{ isDirty ? 'Unsaved' : 'Saved' }}
         </div>
+        <PublicationControls
+          :draft-version="draftVersion"
+          :published-revision="publication.publishedRevision.value"
+          :candidate-revision="publication.candidate.value?.revision ?? null"
+          :candidate-status="publication.status.value"
+          :can-build="draftVersion != null && !publication.isLoading.value && !saving && !isDirty"
+          :can-publish="publication.canPublish.value && !publication.isLoading.value"
+          :validation="publication.validation.value"
+          :history="publication.history.value"
+          @build-candidate="buildPublicationCandidate"
+          @preview-candidate="previewCandidate"
+          @publish="publishCandidate"
+          @rollback="rollbackPublication"
+        />
         <button
           v-if="canEditPreview && activeMode === 'clone'"
           type="button"
@@ -949,7 +1054,7 @@ async function savePreview() {
         >
           <Loader2 v-if="saving" class="size-3.5 animate-spin" />
           <Save v-else class="size-3.5" />
-          <span class="hidden sm:inline">Save</span>
+          <span class="hidden sm:inline">Save Draft</span>
         </button>
         <a
           class="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted"
@@ -1220,6 +1325,61 @@ async function savePreview() {
               </details>
             </CardContent>
           </Card>
+        </div>
+      </div>
+
+      <div
+        v-else-if="isCandidateView"
+        class="flex h-screen w-full flex-col bg-muted/30 pt-14"
+      >
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-4 py-2">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium">
+              Candidate revision {{ publication.candidate.value?.revision ?? '—' }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              Authenticated candidate HTML; read-only until published.
+            </p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              class="rounded-md p-1.5 transition-colors"
+              :class="candidatePreviewWidth === 'desktop' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
+              title="Desktop candidate preview"
+              @click="candidatePreviewWidth = 'desktop'"
+            >
+              <Monitor class="size-3.5" />
+            </button>
+            <button
+              class="rounded-md p-1.5 transition-colors"
+              :class="candidatePreviewWidth === 'tablet' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
+              title="Tablet candidate preview (768px)"
+              @click="candidatePreviewWidth = 'tablet'"
+            >
+              <Tablet class="size-3.5" />
+            </button>
+            <button
+              class="rounded-md p-1.5 transition-colors"
+              :class="candidatePreviewWidth === 'mobile' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
+              title="Mobile candidate preview (375px)"
+              @click="candidatePreviewWidth = 'mobile'"
+            >
+              <Smartphone class="size-3.5" />
+            </button>
+          </div>
+        </div>
+        <div class="flex min-h-0 flex-1 justify-center overflow-auto bg-muted/30">
+          <iframe
+            v-if="publication.candidatePreviewUrl.value"
+            class="h-full min-h-[720px] border-0 bg-white transition-[width] duration-200"
+            :class="candidatePreviewClass"
+            :src="publication.candidatePreviewUrl.value || undefined"
+            sandbox="allow-scripts"
+            title="Candidate model page preview"
+          />
+          <div v-else class="grid flex-1 place-items-center p-8 text-sm text-muted-foreground">
+            Build a candidate before opening candidate preview.
+          </div>
         </div>
       </div>
 

@@ -63,11 +63,11 @@ describe('preview Tailwind conversion toolbar', () => {
   it('adds a read-only Tailwind source view for converted sections', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\' | \'standalone\'')
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'candidate\' | \'source\' | \'compare\' | \'standalone\'')
     expect(source).toContain('const isSourceView = computed(() => previewView.value === \'source\')')
     expect(source).toContain('const hasTailwindSource = computed')
     expect(source).toContain('function tailwindSectionSource(section: any): string')
-    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
+    expect(source).toContain('return raw === \'production\' || raw === \'candidate\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
     expect(source).toContain('query.view = \'source\'')
     expect(source).toContain('@click="setPreviewView(\'source\')"')
     expect(source).toContain('title="Tailwind source"')
@@ -86,10 +86,43 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('_tailwind_conversion?.stats')
   })
 
+  it('keeps Save Draft separate from candidate build and publication actions', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+    const saveStart = source.indexOf('async function savePreview()')
+    const saveEnd = source.indexOf('async function refreshPublicationState()', saveStart)
+    const saveSource = source.slice(saveStart, saveEnd)
+
+    expect(source).toContain('Save Draft')
+    expect(source).toContain('useModelPagePublication')
+    expect(source).toContain('@build-candidate="buildPublicationCandidate"')
+    expect(source).toContain('@publish="publishCandidate"')
+    expect(source).toContain('@rollback="rollbackPublication"')
+    expect(source).toContain(':can-build="draftVersion != null && !publication.isLoading.value && !saving && !isDirty"')
+    expect(saveSource).toContain('publication.markDraftChanged(page.value.version)')
+    expect(saveSource).toContain('await publication.refresh()')
+    expect(saveSource).not.toContain('publication.buildCandidate()')
+    expect(saveSource).not.toContain('publication.publish()')
+  })
+
+  it('previews the authenticated candidate blob with responsive frame controls', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'candidate\' | \'source\' | \'compare\' | \'standalone\'')
+    expect(source).toContain('const isCandidateView = computed(() => previewView.value === \'candidate\')')
+    expect(source).toContain('query.view = \'candidate\'')
+    expect(source).toContain('@preview-candidate="previewCandidate"')
+    expect(source).toContain(':src="publication.candidatePreviewUrl.value || undefined"')
+    expect(source).toContain('title="Candidate model page preview"')
+    expect(source).toContain('sandbox="allow-scripts"')
+    expect(source).toContain('title="Desktop candidate preview"')
+    expect(source).toContain('title="Tablet candidate preview (768px)"')
+    expect(source).toContain('title="Mobile candidate preview (375px)"')
+  })
+
   it('adds a read-only Tailwind compare view for converted sections', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
 
-    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\' | \'standalone\'')
+    expect(source).toContain('type PreviewView = \'edit\' | \'production\' | \'candidate\' | \'source\' | \'compare\' | \'standalone\'')
     expect(source).toContain('const isCompareView = computed(() => previewView.value === \'compare\')')
     expect(source).toContain('import { Badge } from \'@/components/ui/badge\'')
     expect(source).toContain('import { Card, CardContent, CardDescription, CardHeader, CardTitle } from \'@/components/ui/card\'')
@@ -129,7 +162,7 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('tailwindCompareViewportHeight(section)')
     expect(source).toContain('Original')
     expect(source).toContain('Converted Tailwind')
-    expect(source).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
+    expect(source).toContain('return raw === \'production\' || raw === \'candidate\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
     expect(source).toContain('query.view = \'compare\'')
     expect(source).toContain('@click="setPreviewView(\'compare\')"')
     expect(source).toContain('title="Compare Tailwind"')

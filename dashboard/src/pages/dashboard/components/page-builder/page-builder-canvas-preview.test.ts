@@ -220,13 +220,46 @@ describe('pageBuilderCanvas preview mode', () => {
   it('keeps unsaved clone draft HTML when clone save fails', () => {
     const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
     const saveStart = pageSource.indexOf('async function saveActiveMode()')
-    const saveEnd = pageSource.indexOf('function openSourceUrl()')
+    const saveEnd = pageSource.indexOf('async function refreshPublicationState()', saveStart)
     const saveSource = pageSource.slice(saveStart, saveEnd)
 
     expect(saveSource).toContain('const saved = await saveClone')
     expect(saveSource).toContain('if (saved)')
     expect(saveSource).toContain('cloneDraftHtml.value = null')
     expect(saveSource.indexOf('if (saved)')).toBeLessThan(saveSource.indexOf('cloneDraftHtml.value = null'))
+  })
+
+  it('marks a successfully saved draft stale before refreshing publication state', () => {
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+    const saveStart = pageSource.indexOf('async function saveActiveMode()')
+    const saveEnd = pageSource.indexOf('async function refreshPublicationState()', saveStart)
+    const saveSource = pageSource.slice(saveStart, saveEnd)
+
+    expect(pageSource).toContain('Save Draft')
+    expect(pageSource).toContain('useModelPagePublication')
+    expect(pageSource).toContain('<PublicationControls')
+    expect(pageSource).toContain('@build-candidate="buildPublicationCandidate"')
+    expect(pageSource).toContain('@publish="publishCandidate"')
+    expect(pageSource).toContain('@rollback="rollbackPublication"')
+    expect(saveSource).toContain('publication.markDraftChanged(page.value.version)')
+    expect(saveSource).toContain('await publication.refresh()')
+    expect(saveSource).not.toContain('publication.buildCandidate()')
+    expect(saveSource).not.toContain('publication.publish()')
+  })
+
+  it('requires explicit candidate publish and rollback confirmations', () => {
+    const pageSource = readFileSync(new URL('../../page-builder/[slug].vue', import.meta.url), 'utf8')
+
+    expect(pageSource).toContain('async function buildPublicationCandidate()')
+    expect(pageSource).toContain('async function publishCandidate()')
+    expect(pageSource).toContain('async function rollbackPublication(revision: number)')
+    expect(pageSource).toContain('publication.buildCandidate()')
+    expect(pageSource).toContain('publication.publish()')
+    expect(pageSource).toContain('publication.rollback(revision)')
+
+    const rollbackStart = pageSource.indexOf('async function rollbackPublication')
+    const rollbackEnd = pageSource.indexOf('function openSourceUrl()', rollbackStart)
+    expect(pageSource.slice(rollbackStart, rollbackEnd)).not.toContain('publication.buildCandidate()')
   })
 
   it('keeps responsive OEM image classes tied to the clone iframe viewport', () => {
@@ -295,7 +328,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(previewSource).toContain('max-w-[calc(100vw-1rem)]')
     expect(previewSource).toContain('<span class="hidden sm:inline">Edit</span>')
     expect(previewSource).toContain('<span class="hidden sm:inline">Production</span>')
-    expect(previewSource).toContain('<span class="hidden sm:inline">Save</span>')
+    expect(previewSource).toContain('<span class="hidden sm:inline">Save Draft</span>')
     expect(previewSource).toContain('<span class="hidden sm:inline">Builder</span>')
   })
 
@@ -333,7 +366,7 @@ describe('pageBuilderCanvas preview mode', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
     expect(previewSource).toContain('isModelPageWriteProtected')
-    expect(previewSource).toContain('const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)')
+    expect(previewSource).toContain('const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)')
     expect(previewSource).toContain('const canEditPreview = computed(() => !previewReadOnly.value)')
     expect(previewSource).toContain(':read-only="previewReadOnly"')
     expect(previewSource).toContain(':allow-same-origin-sandbox="previewReadOnly"')
@@ -354,10 +387,10 @@ describe('pageBuilderCanvas preview mode', () => {
   it('adds a production view to the standalone preview that disables edit/save paths', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
-    expect(previewSource).toContain('type PreviewView = \'edit\' | \'production\' | \'source\' | \'compare\' | \'standalone\'')
+    expect(previewSource).toContain('type PreviewView = \'edit\' | \'production\' | \'candidate\' | \'source\' | \'compare\' | \'standalone\'')
     expect(previewSource).toContain('const previewView = ref<PreviewView>(normalizePreviewView(route.query.view))')
     expect(previewSource).toContain('function normalizePreviewView(value: unknown): PreviewView')
-    expect(previewSource).toContain('return raw === \'production\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
+    expect(previewSource).toContain('return raw === \'production\' || raw === \'candidate\' || raw === \'source\' || raw === \'compare\' || raw === \'standalone\' ? raw : \'edit\'')
     expect(previewSource).toContain('function setPreviewView(view: PreviewView)')
     expect(previewSource).toContain('query.view = \'production\'')
     expect(previewSource).toContain('delete query.view')
