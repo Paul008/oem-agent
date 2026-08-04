@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  atomicWriteFile,
+  authorizeBrowserRequest,
   evaluatePublicationReport,
+  fetchKnown,
+  finalizePublicationReport,
+  installRequestConfinement,
+  isSafeInteractionDescriptor,
+  isTaskArtifactName,
   parsePublicationArgs,
+  resetTaskArtifactInventory,
   renderPublicationMarkdown,
+  responseEvidence,
+  sameKnownDocument,
 } from './model-page-publication-battle-test.mjs'
 
 describe('parsePublicationArgs', () => {
@@ -144,6 +154,207 @@ describe('evaluatePublicationReport', () => {
       comparisons: [],
     }).blocking).toContainEqual(expect.objectContaining({ code: 'revision-mismatch' }))
   })
+
+  it('uses phase-specific expected revisions and blocks undersized dealer iframes', () => {
+    const result = evaluatePublicationReport({
+      mutation: { requested: false },
+      captures: [
+        {
+          target: 'direct-body', phase: 'pre-publish', viewport: 'desktop', revision: 22, expectedRevision: 22,
+          response: { status: 200 }, audit: { failedAssets: [], brokenImages: [], consoleErrors: [], interactions: [] },
+        },
+        {
+          target: 'dealer', phase: 'pre-publish', viewport: 'desktop', revision: 21, expectedRevision: 21,
+          response: { status: 200 },
+          audit: {
+            failedAssets: [], brokenImages: [], consoleErrors: [], interactions: [], horizontalOverflowPx: 0,
+            platformHeroCount: 1, platformBodyCount: 1, variantCount: 4, inventoryCount: 8,
+            iframeHeight: 700, renderedBodyHeight: 900,
+          },
+        },
+      ],
+      comparisons: [],
+    })
+
+    expect(result.blocking).toContainEqual(expect.objectContaining({ code: 'iframe-height-mismatch' }))
+    expect(result.blocking).not.toContainEqual(expect.objectContaining({ code: 'revision-mismatch' }))
+  })
+
+  it('blocks material screenshot dimension mismatches before channel comparison can hide them', () => {
+    const result = evaluatePublicationReport({
+      mutation: { requested: false },
+      captures: [],
+      comparisons: [{
+        pair: 'editor-vs-direct', viewport: 'desktop', mismatchPercent: 0,
+        leftSize: { width: 1440, height: 900 }, rightSize: { width: 1440, height: 1400 },
+      }],
+    })
+
+    expect(result.blocking).toContainEqual(expect.objectContaining({ code: 'screenshot-dimension-mismatch' }))
+  })
+
+  it('preserves a primary failure alongside rollback and restoration-capture failures', () => {
+    const result = evaluatePublicationReport({
+      mutation: {
+        requested: true,
+        restoration: { attempted: true, verified: false, error: 'rollback API failed' },
+      },
+      captures: [{
+        target: 'dealer', phase: 'restored', viewport: 'desktop', expectedRevision: 21, revision: 22,
+        response: { status: 0 }, error: 'restoration capture failed',
+        audit: { failedAssets: [], consoleErrors: [], interactions: [] },
+      }],
+      comparisons: [],
+    })
+
+    expect(result.blocking.map(item => item.code)).toEqual(expect.arrayContaining([
+      'capture-failed', 'revision-mismatch', 'rollback-restoration-failed',
+    ]))
+  })
+})
+
+describe('browser safety seams', () => {
+  it('reads Puppeteer response headers from its lowercase record shape', () => {
+    const evidence = responseEvidence({
+      url: () => 'https://worker.example/body?revision=22',
+      status: () => 200,
+      headers: () => ({
+        'cache-control': 'public, max-age=300',
+        'x-oem-published-revision': '22',
+        'set-cookie': 'must-not-be-recorded',
+      }),
+    }, 'https://worker.example/body?revision=22')
+
+    expect(evidence.cacheControl).toBe('public, max-age=300')
+    expect(evidence.headers['x-oem-published-revision']).toBe('22')
+    expect(evidence.headers).not.toHaveProperty('set-cookie')
+  })
+
+  it('matches the complete explicit document URL including query parameters', () => {
+    expect(sameKnownDocument('https://example.com/body?revision=22', 'https://example.com/body?revision=22')).toBe(true)
+    expect(sameKnownDocument('https://example.com/body?revision=22', 'https://example.com/body')).toBe(false)
+    expect(sameKnownDocument('https://example.com/preview?id=x&view=candidate', 'https://example.com/preview?id=x&view=production')).toBe(false)
+  })
+
+  it('authorizes only exact Worker history and candidate HTML requests', () => {
+    const allowed = {
+      history: 'https://worker.example/admin/page/publication/history',
+      candidateHtml: 'https://worker.example/admin/page/publication/candidate-html?revision=22',
+    }
+    expect(authorizeBrowserRequest(allowed.history, allowed)).toBe(true)
+    expect(authorizeBrowserRequest(allowed.candidateHtml, allowed)).toBe(true)
+    expect(authorizeBrowserRequest('https://dashboard.example/preview/page', allowed)).toBe(false)
+    expect(authorizeBrowserRequest('https://dealer.example/models/ariya', allowed)).toBe(false)
+    expect(authorizeBrowserRequest('https://worker.example/admin/page/publication/candidate-html?revision=23', allowed)).toBe(false)
+    expect(authorizeBrowserRequest('https://worker.example/assets/app.js', allowed)).toBe(false)
+  })
+
+  it('blocks write requests and external navigation before they can continue', async () => {
+    const handlers = {}
+    const page = {
+      setRequestInterception: async () => {},
+      on: (event, handler) => { handlers[event] = handler },
+    }
+    const records = []
+    await installRequestConfinement(page, {
+      allowedDocumentUrls: ['https://dealer.example/models/ariya'],
+      authorizedUrls: {},
+      authorizationHeaders: {},
+      records,
+    })
+
+    const fakeRequest = ({ method, url, navigation = false }) => {
+      const calls = []
+      return {
+        calls,
+        method: () => method,
+        url: () => url,
+        headers: () => ({}),
+        isNavigationRequest: () => navigation,
+        abort: async () => calls.push('abort'),
+        continue: async () => calls.push('continue'),
+      }
+    }
+    const write = fakeRequest({ method: 'POST', url: 'https://dealer.example/lead' })
+    const navigation = fakeRequest({ method: 'GET', url: 'https://evil.example/', navigation: true })
+    const asset = fakeRequest({ method: 'GET', url: 'https://cdn.example/image.jpg' })
+    await handlers.request(write)
+    await handlers.request(navigation)
+    await handlers.request(asset)
+
+    expect(write.calls).toEqual(['abort'])
+    expect(navigation.calls).toEqual(['abort'])
+    expect(asset.calls).toEqual(['continue'])
+    expect(records.map(record => record.reason)).toEqual(['non-idempotent-request', 'unexpected-navigation'])
+  })
+
+  it('rejects anchors, form-associated/default-submit buttons, and navigation-capable controls', () => {
+    expect(isSafeInteractionDescriptor({ tagName: 'A', href: '/buy' })).toBe(false)
+    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: true, type: 'button' })).toBe(false)
+    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: '' })).toBe(false)
+    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: 'button' })).toBe(true)
+    expect(isSafeInteractionDescriptor({ tagName: 'INPUT', formAssociated: false, type: 'range' })).toBe(true)
+    expect(isSafeInteractionDescriptor({ tagName: 'BUTTON', formAssociated: false, type: 'button', target: '_blank' })).toBe(false)
+  })
+})
+
+describe('artifact finalization seams', () => {
+  it('recognizes only task-owned artifact inventory names', () => {
+    expect(isTaskArtifactName('report.json')).toBe(true)
+    expect(isTaskArtifactName('dealer-restored-mobile-attempt-2.png')).toBe(true)
+    expect(isTaskArtifactName('editor-vs-direct-desktop-diff.png')).toBe(true)
+    expect(isTaskArtifactName('notes.txt')).toBe(false)
+    expect(isTaskArtifactName('../report.json')).toBe(false)
+  })
+
+  it('atomically writes a temp file before renaming it over the destination', async () => {
+    const calls = []
+    await atomicWriteFile('/tmp/report.json', '{}', {
+      writeFile: async (...args) => calls.push(['write', ...args]),
+      rename: async (...args) => calls.push(['rename', ...args]),
+      pid: 123,
+    })
+
+    expect(calls[0][0]).toBe('write')
+    expect(calls[0][1]).toBe('/tmp/report.json.tmp-123')
+    expect(calls[1]).toEqual(['rename', '/tmp/report.json.tmp-123', '/tmp/report.json'])
+  })
+
+  it('removes only recognized stale artifacts for a reused run ID', async () => {
+    const removed = []
+    await resetTaskArtifactInventory('/tmp/task-report', {
+      readdir: async () => ['report.json', 'dealer-restored-mobile-attempt-2.png', 'notes.txt'],
+      unlink: async path => removed.push(path),
+    })
+    expect(removed).toEqual([
+      '/tmp/task-report/report.json',
+      '/tmp/task-report/dealer-restored-mobile-attempt-2.png',
+    ])
+  })
+
+  it('bounds Worker fetches with the configured abort timeout', async () => {
+    await expect(fetchKnown('https://worker.example/history', {
+      timeoutMs: 1,
+      authorizationEnv: 'UNSET_TEST_AUTH',
+    }, {}, {
+      fetchImpl: async (_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+      }),
+    })).rejects.toMatchObject({ name: 'TimeoutError' })
+  })
+
+  it('records browser close failure while still atomically writing both reports', async () => {
+    const written = []
+    const report = { runId: 'run', createdAt: 'now', pageId: 'nissan-au-ariya', captures: [], comparisons: [], mutation: { requested: false } }
+    await finalizePublicationReport(report, {
+      browser: { close: async () => { throw new Error('close failed') } },
+      atomicWrite: async (path) => written.push(path),
+      artifactDir: '/tmp/task-report',
+    })
+
+    expect(report.blocking).toContainEqual(expect.objectContaining({ code: 'browser-close-failed' }))
+    expect(written).toEqual(['/tmp/task-report/report.json', '/tmp/task-report/report.md'])
+  })
 })
 
 describe('renderPublicationMarkdown', () => {
@@ -157,7 +368,9 @@ describe('renderPublicationMarkdown', () => {
       expectedRevision: 22,
       captures: [{
         target: 'dealer',
+        phase: 'pre-publish',
         viewport: 'mobile',
+        expectedRevision: 22,
         revision: 22,
         screenshotPath: 'dealer-mobile.png',
         response: { status: 200, cacheControl: 'public, max-age=300' },
@@ -170,6 +383,7 @@ describe('renderPublicationMarkdown', () => {
 
     expect(markdown).toContain('Publication battle test: FAIL')
     expect(markdown).toContain('Starting revision: 21')
+    expect(markdown).toContain('| dealer | pre-publish | mobile | 200 | 22 | 22 |')
     expect(markdown).toContain('dealer-mobile.png')
     expect(markdown).toContain('diff-mobile.png')
     expect(markdown).toContain('Example finding')

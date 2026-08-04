@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -16,6 +15,9 @@ const DEFAULT_DEALER_BASE = 'https://northern-nissan.engagr.com.au'
 const DEFAULT_TIMEOUT_MS = 45_000
 const DEFAULT_SETTLE_MS = 2_000
 const ARTIFACT_ROOT = 'artifacts/model-page-publication'
+const IFRAME_HEIGHT_TOLERANCE_PX = 16
+const SCREENSHOT_DIMENSION_TOLERANCE_PX = 16
+const SCREENSHOT_DIMENSION_TOLERANCE_RATIO = 0.02
 const VIEWPORTS = Object.freeze({
   desktop: Object.freeze({ width: 1440, height: 1100, isMobile: false, hasTouch: false }),
   tablet: Object.freeze({ width: 1024, height: 900, isMobile: false, hasTouch: true }),
@@ -250,7 +252,17 @@ function redactUrl(value) {
   }
 }
 
-function responseEvidence(response, requestedUrl) {
+function safeResponseHeaders(headersRecord) {
+  const headers = {}
+  for (const name of SAFE_RESPONSE_HEADERS) {
+    const value = headersRecord?.[name]
+    if (value != null)
+      headers[name] = value
+  }
+  return headers
+}
+
+export function responseEvidence(response, requestedUrl) {
   if (!response) {
     return {
       requestedUrl: redactUrl(requestedUrl),
@@ -260,12 +272,8 @@ function responseEvidence(response, requestedUrl) {
       headers: {},
     }
   }
-  const headers = {}
-  for (const name of SAFE_RESPONSE_HEADERS) {
-    const value = response.headers().get(name)
-    if (value != null)
-      headers[name] = value
-  }
+  // Puppeteer's HTTPResponse#headers returns a lowercase plain record.
+  const headers = safeResponseHeaders(response.headers())
   return {
     requestedUrl: redactUrl(requestedUrl),
     finalUrl: redactUrl(response.url()),
@@ -290,22 +298,21 @@ function requestHeaders(options, env = process.env) {
   }
 }
 
-async function fetchKnown(url, options, init = {}) {
-  const response = await fetch(url, {
+export async function fetchKnown(url, options, init = {}, deps = {}) {
+  const fetchImpl = deps.fetchImpl || fetch
+  const timeoutSignal = AbortSignal.timeout(options.timeoutMs || DEFAULT_TIMEOUT_MS)
+  const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal
+  const response = await fetchImpl(url, {
     ...init,
     redirect: 'error',
+    signal,
     headers: {
       Accept: init.accept || 'application/json',
       ...requestHeaders(options),
       ...(init.headers || {}),
     },
   })
-  const headers = {}
-  for (const name of SAFE_RESPONSE_HEADERS) {
-    const value = response.headers.get(name)
-    if (value != null)
-      headers[name] = value
-  }
+  const headers = safeResponseHeaders(Object.fromEntries(SAFE_RESPONSE_HEADERS.map(name => [name, response.headers.get(name)])))
   const evidence = {
     requestedUrl: redactUrl(url),
     finalUrl: redactUrl(response.url),
@@ -368,6 +375,11 @@ async function collectAudit(frame) {
       horizontalOverflowPx: Math.max(0, root.scrollWidth - root.clientWidth),
       scrollHeight: Math.max(root.scrollHeight, body?.scrollHeight || 0),
       iframeHeight: iframe ? Math.round(iframe.getBoundingClientRect().height) : null,
+      iframeUrl: iframe?.src || null,
+      platformHeroCount: countUnique([
+        '[data-platform-region="hero"]', '[data-oem-platform-region="hero"]', '[data-testid*="hero" i]', '.hero-banner',
+      ]),
+      platformBodyCount: iframe ? 1 : 0,
       brokenImages: images.filter(image => !image.complete || image.naturalWidth <= 0).map(image => ({
         selector: selector(image),
         url: image.currentSrc || image.src,
@@ -404,6 +416,26 @@ async function exerciseInteractions(frame) {
       value: [...root.querySelectorAll('input[type="range"]')].map(item => item.value).join('|'),
     })
     const changed = (before, after) => JSON.stringify(before) !== JSON.stringify(after)
+    const descriptor = control => ({
+      tagName: control.tagName,
+      type: control.getAttribute('type') || '',
+      href: control.getAttribute('href') || '',
+      formAction: control.getAttribute('formaction') || '',
+      target: control.getAttribute('target') || '',
+      formAssociated: Boolean(control.form || control.closest('form')),
+    })
+    const safeControl = (control) => {
+      const value = descriptor(control)
+      const tagName = String(value.tagName || '').toUpperCase()
+      const type = String(value.type || '').toLowerCase()
+      if (tagName === 'A' || tagName === 'AREA' || value.href || value.formAction || value.target || value.formAssociated)
+        return false
+      if (tagName === 'BUTTON')
+        return type === 'button'
+      if (tagName === 'INPUT')
+        return type === 'range'
+      return !['FORM', 'SELECT', 'TEXTAREA'].includes(tagName)
+    }
     const definitions = {
       accordion: {
         roots: 'details, [data-oem-interaction-kind="accordion"]',
@@ -431,15 +463,18 @@ async function exerciseInteractions(frame) {
       const roots = [...new Set([...document.querySelectorAll(definition.roots)])].filter(visible).slice(0, 8)
       let attempted = 0
       let passed = 0
+      let blocked = 0
       const details = []
       for (const root of roots) {
         const control = definition.control(root)
-        if (!control || !visible(control) || control.matches('a[href],button[type="submit"]')) {
-          details.push('no safe visible control')
+        if (!control || !visible(control) || !safeControl(control)) {
+          blocked++
+          details.push('unsafe or unavailable control was not invoked')
           continue
         }
         attempted++
         const before = snapshot(root)
+        const beforeUrl = location.href
         if (kind === 'slider' && control.matches('input[type="range"]')) {
           const min = Number(control.min || 0)
           const max = Number(control.max || 100)
@@ -452,27 +487,83 @@ async function exerciseInteractions(frame) {
         }
         await wait()
         const after = snapshot(root)
+        const navigationChanged = location.href !== beforeUrl
         const dialogVisible = kind === 'modal' && [...document.querySelectorAll('[role="dialog"],dialog')].some(visible)
-        const didPass = changed(before, after) || dialogVisible
+        const didPass = !navigationChanged && (changed(before, after) || dialogVisible)
         if (didPass)
           passed++
-        details.push(didPass ? 'state changed' : 'no observable state change')
+        details.push(navigationChanged ? 'document URL changed' : didPass ? 'state changed' : 'no observable state change')
       }
-      results.push({ kind, found: roots.length, attempted, passed, details })
+      results.push({ kind, found: roots.length, attempted, passed, blocked, details })
     }
     return results
   })
 }
 
-function sameKnownDocument(expected, actual) {
+function normalizedDocumentUrl(value) {
+  const url = new URL(value)
+  url.hash = ''
+  url.searchParams.sort()
+  return url.href
+}
+
+export function sameKnownDocument(expected, actual) {
   try {
-    const expectedUrl = new URL(expected)
-    const actualUrl = new URL(actual)
-    return expectedUrl.origin === actualUrl.origin && expectedUrl.pathname === actualUrl.pathname
+    return normalizedDocumentUrl(expected) === normalizedDocumentUrl(actual)
   }
   catch {
     return false
   }
+}
+
+export function authorizeBrowserRequest(url, authorizedUrls) {
+  return Object.values(authorizedUrls || {}).some(allowed => sameKnownDocument(allowed, url))
+}
+
+export function isSafeInteractionDescriptor(descriptor) {
+  const tagName = String(descriptor?.tagName || '').toUpperCase()
+  const type = String(descriptor?.type || '').toLowerCase()
+  if (tagName === 'A' || tagName === 'AREA' || descriptor?.href || descriptor?.formAction || descriptor?.target)
+    return false
+  if (descriptor?.formAssociated)
+    return false
+  if (tagName === 'BUTTON')
+    return type === 'button'
+  if (tagName === 'INPUT')
+    return type === 'range'
+  return !['FORM', 'SELECT', 'TEXTAREA'].includes(tagName)
+}
+
+function boundedPush(collection, value, limit = 100) {
+  if (collection.length < limit)
+    collection.push(value)
+}
+
+export async function installRequestConfinement(page, options) {
+  const allowedDocumentUrls = options.allowedDocumentUrls || []
+  const records = options.records || []
+  const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS'])
+  await page.setRequestInterception(true)
+  page.on('request', async (request) => {
+    const method = String(request.method()).toUpperCase()
+    const url = request.url()
+    if (!safeMethods.has(method)) {
+      boundedPush(records, { method, url: redactUrl(url), reason: 'non-idempotent-request' })
+      await request.abort('blockedbyclient')
+      return
+    }
+    if (request.isNavigationRequest() && !allowedDocumentUrls.some(allowed => sameKnownDocument(allowed, url))) {
+      boundedPush(records, { method, url: redactUrl(url), reason: 'unexpected-navigation' })
+      await request.abort('blockedbyclient')
+      return
+    }
+    if (authorizeBrowserRequest(url, options.authorizedUrls)) {
+      await request.continue({ headers: { ...request.headers(), ...options.authorizationHeaders } })
+      return
+    }
+    await request.continue()
+  })
+  return records
 }
 
 async function createCapturePage(browser, viewport) {
@@ -506,20 +597,6 @@ async function createCapturePage(browser, viewport) {
   return { page, failedAssets, consoleErrors }
 }
 
-async function applyDocumentAuthorization(page, exactUrl, headers) {
-  if (Object.keys(headers).length === 0)
-    return
-  await page.setRequestInterception(true)
-  page.on('request', (request) => {
-    if (request.isNavigationRequest() && request.url() === exactUrl) {
-      request.continue({ headers: { ...request.headers(), ...headers } }).catch(() => null)
-    }
-    else {
-      request.continue().catch(() => null)
-    }
-  })
-}
-
 async function selectRenderedFrame(page, target) {
   if (target === 'direct-body')
     return page.mainFrame()
@@ -547,25 +624,47 @@ async function screenshotFrame(page, frame, path) {
     await page.screenshot({ path, fullPage: true, type: 'png' })
 }
 
-async function captureBrowserTarget(browser, options, target, viewport, requestedUrl, fixtureHtml = null) {
+async function captureBrowserTarget(browser, options, input) {
+  const {
+    target,
+    viewport,
+    requestedUrl,
+    expectedRevision,
+    phase = 'pre-publish',
+    attempt = 1,
+    allowedFrameUrls = [],
+    authorizedUrls = {},
+    fixtureHtml = null,
+  } = input
   const { page, failedAssets, consoleErrors } = await createCapturePage(browser, viewport)
-  const screenshotPath = join(options.artifactDir, `${target}-${viewport}.png`)
-  const contextScreenshotPath = join(options.artifactDir, `${target}-${viewport}-context.png`)
+  const attemptSuffix = attempt > 1 ? `-attempt-${attempt}` : ''
+  const artifactStem = `${target}-${phase}-${viewport}${attemptSuffix}`
+  const screenshotPath = join(options.artifactDir, `${artifactStem}.png`)
+  const contextScreenshotPath = join(options.artifactDir, `${artifactStem}-context.png`)
+  const blockedRequests = []
+  page.on('popup', (popup) => {
+    boundedPush(blockedRequests, { method: 'GET', url: redactUrl(popup.url()), reason: 'unexpected-navigation' })
+    popup.close().catch(() => null)
+  })
   let response = null
   try {
     if (fixtureHtml != null) {
       await page.setContent(fixtureHtml, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs })
     }
     else {
-      // The admin credential is scoped to the Worker candidate document only.
-      // Never forward it to the dashboard, dealer origin, or page-discovered assets.
-      if (target === 'direct-body')
-        await applyDocumentAuthorization(page, requestedUrl, requestHeaders(options))
+      await installRequestConfinement(page, {
+        allowedDocumentUrls: [requestedUrl, ...allowedFrameUrls],
+        authorizedUrls,
+        authorizationHeaders: requestHeaders(options),
+        records: blockedRequests,
+      })
       response = await page.goto(requestedUrl, { waitUntil: 'networkidle2', timeout: options.timeoutMs })
     }
     await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}' }).catch(() => null)
     await settlePage(page, options.settleMs)
     const frame = await selectRenderedFrame(page, target)
+    const interactions = await exerciseInteractions(frame)
+    await settlePage(page, Math.min(250, options.settleMs))
     const [contentAudit, outerAudit] = await Promise.all([
       collectAudit(frame),
       frame === page.mainFrame() ? null : collectAudit(page.mainFrame()),
@@ -574,6 +673,10 @@ async function captureBrowserTarget(browser, options, target, viewport, requeste
       ...contentAudit,
       horizontalOverflowPx: Math.max(contentAudit.horizontalOverflowPx || 0, outerAudit?.horizontalOverflowPx || 0),
       iframeHeight: outerAudit?.iframeHeight ?? contentAudit.iframeHeight,
+      iframeUrl: frame === page.mainFrame() ? null : contentAudit.documentUrl,
+      renderedBodyHeight: contentAudit.scrollHeight,
+      platformHeroCount: Math.max(contentAudit.platformHeroCount || 0, outerAudit?.platformHeroCount || 0),
+      platformBodyCount: frame === page.mainFrame() ? 0 : Math.max(1, outerAudit?.platformBodyCount || 0),
       variantCount: Math.max(contentAudit.variantCount || 0, outerAudit?.variantCount || 0),
       inventoryCount: Math.max(contentAudit.inventoryCount || 0, outerAudit?.inventoryCount || 0),
       outerDocument: outerAudit
@@ -586,7 +689,8 @@ async function captureBrowserTarget(browser, options, target, viewport, requeste
     }
     audit.failedAssets = failedAssets
     audit.consoleErrors = consoleErrors
-    audit.interactions = await exerciseInteractions(frame)
+    audit.blockedRequests = blockedRequests
+    audit.interactions = interactions
     await page.screenshot({ path: contextScreenshotPath, fullPage: true, type: 'png' })
     await screenshotFrame(page, frame, screenshotPath)
     const responseRecord = fixtureHtml != null
@@ -594,25 +698,34 @@ async function captureBrowserTarget(browser, options, target, viewport, requeste
       : responseEvidence(response, requestedUrl)
     return {
       target,
+      phase,
+      attempt,
       viewport,
+      expectedRevision,
       revision: revisionFromHeaders(responseRecord.headers) ?? contentAudit.documentRevision ?? null,
       response: responseRecord,
       screenshotPath,
       contextScreenshotPath,
       audit,
       unexpectedNavigation: fixtureHtml == null && !sameKnownDocument(requestedUrl, responseRecord.finalUrl),
+      unexpectedFrameNavigation: fixtureHtml == null
+        && frame !== page.mainFrame()
+        && !allowedFrameUrls.some(url => sameKnownDocument(url, contentAudit.documentUrl)),
     }
   }
   catch (error) {
     await page.screenshot({ path: contextScreenshotPath, fullPage: true, type: 'png' }).catch(() => null)
     return {
       target,
+      phase,
+      attempt,
       viewport,
+      expectedRevision,
       revision: null,
       response: error?.evidence || responseEvidence(response, requestedUrl),
       screenshotPath: null,
       contextScreenshotPath,
-      audit: { failedAssets, consoleErrors, interactions: [], regionRenderers: [], variantCount: 0, inventoryCount: 0 },
+      audit: { failedAssets, consoleErrors, blockedRequests, interactions: [], regionRenderers: [], variantCount: 0, inventoryCount: 0 },
       error: error instanceof Error ? error.message : String(error),
     }
   }
@@ -703,7 +816,19 @@ function addFinding(collection, code, message, capture) {
   collection.push({
     code,
     message,
-    ...(capture ? { target: capture.target, viewport: capture.viewport } : {}),
+    ...(capture ? { target: capture.target, phase: capture.phase, viewport: capture.viewport } : {}),
+  })
+}
+
+function materialDimensionMismatch(leftSize, rightSize) {
+  if (!leftSize || !rightSize)
+    return false
+  return ['width', 'height'].some((dimension) => {
+    const left = Number(leftSize[dimension]) || 0
+    const right = Number(rightSize[dimension]) || 0
+    const delta = Math.abs(left - right)
+    const ratio = delta / Math.max(1, left, right)
+    return delta > SCREENSHOT_DIMENSION_TOLERANCE_PX && ratio > SCREENSHOT_DIMENSION_TOLERANCE_RATIO
   })
 }
 
@@ -715,31 +840,50 @@ export function evaluatePublicationReport(report) {
       addFinding(blocking, 'capture-failed', `${capture.target}/${capture.viewport}: ${capture.error}`, capture)
     if (capture.unexpectedNavigation)
       addFinding(blocking, 'unexpected-navigation', `${capture.target}/${capture.viewport} left its explicitly configured document URL`, capture)
+    if (capture.unexpectedFrameNavigation)
+      addFinding(blocking, 'unexpected-frame-navigation', `${capture.target}/${capture.viewport} loaded an iframe outside the explicit derived URL allowlist`, capture)
     if (capture.response?.status !== 200)
       addFinding(blocking, 'document-response-failed', `${capture.target}/${capture.viewport} returned HTTP ${capture.response?.status || 0}`, capture)
-    if (report.expectedRevision && capture.revision !== report.expectedRevision)
-      addFinding(blocking, 'revision-mismatch', `${capture.target}/${capture.viewport} rendered revision ${capture.revision ?? 'unknown'}; expected ${report.expectedRevision}`, capture)
+    const expectedRevision = capture.expectedRevision ?? report.expectedRevision
+    if (expectedRevision && capture.revision !== expectedRevision)
+      addFinding(blocking, 'revision-mismatch', `${capture.target}/${capture.phase || 'capture'}/${capture.viewport} rendered revision ${capture.revision ?? 'unknown'}; expected ${expectedRevision}`, capture)
     if ((capture.audit?.failedAssets || []).length > 0)
       addFinding(blocking, 'failed-assets', `${capture.target}/${capture.viewport} has ${capture.audit.failedAssets.length} failed asset request(s)`, capture)
     if ((capture.audit?.brokenImages || []).length > 0)
       addFinding(blocking, 'broken-images', `${capture.target}/${capture.viewport} has ${capture.audit.brokenImages.length} broken visible image(s)`, capture)
     if ((capture.audit?.horizontalOverflowPx || 0) > 4)
       addFinding(blocking, 'horizontal-overflow', `${capture.target}/${capture.viewport} overflows horizontally by ${capture.audit.horizontalOverflowPx}px`, capture)
+    if ((capture.audit?.blockedRequests || []).length > 0)
+      addFinding(blocking, 'blocked-side-effect-attempt', `${capture.target}/${capture.viewport} attempted ${capture.audit.blockedRequests.length} blocked write/navigation request(s)`, capture)
     for (const error of capture.audit?.consoleErrors || []) {
       addFinding(/content security policy|\bcsp\b/i.test(error) ? blocking : warnings, /content security policy|\bcsp\b/i.test(error) ? 'csp-error' : 'console-error', `${capture.target}/${capture.viewport}: ${error}`, capture)
     }
     for (const interaction of capture.audit?.interactions || []) {
+      if ((interaction.blocked || 0) > 0)
+        addFinding(blocking, 'unsafe-interaction-control', `${capture.target}/${capture.viewport} ${interaction.kind}: ${interaction.blocked} unsafe control(s) were not invoked`, capture)
       if (interaction.found > 0 && (interaction.attempted === 0 || interaction.passed < interaction.attempted))
         addFinding(blocking, 'interaction-failed', `${capture.target}/${capture.viewport} ${interaction.kind}: ${interaction.passed}/${interaction.attempted} safe checks passed`, capture)
     }
+    if (capture.target === 'dealer' && (capture.audit?.platformHeroCount || 0) === 0)
+      addFinding(blocking, 'platform-hero-missing', `${capture.target}/${capture.viewport} has no platform hero`, capture)
+    if (capture.target === 'dealer' && (capture.audit?.platformBodyCount || 0) === 0)
+      addFinding(blocking, 'platform-body-missing', `${capture.target}/${capture.viewport} has no embedded publication body`, capture)
     if (capture.target === 'dealer' && (capture.audit?.variantCount || 0) === 0)
       addFinding(blocking, 'variants-missing', `${capture.target}/${capture.viewport} has no variant cards`, capture)
     if (capture.target === 'dealer' && (capture.audit?.inventoryCount || 0) === 0)
       addFinding(blocking, 'inventory-missing', `${capture.target}/${capture.viewport} has no inventory cards`, capture)
+    if (capture.target === 'dealer'
+      && Number.isFinite(capture.audit?.iframeHeight)
+      && Number.isFinite(capture.audit?.renderedBodyHeight)
+      && capture.audit.iframeHeight + IFRAME_HEIGHT_TOLERANCE_PX < capture.audit.renderedBodyHeight) {
+      addFinding(blocking, 'iframe-height-mismatch', `${capture.target}/${capture.viewport} iframe is ${capture.audit.iframeHeight}px for a ${capture.audit.renderedBodyHeight}px body (tolerance ${IFRAME_HEIGHT_TOLERANCE_PX}px)`, capture)
+    }
   }
   for (const comparison of report.comparisons || []) {
     if (comparison.error)
       addFinding(blocking, 'pixel-comparison-failed', `${comparison.viewport} ${comparison.pair}: ${comparison.error}`)
+    else if (materialDimensionMismatch(comparison.leftSize, comparison.rightSize))
+      addFinding(blocking, 'screenshot-dimension-mismatch', `${comparison.viewport} ${comparison.pair} screenshot dimensions differ materially (${comparison.leftSize.width}x${comparison.leftSize.height} vs ${comparison.rightSize.width}x${comparison.rightSize.height})`)
     else if (comparison.mismatchPercent > (report.maxMismatch ?? 0.35))
       addFinding(blocking, 'visual-mismatch', `${comparison.viewport} ${comparison.pair} differs by ${(comparison.mismatchPercent * 100).toFixed(2)}%`)
     else if (comparison.mismatchPercent >= 0.2)
@@ -747,6 +891,8 @@ export function evaluatePublicationReport(report) {
   }
   if (report.mutation?.requested && !report.mutation?.restoration?.verified)
     addFinding(blocking, 'rollback-restoration-failed', `Starting revision was not restored${report.mutation?.restoration?.error ? `: ${report.mutation.restoration.error}` : ''}`)
+  for (const error of report.finalizationErrors || [])
+    addFinding(blocking, error.code, error.message)
   return { blocking, warnings, passed: blocking.length === 0 }
 }
 
@@ -762,15 +908,14 @@ export function renderPublicationMarkdown(report) {
     `- Created: ${report.createdAt}`,
     `- Page: ${report.pageId}`,
     `- Starting revision: ${report.startingRevision ?? 'none'}`,
-    `- Expected revision: ${report.expectedRevision ?? 'none'}`,
     '',
     '## Captures',
     '',
-    '| Target | Viewport | HTTP | Revision | Cache-Control | Variants | Inventory | Screenshot |',
-    '|---|---:|---:|---:|---|---:|---:|---|',
+    '| Target | Phase | Viewport | HTTP | Expected | Revision | Cache-Control | Variants | Inventory | Screenshot |',
+    '|---|---|---:|---:|---:|---:|---|---:|---:|---|',
   ]
   for (const capture of report.captures || []) {
-    lines.push(`| ${tableValue(capture.target)} | ${tableValue(capture.viewport)} | ${tableValue(capture.response?.status)} | ${tableValue(capture.revision)} | ${tableValue(capture.response?.cacheControl)} | ${tableValue(capture.audit?.variantCount)} | ${tableValue(capture.audit?.inventoryCount)} | ${tableValue(capture.screenshotPath)} |`)
+    lines.push(`| ${tableValue(capture.target)} | ${tableValue(capture.phase)} | ${tableValue(capture.viewport)} | ${tableValue(capture.response?.status)} | ${tableValue(capture.expectedRevision)} | ${tableValue(capture.revision)} | ${tableValue(capture.response?.cacheControl)} | ${tableValue(capture.audit?.variantCount)} | ${tableValue(capture.audit?.inventoryCount)} | ${tableValue(capture.screenshotPath)} |`)
   }
   lines.push('', '## Pixel comparisons', '', '| Pair | Viewport | Mismatch | Diff |', '|---|---:|---:|---|')
   for (const comparison of report.comparisons || [])
@@ -793,11 +938,87 @@ export function renderPublicationMarkdown(report) {
   return `${lines.join('\n')}\n`
 }
 
+export function isTaskArtifactName(name) {
+  if (typeof name !== 'string' || name.includes('/') || name.includes('\\'))
+    return false
+  const withoutTemp = name.replace(/\.tmp-\d+$/, '')
+  if (/^report\.(?:json|md)$/.test(withoutTemp))
+    return true
+  if (/^(?:editor-candidate|direct-body|dealer)-(?:desktop|tablet|mobile)(?:-context)?\.png$/.test(withoutTemp))
+    return true
+  if (/^(?:editor-candidate|direct-body|dealer)-(?:pre-publish|post-publish|restored)-(?:desktop|tablet|mobile)(?:-attempt-\d+)?(?:-context)?\.png$/.test(withoutTemp))
+    return true
+  return /^(?:editor-vs-direct|dealer-body-vs-direct)-(?:pre-publish|post-publish|restored)-(?:desktop|tablet|mobile)-diff\.png$/.test(withoutTemp)
+    || /^(?:editor-vs-direct|dealer-body-vs-direct)-(?:desktop|tablet|mobile)-diff\.png$/.test(withoutTemp)
+}
+
+export async function resetTaskArtifactInventory(artifactDir, deps = {}) {
+  const readdirImpl = deps.readdir || readdir
+  const unlinkImpl = deps.unlink || unlink
+  let names
+  try {
+    names = await readdirImpl(artifactDir)
+  }
+  catch (error) {
+    if (error?.code === 'ENOENT')
+      return
+    throw error
+  }
+  await Promise.all(names.filter(isTaskArtifactName).map(name => unlinkImpl(join(artifactDir, name))))
+}
+
+export async function atomicWriteFile(path, content, deps = {}) {
+  const writeFileImpl = deps.writeFile || writeFile
+  const renameImpl = deps.rename || rename
+  const unlinkImpl = deps.unlink || unlink
+  const pid = deps.pid ?? process.pid
+  const temporaryPath = `${path}.tmp-${pid}`
+  try {
+    await writeFileImpl(temporaryPath, content)
+    await renameImpl(temporaryPath, path)
+  }
+  catch (error) {
+    await unlinkImpl(temporaryPath).catch(() => null)
+    throw error
+  }
+}
+
+export async function finalizePublicationReport(report, deps = {}) {
+  const browser = deps.browser
+  const artifactDir = deps.artifactDir
+  const atomicWrite = deps.atomicWrite || atomicWriteFile
+  report.finalizationErrors ||= []
+  if (browser) {
+    try {
+      await browser.close()
+    }
+    catch (error) {
+      report.finalizationErrors.push({
+        code: 'browser-close-failed',
+        message: `Browser close failed: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }
+  if (deps.mainError)
+    report.executionError = deps.mainError
+  const evaluation = evaluatePublicationReport(report)
+  if (deps.mainError)
+    evaluation.blocking.unshift({ code: 'execution-failed', message: deps.mainError })
+  report.blocking = evaluation.blocking
+  report.warnings = evaluation.warnings
+  report.passed = evaluation.passed && !deps.mainError
+  report.completedAt = new Date().toISOString()
+  await atomicWrite(join(artifactDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`)
+  await atomicWrite(join(artifactDir, 'report.md'), renderPublicationMarkdown(report))
+  return report
+}
+
 function fixtureForTarget(target) {
   if (target === 'editor-candidate')
     return `<!doctype html><html><body style="margin:0"><iframe title="Candidate model page preview" style="border:0;width:100%;height:760px" srcdoc="${FIXTURE_BODY.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"></iframe></body></html>`
   if (target === 'dealer') {
-    return `<!doctype html><html><body style="margin:0"><section style="height:180px;background:#eee" data-platform-region="hero"><h1>ARIYA</h1></section><iframe title="OEM model page" style="border:0;width:100%;height:760px" srcdoc="${FIXTURE_BODY.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"></iframe><section data-platform-region="variants"><article data-model-variant="engage">Engage</article></section><section data-platform-region="inventory"><article data-inventory-card="stock-1">In stock</article></section></body></html>`
+    const publishedBody = FIXTURE_BODY.replace('data-oem-revision="22"', 'data-oem-revision="21"')
+    return `<!doctype html><html><body style="margin:0"><section style="height:180px;background:#eee" data-platform-region="hero"><h1>ARIYA</h1></section><iframe title="OEM model page" style="border:0;width:100%;height:760px" srcdoc="${publishedBody.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"></iframe><section data-platform-region="variants"><article data-model-variant="engage">Engage</article></section><section data-platform-region="inventory"><article data-inventory-card="stock-1">In stock</article></section></body></html>`
   }
   return FIXTURE_BODY
 }
@@ -842,7 +1063,56 @@ async function verifyPublishedRevision(options, revision) {
   return { manifest, body: body.evidence }
 }
 
-async function exerciseMutation(options, state, report) {
+function dealerCapturePassed(capture, expectedRevision) {
+  const audit = capture.audit || {}
+  return !capture.error
+    && capture.response?.status === 200
+    && capture.revision === expectedRevision
+    && (audit.platformHeroCount || 0) > 0
+    && (audit.platformBodyCount || 0) > 0
+    && (audit.variantCount || 0) > 0
+    && (audit.inventoryCount || 0) > 0
+    && Number.isFinite(audit.iframeHeight)
+    && Number.isFinite(audit.renderedBodyHeight)
+    && audit.iframeHeight + IFRAME_HEIGHT_TOLERANCE_PX >= audit.renderedBodyHeight
+    && (audit.blockedRequests || []).length === 0
+}
+
+async function captureDealerPhase(browser, options, phase, revision) {
+  const captures = []
+  const bodyUrl = `${options.urls.publishedBodyBase}?revision=${revision}`
+  for (const viewport of options.viewports) {
+    let selected
+    const failures = []
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      selected = await captureBrowserTarget(browser, options, {
+        target: 'dealer',
+        phase,
+        attempt,
+        viewport,
+        requestedUrl: options.urls.dealer,
+        expectedRevision: revision,
+        allowedFrameUrls: [bodyUrl],
+      })
+      if (dealerCapturePassed(selected, revision))
+        break
+      failures.push({
+        attempt,
+        error: selected.error || null,
+        status: selected.response?.status || 0,
+        revision: selected.revision,
+        iframeUrl: selected.audit?.iframeUrl || null,
+      })
+      if (attempt < 3)
+        await new Promise(resolve => setTimeout(resolve, Math.min(1_000, options.settleMs)))
+    }
+    selected.retryFailures = failures
+    captures.push(selected)
+  }
+  return captures
+}
+
+async function exerciseMutation(browser, options, state, report) {
   const startingRevision = state?.state?.published_revision ?? null
   if (!startingRevision)
     throw new Error('Mutation is blocked because there is no starting published revision to restore')
@@ -867,30 +1137,51 @@ async function exerciseMutation(options, state, report) {
         validationDigest: candidate.validation_digest,
       })
       report.mutation.verification = await verifyPublishedRevision(options, candidate.revision)
+      const dealerCaptures = await captureDealerPhase(browser, options, 'post-publish', candidate.revision)
+      report.captures.push(...dealerCaptures)
+      if (!dealerCaptures.every(capture => dealerCapturePassed(capture, candidate.revision)))
+        throw new Error(`Dealer did not converge on published revision ${candidate.revision}`)
     }
     else {
       transitionAttempted = true
       report.mutation.transition = await transition(options, options.urls.rollback, { targetRevision: options.rollbackRevision })
       report.mutation.verification = await verifyPublishedRevision(options, options.rollbackRevision)
+      const dealerCaptures = await captureDealerPhase(browser, options, 'post-publish', options.rollbackRevision)
+      report.captures.push(...dealerCaptures)
+      if (!dealerCaptures.every(capture => dealerCapturePassed(capture, options.rollbackRevision)))
+        throw new Error(`Dealer did not converge on rollback target ${options.rollbackRevision}`)
     }
   }
   finally {
     if (transitionAttempted) {
       report.mutation.restoration.attempted = true
+      const restorationErrors = []
       try {
         await transition(options, options.urls.rollback, { targetRevision: startingRevision })
         await verifyPublishedRevision(options, startingRevision)
-        report.mutation.restoration.verified = true
       }
       catch (error) {
-        report.mutation.restoration.error = error instanceof Error ? error.message : String(error)
+        restorationErrors.push(error instanceof Error ? error.message : String(error))
       }
+      try {
+        const restoredCaptures = await captureDealerPhase(browser, options, 'restored', startingRevision)
+        report.captures.push(...restoredCaptures)
+        if (!restoredCaptures.every(capture => dealerCapturePassed(capture, startingRevision)))
+          restorationErrors.push(`Dealer did not restore revision ${startingRevision}`)
+      }
+      catch (error) {
+        restorationErrors.push(`Restoration capture failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+      report.mutation.restoration.verified = restorationErrors.length === 0
+      if (restorationErrors.length > 0)
+        report.mutation.restoration.error = restorationErrors.join('; ')
     }
   }
 }
 
 export async function runPublicationBattleTest(options) {
   await mkdir(options.artifactDir, { recursive: true })
+  await resetTaskArtifactInventory(options.artifactDir)
   const report = {
     schemaVersion: 1,
     runId: options.runId,
@@ -911,11 +1202,17 @@ export async function runPublicationBattleTest(options) {
     report.publicationState = state
     report.startingRevision = state?.state?.published_revision ?? null
     const candidate = state?.state?.candidate
-    report.expectedRevision = candidate?.status === 'ready' ? candidate.revision : report.startingRevision
-    const directUrl = candidate?.status === 'ready'
+    const candidateRevision = candidate?.status === 'ready' ? candidate.revision : null
+    const bodyRevision = candidateRevision ?? report.startingRevision
+    const directUrl = candidateRevision
       ? `${options.urls.candidateHtmlBase}?revision=${candidate.revision}`
       : `${options.urls.publishedBodyBase}?revision=${report.startingRevision}`
-    const editorUrl = `${options.urls.editor}?view=candidate`
+    const editorUrl = `${options.urls.editor}?view=${candidateRevision ? 'candidate' : 'production'}`
+    const dealerBodyUrl = `${options.urls.publishedBodyBase}?revision=${report.startingRevision}`
+    const authorizedUrls = {
+      history: options.urls.history,
+      ...(candidateRevision ? { candidateHtml: `${options.urls.candidateHtmlBase}?revision=${candidateRevision}` } : {}),
+    }
 
     browser = await launchQaBrowser(puppeteer, {
       browserExecutable: options.browserExecutable,
@@ -926,48 +1223,60 @@ export async function runPublicationBattleTest(options) {
       for (const target of CAPTURE_TARGETS) {
         const requestedUrl = target === 'editor-candidate' ? editorUrl : target === 'direct-body' ? directUrl : options.urls.dealer
         const fixtureHtml = options.fixture ? fixtureForTarget(target) : null
-        report.captures.push(await captureBrowserTarget(browser, options, target, viewport, requestedUrl, fixtureHtml))
+        const expectedRevision = target === 'dealer' ? report.startingRevision : bodyRevision
+        const allowedFrameUrls = target === 'editor-candidate'
+          ? [directUrl]
+          : target === 'dealer'
+            ? [dealerBodyUrl]
+            : []
+        const targetAuthorizedUrls = target === 'editor-candidate'
+          ? authorizedUrls
+          : target === 'direct-body' && candidateRevision
+            ? { candidateHtml: directUrl }
+            : {}
+        report.captures.push(await captureBrowserTarget(browser, options, {
+          target,
+          phase: 'pre-publish',
+          viewport,
+          requestedUrl,
+          expectedRevision,
+          allowedFrameUrls,
+          authorizedUrls: targetAuthorizedUrls,
+          fixtureHtml,
+        }))
       }
-      const byTarget = Object.fromEntries(report.captures.filter(capture => capture.viewport === viewport).map(capture => [capture.target, capture]))
+      const byTarget = Object.fromEntries(report.captures.filter(capture => capture.phase === 'pre-publish' && capture.viewport === viewport).map(capture => [capture.target, capture]))
       for (const [pair, leftTarget, rightTarget] of [
         ['editor-vs-direct', 'editor-candidate', 'direct-body'],
         ['dealer-body-vs-direct', 'dealer', 'direct-body'],
       ]) {
         const left = byTarget[leftTarget]
         const right = byTarget[rightTarget]
-        const diffPath = join(options.artifactDir, `${pair}-${viewport}-diff.png`)
+        const diffPath = join(options.artifactDir, `${pair}-pre-publish-${viewport}-diff.png`)
         if (!left?.screenshotPath || !right?.screenshotPath) {
-          report.comparisons.push({ pair, viewport, diffPath, error: 'one or both capture screenshots are unavailable' })
+          report.comparisons.push({ pair, phase: 'pre-publish', viewport, diffPath, error: 'one or both capture screenshots are unavailable' })
           continue
         }
         try {
-          report.comparisons.push({ pair, viewport, ...await compareScreenshots(browser, left.screenshotPath, right.screenshotPath, diffPath, options.threshold) })
+          report.comparisons.push({ pair, phase: 'pre-publish', viewport, ...await compareScreenshots(browser, left.screenshotPath, right.screenshotPath, diffPath, options.threshold) })
         }
         catch (error) {
-          report.comparisons.push({ pair, viewport, diffPath, error: error instanceof Error ? error.message : String(error) })
+          report.comparisons.push({ pair, phase: 'pre-publish', viewport, diffPath, error: error instanceof Error ? error.message : String(error) })
         }
       }
     }
     if (options.mutate)
-      await exerciseMutation(options, state, report)
+      await exerciseMutation(browser, options, state, report)
   }
   catch (error) {
     mainError = error instanceof Error ? error.message : String(error)
   }
   finally {
-    if (browser)
-      await browser.close()
-    if (mainError)
-      report.executionError = mainError
-    const evaluation = evaluatePublicationReport(report)
-    if (mainError)
-      evaluation.blocking.unshift({ code: 'execution-failed', message: mainError })
-    report.blocking = evaluation.blocking
-    report.warnings = evaluation.warnings
-    report.passed = evaluation.passed && !mainError
-    report.completedAt = new Date().toISOString()
-    await writeFile(join(options.artifactDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`)
-    await writeFile(join(options.artifactDir, 'report.md'), renderPublicationMarkdown(report))
+    await finalizePublicationReport(report, {
+      browser,
+      mainError,
+      artifactDir: options.artifactDir,
+    })
   }
   return report
 }
