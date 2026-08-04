@@ -107,4 +107,62 @@ describe('composePublicationCandidate', () => {
       content: { modes: { clone: { section_index: [region('hero', 0, '<section>Hero</section>', { role: 'hero' })] }, sections: { items: [] } } },
     } })).rejects.toThrow('Publication candidate body is empty');
   });
+
+  it('applies Nissan compatibility stripping to grouped converted and manual HTML', async () => {
+    const page = mixedDraft();
+    page.content.modes.sections.items = [
+      {
+        id: 'group-with-platform-leaf',
+        order: 0,
+        _clone_region_ids: ['hero', 'clone-region-6'],
+        _generated_html: '<section data-compid="simple-hero-comp">Generated hero</section><section>Allowed group body</section>',
+        _tailwind_original_html: '<section data-compid="simple-hero-comp">Reference hero</section><section>Allowed reference body</section>',
+      },
+      {
+        id: 'manual-with-grade-walk',
+        order: 10,
+        _generated_html: '<section data-compid="grade-walk-comp">Generated variants</section><section>Allowed manual body</section>',
+      },
+    ];
+
+    const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', page, origin });
+
+    expect(result.body).toContain('Allowed group body');
+    expect(result.body).toContain('Allowed manual body');
+    expect(result.body).not.toContain('Generated hero');
+    expect(result.body).not.toContain('Generated variants');
+    expect(result.referenceBody).not.toContain('Reference hero');
+  });
+
+  it('absolutizes relative URLs in generated and inline CSS without a base element', async () => {
+    const page = mixedDraft();
+    page.content.modes.sections.items[0]._generated_css = '.tw-six{background-image:url("images/generated.webp")}';
+    page.content.modes.sections.items[0]._generated_html = '<style>.inline-asset{mask-image:url("/media/mask.svg")}</style><section class="tw-six inline-asset">Tailwind six</section>';
+
+    const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', page, origin });
+
+    expect(result.body).toContain('https://www.nissan.com.au/vehicles/ariya/images/generated.webp');
+    expect(result.body).toContain('https://oem-agent.example.test/media/mask.svg');
+    expect(result.body).not.toContain('<base');
+  });
+
+  it('assigns every emitted region a unique contiguous order', async () => {
+    const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', page: mixedDraft(), origin });
+
+    expect(result.regions.map(region => region.order)).toEqual([0, 1]);
+  });
+
+  it('treats a generated section with an empty clone ID list as manual content', async () => {
+    const result = await composePublicationCandidate({
+      pageId: 'nissan-au-ariya',
+      origin,
+      page: { content: { modes: {
+        clone: { section_index: [], stylesheet_urls: [] },
+        sections: { items: [{ id: 'manual-empty-ids', order: 3, _clone_region_ids: [], _generated_html: '<section>Manual empty IDs</section>' }] },
+      } } },
+    });
+
+    expect(result.body).toContain('Manual empty IDs');
+    expect(result.regions.map(region => [region.regionId, region.order])).toEqual([['manual-empty-ids', 0]]);
+  });
 });

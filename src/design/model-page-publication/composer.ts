@@ -158,6 +158,17 @@ function containsIndexedChild(html: string, id: string): boolean {
   return new RegExp(`data-oem-region-id\\s*=\\s*["']${escaped}["']`, 'i').test(html);
 }
 
+function cloneRegionIds(section: Record<string, any>): string[] {
+  const values = Array.isArray(section._clone_region_ids)
+    ? section._clone_region_ids
+    : [section._clone_region_id];
+  return values.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+}
+
+function stripNissanCompatibilityHtml(pageId: string, html: string): string {
+  return pageId.startsWith('nissan-au-') ? stripProductionHeroHtml(html).trim() : html;
+}
+
 function wrapRegion(region: Omit<ComposedRegion, 'html'>, html: string, css?: string): string {
   const selector = `[data-oem-region-id="${region.regionId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
   const scopedCss = css?.trim() ? scopeCss(css, selector).css : '';
@@ -182,9 +193,9 @@ export async function composePublicationCandidate(input: {
     ? input.page.content.modes.sections.items.filter((item: unknown) => item && typeof item === 'object') : [];
   const mapped = new Map<string, Record<string, any>>();
   for (const section of sections) {
-    const ids = Array.isArray(section._clone_region_ids) ? section._clone_region_ids : [section._clone_region_id];
+    const ids = cloneRegionIds(section);
     if (typeof section._generated_html !== 'string' || !section._generated_html.trim()) continue;
-    for (const id of ids) if (typeof id === 'string' && id) mapped.set(id, section);
+    for (const id of ids) mapped.set(id, section);
   }
 
   const regions: ComposedRegion[] = [];
@@ -195,21 +206,23 @@ export async function composePublicationCandidate(input: {
     let cloneHtml = typeof leaf.html === 'string' ? leaf.html.trim() : '';
     if (!cloneHtml) continue;
     if (isPlatformRegion(leaf, cloneHtml)) continue;
-    if (input.pageId.startsWith('nissan-au-')) cloneHtml = stripProductionHeroHtml(cloneHtml).trim();
+    cloneHtml = stripNissanCompatibilityHtml(input.pageId, cloneHtml);
     if (!cloneHtml) continue;
     const section = mapped.get(leaf.id);
     if (section) {
       if (emitted.has(section)) continue;
       emitted.add(section);
-      const ids = Array.isArray(section._clone_region_ids) ? section._clone_region_ids : [leaf.id];
-      const firstIndex = leaves.findIndex((candidate: any) => ids.includes(candidate.id));
+      const ids = cloneRegionIds(section);
       const id = ids.length > 1 ? String(section.id || ids.join('--')) : leaf.id;
-      const html = absolutizeHtml(section._generated_html, sourceUrl, input.origin);
+      const generatedHtml = stripNissanCompatibilityHtml(input.pageId, section._generated_html);
+      const html = absolutizeHtml(generatedHtml, sourceUrl, input.origin);
+      if (!html.trim()) continue;
       if (isPlatformRegion(section, html)) continue;
-      const base = { regionId: id, order: firstIndex, renderer: 'tailwind' as const, interactionKind: interactionKind(html, section.type) };
+      const base = { regionId: id, order: regions.length, renderer: 'tailwind' as const, interactionKind: interactionKind(html, section.type) };
       const wrapped = wrapRegion(base, html, section._generated_css || section._tailwind_leftover_css);
       regions.push({ ...base, html: wrapped });
-      const original = absolutizeHtml(section._tailwind_original_html || cloneHtml, sourceUrl, input.origin);
+      const originalHtml = stripNissanCompatibilityHtml(input.pageId, section._tailwind_original_html || cloneHtml);
+      const original = absolutizeHtml(originalHtml, sourceUrl, input.origin);
       referenceParts.push(wrapRegion({ ...base, renderer: 'clone', interactionKind: interactionKind(original) }, original));
       continue;
     }
@@ -220,10 +233,11 @@ export async function composePublicationCandidate(input: {
     referenceParts.push(wrapped);
   }
 
-  const manual = sections.filter((section: any) => !section._clone_region_id && !Array.isArray(section._clone_region_ids) && typeof section._generated_html === 'string')
+  const manual = sections.filter((section: any) => cloneRegionIds(section).length === 0 && typeof section._generated_html === 'string')
     .sort((a: any, b: any) => Number(a.order || 0) - Number(b.order || 0));
   for (const section of manual) {
-    const html = absolutizeHtml(section._generated_html, sourceUrl, input.origin);
+    const generatedHtml = stripNissanCompatibilityHtml(input.pageId, section._generated_html);
+    const html = absolutizeHtml(generatedHtml, sourceUrl, input.origin);
     if (!html.trim() || isPlatformRegion(section, html)) continue;
     const base = { regionId: String(section.id || `manual-${regions.length + 1}`), order: regions.length, renderer: 'tailwind' as const, interactionKind: interactionKind(html, section.type) };
     const wrapped = wrapRegion(base, html, section._generated_css || section._tailwind_leftover_css);
@@ -233,8 +247,9 @@ export async function composePublicationCandidate(input: {
   if (!regions.length) throw new Error('Publication candidate body is empty');
 
   const links = cloneStylesheetLinks(input.page);
-  const bodyAssets = await scopeProductionAssetHtml(`${links}${regions.map(region => region.html).join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl });
-  const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl });
+  regions.forEach((region, index) => { region.order = index; });
+  const bodyAssets = await scopeProductionAssetHtml(`${links}${regions.map(region => region.html).join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
+  const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
   warnings.push(...bodyAssets.diagnostics.warnings, ...referenceAssets.diagnostics.warnings);
   const runtime = regions.some(region => region.interactionKind !== 'none') && typeof clone.runtime_js === 'string' ? clone.runtime_js : undefined;
   const parts = slugParts(input.pageId);
