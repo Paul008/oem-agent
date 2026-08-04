@@ -138,8 +138,6 @@ test('deploy aborts before Wrangler when isolated config generation fails', () =
       CCTR_TEST_PATH: fixturePath,
       CLOUDFLARE_API_TOKEN: 'e2e-token',
       CF_ACCOUNT_ID: 'e2e-account',
-      R2_ACCESS_KEY_ID: 'e2e-access-key',
-      R2_SECRET_ACCESS_KEY: 'e2e-secret-key',
       MOLTBOT_GATEWAY_TOKEN: 'e2e-gateway-token',
       CF_ACCESS_TEAM_DOMAIN: 'e2e-access.example.test',
     },
@@ -158,4 +156,28 @@ test('cloud-mutating E2E job requires an explicit dispatch and E2E environment',
   assert.match(e2eJob, /environment: e2e/);
   assert.match(e2eJob, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.E2E_CLOUDFLARE_API_TOKEN \|\| secrets\.CLOUDFLARE_API_TOKEN \}\}/);
   assert.match(e2eJob, /CF_ACCOUNT_ID: \$\{\{ vars\.E2E_CF_ACCOUNT_ID \|\| secrets\.E2E_CF_ACCOUNT_ID \|\| secrets\.CF_ACCOUNT_ID \}\}/);
+});
+
+test('credential-less E2E deployment never requires or provisions R2 access keys', () => {
+  const workflow = readFileSync(join(projectRoot, '.github/workflows/test.yml'), 'utf8');
+  const start = readFileSync(join(projectRoot, 'test/e2e/fixture/server/start'), 'utf8');
+  const deployScript = readFileSync(join(projectRoot, 'test/e2e/fixture/server/deploy'), 'utf8');
+
+  for (const contents of [workflow, start, deployScript]) {
+    assert.doesNotMatch(contents, /R2_ACCESS_KEY_ID|R2_SECRET_ACCESS_KEY/);
+  }
+
+  assert.match(deployScript, /R2_BUCKET/);
+  assert.doesNotMatch(deployScript, /secret put R2_BUCKET_NAME/);
+});
+
+test('E2E deploy only invokes package scripts that exist', () => {
+  const deployScript = readFileSync(join(projectRoot, 'test/e2e/fixture/server/deploy'), 'utf8');
+  const packageJson = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+  const invokedScripts = [...deployScript.matchAll(/npm run ([\w:-]+)/g)].map((match) => match[1]);
+
+  assert.deepEqual(invokedScripts, ['typecheck']);
+  for (const script of invokedScripts) {
+    assert.equal(typeof packageJson.scripts?.[script], 'string');
+  }
 });

@@ -28,7 +28,7 @@ import { McpSession } from './mcp';
 
 import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
-import { createAccessMiddleware } from './auth';
+import { createAccessMiddleware, isDevMode, isE2ETestMode } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy, nissanOfficialAdmin } from './routes';
 import mcpRoutes from './mcp';
@@ -309,7 +309,7 @@ app.use('*', async (c, next) => {
   }
 
   // Skip validation in dev mode
-  if (c.env.DEV_MODE === 'true') {
+  if (isDevMode(c.env) || isE2ETestMode(c.env)) {
     return next();
   }
 

@@ -17,7 +17,7 @@
 │                    │  │  Container               │   │                  │
 │                    │  │                          │   │                  │
 │                    │  │  start-openclaw.sh        │   │                  │
-│                    │  │    ├─ rclone restore      │   │                  │
+│                    │  │    ├─ mounted R2 restore  │   │                  │
 │                    │  │    ├─ openclaw onboard    │   │                  │
 │                    │  │    ├─ config patching     │   │                  │
 │                    │  │    ├─ workspace setup     │   │                  │
@@ -36,7 +36,7 @@
 |-----------|------|
 | **Worker (Hono)** | Routes HTTP/WS requests, injects gateway token, serves loading page during cold start, handles cron triggers, mounts API routes |
 | **Sandbox DO** | Durable Object that manages the container lifecycle. One DO instance = one container |
-| **Container** | Runs the OpenClaw gateway process. Based on `cloudflare/sandbox:0.7.0` with Node.js 22 |
+| **Container** | Runs the OpenClaw gateway process. Based on `cloudflare/sandbox:0.12.4` with Node.js 22 |
 | **Gateway** | The OpenClaw process inside the container. Listens on port 18789, serves web UI + WebSocket chat |
 
 ### Networking
@@ -49,12 +49,12 @@
 ## Container Image (Dockerfile)
 
 ```dockerfile
-FROM docker.io/cloudflare/sandbox:0.7.0
+FROM docker.io/cloudflare/sandbox:0.12.4
 
 # Node.js 22 (replaces base image's Node 20)
-ENV NODE_VERSION=22.13.1
+ENV NODE_VERSION=22.16.0
 
-# Install: Node.js 22, pnpm, rclone (R2 sync), OpenClaw
+# Install: Node.js 22, pnpm, rsync, OpenClaw
 RUN npm install -g pnpm
 RUN npm install -g openclaw@2026.2.22-2
 
@@ -90,11 +90,11 @@ The container runs `start-openclaw.sh` which executes these steps in order:
 ### 1. Guard: Prevent Duplicate Starts
 If `openclaw gateway` is already running, the script exits immediately.
 
-### 2. R2 Restore (if configured)
-Restores persisted state from R2 via rclone:
-- **Config**: `r2:{bucket}/openclaw/` → `/root/.openclaw/`
-- **Workspace**: `r2:{bucket}/workspace/` → `/root/clawd/`
-- **Skills**: `r2:{bucket}/skills/` → `/root/clawd/skills/`
+### 2. R2 Restore (if mounted)
+Restores persisted state from the credential-less `/data/moltbot` binding mount:
+- **Config**: `/data/moltbot/openclaw/` → `/root/.openclaw/`
+- **Workspace**: `/data/moltbot/workspace/` → `/root/clawd/`
+- **Skills**: `/data/moltbot/skills/` → `/root/clawd/skills/`
 - Handles legacy `clawdbot` → `openclaw` migration automatically
 
 ### 3. Onboard (first boot only)
@@ -192,10 +192,9 @@ These are Worker-only — not passed to the container. Skipped in dev mode.
 
 | Worker Variable | Container Variable | Required | Description |
 |---|---|---|---|
-| `R2_ACCESS_KEY_ID` | `R2_ACCESS_KEY_ID` | Optional | R2 API token access key |
-| `R2_SECRET_ACCESS_KEY` | `R2_SECRET_ACCESS_KEY` | Optional | R2 API token secret key |
-| `R2_BUCKET_NAME` | `R2_BUCKET_NAME` | Optional | Bucket name (default: `moltbot-data`) |
-| `CF_ACCOUNT_ID` | `CF_ACCOUNT_ID` | Yes | Cloudflare account ID (set as plain var in `wrangler.jsonc`) |
+| `MOLTBOT_BUCKET` | Mounted at `/data/moltbot` | Yes | R2 Worker binding used for credential-less persistence |
+| `LOCAL_R2_MOUNT` | — | Local only | Exact `true` selects Sandbox SDK local binding sync under `wrangler dev` |
+| `CF_ACCOUNT_ID` | `CF_ACCOUNT_ID` | Optional | Cloudflare account ID used by AI integrations; not needed for the R2 binding mount |
 
 ### OEM Agent
 
@@ -304,25 +303,16 @@ The `SANDBOX_SLEEP_AFTER` env var controls container lifecycle:
 - `node_modules/`, `.git/` — not synced
 - `*.lock`, `*.log`, `*.tmp` — excluded from upload
 
-### Rclone Configuration
+### Binding Mount
 
-Rclone is configured automatically when `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `CF_ACCOUNT_ID` are all set:
-
-```ini
-[r2]
-type = s3
-provider = Cloudflare
-access_key_id = <R2_ACCESS_KEY_ID>
-secret_access_key = <R2_SECRET_ACCESS_KEY>
-endpoint = https://<CF_ACCOUNT_ID>.r2.cloudflarestorage.com
-```
+The Worker mounts the `MOLTBOT_BUCKET` binding at `/data/moltbot` through the Sandbox SDK. `ContainerProxy` keeps R2 authorization in the Worker runtime, so the container receives a filesystem path rather than R2 access keys.
 
 ### Sync Behavior
 
 - **Restore on boot**: Full copy from R2 to local filesystem
 - **Background sync**: Every 30 seconds, changed files are uploaded to R2
 - Change detection uses `find -newer` against a marker file
-- Sync runs with `--transfers=16 --fast-list` for performance
+- Sync uses `rsync` against the mounted filesystem
 
 ## Debug Endpoints Reference
 

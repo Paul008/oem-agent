@@ -73,6 +73,10 @@ send /models command
 type math question into chat
 %require
 ===
+if [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY$AI_GATEWAY_API_KEY$ANTHROPIC_API_KEY" ]; then
+  echo "Skipping AI response assertion: no provider credentials configured"
+  exit 0
+fi
 ./pw --session=moltworker-e2e run-code "async page => {
   const textarea = await page.waitForSelector('textarea');
   await textarea.fill('What is 847293 + 651824? Reply with just the number.');
@@ -83,6 +87,10 @@ type math question into chat
 click send button
 %require
 ===
+if [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY$AI_GATEWAY_API_KEY$ANTHROPIC_API_KEY" ]; then
+  echo "Skipping AI response assertion: no provider credentials configured"
+  exit 0
+fi
 ./pw --session=moltworker-e2e run-code "async page => {
   const btn = await page.waitForSelector('button:has-text(\"Send\")');
   await btn.click();
@@ -92,6 +100,10 @@ click send button
 ===
 wait for response containing the correct answer
 ===
+if [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY$AI_GATEWAY_API_KEY$ANTHROPIC_API_KEY" ]; then
+  echo "Skipping AI response assertion: no provider credentials configured"
+  exit 0
+fi
 ./pw --session=moltworker-e2e run-code "async page => {
   await page.waitForSelector('text=1499117', { timeout: 120000 });
 }"

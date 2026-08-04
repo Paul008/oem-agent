@@ -98,8 +98,6 @@ jobs:
           CF_ACCOUNT_ID: ${{ vars.E2E_CF_ACCOUNT_ID || secrets.E2E_CF_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           WORKERS_SUBDOMAIN: ${{ vars.E2E_WORKERS_SUBDOMAIN || secrets.E2E_WORKERS_SUBDOMAIN }}
           CF_ACCESS_TEAM_DOMAIN: ${{ vars.E2E_CF_ACCESS_TEAM_DOMAIN || secrets.E2E_CF_ACCESS_TEAM_DOMAIN }}
-          R2_ACCESS_KEY_ID: ${{ secrets.E2E_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.E2E_R2_SECRET_ACCESS_KEY }}
           # AI provider — Cloudflare AI Gateway (preferred)
           CLOUDFLARE_AI_GATEWAY_API_KEY: ${{ secrets.CLOUDFLARE_AI_GATEWAY_API_KEY }}
           CF_AI_GATEWAY_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
