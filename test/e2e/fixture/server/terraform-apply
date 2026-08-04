@@ -10,19 +10,18 @@ cd "$SCRIPT_DIR"
 : "${CF_ACCOUNT_ID:?CF_ACCOUNT_ID is required}"
 : "${WORKERS_SUBDOMAIN:?WORKERS_SUBDOMAIN is required}"
 
-# Validate we're targeting the correct account
-echo "Validating Cloudflare account..." >&2
-ACCOUNT_NAME=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID" \
+# Validate the token itself without requiring the unrelated Account Settings: Read permission.
+echo "Validating Cloudflare API token..." >&2
+TOKEN_STATUS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-    -H "Content-Type: application/json" | jq -r '.result.name // empty')
+    -H "Content-Type: application/json" | jq -r '.result.status // empty')
 
-if [ -z "$ACCOUNT_NAME" ]; then
-    echo "ERROR: Could not fetch account info for CF_ACCOUNT_ID=$CF_ACCOUNT_ID" >&2
-    echo "Check your CLOUDFLARE_API_TOKEN and CF_ACCOUNT_ID" >&2
+if [ "$TOKEN_STATUS" != "active" ]; then
+    echo "ERROR: CLOUDFLARE_API_TOKEN is not active" >&2
     exit 1
 fi
 
-echo "Deploying to account: $ACCOUNT_NAME (subdomain: $WORKERS_SUBDOMAIN)" >&2
+echo "Cloudflare token is active; targeting configured account (subdomain: $WORKERS_SUBDOMAIN)" >&2
 
 # Optional: unique test run ID (defaults to "local")
 TEST_RUN_ID="${E2E_TEST_RUN_ID:-local}"

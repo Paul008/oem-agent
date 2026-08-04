@@ -160,6 +160,13 @@ test('cloud-mutating E2E job requires an explicit dispatch and E2E environment',
   assert.match(e2eJob, /CF_ACCOUNT_ID: \$\{\{ vars\.E2E_CF_ACCOUNT_ID \|\| secrets\.E2E_CF_ACCOUNT_ID \|\| secrets\.CF_ACCOUNT_ID \}\}/);
 });
 
+test('Cloudflare preflight verifies token health without requiring Account Settings read', () => {
+  const terraformApply = readFileSync(join(projectRoot, 'test/e2e/fixture/server/terraform-apply'), 'utf8');
+
+  assert.match(terraformApply, /user\/tokens\/verify/);
+  assert.doesNotMatch(terraformApply, /client\/v4\/accounts\/\$CF_ACCOUNT_ID["']/);
+});
+
 test('credential-less E2E deployment never requires or provisions R2 access keys', () => {
   const workflow = readFileSync(join(projectRoot, '.github/workflows/test.yml'), 'utf8');
   const start = readFileSync(join(projectRoot, 'test/e2e/fixture/server/start'), 'utf8');
