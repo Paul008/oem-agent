@@ -6,6 +6,7 @@ import {
   scopeProductionAssetHtml,
   stripProductionHeroHtml,
 } from '../production-css-scope';
+import { buildCloneRuntimeScript } from '../clone-runtime/clone-runtime';
 
 export type PublicationInteractionKind = 'none' | 'accordion' | 'tabs' | 'modal' | 'carousel' | 'slider';
 
@@ -30,8 +31,13 @@ export interface ComposedPublicationCandidate {
 
 interface ProductionBodyDocumentOptions {
   candidate?: boolean;
-  alpineRuntime?: string;
 }
+
+export const PUBLICATION_SCRIPT_MARKERS = {
+  alpine: 'data-oem-alpine-runtime',
+  resize: 'data-oem-embed-resize',
+  interactions: 'data-oem-production-interactions',
+} as const;
 
 const DOCUMENT_STYLE = [
   'html,body{margin:0;padding:0;width:100%;overflow-x:hidden}',
@@ -44,7 +50,8 @@ const DOCUMENT_STYLE = [
   '[data-oem-faq-trigger="true"][aria-expanded="true"]~.oem-faq-toggle-icon:before{content:"−"}',
 ].join('');
 
-const PRODUCTION_INTERACTION_SCRIPT = `(()=>{const selector='[data-oem-faq-trigger="true"]';const toggle=(trigger)=>{const id=trigger.getAttribute('aria-controls');const answer=id?document.getElementById(id):null;if(!answer)return;const open=trigger.getAttribute('aria-expanded')!=='true';trigger.setAttribute('aria-expanded',String(open));answer.hidden=!open;answer.setAttribute('aria-hidden',String(!open));trigger.closest('.question-container')?.classList.toggle('oem-faq-open',open)};document.addEventListener('click',(event)=>{const target=event.target instanceof Element?event.target.closest(selector):null;if(target)toggle(target)});document.addEventListener('keydown',(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;const target=event.target instanceof Element?event.target.closest(selector):null;if(!target)return;event.preventDefault();toggle(target)})})();`;
+export const PUBLICATION_ALPINE_RUNTIME_SCRIPT = buildCloneRuntimeScript();
+export const PUBLICATION_INTERACTION_SCRIPT = `(()=>{const selector='[data-oem-faq-trigger="true"]';const toggle=(trigger)=>{const id=trigger.getAttribute('aria-controls');const answer=id?document.getElementById(id):null;if(!answer)return;const open=trigger.getAttribute('aria-expanded')!=='true';trigger.setAttribute('aria-expanded',String(open));answer.hidden=!open;answer.setAttribute('aria-hidden',String(!open));trigger.closest('.question-container')?.classList.toggle('oem-faq-open',open)};document.addEventListener('click',(event)=>{const target=event.target instanceof Element?event.target.closest(selector):null;if(target)toggle(target)});document.addEventListener('keydown',(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;const target=event.target instanceof Element?event.target.closest(selector):null;if(!target)return;event.preventDefault();toggle(target)})})();`;
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -60,9 +67,27 @@ function cloneStylesheetLinks(page: Record<string, any>): string {
     .map(url => `<link rel="stylesheet" href="${escapeAttribute(url)}">`).join('');
 }
 
-function resizeScript(slugParts: { oemId: string; modelSlug: string }): string {
+export function publicationResizeScript(slugParts: { oemId: string; modelSlug: string }): string {
   const message = JSON.stringify({ type: 'oem-production-body-height', ...slugParts }).replace(/</g, '\\u003c');
   return `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`;
+}
+
+export function isPublicationResizeScript(body: string): boolean {
+  const prefix = '(()=>{const message=';
+  const separator = ';let lastHeight=0;';
+  if (!body.startsWith(prefix)) return false;
+  const separatorIndex = body.indexOf(separator, prefix.length);
+  if (separatorIndex < 0) return false;
+  try {
+    const message = JSON.parse(body.slice(prefix.length, separatorIndex)) as Record<string, unknown>;
+    if (message.type !== 'oem-production-body-height'
+      || typeof message.oemId !== 'string'
+      || typeof message.modelSlug !== 'string'
+      || Object.keys(message).sort().join(',') !== 'modelSlug,oemId,type') return false;
+    return body === publicationResizeScript({ oemId: message.oemId, modelSlug: message.modelSlug });
+  } catch {
+    return false;
+  }
 }
 
 async function sha256Bytes(value: string): Promise<Uint8Array> {
@@ -90,11 +115,14 @@ export async function productionBodyDocument(
   const sourceUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
   const baseTag = !options.candidate && typeof sourceUrl === 'string' && /^https?:\/\//i.test(sourceUrl)
     ? `<base href="${escapeAttribute(sourceUrl)}">` : '';
-  const resize = resizeScript(slugParts);
-  const scripts = [
-    ...(options.candidate && options.alpineRuntime ? [{ attr: 'data-oem-alpine-runtime="true"', body: options.alpineRuntime.replace(/<\/script/gi, '<\\/script') }] : []),
-    { attr: 'data-oem-embed-resize="true"', body: resize },
-    { attr: 'data-oem-production-interactions="true"', body: PRODUCTION_INTERACTION_SCRIPT },
+  const resize = publicationResizeScript(slugParts);
+  const scripts = options.candidate ? [
+    { attr: `${PUBLICATION_SCRIPT_MARKERS.alpine}="true"`, body: PUBLICATION_ALPINE_RUNTIME_SCRIPT },
+    { attr: `${PUBLICATION_SCRIPT_MARKERS.resize}="true"`, body: resize },
+    { attr: `${PUBLICATION_SCRIPT_MARKERS.interactions}="true"`, body: PUBLICATION_INTERACTION_SCRIPT },
+  ] : [
+    { attr: `${PUBLICATION_SCRIPT_MARKERS.resize}="true"`, body: resize },
+    { attr: `${PUBLICATION_SCRIPT_MARKERS.interactions}="true"`, body: PUBLICATION_INTERACTION_SCRIPT },
   ];
   const csp = options.candidate
     ? `default-src 'none'; img-src https: data:; media-src https: data: blob:; font-src https: data:; style-src 'unsafe-inline'; script-src ${(await Promise.all(scripts.map(script => sha256Base64(script.body)))).map(hash => `'sha256-${hash}'`).join(' ')}; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action https:`
@@ -251,10 +279,9 @@ export async function composePublicationCandidate(input: {
   const bodyAssets = await scopeProductionAssetHtml(`${links}${regions.map(region => region.html).join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
   const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
   warnings.push(...bodyAssets.diagnostics.warnings, ...referenceAssets.diagnostics.warnings);
-  const runtime = regions.some(region => region.interactionKind !== 'none') && typeof clone.runtime_js === 'string' ? clone.runtime_js : undefined;
   const parts = slugParts(input.pageId);
-  const body = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${bodyAssets.html}</main>`, parts, { candidate: true, alpineRuntime: runtime });
-  const referenceBody = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${referenceAssets.html}</main>`, parts, { candidate: true, alpineRuntime: runtime });
+  const body = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${bodyAssets.html}</main>`, parts, { candidate: true });
+  const referenceBody = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${referenceAssets.html}</main>`, parts, { candidate: true });
   const sha256 = await sha256Hex(body);
   return { body, referenceBody, regions, warnings, bytes: new TextEncoder().encode(body).byteLength, sha256, etag: `"sha256-${sha256}"` };
 }

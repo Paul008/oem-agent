@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ComposedPublicationCandidate } from './composer';
+import { productionBodyDocument, type ComposedPublicationCandidate } from './composer';
 import { validatePublicationCandidate } from './validator';
 
 const { validateInBrowser } = vi.hoisted(() => ({ validateInBrowser: vi.fn() }));
@@ -16,7 +16,12 @@ async function sha256(value: string): Promise<string> {
 }
 
 async function candidateWith(fragment: string, overrides: Partial<ComposedPublicationCandidate> = {}): Promise<ComposedPublicationCandidate> {
-  const body = `<!doctype html><html><head><style>html,body{margin:0}</style></head><body><main data-oem-publication-body="true"><div data-oem-region-id="features" data-oem-published-renderer="tailwind" data-oem-interaction-kind="none">${fragment}</div></main><script data-oem-embed-resize="true">addEventListener('load',()=>{})</script><script data-oem-production-interactions="true">document.addEventListener('click',()=>{})</script></body></html>`;
+  const body = await productionBodyDocument(
+    {},
+    `<main data-oem-publication-body="true"><div data-oem-region-id="features" data-oem-published-renderer="tailwind" data-oem-interaction-kind="none">${fragment}</div></main>`,
+    { oemId: 'nissan-au', modelSlug: 'ariya' },
+    { candidate: true },
+  );
   const hash = await sha256(body);
   return {
     body,
@@ -28,6 +33,12 @@ async function candidateWith(fragment: string, overrides: Partial<ComposedPublic
     etag: `"sha256-${hash}"`,
     ...overrides,
   };
+}
+
+async function rehash(candidate: ComposedPublicationCandidate): Promise<void> {
+  candidate.bytes = new TextEncoder().encode(candidate.body).byteLength;
+  candidate.sha256 = await sha256(candidate.body);
+  candidate.etag = `"sha256-${candidate.sha256}"`;
 }
 
 beforeEach(() => {
@@ -57,14 +68,34 @@ describe('validatePublicationCandidate static gates', () => {
     ]));
   });
 
-  it('accepts scoped styles and only the trusted Alpine, interaction, and resize script markers', async () => {
-    const candidate = await candidateWith([
-      '<style>[data-oem-publication-body="true"] .feature{color:red}</style>',
-      '<script data-oem-alpine-runtime="true">window.Alpine={}</script>',
-    ].join(''));
+  it('accepts scoped styles with the exact composer-owned script set', async () => {
+    const candidate = await candidateWith('<style>[data-oem-publication-body="true"] .feature{color:red}</style>');
     const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
 
     expect(report.blocking.filter(item => ['unsafe-markup', 'unscoped-style'].includes(item.code))).toEqual([]);
+  });
+
+  it('rejects forged trusted markers and a mismatched CSP before browser validation', async () => {
+    const forged = await candidateWith('<script data-oem-alpine-runtime="true">steal()</script>');
+    const badCsp = await candidateWith('safe');
+    badCsp.body = badCsp.body.replace("'sha256-", "'sha256-X");
+    await rehash(badCsp);
+
+    const forgedReport = await validatePublicationCandidate(forged, { browser: {} as Fetcher });
+    const cspReport = await validatePublicationCandidate(badCsp, { browser: {} as Fetcher });
+
+    expect(forgedReport.blocking.some(item => item.code === 'unsafe-script')).toBe(true);
+    expect(cspReport.blocking.some(item => item.code === 'unsafe-script')).toBe(true);
+    expect(validateInBrowser).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'java&#x09;script:steal()',
+    'java&#x0a;script:steal()',
+    'java&#x0d;script:steal()',
+  ])('blocks entity-decoded ASCII-control protocol variant %s', async href => {
+    const report = await validatePublicationCandidate(await candidateWith(`<a href="${href}">bad</a>`), { browser: {} as Fetcher });
+    expect(report.blocking.some(item => item.code === 'unsafe-protocol')).toBe(true);
   });
 
   it('accepts scoped rules inside media queries while rejecting an unscoped nested rule', async () => {
@@ -105,6 +136,23 @@ describe('validatePublicationCandidate static gates', () => {
     const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
 
     expect(report.blocking.some(item => item.code === 'body-too-large')).toBe(true);
+  });
+
+  it('applies the 5_242_880-byte limit independently to the reference body', async () => {
+    const candidate = await candidateWith('safe');
+    candidate.referenceBody = 'x'.repeat(5_242_881);
+    const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
+
+    expect(report.blocking.some(item => item.code === 'reference-body-too-large')).toBe(true);
+  });
+
+  it.each(['font-face', 'property', 'counter-style', 'page'])('blocks global @%s CSS at-rules', async atRule => {
+    const css = atRule === 'font-face' ? '@font-face{font-family:x;src:url(https://cdn.test/x.woff2)}'
+      : atRule === 'property' ? '@property --x{syntax:"<color>";inherits:false;initial-value:red}'
+        : atRule === 'counter-style' ? '@counter-style x{system:numeric;symbols:"0"}'
+          : '@page{margin:0}';
+    const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
+    expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(true);
   });
 
   it('blocks stale size, digest, and ETag integrity metadata', async () => {

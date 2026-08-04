@@ -1,7 +1,13 @@
 import { load } from 'cheerio';
 import postcss from 'postcss';
 
-import type { ComposedPublicationCandidate } from './composer';
+import {
+  PUBLICATION_ALPINE_RUNTIME_SCRIPT,
+  PUBLICATION_INTERACTION_SCRIPT,
+  PUBLICATION_SCRIPT_MARKERS,
+  isPublicationResizeScript,
+  type ComposedPublicationCandidate,
+} from './composer';
 import {
   validateInBrowser,
   type BrowserValidationOptions,
@@ -25,11 +31,6 @@ const MAX_BODY_BYTES = 5_242_880;
 const PLATFORM_REGION = /^(?:hero|variants?|inventory)$/i;
 const PLATFORM_ROLE = /^(?:hero|variants?|inventory)$/i;
 const PLATFORM_COMPID = /(?:hero|grade-walk|variants?|inventory|stock)-(?:section-)?comp/i;
-const TRUSTED_SCRIPT_MARKERS = [
-  'data-oem-alpine-runtime',
-  'data-oem-production-interactions',
-  'data-oem-embed-resize',
-] as const;
 const URL_ATTRIBUTES = ['href', 'src', 'poster', 'action', 'formaction', 'xlink:href'];
 const SAFE_PROTOCOLS = new Set(['https:', 'mailto:', 'tel:', 'data:', 'blob:']);
 
@@ -40,6 +41,13 @@ function finding(code: string, message: string, regionId?: string): PublicationF
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256Base64(value: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
+  let binary = '';
+  for (const byte of digest) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function canonicalJson(value: unknown): string {
@@ -64,7 +72,7 @@ function addUnique(findings: PublicationFinding[], next: PublicationFinding): vo
 }
 
 function hasUnsafeProtocol(value: string): boolean {
-  const normalized = value.trim().replace(/^['"]|['"]$/g, '');
+  const normalized = value.replace(/[\u0000-\u0020\u007f]/g, '').replace(/^['"]|['"]$/g, '');
   if (!normalized || normalized.startsWith('#')) return false;
   if (normalized.startsWith('//')) return true;
   const protocol = /^([a-z][a-z0-9+.-]*):/i.exec(normalized)?.[1];
@@ -79,7 +87,7 @@ function styleIsScoped(css: string): boolean {
     const root = postcss.parse(stripped);
     let safe = true;
     root.walkAtRules(rule => {
-      if (['import', 'namespace', 'document'].includes(rule.name.toLowerCase())) safe = false;
+      if (['import', 'namespace', 'document', 'font-face', 'property', 'counter-style', 'page'].includes(rule.name.toLowerCase())) safe = false;
     });
     root.walkDecls(declaration => {
       if (declaration.parent?.type === 'root') safe = false;
@@ -98,7 +106,42 @@ function styleIsScoped(css: string): boolean {
   }
 }
 
-function validateMarkup(label: 'candidate' | 'reference', html: string): PublicationFinding[] {
+async function validateTrustedScripts(label: 'candidate' | 'reference', $: ReturnType<typeof load>): Promise<PublicationFinding[]> {
+  const scripts = $('script').toArray();
+  const markerEntries = [
+    { marker: PUBLICATION_SCRIPT_MARKERS.alpine, valid: (body: string) => body === PUBLICATION_ALPINE_RUNTIME_SCRIPT },
+    { marker: PUBLICATION_SCRIPT_MARKERS.resize, valid: isPublicationResizeScript },
+    { marker: PUBLICATION_SCRIPT_MARKERS.interactions, valid: (body: string) => body === PUBLICATION_INTERACTION_SCRIPT },
+  ];
+  const bodies: string[] = [];
+  let trusted = scripts.length === markerEntries.length;
+  for (const entry of markerEntries) {
+    const matches = scripts.filter(script => $(script).attr(entry.marker) === 'true');
+    if (matches.length !== 1) {
+      trusted = false;
+      continue;
+    }
+    const script = matches[0];
+    const attributes = Object.keys((script as { attribs?: Record<string, string> }).attribs || {});
+    const body = $(script).text();
+    if (attributes.length !== 1 || $(script).attr('src') || !entry.valid(body)) trusted = false;
+    bodies.push(body);
+  }
+
+  const cspMetas = $('meta').toArray().filter(meta => ($(meta).attr('http-equiv') || '').toLowerCase() === 'content-security-policy');
+  if (cspMetas.length !== 1) trusted = false;
+  const csp = cspMetas.length === 1 ? $(cspMetas[0]).attr('content') || '' : '';
+  const scriptDirective = csp.split(';').map(item => item.trim()).find(item => /^script-src(?:\s|$)/i.test(item));
+  const tokens = scriptDirective?.split(/\s+/).slice(1) || [];
+  const expectedTokens = bodies.length === 3
+    ? await Promise.all(bodies.map(async body => `'sha256-${await sha256Base64(body)}'`))
+    : [];
+  if (tokens.length !== 3
+    || [...tokens].sort().join(' ') !== [...expectedTokens].sort().join(' ')) trusted = false;
+  return trusted ? [] : [finding('unsafe-script', `${label} body does not contain the exact composer-owned scripts and CSP hashes`)];
+}
+
+async function validateMarkup(label: 'candidate' | 'reference', html: string): Promise<PublicationFinding[]> {
   const findings: PublicationFinding[] = [];
   const $ = load(html);
   $('iframe,object,embed,base').each((_index, element) => {
@@ -106,7 +149,7 @@ function validateMarkup(label: 'candidate' | 'reference', html: string): Publica
   });
   $('script').each((_index, element) => {
     const script = $(element);
-    const trustedMarkers = TRUSTED_SCRIPT_MARKERS.filter(marker => script.attr(marker) === 'true');
+    const trustedMarkers = Object.values(PUBLICATION_SCRIPT_MARKERS).filter(marker => script.attr(marker) === 'true');
     if (script.attr('src') || trustedMarkers.length !== 1) {
       addUnique(findings, finding('unsafe-markup', `${label} body contains an untrusted script`));
     }
@@ -138,6 +181,7 @@ function validateMarkup(label: 'candidate' | 'reference', html: string): Publica
       addUnique(findings, finding('unscoped-style', `${label} body contains a style block outside the publication scope`));
     }
   });
+  findings.push(...await validateTrustedScripts(label, $));
   return findings;
 }
 
@@ -181,11 +225,15 @@ function validateRegions(candidate: ComposedPublicationCandidate): PublicationFi
 
 async function validateIntegrity(candidate: ComposedPublicationCandidate): Promise<PublicationFinding[]> {
   const actualBytes = new TextEncoder().encode(candidate.body).byteLength;
+  const referenceBytes = new TextEncoder().encode(candidate.referenceBody).byteLength;
   const actualSha256 = await sha256Hex(candidate.body);
   const expectedEtag = `"sha256-${actualSha256}"`;
   const findings: PublicationFinding[] = [];
   if (actualBytes > MAX_BODY_BYTES) {
     findings.push(finding('body-too-large', `Candidate body is ${actualBytes} bytes; maximum is ${MAX_BODY_BYTES}`));
+  }
+  if (referenceBytes > MAX_BODY_BYTES) {
+    findings.push(finding('reference-body-too-large', `Reference body is ${referenceBytes} bytes; maximum is ${MAX_BODY_BYTES}`));
   }
   if (candidate.bytes !== actualBytes || candidate.sha256 !== actualSha256 || candidate.etag !== expectedEtag) {
     findings.push(finding('candidate-integrity', 'Candidate size, SHA-256, or ETag does not match its body'));
@@ -198,12 +246,21 @@ export async function validatePublicationCandidate(
   options: PublicationValidationOptions = {},
 ): Promise<PublicationValidationReport> {
   const blocking: PublicationFinding[] = [
-    ...validateMarkup('candidate', candidate.body),
-    ...validateMarkup('reference', candidate.referenceBody),
+    ...await validateMarkup('candidate', candidate.body),
+    ...await validateMarkup('reference', candidate.referenceBody),
     ...validateRegions(candidate),
     ...await validateIntegrity(candidate),
   ];
   const warnings: PublicationFinding[] = candidate.warnings.map(message => finding('composition-warning', message));
+  if (blocking.length) {
+    const withoutDigest: Omit<PublicationValidationReport, 'digest'> = {
+      publishable: false,
+      blocking,
+      warnings,
+      viewports: [],
+    };
+    return { ...withoutDigest, digest: await validationDigest(withoutDigest) };
+  }
   const browser = await validateInBrowser(candidate, options);
   blocking.push(...browser.blocking);
   warnings.push(...browser.warnings);

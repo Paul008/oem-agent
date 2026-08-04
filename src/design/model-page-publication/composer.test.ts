@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { composePublicationCandidate } from './composer';
+import {
+  PUBLICATION_ALPINE_RUNTIME_SCRIPT,
+  PUBLICATION_INTERACTION_SCRIPT,
+  composePublicationCandidate,
+  isPublicationResizeScript,
+} from './composer';
 
 const origin = 'https://oem-agent.example.test';
 const region = (id: string, top: number, html: string, extra: Record<string, unknown> = {}) => ({
@@ -77,7 +82,7 @@ describe('composePublicationCandidate', () => {
     expect(result.body).not.toContain('<base');
   });
 
-  it('includes the trusted Alpine runtime once for multiple interactive regions', async () => {
+  it('includes exactly the three composer-owned scripts and ignores draft-supplied runtime text', async () => {
     const page = mixedDraft();
     page.content.modes.sections.items = [];
     page.content.modes.clone.section_index = [
@@ -87,6 +92,12 @@ describe('composePublicationCandidate', () => {
     page.content.modes.clone.runtime_js = 'window.__trustedAlpine = true;';
     const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', page, origin });
     expect(result.body.match(/data-oem-alpine-runtime/g)).toHaveLength(1);
+    expect(result.body).toContain(PUBLICATION_ALPINE_RUNTIME_SCRIPT);
+    expect(result.body).toContain(PUBLICATION_INTERACTION_SCRIPT);
+    expect(result.body).not.toContain('window.__trustedAlpine = true;');
+    const scripts = [...result.body.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+    expect(scripts).toHaveLength(3);
+    expect(scripts.some(isPublicationResizeScript)).toBe(true);
     expect(result.body).toContain('data-oem-interaction-kind="tabs"');
     expect(result.body).toContain('data-oem-interaction-kind="accordion"');
     const csp = result.body.match(/Content-Security-Policy" content="([^"]+)/)?.[1] || '';

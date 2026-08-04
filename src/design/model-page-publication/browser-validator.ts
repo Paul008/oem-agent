@@ -25,8 +25,21 @@ export interface PublicationViewportValidation {
   consoleErrors: string[];
   failedRequests: string[];
   interactions: PublicationInteractionResult[];
-  screenshotKey: string;
-  diffScreenshotKey: string;
+  screenshotKey?: string;
+  diffScreenshotKey?: string;
+  sourceSize?: { width: number; height: number };
+  candidateSize?: { width: number; height: number };
+  evidence?: {
+    source: PublicationEvidenceRecord;
+    candidate: PublicationEvidenceRecord;
+    diff: PublicationEvidenceRecord;
+  };
+}
+
+export interface PublicationEvidenceRecord {
+  key: string;
+  byteLength: number;
+  sha256: string;
 }
 
 export interface PublicationEvidenceArtifact {
@@ -56,6 +69,8 @@ const VIEWPORTS = [
 ];
 
 const PIXEL_CHANNEL_THRESHOLD = 0.1;
+const RESOURCE_TIMEOUT_MS = 5_000;
+const REVISION_EVIDENCE_PREFIX = /^model-pages\/[^/]+\/publication\/revisions\/[1-9]\d*\/evidence\/?$/;
 const DISABLE_MOTION_CSS = '*,*::before,*::after{animation-delay:0s!important;animation-duration:0s!important;scroll-behavior:auto!important;transition-delay:0s!important;transition-duration:0s!important}';
 
 export function classifyVisualMismatch(mismatchPercent: number): VisualMismatchClassification {
@@ -99,7 +114,7 @@ function sortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort();
 }
 
-function syntheticViewports(candidate: ComposedPublicationCandidate, prefix: string): PublicationViewportValidation[] {
+function syntheticViewports(candidate: ComposedPublicationCandidate): PublicationViewportValidation[] {
   const interactions = candidate.regions
     .filter(region => region.interactionKind !== 'none')
     .map(region => ({
@@ -109,7 +124,6 @@ function syntheticViewports(candidate: ComposedPublicationCandidate, prefix: str
       detail: 'Browser validation did not run',
     }));
   return VIEWPORTS.map(({ name }) => {
-    const keys = evidenceKeys(prefix, name);
     return {
       name,
       mismatchPercent: 1,
@@ -118,8 +132,6 @@ function syntheticViewports(candidate: ComposedPublicationCandidate, prefix: str
       consoleErrors: [],
       failedRequests: [],
       interactions,
-      screenshotKey: keys.candidate,
-      diffScreenshotKey: keys.diff,
     };
   });
 }
@@ -144,21 +156,47 @@ function dataUrlBytes(value: string): Uint8Array {
   return Uint8Array.from(binary, character => character.charCodeAt(0));
 }
 
-async function waitForFontsAndImages(page: any): Promise<void> {
-  await page.evaluate(async () => {
-    if (document.fonts?.ready) await document.fonts.ready;
-    await Promise.all(Array.from(document.images).map(image => {
-      if (image.complete) return Promise.resolve();
-      return new Promise<void>(resolve => {
-        image.addEventListener('load', () => resolve(), { once: true });
-        image.addEventListener('error', () => resolve(), { once: true });
-      });
-    }));
-  });
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const owned = new Uint8Array(bytes.byteLength);
+  owned.set(bytes);
+  const digest = await crypto.subtle.digest('SHA-256', owned.buffer);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function auditPage(page: any): Promise<{ horizontalOverflowPx: number; bodyHeight: number; brokenMedia: string[] }> {
-  return page.evaluate(() => {
+async function evidenceRecord(key: string, bytes: Uint8Array): Promise<PublicationEvidenceRecord> {
+  return { key, byteLength: bytes.byteLength, sha256: await sha256Hex(bytes) };
+}
+
+export async function waitForPublicationResources(
+  options: { timeoutMs: number },
+): Promise<{ timedOut: boolean; stalledResources: string[] }> {
+  const pending = new Set<string>();
+  const waits: Promise<void>[] = [];
+  for (const image of Array.from(document.images)) {
+    if (image.complete) continue;
+    const label = image.currentSrc || image.src || 'image';
+    pending.add(label);
+    waits.push(new Promise<void>(resolve => {
+      const settle = () => { pending.delete(label); resolve(); };
+      image.addEventListener('load', settle, { once: true });
+      image.addEventListener('error', settle, { once: true });
+    }));
+  }
+  if (document.fonts?.ready) {
+    const label = 'document.fonts';
+    pending.add(label);
+    waits.push(Promise.resolve(document.fonts.ready).then(() => { pending.delete(label); }));
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = await Promise.race([
+    Promise.all(waits).then(() => false),
+    new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(true), options.timeoutMs); }),
+  ]);
+  if (timer) clearTimeout(timer);
+  return { timedOut, stalledResources: [...pending] };
+}
+
+export function auditPublicationPage(): { horizontalOverflowPx: number; bodyHeight: number; brokenMedia: string[] } {
     const root = document.documentElement;
     const body = document.body;
     const scrollWidth = Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0);
@@ -175,14 +213,15 @@ async function auditPage(page: any): Promise<{ horizontalOverflowPx: number; bod
       bodyHeight,
       brokenMedia,
     };
-  });
 }
 
-async function exerciseInteractions(
-  page: any,
-  regions: Array<{ regionId: string; interactionKind: PublicationInteractionKind }>,
+async function auditPage(page: any): Promise<{ horizontalOverflowPx: number; bodyHeight: number; brokenMedia: string[] }> {
+  return page.evaluate(auditPublicationPage);
+}
+
+export async function evaluatePublicationInteractions(
+  declaredRegions: Array<{ regionId: string; interactionKind: PublicationInteractionKind }>,
 ): Promise<PublicationInteractionResult[]> {
-  return page.evaluate(async (declaredRegions: Array<{ regionId: string; interactionKind: PublicationInteractionKind }>) => {
     const visible = (element: Element | null): boolean => {
       if (!(element instanceof HTMLElement)) return false;
       const style = getComputedStyle(element);
@@ -219,7 +258,10 @@ async function exerciseInteractions(
         trigger.click();
         await new Promise(resolve => setTimeout(resolve, 0));
         const after = trigger.getAttribute('aria-expanded');
-        results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed: before !== after && after !== null, detail: `aria-expanded changed from ${before} to ${after}` });
+        const passed = (before === 'true' || before === 'false')
+          && (after === 'true' || after === 'false')
+          && before !== after;
+        results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed, detail: `aria-expanded changed from ${before} to ${after}` });
         continue;
       }
       if (declared.interactionKind === 'tabs') {
@@ -235,7 +277,8 @@ async function exerciseInteractions(
         trigger.click();
         await new Promise(resolve => setTimeout(resolve, 0));
         const after = `${trigger.getAttribute('aria-selected')}|${visible(panel)}`;
-        results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed: before !== after, detail: `tab state changed from ${before} to ${after}` });
+        const passed = before !== after && trigger.getAttribute('aria-selected') === 'true' && visible(panel);
+        results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed, detail: `tab state changed from ${before} to ${after}` });
         continue;
       }
       const trigger = firstEnabled(region, '[data-carousel-next],[data-clone-action="next"],[aria-label*="next" i],button,[role="button"]');
@@ -250,11 +293,23 @@ async function exerciseInteractions(
       results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed: before !== after, detail: `slide state changed from ${before} to ${after}` });
     }
     return results;
-  }, regions);
 }
 
-async function compareScreenshots(page: any, source: Uint8Array, candidate: Uint8Array): Promise<{ mismatchPercent: number; diffBytes: Uint8Array }> {
-  const result = await page.evaluate(async ({ sourceUrl, candidateUrl, threshold }: { sourceUrl: string; candidateUrl: string; threshold: number }) => {
+async function exerciseInteractions(
+  page: any,
+  regions: Array<{ regionId: string; interactionKind: PublicationInteractionKind }>,
+): Promise<PublicationInteractionResult[]> {
+  return page.evaluate(evaluatePublicationInteractions, regions);
+}
+
+export async function compareScreenshotsInPage(
+  { sourceUrl, candidateUrl, threshold }: { sourceUrl: string; candidateUrl: string; threshold: number },
+): Promise<{
+  mismatchPercent: number;
+  sourceSize: { width: number; height: number };
+  candidateSize: { width: number; height: number };
+  diffDataUrl: string;
+}> {
     const loadImage = async (url: string): Promise<HTMLImageElement> => {
       const image = new Image();
       image.src = url;
@@ -266,11 +321,11 @@ async function compareScreenshots(page: any, source: Uint8Array, candidate: Uint
     const height = Math.min(sourceImage.naturalHeight, candidateImage.naturalHeight);
     const draw = (image: HTMLImageElement): ImageData => {
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('2D canvas context is unavailable');
-      context.drawImage(image, 0, 0, width, height);
+      context.drawImage(image, 0, 0);
       return context.getImageData(0, 0, width, height);
     };
     const sourceData = draw(sourceImage);
@@ -301,14 +356,29 @@ async function compareScreenshots(page: any, source: Uint8Array, candidate: Uint
     diffContext.putImageData(diff, 0, 0);
     return {
       mismatchPercent: width && height ? diffPixels / (width * height) : 1,
+      sourceSize: { width: sourceImage.naturalWidth, height: sourceImage.naturalHeight },
+      candidateSize: { width: candidateImage.naturalWidth, height: candidateImage.naturalHeight },
       diffDataUrl: diffCanvas.toDataURL('image/png'),
     };
-  }, {
+}
+
+async function compareScreenshots(page: any, source: Uint8Array, candidate: Uint8Array): Promise<{
+  mismatchPercent: number;
+  sourceSize: { width: number; height: number };
+  candidateSize: { width: number; height: number };
+  diffBytes: Uint8Array;
+}> {
+  const result = await page.evaluate(compareScreenshotsInPage, {
     sourceUrl: pngDataUrl(source),
     candidateUrl: pngDataUrl(candidate),
     threshold: PIXEL_CHANNEL_THRESHOLD,
   });
-  return { mismatchPercent: result.mismatchPercent, diffBytes: dataUrlBytes(result.diffDataUrl) };
+  return {
+    mismatchPercent: result.mismatchPercent,
+    sourceSize: result.sourceSize,
+    candidateSize: result.candidateSize,
+    diffBytes: dataUrlBytes(result.diffDataUrl),
+  };
 }
 
 async function captureDocument(browser: any, html: string, viewport: { width: number; height: number }) {
@@ -324,7 +394,13 @@ async function captureDocument(browser: any, html: string, viewport: { width: nu
   await page.setViewport(viewport);
   await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.addStyleTag({ content: DISABLE_MOTION_CSS });
-  await waitForFontsAndImages(page);
+  try {
+    await page.waitForNetworkIdle({ idleTime: 100, timeout: RESOURCE_TIMEOUT_MS });
+  } catch (error) {
+    failedRequests.push(`network-settle ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const readiness = await page.evaluate(waitForPublicationResources, { timeoutMs: RESOURCE_TIMEOUT_MS });
+  if (readiness.timedOut) failedRequests.push(`resource-readiness ${readiness.stalledResources.join(',') || 'timeout'}`);
   return { page, consoleErrors, failedRequests };
 }
 
@@ -332,14 +408,22 @@ export async function validateInBrowser(
   candidate: ComposedPublicationCandidate,
   options: BrowserValidationOptions = {},
 ): Promise<BrowserPublicationValidation> {
-  const prefix = options.evidencePrefix || `model-pages/publication/candidates/${candidate.sha256}/evidence`;
   if (!options.browser) {
     return {
-      viewports: syntheticViewports(candidate, prefix),
+      viewports: syntheticViewports(candidate),
       blocking: [{ code: 'browser-unavailable', message: 'Browser binding is required for publication validation' }],
       warnings: [],
     };
   }
+  if (!options.evidencePrefix || !REVISION_EVIDENCE_PREFIX.test(options.evidencePrefix) || !options.writeEvidence) {
+    return {
+      viewports: [],
+      blocking: [{ code: 'evidence-required', message: 'Browser validation requires a revision-scoped evidence prefix and writer' }],
+      warnings: [],
+    };
+  }
+  const prefix = options.evidencePrefix;
+  const writeEvidence = options.writeEvidence;
 
   let browser: any;
   try {
@@ -366,11 +450,14 @@ export async function validateInBrowser(
         comparisonPage = await browser.newPage();
         const comparison = await compareScreenshots(comparisonPage, sourceBytes, candidateBytes);
         const keys = evidenceKeys(prefix, viewport.name);
-        if (options.writeEvidence) {
-          await options.writeEvidence({ key: keys.source, bytes: sourceBytes, contentType: 'image/png' });
-          await options.writeEvidence({ key: keys.candidate, bytes: candidateBytes, contentType: 'image/png' });
-          await options.writeEvidence({ key: keys.diff, bytes: comparison.diffBytes, contentType: 'image/png' });
-        }
+        const [sourceEvidence, candidateEvidence, diffEvidence] = await Promise.all([
+          evidenceRecord(keys.source, sourceBytes),
+          evidenceRecord(keys.candidate, candidateBytes),
+          evidenceRecord(keys.diff, comparison.diffBytes),
+        ]);
+        await writeEvidence({ key: keys.source, bytes: sourceBytes, contentType: 'image/png' });
+        await writeEvidence({ key: keys.candidate, bytes: candidateBytes, contentType: 'image/png' });
+        await writeEvidence({ key: keys.diff, bytes: comparison.diffBytes, contentType: 'image/png' });
         const consoleErrors = sortedUnique([...sourceCapture.consoleErrors, ...candidateCapture.consoleErrors]);
         const failedRequests = sortedUnique([...sourceCapture.failedRequests, ...candidateCapture.failedRequests, ...audit.brokenMedia]);
         const result: PublicationViewportValidation = {
@@ -383,15 +470,24 @@ export async function validateInBrowser(
           interactions: interactionResults,
           screenshotKey: keys.candidate,
           diffScreenshotKey: keys.diff,
+          sourceSize: comparison.sourceSize,
+          candidateSize: comparison.candidateSize,
+          evidence: { source: sourceEvidence, candidate: candidateEvidence, diff: diffEvidence },
         };
         viewports.push(result);
 
         const classification = classifyVisualMismatch(result.mismatchPercent);
         if (classification === 'blocking') blocking.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% exceeds 35%` });
         if (classification === 'warning') warnings.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% is at least 20%` });
+        if (comparison.sourceSize.width !== comparison.candidateSize.width || comparison.sourceSize.height !== comparison.candidateSize.height) {
+          warnings.push({ code: 'screenshot-dimension-mismatch', viewport: viewport.name, message: `Screenshot dimensions differ: source ${comparison.sourceSize.width}x${comparison.sourceSize.height}, candidate ${comparison.candidateSize.width}x${comparison.candidateSize.height}` });
+        }
         if (result.horizontalOverflowPx > 0) blocking.push({ code: 'horizontal-overflow', viewport: viewport.name, message: `Page overflows horizontally by ${result.horizontalOverflowPx}px` });
         if (!Number.isFinite(result.bodyHeight) || result.bodyHeight <= 0) blocking.push({ code: 'invalid-body-height', viewport: viewport.name, message: 'Page body height is not a positive finite number' });
-        if (result.failedRequests.length) blocking.push({ code: 'media-request-failed', viewport: viewport.name, message: `${result.failedRequests.length} media or network request(s) failed` });
+        const readinessFailures = result.failedRequests.filter(item => /^(?:network-settle|resource-readiness) /.test(item));
+        const mediaFailures = result.failedRequests.filter(item => !/^(?:network-settle|resource-readiness) /.test(item));
+        if (readinessFailures.length) blocking.push({ code: 'resource-readiness-failed', viewport: viewport.name, message: `${readinessFailures.length} resource readiness check(s) failed` });
+        if (mediaFailures.length) blocking.push({ code: 'media-request-failed', viewport: viewport.name, message: `${mediaFailures.length} media or network request(s) failed` });
         if (result.consoleErrors.length) blocking.push({ code: 'console-error', viewport: viewport.name, message: `${result.consoleErrors.length} browser console error(s) occurred` });
         for (const interaction of result.interactions.filter(item => !item.passed)) {
           blocking.push({ code: 'interaction-failed', viewport: viewport.name, regionId: interaction.regionId, message: `${interaction.kind} interaction failed: ${interaction.detail}` });
@@ -408,7 +504,7 @@ export async function validateInBrowser(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
-      viewports: syntheticViewports(candidate, prefix),
+      viewports: syntheticViewports(candidate),
       blocking: [{ code: 'browser-validation-failed', message: `Browser validation failed: ${message}` }],
       warnings: [],
     };
