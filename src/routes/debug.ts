@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
-import { findExistingMoltbotProcess } from '../gateway';
+import { findExistingMoltbotProcess, mountR2Storage, waitForProcess } from '../gateway';
+import { R2_MOUNT_PATH } from '../config';
 import { createSupabaseClient } from '../utils/supabase';
 
 /**
@@ -131,6 +132,85 @@ debug.post('/destroy-container', async (c) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ error: errorMessage }, 500);
   }
+});
+
+const E2E_PERSISTENCE_MARKER = /^[A-Za-z0-9_-]{8,128}$/;
+const E2E_PERSISTENCE_PATH = `${R2_MOUNT_PATH}/e2e/persistence-marker`;
+
+// E2E-only probe used to prove the credential-less R2 mount survives a container destroy.
+debug.post('/persistence-probe', async (c) => {
+  if (c.env.E2E_TEST_MODE !== 'true') {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const body: { marker?: string } = await c.req.json<{ marker?: string }>().catch(() => ({}));
+  const marker = body.marker;
+  if (!marker || !E2E_PERSISTENCE_MARKER.test(marker)) {
+    return c.json({ error: 'marker must be 8-128 URL-safe characters' }, 400);
+  }
+
+  const sandbox = c.get('sandbox');
+  if (!(await mountR2Storage(sandbox, c.env))) {
+    return c.json({ error: 'R2 binding mount failed' }, 500);
+  }
+
+  const proc = await sandbox.startProcess(
+    `mkdir -p ${R2_MOUNT_PATH}/e2e && printf '%s' '${marker}' > ${E2E_PERSISTENCE_PATH}`,
+  );
+  await waitForProcess(proc, 10000);
+  if (proc.exitCode !== 0) {
+    const logs = await proc.getLogs();
+    return c.json({ error: 'Failed to write persistence marker', details: logs.stderr }, 500);
+  }
+
+  return c.json({ written: true, marker });
+});
+
+debug.get('/persistence-probe', async (c) => {
+  if (c.env.E2E_TEST_MODE !== 'true') {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const marker = c.req.query('marker');
+  if (!marker || !E2E_PERSISTENCE_MARKER.test(marker)) {
+    return c.json({ error: 'marker must be 8-128 URL-safe characters' }, 400);
+  }
+
+  const sandbox = c.get('sandbox');
+  if (!(await mountR2Storage(sandbox, c.env))) {
+    return c.json({ error: 'R2 binding mount failed' }, 500);
+  }
+
+  const proc = await sandbox.startProcess(`cat ${E2E_PERSISTENCE_PATH} 2>/dev/null`);
+  await waitForProcess(proc, 10000);
+  const logs = await proc.getLogs();
+  const persisted = proc.exitCode === 0 && logs.stdout?.trim() === marker;
+
+  return c.json({ persisted, marker }, persisted ? 200 : 404);
+});
+
+// Remove all data from the isolated E2E bucket so Terraform can delete it.
+debug.delete('/e2e-storage', async (c) => {
+  if (
+    c.env.E2E_TEST_MODE !== 'true' ||
+    !c.env.R2_BUCKET_NAME?.startsWith('moltbot-e2e-')
+  ) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const sandbox = c.get('sandbox');
+  if (!(await mountR2Storage(sandbox, c.env))) {
+    return c.json({ error: 'R2 binding mount failed' }, 500);
+  }
+
+  const proc = await sandbox.startProcess(`find ${R2_MOUNT_PATH} -mindepth 1 -delete`);
+  await waitForProcess(proc, 30000);
+  if (proc.exitCode !== 0) {
+    const logs = await proc.getLogs();
+    return c.json({ error: 'Failed to empty E2E storage', details: logs.stderr }, 500);
+  }
+
+  return c.json({ emptied: true, bucket: c.env.R2_BUCKET_NAME });
 });
 
 // GET /debug/gateway-api - Probe the moltbot gateway HTTP API
@@ -389,8 +469,7 @@ debug.get('/env', async (c) => {
     has_anthropic_key: !!c.env.ANTHROPIC_API_KEY,
     has_openai_key: !!c.env.OPENAI_API_KEY,
     has_gateway_token: !!c.env.MOLTBOT_GATEWAY_TOKEN,
-    has_r2_access_key: !!c.env.R2_ACCESS_KEY_ID,
-    has_r2_secret_key: !!c.env.R2_SECRET_ACCESS_KEY,
+    has_r2_binding: !!c.env.MOLTBOT_BUCKET,
     has_cf_account_id: !!c.env.CF_ACCOUNT_ID,
     dev_mode: c.env.DEV_MODE,
     debug_routes: c.env.DEBUG_ROUTES,

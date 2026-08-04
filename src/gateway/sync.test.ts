@@ -56,11 +56,7 @@ describe('syncToR2', () => {
         .mockResolvedValueOnce(createMockProcess(''))
         .mockResolvedValueOnce(createMockProcess(timestamp));
 
-      const env = createMockEnv({
-        R2_ACCESS_KEY_ID: undefined,
-        R2_SECRET_ACCESS_KEY: undefined,
-        CF_ACCOUNT_ID: undefined,
-      });
+      const env = createMockEnv({ CF_ACCOUNT_ID: undefined });
 
       const result = await syncToR2(sandbox, env);
 

@@ -93,5 +93,8 @@ fi
 if [ -n "$ANTHROPIC_API_KEY" ]; then
     echo "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY --name "$WORKER_NAME" >&2
 fi
+if [ -n "$OPENAI_API_KEY" ]; then
+    echo "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY --name "$WORKER_NAME" >&2
+fi
 
 echo "Worker deployed: $WORKER_NAME" >&2

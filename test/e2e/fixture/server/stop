@@ -34,78 +34,132 @@ if [ -z "$CCTR_FIXTURE_DIR" ]; then
 fi
 
 echo "Stopping cloud e2e infrastructure..." >&2
+CLEANUP_FAILED=false
+WORKER_ABSENT=false
 
 # Read saved values from fixture dir
 WORKER_NAME=$(cat "$CCTR_FIXTURE_DIR/worker-name.txt" 2>/dev/null || echo "")
 R2_BUCKET=$(cat "$CCTR_FIXTURE_DIR/r2-bucket-name.txt" 2>/dev/null || echo "")
 TEST_RUN_ID=$(cat "$CCTR_FIXTURE_DIR/test-run-id.txt" 2>/dev/null || echo "")
 ACCESS_APP_ID=$(cat "$CCTR_FIXTURE_DIR/access-app-id.txt" 2>/dev/null || echo "")
+WORKER_URL=$(cat "$CCTR_FIXTURE_DIR/worker-url.txt" 2>/dev/null || echo "")
 
-# Step 0: Delete the Access application first (so it stops protecting the worker)
-if [ -n "$ACCESS_APP_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
-    echo "Deleting Access application: $ACCESS_APP_ID" >&2
-    curl -s -X DELETE \
-        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$ACCESS_APP_ID" \
-        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >/dev/null 2>&1 || true
-    echo "Access application deleted" >&2
+# Empty the prefix-guarded ephemeral bucket through its binding before deleting
+# the Worker. This also removes any OpenClaw data written during the smoke test.
+if [ -n "$WORKER_URL" ] && [ -n "$ACCESS_APP_ID" ]; then
+    echo "Emptying E2E R2 bucket through the protected Worker..." >&2
+    "$SCRIPT_DIR/../curl-auth" -sf -X DELETE "$WORKER_URL/debug/e2e-storage" >/dev/null 2>&1 || \
+        echo "Warning: Failed to empty E2E R2 bucket through Worker." >&2
 fi
 
-# Step 1: Delete the deployed worker
+# Step 0: Delete the deployed worker while Access still protects its hostname.
 if [ -n "$WORKER_NAME" ]; then
     echo "Deleting worker: $WORKER_NAME" >&2
-    "$SCRIPT_DIR/delete-worker" "$WORKER_NAME" 2>&1 || true
-fi
-
-# Step 1b: Delete the container application
-CONTAINER_NAME=$(cat "$CCTR_FIXTURE_DIR/container-name.txt" 2>/dev/null || echo "${WORKER_NAME}-sandbox")
-if [ -n "$WORKER_NAME" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
-    echo "Deleting container: $CONTAINER_NAME" >&2
-    # Find the container ID
-    CONTAINER_ID=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/containers/applications" \
-        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-        -H "Content-Type: application/json" | \
-        jq -r ".result[] | select(.name == \"$CONTAINER_NAME\") | .id" 2>/dev/null || echo "")
-    
-    if [ -n "$CONTAINER_ID" ]; then
-        curl -s -X DELETE \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/containers/applications/$CONTAINER_ID" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/json" >/dev/null 2>&1 || true
-        echo "Container deleted" >&2
+    if "$SCRIPT_DIR/delete-worker" "$WORKER_NAME" 2>&1; then
+        WORKER_ABSENT=true
+    else
+        CLEANUP_FAILED=true
+        echo "ERROR: Worker deletion was not verified; retaining Access protection." >&2
+    fi
+else
+    if [ -n "$ACCESS_APP_ID" ]; then
+        CLEANUP_FAILED=true
+        echo "ERROR: Worker identity is missing; retaining Access because absence cannot be verified." >&2
+    else
+        WORKER_ABSENT=true
     fi
 fi
 
+# Step 0b: Delete the container application
+CONTAINER_NAME=$(cat "$CCTR_FIXTURE_DIR/container-name.txt" 2>/dev/null || echo "${WORKER_NAME}-sandbox")
+if [ -n "$WORKER_NAME" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+    echo "Deleting container: $CONTAINER_NAME" >&2
+    CONTAINERS_RESPONSE=$(curl -s -X GET \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/containers/applications" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        -H "Content-Type: application/json" || echo '{"success":false}')
+    if ! echo "$CONTAINERS_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+        CLEANUP_FAILED=true
+        echo "ERROR: Could not list container applications." >&2
+    else
+        CONTAINER_ID=$(echo "$CONTAINERS_RESPONSE" | jq -r ".result[] | select(.name == \"$CONTAINER_NAME\") | .id" 2>/dev/null || echo "")
+    fi
+
+    if [ -n "${CONTAINER_ID:-}" ]; then
+        CONTAINER_RESPONSE=$(curl -s -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/containers/applications/$CONTAINER_ID" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" || echo '{"success":false}')
+        if echo "$CONTAINER_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+            echo "Container deleted" >&2
+        else
+            CLEANUP_FAILED=true
+            echo "ERROR: Container deletion failed: $CONTAINER_NAME" >&2
+        fi
+    fi
+fi
+
+# Step 1: Delete Access only after the public Worker endpoint is gone.
+if [ "$WORKER_ABSENT" = true ] && [ -n "$ACCESS_APP_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+    echo "Deleting Access application: $ACCESS_APP_ID" >&2
+    ACCESS_RESPONSE=$(curl -s -X DELETE \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$ACCESS_APP_ID" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" || echo '{"success":false}')
+    if echo "$ACCESS_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+        echo "Access application deleted" >&2
+    else
+        CLEANUP_FAILED=true
+        echo "ERROR: Access application deletion failed: $ACCESS_APP_ID" >&2
+    fi
+elif [ "$WORKER_ABSENT" != true ] && [ -n "$ACCESS_APP_ID" ]; then
+    echo "Access application retained to protect the surviving Worker." >&2
+fi
+
 # Step 2: Delete R2 bucket
-# Note: wrangler doesn't have a command to list/delete objects, so if the bucket
-# has objects it will fail. Use the dashboard or aws cli for manual cleanup.
+# The protected cleanup route empties the binding first; retain the warning as a
+# fail-safe if cleanup could not run.
 if [ -n "$R2_BUCKET" ]; then
     echo "Deleting R2 bucket: $R2_BUCKET" >&2
     if ! npx wrangler r2 bucket delete "$R2_BUCKET" 2>&1; then
-        echo "Warning: Failed to delete R2 bucket (may not be empty). Manual cleanup required." >&2
+        CLEANUP_FAILED=true
+        echo "ERROR: Failed to delete R2 bucket. Manual cleanup required: $R2_BUCKET" >&2
     fi
 fi
 
 # Step 3: Delete service token via API
 if [ -n "$TEST_RUN_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
     echo "Deleting service token: moltbot-e2e-$TEST_RUN_ID" >&2
-    # Find and delete the service token
-    TOKEN_ID=$(curl -s -X GET \
+    TOKENS_RESPONSE=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/service_tokens" \
         -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-        -H "Content-Type: application/json" | \
-        jq -r ".result[] | select(.name == \"moltbot-e2e-$TEST_RUN_ID\") | .id" 2>/dev/null || echo "")
-    
-    if [ -n "$TOKEN_ID" ]; then
-        curl -s -X DELETE \
+        -H "Content-Type: application/json" || echo '{"success":false}')
+    if ! echo "$TOKENS_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+        CLEANUP_FAILED=true
+        echo "ERROR: Could not list E2E service tokens." >&2
+    else
+        TOKEN_ID=$(echo "$TOKENS_RESPONSE" | jq -r ".result[] | select(.name == \"moltbot-e2e-$TEST_RUN_ID\") | .id" 2>/dev/null || echo "")
+    fi
+
+    if [ -n "${TOKEN_ID:-}" ]; then
+        TOKEN_RESPONSE=$(curl -s -X DELETE \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/service_tokens/$TOKEN_ID" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/json" >/dev/null 2>&1 || true
-        echo "Service token deleted" >&2
+            -H "Content-Type: application/json" || echo '{"success":false}')
+        if echo "$TOKEN_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+            echo "Service token deleted" >&2
+        else
+            CLEANUP_FAILED=true
+            echo "ERROR: Service token deletion failed: $TOKEN_ID" >&2
+        fi
     fi
 fi
 
 # Step 4: Clean up local files
+if [ "$CLEANUP_FAILED" = true ]; then
+    echo "Cloud E2E cleanup incomplete; state files retained in $CCTR_FIXTURE_DIR and $SCRIPT_DIR." >&2
+    exit 1
+fi
+
 echo "Cleaning up local files..." >&2
 rm -f "$CCTR_FIXTURE_DIR/terraform-output.json"
 rm -f "$CCTR_FIXTURE_DIR/worker-url.txt"

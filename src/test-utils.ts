@@ -23,18 +23,6 @@ export function createMockEnv(overrides: Partial<MoltbotEnv> = {}): MoltbotEnv {
 }
 
 /**
- * Create a mock env with R2 credentials configured
- */
-export function createMockEnvWithR2(overrides: Partial<MoltbotEnv> = {}): MoltbotEnv {
-  return createMockEnv({
-    R2_ACCESS_KEY_ID: 'test-key-id',
-    R2_SECRET_ACCESS_KEY: 'test-secret-key',
-    CF_ACCOUNT_ID: 'test-account-id',
-    ...overrides,
-  });
-}
-
-/**
  * Create a mock process object
  */
 export function createMockProcess(

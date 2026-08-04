@@ -9,11 +9,7 @@ describe('mountR2Storage', () => {
 
   it('mounts the MOLTBOT_BUCKET binding without credentials in deployed mode', async () => {
     const { sandbox, mountBucketMock } = createMockSandbox({ mounted: false });
-    const env = createMockEnv({
-      R2_ACCESS_KEY_ID: undefined,
-      R2_SECRET_ACCESS_KEY: undefined,
-      CF_ACCOUNT_ID: undefined,
-    });
+    const env = createMockEnv({ CF_ACCOUNT_ID: undefined });
 
     const result = await mountR2Storage(sandbox, env);
 

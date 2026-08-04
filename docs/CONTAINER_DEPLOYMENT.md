@@ -56,7 +56,7 @@ ENV NODE_VERSION=22.16.0
 
 # Install: Node.js 22, pnpm, rsync, OpenClaw
 RUN npm install -g pnpm
-RUN npm install -g openclaw@2026.2.22-2
+RUN npm install -g openclaw@2026.5.7
 
 # Copy startup script, skills, workspaces, docs
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh

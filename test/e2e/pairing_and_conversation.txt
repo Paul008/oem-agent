@@ -73,7 +73,7 @@ send /models command
 type math question into chat
 %require
 ===
-if [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY$AI_GATEWAY_API_KEY$ANTHROPIC_API_KEY" ]; then
+if ! ./has-ai-provider; then
   echo "Skipping AI response assertion: no provider credentials configured"
   exit 0
 fi
@@ -87,7 +87,7 @@ fi
 click send button
 %require
 ===
-if [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY$AI_GATEWAY_API_KEY$ANTHROPIC_API_KEY" ]; then
+if ! ./has-ai-provider; then
   echo "Skipping AI response assertion: no provider credentials configured"
   exit 0
 fi
@@ -100,7 +100,7 @@ fi
 ===
 wait for response containing the correct answer
 ===
-if [ -z "$CLOUDFLARE_AI_GATEWAY_API_KEY$AI_GATEWAY_API_KEY$ANTHROPIC_API_KEY" ]; then
+if ! ./has-ai-provider; then
   echo "Skipping AI response assertion: no provider credentials configured"
   exit 0
 fi

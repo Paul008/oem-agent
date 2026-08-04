@@ -27,10 +27,10 @@ These tests run against actual Cloudflare infrastructure—the same environment 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        Cloud infrastructure                             │
 │                                                                         │
-│   Terraform (main.tf)           Wrangler deploy           Access API    │
-│   ├── Service token      →      ├── Worker           →    ├── App       │
-│   └── R2 bucket                 ├── Container             └── Policies  │
-│                                 └── Secrets                             │
+│   Terraform (main.tf)           Access API          Wrangler deploy    │
+│   ├── Service token      →      ├── App        →    ├── Worker          │
+│   └── R2 bucket                 └── Policies         ├── Container       │
+│                                                     └── Secrets         │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -48,16 +48,16 @@ These tests run against actual Cloudflare infrastructure—the same environment 
 ### Test flow
 
 1. **Terraform** creates isolated resources: service token + R2 bucket
-2. **Wrangler** deploys worker with unique name (timestamp + random suffix)
-3. **Access API** creates Access application (must be after worker exists—workers.dev domains require the worker to exist first)
+2. **Access API** protects the future workers.dev hostname with the service token policy
+3. **Wrangler** deploys the uniquely named worker only after Access is active
 4. **Playwright** opens browser with Access headers, navigates to worker
 5. **Tests run** with video recording capturing the full UI flow
-6. **Teardown** deletes everything: Access app → worker → R2 bucket → service token
+6. **Teardown** empties R2, then deletes the worker → Access app → bucket → service token
 
 ### Key design decisions
 
 - **Unique IDs per test run**: `$(date +%s)-$(openssl rand -hex 4)` ensures parallel test runs don't conflict
-- **Access created post-deploy**: Terraform can't create Access apps for non-existent domains
+- **Access before deploy**: a failed Access setup aborts before any public Worker hostname exists
 - **Container names**: Derived from worker name as `{worker-name}-sandbox`
 
 ## Test framework: cctr + playwright-cli

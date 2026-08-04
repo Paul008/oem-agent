@@ -1,6 +1,5 @@
 #!/bin/bash
-# Create Access application to protect the deployed worker
-# Must be called AFTER the worker is deployed
+# Create Access application before the Worker exists so its first deployment is protected.
 set -e
 
 WORKER_NAME="$1"

@@ -105,6 +105,8 @@ jobs:
           # AI provider — legacy (still supported)
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           AI_GATEWAY_BASE_URL: ${{ secrets.AI_GATEWAY_BASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           # Unique test run ID for parallel isolation
           E2E_TEST_RUN_ID: ${{ github.run_id }}-${{ matrix.config.name }}
           # Matrix-specific config

@@ -150,14 +150,8 @@ describe('buildEnvVars', () => {
     expect(result.CF_ACCOUNT_ID).toBe('acct-123');
   });
 
-  it('does not inject long-lived R2 credentials into the container', () => {
-    const env = createMockEnv({
-      R2_ACCESS_KEY_ID: 'long-lived-access-key',
-      R2_SECRET_ACCESS_KEY: 'long-lived-secret-key',
-    });
-
-    const result = buildEnvVars(env);
-
+  it('uses the mounted filesystem path without injecting R2 credentials', () => {
+    const result = buildEnvVars(createMockEnv());
     expect(result).not.toHaveProperty('R2_ACCESS_KEY_ID');
     expect(result).not.toHaveProperty('R2_SECRET_ACCESS_KEY');
     expect(result.MOLTBOT_STORAGE_PATH).toBe('/data/moltbot');

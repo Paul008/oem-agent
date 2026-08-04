@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 
 const generator = new URL('./generate-config.mjs', import.meta.url);
 const deploy = fileURLToPath(new URL('./deploy', import.meta.url));
+const deleteWorker = fileURLToPath(new URL('./delete-worker', import.meta.url));
 const projectRoot = fileURLToPath(new URL('../../../../', import.meta.url));
+const aiProviderCheck = join(projectRoot, 'test/e2e/fixture/has-ai-provider');
 
 function sourceConfig(overrides = {}) {
   return `{
@@ -180,4 +182,70 @@ test('E2E deploy only invokes package scripts that exist', () => {
   for (const script of invokedScripts) {
     assert.equal(typeof packageJson.scripts?.[script], 'string');
   }
+});
+
+test('Access protection exists for the full lifetime of the E2E Worker', () => {
+  const start = readFileSync(join(projectRoot, 'test/e2e/fixture/server/start'), 'utf8');
+  const stop = readFileSync(join(projectRoot, 'test/e2e/fixture/server/stop'), 'utf8');
+
+  assert.ok(start.indexOf('create-access-app') < start.indexOf('"$SCRIPT_DIR/deploy"'));
+  assert.ok(stop.indexOf('debug/e2e-storage') < stop.indexOf('"$SCRIPT_DIR/delete-worker"'));
+  assert.ok(stop.indexOf('"$SCRIPT_DIR/delete-worker"') < stop.indexOf('Deleting Access application'));
+  assert.match(stop, /if \[ "\$WORKER_ABSENT" = true \].*ACCESS_APP_ID/);
+  assert.match(stop, /Worker identity is missing; retaining Access/);
+  assert.match(stop, /if \[ "\$CLEANUP_FAILED" = true \]/);
+});
+
+test('Worker deletion must be verified before Access can be removed', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'oem-e2e-delete-'));
+  const binaryDirectory = join(directory, 'bin');
+  mkdirSync(binaryDirectory);
+  for (const [name, contents] of Object.entries({
+    npx: '#!/bin/sh\nexit 0\n',
+    curl: '#!/bin/sh\nprintf "%s" "$CURL_STATUS"\n',
+  })) {
+    const path = join(binaryDirectory, name);
+    writeFileSync(path, contents);
+    chmodSync(path, 0o755);
+  }
+
+  const run = (status) => spawnSync('bash', [deleteWorker, 'moltbot-sandbox-e2e-123-base'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: {
+      PATH: `${binaryDirectory}:${process.env.PATH}`,
+      CURL_STATUS: status,
+      CLOUDFLARE_API_TOKEN: 'e2e-token',
+      CLOUDFLARE_ACCOUNT_ID: 'e2e-account',
+    },
+  });
+
+  assert.equal(run('404').status, 0);
+  const surviving = run('200');
+  assert.notEqual(surviving.status, 0);
+  assert.match(surviving.stderr, /could not be verified/);
+});
+
+test('AI assertion gate matches every complete supported provider configuration', () => {
+  const run = (env = {}) => spawnSync(aiProviderCheck, [], { env, encoding: 'utf8' }).status;
+
+  assert.equal(run(), 1);
+  assert.equal(run({ CLOUDFLARE_AI_GATEWAY_API_KEY: 'key' }), 1);
+  assert.equal(run({
+    CLOUDFLARE_AI_GATEWAY_API_KEY: 'key',
+    CF_AI_GATEWAY_ACCOUNT_ID: 'account',
+    CF_AI_GATEWAY_GATEWAY_ID: 'gateway',
+  }), 0);
+  assert.equal(run({ AI_GATEWAY_API_KEY: 'key' }), 1);
+  assert.equal(run({ AI_GATEWAY_API_KEY: 'key', AI_GATEWAY_BASE_URL: 'https://gateway.test' }), 0);
+  assert.equal(run({ ANTHROPIC_API_KEY: 'key' }), 0);
+  assert.equal(run({ OPENAI_API_KEY: 'key' }), 0);
+});
+
+test('cloud suite destroys a container and verifies an R2 marker survives', () => {
+  const scenario = readFileSync(join(projectRoot, 'test/e2e/persistence.txt'), 'utf8');
+
+  assert.match(scenario, /debug\/persistence-probe/);
+  assert.match(scenario, /debug\/destroy-container/);
+  assert.match(scenario, /persistence marker restored/);
 });

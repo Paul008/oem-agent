@@ -33,12 +33,7 @@ describe('GET /api/admin/storage', () => {
     const { sandbox, startProcessMock } = createMockSandbox();
     startProcessMock.mockResolvedValue(createMockProcess('2026-08-05T10:00:00+10:00\n'));
     gatewayMocks.mountR2Storage.mockResolvedValue(true);
-    const env = createMockEnv({
-      DEV_MODE: 'true',
-      R2_ACCESS_KEY_ID: undefined,
-      R2_SECRET_ACCESS_KEY: undefined,
-      CF_ACCOUNT_ID: undefined,
-    });
+    const env = createMockEnv({ DEV_MODE: 'true', CF_ACCOUNT_ID: undefined });
 
     const response = await createStorageApp(sandbox).request('/api/admin/storage', {}, env);
 
