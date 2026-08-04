@@ -128,6 +128,37 @@ describe('publication R2 storage', () => {
     expect(state).toBeNull()
   })
 
+  it('preserves old state compatibility and round-trips mutable publish metadata', async () => {
+    const bucket = new MemoryR2Bucket()
+    const legacy = await compareAndSetPublicationState(
+      bucket as unknown as R2Bucket,
+      'nissan-au-ariya',
+      null,
+      initialPublicationState(),
+    )
+    expect(legacy.value.published_at).toBeUndefined()
+    expect(legacy.value.published_by).toBeUndefined()
+
+    const current = await compareAndSetPublicationState(
+      bucket as unknown as R2Bucket,
+      'nissan-au-ariya',
+      legacy.etag,
+      initialPublicationState({
+        published_revision: 1,
+        published_at: '2026-08-04T01:02:03.000Z',
+        published_by: 'publisher@test',
+      }),
+    )
+    expect(current.value.published_at).toBe('2026-08-04T01:02:03.000Z')
+    expect(current.value.published_by).toBe('publisher@test')
+  })
+
+  it('provides an immutable evidence prefix inside each revision', () => {
+    expect(publicationKeys('nissan-au-ariya', 21).evidencePrefix).toBe(
+      'model-pages/nissan-au-ariya/publication/revisions/21/evidence/',
+    )
+  })
+
   it('rejects malformed state objects rather than using them', async () => {
     const bucket = new MemoryR2Bucket()
     await bucket.put(publicationKeys('nissan-au-ariya').state, JSON.stringify({ schema_version: 2 }))

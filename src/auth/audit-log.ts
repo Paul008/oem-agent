@@ -4,6 +4,21 @@
  */
 
 import type { Context, Next } from 'hono';
+import type { AppEnv } from '../types';
+
+export interface PublicationAuditMetadata {
+  page_id?: string;
+  draft_revision?: number;
+  candidate_revision?: number;
+  published_revision?: number;
+  action?: string;
+}
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    publicationAudit?: PublicationAuditMetadata;
+  }
+}
 
 export interface AuditEntry {
   timestamp: string;
@@ -13,6 +28,19 @@ export interface AuditEntry {
   oem_id?: string;
   status: number;
   ip: string;
+  page_id?: string;
+  draft_revision?: number;
+  candidate_revision?: number;
+  published_revision?: number;
+  action?: string;
+}
+
+/** Attach publication details for the single audit middleware write. */
+export function setPublicationAuditMetadata(
+  context: Context,
+  metadata: PublicationAuditMetadata,
+): void {
+  context.set('publicationAudit', { ...metadata });
 }
 
 export async function logAudit(bucket: R2Bucket, entry: AuditEntry): Promise<void> {
@@ -36,7 +64,7 @@ export async function logAudit(bucket: R2Bucket, entry: AuditEntry): Promise<voi
 }
 
 export function auditMiddleware() {
-  return async (c: Context, next: Next) => {
+  return async (c: Context<AppEnv>, next: Next) => {
     const method = c.req.method;
 
     // Only log state-changing operations
@@ -50,11 +78,12 @@ export function auditMiddleware() {
     // Log after response (non-blocking via waitUntil if available)
     const entry: AuditEntry = {
       timestamp: new Date().toISOString(),
-      user: (c.get('user') as any)?.email || 'unknown',
+      user: c.get('accessUser')?.email || 'unknown',
       method,
       path: new URL(c.req.url).pathname,
       status: c.res.status,
       ip: c.req.header('cf-connecting-ip') || 'unknown',
+      ...(c.get('publicationAudit') || {}),
     };
 
     // Extract oem_id from path if present

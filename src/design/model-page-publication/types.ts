@@ -2,6 +2,9 @@ export interface PublicationState {
   schema_version: 1
   next_revision: number
   published_revision: number | null
+  /** Mutable pointer metadata. Older state objects may omit these fields. */
+  published_at?: string | null
+  published_by?: string | null
   candidate: PublicationCandidateSummary | null
   history: number[]
 }

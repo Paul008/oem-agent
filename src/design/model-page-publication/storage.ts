@@ -50,6 +50,12 @@ export interface PublicationRevisionKeys extends PublicationBaseKeys {
   manifest: string
   body: string
   validation: string
+  evidencePrefix: string
+}
+
+export interface PublicationStateWriteOptions {
+  /** Re-check an external invariant after state preparation and before the conditional put. */
+  beforeWrite?: () => void | Promise<void>
 }
 
 export function publicationKeys(pageId: string): PublicationBaseKeys
@@ -72,6 +78,7 @@ export function publicationKeys(pageId: string, revision?: number): PublicationB
     manifest: `${revisionPrefix}manifest.json`,
     body: `${revisionPrefix}body.html`,
     validation: `${revisionPrefix}validation.json`,
+    evidencePrefix: `${revisionPrefix}evidence/`,
   }
 }
 
@@ -131,12 +138,14 @@ export async function compareAndSetPublicationState(
   pageId: string,
   priorEtag: string | null,
   next: PublicationState,
+  options: PublicationStateWriteOptions = {},
 ): Promise<PublicationStateRecord> {
   const current = await readPublicationState(bucket, pageId)
   const value = normalizePublicationState(next, current?.value.published_revision ?? null)
   const onlyIf: R2PutOptions['onlyIf'] = priorEtag === null
     ? new Headers({ 'if-none-match': '*' })
     : { etagMatches: priorEtag }
+  await options.beforeWrite?.()
   const object = await bucket.put(
     publicationKeys(pageId).state,
     JSON.stringify(value),
@@ -249,6 +258,8 @@ function parsePublicationState(value: unknown): PublicationState {
     || value.schema_version !== 1
     || !isRevision(value.next_revision)
     || !(value.published_revision === null || isRevision(value.published_revision))
+    || !(!('published_at' in value) || value.published_at === null || isString(value.published_at))
+    || !(!('published_by' in value) || value.published_by === null || isString(value.published_by))
     || !Array.isArray(value.history)
     || !value.history.every(isRevision)
     || !(value.candidate === null || isPublicationCandidate(value.candidate))) {
@@ -258,6 +269,8 @@ function parsePublicationState(value: unknown): PublicationState {
     schema_version: 1,
     next_revision: value.next_revision,
     published_revision: value.published_revision,
+    ...('published_at' in value ? { published_at: value.published_at as string | null } : {}),
+    ...('published_by' in value ? { published_by: value.published_by as string | null } : {}),
     candidate: value.candidate === null ? null : { ...value.candidate },
     history: [...value.history],
   }
