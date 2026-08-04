@@ -2750,11 +2750,53 @@ async function publicationRequestBody(c: Context<OemAgentEnv>): Promise<Record<s
   }
 }
 
+export function isAllowedPublicationWebhookUrl(
+  webhookUrl: string,
+  configuredOrigins: string | undefined,
+): boolean {
+  const entries = configuredOrigins?.split(',') || [];
+  if (entries.length === 0) return false;
+
+  let target: URL;
+  try {
+    target = new URL(webhookUrl);
+  }
+  catch {
+    return false;
+  }
+  if (target.protocol !== 'https:' || target.username || target.password) return false;
+
+  const allowedOrigins = new Set<string>();
+  for (const entry of entries) {
+    const value = entry.trim();
+    if (!value) return false;
+    let allowed: URL;
+    try {
+      allowed = new URL(value);
+    }
+    catch {
+      return false;
+    }
+    if (allowed.protocol !== 'https:'
+      || allowed.username
+      || allowed.password
+      || allowed.pathname !== '/'
+      || allowed.search
+      || allowed.hash) return false;
+    allowedOrigins.add(allowed.origin);
+  }
+  return allowedOrigins.has(target.origin);
+}
+
 async function deliverPublicationWebhook(
   input: PublicationWebhookDeliveryInput,
   secret: string | undefined,
+  allowedOrigins: string | undefined,
 ): Promise<{ status: number }> {
   if (!secret) throw new Error('MODEL_PAGE_WEBHOOK_SECRET is not configured');
+  if (!isAllowedPublicationWebhookUrl(input.webhook.url, allowedOrigins)) {
+    throw new Error('Publication webhook URL is not in MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS');
+  }
   const response = await fetch(input.webhook.url, {
     method: 'POST',
     headers: {
@@ -2866,7 +2908,11 @@ app.post('/admin/pages/:pageId/publication/publish', async (c) => {
       actor: c.get('accessUser')?.email || 'unknown',
       loadCurrentPage: requestedPageId => loadCurrentModelPage(c.env.MOLTBOT_BUCKET, requestedPageId),
       hooks: await loadWebhooks(c.env.MOLTBOT_BUCKET),
-      deliverWebhook: input => deliverPublicationWebhook(input, c.env.MODEL_PAGE_WEBHOOK_SECRET),
+      deliverWebhook: input => deliverPublicationWebhook(
+        input,
+        c.env.MODEL_PAGE_WEBHOOK_SECRET,
+        c.env.MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS,
+      ),
     });
     setPublicationAuditMetadata(c, result.audit);
     const { audit: _audit, ...response } = result;
@@ -2899,7 +2945,11 @@ app.post('/admin/pages/:pageId/publication/rollback', async (c) => {
       actor: c.get('accessUser')?.email || 'unknown',
       writeAudit: entry => writeImmutablePublicationTransitionAudit(c.env.MOLTBOT_BUCKET, entry),
       hooks: await loadWebhooks(c.env.MOLTBOT_BUCKET),
-      deliverWebhook: input => deliverPublicationWebhook(input, c.env.MODEL_PAGE_WEBHOOK_SECRET),
+      deliverWebhook: input => deliverPublicationWebhook(
+        input,
+        c.env.MODEL_PAGE_WEBHOOK_SECRET,
+        c.env.MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS,
+      ),
     });
     setPublicationAuditMetadata(c, result.audit);
     const { audit: _audit, ...response } = result;

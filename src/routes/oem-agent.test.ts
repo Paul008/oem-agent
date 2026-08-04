@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { publicationKeys } from '../design/model-page-publication/storage';
 import type { PublicationCandidateSummary, PublicationState } from '../design/model-page-publication/types';
-import oemAgentApp from './oem-agent';
+import oemAgentApp, { isAllowedPublicationWebhookUrl } from './oem-agent';
 
 interface RouteStoredObject {
   body: string;
@@ -934,6 +934,74 @@ describe('oem-agent production HTML route', () => {
 });
 
 describe('oem-agent model page publication admin routes', () => {
+  it.each([
+    ['missing allowlist', undefined, 'https://dealer.test/page-updated'],
+    ['empty allowlist', '', 'https://dealer.test/page-updated'],
+    ['malformed allowlist', 'not a URL', 'https://dealer.test/page-updated'],
+    ['HTTP registered URL', 'https://dealer.test', 'http://dealer.test/page-updated'],
+    ['credential-bearing registered URL', 'https://dealer.test', 'https://user:pass@dealer.test/page-updated'],
+    ['unapproved origin', 'https://other.test', 'https://dealer.test/page-updated'],
+  ])('does not send the webhook secret for %s', async (_case, allowedOrigins, webhookUrl) => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 24 });
+    definitions.seed('config/webhooks.json', [{
+      id: 'dealer-a', url: webhookUrl, events: ['page.updated'], created_at: 'now',
+    }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revision: 21, expectedDraftVersion: 24, validationDigest: readyValidation.digest }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_SECRET: 'must-not-leak',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: allowedOrigins,
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ propagation: 'failed', published_revision: 21 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'http://dealer.test',
+    'https://user:pass@dealer.test',
+    'https://dealer.test/path',
+    'https://dealer.test?token=x',
+    'https://dealer.test#fragment',
+    'https://dealer.test,not a URL',
+  ])('rejects a non-canonical webhook allowlist entry: %s', (allowedOrigins) => {
+    expect(isAllowedPublicationWebhookUrl('https://dealer.test/page-updated', allowedOrigins)).toBe(false);
+  });
+
+  it('canonicalizes the default HTTPS port when matching an approved origin', () => {
+    expect(isAllowedPublicationWebhookUrl(
+      'https://dealer.test:443/page-updated',
+      'https://dealer.test',
+    )).toBe(true);
+  });
+
   it('keeps candidate routes authenticated outside DEV_MODE', async () => {
     const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/candidate', {
       method: 'POST',
@@ -1042,6 +1110,7 @@ describe('oem-agent model page publication admin routes', () => {
       OEM_PAGE_BUCKET: publicationBucket,
       MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
       MODEL_PAGE_WEBHOOK_SECRET: 'route-test-secret',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
       DEV_MODE: 'true',
     } as never);
 
@@ -1111,6 +1180,7 @@ describe('oem-agent model page publication admin routes', () => {
       OEM_PAGE_BUCKET: publicationBucket,
       MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
       MODEL_PAGE_WEBHOOK_SECRET: 'route-test-secret',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
       DEV_MODE: 'true',
     } as never);
 
@@ -1167,6 +1237,7 @@ describe('oem-agent model page publication admin routes', () => {
       MOLTBOT_BUCKET: definitions,
       OEM_PAGE_BUCKET: publicationBucket,
       MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
       DEV_MODE: 'true',
     } as never);
 
@@ -1210,6 +1281,7 @@ describe('oem-agent model page publication admin routes', () => {
       OEM_PAGE_BUCKET: publicationBucket,
       MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
       MODEL_PAGE_WEBHOOK_SECRET: 'route-test-secret',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
       DEV_MODE: 'true',
     } as never);
 

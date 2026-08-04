@@ -11,6 +11,7 @@ export interface MoltbotEnv {
   OEM_PAGE_BUCKET?: R2Bucket; // Explicit page-builder/candidate storage; Nissan never falls back to MOLTBOT_BUCKET
   MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS?: string; // Exact comma-separated publication allowlist
   MODEL_PAGE_WEBHOOK_SECRET?: string; // Shared dealer cache-purge secret; configure with `wrangler secret put`
+  MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS?: string; // Exact comma-separated HTTPS origins allowed to receive the shared secret
   // Cloudflare AI Gateway configuration (preferred)
   CF_AI_GATEWAY_ACCOUNT_ID?: string; // Cloudflare account ID for AI Gateway
   CF_AI_GATEWAY_GATEWAY_ID?: string; // AI Gateway ID
