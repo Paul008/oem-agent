@@ -104,6 +104,19 @@ function positiveInteger(value: unknown): number | null {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function ifNoneMatchMatches(headerValue: string | undefined, etag: string): boolean {
+  if (!headerValue) return false;
+  const normalize = (value: string) => {
+    const trimmed = value.trim();
+    return /^W\//i.test(trimmed) ? trimmed.slice(2).trim() : trimmed;
+  };
+  const expected = normalize(etag);
+  return headerValue.split(',').some((value) => {
+    const candidate = value.trim();
+    return candidate === '*' || normalize(candidate) === expected;
+  });
+}
+
 function getProductionCloneHtml(page: any): string {
   const clone = page?.content?.modes?.clone;
   const editedRendered = clone?.edited_rendered;
@@ -542,7 +555,11 @@ async function servePublishedBody(
       'X-OEM-Published-Revision': String(production.manifest.revision),
       'X-OEM-Body-Only': 'true',
     });
-    return new Response(options.headOnly ? null : production.body.text, { headers });
+    const notModified = ifNoneMatchMatches(c.req.header('If-None-Match'), production.body.etag);
+    return new Response(notModified || options.headOnly ? null : production.body.text, {
+      status: notModified ? 304 : 200,
+      headers,
+    });
   }
   catch (error) {
     return publicationErrorResponse(c, error);
@@ -561,7 +578,7 @@ async function servePublishedManifest(
     if (!production) return null;
     const origin = new URL(c.req.url).origin;
     const bodyUrl = `${origin}/api/v1/oem-agent/pages/${pageId}/production-body-html?revision=${production.manifest.revision}`;
-    return c.json({
+    const manifest = {
       pageId,
       revision: production.manifest.revision,
       format: production.manifest.format,
@@ -571,9 +588,19 @@ async function servePublishedManifest(
       etag: production.manifest.etag,
       body_html_url: bodyUrl,
       mode: 'composed',
-    }, 200, {
+    };
+    const body = JSON.stringify(manifest);
+    const etag = `"sha256-${await sha256Hex(body)}"`;
+    const headers = new Headers({
+      'Content-Type': 'application/json; charset=UTF-8',
       'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
       'X-OEM-Published-Revision': String(production.manifest.revision),
+      'ETag': etag,
+    });
+    const notModified = ifNoneMatchMatches(c.req.header('If-None-Match'), etag);
+    return new Response(notModified ? null : body, {
+      status: notModified ? 304 : 200,
+      headers,
     });
   }
   catch (error) {

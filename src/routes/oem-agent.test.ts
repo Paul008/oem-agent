@@ -513,6 +513,45 @@ describe('oem-agent production HTML route', () => {
     expect(response.headers.get('X-OEM-Published-Revision')).toBe('21');
   });
 
+  it('revalidates the current body alias with normal, weak, and listed If-None-Match values', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+    });
+    const env = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never;
+    const path = '/pages/nissan-au-ariya/production-body-html';
+
+    const first = await oemAgentApp.request(path, {}, env);
+    const etag = first.headers.get('ETag');
+    const conditional = await oemAgentApp.request(path, {
+      headers: { 'If-None-Match': `"stale", W/${etag}` },
+    }, env);
+    const head = await oemAgentApp.request(path, {
+      method: 'HEAD',
+      headers: { 'If-None-Match': etag! },
+    }, env);
+
+    expect(first.status).toBe(200);
+    expect(etag).toMatch(/^"sha256-/);
+    expect(conditional.status).toBe(304);
+    expect(conditional.headers.get('ETag')).toBe(etag);
+    expect(conditional.headers.get('Cache-Control')).toBe(first.headers.get('Cache-Control'));
+    expect(conditional.headers.get('X-OEM-Published-Revision')).toBe('21');
+    expect(await conditional.text()).toBe('');
+    expect(head.status).toBe(conditional.status);
+    expect([...head.headers.entries()]).toEqual([...conditional.headers.entries()]);
+    expect(await head.text()).toBe('');
+  });
+
   it('mirrors the selected revision GET status and headers on HEAD', async () => {
     const publicationBucket = new RouteMemoryR2Bucket();
     await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
@@ -571,6 +610,53 @@ describe('oem-agent production HTML route', () => {
       body_html_url: 'http://localhost/api/v1/oem-agent/pages/nissan-au-ariya/production-body-html?revision=21',
       mode: 'composed',
     });
+  });
+
+  it('uses a content-correct manifest ETag and returns 304 for a matching If-None-Match list', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+      publishedAt: '2026-08-04T03:04:05.000Z',
+    });
+    const env = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never;
+    const path = '/pages/nissan-au-ariya/production-manifest';
+
+    const first = await oemAgentApp.request(path, {}, env);
+    const firstEtag = first.headers.get('ETag');
+    const firstBody = await first.json() as { etag: string };
+    const matching = await oemAgentApp.request(path, {
+      headers: { 'If-None-Match': `"stale", W/${firstEtag}` },
+    }, env);
+
+    expect(first.status).toBe(200);
+    expect(firstEtag).toMatch(/^"sha256-/);
+    expect(firstEtag).not.toBe(firstBody.etag);
+    expect(matching.status).toBe(304);
+    expect(matching.headers.get('ETag')).toBe(firstEtag);
+    expect(matching.headers.get('Cache-Control')).toBe(first.headers.get('Cache-Control'));
+    expect(matching.headers.get('X-OEM-Published-Revision')).toBe('21');
+    expect(await matching.text()).toBe('');
+
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+      publishedAt: '2026-08-04T04:05:06.000Z',
+    });
+    const changed = await oemAgentApp.request(path, {
+      headers: { 'If-None-Match': firstEtag! },
+    }, env);
+    expect(changed.status).toBe(200);
+    expect(changed.headers.get('ETag')).not.toBe(firstEtag);
   });
 
   it('rejects invalid or unpublished explicit revisions without exposing candidates', async () => {
