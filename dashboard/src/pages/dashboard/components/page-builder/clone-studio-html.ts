@@ -491,6 +491,13 @@ export function buildCloneStudioHtml(options: CloneStudioHtmlOptions): string {
       video {
         height: auto !important;
       }
+
+      .full-viewport-height img.inview-background-img,
+      .full-viewport-height img.js-background {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+      }
     }
   </style>
   <script>

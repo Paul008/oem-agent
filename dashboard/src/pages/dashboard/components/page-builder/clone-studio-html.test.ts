@@ -247,6 +247,28 @@ describe('buildCloneStudioHtml', () => {
     expect(head).toMatch(/img,[\s\S]*picture[\s\S]*max-width:\s*100%\s*!important/i)
   })
 
+  it('keeps full-viewport immersive background images at the section height on desktop', () => {
+    const html = buildCloneStudioHtml({
+      rendered: `
+        <main>
+          <div class="full-viewport-height">
+            <img class="inview-background-img js-background" src="/media/pages/assets/nissan-au/ariya/ride.jpg" alt="">
+          </div>
+          <img class="content-image" src="/media/pages/assets/nissan-au/ariya/detail.jpg" alt="ARIYA detail">
+        </main>
+      `,
+      title: 'ARIYA',
+      baseHref: 'https://www.nissan.com.au/vehicles/browse-range/ariya.html',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const head = extractDocumentHead(html)
+    expect(head).toMatch(/@media \(min-width:\s*1024px\)[\s\S]*img,[\s\S]*video[\s\S]*height:\s*auto\s*!important/i)
+    expect(head).toMatch(/\.full-viewport-height img\.inview-background-img,[\s\S]*\.full-viewport-height img\.js-background[\s\S]*height:\s*100%\s*!important/i)
+    expect(head).toMatch(/\.full-viewport-height img\.inview-background-img,[\s\S]*object-fit:\s*cover\s*!important/i)
+  })
+
   it('collapses empty OEM feature-app loader shells without hiding populated modules', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main><section class="featureAppSection"><div class="CmsFeatureAppLoader"></div></section></main>',
