@@ -1,3 +1,9 @@
+import type {
+  PublicationCandidateResponse,
+  PublicationHistoryResponse,
+  PublicationTransitionResponse,
+  PublishModelPagePublicationInput,
+} from '@/lib/model-page-publication'
 import type { Recipe } from '@/lib/recipes'
 
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
@@ -35,6 +41,21 @@ export async function workerFetch(path: string, options?: WorkerFetchOptions) {
     throw new Error(`Expected JSON from ${path} but got ${contentType || 'unknown'}: ${text.slice(0, 200)}`)
   }
   return res.json()
+}
+
+export async function workerTextFetch(path: string, options?: WorkerFetchOptions): Promise<string> {
+  const { skipAuthHeader, ...fetchOptions } = options ?? {}
+  const headers = await buildWorkerHeaders(fetchOptions.headers, { skipAuthHeader })
+  const res = await fetch(`${WORKER_BASE}${path}`, {
+    credentials: 'include',
+    ...fetchOptions,
+    headers,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'No response body')
+    throw new Error(`Worker API error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return res.text()
 }
 
 async function buildWorkerHeaders(headers?: HeadersInit, options?: { skipAuthHeader?: boolean }) {
@@ -123,6 +144,54 @@ export async function fetchGeneratedPage(slug: string, options?: { includeRender
     params.set('includeModes', 'true')
   const query = params.toString()
   return workerFetch(`/api/v1/oem-agent/pages/${slug}${query ? `?${query}` : ''}`)
+}
+
+function publicationPath(pageId: string, action: string): string {
+  return `/api/v1/oem-agent/admin/pages/${encodeURIComponent(pageId)}/publication/${action}`
+}
+
+export async function fetchModelPagePublicationState(pageId: string): Promise<PublicationHistoryResponse> {
+  return workerFetch(publicationPath(pageId, 'history'))
+}
+
+export async function buildModelPagePublicationCandidate(
+  pageId: string,
+  expectedDraftVersion: number,
+): Promise<PublicationCandidateResponse> {
+  return workerFetch(publicationPath(pageId, 'candidate'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expectedDraftVersion }),
+  })
+}
+
+export async function fetchModelPagePublicationCandidateHtml(
+  pageId: string,
+  revision: number,
+): Promise<string> {
+  return workerTextFetch(`${publicationPath(pageId, 'candidate-html')}?revision=${revision}`)
+}
+
+export async function publishModelPagePublicationCandidate(
+  pageId: string,
+  input: PublishModelPagePublicationInput,
+): Promise<PublicationTransitionResponse> {
+  return workerFetch(publicationPath(pageId, 'publish'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export async function rollbackModelPagePublication(
+  pageId: string,
+  targetRevision: number,
+): Promise<PublicationTransitionResponse> {
+  return workerFetch(publicationPath(pageId, 'rollback'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetRevision }),
+  })
 }
 
 export async function fetchRecipes(oemId: string): Promise<Recipe[]> {

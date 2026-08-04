@@ -4,17 +4,23 @@ import { supabase } from '@/lib/supabase'
 
 import {
   adaptivePipeline,
+  buildModelPagePublicationCandidate,
   clonePage,
   compileTailwindRecipeArtifact,
   createSubpage,
   fetchCompileRunStatus,
   fetchGeneratedPage,
   fetchGeneratedPages,
+  fetchModelPagePublicationCandidateHtml,
+  fetchModelPagePublicationState,
   importLegacyPage,
   mapAndStructurePage,
+  publishModelPagePublicationCandidate,
+  rollbackModelPagePublication,
   saveDealerOverrides,
   updateClonePage,
   updatePageSections,
+  workerTextFetch,
 } from './worker-api'
 
 vi.mock('@/lib/supabase', () => ({
@@ -324,5 +330,142 @@ describe('worker-api protected model page writes', () => {
   ])('blocks %s before making a request', async (_, call) => {
     await expect(call()).rejects.toThrow('protected from dashboard writes')
     expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('worker-api publication requests', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('candidate-html')) {
+          return new Response('<main>Candidate 12</main>', {
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          })
+        }
+        if (url.endsWith('/history')) {
+          return new Response(JSON.stringify({ state: null, history: [] }), {
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+        if (url.endsWith('/candidate')) {
+          return new Response(JSON.stringify({
+            status: 'ready',
+            revision: 12,
+            validation: {
+              publishable: true,
+              blocking: [],
+              warnings: [],
+              viewports: [],
+              digest: 'sha256-validation-12',
+            },
+            state: {
+              schema_version: 1,
+              next_revision: 13,
+              published_revision: 9,
+              published_at: '2026-08-04T08:00:00.000Z',
+              published_by: 'editor@example.com',
+              candidate: {
+                revision: 12,
+                draft_version: 24,
+                status: 'ready',
+                validation_digest: 'sha256-validation-12',
+                created_at: '2026-08-04T08:10:00.000Z',
+                created_by: 'editor@example.com',
+              },
+              history: [9],
+            },
+          }), {
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+        return new Response(JSON.stringify({
+          schema_version: 1,
+          next_revision: 13,
+          published_revision: 9,
+          published_at: '2026-08-04T08:00:00.000Z',
+          published_by: 'editor@example.com',
+          candidate: null,
+          history: [9],
+          propagation: 'delivered',
+        }), {
+          headers: { 'content-type': 'application/json' },
+        })
+      }),
+    )
+  })
+
+  it('maps publication history to the Task 5 admin route', async () => {
+    await fetchModelPagePublicationState('nissan-au-ariya')
+
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(
+      'https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/admin/pages/nissan-au-ariya/publication/history',
+    )
+  })
+
+  it('sends the saved draft version when building a candidate', async () => {
+    await buildModelPagePublicationCandidate('nissan-au-ariya', 24)
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe('https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/admin/pages/nissan-au-ariya/publication/candidate')
+    expect(options?.method).toBe('POST')
+    expect(options?.body).toBe(JSON.stringify({ expectedDraftVersion: 24 }))
+  })
+
+  it('sends the ready candidate identity when publishing', async () => {
+    await publishModelPagePublicationCandidate('nissan-au-ariya', {
+      revision: 12,
+      expectedDraftVersion: 24,
+      validationDigest: 'sha256-validation-12',
+    })
+
+    const [, options] = vi.mocked(fetch).mock.calls[0]
+    expect(options?.method).toBe('POST')
+    expect(options?.body).toBe(JSON.stringify({
+      revision: 12,
+      expectedDraftVersion: 24,
+      validationDigest: 'sha256-validation-12',
+    }))
+  })
+
+  it('sends only the published target revision when rolling back', async () => {
+    await rollbackModelPagePublication('nissan-au-ariya', 9)
+
+    const [, options] = vi.mocked(fetch).mock.calls[0]
+    expect(options?.method).toBe('POST')
+    expect(options?.body).toBe(JSON.stringify({ targetRevision: 9 }))
+  })
+
+  it('fetches candidate HTML with the same session authentication as JSON requests', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: { session: { access_token: 'candidate-token' } },
+    } as any)
+
+    const html = await fetchModelPagePublicationCandidateHtml('nissan-au-ariya', 12)
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    const headers = new Headers(options?.headers)
+    expect(url).toBe('https://oem-agent.adme-dev.workers.dev/api/v1/oem-agent/admin/pages/nissan-au-ariya/publication/candidate-html?revision=12')
+    expect(html).toBe('<main>Candidate 12</main>')
+    expect(headers.get('Authorization')).toBe('Bearer candidate-token')
+    expect(options?.credentials).toBe('include')
+  })
+
+  it('surfaces text-response HTTP status and response details', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        error: 'Ready publication candidate no longer matches',
+        code: 'candidate_conflict',
+      }), {
+        status: 409,
+        headers: { 'content-type': 'application/json' },
+      })),
+    )
+
+    await expect(workerTextFetch('/admin/pages/nissan-au-ariya/publication/candidate-html?revision=12'))
+      .rejects
+      .toThrow('Worker API error 409: {"error":"Ready publication candidate no longer matches","code":"candidate_conflict"}')
   })
 })
