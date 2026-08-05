@@ -805,10 +805,10 @@ export function detectInteractiveRegions(html: string): DetectedInteractiveRegio
 
     const scope = $(el)
     const track = scope.find('*').filter((_j, c) =>
-      /track|wrapper|slides|slide-list|swiper-wrapper|slick-track/i.test(classAttr(c))).first()
+      /track|wrapper|slides|slide-list|slider|swiper-wrapper|slick-track/i.test(classAttr(c))).first()
     if (!track.length) return
 
-    const slides = track.children().filter((_j, c) => /slide|item/i.test(classAttr(c)) || c.attribs?.role === 'group')
+    const slides = track.children().filter((_j, c) => /slide|item|card/i.test(classAttr(c)) || c.attribs?.role === 'group')
     if (slides.length >= 2) {
       regions.push({
         type: 'carousel',

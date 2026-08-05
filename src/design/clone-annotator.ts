@@ -283,12 +283,12 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
         if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
         interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
       } else {
-        const track = root.find('*').filter((_i: number, c: CheerioNode) => /track|wrapper|slides|slide-list|swiper-wrapper|slick-track/i.test(classAttr(c))).first();
+        const track = root.find('*').filter((_i: number, c: CheerioNode) => /track|wrapper|slides|slide-list|slider|swiper-wrapper|slick-track/i.test(classAttr(c))).first();
         track.attr('data-clone-track', '');
-        const slides = track.children().filter((_i: number, c: CheerioNode) => /slide|item/i.test(classAttr(c)) || String(c.attribs?.role ?? '') === 'group');
+        const slides = track.children().filter((_i: number, c: CheerioNode) => /slide|item|card/i.test(classAttr(c)) || String(c.attribs?.role ?? '') === 'group');
         slides.each((i, el) => { $(el).attr('data-clone-slide', String(i)); });
-        const prev = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /prev|previous|arrow-left/i.test(classAttr(c))).first();
-        const next = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /next|arrow-right/i.test(classAttr(c))).first();
+        const prev = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /prev|previous|arrow-left|slide-left/i.test(classAttr(c))).first();
+        const next = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /next|arrow-right|slide-right/i.test(classAttr(c))).first();
         if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
         if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
         interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
