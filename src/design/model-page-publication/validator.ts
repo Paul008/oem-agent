@@ -315,8 +315,24 @@ async function validateTrustedScripts(
   return findings;
 }
 
-async function validateMarkup(label: 'candidate' | 'reference', html: string, expectedRevision: number): Promise<PublicationFinding[]> {
+// Candidate bodies carry multiple MB of inlined scoped OEM CSS. Parsing that into a cheerio
+// DOM (giant text nodes) exceeds the Workers memory limit, so style CONTENTS are hollowed out
+// into an array before parsing and validated one block at a time — only one postcss AST is
+// alive at any moment, and the DOM the structural checks walk stays small.
+const STYLE_SLOT_RE = /^\/\*oem-style-slot:(\d+)\*\/$/;
+
+function extractStyleContents(html: string): { html: string; styles: string[] } {
+  const styles: string[] = [];
+  const hollowed = html.replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (_match, open: string, css: string, close: string) => {
+    const index = styles.push(css) - 1;
+    return `${open}/*oem-style-slot:${index}*/${close}`;
+  });
+  return { html: hollowed, styles };
+}
+
+async function validateMarkup(label: 'candidate' | 'reference', rawHtml: string, expectedRevision: number): Promise<PublicationFinding[]> {
   const findings: PublicationFinding[] = [];
+  const { html, styles } = extractStyleContents(rawHtml);
   const $ = load(html);
   $('iframe,object,embed,base').each((_index, element) => {
     addUnique(findings, finding('unsafe-markup', `${label} body contains forbidden <${element.tagName}> markup`));
@@ -350,18 +366,30 @@ async function validateMarkup(label: 'candidate' | 'reference', html: string, ex
       addUnique(findings, finding('unsafe-protocol', `${label} body contains an unsafe CSS URL protocol`));
     }
   });
+  const bodyStyleSlots: number[] = [];
   $('body style').each((_index, element) => {
-    if (!styleIsScoped($(element).text())) {
+    const slotMatch = STYLE_SLOT_RE.exec($(element).text().trim());
+    if (slotMatch) {
+      bodyStyleSlots.push(Number(slotMatch[1]));
+    } else {
+      // A style tag whose content did not round-trip through the extractor cannot be verified.
       addUnique(findings, finding('unscoped-style', `${label} body contains a style block outside the publication scope`));
     }
   });
+  for (const slot of bodyStyleSlots) {
+    // Sequential on purpose: one postcss AST at a time keeps peak memory bounded.
+    if (!styleIsScoped(styles[slot] ?? '')) {
+      addUnique(findings, finding('unscoped-style', `${label} body contains a style block outside the publication scope`));
+    }
+  }
   findings.push(...await validateTrustedScripts(label, $, expectedRevision));
   return findings;
 }
 
 function validateRegions(candidate: ComposedPublicationCandidate): PublicationFinding[] {
   const findings: PublicationFinding[] = [];
-  const $ = load(candidate.body);
+  // Region checks are structural only — hollow out style contents to keep the DOM small.
+  const $ = load(extractStyleContents(candidate.body).html);
   const declared = new Set<string>();
   for (const region of candidate.regions) {
     const regionId = region.regionId.trim();
