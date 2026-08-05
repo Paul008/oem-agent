@@ -288,3 +288,32 @@ describe('annotateCloneInteractions', () => {
     expect(result.html).not.toContain('<script')
   })
 })
+
+describe('Nissan wds-carousel recognition', () => {
+  const nissanCarousel = `
+    <section class="wds-carousel-section" id="wds-carousel">
+      <section class="wds-carousel-container">
+        <ul class="wds-carousel-slider">
+          <li class="active carousel-card" data-id="carousel-card-1">One</li>
+          <li class="active carousel-card" data-id="carousel-card-2">Two</li>
+          <li class="carousel-card" data-id="carousel-card-3">Three</li>
+        </ul>
+        <button class="disabled navigation-arrow slide-left" data-id="carousel-cta-slide-left">‹</button>
+        <button class="navigation-arrow slide-right" data-id="carousel-cta-slide-right">›</button>
+      </section>
+    </section>`;
+
+  it('detects the carousel and stamps slides and both arrows', () => {
+    const result = annotateCloneInteractions(nissanCarousel);
+
+    expect(result.interactions).toHaveLength(1);
+    expect(result.interactions[0].type).toBe('carousel');
+    expect(result.interactions[0].panel_count).toBe(3);
+    expect(result.interactions[0].trigger_count).toBe(2);
+    expect(result.html).toContain('data-clone-slide="0"');
+    expect(result.html).toContain('data-clone-slide="2"');
+    expect(result.html).toContain('data-clone-prev');
+    expect(result.html).toContain('data-clone-next');
+    expect(result.html).toContain('data-clone-track');
+  });
+});
