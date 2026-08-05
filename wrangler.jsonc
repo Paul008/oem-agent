@@ -96,7 +96,7 @@
     "NISSAN_OFFER_ROLLBACK_ENABLED": "false",
     "OPENCLAW_DEV_MODE": "false",
     "MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS": "",
-    "MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS": "",
+    "MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS": "https://dealer-network.pages.dev",
     "R2_BUCKET_NAME": "oem-agent-assets",
     "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
     // Optional: public hostname for dealer/inventory media URLs.
