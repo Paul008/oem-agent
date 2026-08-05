@@ -5,6 +5,7 @@ import {
   scopeCss,
   scopeProductionAssetHtml,
   scopeProductionCloneHtml,
+  scopedCssCacheKey,
 } from './production-css-scope';
 
 const scope = '.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"]';
@@ -255,5 +256,92 @@ describe('scopeProductionCloneHtml', () => {
 
     expect(result.html).toContain('unterminated string');
     expect(result.diagnostics.warnings.length).toBeGreaterThan(0);
+  });
+});
+
+describe('scoped css cache', () => {
+  function memoryCache() {
+    const store = new Map<string, string>();
+    const gets: string[] = [];
+    const puts: string[] = [];
+    return {
+      store,
+      gets,
+      puts,
+      cache: {
+        async get(key: string) {
+          gets.push(key);
+          return store.get(key) ?? null;
+        },
+        async put(key: string, css: string) {
+          puts.push(key);
+          store.set(key, css);
+        },
+      },
+    };
+  }
+
+  const html = '<link rel="stylesheet" href="https://cdn.example.com/site.min.css"><div class="hero">hi</div>';
+
+  it('stores scoped external stylesheets in the cache on first build', async () => {
+    const { cache, store, puts } = memoryCache();
+    const fetchCss = async () => '.hero { color: red; }';
+
+    const result = await scopeProductionAssetHtml(html, { scopeSelector: '.scope', fetchCss, cssCache: cache });
+
+    expect(result.diagnostics.externalStylesheetsScoped).toBe(1);
+    expect(puts).toHaveLength(1);
+    expect([...store.values()][0]).toContain('.scope .hero');
+    expect(result.html).toContain('.scope .hero');
+  });
+
+  it('serves scoped css from the cache without fetching', async () => {
+    const { cache, store } = memoryCache();
+    const key = scopedCssCacheKey('.scope', 'https://cdn.example.com/site.min.css');
+    store.set(key, '.scope .hero { color: cached; }');
+    let fetched = false;
+    const fetchCss = async () => {
+      fetched = true;
+      return '.hero { color: fresh; }';
+    };
+
+    const result = await scopeProductionAssetHtml(html, { scopeSelector: '.scope', fetchCss, cssCache: cache });
+
+    expect(fetched).toBe(false);
+    expect(result.html).toContain('color: cached');
+    expect(result.diagnostics.externalStylesheetsScoped).toBe(1);
+  });
+
+  it('keys the cache by scope selector so pages do not cross-contaminate', () => {
+    expect(scopedCssCacheKey('.a', 'https://cdn.example.com/site.css'))
+      .not.toBe(scopedCssCacheKey('.b', 'https://cdn.example.com/site.css'));
+    expect(scopedCssCacheKey('.a', 'https://cdn.example.com/site.css', 'https://media'))
+      .not.toBe(scopedCssCacheKey('.a', 'https://cdn.example.com/site.css'));
+  });
+
+  it('does not cache stylesheets whose scoping produced warnings', async () => {
+    const { cache, puts } = memoryCache();
+    const fetchCss = async () => '.broken { color: red; ';
+
+    await scopeProductionAssetHtml(html, { scopeSelector: '.scope', fetchCss, cssCache: cache });
+
+    expect(puts).toHaveLength(0);
+  });
+
+  it('treats cache errors as misses', async () => {
+    const failing = {
+      async get() {
+        throw new Error('r2 down');
+      },
+      async put() {
+        throw new Error('r2 down');
+      },
+    };
+    const fetchCss = async () => '.hero { color: red; }';
+
+    const result = await scopeProductionAssetHtml(html, { scopeSelector: '.scope', fetchCss, cssCache: failing });
+
+    expect(result.html).toContain('.scope .hero');
+    expect(result.diagnostics.externalStylesheetsScoped).toBe(1);
   });
 });

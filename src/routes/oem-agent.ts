@@ -37,7 +37,9 @@ import {
   scopeProductionCloneHtml,
   stripProductionHeroHtml,
   type ScopeProductionCloneDiagnostics,
+  type ScopedCssCache,
 } from '../design/production-css-scope';
+import { r2ScopedCssCache } from '../design/scoped-css-cache';
 import { injectCloneRuntimeScript } from '../design/clone-runtime/inject';
 import { productionBodyDocument } from '../design/model-page-publication/composer';
 import {
@@ -199,7 +201,7 @@ async function buildProductionCloneArtifact(
   page: any,
   origin: string,
   slugParts?: { oemId: string; modelSlug: string },
-  options: { bodyOnly?: boolean } = {},
+  options: { bodyOnly?: boolean; cssCache?: ScopedCssCache } = {},
 ): Promise<ProductionCloneArtifact | null> {
   const cloneHtml = getProductionCloneHtml(page);
   const html = options.bodyOnly
@@ -235,6 +237,7 @@ async function buildProductionCloneArtifact(
     ? await scopeProductionCloneHtml(absoluteHtml, {
         ...slugParts,
         baseUrl: typeof baseUrl === 'string' ? baseUrl : undefined,
+        cssCache: options.cssCache,
       })
     : { html: absoluteHtml, diagnostics: null };
   const body = injectCloneRuntimeScript(scoped.html, runtime);
@@ -320,11 +323,44 @@ async function serveProductionCloneArtifact(
     }
   }
 
+  // R2-stored artifact layer: unlike the per-colo Cache API above, this survives across
+  // datacenters and deploys. Keyed by the latest.json etag, so any page edit invalidates it.
+  const sourceFingerprint = sourceObject.httpEtag
+    || sourceObject.etag
+    || (page?.version != null ? `version-${page.version}` : null);
+  const storedArtifactKey = `pages/production-artifacts/${parsed.oemId}/${parsed.modelSlug}/${bodyOnly ? 'body' : 'full'}.html`;
+  if (sourceFingerprint) {
+    try {
+      const stored = await c.env.MOLTBOT_BUCKET.get(storedArtifactKey);
+      if (stored && stored.customMetadata?.sourceFingerprint === sourceFingerprint) {
+        const meta = stored.customMetadata;
+        const headers = new Headers({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+          'ETag': `"sha256-${meta.sha256 || ''}"`,
+          'X-OEM-Content-Bytes': String(stored.size),
+          'X-OEM-Content-SHA256': meta.sha256 || '',
+          'X-OEM-Page-Mode': 'clone',
+          'X-OEM-Page-Version': meta.pageVersion || '',
+          'X-OEM-CSS-Scope': meta.scopeSelector || '',
+          ...(bodyOnly ? { 'X-OEM-Body-Only': 'true' } : {}),
+          'X-OEM-Artifact-Cache': 'R2-HIT',
+        });
+        if (options.headOnly) {
+          return new Response(null, { headers });
+        }
+        return new Response(stored.body, { headers });
+      }
+    } catch (error) {
+      console.warn('[Production Artifact Cache] R2 artifact lookup failed:', error);
+    }
+  }
+
   const artifact = await buildProductionCloneArtifact(
     page,
     new URL(c.req.url).origin,
     parsed,
-    { bodyOnly },
+    { bodyOnly, cssCache: r2ScopedCssCache(c.env.MOLTBOT_BUCKET) },
   );
   if (!artifact) {
     return options.headOnly
@@ -336,6 +372,27 @@ async function serveProductionCloneArtifact(
           slug: `${parsed.oemId}-${parsed.modelSlug}`,
           active_mode: page?.active_mode ?? null,
         }, 409);
+  }
+
+  if (sourceFingerprint) {
+    const storeArtifact = (async () => {
+      await c.env.MOLTBOT_BUCKET.put(storedArtifactKey, artifact.body, {
+        httpMetadata: { contentType: 'text/html; charset=utf-8' },
+        customMetadata: {
+          sourceFingerprint,
+          sha256: artifact.sha256,
+          pageVersion: String(page?.version ?? ''),
+          scopeSelector: artifact.scope?.scopeSelector ?? '',
+        },
+      });
+    })().catch((error: unknown) => {
+      console.warn('[Production Artifact Cache] R2 artifact write failed:', error);
+    });
+    try {
+      c.executionCtx.waitUntil(storeArtifact);
+    } catch {
+      // No execution context (tests, some runtimes): the put still runs, just unanchored.
+    }
   }
 
   const headers = new Headers(productionCloneHtmlHeaders(page, artifact, { bodyOnly }));
@@ -2684,7 +2741,9 @@ app.get('/pages/:slug/production-manifest', async (c) => {
 
   const page = await obj.json() as any;
   const origin = new URL(c.req.url).origin;
-  const artifact = await buildProductionCloneArtifact(page, origin, parsed);
+  const artifact = await buildProductionCloneArtifact(page, origin, parsed, {
+    cssCache: r2ScopedCssCache(c.env.MOLTBOT_BUCKET),
+  });
   if (!artifact) {
     return c.json({
       error: 'Production clone HTML is not available for this page',

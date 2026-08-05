@@ -1,11 +1,17 @@
 import { load } from 'cheerio';
 import postcss from 'postcss';
 
+export interface ScopedCssCache {
+  get: (key: string) => Promise<string | null>;
+  put: (key: string, css: string) => Promise<void>;
+}
+
 export interface ScopeProductionCloneOptions {
   oemId: string;
   modelSlug: string;
   baseUrl?: string;
   fetchCss?: (url: string) => Promise<string | null>;
+  cssCache?: ScopedCssCache;
 }
 
 export interface ScopeProductionCloneDiagnostics {
@@ -29,6 +35,15 @@ export interface ScopeProductionAssetOptions {
   mediaBaseUrl?: string;
   absolutizeInlineCss?: boolean;
   fetchCss?: (url: string) => Promise<string | null>;
+  cssCache?: ScopedCssCache;
+}
+
+// Versioned OEM CDN stylesheets are immutable, so their scoped output is cacheable keyed by
+// (scope selector, stylesheet URL, media base). Persisting each sheet as soon as it is scoped
+// means a request that dies mid-build (Workers CPU/memory limits on multi-MB bundles) still
+// makes progress — the next request skips every sheet already cached.
+export function scopedCssCacheKey(scopeSelector: string, href: string, mediaBaseUrl?: string): string {
+  return `${scopeSelector}\n${href}\n${mediaBaseUrl || ''}`;
 }
 
 function attrEscape(value: string): string {
@@ -369,6 +384,14 @@ export async function scopeProductionAssetHtml(html: string, options: ScopeProdu
     const href = stylesheetHref($, element, options.baseUrl);
     if (!href) continue;
 
+    const cacheKey = scopedCssCacheKey(scopeSelector, href, options.mediaBaseUrl);
+    const cachedCss = options.cssCache ? await options.cssCache.get(cacheKey).catch(() => null) : null;
+    if (cachedCss !== null) {
+      $(element).replaceWith(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${cachedCss}</style>`);
+      externalStylesheetsScoped += 1;
+      continue;
+    }
+
     const css = await fetchCss(href);
     if (!css) {
       $(element)
@@ -380,6 +403,10 @@ export async function scopeProductionAssetHtml(html: string, options: ScopeProdu
     }
 
     const scoped = scopeCss(absolutizeCssAssetUrls(css, href, options.mediaBaseUrl), scopeSelector);
+    if (options.cssCache && scoped.warnings.length === 0) {
+      // Awaited (not fire-and-forget) so progress survives a request that later exceeds limits.
+      await options.cssCache.put(cacheKey, scoped.css).catch(() => {});
+    }
     $(element).replaceWith(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${scoped.css}</style>`);
     externalStylesheetsScoped += 1;
     rulesScoped += scoped.rulesScoped;
@@ -408,6 +435,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
     scopeSelector,
     baseUrl: options.baseUrl,
     fetchCss: options.fetchCss,
+    cssCache: options.cssCache,
   });
   const $ = load(`<div data-oem-scope-root="true">${scoped.html}</div>`);
   const root = $('[data-oem-scope-root="true"]').first();

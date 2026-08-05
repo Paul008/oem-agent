@@ -5,6 +5,7 @@ import {
   scopeCss,
   scopeProductionAssetHtml,
   stripProductionHeroHtml,
+  type ScopedCssCache,
 } from '../production-css-scope';
 import { buildCloneRuntimeScript } from '../clone-runtime/clone-runtime';
 
@@ -252,6 +253,7 @@ export async function composePublicationCandidate(input: {
   revision: number;
   page: Record<string, any>;
   origin: string;
+  cssCache?: ScopedCssCache;
 }): Promise<ComposedPublicationCandidate> {
   if (!isPositiveInteger(input.revision)) {
     throw new Error('Publication candidate revision must be a positive integer');
@@ -324,8 +326,8 @@ export async function composePublicationCandidate(input: {
 
   const links = cloneStylesheetLinks(input.page);
   regions.forEach((region, index) => { region.order = index; });
-  const bodyAssets = await scopeProductionAssetHtml(`${links}${regions.map(region => region.html).join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
-  const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true });
+  const bodyAssets = await scopeProductionAssetHtml(`${links}${regions.map(region => region.html).join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true, cssCache: input.cssCache });
+  const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true, cssCache: input.cssCache });
   warnings.push(...bodyAssets.diagnostics.warnings, ...referenceAssets.diagnostics.warnings);
   const parts = slugParts(input.pageId);
   const body = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${bodyAssets.html}</main>`, parts, { candidate: true, revision: input.revision });
