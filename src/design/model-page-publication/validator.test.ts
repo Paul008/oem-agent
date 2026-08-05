@@ -164,29 +164,40 @@ describe('validatePublicationCandidate static gates', () => {
     expect(report.blocking.some(item => item.code === 'invalid-region-id')).toBe(true);
   });
 
-  it('blocks an actual encoded body above 5_242_880 bytes even when candidate metadata understates it', async () => {
-    const candidate = await candidateWith('x'.repeat(5_242_881));
+  it('blocks an actual encoded body above 10_485_760 bytes even when candidate metadata understates it', async () => {
+    const candidate = await candidateWith('x'.repeat(10_485_761));
     candidate.bytes = 1;
     const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
 
     expect(report.blocking.some(item => item.code === 'body-too-large')).toBe(true);
   });
 
-  it('applies the 5_242_880-byte limit independently to the reference body', async () => {
+  it('applies the 10_485_760-byte limit independently to the reference body', async () => {
     const candidate = await candidateWith('safe');
-    candidate.referenceBody = 'x'.repeat(5_242_881);
+    candidate.referenceBody = 'x'.repeat(10_485_761);
     const report = await validatePublicationCandidate(candidate, { browser: {} as Fetcher });
 
     expect(report.blocking.some(item => item.code === 'reference-body-too-large')).toBe(true);
   });
 
-  it.each(['font-face', 'property', 'counter-style', 'page'])('blocks global @%s CSS at-rules', async atRule => {
-    const css = atRule === 'font-face' ? '@font-face{font-family:x;src:url(https://cdn.test/x.woff2)}'
-      : atRule === 'property' ? '@property --x{syntax:"<color>";inherits:false;initial-value:red}'
-        : atRule === 'counter-style' ? '@counter-style x{system:numeric;symbols:"0"}'
-          : '@page{margin:0}';
+  it.each(['property', 'counter-style', 'page'])('blocks global @%s CSS at-rules', async atRule => {
+    const css = atRule === 'property' ? '@property --x{syntax:"<color>";inherits:false;initial-value:red}'
+      : atRule === 'counter-style' ? '@counter-style x{system:numeric;symbols:"0"}'
+        : '@page{margin:0}';
     const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
     expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(true);
+  });
+
+  it('allows global @font-face at-rules — fonts cannot be selector-scoped and only register fonts', async () => {
+    const css = '@font-face{font-family:x;src:url(https://cdn.test/x.woff2)}';
+    const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
+    expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(false);
+  });
+
+  it('allows vendor-prefixed keyframes at-rules', async () => {
+    const css = '@-moz-keyframes spin{from{opacity:0}to{opacity:1}}';
+    const report = await validatePublicationCandidate(await candidateWith(`<style>${css}</style>`), { browser: {} as Fetcher });
+    expect(report.blocking.some(item => item.code === 'unscoped-style')).toBe(false);
   });
 
   it.each([

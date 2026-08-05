@@ -242,10 +242,17 @@ function stripNissanCompatibilityHtml(pageId: string, html: string): string {
   return pageId.startsWith('nissan-au-') ? stripProductionHeroHtml(html).trim() : html;
 }
 
+// Captured clone HTML carries its own data-oem-region-id annotations from the capture
+// annotator. The wrapper div below is the canonical carrier of the region id, so embedded
+// occurrences are renamed — the validator requires each declared id to occur exactly once.
+function demoteEmbeddedRegionIds(html: string): string {
+  return html.replace(/\bdata-oem-region-id(?==)/g, 'data-oem-source-region-id');
+}
+
 function wrapRegion(region: Omit<ComposedRegion, 'html'>, html: string, css?: string): string {
   const selector = `[data-oem-region-id="${region.regionId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
   const scopedCss = css?.trim() ? scopeCss(css, selector).css : '';
-  return `${scopedCss ? `<style data-oem-region-css="true">${scopedCss}</style>` : ''}<div data-oem-region-id="${escapeAttribute(region.regionId)}" data-oem-published-renderer="${region.renderer}" data-oem-interaction-kind="${region.interactionKind}">${html}</div>`;
+  return `${scopedCss ? `<style data-oem-region-css="true">${scopedCss}</style>` : ''}<div data-oem-region-id="${escapeAttribute(region.regionId)}" data-oem-published-renderer="${region.renderer}" data-oem-interaction-kind="${region.interactionKind}">${demoteEmbeddedRegionIds(html)}</div>`;
 }
 
 export async function composePublicationCandidate(input: {
