@@ -1882,3 +1882,64 @@ describe('oem-agent protected model page writes', () => {
     expect(json.error).toContain('protected from admin writes');
   });
 });
+
+describe('oem-agent production embed routes', () => {
+  const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+  const embedPage = {
+    version: 7,
+    content: {
+      modes: {
+        clone: {
+          rendered: '<main><section data-compid="simple-hero-comp">Hero</section><section class="body-copy"><a href="http://mitsubishi.test/warranty">Warranty</a><script>alert(1)</script>Copy</section></main>',
+          stylesheet_urls: ['https://cdn.mitsubishi.test/site.css'],
+          source_url: 'https://www.mitsubishi.test/outlander',
+        },
+      },
+    },
+  };
+
+  it('serves scoped script-free embed HTML without inlining stylesheets', async () => {
+    const bucket = { async get(key: string) { return key === latestKey ? jsonObject(embedPage) : null; } };
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-embed-html', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('class="oem-production-scope"');
+    expect(html).toContain('Copy');
+    expect(html).not.toContain('simple-hero-comp');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('<style');
+    expect(response.headers.get('X-OEM-CSS-Scope')).toContain('data-oem-id="mitsubishi-au"');
+  });
+
+  it('serves concatenated scoped CSS for the page stylesheets', async () => {
+    const stored = new Map<string, string>();
+    const bucket = {
+      async get(key: string) {
+        if (key === latestKey) return jsonObject(embedPage);
+        const cached = stored.get(key);
+        return cached === undefined ? null : { async text() { return cached; } };
+      },
+      async put(key: string, value: string) { stored.set(key, value); },
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('.hero { color: red; }', { headers: { 'content-type': 'text/css' } })));
+
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-embed-css', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    const css = await response.text();
+    expect(css).toContain('.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"] .hero');
+    expect(response.headers.get('Content-Type')).toContain('text/css');
+    expect(stored.size).toBe(1);
+  });
+});
