@@ -190,15 +190,19 @@ function slugParts(pageId: string): { oemId: string; modelSlug: string } {
 }
 
 function assetUrl(value: string, sourceUrl: string | undefined, origin: string): string {
-  if (!value || /^(?:https?:|data:|blob:|#|mailto:|tel:|\/\/)/i.test(value)) return value;
+  if (!value) return value;
+  // Captured OEM markup occasionally carries plain-http links; the publication validator
+  // (rightly) rejects them, so upgrade in place.
+  if (/^http:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
+  if (/^(?:https:|data:|blob:|#|mailto:|tel:|\/\/)/i.test(value)) return value;
   try { return new URL(value, value.startsWith('/media/') ? origin : sourceUrl || origin).href; } catch { return value; }
 }
 
 function absolutizeHtml(html: string, sourceUrl: string | undefined, origin: string): string {
   const $ = load(`<div data-absolute-root>${html}</div>`);
   const root = $('[data-absolute-root]').first();
-  root.find('[src], [poster]').addBack('[src], [poster]').each((_i, element) => {
-    for (const attr of ['src', 'poster']) {
+  root.find('[src], [poster], [href], [action]').addBack('[src], [poster], [href], [action]').each((_i, element) => {
+    for (const attr of ['src', 'poster', 'href', 'action']) {
       const value = $(element).attr(attr);
       if (value) $(element).attr(attr, assetUrl(value, sourceUrl, origin));
     }
@@ -251,6 +255,45 @@ function demoteEmbeddedRegionIds(html: string): string {
   return html.replace(/\bdata-oem-region-id(?==)/g, 'data-oem-source-region-id');
 }
 
+function regionAttrSelector(id: string): string {
+  return `[data-oem-region-id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
+}
+
+type DocumentApi = ReturnType<typeof load>;
+
+/** Replace the first embedded occurrence of any of `ids` with `wrappedHtml`; drop the rest. */
+function replaceRegionInDocument($: DocumentApi, ids: string[], wrappedHtml: string): boolean {
+  let replaced = false;
+  for (const id of ids) {
+    const element = $(regionAttrSelector(id)).first();
+    if (element.length === 0) continue;
+    if (!replaced) {
+      element.replaceWith(wrappedHtml);
+      replaced = true;
+    } else {
+      element.remove();
+    }
+  }
+  return replaced;
+}
+
+/**
+ * Wrap an embedded region element in place with the canonical published wrapper, keeping the
+ * document's (possibly manually edited) markup as the content instead of the capture snapshot.
+ */
+function wrapRegionInDocument($: DocumentApi, id: string, region: Omit<ComposedRegion, 'html'>): boolean {
+  const element = $(regionAttrSelector(id)).first();
+  if (element.length === 0) return false;
+  element.attr('data-oem-source-region-id', id);
+  element.removeAttr('data-oem-region-id');
+  element.wrap(`<div data-oem-region-id="${escapeAttribute(region.regionId)}" data-oem-published-renderer="${region.renderer}" data-oem-interaction-kind="${region.interactionKind}"></div>`);
+  return true;
+}
+
+function removeRegionFromDocument($: DocumentApi, id: string): void {
+  $(regionAttrSelector(id)).remove();
+}
+
 function wrapRegion(region: Omit<ComposedRegion, 'html'>, html: string, css?: string): string {
   const selector = `[data-oem-region-id="${region.regionId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
   const scopedCss = css?.trim() ? scopeCss(css, selector).css : '';
@@ -285,16 +328,38 @@ export async function composePublicationCandidate(input: {
     for (const id of ids) mapped.set(id, section);
   }
 
+  // Full-document scaffold: publication starts from the entire (hero-stripped, hydrated,
+  // absolutized) clone document so un-annotated content is never dropped. Region output is
+  // spliced into it in place; leaves that are not embedded in the document fall back to
+  // being appended in capture order (also the shape unit tests exercise).
+  const fullCloneHtml = [clone.edited_rendered, clone.rendered]
+    .find((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0) || '';
+  const documentHtml = fullCloneHtml
+    ? absolutizeHtml(hydrateProductionInteractions(stripProductionHeroHtml(fullCloneHtml)), sourceUrl, input.origin)
+    : '';
+  const bodyDocument = load(`<div data-oem-doc-root="true">${documentHtml}</div>`);
+  const referenceDocument = load(`<div data-oem-doc-root="true">${documentHtml}</div>`);
+
   const regions: ComposedRegion[] = [];
-  const referenceParts: string[] = [];
+  const appendedBodyParts: string[] = [];
+  const appendedReferenceParts: string[] = [];
   const emitted = new Set<Record<string, any>>();
   const warnings: string[] = [];
   for (const leaf of leaves) {
     let cloneHtml = typeof leaf.html === 'string' ? leaf.html.trim() : '';
     if (!cloneHtml) continue;
-    if (isPlatformRegion(leaf, cloneHtml)) continue;
+    if (isPlatformRegion(leaf, cloneHtml)) {
+      removeRegionFromDocument(bodyDocument, leaf.id);
+      removeRegionFromDocument(referenceDocument, leaf.id);
+      continue;
+    }
     cloneHtml = stripNissanCompatibilityHtml(input.pageId, cloneHtml);
-    if (!cloneHtml) continue;
+    if (!cloneHtml) {
+      // Platform hero/grade-walk leaf: already stripped from the document scaffold too.
+      removeRegionFromDocument(bodyDocument, leaf.id);
+      removeRegionFromDocument(referenceDocument, leaf.id);
+      continue;
+    }
     const section = mapped.get(leaf.id);
     if (section) {
       if (emitted.has(section)) continue;
@@ -310,14 +375,29 @@ export async function composePublicationCandidate(input: {
       regions.push({ ...base, html: wrapped });
       const originalHtml = stripNissanCompatibilityHtml(input.pageId, section._tailwind_original_html || cloneHtml);
       const original = absolutizeHtml(originalHtml, sourceUrl, input.origin);
-      referenceParts.push(wrapRegion({ ...base, renderer: 'clone', interactionKind: interactionKind(original) }, original));
+      const wrappedReference = wrapRegion({ ...base, renderer: 'clone', interactionKind: interactionKind(original) }, original);
+      if (!replaceRegionInDocument(bodyDocument, ids, wrapped)) appendedBodyParts.push(wrapped);
+      if (!replaceRegionInDocument(referenceDocument, ids, wrappedReference)) appendedReferenceParts.push(wrappedReference);
+      continue;
+    }
+    const embeddedBase = {
+      regionId: leaf.id,
+      order: regions.length,
+      renderer: 'clone' as const,
+      interactionKind: interactionKind(cloneHtml, clone.interactions?.find((entry: any) => entry.id === leaf.id)?.type),
+    };
+    if (wrapRegionInDocument(bodyDocument, leaf.id, embeddedBase)) {
+      // Document markup (which carries any manual edits) stays authoritative; the capture
+      // snapshot is only region metadata here.
+      wrapRegionInDocument(referenceDocument, leaf.id, embeddedBase);
+      regions.push({ ...embeddedBase, html: '', fallbackReason: 'No converted structured section' });
       continue;
     }
     cloneHtml = absolutizeHtml(hydrateProductionInteractions(cloneHtml), sourceUrl, input.origin);
-    const base = { regionId: leaf.id, order: regions.length, renderer: 'clone' as const, interactionKind: interactionKind(cloneHtml, clone.interactions?.find((entry: any) => entry.id === leaf.id)?.type) };
-    const wrapped = wrapRegion(base, cloneHtml);
-    regions.push({ ...base, html: wrapped, fallbackReason: 'No converted structured section' });
-    referenceParts.push(wrapped);
+    const wrapped = wrapRegion(embeddedBase, cloneHtml);
+    regions.push({ ...embeddedBase, html: wrapped, fallbackReason: 'No converted structured section' });
+    appendedBodyParts.push(wrapped);
+    appendedReferenceParts.push(wrapped);
   }
 
   const manual = sections.filter((section: any) => cloneRegionIds(section).length === 0 && typeof section._generated_html === 'string')
@@ -329,14 +409,17 @@ export async function composePublicationCandidate(input: {
     const base = { regionId: String(section.id || `manual-${regions.length + 1}`), order: regions.length, renderer: 'tailwind' as const, interactionKind: interactionKind(html, section.type) };
     const wrapped = wrapRegion(base, html, section._generated_css || section._tailwind_leftover_css);
     regions.push({ ...base, html: wrapped });
-    referenceParts.push(wrapped);
+    appendedBodyParts.push(wrapped);
+    appendedReferenceParts.push(wrapped);
   }
-  if (!regions.length) throw new Error('Publication candidate body is empty');
+  const documentBodyHtml = bodyDocument('[data-oem-doc-root="true"]').first().html() || '';
+  const documentReferenceHtml = referenceDocument('[data-oem-doc-root="true"]').first().html() || '';
+  if (!regions.length && !documentBodyHtml.trim()) throw new Error('Publication candidate body is empty');
 
   const links = cloneStylesheetLinks(input.page);
   regions.forEach((region, index) => { region.order = index; });
-  const bodyAssets = await scopeProductionAssetHtml(`${links}${regions.map(region => region.html).join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true, cssCache: input.cssCache });
-  const referenceAssets = await scopeProductionAssetHtml(`${links}${referenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true, cssCache: input.cssCache });
+  const bodyAssets = await scopeProductionAssetHtml(`${links}${documentBodyHtml}${appendedBodyParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true, cssCache: input.cssCache });
+  const referenceAssets = await scopeProductionAssetHtml(`${links}${documentReferenceHtml}${appendedReferenceParts.join('')}`, { scopeSelector: '[data-oem-publication-body="true"]', baseUrl: sourceUrl || input.origin, mediaBaseUrl: input.origin, absolutizeInlineCss: true, cssCache: input.cssCache });
   warnings.push(...bodyAssets.diagnostics.warnings, ...referenceAssets.diagnostics.warnings);
   const parts = slugParts(input.pageId);
   const body = await productionBodyDocument(input.page, `<main data-oem-publication-body="true">${bodyAssets.html}</main>`, parts, { candidate: true, revision: input.revision });
