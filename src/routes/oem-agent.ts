@@ -2754,7 +2754,15 @@ app.get('/pages/:slug/production-embed-html', async (c) => {
     // Never inline external stylesheets into the embed fragment; the host links the CSS.
     fetchCss: async () => null,
   });
-  const body = scoped.html.replace(/<script\b[\s\S]*?<\/script>/gi, '');
+  // Captured ::before/::after pseudos are materialized as [data-oem-pseudo] spans for
+  // CSS-less fidelity, but their inline snapshot lacks font-family — with the real scoped
+  // CSS linked, the genuine pseudo renders and the materialized copy shows as a tofu
+  // duplicate inside icon elements. Hide those duplicates.
+  const pseudoDupeFix = `<style data-oem-embed-fixups="true">${scoped.diagnostics.scopeSelector} [class*="icon"] > [data-oem-pseudo]{display:none !important}</style>`;
+  // Injected INSIDE the scope root: hosts verify the fragment starts with the scope div.
+  const scriptFree = scoped.html.replace(/<script\b[\s\S]*?<\/script>/gi, '');
+  const rootOpenEnd = scriptFree.indexOf('>') + 1;
+  const body = scriptFree.slice(0, rootOpenEnd) + pseudoDupeFix + scriptFree.slice(rootOpenEnd);
 
   return new Response(body, {
     headers: {
