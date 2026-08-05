@@ -90,7 +90,9 @@ export function publicationResizeScript(identity: PublicationResizeIdentity): st
     modelSlug: identity.modelSlug,
     ...(identity.revision === undefined ? {} : { revision: identity.revision }),
   }).replace(/</g, '\\u003c');
-  return `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`;
+  // Revision-stamped bodies also post the legacy message shape (no revision key): deployed
+  // dealer hosts validate the height message strictly and ignore the shape with the extra field.
+  return `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;const{revision,...legacy}=message;if(revision!==undefined)parent.postMessage({...legacy,height},'*');parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`;
 }
 
 function matchesPublicationResizeScript(body: string, expectedRevision?: number): boolean {
