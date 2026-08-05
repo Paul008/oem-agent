@@ -45,7 +45,7 @@ import {
 } from '../design/production-css-scope';
 import { r2ScopedCssCache } from '../design/scoped-css-cache';
 import { injectCloneRuntimeScript } from '../design/clone-runtime/inject';
-import { productionBodyDocument } from '../design/model-page-publication/composer';
+import { PUBLICATION_INTERACTION_SCRIPT, productionBodyDocument } from '../design/model-page-publication/composer';
 import {
   PublicationServiceConflictError,
   PublicationServiceNotFoundError,
@@ -2771,6 +2771,41 @@ app.get('/pages/:slug/production-embed-html', async (c) => {
       'X-OEM-Page-Mode': 'clone',
       'X-OEM-Page-Version': String(page?.version ?? ''),
       'X-OEM-CSS-Scope': scoped.diagnostics.scopeSelector,
+    },
+  });
+});
+
+/**
+ * GET /api/v1/oem-agent/pages/:slug/production-embed-js
+ * Clone interaction runtime (Alpine components driving the stamped carousel/tabs/accordion
+ * attributes) plus the FAQ interaction script, for hosts that SSR-inline the embed body.
+ * Alpine only activates stamped elements, which all live inside the scope root.
+ */
+app.get('/pages/:slug/production-embed-js', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  const page = await obj.json() as any;
+  const runtimeJs = page?.content?.modes?.clone?.runtime_js;
+  const parts = [
+    typeof runtimeJs === 'string' && runtimeJs.trim() ? runtimeJs : '',
+    PUBLICATION_INTERACTION_SCRIPT,
+  ].filter(Boolean);
+
+  return new Response(parts.join('\n;\n'), {
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+      'X-OEM-Page-Version': String(page?.version ?? ''),
     },
   });
 });

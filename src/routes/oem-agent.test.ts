@@ -1945,3 +1945,28 @@ describe('oem-agent production embed routes', () => {
     expect(stored.size).toBe(1);
   });
 });
+
+describe('oem-agent production embed runtime route', () => {
+  it('serves the clone runtime plus FAQ interaction script', async () => {
+    const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+    const bucket = {
+      async get(key: string) {
+        return key === latestKey
+          ? jsonObject({ version: 3, content: { modes: { clone: { rendered: '<main>x</main>', runtime_js: 'window.__cloneRuntime = true;' } } } })
+          : null;
+      },
+    };
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-embed-js', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('javascript');
+    const js = await response.text();
+    expect(js).toContain('window.__cloneRuntime = true;');
+    expect(js).toContain('data-oem-faq-trigger');
+  });
+});
