@@ -232,7 +232,14 @@ async function servePageAsset(c: any) {
   const r2Key = `pages/assets/${oemId}/${modelSlug}/${filename}`;
   const bucket = (c.env as any).MOLTBOT_BUCKET as R2Bucket;
 
-  const obj = await bucket.get(r2Key);
+  let obj = await bucket.get(r2Key);
+  if (!obj && /\.ximg\./.test(filename)) {
+    // Nissan responsive srcset variants carry .ximg.<size>.smart[.jpg] suffixes that the
+    // capture never mirrors — only the base asset exists in R2. Serve the base asset so
+    // <picture> sources resolve instead of 404ing (the browser scales it).
+    const baseFilename = filename.replace(/\.ximg\..*$/, '');
+    obj = await bucket.get(`pages/assets/${oemId}/${modelSlug}/${baseFilename}`);
+  }
   if (!obj) {
     return c.notFound();
   }
