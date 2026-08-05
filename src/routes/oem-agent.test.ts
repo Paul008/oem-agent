@@ -1913,7 +1913,9 @@ describe('oem-agent production embed routes', () => {
     expect(html).toContain('Copy');
     expect(html).not.toContain('simple-hero-comp');
     expect(html).not.toContain('<script');
-    expect(html).not.toContain('<style');
+    expect(html.match(/<style/g) || []).toHaveLength(1);
+    expect(html).toContain('data-oem-embed-fixups');
+    expect(html).toContain('[data-oem-pseudo]{display:none !important}');
     expect(response.headers.get('X-OEM-CSS-Scope')).toContain('data-oem-id="mitsubishi-au"');
   });
 
