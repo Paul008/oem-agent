@@ -305,6 +305,10 @@ export function stripProductionHeroHtml(html: string): string {
   root.find([
     '[data-compid="simple-hero-comp"]',
     '[data-compid="grade-walk-comp"]',
+    // Region snapshots from the capture annotator carry Nissan's data-id component markers
+    // but not data-compid, so the same platform components must match by data-id as well.
+    '[data-id*="cmp_simplehero"]',
+    '[data-id*="cmp_versiongrid"]',
     '[data-oem-section-type="hero"]',
     '[data-section-type="hero"]',
   ].join(',')).remove();
