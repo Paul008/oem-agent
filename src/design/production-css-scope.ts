@@ -42,8 +42,12 @@ export interface ScopeProductionAssetOptions {
 // (scope selector, stylesheet URL, media base). Persisting each sheet as soon as it is scoped
 // means a request that dies mid-build (Workers CPU/memory limits on multi-MB bundles) still
 // makes progress — the next request skips every sheet already cached.
+// Bump the version whenever scoping OUTPUT changes for the same input (e.g. new at-rule
+// stripping) — cached entries are keyed on it, so stale transforms age out automatically.
+const SCOPED_CSS_CACHE_VERSION = 'v2';
+
 export function scopedCssCacheKey(scopeSelector: string, href: string, mediaBaseUrl?: string): string {
-  return `${scopeSelector}\n${href}\n${mediaBaseUrl || ''}`;
+  return `${SCOPED_CSS_CACHE_VERSION}\n${scopeSelector}\n${href}\n${mediaBaseUrl || ''}`;
 }
 
 function attrEscape(value: string): string {
@@ -222,6 +226,16 @@ export function scopeCss(css: string, scope: string): { css: string; rulesScoped
 
   let rulesScoped = 0;
   let rulesSkipped = 0;
+
+  // At-rules that cannot be selector-scoped and are either meaningless inline (@charset, @use)
+  // or would leak styling/requests outside the scope (@page, @import) are stripped entirely.
+  const KEEP_AT_RULES = /^(?:(?:-\w+-)?keyframes|font-face|media|supports|container|layer)$/i;
+  root.walkAtRules((rule) => {
+    if (!KEEP_AT_RULES.test(rule.name)) {
+      rule.remove();
+      rulesSkipped += 1;
+    }
+  });
 
   root.walkRules((rule) => {
     try {

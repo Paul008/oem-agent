@@ -30,7 +30,9 @@ export interface PublicationValidationReport {
 
 export type PublicationValidationOptions = BrowserValidationOptions;
 
-const MAX_BODY_BYTES = 5_242_880;
+// 10MB raw; OEM CDN stylesheets are inlined scoped (Nissan alone contributes ~5MB of CSS) and
+// the artifact gzips to well under 1MB over the wire.
+const MAX_BODY_BYTES = 10_485_760;
 const PLATFORM_REGION = /^(?:hero|variants?|inventory)$/i;
 const PLATFORM_ROLE = /^(?:hero|variants?|inventory)$/i;
 const PLATFORM_COMPID = /(?:hero|grade-walk|variants?|inventory|stock)-(?:section-)?comp/i;
@@ -242,9 +244,12 @@ function styleIsScoped(css: string): boolean {
     let safe = true;
     root.walkAtRules(rule => {
       const name = rule.name.toLowerCase();
-      const isKeyframes = /^(?:-webkit-)?keyframes$/.test(name);
+      const isKeyframes = /^(?:-\w+-)?keyframes$/.test(name);
+      // @font-face cannot be selector-scoped and only registers fonts — it cannot style the
+      // dealer shell, so it is safe to pass through unscoped (Nissan's font CSS is all @font-face).
+      const isFontFace = name === 'font-face';
       const isSafeContainer = ['media', 'supports', 'container', 'layer'].includes(name) && Array.isArray(rule.nodes);
-      if (!isKeyframes && !isSafeContainer) safe = false;
+      if (!isKeyframes && !isFontFace && !isSafeContainer) safe = false;
     });
     root.walkDecls(declaration => {
       if (declaration.parent?.type === 'root') safe = false;
@@ -252,7 +257,7 @@ function styleIsScoped(css: string): boolean {
     root.walkRules(rule => {
       let parent = rule.parent;
       while (parent && parent.type !== 'root') {
-        if (parent.type === 'atrule' && /^(?:-webkit-)?keyframes$/i.test(parent.name)) return;
+        if (parent.type === 'atrule' && /^(?:-\w+-)?keyframes$/i.test(parent.name)) return;
         parent = parent.parent;
       }
       if (!rule.selectors.every(selector => selector.trim().startsWith('[data-oem-publication-body="true"]'))) safe = false;
