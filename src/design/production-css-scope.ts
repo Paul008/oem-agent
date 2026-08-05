@@ -58,6 +58,10 @@ function htmlAttrEscape(value: string): string {
   return attrEscape(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+export function productionCloneScopeSelector(oemId: string, modelSlug: string): string {
+  return `.oem-production-scope[data-oem-id="${attrEscape(oemId)}"][data-model-slug="${attrEscape(modelSlug)}"]`;
+}
+
 function scopeSelectorFor(options: ScopeProductionCloneOptions): string {
   return `.oem-production-scope[data-oem-id="${attrEscape(options.oemId)}"][data-model-slug="${attrEscape(options.modelSlug)}"]`;
 }
@@ -281,7 +285,7 @@ function stylesheetHref($: ReturnType<typeof load>, element: any, baseUrl?: stri
   }
 }
 
-function absolutizeCssAssetUrls(css: string, stylesheetUrl: string, mediaBaseUrl?: string): string {
+export function absolutizeCssAssetUrls(css: string, stylesheetUrl: string, mediaBaseUrl?: string): string {
   return css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote: string, rawUrl: string) => {
     const value = rawUrl.trim();
     if (!value || /^(?:data:|blob:|https?:|\/\/|#)/i.test(value)) {

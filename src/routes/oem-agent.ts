@@ -36,6 +36,10 @@ import {
   hydrateProductionInteractions,
   scopeProductionCloneHtml,
   stripProductionHeroHtml,
+  absolutizeCssAssetUrls,
+  productionCloneScopeSelector,
+  scopeCss,
+  scopedCssCacheKey,
   type ScopeProductionCloneDiagnostics,
   type ScopedCssCache,
 } from '../design/production-css-scope';
@@ -2715,6 +2719,100 @@ app.on('HEAD', '/pages/:slug/production-body-html', async (c) => {
 
   const page = await obj.json() as any;
   return serveProductionCloneArtifact(c, page, obj, parsed, { bodyOnly: true, headOnly: true });
+});
+
+/**
+ * GET /api/v1/oem-agent/pages/:slug/production-embed-html
+ * Hero-stripped, hydrated, selector-scoped clone body markup for SSR inlining on a host
+ * page (SEO-visible, unlike the iframe body). Stylesheets are NOT inlined — pair with
+ * /production-embed-css — and all scripts are removed so the fragment is inert.
+ */
+app.get('/pages/:slug/production-embed-html', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  const page = await obj.json() as any;
+  const html = getProductionCloneHtml(page);
+  if (!html) {
+    return c.json({ error: 'Clone HTML is not available for this page', slug, active_mode: page?.active_mode ?? null }, 409);
+  }
+
+  const origin = new URL(c.req.url).origin;
+  const stripped = hydrateProductionInteractions(stripProductionHeroHtml(html));
+  const scoped = await scopeProductionCloneHtml(absoluteMediaUrls(stripped, origin), {
+    ...parsed,
+    baseUrl: typeof page?.content?.modes?.clone?.source_url === 'string' ? page.content.modes.clone.source_url : page?.source_url,
+    // Never inline external stylesheets into the embed fragment; the host links the CSS.
+    fetchCss: async () => null,
+  });
+  const body = scoped.html.replace(/<script\b[\s\S]*?<\/script>/gi, '');
+
+  return new Response(body, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+      'X-OEM-Page-Mode': 'clone',
+      'X-OEM-Page-Version': String(page?.version ?? ''),
+      'X-OEM-CSS-Scope': scoped.diagnostics.scopeSelector,
+    },
+  });
+});
+
+/**
+ * GET /api/v1/oem-agent/pages/:slug/production-embed-css
+ * Concatenated selector-scoped OEM stylesheets that style /production-embed-html. Served
+ * from the R2 scoped-CSS cache; misses are scoped live and persisted.
+ */
+app.get('/pages/:slug/production-embed-css', async (c) => {
+  const slug = c.req.param('slug');
+  const parsed = parseGeneratedPageSlug(slug);
+  if (!parsed) {
+    return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
+  const obj = await c.env.MOLTBOT_BUCKET.get(key);
+  if (!obj) {
+    return c.json({ error: 'Page not found', slug }, 404);
+  }
+
+  const page = await obj.json() as any;
+  const scope = productionCloneScopeSelector(parsed.oemId, parsed.modelSlug);
+  const cache = r2ScopedCssCache(c.env.MOLTBOT_BUCKET);
+  const parts: string[] = [];
+  for (const url of getProductionCloneStylesheetUrls(page)) {
+    const cacheKey = scopedCssCacheKey(scope, url);
+    let css = await cache.get(cacheKey);
+    if (css === null) {
+      const response = await fetch(url).catch(() => null);
+      const rawCss = response && response.ok ? await response.text() : null;
+      if (!rawCss) continue;
+      const scoped = scopeCss(absolutizeCssAssetUrls(rawCss, url), scope);
+      if (scoped.warnings.length === 0) {
+        await cache.put(cacheKey, scoped.css).catch(() => {});
+      }
+      css = scoped.css;
+    }
+    parts.push(`/* ${url} */\n${css}`);
+  }
+
+  return new Response(parts.join('\n'), {
+    headers: {
+      'Content-Type': 'text/css; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      'X-OEM-Page-Version': String(page?.version ?? ''),
+      'X-OEM-CSS-Scope': scope,
+    },
+  });
 });
 
 /**
