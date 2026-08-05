@@ -1,11 +1,17 @@
 import { load } from 'cheerio';
 import postcss from 'postcss';
 
+export interface ScopedCssCache {
+  get: (key: string) => Promise<string | null>;
+  put: (key: string, css: string) => Promise<void>;
+}
+
 export interface ScopeProductionCloneOptions {
   oemId: string;
   modelSlug: string;
   baseUrl?: string;
   fetchCss?: (url: string) => Promise<string | null>;
+  cssCache?: ScopedCssCache;
 }
 
 export interface ScopeProductionCloneDiagnostics {
@@ -29,6 +35,15 @@ export interface ScopeProductionAssetOptions {
   mediaBaseUrl?: string;
   absolutizeInlineCss?: boolean;
   fetchCss?: (url: string) => Promise<string | null>;
+  cssCache?: ScopedCssCache;
+}
+
+// Versioned OEM CDN stylesheets are immutable, so their scoped output is cacheable keyed by
+// (scope selector, stylesheet URL, media base). Persisting each sheet as soon as it is scoped
+// means a request that dies mid-build (Workers CPU/memory limits on multi-MB bundles) still
+// makes progress — the next request skips every sheet already cached.
+export function scopedCssCacheKey(scopeSelector: string, href: string, mediaBaseUrl?: string): string {
+  return `${scopeSelector}\n${href}\n${mediaBaseUrl || ''}`;
 }
 
 function attrEscape(value: string): string {
@@ -364,10 +379,24 @@ export async function scopeProductionAssetHtml(html: string, options: ScopeProdu
     warnings.push(...scoped.warnings);
   });
 
+  // Scoped stylesheets can total many MB (Nissan's CDN bundles are ~5MB). Splicing that text
+  // into the cheerio DOM and re-serializing it explodes CPU/memory on Workers, so links are
+  // replaced with comment tokens and the CSS is string-spliced into the serialized output.
+  const inlinedStylesheets: string[] = [];
+  const slotToken = (index: number) => `<!--oem-scoped-css-slot:${index}-->`;
   const stylesheetLinks = $('link').toArray();
   for (const element of stylesheetLinks) {
     const href = stylesheetHref($, element, options.baseUrl);
     if (!href) continue;
+
+    const cacheKey = scopedCssCacheKey(scopeSelector, href, options.mediaBaseUrl);
+    const cachedCss = options.cssCache ? await options.cssCache.get(cacheKey).catch(() => null) : null;
+    if (cachedCss !== null) {
+      const slot = inlinedStylesheets.push(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${cachedCss}</style>`) - 1;
+      $(element).replaceWith(slotToken(slot));
+      externalStylesheetsScoped += 1;
+      continue;
+    }
 
     const css = await fetchCss(href);
     if (!css) {
@@ -380,7 +409,12 @@ export async function scopeProductionAssetHtml(html: string, options: ScopeProdu
     }
 
     const scoped = scopeCss(absolutizeCssAssetUrls(css, href, options.mediaBaseUrl), scopeSelector);
-    $(element).replaceWith(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${scoped.css}</style>`);
+    if (options.cssCache && scoped.warnings.length === 0) {
+      // Awaited (not fire-and-forget) so progress survives a request that later exceeds limits.
+      await options.cssCache.put(cacheKey, scoped.css).catch(() => {});
+    }
+    const slot = inlinedStylesheets.push(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${scoped.css}</style>`) - 1;
+    $(element).replaceWith(slotToken(slot));
     externalStylesheetsScoped += 1;
     rulesScoped += scoped.rulesScoped;
     rulesSkipped += scoped.rulesSkipped;
@@ -388,8 +422,12 @@ export async function scopeProductionAssetHtml(html: string, options: ScopeProdu
   }
 
   const root = $('[data-oem-scope-root="true"]').first();
+  let serialized = root.html() || '';
+  for (let index = 0; index < inlinedStylesheets.length; index++) {
+    serialized = serialized.replace(slotToken(index), () => inlinedStylesheets[index]);
+  }
   return {
-    html: root.html() || '',
+    html: serialized,
     diagnostics: {
       scopeSelector,
       styleTagsScoped,
@@ -408,13 +446,11 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
     scopeSelector,
     baseUrl: options.baseUrl,
     fetchCss: options.fetchCss,
+    cssCache: options.cssCache,
   });
-  const $ = load(`<div data-oem-scope-root="true">${scoped.html}</div>`);
-  const root = $('[data-oem-scope-root="true"]').first();
-  root.removeAttr('data-oem-scope-root');
-  root.attr('class', 'oem-production-scope');
-  root.attr('data-oem-id', options.oemId);
-  root.attr('data-model-slug', options.modelSlug);
+  // String-wrap instead of re-parsing: the scoped HTML can be many MB once stylesheets are
+  // inlined, and a second cheerio parse of it exceeds Workers resource limits.
+  const wrapped = `<div class="oem-production-scope" data-oem-id="${htmlAttrEscape(options.oemId)}" data-model-slug="${htmlAttrEscape(options.modelSlug)}">${scoped.html}</div>`;
 
-  return { html: $.html(root), diagnostics: scoped.diagnostics };
+  return { html: wrapped, diagnostics: scoped.diagnostics };
 }

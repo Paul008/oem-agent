@@ -2,6 +2,7 @@ import type {
   PublicationAuditMetadata,
   PublicationTransitionAuditRecord,
 } from '../../auth/audit-log'
+import { r2ScopedCssCache } from '../scoped-css-cache'
 import { composePublicationCandidate } from './composer'
 import {
   PublicationConflictError,
@@ -147,6 +148,7 @@ export async function buildCandidate(input: {
       revision,
       page: input.page,
       origin: input.origin,
+      cssCache: r2ScopedCssCache(input.bucket),
     })
     if (candidate.revision !== revision) {
       throw new Error('Composed publication revision does not match allocated revision')
