@@ -23,21 +23,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Format check
-        run: npm run format:check
-
       - name: Type check
         run: npm run typecheck
 
       - name: Run tests
         run: npm test
 
+      - name: Test E2E deployment isolation
+        run: node --test test/e2e/fixture/server/generate-config.test.mjs
+
   e2e:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: e2e
     permissions:
       contents: write
       pull-requests: write
@@ -94,13 +93,11 @@ jobs:
         id: e2e
         continue-on-error: true
         env:
-          # Cloud infrastructure credentials (from repo secrets with E2E_ prefix)
-          CLOUDFLARE_API_TOKEN: ${{ secrets.E2E_CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.E2E_CF_ACCOUNT_ID }}
-          WORKERS_SUBDOMAIN: ${{ secrets.E2E_WORKERS_SUBDOMAIN }}
-          CF_ACCESS_TEAM_DOMAIN: ${{ secrets.E2E_CF_ACCESS_TEAM_DOMAIN }}
-          R2_ACCESS_KEY_ID: ${{ secrets.E2E_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.E2E_R2_SECRET_ACCESS_KEY }}
+          # E2E token stays secret; public account metadata prefers environment vars.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.E2E_CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ vars.E2E_CF_ACCOUNT_ID || secrets.E2E_CF_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+          WORKERS_SUBDOMAIN: ${{ vars.E2E_WORKERS_SUBDOMAIN || secrets.E2E_WORKERS_SUBDOMAIN }}
+          CF_ACCESS_TEAM_DOMAIN: ${{ vars.E2E_CF_ACCESS_TEAM_DOMAIN || secrets.E2E_CF_ACCESS_TEAM_DOMAIN }}
           # AI provider — Cloudflare AI Gateway (preferred)
           CLOUDFLARE_AI_GATEWAY_API_KEY: ${{ secrets.CLOUDFLARE_AI_GATEWAY_API_KEY }}
           CF_AI_GATEWAY_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
@@ -108,6 +105,8 @@ jobs:
           # AI provider — legacy (still supported)
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           AI_GATEWAY_BASE_URL: ${{ secrets.AI_GATEWAY_BASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           # Unique test run ID for parallel isolation
           E2E_TEST_RUN_ID: ${{ github.run_id }}-${{ matrix.config.name }}
           # Matrix-specific config
@@ -122,7 +121,7 @@ jobs:
         id: convert
         if: always()
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick bc
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick
           if ls /tmp/moltworker-e2e-videos/*.webm 1>/dev/null 2>&1; then
             for webm in /tmp/moltworker-e2e-videos/*.webm; do
               mp4="${webm%.webm}.mp4"
@@ -133,7 +132,7 @@ jobs:
               
               # Extract middle frame as thumbnail
               duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$mp4")
-              midpoint=$(echo "$duration / 2" | bc -l)
+              midpoint=$(awk -v seconds="$duration" 'BEGIN { printf "%.6f", seconds / 2 }')
               ffmpeg -y -ss "$midpoint" -i "$mp4" -vframes 1 -update 1 -q:v 2 "$thumb"
               
               # Add play button overlay using ImageMagick

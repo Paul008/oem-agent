@@ -25,8 +25,5 @@ resource "cloudflare_r2_bucket" "e2e" {
   location   = "WNAM"
 }
 
-# NOTE: Access application is NOT created here because workers.dev domains
-# require the worker to exist first. Instead:
-# - E2E_TEST_MODE=true in the worker skips Access validation
-# - Authentication is done via MOLTBOT_GATEWAY_TOKEN
-# - Service token is created above for potential future use
+# The shell fixture creates the Access application and service-auth policy
+# before deploying the Worker, so the workers.dev hostname is never public.

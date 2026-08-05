@@ -15,6 +15,7 @@
     "test:dashboard": "CI=1 vitest run --config dashboard/vite.config.ts --mode production --pool forks --maxWorkers=1 --minWorkers=1",
     "qa:fidelity": "node scripts/oem-fidelity-report.mjs",
     "qa:preview": "node scripts/preview-battle-test.mjs",
+    "qa:publication": "node scripts/model-page-publication-battle-test.mjs",
     "qa:functional": "node scripts/preview-functional-test.mjs",
     "clone:mitsubishi": "node scripts/clone-mitsubishi-pages.mjs",
     "qa:fidelity:mitsubishi": "node scripts/run-mitsubishi-fidelity.mjs",
@@ -24,7 +25,7 @@
   },
   "dependencies": {
     "@cloudflare/puppeteer": "^1.0.6",
-    "@cloudflare/sandbox": "^0.7.2",
+    "@cloudflare/sandbox": "0.12.4",
     "@supabase/supabase-js": "^2.45.0",
     "cheerio": "^1.0.0",
     "hono": "^4.6.0",

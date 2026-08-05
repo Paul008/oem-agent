@@ -6,8 +6,6 @@
 # - CF_ACCOUNT_ID: Cloudflare account ID
 # - WORKERS_SUBDOMAIN: Your workers.dev subdomain
 # - CF_ACCESS_TEAM_DOMAIN: Cloudflare Access team domain
-# - R2_ACCESS_KEY_ID: R2 access key for bucket mounting
-# - R2_SECRET_ACCESS_KEY: R2 secret key for bucket mounting
 #
 # Optional:
 # - E2E_TEST_RUN_ID: Unique ID for this test run (default: "local")

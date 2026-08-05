@@ -23,12 +23,12 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { cors } from 'hono/cors';
-import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
+import { ContainerProxy, getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
 import { McpSession } from './mcp';
 
 import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
-import { createAccessMiddleware } from './auth';
+import { createAccessMiddleware, isDevMode, isE2ETestMode } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp, cron, media, oemAgent, agentRoutes, dealerApi, specsApi, oemProxy, nissanOfficialAdmin } from './routes';
 import mcpRoutes from './mcp';
@@ -54,7 +54,7 @@ function transformErrorMessage(message: string, host: string): string {
   return message;
 }
 
-export { Sandbox };
+export { ContainerProxy, Sandbox };
 export { McpSession };
 export { BrochureMirrorWorkflow } from './workflows/brochure-mirror';
 
@@ -218,6 +218,7 @@ app.use('*', cors({
     'X-OEM-Content-SHA256',
     'X-OEM-Page-Mode',
     'X-OEM-Page-Version',
+    'X-OEM-Published-Revision',
     'X-OEM-CSS-Scope',
   ],
 }));
@@ -308,7 +309,7 @@ app.use('*', async (c, next) => {
   }
 
   // Skip validation in dev mode
-  if (c.env.DEV_MODE === 'true') {
+  if (isDevMode(c.env) || isE2ETestMode(c.env)) {
     return next();
   }
 

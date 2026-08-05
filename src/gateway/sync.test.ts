@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { syncToR2 } from './sync';
 import {
   createMockEnv,
-  createMockEnvWithR2,
   createMockProcess,
   createMockSandbox,
   suppressConsole,
@@ -13,23 +12,13 @@ describe('syncToR2', () => {
     suppressConsole();
   });
 
-  describe('configuration checks', () => {
-    it('returns error when R2 is not configured', async () => {
-      const { sandbox } = createMockSandbox();
-      const env = createMockEnv();
-
-      const result = await syncToR2(sandbox, env);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('R2 storage is not configured');
-    });
-
+  describe('mount checks', () => {
     it('returns error when mount fails', async () => {
       const { sandbox, startProcessMock, mountBucketMock } = createMockSandbox();
       startProcessMock.mockResolvedValue(createMockProcess(''));
       mountBucketMock.mockRejectedValue(new Error('Mount failed'));
 
-      const env = createMockEnvWithR2();
+      const env = createMockEnv();
 
       const result = await syncToR2(sandbox, env);
 
@@ -46,7 +35,7 @@ describe('syncToR2', () => {
         .mockResolvedValueOnce(createMockProcess('', { exitCode: 1 })) // No openclaw.json
         .mockResolvedValueOnce(createMockProcess('', { exitCode: 1 })); // No clawdbot.json either
 
-      const env = createMockEnvWithR2();
+      const env = createMockEnv();
 
       const result = await syncToR2(sandbox, env);
 
@@ -67,7 +56,7 @@ describe('syncToR2', () => {
         .mockResolvedValueOnce(createMockProcess(''))
         .mockResolvedValueOnce(createMockProcess(timestamp));
 
-      const env = createMockEnvWithR2();
+      const env = createMockEnv({ CF_ACCOUNT_ID: undefined });
 
       const result = await syncToR2(sandbox, env);
 
@@ -85,7 +74,7 @@ describe('syncToR2', () => {
         .mockResolvedValueOnce(createMockProcess('', { exitCode: 1 }))
         .mockResolvedValueOnce(createMockProcess(''));
 
-      const env = createMockEnvWithR2();
+      const env = createMockEnv();
 
       const result = await syncToR2(sandbox, env);
 
@@ -103,7 +92,7 @@ describe('syncToR2', () => {
         .mockResolvedValueOnce(createMockProcess(''))
         .mockResolvedValueOnce(createMockProcess(timestamp));
 
-      const env = createMockEnvWithR2();
+      const env = createMockEnv();
 
       await syncToR2(sandbox, env);
 

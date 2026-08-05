@@ -4,6 +4,36 @@
  */
 
 import type { Context, Next } from 'hono';
+import type { AppEnv } from '../types';
+
+export interface PublicationAuditMetadata {
+  page_id?: string;
+  draft_revision?: number;
+  candidate_revision?: number;
+  published_revision?: number;
+  action?: string;
+}
+
+export interface PublicationTransitionAuditRecord {
+  schema_version: 1;
+  intent_id: string;
+  phase: 'intent' | 'outcome';
+  timestamp: string;
+  actor: string;
+  page_id: string;
+  target_revision: number;
+  expected_published_revision: number;
+  current_published_revision: number;
+  outcome?: 'applied' | 'conflict' | 'failed';
+  resulting_published_revision?: number;
+  error?: string;
+}
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    publicationAudit?: PublicationAuditMetadata;
+  }
+}
 
 export interface AuditEntry {
   timestamp: string;
@@ -13,6 +43,19 @@ export interface AuditEntry {
   oem_id?: string;
   status: number;
   ip: string;
+  page_id?: string;
+  draft_revision?: number;
+  candidate_revision?: number;
+  published_revision?: number;
+  action?: string;
+}
+
+/** Attach publication details for the single audit middleware write. */
+export function setPublicationAuditMetadata(
+  context: Context,
+  metadata: PublicationAuditMetadata,
+): void {
+  context.set('publicationAudit', { ...metadata });
 }
 
 export async function logAudit(bucket: R2Bucket, entry: AuditEntry): Promise<void> {
@@ -35,8 +78,22 @@ export async function logAudit(bucket: R2Bucket, entry: AuditEntry): Promise<voi
   });
 }
 
+/** Store a publication transition phase as a write-once object. */
+export async function writeImmutablePublicationTransitionAudit(
+  bucket: R2Bucket,
+  entry: PublicationTransitionAuditRecord,
+): Promise<void> {
+  const date = entry.timestamp.slice(0, 10);
+  const key = `audit/publication-transitions/${date}/${entry.intent_id}-${entry.phase}.json`;
+  const stored = await bucket.put(key, JSON.stringify(entry), {
+    onlyIf: new Headers({ 'if-none-match': '*' }),
+    httpMetadata: { contentType: 'application/json' },
+  });
+  if (!stored) throw new Error('Publication transition audit record already exists');
+}
+
 export function auditMiddleware() {
-  return async (c: Context, next: Next) => {
+  return async (c: Context<AppEnv>, next: Next) => {
     const method = c.req.method;
 
     // Only log state-changing operations
@@ -50,11 +107,12 @@ export function auditMiddleware() {
     // Log after response (non-blocking via waitUntil if available)
     const entry: AuditEntry = {
       timestamp: new Date().toISOString(),
-      user: (c.get('user') as any)?.email || 'unknown',
+      user: c.get('accessUser')?.email || 'unknown',
       method,
       path: new URL(c.req.url).pathname,
       status: c.res.status,
       ip: c.req.header('cf-connecting-ip') || 'unknown',
+      ...(c.get('publicationAudit') || {}),
     };
 
     // Extract oem_id from path if present

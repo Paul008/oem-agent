@@ -9,6 +9,9 @@ export interface MoltbotEnv {
   ASSETS: Fetcher; // Assets binding for admin UI static files
   MOLTBOT_BUCKET: R2Bucket; // R2 bucket for persistent storage
   OEM_PAGE_BUCKET?: R2Bucket; // Explicit page-builder/candidate storage; Nissan never falls back to MOLTBOT_BUCKET
+  MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS?: string; // Exact comma-separated publication allowlist
+  MODEL_PAGE_WEBHOOK_SECRET?: string; // Shared dealer cache-purge secret; configure with `wrangler secret put`
+  MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS?: string; // Exact comma-separated HTTPS origins allowed to receive the shared secret
   // Cloudflare AI Gateway configuration (preferred)
   CF_AI_GATEWAY_ACCOUNT_ID?: string; // Cloudflare account ID for AI Gateway
   CF_AI_GATEWAY_GATEWAY_ID?: string; // AI Gateway ID
@@ -38,11 +41,9 @@ export interface MoltbotEnv {
   CF_ACCESS_AUD?: string; // Application Audience (AUD) tag
   // MCP server authentication
   MCP_AUTH_TOKEN?: string; // Optional dedicated bearer token for MCP clients
-  // R2 credentials for bucket mounting (set via wrangler secret)
-  R2_ACCESS_KEY_ID?: string;
-  R2_SECRET_ACCESS_KEY?: string;
-  R2_BUCKET_NAME?: string; // Override bucket name (default: 'moltbot-data')
-  CF_ACCOUNT_ID?: string; // Cloudflare account ID for R2 endpoint
+  R2_BUCKET_NAME?: string; // Informational bucket name used by container diagnostics
+  CF_ACCOUNT_ID?: string; // Cloudflare account ID used by AI integrations
+  LOCAL_R2_MOUNT?: string; // Exact string "true" enables SDK local-bucket mode
   // Workers AI binding (for quick scan classification)
   AI?: Ai;
   // Vectorize binding (UX knowledge base)

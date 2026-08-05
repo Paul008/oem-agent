@@ -23,6 +23,14 @@ export interface ScopeProductionCloneResult {
   diagnostics: ScopeProductionCloneDiagnostics;
 }
 
+export interface ScopeProductionAssetOptions {
+  scopeSelector: string;
+  baseUrl?: string;
+  mediaBaseUrl?: string;
+  absolutizeInlineCss?: boolean;
+  fetchCss?: (url: string) => Promise<string | null>;
+}
+
 function attrEscape(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
@@ -244,7 +252,7 @@ function stylesheetHref($: ReturnType<typeof load>, element: any, baseUrl?: stri
   }
 }
 
-function absolutizeCssAssetUrls(css: string, stylesheetUrl: string): string {
+function absolutizeCssAssetUrls(css: string, stylesheetUrl: string, mediaBaseUrl?: string): string {
   return css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote: string, rawUrl: string) => {
     const value = rawUrl.trim();
     if (!value || /^(?:data:|blob:|https?:|\/\/|#)/i.test(value)) {
@@ -252,7 +260,7 @@ function absolutizeCssAssetUrls(css: string, stylesheetUrl: string): string {
     }
 
     try {
-      const absolute = new URL(value, stylesheetUrl).href;
+      const absolute = new URL(value, value.startsWith('/media/') && mediaBaseUrl ? mediaBaseUrl : stylesheetUrl).href;
       const delimiter = quote || '"';
       return `url(${delimiter}${absolute}${delimiter})`;
     } catch {
@@ -332,8 +340,8 @@ export function hydrateProductionInteractions(html: string): string {
   return documentRoot.html() || '';
 }
 
-export async function scopeProductionCloneHtml(html: string, options: ScopeProductionCloneOptions): Promise<ScopeProductionCloneResult> {
-  const scopeSelector = scopeSelectorFor(options);
+export async function scopeProductionAssetHtml(html: string, options: ScopeProductionAssetOptions): Promise<ScopeProductionCloneResult> {
+  const scopeSelector = options.scopeSelector;
   const $ = load(`<div data-oem-scope-root="true">${html}</div>`);
   let styleTagsScoped = 0;
   let externalStylesheetsScoped = 0;
@@ -344,7 +352,10 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
   const fetchCss = options.fetchCss || defaultFetchCss;
 
   $('style').each((_index, element) => {
-    const css = $(element).text();
+    const rawCss = $(element).text();
+    const css = options.absolutizeInlineCss && options.baseUrl
+      ? absolutizeCssAssetUrls(rawCss, options.baseUrl, options.mediaBaseUrl)
+      : rawCss;
     const scoped = scopeCss(css, scopeSelector);
     $(element).text(scoped.css);
     styleTagsScoped += 1;
@@ -368,7 +379,7 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
       continue;
     }
 
-    const scoped = scopeCss(absolutizeCssAssetUrls(css, href), scopeSelector);
+    const scoped = scopeCss(absolutizeCssAssetUrls(css, href, options.mediaBaseUrl), scopeSelector);
     $(element).replaceWith(`<style data-oem-scoped-stylesheet-href="${htmlAttrEscape(href)}">${scoped.css}</style>`);
     externalStylesheetsScoped += 1;
     rulesScoped += scoped.rulesScoped;
@@ -377,13 +388,8 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
   }
 
   const root = $('[data-oem-scope-root="true"]').first();
-  root.removeAttr('data-oem-scope-root');
-  root.attr('class', 'oem-production-scope');
-  root.attr('data-oem-id', options.oemId);
-  root.attr('data-model-slug', options.modelSlug);
-
   return {
-    html: $.html(root),
+    html: root.html() || '',
     diagnostics: {
       scopeSelector,
       styleTagsScoped,
@@ -394,4 +400,21 @@ export async function scopeProductionCloneHtml(html: string, options: ScopeProdu
       warnings,
     },
   };
+}
+
+export async function scopeProductionCloneHtml(html: string, options: ScopeProductionCloneOptions): Promise<ScopeProductionCloneResult> {
+  const scopeSelector = scopeSelectorFor(options);
+  const scoped = await scopeProductionAssetHtml(html, {
+    scopeSelector,
+    baseUrl: options.baseUrl,
+    fetchCss: options.fetchCss,
+  });
+  const $ = load(`<div data-oem-scope-root="true">${scoped.html}</div>`);
+  const root = $('[data-oem-scope-root="true"]').first();
+  root.removeAttr('data-oem-scope-root');
+  root.attr('class', 'oem-production-scope');
+  root.attr('data-oem-id', options.oemId);
+  root.attr('data-model-slug', options.modelSlug);
+
+  return { html: $.html(root), diagnostics: scoped.diagnostics };
 }

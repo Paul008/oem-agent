@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+if [ -n "$CLOUDFLARE_AI_GATEWAY_API_KEY" ] && \
+   [ -n "$CF_AI_GATEWAY_ACCOUNT_ID" ] && \
+   [ -n "$CF_AI_GATEWAY_GATEWAY_ID" ]; then
+    exit 0
+fi
+
+if [ -n "$AI_GATEWAY_API_KEY" ] && [ -n "$AI_GATEWAY_BASE_URL" ]; then
+    exit 0
+fi
+
+if [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$OPENAI_API_KEY" ]; then
+    exit 0
+fi
+
+exit 1

@@ -9,11 +9,24 @@ if [ -z "$WORKER_NAME" ]; then
 fi
 
 : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN is required}"
+: "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID is required}"
 
 echo "Deleting worker: $WORKER_NAME" >&2
 
 # Delete the worker using wrangler
 # Use --force to skip confirmation prompt
-npx wrangler delete --name "$WORKER_NAME" --force 2>&1 || true
+if ! npx wrangler delete --name "$WORKER_NAME" --force 2>&1; then
+    echo "Wrangler delete did not succeed; verifying Worker absence directly..." >&2
+fi
+
+# Do not remove Access unless the API confirms the Worker no longer exists.
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME" || true)
+STATUS="${STATUS:-000}"
+if [ "$STATUS" != "404" ]; then
+    echo "Worker deletion could not be verified (HTTP $STATUS): $WORKER_NAME" >&2
+    exit 1
+fi
 
 echo "Worker deleted: $WORKER_NAME" >&2

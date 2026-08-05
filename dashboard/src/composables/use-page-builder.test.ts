@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { adaptivePipeline, fetchGeneratedPage, fetchRecipes } from '@/lib/worker-api'
+import {
+  adaptivePipeline,
+  fetchGeneratedPage,
+  fetchRecipes,
+  updateClonePage,
+  updatePageSections,
+} from '@/lib/worker-api'
 
 import { normalizeStoredMediaUrls, usePageBuilder } from './use-page-builder'
 
@@ -21,6 +27,8 @@ describe('usePageBuilder media URL resolution', () => {
   beforeEach(() => {
     vi.mocked(fetchGeneratedPage).mockReset()
     vi.mocked(fetchRecipes).mockReset()
+    vi.mocked(updateClonePage).mockReset()
+    vi.mocked(updatePageSections).mockReset()
     vi.mocked(fetchRecipes).mockResolvedValue([])
   })
 
@@ -78,6 +86,49 @@ describe('usePageBuilder media URL resolution', () => {
       modelOverride: { provider: 'google_gemini', model: 'gemini-2.5-pro' },
       forceClone: true,
     })
+  })
+
+  it('uses the authoritative server version after saving structured sections', async () => {
+    vi.mocked(fetchGeneratedPage).mockResolvedValueOnce({
+      version: 7,
+      name: 'Ariya',
+      header: { slides: [] },
+      active_mode: 'sections',
+      content: { sections: [{ id: 'hero-1', type: 'hero', heading: 'Original' }] },
+    })
+    vi.mocked(updatePageSections).mockResolvedValueOnce({ success: true, version: 41 })
+    const builder = usePageBuilder()
+
+    await builder.loadPage('nissan-au-ariya')
+    builder.replaceSections([{ id: 'hero-1', type: 'hero', heading: 'Updated' }])
+    await builder.saveSections()
+
+    expect(updatePageSections).toHaveBeenCalled()
+    expect(builder.page.value.version).toBe(41)
+    expect(builder.isDirty.value).toBe(false)
+  })
+
+  it('uses the authoritative server version after saving clone markup', async () => {
+    vi.mocked(fetchGeneratedPage).mockResolvedValueOnce({
+      version: 7,
+      name: 'Ariya',
+      header: { slides: [] },
+      active_mode: 'clone',
+      content: {
+        rendered: '<main>Original clone</main>',
+        sections: [],
+        modes: { clone: { rendered: '<main>Original clone</main>', section_index: [] } },
+      },
+    })
+    vi.mocked(updateClonePage).mockResolvedValueOnce({ success: true, version: 52 })
+    const builder = usePageBuilder()
+
+    await builder.loadPage('nissan-au-ariya')
+    await builder.saveClone('<main>Updated clone</main>')
+
+    expect(updateClonePage).toHaveBeenCalled()
+    expect(builder.page.value.version).toBe(52)
+    expect(builder.isDirty.value).toBe(false)
   })
 
   it('exposes clone-first mode state while keeping structured sections available', () => {

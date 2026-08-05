@@ -51,8 +51,6 @@ fi
 : "${CF_ACCOUNT_ID:?CF_ACCOUNT_ID is required}"
 : "${WORKERS_SUBDOMAIN:?WORKERS_SUBDOMAIN is required}"
 : "${CF_ACCESS_TEAM_DOMAIN:?CF_ACCESS_TEAM_DOMAIN is required}"
-: "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is required}"
-: "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is required}"
 
 # Use timestamp + random suffix for truly unique IDs (avoids conflicts from stale resources)
 export E2E_TEST_RUN_ID="${E2E_TEST_RUN_ID:-$(date +%s)-$(openssl rand -hex 4)}"
@@ -76,14 +74,12 @@ log "Terraform output: $TERRAFORM_OUTPUT"
 # Parse terraform outputs
 WORKER_URL=$(echo "$TERRAFORM_OUTPUT" | jq -r '.worker_url.value')
 WORKER_NAME=$(echo "$TERRAFORM_OUTPUT" | jq -r '.worker_name.value')
-ACCESS_AUD=$(echo "$TERRAFORM_OUTPUT" | jq -r '.access_application_aud.value')
 SERVICE_TOKEN_CLIENT_ID=$(echo "$TERRAFORM_OUTPUT" | jq -r '.service_token_client_id.value')
 SERVICE_TOKEN_CLIENT_SECRET=$(echo "$TERRAFORM_OUTPUT" | jq -r '.service_token_client_secret.value')
 R2_BUCKET=$(echo "$TERRAFORM_OUTPUT" | jq -r '.r2_bucket_name.value')
 
 log "Worker URL: $WORKER_URL"
 log "Worker name: $WORKER_NAME"
-log "Access AUD: $ACCESS_AUD"
 log "Service token client ID: $SERVICE_TOKEN_CLIENT_ID"
 log "R2 bucket: $R2_BUCKET"
 
@@ -98,12 +94,9 @@ echo "$E2E_TEST_RUN_ID" > "$CCTR_FIXTURE_DIR/test-run-id.txt"
 echo "$R2_BUCKET" > "$CCTR_FIXTURE_DIR/r2-bucket-name.txt"
 echo "${WORKER_NAME}-sandbox" > "$CCTR_FIXTURE_DIR/container-name.txt"
 
-# Step 2: Deploy the worker
-log "Step 2: Deploying worker..."
-"$SCRIPT_DIR/deploy" "$TERRAFORM_OUTPUT"
-
-# Step 3: Create Access application (must be after worker exists)
-log "Step 3: Creating Access application..."
+# Step 2: Create Access protection before the public workers.dev hostname exists.
+# If Cloudflare rejects the application, fail closed without deploying a Worker.
+log "Step 2: Creating Access application..."
 SERVICE_TOKEN_ID=$(echo "$TERRAFORM_OUTPUT" | jq -r '.service_token_id.value')
 export CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID"
 ACCESS_OUTPUT=$("$SCRIPT_DIR/create-access-app" "$WORKER_NAME" "$SERVICE_TOKEN_ID")
@@ -113,6 +106,10 @@ echo "$ACCESS_APP_ID" > "$CCTR_FIXTURE_DIR/access-app-id.txt"
 echo "$ACCESS_AUD" > "$CCTR_FIXTURE_DIR/access-aud.txt"
 log "Access app ID: $ACCESS_APP_ID"
 log "Access AUD: $ACCESS_AUD"
+
+# Step 3: Deploy only after Access protects the hostname.
+log "Step 3: Deploying protected worker..."
+"$SCRIPT_DIR/deploy" "$TERRAFORM_OUTPUT"
 
 log "Cloud e2e infrastructure deployed!"
 log "Worker URL: $WORKER_URL"

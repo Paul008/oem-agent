@@ -12,7 +12,7 @@ describe('buildEnvVars', () => {
       TOGETHER_API_KEY: undefined,
     });
     const result = buildEnvVars(env);
-    expect(result).toEqual({});
+    expect(result).toEqual({ MOLTBOT_STORAGE_PATH: '/data/moltbot' });
   });
 
   it('includes ANTHROPIC_API_KEY when set directly', () => {
@@ -150,6 +150,13 @@ describe('buildEnvVars', () => {
     expect(result.CF_ACCOUNT_ID).toBe('acct-123');
   });
 
+  it('uses the mounted filesystem path without injecting R2 credentials', () => {
+    const result = buildEnvVars(createMockEnv());
+    expect(result).not.toHaveProperty('R2_ACCESS_KEY_ID');
+    expect(result).not.toHaveProperty('R2_SECRET_ACCESS_KEY');
+    expect(result.MOLTBOT_STORAGE_PATH).toBe('/data/moltbot');
+  });
+
   it('combines all env vars correctly', () => {
     // Override OEM defaults to test only the vars we care about
     const env = createMockEnv({
@@ -167,6 +174,7 @@ describe('buildEnvVars', () => {
       ANTHROPIC_API_KEY: 'sk-key',
       OPENCLAW_GATEWAY_TOKEN: 'token',
       TELEGRAM_BOT_TOKEN: 'tg',
+      MOLTBOT_STORAGE_PATH: '/data/moltbot',
     });
   });
 

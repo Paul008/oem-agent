@@ -600,13 +600,12 @@ export function usePageBuilder() {
     saving.value = true
     try {
       const storedSections = normalizeStoredMediaUrls(sections.value)
-      await updatePageSections(oemId.value, modelSlug.value, storedSections)
+      const result = await updatePageSections(oemId.value, modelSlug.value, storedSections)
       if (page.value?.content)
         page.value.content.sections = storedSections
       isDirty.value = false
-      // Bump version locally
       if (page.value)
-        page.value.version = (page.value.version || 0) + 1
+        page.value.version = result.version
     }
     catch (err: any) {
       error.value = err.message || 'Save failed'
@@ -638,7 +637,7 @@ export function usePageBuilder() {
       }
       page.value.content.rendered = editedRendered
       page.value.active_mode = 'clone'
-      page.value.version = result?.version ?? ((page.value.version || 0) + 1)
+      page.value.version = result.version
       isDirty.value = false
       // Drafts are now persisted into section_index; clear so they don't accumulate.
       cloneRegionDrafts.value = []

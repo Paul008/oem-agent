@@ -1,6 +1,148 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import oemAgentApp from './oem-agent';
+import { publicationKeys } from '../design/model-page-publication/storage';
+import type { PublicationCandidateSummary, PublicationState } from '../design/model-page-publication/types';
+import oemAgentApp, { isAllowedPublicationWebhookUrl } from './oem-agent';
+
+interface RouteStoredObject {
+  body: string;
+  etag: string;
+  httpMetadata?: R2HTTPMetadata;
+}
+
+class RouteMemoryR2Bucket {
+  readonly objects = new Map<string, RouteStoredObject>();
+  readonly reads: string[] = [];
+  private etagSequence = 0;
+
+  seed(key: string, value: unknown, contentType = 'application/json'): void {
+    this.objects.set(key, {
+      body: typeof value === 'string' ? value : JSON.stringify(value),
+      etag: `seed-etag-${++this.etagSequence}`,
+      httpMetadata: { contentType },
+    });
+  }
+
+  async get(key: string): Promise<any> {
+    this.reads.push(key);
+    const stored = this.objects.get(key);
+    if (!stored) return null;
+    return {
+      key,
+      etag: stored.etag,
+      httpEtag: `"${stored.etag}"`,
+      httpMetadata: stored.httpMetadata,
+      json: async <T>() => JSON.parse(stored.body) as T,
+      text: async () => stored.body,
+    };
+  }
+
+  async put(key: string, value: unknown, options?: R2PutOptions): Promise<any> {
+    const current = this.objects.get(key);
+    const onlyIf = options?.onlyIf;
+    if (onlyIf instanceof Headers) {
+      if (onlyIf.get('if-none-match') === '*' && current) return null;
+      if (onlyIf.get('if-match') && onlyIf.get('if-match') !== current?.etag) return null;
+    }
+    else if (onlyIf?.etagMatches && onlyIf.etagMatches !== current?.etag) {
+      return null;
+    }
+    const body = typeof value === 'string' ? value : String(value);
+    const stored = {
+      body,
+      etag: `put-etag-${++this.etagSequence}`,
+      httpMetadata: options?.httpMetadata instanceof Headers ? undefined : options?.httpMetadata,
+    };
+    this.objects.set(key, stored);
+    return { key, etag: stored.etag };
+  }
+
+  async list(options?: R2ListOptions): Promise<any> {
+    const prefix = options?.prefix || '';
+    return {
+      objects: [...this.objects.entries()]
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([key, value]) => ({ key, etag: value.etag })),
+      delimitedPrefixes: [],
+      truncated: false,
+    };
+  }
+
+  async delete(keys: string | string[]): Promise<void> {
+    for (const key of Array.isArray(keys) ? keys : [keys]) this.objects.delete(key);
+  }
+}
+
+const readyValidation = {
+  publishable: true,
+  blocking: [],
+  warnings: [],
+  viewports: [],
+  digest: '2976d29373b8c5ff8a0057beedcd49f9d2917bd45d2fa76fefdde544275ca74b',
+};
+
+const failedValidation = {
+  publishable: false,
+  blocking: [{ code: 'visual-mismatch', message: 'Candidate mismatch is blocking' }],
+  warnings: [],
+  viewports: [],
+  digest: '62725a008c945bfeed32893595e8bfbb3482c11a0e7d6dfd61986ebbd8a31226',
+};
+
+const publicationRouteEnv = {
+  SUPABASE_URL: 'https://supabase.test',
+  SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+};
+
+async function seedPublicationRevision(
+  bucket: RouteMemoryR2Bucket,
+  pageId: string,
+  revision: number,
+  draftVersion: number,
+  body = `<main data-oem-publication-body="true">Revision ${revision}</main>`,
+): Promise<void> {
+  const keys = publicationKeys(pageId, revision);
+  const bodySha256 = await sha256Hex(body);
+  bucket.seed(keys.body, body, 'text/html; charset=utf-8');
+  bucket.seed(keys.validation, readyValidation);
+  bucket.seed(keys.manifest, {
+    pageId,
+    revision,
+    draftVersion,
+    format: 'composed-html-body',
+    bodyPath: keys.body,
+    publishedAt: null,
+    publishedBy: null,
+    platformRegions: ['hero', 'variants', 'inventory'],
+    etag: `"sha256-${bodySha256}"`,
+    bodyBytes: new TextEncoder().encode(body).byteLength,
+    bodySha256,
+    regionRenderers: [{ regionId: 'features', renderer: 'clone', interactionKind: 'none' }],
+  });
+}
+
+function seedPublicationState(
+  bucket: RouteMemoryR2Bucket,
+  pageId: string,
+  input: {
+    publishedRevision: number | null;
+    history?: number[];
+    nextRevision?: number;
+    candidate?: PublicationCandidateSummary | null;
+    publishedAt?: string | null;
+  },
+): void {
+  const value: PublicationState = {
+    schema_version: 1,
+    next_revision: input.nextRevision || Math.max(1, ...(input.history || []), input.candidate?.revision || 0) + 1,
+    published_revision: input.publishedRevision,
+    published_at: input.publishedAt ?? (input.publishedRevision ? '2026-08-04T01:02:03.000Z' : null),
+    published_by: input.publishedRevision ? 'publisher@test' : null,
+    candidate: input.candidate || null,
+    history: input.history || (input.publishedRevision ? [input.publishedRevision] : []),
+  };
+  bucket.seed(publicationKeys(pageId).state, value);
+}
 
 function jsonObject(value: unknown) {
   return {
@@ -332,6 +474,321 @@ describe('oem-agent production HTML route', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('serves an explicitly selected published revision as an immutable body artifact', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+    });
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html?revision=21', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+    expect(response.headers.get('X-OEM-Published-Revision')).toBe('21');
+    expect(response.headers.get('ETag')).toMatch(/^"sha256-/);
+    expect(await response.text()).toContain('Revision 21');
+  });
+
+  it('serves the current published alias without marking the unversioned URL immutable', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+    });
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: ' nissan-au-ariya ',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=300, stale-while-revalidate=86400');
+    expect(response.headers.get('Cache-Control')).not.toContain('immutable');
+    expect(response.headers.get('X-OEM-Published-Revision')).toBe('21');
+  });
+
+  it('revalidates the current body alias with normal, weak, and listed If-None-Match values', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+    });
+    const env = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never;
+    const path = '/pages/nissan-au-ariya/production-body-html';
+
+    const first = await oemAgentApp.request(path, {}, env);
+    const etag = first.headers.get('ETag');
+    const conditional = await oemAgentApp.request(path, {
+      headers: { 'If-None-Match': `"stale", W/${etag}` },
+    }, env);
+    const head = await oemAgentApp.request(path, {
+      method: 'HEAD',
+      headers: { 'If-None-Match': etag! },
+    }, env);
+
+    expect(first.status).toBe(200);
+    expect(etag).toMatch(/^"sha256-/);
+    expect(conditional.status).toBe(304);
+    expect(conditional.headers.get('ETag')).toBe(etag);
+    expect(conditional.headers.get('Cache-Control')).toBe(first.headers.get('Cache-Control'));
+    expect(conditional.headers.get('X-OEM-Published-Revision')).toBe('21');
+    expect(await conditional.text()).toBe('');
+    expect(head.status).toBe(conditional.status);
+    expect([...head.headers.entries()]).toEqual([...conditional.headers.entries()]);
+    expect(await head.text()).toBe('');
+  });
+
+  it('mirrors the selected revision GET status and headers on HEAD', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+    });
+    const env = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never;
+
+    const get = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html?revision=21', {}, env);
+    const head = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html?revision=21', {
+      method: 'HEAD',
+    }, env);
+
+    expect(head.status).toBe(get.status);
+    expect(head.headers.get('Cache-Control')).toBe(get.headers.get('Cache-Control'));
+    expect(head.headers.get('Content-Type')).toBe(get.headers.get('Content-Type'));
+    expect(head.headers.get('ETag')).toBe(get.headers.get('ETag'));
+    expect(head.headers.get('X-OEM-Published-Revision')).toBe('21');
+    expect(await head.text()).toBe('');
+  });
+
+  it('returns the canonical composed manifest with legacy aliases and pointer publication time', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+      publishedAt: '2026-08-04T03:04:05.000Z',
+    });
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-manifest', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      pageId: 'nissan-au-ariya',
+      revision: 21,
+      format: 'composed-html-body',
+      bodyUrl: 'http://localhost/api/v1/oem-agent/pages/nissan-au-ariya/production-body-html?revision=21',
+      platformRegions: ['hero', 'variants', 'inventory'],
+      publishedAt: '2026-08-04T03:04:05.000Z',
+      body_html_url: 'http://localhost/api/v1/oem-agent/pages/nissan-au-ariya/production-body-html?revision=21',
+      mode: 'composed',
+    });
+  });
+
+  it('uses a content-correct manifest ETag and returns 304 for a matching If-None-Match list', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+      publishedAt: '2026-08-04T03:04:05.000Z',
+    });
+    const env = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never;
+    const path = '/pages/nissan-au-ariya/production-manifest';
+
+    const first = await oemAgentApp.request(path, {}, env);
+    const firstEtag = first.headers.get('ETag');
+    const firstBody = await first.json() as { etag: string };
+    const matching = await oemAgentApp.request(path, {
+      headers: { 'If-None-Match': `"stale", W/${firstEtag}` },
+    }, env);
+
+    expect(first.status).toBe(200);
+    expect(firstEtag).toMatch(/^"sha256-/);
+    expect(firstEtag).not.toBe(firstBody.etag);
+    expect(matching.status).toBe(304);
+    expect(matching.headers.get('ETag')).toBe(firstEtag);
+    expect(matching.headers.get('Cache-Control')).toBe(first.headers.get('Cache-Control'));
+    expect(matching.headers.get('X-OEM-Published-Revision')).toBe('21');
+    expect(await matching.text()).toBe('');
+
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+      publishedAt: '2026-08-04T04:05:06.000Z',
+    });
+    const changed = await oemAgentApp.request(path, {
+      headers: { 'If-None-Match': firstEtag! },
+    }, env);
+    expect(changed.status).toBe(200);
+    expect(changed.headers.get('ETag')).not.toBe(firstEtag);
+  });
+
+  it('rejects invalid or unpublished explicit revisions without exposing candidates', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 23,
+      candidate: {
+        revision: 22,
+        draft_version: 25,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    const env = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never;
+
+    const invalid = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html?revision=latest', {}, env);
+    const candidate = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html?revision=22', {}, env);
+
+    expect(invalid.status).toBe(400);
+    expect(candidate.status).toBe(404);
+  });
+
+  it('keeps allowlisted legacy clone behavior when publication state is absent', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const pageData = {
+      active_mode: 'clone',
+      version: 14,
+      content: { modes: { clone: { rendered: '<main>Legacy ARIYA Clone</main>' } } },
+    };
+    const definitionBucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitionBucket,
+      OEM_PAGE_BUCKET: new RouteMemoryR2Bucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-OEM-Page-Mode')).toBe('clone');
+    expect(await response.text()).toContain('Legacy ARIYA Clone');
+  });
+
+  it('keeps the allowlisted no-publication manifest identical to the legacy manifest', async () => {
+    const latestKey = 'pages/definitions/nissan-au/ariya/latest.json';
+    const pageData = {
+      active_mode: 'clone',
+      version: 14,
+      updated_at: '2026-08-04T01:02:03.000Z',
+      content: { modes: { clone: { rendered: '<main>Legacy ARIYA Clone</main>' } } },
+    };
+    const definitionBucket = {
+      async get(key: string) {
+        return key === latestKey ? jsonObject(pageData) : null;
+      },
+    };
+    const commonEnv = {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitionBucket,
+      DEV_MODE: 'true',
+    };
+
+    const legacy = await oemAgentApp.request('/pages/nissan-au-ariya/production-manifest', {}, commonEnv as never);
+    const allowlisted = await oemAgentApp.request('/pages/nissan-au-ariya/production-manifest', {}, {
+      ...commonEnv,
+      OEM_PAGE_BUCKET: new RouteMemoryR2Bucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+    } as never);
+
+    expect(allowlisted.status).toBe(legacy.status);
+    expect(allowlisted.headers.get('Cache-Control')).toBe(legacy.headers.get('Cache-Control'));
+    expect(await allowlisted.json()).toEqual(await legacy.json());
+  });
+
+  it('never reads publication storage for a page outside the exact allowlist', async () => {
+    const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/pages/mitsubishi-au-outlander/production-body-html', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: {
+        async get(key: string) {
+          return key === latestKey
+            ? jsonObject({ version: 1, content: { modes: { clone: { rendered: '<main>Legacy Outlander</main>' } } } })
+            : null;
+        },
+      },
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-OEM-Page-Mode')).toBe('clone');
+    expect(publicationBucket.reads).toEqual([]);
+  });
+
+  it('returns service unavailable when an allowlisted public request has no publication bucket', async () => {
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(503);
+  });
+
   it('returns production HTML metadata on HEAD without downloading the body', async () => {
     const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';
     const pageData = {
@@ -473,6 +930,512 @@ describe('oem-agent production HTML route', () => {
       generated_at: '2026-06-08T01:02:03.000Z',
     });
     expect(JSON.stringify(body)).not.toContain('Make Your Mark.');
+  });
+});
+
+describe('oem-agent model page publication admin routes', () => {
+  it.each([
+    ['missing allowlist', undefined, 'https://dealer.test/page-updated'],
+    ['empty allowlist', '', 'https://dealer.test/page-updated'],
+    ['malformed allowlist', 'not a URL', 'https://dealer.test/page-updated'],
+    ['HTTP registered URL', 'https://dealer.test', 'http://dealer.test/page-updated'],
+    ['credential-bearing registered URL', 'https://dealer.test', 'https://user:pass@dealer.test/page-updated'],
+    ['unapproved origin', 'https://other.test', 'https://dealer.test/page-updated'],
+  ])('does not send the webhook secret for %s', async (_case, allowedOrigins, webhookUrl) => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 24 });
+    definitions.seed('config/webhooks.json', [{
+      id: 'dealer-a', url: webhookUrl, events: ['page.updated'], created_at: 'now',
+    }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revision: 21, expectedDraftVersion: 24, validationDigest: readyValidation.digest }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_SECRET: 'must-not-leak',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: allowedOrigins,
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ propagation: 'failed', published_revision: 21 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'http://dealer.test',
+    'https://user:pass@dealer.test',
+    'https://dealer.test/path',
+    'https://dealer.test?token=x',
+    'https://dealer.test#fragment',
+    'https://dealer.test,not a URL',
+  ])('rejects a non-canonical webhook allowlist entry: %s', (allowedOrigins) => {
+    expect(isAllowedPublicationWebhookUrl('https://dealer.test/page-updated', allowedOrigins)).toBe(false);
+  });
+
+  it('canonicalizes the default HTTPS port when matching an approved origin', () => {
+    expect(isAllowedPublicationWebhookUrl(
+      'https://dealer.test:443/page-updated',
+      'https://dealer.test',
+    )).toBe(true);
+  });
+
+  it('keeps candidate routes authenticated outside DEV_MODE', async () => {
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/candidate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedDraftVersion: 24 }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: new RouteMemoryR2Bucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'false',
+    } as never);
+
+    expect(response.status).toBe(401);
+  });
+
+  it('allows the Nissan manual editor path and maps a stale saved draft to conflict', async () => {
+    const definitions = new RouteMemoryR2Bucket();
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 25 });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/candidate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedDraftVersion: 24 }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: new RouteMemoryR2Bucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'draft_version_conflict' });
+  });
+
+  it('serves candidate HTML only from the authenticated admin route', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25, '<main>Candidate 22</main>');
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 23,
+      candidate: {
+        revision: 22,
+        draft_version: 25,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/candidate-html?revision=22', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(response.headers.get('X-OEM-Candidate-Revision')).toBe('22');
+    expect(response.headers.get('ETag')).toMatch(/^"sha256-/);
+    expect(await response.text()).toBe('<main>Candidate 22</main>');
+  });
+
+  it('publishes through the service and reports failed webhook propagation without reversing the pointer', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 24 });
+    definitions.seed('config/webhooks.json', [{
+      id: 'dealer-a',
+      url: 'https://dealer.test/page-updated',
+      events: ['page.updated'],
+      created_at: '2026-08-04T00:00:00.000Z',
+    }]);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })));
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revision: 21,
+        expectedDraftVersion: 24,
+        validationDigest: readyValidation.digest,
+      }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_SECRET: 'route-test-secret',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      published_revision: 21,
+      propagation: 'failed',
+    });
+    const state = await (await publicationBucket.get(publicationKeys('nissan-au-ariya').state)).json() as PublicationState;
+    expect(state.published_revision).toBe(21);
+    await vi.waitFor(() => {
+      const auditObjects = [...definitions.objects.entries()]
+        .filter(([key]) => /^audit\/\d{4}-\d{2}-\d{2}\.jsonl$/.test(key));
+      expect(auditObjects).toHaveLength(1);
+      const entries = auditObjects[0][1].body.split('\n').map(line => JSON.parse(line));
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        page_id: 'nissan-au-ariya',
+        draft_revision: 24,
+        candidate_revision: 21,
+        published_revision: 21,
+        action: 'publication.publish',
+      });
+    });
+  });
+
+  it('sends the signed canonical model identity envelope only to a registered webhook', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 24 });
+    definitions.seed('config/webhooks.json', [{
+      id: 'dealer-a',
+      url: 'https://dealer.test/page-updated',
+      events: ['page.updated'],
+      created_at: '2026-08-04T00:00:00.000Z',
+    }]);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => (
+      new Response(null, { status: 204 })
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revision: 21,
+        expectedDraftVersion: 24,
+        validationDigest: readyValidation.digest,
+      }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_SECRET: 'route-test-secret',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ propagation: 'delivered' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://dealer.test/page-updated');
+    expect(init?.redirect).toBe('error');
+    expect(new Headers(init?.headers).get('x-oem-model-page-webhook-secret')).toBe('route-test-secret');
+    expect(new Headers(init?.headers).has('authorization')).toBe(false);
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      event: 'page.updated',
+      oem_code: 'nissan-au',
+      model_slug: 'ariya',
+      data: {
+        page_id: 'nissan-au-ariya',
+        published_revision: 21,
+        action: 'publish',
+      },
+    });
+  });
+
+  it('fails webhook propagation closed without sending when the OEM secret is missing', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 24,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 24 });
+    definitions.seed('config/webhooks.json', [{
+      id: 'dealer-a', url: 'https://dealer.test/page-updated', events: ['page.updated'], created_at: 'now',
+    }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revision: 21, expectedDraftVersion: 24, validationDigest: readyValidation.digest }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ propagation: 'failed', published_revision: 21 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('bounds registered webhook delivery with a five second abort signal', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21, draft_version: 24, status: 'ready', validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z', created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/ariya/latest.json', { version: 24 });
+    definitions.seed('config/webhooks.json', [{
+      id: 'dealer-a', url: 'https://dealer.test/page-updated', events: ['page.updated'], created_at: 'now',
+    }]);
+    const timeoutSignal = AbortSignal.abort(new DOMException('timed out', 'TimeoutError'));
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeoutSignal);
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal?.aborted) throw init.signal.reason;
+      return new Response(null, { status: 204 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revision: 21, expectedDraftVersion: 24, validationDigest: readyValidation.digest }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      MODEL_PAGE_WEBHOOK_SECRET: 'route-test-secret',
+      MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS: 'https://dealer.test',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ propagation: 'failed', published_revision: 21 });
+    expect(timeoutSpy).toHaveBeenCalledWith(5_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns publication state and immutable manifest history', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 23,
+      candidate: {
+        revision: 22,
+        draft_version: 25,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/history', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as { state: PublicationState; history: Array<{ revision: number }> };
+    expect(body).toMatchObject({
+      state: { published_revision: 21 },
+      history: [{ pageId: 'nissan-au-ariya', revision: 21, draftVersion: 24 }],
+    });
+    expect(body.history.map(entry => entry.revision)).toEqual([21]);
+  });
+
+  it('returns canonical failed candidate validation with publication history', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
+    publicationBucket.seed(publicationKeys('nissan-au-ariya', 22).validation, failedValidation);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 23,
+      candidate: {
+        revision: 22,
+        draft_version: 25,
+        status: 'failed',
+        validation_digest: failedValidation.digest,
+        created_at: '2026-08-04T03:04:05.000Z',
+        created_by: 'editor@test',
+      },
+    });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/history', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      state: { candidate: { revision: 22, status: 'failed' } },
+      candidateValidation: {
+        revision: 22,
+        status: 'failed',
+        validation: failedValidation,
+      },
+    });
+  });
+
+  it('rolls production back to a retained published revision', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 22,
+      history: [22, 21],
+      nextRevision: 23,
+    });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/rollback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetRevision: 21, expectedPublishedRevision: 22 }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ published_revision: 21, propagation: 'delivered' });
+    const state = await (await publicationBucket.get(publicationKeys('nissan-au-ariya').state)).json() as PublicationState;
+    expect(state.published_revision).toBe(21);
+  });
+
+  it('rejects a stale rollback expectation with 409 and preserves production', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 21, 24);
+    await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 22,
+      history: [22, 21],
+      nextRevision: 23,
+    });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-ariya/publication/rollback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetRevision: 21, expectedPublishedRevision: 21 }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'published_revision_conflict' });
+    const state = await (await publicationBucket.get(publicationKeys('nissan-au-ariya').state)).json() as PublicationState;
+    expect(state.published_revision).toBe(22);
+  });
+
+  it('returns not found for a known publication revision with missing immutable artifacts', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    seedPublicationState(publicationBucket, 'nissan-au-ariya', {
+      publishedRevision: 21,
+      history: [21],
+      nextRevision: 22,
+    });
+
+    const response = await oemAgentApp.request('/pages/nissan-au-ariya/production-body-html?revision=21', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: throwingBucket(),
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-ariya',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(404);
   });
 });
 

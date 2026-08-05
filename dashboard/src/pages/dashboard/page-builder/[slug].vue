@@ -29,6 +29,7 @@ import { toast } from 'vue-sonner'
 
 import type { CaptureDiagnosticsRecord } from '@/lib/worker-api'
 
+import { useModelPagePublication } from '@/composables/use-model-page-publication'
 import { useOemData } from '@/composables/use-oem-data'
 import { usePageBuilder } from '@/composables/use-page-builder'
 import { describeCaptureStatus } from '@/lib/capture-status'
@@ -46,6 +47,7 @@ import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
 import PageBuilderSidebar from '../components/page-builder/PageBuilderSidebar.vue'
+import PublicationControls from '../components/page-builder/PublicationControls.vue'
 import SectionBrowserDialog from '../components/page-builder/SectionBrowserDialog.vue'
 import SectionCapture from '../components/page-builder/SectionCapture.vue'
 import SectionEditorDialog from '../components/page-builder/SectionEditorDialog.vue'
@@ -127,6 +129,13 @@ const {
   setRegionHeight,
   addCloneRegion,
 } = usePageBuilder()
+
+const publicationPageId = computed(() => (route.params as { slug?: string }).slug ?? null)
+const draftVersion = computed(() => {
+  const version = Number(page.value?.version)
+  return Number.isInteger(version) && version > 0 ? version : null
+})
+const publication = useModelPagePublication({ pageId: publicationPageId, draftVersion })
 
 const themeStore = useThemeStore()
 
@@ -323,12 +332,79 @@ async function saveActiveMode() {
 
   if (activeMode.value === 'clone') {
     const saved = await saveClone(cloneDraftHtml.value ?? cloneHtml.value, cloneRegionsForSave.value)
-    if (saved)
+    if (saved) {
       cloneDraftHtml.value = null
+      if (page.value?.version) {
+        publication.markDraftChanged(page.value.version)
+        try {
+          await publication.refresh()
+        }
+        catch (cause: any) {
+          toast.warning(`Draft saved; publication state could not refresh: ${cause?.message || 'Unknown error'}`)
+        }
+      }
+    }
     return
   }
 
+  const previousVersion = page.value?.version
   await saveSections()
+  if (!isDirty.value && page.value?.version && page.value.version !== previousVersion) {
+    publication.markDraftChanged(page.value.version)
+    try {
+      await publication.refresh()
+    }
+    catch (cause: any) {
+      toast.warning(`Draft saved; publication state could not refresh: ${cause?.message || 'Unknown error'}`)
+    }
+  }
+}
+
+async function refreshPublicationState() {
+  if (!publicationPageId.value)
+    return
+  try {
+    await publication.refresh()
+  }
+  catch (cause: any) {
+    toast.error(`Failed to load publication state: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+async function buildPublicationCandidate() {
+  try {
+    await publication.buildCandidate()
+    toast.success(publication.canPublish.value ? 'Candidate passed validation' : 'Candidate validation needs attention')
+  }
+  catch (cause: any) {
+    toast.error(`Failed to build candidate: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+async function publishCandidate() {
+  try {
+    const response = await publication.publish()
+    toast.success(`Revision ${response.published_revision} is now production`)
+  }
+  catch (cause: any) {
+    toast.error(`Failed to publish candidate: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+async function rollbackPublication(revision: number) {
+  try {
+    await publication.rollback(revision)
+    toast.success(`Production rolled back to revision ${revision}`)
+  }
+  catch (cause: any) {
+    toast.error(`Failed to roll back production: ${cause?.message || 'Unknown error'}`)
+  }
+}
+
+function openCandidatePreview() {
+  const slug = (route.params as { slug?: string }).slug
+  if (slug)
+    window.open(`/preview/${slug}?view=candidate`, '_blank', 'noopener,noreferrer')
 }
 
 function openSourceUrl() {
@@ -506,6 +582,7 @@ onMounted(async () => {
     await loadPage(slug)
     cloneDraftHtml.value = null
     cloneEditorOpen.value = false
+    await refreshPublicationState()
     void loadCaptureDiagnostics()
     void loadMappingPreview()
   }
@@ -920,7 +997,7 @@ watch(
 
         <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden min-[2100px]:block" />
 
-        <!-- Save — always visible -->
+        <!-- Save Draft — persistence stays separate from candidate build and publish -->
         <UiButton
           v-if="canShowSaveAction"
           size="sm"
@@ -930,9 +1007,26 @@ watch(
         >
           <Save v-if="!saving" class="size-3.5 mr-1" />
           <Loader2 v-else class="size-3.5 mr-1 animate-spin" />
-          <span class="hidden sm:inline">Save</span>
+          <span class="hidden sm:inline">Save Draft</span>
           <span v-if="isDirty" class="ml-1 size-1.5 rounded-full bg-amber-400 inline-block" />
         </UiButton>
+
+        <PublicationControls
+          v-if="canShowEditorActions"
+          :draft-version="draftVersion"
+          :published-revision="publication.publishedRevision.value"
+          :candidate-revision="publication.candidate.value?.revision ?? null"
+          :candidate-status="publication.status.value"
+          :can-build="draftVersion != null && !publication.isLoading.value && !saving && !isDirty"
+          :can-publish="publication.canPublish.value && !publication.isLoading.value"
+          :busy="publication.isLoading.value || saving"
+          :validation="publication.validation.value"
+          :history="publication.history.value"
+          @build-candidate="buildPublicationCandidate"
+          @preview-candidate="openCandidatePreview"
+          @publish="publishCandidate"
+          @rollback="rollbackPublication"
+        />
 
         <!-- Source — inline on very wide screens -->
         <a

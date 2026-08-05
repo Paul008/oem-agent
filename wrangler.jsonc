@@ -95,6 +95,8 @@
     "NISSAN_OFFER_PROMOTION_ENABLED": "false",
     "NISSAN_OFFER_ROLLBACK_ENABLED": "false",
     "OPENCLAW_DEV_MODE": "false",
+    "MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS": "",
+    "MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS": "",
     "R2_BUCKET_NAME": "oem-agent-assets",
     "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
     // Optional: public hostname for dealer/inventory media URLs.
@@ -125,6 +127,7 @@
   // APIFY_TOKEN (for actor-based scraping — Toyota, etc.)
   // CDP_SECRET
   // MCP_AUTH_TOKEN (optional dedicated bearer token for MCP clients)
+  // MODEL_PAGE_WEBHOOK_SECRET (shared with the registered dealer webhook receiver)
 
   // Cron Triggers (crawl schedules)
   // Cron Triggers — times in UTC (AEST = UTC + 11 during AEDT / UTC + 10 during AEST)
@@ -159,6 +162,8 @@
         "NISSAN_OFFER_PROMOTION_ENABLED": "false",
         "NISSAN_OFFER_ROLLBACK_ENABLED": "false",
         "OPENCLAW_DEV_MODE": "true",
+        "MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS": "nissan-au-ariya",
+        "MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS": "",
         "R2_BUCKET_NAME": "oem-agent-assets-dev",
         "CF_ACCOUNT_ID": "a5b299b3ad15c1b5b895dc66f9357b17",
         "MEDIA_BASE_URL": "",

@@ -1,74 +1,50 @@
 #!/bin/bash
 # Startup script for OpenClaw in Cloudflare Sandbox
 # This script:
-# 1. Restores config/workspace/skills from R2 via rclone (if configured)
+# 1. Restores config/workspace/skills from the mounted R2 filesystem
 # 2. Runs openclaw onboard --non-interactive to configure from env vars
 # 3. Patches config for features onboard doesn't cover (channels, gateway auth)
-# 4. Starts a background sync loop (rclone, watches for file changes)
+# 4. Starts a background sync loop against the mounted filesystem
 # 5. Starts the gateway
 
 set -e
 
-if pgrep -f "openclaw gateway" > /dev/null 2>&1; then
-    echo "OpenClaw gateway is already running, exiting."
-    exit 0
-fi
-
-CONFIG_DIR="/root/.openclaw"
+CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-/root/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
-WORKSPACE_DIR="/root/clawd"
-SKILLS_DIR="/root/clawd/skills"
-RCLONE_CONF="/root/.config/rclone/rclone.conf"
-LAST_SYNC_FILE="/tmp/.last-sync"
+WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-/root/clawd}"
+SKILLS_DIR="${OPENCLAW_SKILLS_DIR:-$WORKSPACE_DIR/skills}"
+STORAGE_ROOT="${MOLTBOT_STORAGE_PATH:-/data/moltbot}"
+LAST_SYNC_FILE="$STORAGE_ROOT/.last-sync"
 
 echo "Config directory: $CONFIG_DIR"
 
-mkdir -p "$CONFIG_DIR"
-
-# ============================================================
-# RCLONE SETUP
-# ============================================================
-
-r2_configured() {
-    [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ] && [ -n "$CF_ACCOUNT_ID" ]
+storage_available() {
+    [ -d "$STORAGE_ROOT" ] && [ -r "$STORAGE_ROOT" ] && [ -w "$STORAGE_ROOT" ]
 }
 
-R2_BUCKET="${R2_BUCKET_NAME:-moltbot-data}"
-
-setup_rclone() {
-    mkdir -p "$(dirname "$RCLONE_CONF")"
-    cat > "$RCLONE_CONF" << EOF
-[r2]
-type = s3
-provider = Cloudflare
-access_key_id = $R2_ACCESS_KEY_ID
-secret_access_key = $R2_SECRET_ACCESS_KEY
-endpoint = https://${CF_ACCOUNT_ID}.r2.cloudflarestorage.com
-acl = private
-no_check_bucket = true
-EOF
-    touch /tmp/.rclone-configured
-    echo "Rclone configured for bucket: $R2_BUCKET"
+copy_backup_tree() {
+    local source_dir="$1"
+    local destination_dir="$2"
+    if [ -d "$source_dir" ]; then
+        mkdir -p "$destination_dir"
+        cp -a "$source_dir/." "$destination_dir/"
+    fi
 }
 
-RCLONE_FLAGS="--transfers=16 --fast-list --s3-no-check-bucket"
+restore_from_storage() {
+    if ! storage_available; then
+        echo "R2 mount is unavailable at $STORAGE_ROOT, starting fresh"
+        return 0
+    fi
 
-# ============================================================
-# RESTORE FROM R2
-# ============================================================
-
-if r2_configured; then
-    setup_rclone
-
-    echo "Checking R2 for existing backup..."
-    # Check if R2 has an openclaw config backup
-    if rclone ls "r2:${R2_BUCKET}/openclaw/openclaw.json" $RCLONE_FLAGS 2>/dev/null | grep -q openclaw.json; then
-        echo "Restoring config from R2..."
-        rclone copy "r2:${R2_BUCKET}/openclaw/" "$CONFIG_DIR/" $RCLONE_FLAGS -v 2>&1 || echo "WARNING: config restore failed with exit code $?"
+    echo "Checking mounted R2 storage for an existing backup..."
+    if [ -f "$STORAGE_ROOT/openclaw/openclaw.json" ]; then
+        echo "Restoring config from mounted R2 storage..."
+        copy_backup_tree "$STORAGE_ROOT/openclaw" "$CONFIG_DIR"
         echo "Config restored"
-    elif rclone ls "r2:${R2_BUCKET}/clawdbot/clawdbot.json" $RCLONE_FLAGS 2>/dev/null | grep -q clawdbot.json; then
-        echo "Restoring from legacy R2 backup..."
-        rclone copy "r2:${R2_BUCKET}/clawdbot/" "$CONFIG_DIR/" $RCLONE_FLAGS -v 2>&1 || echo "WARNING: legacy config restore failed with exit code $?"
+    elif [ -f "$STORAGE_ROOT/clawdbot/clawdbot.json" ]; then
+        echo "Restoring from legacy mounted R2 backup..."
+        copy_backup_tree "$STORAGE_ROOT/clawdbot" "$CONFIG_DIR"
         if [ -f "$CONFIG_DIR/clawdbot.json" ] && [ ! -f "$CONFIG_FILE" ]; then
             mv "$CONFIG_DIR/clawdbot.json" "$CONFIG_FILE"
         fi
@@ -77,26 +53,60 @@ if r2_configured; then
         echo "No backup found in R2, starting fresh"
     fi
 
-    # Restore workspace
-    REMOTE_WS_COUNT=$(rclone ls "r2:${R2_BUCKET}/workspace/" $RCLONE_FLAGS 2>/dev/null | wc -l)
-    if [ "$REMOTE_WS_COUNT" -gt 0 ]; then
-        echo "Restoring workspace from R2 ($REMOTE_WS_COUNT files)..."
-        mkdir -p "$WORKSPACE_DIR"
-        rclone copy "r2:${R2_BUCKET}/workspace/" "$WORKSPACE_DIR/" $RCLONE_FLAGS -v 2>&1 || echo "WARNING: workspace restore failed with exit code $?"
+    if [ -d "$STORAGE_ROOT/workspace" ]; then
+        echo "Restoring workspace from mounted R2 storage..."
+        copy_backup_tree "$STORAGE_ROOT/workspace" "$WORKSPACE_DIR"
         echo "Workspace restored"
     fi
 
-    # Restore skills
-    REMOTE_SK_COUNT=$(rclone ls "r2:${R2_BUCKET}/skills/" $RCLONE_FLAGS 2>/dev/null | wc -l)
-    if [ "$REMOTE_SK_COUNT" -gt 0 ]; then
-        echo "Restoring skills from R2 ($REMOTE_SK_COUNT files)..."
-        mkdir -p "$SKILLS_DIR"
-        rclone copy "r2:${R2_BUCKET}/skills/" "$SKILLS_DIR/" $RCLONE_FLAGS -v 2>&1 || echo "WARNING: skills restore failed with exit code $?"
+    if [ -d "$STORAGE_ROOT/skills" ]; then
+        echo "Restoring skills from mounted R2 storage..."
+        copy_backup_tree "$STORAGE_ROOT/skills" "$SKILLS_DIR"
         echo "Skills restored"
     fi
-else
-    echo "R2 not configured, starting fresh"
+}
+
+sync_persistence_once() {
+    if ! storage_available; then
+        echo "R2 mount is unavailable at $STORAGE_ROOT; sync skipped" >&2
+        return 1
+    fi
+
+    mkdir -p "$STORAGE_ROOT/openclaw" "$STORAGE_ROOT/workspace" "$STORAGE_ROOT/skills"
+    rsync -r --no-times --delete \
+        --exclude='*.lock' --exclude='*.log' --exclude='*.tmp' --exclude='.git/**' \
+        "$CONFIG_DIR/" "$STORAGE_ROOT/openclaw/"
+    if [ -d "$WORKSPACE_DIR" ]; then
+        rsync -r --no-times --delete \
+            --exclude='skills/**' --exclude='.git/**' --exclude='node_modules/**' \
+            "$WORKSPACE_DIR/" "$STORAGE_ROOT/workspace/"
+    fi
+    if [ -d "$SKILLS_DIR" ]; then
+        rsync -r --no-times --delete "$SKILLS_DIR/" "$STORAGE_ROOT/skills/"
+    fi
+    date -Iseconds > "$LAST_SYNC_FILE"
+}
+
+# Deterministic persistence commands are useful for diagnostics and regression tests.
+case "${1:-}" in
+    persistence-restore)
+        mkdir -p "$CONFIG_DIR"
+        restore_from_storage
+        exit 0
+        ;;
+    persistence-sync-once)
+        sync_persistence_once
+        exit $?
+        ;;
+esac
+
+if pgrep -f "openclaw gateway" > /dev/null 2>&1; then
+    echo "OpenClaw gateway is already running, exiting."
+    exit 0
 fi
+
+mkdir -p "$CONFIG_DIR"
+restore_from_storage
 
 # ============================================================
 # ONBOARD (only if no config exists yet)
@@ -380,7 +390,7 @@ EOFPATCH
 # ============================================================
 # BACKGROUND SYNC LOOP
 # ============================================================
-if r2_configured; then
+if storage_available; then
     echo "Starting background R2 sync loop..."
     (
         MARKER=/tmp/.last-sync-marker
@@ -403,19 +413,12 @@ if r2_configured; then
 
             if [ "$COUNT" -gt 0 ]; then
                 echo "[sync] Uploading changes ($COUNT files) at $(date)" >> "$LOGFILE"
-                rclone sync "$CONFIG_DIR/" "r2:${R2_BUCKET}/openclaw/" \
-                    $RCLONE_FLAGS --exclude='*.lock' --exclude='*.log' --exclude='*.tmp' --exclude='.git/**' 2>> "$LOGFILE"
-                if [ -d "$WORKSPACE_DIR" ]; then
-                    rclone sync "$WORKSPACE_DIR/" "r2:${R2_BUCKET}/workspace/" \
-                        $RCLONE_FLAGS --exclude='skills/**' --exclude='.git/**' --exclude='node_modules/**' 2>> "$LOGFILE"
+                if sync_persistence_once 2>> "$LOGFILE"; then
+                    touch "$MARKER"
+                    echo "[sync] Complete at $(date)" >> "$LOGFILE"
+                else
+                    echo "[sync] Failed at $(date)" >> "$LOGFILE"
                 fi
-                if [ -d "$SKILLS_DIR" ]; then
-                    rclone sync "$SKILLS_DIR/" "r2:${R2_BUCKET}/skills/" \
-                        $RCLONE_FLAGS 2>> "$LOGFILE"
-                fi
-                date -Iseconds > "$LAST_SYNC_FILE"
-                touch "$MARKER"
-                echo "[sync] Complete at $(date)" >> "$LOGFILE"
             fi
         done
     ) &

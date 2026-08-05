@@ -1,0 +1,51 @@
+===
+write a marker through the credential-less R2 mount
+%require
+===
+WORKER_URL=$(cat "$CCTR_FIXTURE_DIR/worker-url.txt")
+MARKER="probe-${E2E_TEST_RUN_ID}"
+echo "$MARKER" > "$CCTR_FIXTURE_DIR/persistence-marker.txt"
+RESPONSE=$(./curl-auth -sf -X POST -H 'Content-Type: application/json' \
+  --data "{\"marker\":\"$MARKER\"}" "$WORKER_URL/debug/persistence-probe")
+echo "$RESPONSE" | jq -e --arg marker "$MARKER" '.written == true and .marker == $marker' >/dev/null
+echo "persistence marker written"
+---
+{{ output }}
+---
+where
+* output contains "persistence marker written"
+
+===
+destroy the container
+%require
+===
+WORKER_URL=$(cat "$CCTR_FIXTURE_DIR/worker-url.txt")
+./curl-auth -sf -X POST "$WORKER_URL/debug/destroy-container" | jq -e '.status == "destroyed"' >/dev/null
+echo "container destroyed"
+---
+{{ output }}
+---
+where
+* output contains "container destroyed"
+
+===
+verify the marker survives in a fresh container
+%require
+===
+WORKER_URL=$(cat "$CCTR_FIXTURE_DIR/worker-url.txt")
+MARKER=$(cat "$CCTR_FIXTURE_DIR/persistence-marker.txt")
+for attempt in $(seq 1 90); do
+  RESPONSE=$(./curl-auth -s "$WORKER_URL/debug/persistence-probe?marker=$MARKER" || true)
+  if echo "$RESPONSE" | jq -e --arg marker "$MARKER" '.persisted == true and .marker == $marker' >/dev/null 2>&1; then
+    echo "persistence marker restored"
+    exit 0
+  fi
+  sleep 2
+done
+echo "persistence marker was not restored" >&2
+exit 1
+---
+{{ output }}
+---
+where
+* output contains "persistence marker restored"

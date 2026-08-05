@@ -187,30 +187,19 @@ For local development only, set `DEV_MODE=true` in `.dev.vars` to skip Cloudflar
 
 ## Persistent Storage (R2)
 
-By default, moltbot data (configs, paired devices, conversation history) is lost when the container restarts. To enable persistent storage across sessions, configure R2:
+Moltbot data (configs, paired devices, and conversation history) persists through the `MOLTBOT_BUCKET` Worker binding configured in `wrangler.jsonc`.
 
-### 1. Create R2 API Token
+### 1. Configure the R2 Binding
 
-1. Go to **R2** > **Overview** in the [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Click **Manage R2 API Tokens**
-3. Create a new token with **Object Read & Write** permissions
-4. Select the `moltbot-data` bucket (created automatically on first deploy)
-5. Copy the **Access Key ID** and **Secret Access Key**
+1. Create the R2 bucket named by the `MOLTBOT_BUCKET` binding.
+2. Keep the `@cloudflare/sandbox` package and `cloudflare/sandbox` Docker image on the same version.
+3. Deploy normally. The Sandbox SDK mounts the binding without passing reusable R2 credentials into the container.
 
-### 2. Set Secrets
+For local `wrangler dev` persistence, set the explicit local-only variable:
 
 ```bash
-# R2 Access Key ID
-npx wrangler secret put R2_ACCESS_KEY_ID
-
-# R2 Secret Access Key
-npx wrangler secret put R2_SECRET_ACCESS_KEY
-
-# Your Cloudflare Account ID
-npx wrangler secret put CF_ACCOUNT_ID
+LOCAL_R2_MOUNT=true
 ```
-
-To find your Account ID: Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/), click the three dots menu next to your account name, and select "Copy Account ID".
 
 ### How It Works
 
@@ -427,9 +416,8 @@ The previous `AI_GATEWAY_API_KEY` + `AI_GATEWAY_BASE_URL` approach is still supp
 | `DEV_MODE` | No | Set to `true` to skip CF Access auth + device pairing (local dev only) |
 | `DEBUG_ROUTES` | No | Set to `true` to enable `/debug/*` routes |
 | `SANDBOX_SLEEP_AFTER` | No | Container sleep timeout: `never` (default) or duration like `10m`, `1h` |
-| `R2_ACCESS_KEY_ID` | No | R2 access key for persistent storage |
-| `R2_SECRET_ACCESS_KEY` | No | R2 secret key for persistent storage |
-| `CF_ACCOUNT_ID` | No | Cloudflare account ID (required for R2 storage) |
+| `LOCAL_R2_MOUNT` | No | Exact `true` enables local R2 binding sync under `wrangler dev`; do not set on deployed environments |
+| `CF_ACCOUNT_ID` | No | Cloudflare account ID used by Cloudflare AI integrations |
 | `TELEGRAM_BOT_TOKEN` | No | Telegram bot token |
 | `TELEGRAM_DM_POLICY` | No | Telegram DM policy: `pairing` (default) or `open` |
 | `DISCORD_BOT_TOKEN` | No | Discord bot token |
@@ -470,7 +458,7 @@ OpenClaw in Cloudflare Sandbox uses multiple authentication layers:
 
 **Slow first request:** Cold starts take 1-2 minutes. Subsequent requests are faster.
 
-**R2 not mounting:** Check that all three R2 secrets are set (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CF_ACCOUNT_ID`). Note: R2 mounting only works in production, not with `wrangler dev`.
+**R2 not mounting:** Confirm `MOLTBOT_BUCKET` points to an existing bucket, `ContainerProxy` is exported, and the Sandbox package and Docker image versions match. For local development only, set `LOCAL_R2_MOUNT=true`.
 
 **Access denied on admin routes:** Ensure `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set, and that your Cloudflare Access application is configured correctly.
 

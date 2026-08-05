@@ -39,13 +39,34 @@ import {
   type ScopeProductionCloneDiagnostics,
 } from '../design/production-css-scope';
 import { injectCloneRuntimeScript } from '../design/clone-runtime/inject';
+import { productionBodyDocument } from '../design/model-page-publication/composer';
+import {
+  PublicationServiceConflictError,
+  PublicationServiceNotFoundError,
+  buildCandidate,
+  getPublicationCandidateValidation,
+  getProductionPublication,
+  publishCandidate,
+  rollbackPublication,
+  type PublicationWebhookDeliveryInput,
+} from '../design/model-page-publication/service';
+import {
+  listPublicationHistory,
+  publicationKeys,
+  readPublicationRevisionManifest,
+  readPublicationState,
+} from '../design/model-page-publication/storage';
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
 import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts';
 import type { CompileRunStatus } from '../design/compiler-contracts';
 import onboardingRoutes from './onboarding';
 import { rateLimitMiddleware } from '../auth/rate-limit';
-import { auditMiddleware } from '../auth/audit-log';
+import {
+  auditMiddleware,
+  setPublicationAuditMetadata,
+  writeImmutablePublicationTransitionAudit,
+} from '../auth/audit-log';
 import {
   getModelPageWriteProtectedMessage,
   isModelPageWriteProtected,
@@ -65,6 +86,40 @@ function parseGeneratedPageSlug(slug: string): { oemId: OemId; modelSlug: string
     }
   }
   return null;
+}
+
+function publicationEnabledPageIds(env: MoltbotEnv): Set<string> {
+  return new Set((env.MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS || '')
+    .split(',')
+    .map(pageId => pageId.trim())
+    .filter(Boolean));
+}
+
+function isPublicationEnabled(env: MoltbotEnv, pageId: string): boolean {
+  return publicationEnabledPageIds(env).has(pageId);
+}
+
+function parsePublicationPageId(pageId: string): { oemId: OemId; modelSlug: string } | null {
+  const parsed = parseGeneratedPageSlug(pageId);
+  return parsed && `${parsed.oemId}-${parsed.modelSlug}` === pageId ? parsed : null;
+}
+
+function positiveInteger(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function ifNoneMatchMatches(headerValue: string | undefined, etag: string): boolean {
+  if (!headerValue) return false;
+  const normalize = (value: string) => {
+    const trimmed = value.trim();
+    return /^W\//i.test(trimmed) ? trimmed.slice(2).trim() : trimmed;
+  };
+  const expected = normalize(etag);
+  return headerValue.split(',').some((value) => {
+    const candidate = value.trim();
+    return candidate === '*' || normalize(candidate) === expected;
+  });
 }
 
 function getProductionCloneHtml(page: any): string {
@@ -117,55 +172,6 @@ function stylesheetLinksHtml(page: any): string {
     .join('');
 }
 
-function productionBodyDocument(
-  page: any,
-  bodyHtml: string,
-  slugParts: { oemId: string; modelSlug: string },
-): string {
-  const sourceUrl = page?.content?.modes?.clone?.source_url || page?.source_url;
-  const baseTag = typeof sourceUrl === 'string' && /^https?:\/\//i.test(sourceUrl)
-    ? `<base href="${escapeHtmlAttribute(sourceUrl)}">`
-    : '';
-  const message = JSON.stringify({
-    type: 'oem-production-body-height',
-    oemId: slugParts.oemId,
-    modelSlug: slugParts.modelSlug,
-  }).replace(/</g, '\\u003c');
-
-  return [
-    '<!doctype html>',
-    '<html>',
-    '<head>',
-    '<meta charset="utf-8">',
-    '<meta name="viewport" content="width=device-width,initial-scale=1">',
-    baseTag,
-    stylesheetLinksHtml(page),
-    [
-      '<style>',
-      'html,body{margin:0;padding:0;width:100%;overflow-x:hidden}',
-      '[data-compid="story-section-comp"]{width:100%;max-width:none;margin-inline:0}',
-      '[data-compid="story-section-comp"]>.full-viewport-height{height:clamp(420px,56.25vw,720px)!important;min-height:0!important}',
-      '[data-oem-faq-answer="true"][hidden]{display:none!important}',
-      '[data-oem-faq-answer="true"]:not([hidden]){display:block!important;height:auto!important;max-height:none!important;opacity:1!important;visibility:visible!important}',
-      '.oem-faq-toggle-icon{align-items:center;border:1px solid #b8b8b8;display:inline-flex;flex:0 0 32px;height:32px;justify-content:center;width:32px}',
-      '.oem-faq-toggle-icon:before{content:"+";font:400 24px/1 Arial,sans-serif}',
-      '[data-oem-faq-trigger="true"][aria-expanded="true"]~.oem-faq-toggle-icon:before{content:"−"}',
-      '</style>',
-    ].join(''),
-    '</head>',
-    '<body>',
-    bodyHtml,
-    '<script data-oem-embed-resize="true">',
-    `(()=>{const message=${message};let lastHeight=0;const report=()=>{const height=Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight||0);if(height===lastHeight)return;lastHeight=height;parent.postMessage({...message,height},'*')};addEventListener('load',report);if('ResizeObserver'in window)new ResizeObserver(report).observe(document.documentElement);setTimeout(report,0);setTimeout(report,500)})();`,
-    '</script>',
-    '<script data-oem-production-interactions="true">',
-    `(()=>{const selector='[data-oem-faq-trigger="true"]';const toggle=(trigger)=>{const id=trigger.getAttribute('aria-controls');const answer=id?document.getElementById(id):null;if(!answer)return;const open=trigger.getAttribute('aria-expanded')!=='true';trigger.setAttribute('aria-expanded',String(open));answer.hidden=!open;answer.setAttribute('aria-hidden',String(!open));trigger.closest('.question-container')?.classList.toggle('oem-faq-open',open)};document.addEventListener('click',(event)=>{const target=event.target instanceof Element?event.target.closest(selector):null;if(target)toggle(target)});document.addEventListener('keydown',(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;const target=event.target instanceof Element?event.target.closest(selector):null;if(!target)return;event.preventDefault();toggle(target)})})();`,
-    '</script>',
-    '</body>',
-    '</html>',
-  ].join('');
-}
-
 function absoluteMediaUrls(html: string, origin: string): string {
   const base = origin.replace(/\/+$/, '');
   return html.replace(/(^|[\s"'(,;=])\/media\//g, (_match, boundary) => `${boundary}${base}/media/`);
@@ -206,7 +212,7 @@ async function buildProductionCloneArtifact(
   const runtimeJs = page?.content?.modes?.clone?.runtime_js;
   const runtime = typeof runtimeJs === 'string' ? runtimeJs : undefined;
   if (options.bodyOnly && slugParts) {
-    const body = productionBodyDocument(
+    const body = await productionBodyDocument(
       page,
       injectCloneRuntimeScript(absoluteMediaUrls(html, origin), runtime),
       slugParts,
@@ -493,6 +499,119 @@ type OemAgentEnv = {
 };
 
 const app = new Hono<OemAgentEnv>();
+
+function publicationErrorResponse(c: Context<OemAgentEnv>, error: unknown): Response {
+  if (error instanceof PublicationServiceConflictError) {
+    return c.json({ error: error.message, code: error.code }, 409);
+  }
+  if (error instanceof PublicationServiceNotFoundError) {
+    return c.json({ error: error.message, code: error.code }, 404);
+  }
+  console.error('[Model Page Publication] request failed:', error);
+  return c.json({ error: error instanceof Error ? error.message : 'Publication request failed' }, 500);
+}
+
+async function loadCurrentModelPage(
+  bucket: R2Bucket,
+  pageId: string,
+): Promise<Record<string, any> | null> {
+  const parsed = parsePublicationPageId(pageId);
+  if (!parsed) return null;
+  const object = await bucket.get(`pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`);
+  return object ? object.json<Record<string, any>>() : null;
+}
+
+async function servePublishedBody(
+  c: Context<OemAgentEnv>,
+  pageId: string,
+  options: { headOnly?: boolean } = {},
+): Promise<Response | null> {
+  const bucket = c.env.OEM_PAGE_BUCKET;
+  if (!bucket) return c.json({ error: 'Model page publication storage is unavailable' }, 503);
+
+  const revisionQuery = c.req.query('revision');
+  let revision: number | undefined;
+  if (revisionQuery !== undefined) {
+    const selectedRevision = positiveInteger(revisionQuery);
+    if (selectedRevision === null) {
+      return c.json({ error: 'revision must be a positive integer' }, 400);
+    }
+    revision = selectedRevision;
+  }
+
+  try {
+    const production = await getProductionPublication({ bucket, pageId, revision });
+    if (!production) {
+      return revision === undefined
+        ? null
+        : c.json({ error: 'Published revision not found', pageId, revision }, 404);
+    }
+
+    const headers = new Headers({
+      'Content-Type': production.body.contentType,
+      'Cache-Control': revision === undefined
+        ? 'public, max-age=300, stale-while-revalidate=86400'
+        : 'public, max-age=31536000, immutable',
+      'ETag': production.body.etag,
+      'X-OEM-Content-Bytes': String(production.body.bytes),
+      'X-OEM-Content-SHA256': production.manifest.bodySha256,
+      'X-OEM-Page-Mode': 'composed',
+      'X-OEM-Page-Version': String(production.manifest.draftVersion),
+      'X-OEM-Published-Revision': String(production.manifest.revision),
+      'X-OEM-Body-Only': 'true',
+    });
+    const notModified = ifNoneMatchMatches(c.req.header('If-None-Match'), production.body.etag);
+    return new Response(notModified || options.headOnly ? null : production.body.text, {
+      status: notModified ? 304 : 200,
+      headers,
+    });
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
+}
+
+async function servePublishedManifest(
+  c: Context<OemAgentEnv>,
+  pageId: string,
+): Promise<Response | null> {
+  const bucket = c.env.OEM_PAGE_BUCKET;
+  if (!bucket) return c.json({ error: 'Model page publication storage is unavailable' }, 503);
+
+  try {
+    const production = await getProductionPublication({ bucket, pageId });
+    if (!production) return null;
+    const origin = new URL(c.req.url).origin;
+    const bodyUrl = `${origin}/api/v1/oem-agent/pages/${pageId}/production-body-html?revision=${production.manifest.revision}`;
+    const manifest = {
+      pageId,
+      revision: production.manifest.revision,
+      format: production.manifest.format,
+      bodyUrl,
+      platformRegions: production.manifest.platformRegions,
+      publishedAt: production.state.published_at ?? null,
+      etag: production.manifest.etag,
+      body_html_url: bodyUrl,
+      mode: 'composed',
+    };
+    const body = JSON.stringify(manifest);
+    const etag = `"sha256-${await sha256Hex(body)}"`;
+    const headers = new Headers({
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
+      'X-OEM-Published-Revision': String(production.manifest.revision),
+      'ETag': etag,
+    });
+    const notModified = ifNoneMatchMatches(c.req.header('If-None-Match'), etag);
+    return new Response(notModified ? null : body, {
+      status: notModified ? 304 : 200,
+      headers,
+    });
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
+}
 
 async function analyzeBannerGraphicsBatch(
   c: Context<OemAgentEnv>,
@@ -2500,6 +2619,11 @@ app.get('/pages/:slug/production-body-html', async (c) => {
     return c.json({ error: 'Invalid page slug', slug }, 400);
   }
 
+  if (isPublicationEnabled(c.env, slug)) {
+    const publicationResponse = await servePublishedBody(c, slug);
+    if (publicationResponse) return publicationResponse;
+  }
+
   const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
   const obj = await c.env.MOLTBOT_BUCKET.get(key);
   if (!obj) {
@@ -2521,6 +2645,11 @@ app.on('HEAD', '/pages/:slug/production-body-html', async (c) => {
     return new Response(null, { status: 400 });
   }
 
+  if (isPublicationEnabled(c.env, slug)) {
+    const publicationResponse = await servePublishedBody(c, slug, { headOnly: true });
+    if (publicationResponse) return publicationResponse;
+  }
+
   const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
   const obj = await c.env.MOLTBOT_BUCKET.get(key);
   if (!obj) {
@@ -2540,6 +2669,11 @@ app.get('/pages/:slug/production-manifest', async (c) => {
   const parsed = parseGeneratedPageSlug(slug);
   if (!parsed) {
     return c.json({ error: 'Invalid page slug', slug }, 400);
+  }
+
+  if (isPublicationEnabled(c.env, slug)) {
+    const publicationResponse = await servePublishedManifest(c, slug);
+    if (publicationResponse) return publicationResponse;
   }
 
   const key = `pages/definitions/${parsed.oemId}/${parsed.modelSlug}/latest.json`;
@@ -2587,6 +2721,279 @@ app.get('/pages/:slug/production-manifest', async (c) => {
   }, 200, {
     'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
   });
+});
+
+function publicationAdminResources(
+  c: Context<OemAgentEnv>,
+  pageId: string,
+): { bucket: R2Bucket } | Response {
+  const parsed = parsePublicationPageId(pageId);
+  if (!parsed) return c.json({ error: 'Invalid pageId', pageId }, 400);
+  if (!isPublicationEnabled(c.env, pageId)) {
+    return c.json({ error: 'Model page publication is not enabled', pageId }, 404);
+  }
+  if (!c.env.OEM_PAGE_BUCKET) {
+    return c.json({ error: 'Model page publication storage is unavailable' }, 503);
+  }
+  return { bucket: c.env.OEM_PAGE_BUCKET };
+}
+
+async function publicationRequestBody(c: Context<OemAgentEnv>): Promise<Record<string, unknown> | null> {
+  try {
+    const value = await c.req.json<unknown>();
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null;
+  }
+  catch {
+    return null;
+  }
+}
+
+export function isAllowedPublicationWebhookUrl(
+  webhookUrl: string,
+  configuredOrigins: string | undefined,
+): boolean {
+  const entries = configuredOrigins?.split(',') || [];
+  if (entries.length === 0) return false;
+
+  let target: URL;
+  try {
+    target = new URL(webhookUrl);
+  }
+  catch {
+    return false;
+  }
+  if (target.protocol !== 'https:' || target.username || target.password) return false;
+
+  const allowedOrigins = new Set<string>();
+  for (const entry of entries) {
+    const value = entry.trim();
+    if (!value) return false;
+    let allowed: URL;
+    try {
+      allowed = new URL(value);
+    }
+    catch {
+      return false;
+    }
+    if (allowed.protocol !== 'https:'
+      || allowed.username
+      || allowed.password
+      || allowed.pathname !== '/'
+      || allowed.search
+      || allowed.hash) return false;
+    allowedOrigins.add(allowed.origin);
+  }
+  return allowedOrigins.has(target.origin);
+}
+
+async function deliverPublicationWebhook(
+  input: PublicationWebhookDeliveryInput,
+  secret: string | undefined,
+  allowedOrigins: string | undefined,
+): Promise<{ status: number }> {
+  if (!secret) throw new Error('MODEL_PAGE_WEBHOOK_SECRET is not configured');
+  if (!isAllowedPublicationWebhookUrl(input.webhook.url, allowedOrigins)) {
+    throw new Error('Publication webhook URL is not in MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS');
+  }
+  const response = await fetch(input.webhook.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-oem-model-page-webhook-secret': secret,
+    },
+    body: JSON.stringify({
+      event: input.event,
+      timestamp: input.timestamp,
+      oem_code: input.oem_code,
+      model_slug: input.model_slug,
+      data: input.data,
+    }),
+    redirect: 'error',
+    signal: AbortSignal.timeout(5_000),
+  });
+  return { status: response.status };
+}
+
+app.post('/admin/pages/:pageId/publication/candidate', async (c) => {
+  const pageId = c.req.param('pageId');
+  const resources = publicationAdminResources(c, pageId);
+  if (resources instanceof Response) return resources;
+  const body = await publicationRequestBody(c);
+  const expectedDraftVersion = positiveInteger(body?.expectedDraftVersion);
+  if (expectedDraftVersion === null) {
+    return c.json({ error: 'expectedDraftVersion must be a positive integer' }, 400);
+  }
+
+  const page = await loadCurrentModelPage(c.env.MOLTBOT_BUCKET, pageId);
+  if (!page) return c.json({ error: 'Page not found', pageId }, 404);
+
+  try {
+    const result = await buildCandidate({
+      bucket: resources.bucket,
+      browser: c.env.BROWSER,
+      pageId,
+      page,
+      expectedDraftVersion,
+      actor: c.get('accessUser')?.email || 'unknown',
+      origin: new URL(c.req.url).origin,
+    });
+    setPublicationAuditMetadata(c, result.audit);
+    return c.json({
+      status: result.status,
+      revision: result.revision,
+      validation: result.validation,
+      state: result.state,
+    });
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
+});
+
+app.get('/admin/pages/:pageId/publication/candidate-html', async (c) => {
+  const pageId = c.req.param('pageId');
+  const resources = publicationAdminResources(c, pageId);
+  if (resources instanceof Response) return resources;
+  const revision = positiveInteger(c.req.query('revision'));
+  if (revision === null) return c.json({ error: 'revision must be a positive integer' }, 400);
+
+  try {
+    const state = await readPublicationState(resources.bucket, pageId);
+    if (!state || state.value.candidate?.revision !== revision) {
+      return c.json({ error: 'Publication candidate not found', pageId, revision }, 404);
+    }
+    const manifest = await readPublicationRevisionManifest(resources.bucket, pageId, revision);
+    if (!manifest) return c.json({ error: 'Publication candidate not found', pageId, revision }, 404);
+    const object = await resources.bucket.get(publicationKeys(pageId, revision).body);
+    if (!object) return c.json({ error: 'Publication candidate not found', pageId, revision }, 404);
+    return new Response(await object.text(), {
+      headers: {
+        'Content-Type': object.httpMetadata?.contentType || 'text/html; charset=utf-8',
+        'Cache-Control': 'private, no-store',
+        'ETag': manifest.etag,
+        'X-OEM-Content-Bytes': String(manifest.bodyBytes),
+        'X-OEM-Content-SHA256': manifest.bodySha256,
+        'X-OEM-Candidate-Revision': String(revision),
+      },
+    });
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
+});
+
+app.post('/admin/pages/:pageId/publication/publish', async (c) => {
+  const pageId = c.req.param('pageId');
+  const resources = publicationAdminResources(c, pageId);
+  if (resources instanceof Response) return resources;
+  const body = await publicationRequestBody(c);
+  const revision = positiveInteger(body?.revision);
+  const expectedDraftVersion = positiveInteger(body?.expectedDraftVersion);
+  const validationDigest = typeof body?.validationDigest === 'string' ? body.validationDigest : '';
+  if (revision === null || expectedDraftVersion === null || !validationDigest) {
+    return c.json({
+      error: 'revision, expectedDraftVersion, and validationDigest are required',
+    }, 400);
+  }
+
+  try {
+    const result = await publishCandidate({
+      bucket: resources.bucket,
+      pageId,
+      revision,
+      expectedDraftVersion,
+      validationDigest,
+      actor: c.get('accessUser')?.email || 'unknown',
+      loadCurrentPage: requestedPageId => loadCurrentModelPage(c.env.MOLTBOT_BUCKET, requestedPageId),
+      hooks: await loadWebhooks(c.env.MOLTBOT_BUCKET),
+      deliverWebhook: input => deliverPublicationWebhook(
+        input,
+        c.env.MODEL_PAGE_WEBHOOK_SECRET,
+        c.env.MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS,
+      ),
+    });
+    setPublicationAuditMetadata(c, result.audit);
+    const { audit: _audit, ...response } = result;
+    return c.json(response);
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
+});
+
+app.post('/admin/pages/:pageId/publication/rollback', async (c) => {
+  const pageId = c.req.param('pageId');
+  const resources = publicationAdminResources(c, pageId);
+  if (resources instanceof Response) return resources;
+  const body = await publicationRequestBody(c);
+  const targetRevision = positiveInteger(body?.targetRevision);
+  const expectedPublishedRevision = positiveInteger(body?.expectedPublishedRevision);
+  if (targetRevision === null || expectedPublishedRevision === null) {
+    return c.json({
+      error: 'targetRevision and expectedPublishedRevision must be positive integers',
+    }, 400);
+  }
+
+  try {
+    const result = await rollbackPublication({
+      bucket: resources.bucket,
+      pageId,
+      targetRevision,
+      expectedPublishedRevision,
+      actor: c.get('accessUser')?.email || 'unknown',
+      writeAudit: entry => writeImmutablePublicationTransitionAudit(c.env.MOLTBOT_BUCKET, entry),
+      hooks: await loadWebhooks(c.env.MOLTBOT_BUCKET),
+      deliverWebhook: input => deliverPublicationWebhook(
+        input,
+        c.env.MODEL_PAGE_WEBHOOK_SECRET,
+        c.env.MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS,
+      ),
+    });
+    setPublicationAuditMetadata(c, result.audit);
+    const { audit: _audit, ...response } = result;
+    return c.json(response);
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
+});
+
+app.get('/admin/pages/:pageId/publication/history', async (c) => {
+  const pageId = c.req.param('pageId');
+  const resources = publicationAdminResources(c, pageId);
+  if (resources instanceof Response) return resources;
+
+  try {
+    const state = await readPublicationState(resources.bucket, pageId);
+    const publishedRevisions = new Set(state?.value.history || []);
+    const candidateValidationReport = state
+      ? await getPublicationCandidateValidation({
+          bucket: resources.bucket,
+          pageId,
+          state: state.value,
+        })
+      : null;
+    const candidateValidation = candidateValidationReport && state?.value.candidate
+      ? {
+          revision: state.value.candidate.revision,
+          status: state.value.candidate.status,
+          validation: candidateValidationReport,
+        }
+      : null;
+    return c.json({
+      state: state?.value || null,
+      candidateValidation,
+      history: state
+        ? (await listPublicationHistory(resources.bucket, pageId))
+            .filter(manifest => publishedRevisions.has(manifest.revision))
+        : [],
+    });
+  }
+  catch (error) {
+    return publicationErrorResponse(c, error);
+  }
 });
 
 /**
