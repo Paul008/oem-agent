@@ -29,6 +29,7 @@ export const INTERACTION_TYPES = [
   'gallery-lightbox',
   'tabs',
   'accordion',
+  'feature-overlay',
   'sticky-bar',
   'pinned-scroll',
   'scroll-reveal',

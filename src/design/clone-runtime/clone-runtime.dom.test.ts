@@ -101,3 +101,138 @@ describe('clone runtime components (jsdom-executed)', () => {
     expect(panel0.style.display).toBe('none')
   })
 })
+
+describe('cloneFeatureOverlay (jsdom-executed)', () => {
+  const COMPPROPS = JSON.stringify({
+    featureItems: [{
+      label: 'ProPILOT',
+      featureDescription: 'Driver assist tech <script>not html</script>',
+      desktopImagePath: '//www-asia.nissan-cdn.net/content/dam/ariya/ProPilot-hp.png',
+      tabletImagePath: '//www-asia.nissan-cdn.net/content/dam/ariya/ProPilot-hp.png',
+      mobileImagePath: '//www-asia.nissan-cdn.net/content/dam/ariya/ProPilot-hp.png',
+      imageAltText: 'ProPILOT Assist',
+    }],
+    ctaText: 'LEARN MORE',
+    ctaRedirect: 'modalIframe',
+    ctaDesign: 'modalCta',
+    title: 'High-tech, low-stress',
+    subtitle: 'DRIVER ASSIST & SAFETY',
+  })
+
+  function mountComponent(root: HTMLElement) {
+    const component = factories['cloneFeatureOverlay']() as Record<string, any>
+    component.$el = root
+    component.init()
+    return component
+  }
+
+  function makeRoot(): HTMLElement {
+    const root = document.createElement('div')
+    root.setAttribute('data-clone-interaction', 'feature-overlay')
+    root.setAttribute('data-compprops', COMPPROPS)
+    document.body.appendChild(root)
+    return root
+  }
+
+  it('renders its own trigger when no captured trigger exists, labelled from compprops', () => {
+    const root = makeRoot()
+    const component = mountComponent(root)
+
+    const trigger = root.querySelector('.clone-fo-trigger') as HTMLButtonElement
+    expect(trigger).not.toBeNull()
+    expect(trigger.textContent).toContain('LEARN MORE')
+    expect(component.overlay).toBeNull()
+    root.remove()
+  })
+
+  it('open() renders overlay content as text (no HTML injection), close() restores the page', () => {
+    const root = makeRoot()
+    document.body.style.overflow = ''
+    const component = mountComponent(root)
+
+    component.open()
+    const overlay = root.querySelector('.clone-fo-overlay') as HTMLElement
+    expect(overlay).not.toBeNull()
+    expect(overlay.getAttribute('role')).toBe('dialog')
+    expect(overlay.getAttribute('aria-modal')).toBe('true')
+    // untrusted description rendered as text, not parsed as markup
+    expect(overlay.querySelector('script')).toBeNull()
+    expect(overlay.textContent).toContain('<script>not html</script>')
+    expect(overlay.textContent).toContain('DRIVER ASSIST & SAFETY')
+    expect(overlay.textContent).toContain('High-tech, low-stress')
+    // image resolved to absolute https (no proxied img present on this page)
+    const img = overlay.querySelector('img.clone-fo-image') as HTMLImageElement
+    expect(img.getAttribute('src')).toBe('https://www-asia.nissan-cdn.net/content/dam/ariya/ProPilot-hp.png')
+    expect(img.alt).toBe('ProPILOT Assist')
+    // scroll locked while open
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.documentElement.style.overflow).toBe('hidden')
+
+    component.close()
+    expect(root.querySelector('.clone-fo-overlay')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+    expect(document.documentElement.style.overflow).toBe('')
+    root.remove()
+  })
+
+  it('routes overlay images through the media proxy when the page already uses it', () => {
+    const proxied = document.createElement('img')
+    proxied.src = 'https://oem-agent.example.workers.dev/media/pages/assets/nissan-au/ariya/existing.png'
+    document.body.appendChild(proxied)
+    const root = makeRoot()
+    const component = mountComponent(root)
+
+    component.open()
+    const img = root.querySelector('img.clone-fo-image') as HTMLImageElement
+    expect(img.getAttribute('src')).toBe('https://oem-agent.example.workers.dev/media/pages/assets/nissan-au/ariya/ProPilot-hp.png')
+
+    component.close()
+    root.remove()
+    proxied.remove()
+  })
+
+  it('closes on Escape and on backdrop click, but not on panel click', () => {
+    const root = makeRoot()
+    const component = mountComponent(root)
+
+    component.open()
+    const panel = root.querySelector('.clone-fo-panel') as HTMLElement
+    panel.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(root.querySelector('.clone-fo-overlay')).not.toBeNull()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(root.querySelector('.clone-fo-overlay')).toBeNull()
+
+    component.open()
+    const overlay = root.querySelector('.clone-fo-overlay') as HTMLElement
+    overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(root.querySelector('.clone-fo-overlay')).toBeNull()
+    root.remove()
+  })
+
+  it('injects overlay styles once, scoped under the stamped region attribute', () => {
+    const root = makeRoot()
+    mountComponent(root)
+    const second = makeRoot()
+    mountComponent(second)
+
+    const styles = document.querySelectorAll('#clone-feature-overlay-styles')
+    expect(styles).toHaveLength(1)
+    expect(styles[0].textContent).toContain('[data-clone-interaction="feature-overlay"]')
+    // every rule is scoped — no bare selectors that could leak into the dealer shell
+    const bare = (styles[0].textContent || '').split('\n').filter(line => line.trim() && !line.includes('[data-clone-interaction="feature-overlay"]') && !line.trim().startsWith('@media') && !line.trim().startsWith('}'))
+    expect(bare).toEqual([])
+    root.remove(); second.remove()
+  })
+
+  it('does not throw and renders nothing for drifted compprops', () => {
+    const root = document.createElement('div')
+    root.setAttribute('data-compprops', '{"featureItems":"drifted"}')
+    document.body.appendChild(root)
+    const component = mountComponent(root)
+
+    expect(() => component.open()).not.toThrow()
+    expect(root.querySelector('.clone-fo-overlay')).toBeNull()
+    root.remove()
+  })
+})

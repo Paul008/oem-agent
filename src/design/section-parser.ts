@@ -617,7 +617,7 @@ export function parseSection(html: string): ParsedSection {
 // in clone-annotator.ts needs element-level positions.
 // ============================================================================
 
-export type DetectedInteractionType = Extract<InteractionType, 'tabs' | 'accordion' | 'carousel' | 'gallery-lightbox'>
+export type DetectedInteractionType = Extract<InteractionType, 'tabs' | 'accordion' | 'carousel' | 'gallery-lightbox' | 'feature-overlay'>
 
 export interface DetectedInteractiveRegion {
   type: DetectedInteractionType
@@ -703,6 +703,92 @@ function climbToContainer($: ReturnType<typeof load>, seed: CheerioNode, selecto
     node = node.parent
   }
   return null
+}
+
+/**
+ * A single overlay entry parsed from a Nissan `data-compprops` featureItems
+ * array. Only the fields the feature-overlay runtime renders; everything else
+ * in the JSON is ignored.
+ */
+export interface FeatureOverlayItem {
+  label: string | null
+  featureDescription: string | null
+  desktopImagePath: string | null
+  tabletImagePath: string | null
+  mobileImagePath: string | null
+  imageAltText: string | null
+}
+
+export interface FeatureOverlayProps {
+  items: FeatureOverlayItem[]
+  /** Overlay trigger label, e.g. "LEARN MORE" — from ctaText/buttonText. */
+  ctaLabel: string | null
+  /** True when the compprops declare a modal-style CTA (ctaRedirect
+   *  "modalIframe" / ctaDesign "modalCta") — the corporate page renders a
+   *  learn-more overlay trigger for these sections client-side. */
+  hasModalCta: boolean
+  title: string | null
+  subtitle: string | null
+}
+
+/**
+ * Defensively parses a raw `data-compprops` attribute value (already
+ * entity-decoded by cheerio / the DOM). Returns null unless the JSON parses
+ * to an object with a non-empty `featureItems` array — compprops shapes vary
+ * per AEM component and drift over time, so anything unexpected is skipped
+ * rather than thrown (PRD risk #1).
+ */
+export function parseFeatureOverlayProps(raw: string | undefined | null): FeatureOverlayProps | null {
+  if (!raw) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') return null
+  const props = parsed as Record<string, unknown>
+  if (!Array.isArray(props.featureItems) || props.featureItems.length === 0) return null
+
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null)
+  const items: FeatureOverlayItem[] = []
+  for (const entry of props.featureItems) {
+    if (!entry || typeof entry !== 'object') continue
+    const item = entry as Record<string, unknown>
+    items.push({
+      label: str(item.label),
+      featureDescription: str(item.featureDescription),
+      desktopImagePath: str(item.desktopImagePath),
+      tabletImagePath: str(item.tabletImagePath),
+      mobileImagePath: str(item.mobileImagePath),
+      imageAltText: str(item.imageAltText),
+    })
+  }
+  if (items.length === 0) return null
+
+  return {
+    items,
+    ctaLabel: str(props.ctaText) ?? str(props.buttonText),
+    hasModalCta: props.ctaRedirect === 'modalIframe' || props.ctaDesign === 'modalCta',
+    title: str(props.title),
+    subtitle: str(props.subtitle),
+  }
+}
+
+/**
+ * Learn-more trigger elements captured in the DOM of a feature section.
+ * Present-day Nissan captures carry NO trigger DOM (the AEM app renders the
+ * "LEARN MORE (+)" button client-side and capture misses it), but the
+ * selector set covers pages where one was captured.
+ */
+export function findFeatureOverlayDomTriggers($: ReturnType<typeof load>, root: CheerioNode): CheerioNode[] {
+  const scope = $(root)
+  const matches = new Set<CheerioNode>()
+  scope.find('[class*="icon-plus"], [data-id*="learn-more"]').each((_i, el) => { matches.add(el) })
+  scope.find('button, a, [role="button"]').each((_i, el) => {
+    if (/learn\s*more/i.test($(el).text())) matches.add(el)
+  })
+  return [...matches]
 }
 
 export function detectInteractiveRegions(html: string): DetectedInteractiveRegion[] {
@@ -847,11 +933,37 @@ export function detectInteractiveRegions(html: string): DetectedInteractiveRegio
     }
   })
 
+  // --- feature-overlay: compprops-driven learn-more sections ---
+  // The overlay content lives in the section root's data-compprops JSON
+  // (featureItems[]), not in captured DOM. Detected when the JSON declares a
+  // modal CTA (how the corporate page decides to render its "LEARN MORE (+)"
+  // trigger) or when a trigger element was actually captured. These regions
+  // deliberately wrap other widgets (the in-section feature slider), so they
+  // are exempted from the nesting dedup below in both directions.
+  $('[data-compprops]').each((_i, el) => {
+    const props = parseFeatureOverlayProps(el.attribs?.['data-compprops'])
+    if (!props) return
+    const domTriggers = findFeatureOverlayDomTriggers($, el)
+    if (!props.hasModalCta && domTriggers.length === 0) return
+    regions.push({
+      type: 'feature-overlay',
+      rootSelectorPath: elementPath(el),
+      triggerCount: domTriggers.length,
+      panelCount: props.items.length,
+      el,
+    })
+  })
+
   // Deduplicate: drop any region nested inside another detected region, and
-  // drop same-root duplicates from overlapping heuristics.
+  // drop same-root duplicates from overlapping heuristics. feature-overlay
+  // regions are exempt from the nesting rule (they intentionally contain /
+  // sit near other regions), but still lose same-root conflicts: two x-data
+  // components cannot share one root element, and the earlier-detected
+  // widget-specific type wins.
   const kept: Candidate[] = []
   for (const candidate of regions) {
-    const insideAnother = regions.some(other => other !== candidate && isDescendantOf(other.el, candidate.el))
+    const insideAnother = candidate.type !== 'feature-overlay'
+      && regions.some(other => other !== candidate && other.type !== 'feature-overlay' && isDescendantOf(other.el, candidate.el))
     const sameRootKept = kept.some(existing => existing.el === candidate.el)
     if (!insideAnother && !sameRootKept) kept.push(candidate)
   }

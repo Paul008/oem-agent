@@ -59,13 +59,13 @@ https://www.nissan.com.au/vehicles/browse-range/ariya.html ("LEARN MORE" overlay
 
 ## Task list
 
-- [ ] 1. Annotator: `feature-overlay` detection + stamping (with unit tests using real
+- [x] 1. Annotator: `feature-overlay` detection + stamping (with unit tests using real
       Ariya compprops fixtures)
-- [ ] 2. Runtime: `cloneFeatureOverlay` component (open/close, focus trap, ESC, scroll
+- [x] 2. Runtime: `cloneFeatureOverlay` component (open/close, focus trap, ESC, scroll
       lock, responsive image) + dom tests
-- [ ] 3. Overlay CSS injected via clone runtime (scoped under `.oem-production-scope` /
+- [x] 3. Overlay CSS injected via clone runtime (scoped under `.oem-production-scope` /
       publication scope)
-- [ ] 4. Publication validator: allow the new stamped attributes; run full suite
+- [x] 4. Publication validator: allow the new stamped attributes; run full suite
 - [ ] 5. Non-destructive re-annotate + upload Ariya (backup first), verify in builder
       preview
 - [ ] 6. Deploy worker; purge; interactive click-test on dealer page (overlay opens,

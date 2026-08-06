@@ -24,7 +24,7 @@
 
 import { load } from 'cheerio';
 
-import { detectInteractiveRegions, type DetectedInteractionType } from './section-parser';
+import { detectInteractiveRegions, findFeatureOverlayDomTriggers, parseFeatureOverlayProps, type DetectedInteractionType } from './section-parser';
 import { CLONE_INTERACTION_ATTR, CLONE_REGION_ID_ATTR } from './clone-runtime/clone-runtime';
 
 export interface CloneInteractionInventoryEntry {
@@ -49,6 +49,7 @@ const COMPONENT_FOR_TYPE: Record<DetectedInteractionType, string> = {
   'accordion': 'cloneAccordion',
   'carousel': 'cloneCarousel',
   'gallery-lightbox': 'cloneGallery',
+  'feature-overlay': 'cloneFeatureOverlay',
 };
 
 const FORCED_STYLE_PROPS = /(?:^|;)\s*(display|opacity|visibility|height|max-height|overflow)\s*:[^;]*(!important)?\s*/gi;
@@ -172,11 +173,17 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
     const interactions: CloneInteractionInventoryEntry[] = [];
     $existing(`[${CLONE_INTERACTION_ATTR}]`).each((_i, el) => {
       const $el = $existing(el);
+      const type = String($el.attr(CLONE_INTERACTION_ATTR)) as DetectedInteractionType;
+      // feature-overlay panels are compprops featureItems (rendered by the
+      // runtime, never stamped as DOM), so their count comes from the JSON.
+      const panelCount = type === 'feature-overlay'
+        ? parseFeatureOverlayProps(String($el.attr('data-compprops') ?? ''))?.items.length ?? 0
+        : $el.find('[data-clone-panel], [data-clone-acc-panel], [data-clone-slide], [data-clone-gallery-main]').length;
       interactions.push({
         id: String($el.attr(CLONE_REGION_ID_ATTR) ?? ''),
-        type: String($el.attr(CLONE_INTERACTION_ATTR)) as DetectedInteractionType,
-        trigger_count: $el.find('[data-clone-tab], [data-clone-acc-trigger], [data-clone-gallery-thumb], [data-clone-prev], [data-clone-next]').length,
-        panel_count: $el.find('[data-clone-panel], [data-clone-acc-panel], [data-clone-slide], [data-clone-gallery-main]').length,
+        type,
+        trigger_count: $el.find('[data-clone-tab], [data-clone-acc-trigger], [data-clone-gallery-thumb], [data-clone-prev], [data-clone-next], [data-clone-overlay-trigger]').length,
+        panel_count: panelCount,
       });
     });
     return { html, interactions };
@@ -293,6 +300,22 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
         if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
         interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
       }
+    }
+
+    if (region.type === 'feature-overlay') {
+      // The overlay's content source is the root's own data-compprops JSON —
+      // nothing to duplicate into stamped attributes. Captured trigger
+      // elements (rare: today's Nissan captures have none, the corporate
+      // page renders them client-side) get stamped; when none exist the
+      // runtime component renders its own trigger button at bind time, so
+      // stored HTML stays attributes-only either way.
+      const props = parseFeatureOverlayProps(String(root.attr('data-compprops') ?? ''));
+      const domTriggers = findFeatureOverlayDomTriggers($, rootEl);
+      domTriggers.forEach((el, i) => {
+        $(el).attr('data-clone-overlay-trigger', String(i));
+        $(el).attr('x-on:click', 'openOverlay');
+      });
+      interactions.push({ id, type: region.type, trigger_count: domTriggers.length, panel_count: props?.items.length ?? 0 });
     }
 
     if (region.type === 'gallery-lightbox') {
