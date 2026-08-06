@@ -335,6 +335,34 @@ describe('cloneFeatureSlider (jsdom-executed)', () => {
   })
 })
 
+describe('cloneFeatureSlider counter and video-first init', () => {
+  it('preserves the baked-in slide counter format on swap', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-compprops', JSON.stringify({ featureItems: [
+      { label: 'FIRST', featureDescription: 'a', desktopImagePath: '//cdn.example/a.png', mediaType: 'image' },
+      { label: 'SECOND', featureDescription: 'b', desktopImagePath: '//cdn.example/b.png', mediaType: 'image' },
+    ] }))
+    host.innerHTML = `
+      <div class="custom-slider-container">
+        <button data-clone-prev="" disabled></button><button data-clone-next=""></button>
+        <div data-id="feature-slider-media">
+          <img src="/a.png">
+          <h4 data-id="C-feature-item-0-label">1/2 | FIRST</h4>
+        </div>
+      </div>`
+    document.body.appendChild(host)
+    const component = factories['cloneFeatureSlider']() as Record<string, any>
+    component.$el = host.querySelector('.custom-slider-container')
+    component.init()
+    component.next()
+
+    expect(host.querySelector('[data-id$="-label"]')!.textContent).toBe('2/2 | SECOND')
+    component.prev()
+    expect(host.querySelector('[data-id$="-label"]')!.textContent).toBe('1/2 | FIRST')
+    host.remove()
+  })
+})
+
 describe('compprops video media (jsdom-executed)', () => {
   const VIDEO_ITEM = {
     label: 'Intelligent Around View Monitor',
@@ -371,6 +399,22 @@ describe('compprops video media (jsdom-executed)', () => {
     component.init()
     return { host, root, component }
   }
+
+  it('starts playback immediately when slide 0 itself is a video', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-compprops', JSON.stringify({ featureItems: [VIDEO_ITEM] }))
+    host.innerHTML = `
+      <div class="custom-slider-container">
+        <div data-id="feature-slider-media"><picture><img src="/poster.png"></picture></div>
+      </div>`
+    document.body.appendChild(host)
+    const component = factories['cloneFeatureSlider']() as Record<string, any>
+    component.$el = host.querySelector('.custom-slider-container')
+    component.init()
+
+    expect(host.querySelector('video.clone-fs-video')).not.toBeNull()
+    host.remove()
+  })
 
   it('slider renders an inline muted looping video for video slides and restores the img on the way back', () => {
     const { host, root, component } = makeVideoSlider()
