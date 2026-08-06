@@ -494,3 +494,25 @@ describe('cloneFeatureSlider counter with pipe-carrying labels', () => {
     host.remove()
   })
 })
+
+describe('runtime-created nodes are Clone Studio ephemeral', () => {
+  it('trigger, overlay, and video elements all carry data-clone-studio-bridge', () => {
+    const root = document.createElement('div')
+    root.setAttribute('data-clone-interaction', 'feature-overlay')
+    root.setAttribute('data-compprops', JSON.stringify({ featureItems: [{
+      label: 'X', featureDescription: 'y', desktopImagePath: null,
+      desktopVideoPath: '//cdn.example/clip.mp4', desktopPosterImagePath: '//cdn.example/poster.jpg', mediaType: 'video',
+    }], ctaText: 'LEARN MORE' }))
+    document.body.appendChild(root)
+    const component = factories['cloneFeatureOverlay']() as Record<string, any>
+    component.$el = root
+    component.init()
+    component.open()
+
+    expect(root.querySelector('.clone-fo-trigger')!.getAttribute('data-clone-studio-bridge')).toBe('true')
+    expect(root.querySelector('.clone-fo-overlay')!.getAttribute('data-clone-studio-bridge')).toBe('true')
+    expect(root.querySelector('video.clone-fo-image')!.getAttribute('data-clone-studio-bridge')).toBe('true')
+    component.close()
+    root.remove()
+  })
+})
