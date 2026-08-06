@@ -2,7 +2,7 @@ import { load } from 'cheerio'
 import { describe, expect, it } from 'vitest'
 
 import { annotateCloneInteractions } from './clone-annotator'
-import { ARIYA_PROPILOT_COMPPROPS_ATTR } from './nissan-feature-overlay-fixture'
+import { ARIYA_DIMENSIONS_COMPPROPS_ATTR, ARIYA_PROPILOT_COMPPROPS_ATTR } from './nissan-feature-overlay-fixture'
 
 const TABS_ARIA = `
 <section class="model-features">
@@ -358,6 +358,44 @@ describe('feature-overlay stamping', () => {
 
   it('is idempotent: re-annotating stamped output reports the same inventory', () => {
     const first = annotateCloneInteractions(section('<button class="cta">LEARN MORE</button>'))
+    const second = annotateCloneInteractions(first.html)
+
+    expect(second.html).toBe(first.html)
+    expect(second.interactions).toEqual(first.interactions)
+  })
+})
+
+describe('feature-slider stamping', () => {
+  const sliderSection = `<div data-compprops="${ARIYA_DIMENSIONS_COMPPROPS_ATTR}" data-compid="feature-comp">
+    <div class="custom-slider-container">
+      <button class="previous arrow-button disabled" data-id="C402_cmp_feature_bcf3-feature-carousel-previous" disabled=""></button>
+      <button class="next arrow-button" data-id="C402_cmp_feature_bcf3-feature-carousel-next"></button>
+      <div class="slider-list" data-id="feature-slider-list">
+        <div class="slider-media" data-id="feature-slider-media"><picture><img src="/side.png"></picture></div>
+      </div>
+    </div>
+  </div>`
+
+  it('stamps the slider container and its arrows alongside the section overlay', () => {
+    const { html, interactions } = annotateCloneInteractions(sliderSection)
+    const $ = load(html)
+
+    const slider = $('[data-clone-interaction="feature-slider"]')
+    expect(slider).toHaveLength(1)
+    expect(slider.attr('x-data')).toBe('cloneFeatureSlider')
+    expect($('[data-clone-prev]').attr('x-on:click')).toBe('prev')
+    expect($('[data-clone-next]').attr('x-on:click')).toBe('next')
+    // the outer section still gets its overlay stamp on a DIFFERENT root
+    expect($('[data-clone-interaction="feature-overlay"]')).toHaveLength(1)
+    expect($('[data-clone-interaction="feature-overlay"]').attr('x-data')).toBe('cloneFeatureOverlay')
+
+    const sliderEntry = interactions.find(i => i.type === 'feature-slider')!
+    expect(sliderEntry.trigger_count).toBe(2)
+    expect(sliderEntry.panel_count).toBe(2)
+  })
+
+  it('is idempotent for slider stamps', () => {
+    const first = annotateCloneInteractions(sliderSection)
     const second = annotateCloneInteractions(first.html)
 
     expect(second.html).toBe(first.html)

@@ -1,7 +1,7 @@
 import { load } from 'cheerio'
 import { describe, expect, it } from 'vitest'
 import { detectInteractiveRegions, parseFeatureOverlayProps, parseSection } from './section-parser'
-import { ARIYA_PROPILOT_COMPPROPS_ATTR } from './nissan-feature-overlay-fixture'
+import { ARIYA_DIMENSIONS_COMPPROPS_ATTR, ARIYA_PROPILOT_COMPPROPS_ATTR } from './nissan-feature-overlay-fixture'
 
 describe('section-parser video detection', () => {
   it('detects inline video tags with data-src attributes', () => {
@@ -303,5 +303,40 @@ describe('parseFeatureOverlayProps', () => {
     expect(parseFeatureOverlayProps('{"featureItems":[]}')).toBeNull()
     expect(parseFeatureOverlayProps('{"featureItems":"drifted"}')).toBeNull()
     expect(parseFeatureOverlayProps('{"featureItems":[null, 42]}')).toBeNull()
+  })
+})
+
+describe('feature-slider detection', () => {
+  const sliderInner = `
+    <div class="custom-slider-container">
+      <div class="arrow-container">
+        <button class="previous arrow-button disabled" data-id="C402_cmp_feature_bcf3-feature-carousel-previous" disabled=""></button>
+        <button class="next arrow-button" data-id="C402_cmp_feature_bcf3-feature-carousel-next"></button>
+      </div>
+      <div class="slider-list" data-id="feature-slider-list">
+        <div class="slider-media active-item" data-id="feature-slider-media" data-media-type="image">
+          <picture><img alt="Nissan Ariya Side Angle" src="/side.png"></picture>
+          <h4 data-id="C402_cmp_feature_bcf3-feature-item-0-label">OVERALL DIMENSIONS</h4>
+          <p data-id="C402_cmp_feature_bcf3-feature-item-0-featureDescription">A - Overall length</p>
+        </div>
+      </div>
+    </div>`
+
+  it('detects the slider inside its feature-overlay section (real dimensions compprops, 2 items)', () => {
+    const html = `<div data-compprops="${ARIYA_DIMENSIONS_COMPPROPS_ATTR}" data-compid="feature-comp">${sliderInner}</div>`
+    const regions = detectInteractiveRegions(html)
+
+    expect(regions.map(r => r.type).sort()).toEqual(['feature-overlay', 'feature-slider'])
+    const slider = regions.find(r => r.type === 'feature-slider')!
+    expect(slider.triggerCount).toBe(2)
+    expect(slider.panelCount).toBe(2)
+  })
+
+  it('skips single-item sections and containers without arrows', () => {
+    const oneItem = `<div data-compprops="${ARIYA_PROPILOT_COMPPROPS_ATTR}">${sliderInner}</div>`
+    expect(detectInteractiveRegions(oneItem).map(r => r.type)).toEqual(['feature-overlay'])
+
+    const noArrows = `<div data-compprops="${ARIYA_DIMENSIONS_COMPPROPS_ATTR}"><div class="custom-slider-container"><div data-id="feature-slider-media"></div></div></div>`
+    expect(detectInteractiveRegions(noArrows).map(r => r.type)).toEqual(['feature-overlay'])
   })
 })
