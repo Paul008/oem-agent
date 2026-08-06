@@ -272,7 +272,7 @@ describe('cloneFeatureSlider (jsdom-executed)', () => {
           <div class="slider-media" data-id="feature-slider-media">
             <picture>
               <source media="(min-width: 1024px)" srcset="/item0-large.png">
-              <img alt="Side Angle" src="/item0.png">
+              <img alt="Side Angle" src="/item0.png" srcset="/item0.png 1x, /item0-2x.png 2x" sizes="100vw">
             </picture>
             <h4 data-id="C402-feature-item-0-label">OVERALL DIMENSIONS</h4>
             <p data-id="C402-feature-item-0-featureDescription">A - Overall length: 4,595 mm</p>
@@ -303,6 +303,8 @@ describe('cloneFeatureSlider (jsdom-executed)', () => {
     expect(img.getAttribute('src')).toBe('https://cdn.example/Front-EVOLVE-vlp.png')
     expect(img.alt).toBe('Front Angle')
     expect(root.querySelectorAll('source')).toHaveLength(0)
+    expect(img.hasAttribute('srcset')).toBe(false)
+    expect(img.hasAttribute('sizes')).toBe(false)
     expect(root.querySelector('[data-id$="-featureDescription"]')!.textContent).toContain('Overall width')
     expect((root.querySelector('[data-clone-prev]') as HTMLButtonElement).disabled).toBe(false)
     expect((root.querySelector('[data-clone-next]') as HTMLButtonElement).disabled).toBe(true)
