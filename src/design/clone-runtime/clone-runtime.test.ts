@@ -44,8 +44,10 @@ describe('buildCloneRuntimeScript', () => {
     // the captured stylesheet via removeProperty('display') is not reliable — OEM markup frequently
     // has no class-based "visible" rule at all. Both cloneTabs.show() and cloneAccordion.togglePanel()
     // must force display:block !important on reveal, matching the hide path's !important priority.
+    // (Scoped to panel elements: cloneFeatureSlider legitimately removeProperty()s a display it
+    // set itself on the slide img, which never depends on the captured stylesheet.)
     expect(script).toContain("setProperty('display', 'block', 'important')")
-    expect(script).not.toContain("removeProperty('display')")
+    expect(script).not.toContain("panel.style.removeProperty('display')")
   })
 
   it('resolves the carousel track on the root itself when the root IS the track', () => {
