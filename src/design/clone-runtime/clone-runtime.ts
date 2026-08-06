@@ -416,15 +416,18 @@ document.addEventListener('alpine:init', function () {
         if (media) {
           var img = media.querySelector('img');
           if (img) {
-            // The captured <picture> carries per-breakpoint <source> elements
-            // for item 0 only — they'd override any src swap, so drop them
-            // the first time the slide changes.
+            // The captured <picture> sources AND the img's own srcset carry
+            // item-0 variants only — either would override a plain src swap
+            // (the browser keeps picking the srcset candidate), so drop both
+            // when the slide changes.
             var picture = img.closest('picture');
             if (picture) {
               Array.prototype.slice.call(picture.querySelectorAll('source')).forEach(function (source) {
                 source.parentNode.removeChild(source);
               });
             }
+            img.removeAttribute('srcset');
+            img.removeAttribute('sizes');
             var resolved = cloneCompImageSrc(cloneCompItemPath(item));
             if (resolved) cloneSetImgWithFallback(img, resolved);
             if (typeof item.imageAltText === 'string') img.alt = item.imageAltText;
