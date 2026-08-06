@@ -72,6 +72,16 @@ function cloneCompImageSrc(path) {
   return { src: absolute, fallback: null };
 }
 
+// Marks a runtime-created element as ephemeral. Clone Studio serializes the
+// LIVE iframe DOM on save and strips [data-clone-studio-bridge] nodes — so
+// every element this runtime creates must carry the marker or an editor
+// save would bake it into stored HTML (and a baked trigger would duplicate
+// on the next bind). Inert on dealer pages.
+function cloneMarkEphemeral(el) {
+  el.setAttribute('data-clone-studio-bridge', 'true');
+  return el;
+}
+
 function cloneSetImgWithFallback(img, resolved) {
   if (resolved.fallback && resolved.fallback !== resolved.src) {
     var fallbackSrc = resolved.fallback;
@@ -109,7 +119,7 @@ function cloneCompItemVideo(item) {
 function cloneCompVideoElement(item, className) {
   var videoSrc = cloneCompItemVideo(item);
   if (!videoSrc) return null;
-  var video = document.createElement('video');
+  var video = cloneMarkEphemeral(document.createElement('video'));
   video.className = className;
   video.muted = true;
   video.autoplay = true;
@@ -120,7 +130,7 @@ function cloneCompVideoElement(item, className) {
   if (poster) video.poster = poster.src;
   video.addEventListener('error', function () {
     if (!poster) { video.remove(); return; }
-    var img = document.createElement('img');
+    var img = cloneMarkEphemeral(document.createElement('img'));
     img.className = className;
     img.alt = typeof item.videoAltText === 'string' ? item.videoAltText : '';
     cloneSetImgWithFallback(img, poster);
@@ -269,7 +279,7 @@ document.addEventListener('alpine:init', function () {
         // elements live outside stored HTML, so CSP/inertness is unaffected.
         if (!this.root.querySelector('[data-clone-overlay-trigger]')) {
           var props = this.readProps();
-          var button = document.createElement('button');
+          var button = cloneMarkEphemeral(document.createElement('button'));
           button.type = 'button';
           button.className = 'clone-fo-trigger';
           var plus = document.createElement('span');
@@ -313,7 +323,7 @@ document.addEventListener('alpine:init', function () {
         if (!props || props.items.length === 0) return;
         var self = this;
 
-        var overlay = document.createElement('div');
+        var overlay = cloneMarkEphemeral(document.createElement('div'));
         overlay.className = 'clone-fo-overlay';
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
