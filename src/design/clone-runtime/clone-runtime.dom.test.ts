@@ -191,6 +191,24 @@ describe('cloneFeatureOverlay (jsdom-executed)', () => {
     proxied.remove()
   })
 
+  it('falls back to the absolute CDN URL when the proxied overlay image errors', () => {
+    const proxied = document.createElement('img')
+    proxied.src = 'https://oem-agent.example.workers.dev/media/pages/assets/nissan-au/x-trail/existing.png'
+    document.body.appendChild(proxied)
+    const root = makeRoot()
+    const component = mountComponent(root)
+
+    component.open()
+    const img = root.querySelector('img.clone-fo-image') as HTMLImageElement
+    expect(img.getAttribute('src')).toBe('https://oem-agent.example.workers.dev/media/pages/assets/nissan-au/x-trail/ProPilot-hp.png')
+    img.dispatchEvent(new Event('error'))
+    expect(img.getAttribute('src')).toBe('https://www-asia.nissan-cdn.net/content/dam/ariya/ProPilot-hp.png')
+
+    component.close()
+    root.remove()
+    proxied.remove()
+  })
+
   it('closes on Escape and on backdrop click, but not on panel click', () => {
     const root = makeRoot()
     const component = mountComponent(root)

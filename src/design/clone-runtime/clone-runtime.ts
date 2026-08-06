@@ -27,22 +27,28 @@ function cloneFeatureOverlayStyles() {
   if (document.getElementById('clone-feature-overlay-styles')) return;
   var style = document.createElement('style');
   style.id = 'clone-feature-overlay-styles';
+  // The overlay lives inside the clone scope, where the captured OEM stylesheet
+  // styles bare elements with !important at specificity (0,3,1) — e.g. Nissan's
+  // scoped "header { position:absolute!important }". Tripling the class lifts
+  // every rule to (0,4,0) so overlay chrome always wins; load-bearing layout
+  // properties are additionally pinned with !important.
+  var fo = function (cls) { return '[data-clone-interaction="feature-overlay"] .' + cls + '.' + cls + '.' + cls; };
   style.textContent = [
     '[data-clone-interaction="feature-overlay"] { position: relative; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-trigger { display: inline-flex; align-items: center; gap: 10px; margin: 16px; padding: 10px 18px; border: 1px solid #000; background: #fff; color: #000; font-size: 13px; letter-spacing: 2px; cursor: pointer; position: absolute; bottom: 24px; left: 24px; z-index: 5; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-trigger:hover { background: #000; color: #fff; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-trigger-plus { font-size: 18px; line-height: 1; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-overlay { position: fixed; inset: 0; z-index: 99990; background: rgba(0,0,0,0.55); display: flex; align-items: stretch; justify-content: center; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-panel { position: relative; background: #fff; color: #000; width: 100%; max-width: 1100px; overflow-y: auto; padding: 64px 48px; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-close { position: absolute; top: 16px; right: 20px; width: 44px; height: 44px; border: 0; background: transparent; color: #000; font-size: 32px; line-height: 1; cursor: pointer; z-index: 1; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-header { margin-bottom: 32px; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-eyebrow { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 8px; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-title { font-size: 32px; margin: 0; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-item { margin: 0 0 48px; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-image { display: block; width: 100%; height: auto; margin-bottom: 20px; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-item-label { font-size: 20px; letter-spacing: 1px; margin: 0 0 12px; }',
-    '[data-clone-interaction="feature-overlay"] .clone-fo-item-description { font-size: 15px; line-height: 1.7; margin: 0; }',
-    '@media (max-width: 767px) { [data-clone-interaction="feature-overlay"] .clone-fo-panel { padding: 56px 20px; } }',
+    fo('clone-fo-trigger') + ' { display: inline-flex !important; align-items: center; gap: 10px; margin: 16px; padding: 10px 18px; border: 1px solid #000; background: #fff; color: #000; font-size: 13px; letter-spacing: 2px; cursor: pointer; position: absolute !important; bottom: 24px; left: 24px; top: auto !important; right: auto !important; width: auto !important; height: auto !important; z-index: 5; }',
+    fo('clone-fo-trigger') + ':hover { background: #000; color: #fff; }',
+    fo('clone-fo-trigger-plus') + ' { font-size: 18px; line-height: 1; }',
+    fo('clone-fo-overlay') + ' { position: fixed !important; inset: 0 !important; z-index: 99990; background: rgba(0,0,0,0.55); display: flex !important; align-items: stretch; justify-content: center; margin: 0 !important; padding: 0 !important; width: auto !important; height: auto !important; }',
+    fo('clone-fo-panel') + ' { position: relative !important; background: #fff; color: #000; width: 100% !important; max-width: 1100px !important; overflow-y: auto !important; padding: 64px 48px; margin: 0 !important; float: none !important; }',
+    fo('clone-fo-close') + ' { position: absolute !important; top: 16px !important; right: 20px !important; bottom: auto !important; left: auto !important; width: 44px !important; height: 44px !important; border: 0; background: transparent; color: #000; font-size: 32px; line-height: 1; cursor: pointer; z-index: 1; }',
+    fo('clone-fo-header') + ' { position: static !important; inset: auto !important; width: auto !important; height: auto !important; margin: 0 0 32px !important; float: none !important; }',
+    fo('clone-fo-eyebrow') + ' { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 8px; position: static !important; }',
+    fo('clone-fo-title') + ' { font-size: 32px; margin: 0; position: static !important; }',
+    fo('clone-fo-item') + ' { position: static !important; float: none !important; margin: 0 0 48px !important; width: auto !important; height: auto !important; }',
+    fo('clone-fo-image') + ' { display: block !important; width: 100% !important; height: auto !important; max-width: 100% !important; margin: 0 0 20px !important; position: static !important; }',
+    fo('clone-fo-item-label') + ' { font-size: 20px; letter-spacing: 1px; margin: 0 0 12px; position: static !important; }',
+    fo('clone-fo-item-description') + ' { font-size: 15px; line-height: 1.7; margin: 0; position: static !important; }',
+    '@media (max-width: 767px) { ' + fo('clone-fo-panel') + ' { padding: 56px 20px; } }',
   ].join('\\n');
   document.head.appendChild(style);
 }
@@ -230,18 +236,20 @@ document.addEventListener('alpine:init', function () {
         // Captured pages route media through the worker proxy under a
         // per-model assets prefix (…/media/pages/assets/<oem>/<model>/<file>);
         // the server side handles the .ximg fallback. Reuse the prefix from
-        // any already-proxied image on the page; otherwise fall back to the
-        // absolute nissan-cdn URL.
+        // any already-proxied image on the page, with the absolute
+        // nissan-cdn URL as the error fallback — overlay images referenced
+        // only in compprops JSON were never captured into every model's
+        // asset space (e.g. X-Trail's compprops reference Ariya asset names).
+        var absolute = path.slice(0, 2) === '//' ? 'https:' + path : path;
         var basename = path.split('/').pop();
         var proxied = document.querySelector('img[src*="/media/pages/assets/"]');
         if (proxied && basename) {
           var src = proxied.getAttribute('src') || '';
           var cut = src.indexOf('/media/pages/assets/');
           var prefix = src.slice(0, src.lastIndexOf('/'));
-          if (cut >= 0 && prefix) return prefix + '/' + basename;
+          if (cut >= 0 && prefix) return { src: prefix + '/' + basename, fallback: absolute };
         }
-        if (path.slice(0, 2) === '//') return 'https:' + path;
-        return path;
+        return { src: absolute, fallback: null };
       },
       open: function () {
         if (this.overlay) return;
@@ -290,13 +298,19 @@ document.addEventListener('alpine:init', function () {
         props.items.forEach(function (item) {
           var figure = document.createElement('figure');
           figure.className = 'clone-fo-item';
-          var imageSrc = self.resolveImage(item);
-          if (imageSrc) {
+          var resolved = self.resolveImage(item);
+          if (resolved) {
             var image = document.createElement('img');
             image.className = 'clone-fo-image';
-            image.src = imageSrc;
             image.alt = typeof item.imageAltText === 'string' ? item.imageAltText : '';
             image.loading = 'lazy';
+            if (resolved.fallback && resolved.fallback !== resolved.src) {
+              var fallbackSrc = resolved.fallback;
+              image.addEventListener('error', function () {
+                if (image.src !== fallbackSrc) image.src = fallbackSrc;
+              }, { once: true });
+            }
+            image.src = resolved.src;
             figure.appendChild(image);
           }
           var caption = document.createElement('figcaption');

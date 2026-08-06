@@ -66,11 +66,11 @@ https://www.nissan.com.au/vehicles/browse-range/ariya.html ("LEARN MORE" overlay
 - [x] 3. Overlay CSS injected via clone runtime (scoped under `.oem-production-scope` /
       publication scope)
 - [x] 4. Publication validator: allow the new stamped attributes; run full suite
-- [ ] 5. Non-destructive re-annotate + upload Ariya (backup first), verify in builder
+- [x] 5. Non-destructive re-annotate + upload Ariya (backup first), verify in builder
       preview
-- [ ] 6. Deploy worker; purge; interactive click-test on dealer page (overlay opens,
+- [x] 6. Deploy worker; purge; interactive click-test on dealer page (overlay opens,
       closes, no scroll leak); visual QA vs corporate reference
-- [ ] 7. Roll out to qashqai / x-trail / patrol / navara (same re-annotate flow)
+- [x] 7. Roll out to qashqai / x-trail / patrol / navara (same re-annotate flow)
 
 ## Risks
 
