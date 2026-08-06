@@ -428,6 +428,7 @@ document.addEventListener('alpine:init', function () {
       root: null,
       items: [],
       index: 0,
+      labelHasCounter: false,
       init: function () {
         this.root = this.$el;
         // Slides come from the nearest compprops ancestor's featureItems —
@@ -442,7 +443,17 @@ document.addEventListener('alpine:init', function () {
             }
           } catch (error) { /* drifted compprops: leave the slider inert */ }
         }
+        // AEM renders captioned sliders with a slide counter baked into the
+        // label text ("1/3 | INTELLIGENT..."); remember the format so swaps
+        // keep it.
+        var labelNode = this.root.querySelector('[data-id$="-label"]');
+        this.labelHasCounter = !!(labelNode && /^\\s*\\d+\\s*\\/\\s*\\d+\\s*\\|/.test(labelNode.textContent || ''));
         this.updateArrows();
+        // Video-first sliders (Patrol Intelligent Mobility) captured only a
+        // static poster for slide 0 — run update() once so playback starts,
+        // matching the corporate page. Image-first sliders keep their
+        // captured responsive markup untouched until the user navigates.
+        if (this.items[0] && this.items[0].mediaType === 'video') this.update();
       },
       prev: function () {
         if (this.index <= 0) return;
@@ -496,7 +507,13 @@ document.addEventListener('alpine:init', function () {
           // "-feature-item-0-label" / "-featureDescription"); untrusted
           // compprops text goes in via textContent only.
           var label = media.querySelector('[data-id$="-label"]');
-          if (label) label.textContent = typeof item.label === 'string' ? item.label : '';
+          if (label) {
+            var labelText = typeof item.label === 'string' ? item.label : '';
+            if (this.labelHasCounter && labelText) {
+              labelText = (this.index + 1) + '/' + this.items.length + ' | ' + labelText;
+            }
+            label.textContent = labelText;
+          }
           var description = media.querySelector('[data-id$="-featureDescription"]');
           if (description) description.textContent = typeof item.featureDescription === 'string' ? item.featureDescription : '';
         }
