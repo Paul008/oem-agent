@@ -1,6 +1,7 @@
 import { load } from 'cheerio'
 import { describe, expect, it } from 'vitest'
-import { detectInteractiveRegions, parseSection } from './section-parser'
+import { detectInteractiveRegions, parseFeatureOverlayProps, parseSection } from './section-parser'
+import { ARIYA_PROPILOT_COMPPROPS_ATTR } from './nissan-feature-overlay-fixture'
 
 describe('section-parser video detection', () => {
   it('detects inline video tags with data-src attributes', () => {
@@ -236,5 +237,71 @@ describe('detectInteractiveRegions', () => {
     const regions = detectInteractiveRegions(html)
 
     expect(regions).toHaveLength(0)
+  })
+})
+
+describe('feature-overlay detection', () => {
+  const propilotSection = (inner = '') =>
+    `<div data-compprops="${ARIYA_PROPILOT_COMPPROPS_ATTR}" data-compid="feature-comp" data-rendered="true">${inner}</div>`
+
+  it('detects a modal-CTA compprops section from the real Ariya ProPILOT fixture', () => {
+    const regions = detectInteractiveRegions(propilotSection('<section><p>rendered body</p></section>'))
+
+    expect(regions).toHaveLength(1)
+    expect(regions[0].type).toBe('feature-overlay')
+    expect(regions[0].triggerCount).toBe(0) // Nissan captures carry no trigger DOM
+    expect(regions[0].panelCount).toBe(1)
+  })
+
+  it('counts captured learn-more trigger DOM when present', () => {
+    const regions = detectInteractiveRegions(propilotSection('<button class="cta"><span class="icon-plus"></span>LEARN MORE</button>'))
+
+    expect(regions).toHaveLength(1)
+    expect(regions[0].triggerCount).toBeGreaterThan(0)
+  })
+
+  it('ignores compprops without featureItems, invalid JSON, and non-modal sections without triggers', () => {
+    const noItems = '<div data-compprops="{&quot;faqItems&quot;:[{&quot;faqQuestion&quot;:&quot;Q&quot;}]}"><p>x</p></div>'
+    const badJson = '<div data-compprops="not json"><p>x</p></div>'
+    const noSignal = '<div data-compprops="{&quot;featureItems&quot;:[{&quot;label&quot;:&quot;A&quot;}]}"><p>x</p></div>'
+
+    expect(detectInteractiveRegions(noItems)).toHaveLength(0)
+    expect(detectInteractiveRegions(badJson)).toHaveLength(0)
+    expect(detectInteractiveRegions(noSignal)).toHaveLength(0)
+  })
+
+  it('keeps a carousel detected INSIDE a feature-overlay section (dedup exemption)', () => {
+    const carousel = `
+      <div class="feature swiper">
+        <div class="swiper-wrapper">
+          <div class="swiper-slide"><img src="/a.jpg"></div>
+          <div class="swiper-slide"><img src="/b.jpg"></div>
+        </div>
+      </div>`
+    const regions = detectInteractiveRegions(propilotSection(carousel))
+
+    expect(regions.map(r => r.type).sort()).toEqual(['carousel', 'feature-overlay'])
+  })
+})
+
+describe('parseFeatureOverlayProps', () => {
+  it('parses the real Ariya ProPILOT compprops', () => {
+    const decoded = load(`<div data-compprops="${ARIYA_PROPILOT_COMPPROPS_ATTR}"></div>`)('div').attr('data-compprops')
+    const props = parseFeatureOverlayProps(decoded)
+
+    expect(props).not.toBeNull()
+    expect(props!.hasModalCta).toBe(true)
+    expect(props!.items).toHaveLength(1)
+    expect(props!.items[0].label).toContain('ProPILOT')
+    expect(props!.items[0].desktopImagePath).toContain('nissan-cdn.net')
+    expect(props!.items[0].featureDescription).toContain('technologies')
+  })
+
+  it('returns null for empty/undefined/drifted shapes instead of throwing', () => {
+    expect(parseFeatureOverlayProps(undefined)).toBeNull()
+    expect(parseFeatureOverlayProps('')).toBeNull()
+    expect(parseFeatureOverlayProps('{"featureItems":[]}')).toBeNull()
+    expect(parseFeatureOverlayProps('{"featureItems":"drifted"}')).toBeNull()
+    expect(parseFeatureOverlayProps('{"featureItems":[null, 42]}')).toBeNull()
   })
 })

@@ -2,6 +2,7 @@ import { load } from 'cheerio'
 import { describe, expect, it } from 'vitest'
 
 import { annotateCloneInteractions } from './clone-annotator'
+import { ARIYA_PROPILOT_COMPPROPS_ATTR } from './nissan-feature-overlay-fixture'
 
 const TABS_ARIA = `
 <section class="model-features">
@@ -317,3 +318,49 @@ describe('Nissan wds-carousel recognition', () => {
     expect(result.html).toContain('data-clone-track');
   });
 });
+
+describe('feature-overlay stamping', () => {
+  const section = (inner = '<section><p>rendered body</p></section>') =>
+    `<div data-compprops="${ARIYA_PROPILOT_COMPPROPS_ATTR}" data-compid="feature-comp" data-rendered="true">${inner}</div>`
+
+  it('stamps the section root with x-data and interaction attributes (real Ariya fixture)', () => {
+    const { html, interactions } = annotateCloneInteractions(section())
+    const $ = load(html)
+    const root = $('[data-clone-interaction="feature-overlay"]')
+
+    expect(root).toHaveLength(1)
+    expect(root.attr('x-data')).toBe('cloneFeatureOverlay')
+    expect(root.attr('data-clone-region-id')).toMatch(/^cr-\d+$/)
+    // compprops stays the single data source — untouched by stamping
+    expect(root.attr('data-compprops')).toContain('featureItems')
+    expect(interactions).toHaveLength(1)
+    expect(interactions[0].type).toBe('feature-overlay')
+    expect(interactions[0].trigger_count).toBe(0)
+    expect(interactions[0].panel_count).toBe(1)
+  })
+
+  it('stamps captured learn-more triggers with x-on:click when present', () => {
+    const { html, interactions } = annotateCloneInteractions(section('<button class="cta">LEARN MORE</button>'))
+    const $ = load(html)
+    const trigger = $('[data-clone-overlay-trigger]')
+
+    expect(trigger).toHaveLength(1)
+    expect(trigger.attr('x-on:click')).toBe('openOverlay')
+    expect(interactions[0].trigger_count).toBe(1)
+  })
+
+  it('adds no inline handlers or scripts (attributes only)', () => {
+    const { html } = annotateCloneInteractions(section())
+
+    expect(html).not.toMatch(/<script/i)
+    expect(html).not.toMatch(/\son[a-z]+=/i)
+  })
+
+  it('is idempotent: re-annotating stamped output reports the same inventory', () => {
+    const first = annotateCloneInteractions(section('<button class="cta">LEARN MORE</button>'))
+    const second = annotateCloneInteractions(first.html)
+
+    expect(second.html).toBe(first.html)
+    expect(second.interactions).toEqual(first.interactions)
+  })
+})

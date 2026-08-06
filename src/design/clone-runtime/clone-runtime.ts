@@ -20,6 +20,33 @@ export const CLONE_INTERACTION_ATTR = 'data-clone-interaction';
 export const CLONE_REGION_ID_ATTR = 'data-clone-region-id';
 
 const COMPONENTS_JS = `
+// Overlay chrome for cloneFeatureOverlay. Every rule is scoped under the
+// stamped region root, so nothing can leak into the dealer shell; z-index is
+// high but bounded (dealer chat widgets commonly sit at 2147483647).
+function cloneFeatureOverlayStyles() {
+  if (document.getElementById('clone-feature-overlay-styles')) return;
+  var style = document.createElement('style');
+  style.id = 'clone-feature-overlay-styles';
+  style.textContent = [
+    '[data-clone-interaction="feature-overlay"] { position: relative; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-trigger { display: inline-flex; align-items: center; gap: 10px; margin: 16px; padding: 10px 18px; border: 1px solid #000; background: #fff; color: #000; font-size: 13px; letter-spacing: 2px; cursor: pointer; position: absolute; bottom: 24px; left: 24px; z-index: 5; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-trigger:hover { background: #000; color: #fff; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-trigger-plus { font-size: 18px; line-height: 1; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-overlay { position: fixed; inset: 0; z-index: 99990; background: rgba(0,0,0,0.55); display: flex; align-items: stretch; justify-content: center; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-panel { position: relative; background: #fff; color: #000; width: 100%; max-width: 1100px; overflow-y: auto; padding: 64px 48px; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-close { position: absolute; top: 16px; right: 20px; width: 44px; height: 44px; border: 0; background: transparent; color: #000; font-size: 32px; line-height: 1; cursor: pointer; z-index: 1; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-header { margin-bottom: 32px; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-eyebrow { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 8px; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-title { font-size: 32px; margin: 0; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-item { margin: 0 0 48px; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-image { display: block; width: 100%; height: auto; margin-bottom: 20px; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-item-label { font-size: 20px; letter-spacing: 1px; margin: 0 0 12px; }',
+    '[data-clone-interaction="feature-overlay"] .clone-fo-item-description { font-size: 15px; line-height: 1.7; margin: 0; }',
+    '@media (max-width: 767px) { [data-clone-interaction="feature-overlay"] .clone-fo-panel { padding: 56px 20px; } }',
+  ].join('\\n');
+  document.head.appendChild(style);
+}
+
 document.addEventListener('alpine:init', function () {
   Alpine.data('cloneTabs', function () {
     return {
@@ -138,6 +165,191 @@ document.addEventListener('alpine:init', function () {
         var offset = this.slides[this.index].offsetLeft - this.slides[0].offsetLeft;
         this.track.style.setProperty('transform', 'translateX(' + (-offset) + 'px)', 'important');
         this.root.setAttribute('data-clone-carousel-index', String(this.index));
+      },
+    };
+  });
+
+  Alpine.data('cloneFeatureOverlay', function () {
+    return {
+      root: null,
+      overlay: null,
+      lastFocused: null,
+      savedHtmlOverflow: '',
+      savedBodyOverflow: '',
+      keydownHandler: null,
+      init: function () {
+        this.root = this.$el;
+        cloneFeatureOverlayStyles();
+        // Today's Nissan captures carry no learn-more trigger DOM (the AEM
+        // app renders it client-side, after capture) — so when the annotator
+        // stamped none, this component renders its own. Runtime-created
+        // elements live outside stored HTML, so CSP/inertness is unaffected.
+        if (!this.root.querySelector('[data-clone-overlay-trigger]')) {
+          var props = this.readProps();
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'clone-fo-trigger';
+          var plus = document.createElement('span');
+          plus.className = 'clone-fo-trigger-plus';
+          plus.setAttribute('aria-hidden', 'true');
+          plus.textContent = '+';
+          var label = document.createElement('span');
+          label.textContent = (props && props.ctaLabel) || 'LEARN MORE';
+          button.appendChild(plus);
+          button.appendChild(label);
+          var self = this;
+          button.addEventListener('click', function () { self.open(); });
+          this.root.appendChild(button);
+        }
+      },
+      openOverlay: function () { this.open(); },
+      readProps: function () {
+        // Lazy + defensive: compprops shapes drift per AEM component; render
+        // nothing rather than throw (values are treated as untrusted text —
+        // textContent only, never innerHTML).
+        var raw = this.root.getAttribute('data-compprops');
+        if (!raw) return null;
+        var parsed;
+        try { parsed = JSON.parse(raw); } catch (error) { return null; }
+        if (!parsed || typeof parsed !== 'object') return null;
+        var items = Array.isArray(parsed.featureItems) ? parsed.featureItems.filter(function (item) { return item && typeof item === 'object'; }) : [];
+        return {
+          items: items,
+          ctaLabel: typeof parsed.ctaText === 'string' && parsed.ctaText ? parsed.ctaText
+            : (typeof parsed.buttonText === 'string' && parsed.buttonText ? parsed.buttonText : null),
+          title: typeof parsed.title === 'string' ? parsed.title : null,
+          subtitle: typeof parsed.subtitle === 'string' ? parsed.subtitle : null,
+        };
+      },
+      resolveImage: function (item) {
+        var width = window.innerWidth || 1024;
+        var path = (width >= 1024 && item.desktopImagePath)
+          || (width >= 768 && item.tabletImagePath)
+          || item.mobileImagePath || item.tabletImagePath || item.desktopImagePath;
+        if (!path || typeof path !== 'string') return null;
+        // Captured pages route media through the worker proxy under a
+        // per-model assets prefix (…/media/pages/assets/<oem>/<model>/<file>);
+        // the server side handles the .ximg fallback. Reuse the prefix from
+        // any already-proxied image on the page; otherwise fall back to the
+        // absolute nissan-cdn URL.
+        var basename = path.split('/').pop();
+        var proxied = document.querySelector('img[src*="/media/pages/assets/"]');
+        if (proxied && basename) {
+          var src = proxied.getAttribute('src') || '';
+          var cut = src.indexOf('/media/pages/assets/');
+          var prefix = src.slice(0, src.lastIndexOf('/'));
+          if (cut >= 0 && prefix) return prefix + '/' + basename;
+        }
+        if (path.slice(0, 2) === '//') return 'https:' + path;
+        return path;
+      },
+      open: function () {
+        if (this.overlay) return;
+        var props = this.readProps();
+        if (!props || props.items.length === 0) return;
+        var self = this;
+
+        var overlay = document.createElement('div');
+        overlay.className = 'clone-fo-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        if (props.title) overlay.setAttribute('aria-label', props.title);
+        overlay.addEventListener('click', function (event) {
+          if (event.target === overlay) self.close();
+        });
+
+        var panel = document.createElement('div');
+        panel.className = 'clone-fo-panel';
+
+        var closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'clone-fo-close';
+        closeButton.setAttribute('aria-label', 'Close');
+        closeButton.textContent = '\\u00d7';
+        closeButton.addEventListener('click', function () { self.close(); });
+        panel.appendChild(closeButton);
+
+        if (props.subtitle || props.title) {
+          var header = document.createElement('header');
+          header.className = 'clone-fo-header';
+          if (props.subtitle) {
+            var eyebrow = document.createElement('p');
+            eyebrow.className = 'clone-fo-eyebrow';
+            eyebrow.textContent = props.subtitle;
+            header.appendChild(eyebrow);
+          }
+          if (props.title) {
+            var heading = document.createElement('h2');
+            heading.className = 'clone-fo-title';
+            heading.textContent = props.title;
+            header.appendChild(heading);
+          }
+          panel.appendChild(header);
+        }
+
+        props.items.forEach(function (item) {
+          var figure = document.createElement('figure');
+          figure.className = 'clone-fo-item';
+          var imageSrc = self.resolveImage(item);
+          if (imageSrc) {
+            var image = document.createElement('img');
+            image.className = 'clone-fo-image';
+            image.src = imageSrc;
+            image.alt = typeof item.imageAltText === 'string' ? item.imageAltText : '';
+            image.loading = 'lazy';
+            figure.appendChild(image);
+          }
+          var caption = document.createElement('figcaption');
+          if (typeof item.label === 'string' && item.label) {
+            var itemLabel = document.createElement('h3');
+            itemLabel.className = 'clone-fo-item-label';
+            itemLabel.textContent = item.label;
+            caption.appendChild(itemLabel);
+          }
+          if (typeof item.featureDescription === 'string' && item.featureDescription) {
+            var description = document.createElement('p');
+            description.className = 'clone-fo-item-description';
+            description.textContent = item.featureDescription;
+            caption.appendChild(description);
+          }
+          if (caption.childNodes.length > 0) figure.appendChild(caption);
+          if (figure.childNodes.length > 0) panel.appendChild(figure);
+        });
+
+        overlay.appendChild(panel);
+        this.root.appendChild(overlay);
+        this.overlay = overlay;
+
+        // Scroll lock — saved so close() restores the host page exactly.
+        this.savedHtmlOverflow = document.documentElement.style.overflow;
+        this.savedBodyOverflow = document.body.style.overflow;
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+
+        // ESC + focus trap.
+        this.lastFocused = document.activeElement;
+        this.keydownHandler = function (event) {
+          if (event.key === 'Escape') { self.close(); return; }
+          if (event.key !== 'Tab' || !self.overlay) return;
+          var focusables = self.overlay.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])');
+          if (focusables.length === 0) return;
+          var first = focusables[0];
+          var last = focusables[focusables.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        };
+        document.addEventListener('keydown', this.keydownHandler);
+        closeButton.focus();
+      },
+      close: function () {
+        if (!this.overlay) return;
+        if (this.overlay.parentNode) this.overlay.parentNode.removeChild(this.overlay);
+        this.overlay = null;
+        document.documentElement.style.overflow = this.savedHtmlOverflow;
+        document.body.style.overflow = this.savedBodyOverflow;
+        if (this.keydownHandler) { document.removeEventListener('keydown', this.keydownHandler); this.keydownHandler = null; }
+        if (this.lastFocused && this.lastFocused.focus) this.lastFocused.focus();
+        this.lastFocused = null;
       },
     };
   });
