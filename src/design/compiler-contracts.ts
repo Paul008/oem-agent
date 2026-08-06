@@ -30,6 +30,7 @@ export const INTERACTION_TYPES = [
   'tabs',
   'accordion',
   'feature-overlay',
+  'feature-slider',
   'sticky-bar',
   'pinned-scroll',
   'scroll-reveal',

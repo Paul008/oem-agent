@@ -254,3 +254,81 @@ describe('cloneFeatureOverlay (jsdom-executed)', () => {
     root.remove()
   })
 })
+
+describe('cloneFeatureSlider (jsdom-executed)', () => {
+  const ITEMS = [
+    { label: 'OVERALL DIMENSIONS', featureDescription: 'A - Overall length: 4,595 mm', desktopImagePath: '//cdn.example/side-EVOLVE-vlp.png', tabletImagePath: null, mobileImagePath: null, imageAltText: 'Side Angle' },
+    { label: 'OVERALL DIMENSIONS', featureDescription: 'C - Overall width: 2,172 mm', desktopImagePath: '//cdn.example/Front-EVOLVE-vlp.png', tabletImagePath: null, mobileImagePath: null, imageAltText: 'Front Angle' },
+  ]
+
+  function makeSlider() {
+    const host = document.createElement('div')
+    host.setAttribute('data-compprops', JSON.stringify({ featureItems: ITEMS }))
+    host.innerHTML = `
+      <div class="custom-slider-container" data-clone-interaction="feature-slider">
+        <button class="previous arrow-button disabled" data-clone-prev="" disabled></button>
+        <button class="next arrow-button" data-clone-next=""></button>
+        <div class="slider-list" data-id="feature-slider-list">
+          <div class="slider-media" data-id="feature-slider-media">
+            <picture>
+              <source media="(min-width: 1024px)" srcset="/item0-large.png">
+              <img alt="Side Angle" src="/item0.png">
+            </picture>
+            <h4 data-id="C402-feature-item-0-label">OVERALL DIMENSIONS</h4>
+            <p data-id="C402-feature-item-0-featureDescription">A - Overall length: 4,595 mm</p>
+          </div>
+        </div>
+      </div>`
+    document.body.appendChild(host)
+    const root = host.querySelector('.custom-slider-container') as HTMLElement
+    const component = factories['cloneFeatureSlider']() as Record<string, any>
+    component.$el = root
+    component.init()
+    return { host, root, component }
+  }
+
+  it('binds items from the compprops ancestor and starts with prev disabled', () => {
+    const { host, root, component } = makeSlider()
+    expect(component.items).toHaveLength(2)
+    expect((root.querySelector('[data-clone-prev]') as HTMLButtonElement).disabled).toBe(true)
+    expect((root.querySelector('[data-clone-next]') as HTMLButtonElement).disabled).toBe(false)
+    host.remove()
+  })
+
+  it('next() swaps image/label/description, drops <source> overrides, and toggles arrow states', () => {
+    const { host, root, component } = makeSlider()
+    component.next()
+
+    const img = root.querySelector('img') as HTMLImageElement
+    expect(img.getAttribute('src')).toBe('https://cdn.example/Front-EVOLVE-vlp.png')
+    expect(img.alt).toBe('Front Angle')
+    expect(root.querySelectorAll('source')).toHaveLength(0)
+    expect(root.querySelector('[data-id$="-featureDescription"]')!.textContent).toContain('Overall width')
+    expect((root.querySelector('[data-clone-prev]') as HTMLButtonElement).disabled).toBe(false)
+    expect((root.querySelector('[data-clone-next]') as HTMLButtonElement).disabled).toBe(true)
+    expect(root.getAttribute('data-clone-slider-index')).toBe('1')
+
+    component.prev()
+    expect((root.querySelector('img') as HTMLImageElement).getAttribute('src')).toBe('https://cdn.example/side-EVOLVE-vlp.png')
+    expect((root.querySelector('[data-clone-prev]') as HTMLButtonElement).disabled).toBe(true)
+    host.remove()
+  })
+
+  it('clamps at bounds and stays inert on drifted compprops', () => {
+    const { host, component } = makeSlider()
+    component.prev() // already at 0
+    expect(component.index).toBe(0)
+
+    const bare = document.createElement('div')
+    bare.setAttribute('data-compprops', 'not json')
+    const inner = document.createElement('div')
+    bare.appendChild(inner)
+    document.body.appendChild(bare)
+    const drifted = factories['cloneFeatureSlider']() as Record<string, any>
+    drifted.$el = inner
+    expect(() => { drifted.init(); drifted.next() }).not.toThrow()
+    expect(drifted.items).toHaveLength(0)
+    bare.remove()
+    host.remove()
+  })
+})

@@ -617,7 +617,7 @@ export function parseSection(html: string): ParsedSection {
 // in clone-annotator.ts needs element-level positions.
 // ============================================================================
 
-export type DetectedInteractionType = Extract<InteractionType, 'tabs' | 'accordion' | 'carousel' | 'gallery-lightbox' | 'feature-overlay'>
+export type DetectedInteractionType = Extract<InteractionType, 'tabs' | 'accordion' | 'carousel' | 'gallery-lightbox' | 'feature-overlay' | 'feature-slider'>
 
 export interface DetectedInteractiveRegion {
   type: DetectedInteractionType
@@ -791,6 +791,21 @@ export function findFeatureOverlayDomTriggers($: ReturnType<typeof load>, root: 
   return [...matches]
 }
 
+/**
+ * Nearest ancestor (or self) carrying a data-compprops attribute whose JSON
+ * parses to overlay/slider-usable featureItems. Walks the raw node tree so it
+ * works on detection candidates before any stamping exists.
+ */
+export function closestFeatureCompprops(el: CheerioNode): FeatureOverlayProps | null {
+  let node: CheerioNode = el
+  while (node && node.type === 'tag') {
+    const props = parseFeatureOverlayProps(node.attribs?.['data-compprops'])
+    if (props) return props
+    node = node.parent
+  }
+  return null
+}
+
 export function detectInteractiveRegions(html: string): DetectedInteractiveRegion[] {
   const $ = load(html)
   type Candidate = DetectedInteractiveRegion & { el: CheerioNode }
@@ -954,16 +969,42 @@ export function detectInteractiveRegions(html: string): DetectedInteractiveRegio
     })
   })
 
+  // --- feature-slider: Nissan's in-section compprops slider ---
+  // A .custom-slider-container holds prev/next arrow buttons
+  // ([data-id$="feature-carousel-previous"/"-next"]) and a SINGLE rendered
+  // media node ([data-id="feature-slider-media"]); the remaining slides exist
+  // only as featureItems in the ancestor's compprops JSON, so the class-based
+  // carousel heuristics (which need 2+ slide elements) never fire. Requires
+  // 2+ items — with one item the arrows are decorative.
+  $('.custom-slider-container').each((_i, el) => {
+    const scope = $(el)
+    const prev = scope.find('[data-id$="feature-carousel-previous"]')
+    const next = scope.find('[data-id$="feature-carousel-next"]')
+    const media = scope.find('[data-id="feature-slider-media"]')
+    if (prev.length === 0 || next.length === 0 || media.length === 0) return
+    const props = closestFeatureCompprops(el)
+    if (!props || props.items.length < 2) return
+    regions.push({
+      type: 'feature-slider',
+      rootSelectorPath: elementPath(el),
+      triggerCount: 2,
+      panelCount: props.items.length,
+      el,
+    })
+  })
+
   // Deduplicate: drop any region nested inside another detected region, and
-  // drop same-root duplicates from overlapping heuristics. feature-overlay
-  // regions are exempt from the nesting rule (they intentionally contain /
-  // sit near other regions), but still lose same-root conflicts: two x-data
-  // components cannot share one root element, and the earlier-detected
-  // widget-specific type wins.
+  // drop same-root duplicates from overlapping heuristics. Compprops-driven
+  // regions (feature-overlay / feature-slider) are exempt from the nesting
+  // rule in both directions — a feature-slider legitimately lives INSIDE its
+  // section's feature-overlay region — but still lose same-root conflicts:
+  // two x-data components cannot share one root element, and the
+  // earlier-detected type wins.
+  const nestingExempt = (type: DetectedInteractionType) => type === 'feature-overlay' || type === 'feature-slider'
   const kept: Candidate[] = []
   for (const candidate of regions) {
-    const insideAnother = candidate.type !== 'feature-overlay'
-      && regions.some(other => other !== candidate && other.type !== 'feature-overlay' && isDescendantOf(other.el, candidate.el))
+    const insideAnother = !nestingExempt(candidate.type)
+      && regions.some(other => other !== candidate && !nestingExempt(other.type) && isDescendantOf(other.el, candidate.el))
     const sameRootKept = kept.some(existing => existing.el === candidate.el)
     if (!insideAnother && !sameRootKept) kept.push(candidate)
   }

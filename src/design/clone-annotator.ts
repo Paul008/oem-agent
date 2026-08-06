@@ -50,6 +50,7 @@ const COMPONENT_FOR_TYPE: Record<DetectedInteractionType, string> = {
   'carousel': 'cloneCarousel',
   'gallery-lightbox': 'cloneGallery',
   'feature-overlay': 'cloneFeatureOverlay',
+  'feature-slider': 'cloneFeatureSlider',
 };
 
 const FORCED_STYLE_PROPS = /(?:^|;)\s*(display|opacity|visibility|height|max-height|overflow)\s*:[^;]*(!important)?\s*/gi;
@@ -174,15 +175,21 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
     $existing(`[${CLONE_INTERACTION_ATTR}]`).each((_i, el) => {
       const $el = $existing(el);
       const type = String($el.attr(CLONE_INTERACTION_ATTR)) as DetectedInteractionType;
-      // feature-overlay panels are compprops featureItems (rendered by the
-      // runtime, never stamped as DOM), so their count comes from the JSON.
-      const panelCount = type === 'feature-overlay'
-        ? parseFeatureOverlayProps(String($el.attr('data-compprops') ?? ''))?.items.length ?? 0
+      // feature-overlay / feature-slider panels are compprops featureItems
+      // (rendered/swapped by the runtime, never stamped as DOM), so their
+      // count comes from the JSON — on the region root for an overlay, on
+      // the nearest compprops ancestor for a slider.
+      const panelCount = type === 'feature-overlay' || type === 'feature-slider'
+        ? parseFeatureOverlayProps(String($el.closest('[data-compprops]').attr('data-compprops') ?? ''))?.items.length ?? 0
         : $el.find('[data-clone-panel], [data-clone-acc-panel], [data-clone-slide], [data-clone-gallery-main]').length;
       interactions.push({
         id: String($el.attr(CLONE_REGION_ID_ATTR) ?? ''),
         type,
-        trigger_count: $el.find('[data-clone-tab], [data-clone-acc-trigger], [data-clone-gallery-thumb], [data-clone-prev], [data-clone-next], [data-clone-overlay-trigger]').length,
+        // Regions can nest (a feature-slider sits inside its section's
+        // feature-overlay), so count only triggers whose nearest stamped
+        // region root is THIS element.
+        trigger_count: $el.find('[data-clone-tab], [data-clone-acc-trigger], [data-clone-gallery-thumb], [data-clone-prev], [data-clone-next], [data-clone-overlay-trigger]')
+          .filter((_j, trigger) => $existing(trigger).closest(`[${CLONE_INTERACTION_ATTR}]`).is($el)).length,
         panel_count: panelCount,
       });
     });
@@ -316,6 +323,18 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
         $(el).attr('x-on:click', 'openOverlay');
       });
       interactions.push({ id, type: region.type, trigger_count: domTriggers.length, panel_count: props?.items.length ?? 0 });
+    }
+
+    if (region.type === 'feature-slider') {
+      // Slides live in the ancestor's compprops featureItems (only one media
+      // node is rendered); the runtime swaps content, so only the existing
+      // arrow buttons need stamping.
+      const prev = root.find('[data-id$="feature-carousel-previous"]').first();
+      const next = root.find('[data-id$="feature-carousel-next"]').first();
+      if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
+      if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
+      const sliderProps = parseFeatureOverlayProps(String(root.closest('[data-compprops]').attr('data-compprops') ?? ''));
+      interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: sliderProps?.items.length ?? 0 });
     }
 
     if (region.type === 'gallery-lightbox') {

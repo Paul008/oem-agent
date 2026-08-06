@@ -53,6 +53,43 @@ function cloneFeatureOverlayStyles() {
   document.head.appendChild(style);
 }
 
+// Shared by cloneFeatureOverlay/cloneFeatureSlider: map a compprops image
+// path onto the worker media proxy (prefix borrowed from any already-proxied
+// image on the page; server-side .ximg fallback applies) with the absolute
+// nissan-cdn URL as the error fallback — compprops-only images were never
+// captured into every model's asset space.
+function cloneCompImageSrc(path) {
+  if (!path || typeof path !== 'string') return null;
+  var absolute = path.slice(0, 2) === '//' ? 'https:' + path : path;
+  var basename = path.split('/').pop();
+  var proxied = document.querySelector('img[src*="/media/pages/assets/"]');
+  if (proxied && basename) {
+    var src = proxied.getAttribute('src') || '';
+    var cut = src.indexOf('/media/pages/assets/');
+    var prefix = src.slice(0, src.lastIndexOf('/'));
+    if (cut >= 0 && prefix) return { src: prefix + '/' + basename, fallback: absolute };
+  }
+  return { src: absolute, fallback: null };
+}
+
+function cloneSetImgWithFallback(img, resolved) {
+  if (resolved.fallback && resolved.fallback !== resolved.src) {
+    var fallbackSrc = resolved.fallback;
+    img.addEventListener('error', function () {
+      if (img.src !== fallbackSrc) img.src = fallbackSrc;
+    }, { once: true });
+  }
+  img.src = resolved.src;
+}
+
+// Best responsive path for the current viewport from a featureItems entry.
+function cloneCompItemPath(item) {
+  var width = window.innerWidth || 1024;
+  return (width >= 1024 && item.desktopImagePath)
+    || (width >= 768 && item.tabletImagePath)
+    || item.mobileImagePath || item.tabletImagePath || item.desktopImagePath || null;
+}
+
 document.addEventListener('alpine:init', function () {
   Alpine.data('cloneTabs', function () {
     return {
@@ -228,28 +265,7 @@ document.addEventListener('alpine:init', function () {
         };
       },
       resolveImage: function (item) {
-        var width = window.innerWidth || 1024;
-        var path = (width >= 1024 && item.desktopImagePath)
-          || (width >= 768 && item.tabletImagePath)
-          || item.mobileImagePath || item.tabletImagePath || item.desktopImagePath;
-        if (!path || typeof path !== 'string') return null;
-        // Captured pages route media through the worker proxy under a
-        // per-model assets prefix (…/media/pages/assets/<oem>/<model>/<file>);
-        // the server side handles the .ximg fallback. Reuse the prefix from
-        // any already-proxied image on the page, with the absolute
-        // nissan-cdn URL as the error fallback — overlay images referenced
-        // only in compprops JSON were never captured into every model's
-        // asset space (e.g. X-Trail's compprops reference Ariya asset names).
-        var absolute = path.slice(0, 2) === '//' ? 'https:' + path : path;
-        var basename = path.split('/').pop();
-        var proxied = document.querySelector('img[src*="/media/pages/assets/"]');
-        if (proxied && basename) {
-          var src = proxied.getAttribute('src') || '';
-          var cut = src.indexOf('/media/pages/assets/');
-          var prefix = src.slice(0, src.lastIndexOf('/'));
-          if (cut >= 0 && prefix) return { src: prefix + '/' + basename, fallback: absolute };
-        }
-        return { src: absolute, fallback: null };
+        return cloneCompImageSrc(cloneCompItemPath(item));
       },
       open: function () {
         if (this.overlay) return;
@@ -304,13 +320,7 @@ document.addEventListener('alpine:init', function () {
             image.className = 'clone-fo-image';
             image.alt = typeof item.imageAltText === 'string' ? item.imageAltText : '';
             image.loading = 'lazy';
-            if (resolved.fallback && resolved.fallback !== resolved.src) {
-              var fallbackSrc = resolved.fallback;
-              image.addEventListener('error', function () {
-                if (image.src !== fallbackSrc) image.src = fallbackSrc;
-              }, { once: true });
-            }
-            image.src = resolved.src;
+            cloneSetImgWithFallback(image, resolved);
             figure.appendChild(image);
           }
           var caption = document.createElement('figcaption');
@@ -364,6 +374,87 @@ document.addEventListener('alpine:init', function () {
         if (this.keydownHandler) { document.removeEventListener('keydown', this.keydownHandler); this.keydownHandler = null; }
         if (this.lastFocused && this.lastFocused.focus) this.lastFocused.focus();
         this.lastFocused = null;
+      },
+    };
+  });
+
+  Alpine.data('cloneFeatureSlider', function () {
+    return {
+      root: null,
+      items: [],
+      index: 0,
+      init: function () {
+        this.root = this.$el;
+        // Slides come from the nearest compprops ancestor's featureItems —
+        // only item 0 was rendered at capture time; the rest exist as JSON.
+        var host = this.root.closest('[data-compprops]');
+        var raw = host && host.getAttribute('data-compprops');
+        if (raw) {
+          try {
+            var parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.featureItems)) {
+              this.items = parsed.featureItems.filter(function (item) { return item && typeof item === 'object'; });
+            }
+          } catch (error) { /* drifted compprops: leave the slider inert */ }
+        }
+        this.updateArrows();
+      },
+      prev: function () {
+        if (this.index <= 0) return;
+        this.index -= 1;
+        this.update();
+      },
+      next: function () {
+        if (this.index >= this.items.length - 1) return;
+        this.index += 1;
+        this.update();
+      },
+      update: function () {
+        var item = this.items[this.index];
+        if (!item) return;
+        var media = this.root.querySelector('[data-id="feature-slider-media"]');
+        if (media) {
+          var img = media.querySelector('img');
+          if (img) {
+            // The captured <picture> carries per-breakpoint <source> elements
+            // for item 0 only — they'd override any src swap, so drop them
+            // the first time the slide changes.
+            var picture = img.closest('picture');
+            if (picture) {
+              Array.prototype.slice.call(picture.querySelectorAll('source')).forEach(function (source) {
+                source.parentNode.removeChild(source);
+              });
+            }
+            var resolved = cloneCompImageSrc(cloneCompItemPath(item));
+            if (resolved) cloneSetImgWithFallback(img, resolved);
+            if (typeof item.imageAltText === 'string') img.alt = item.imageAltText;
+          }
+          // Caption nodes exist only in captioned sections (data-id suffixes
+          // "-feature-item-0-label" / "-featureDescription"); untrusted
+          // compprops text goes in via textContent only.
+          var label = media.querySelector('[data-id$="-label"]');
+          if (label) label.textContent = typeof item.label === 'string' ? item.label : '';
+          var description = media.querySelector('[data-id$="-featureDescription"]');
+          if (description) description.textContent = typeof item.featureDescription === 'string' ? item.featureDescription : '';
+        }
+        this.updateArrows();
+        this.root.setAttribute('data-clone-slider-index', String(this.index));
+      },
+      updateArrows: function () {
+        var prev = this.root.querySelector('[data-clone-prev]');
+        var next = this.root.querySelector('[data-clone-next]');
+        this.setArrowState(prev, this.index <= 0);
+        this.setArrowState(next, this.index >= this.items.length - 1);
+      },
+      setArrowState: function (button, disabled) {
+        if (!button) return;
+        if (disabled) {
+          button.setAttribute('disabled', '');
+          button.classList.add('disabled');
+        } else {
+          button.removeAttribute('disabled');
+          button.classList.remove('disabled');
+        }
       },
     };
   });
