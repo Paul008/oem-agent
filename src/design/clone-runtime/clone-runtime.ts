@@ -510,7 +510,10 @@ document.addEventListener('alpine:init', function () {
           if (label) {
             var labelText = typeof item.label === 'string' ? item.label : '';
             if (this.labelHasCounter && labelText) {
-              labelText = (this.index + 1) + '/' + this.items.length + ' | ' + labelText;
+              // AEM's counter format is "N/M " + label, where Nissan's label
+              // values usually carry their own "| " separator already.
+              var separator = labelText.charAt(0) === '|' ? ' ' : ' | ';
+              labelText = (this.index + 1) + '/' + this.items.length + separator + labelText;
             }
             label.textContent = labelText;
           }
