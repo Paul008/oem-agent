@@ -1,4 +1,4 @@
-export const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = ['foton-au', 'gac-au', 'nissan-au'] as const;
+export const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = ['foton-au', 'nissan-au'] as const;
 
 export type ModelPageWriteIntent = 'automation' | 'manual-editor';
 

@@ -320,13 +320,13 @@ describe('worker-api protected model page writes', () => {
   })
 
   it.each([
-    ['clonePage', () => clonePage('gac-au', 'emkoo')],
+    ['clonePage', () => clonePage('foton-au', 'tunland')],
     ['adaptivePipeline', () => adaptivePipeline('foton-au', 'tunland')],
-    ['updateClonePage', () => updateClonePage('gac-au', 'emkoo', { edited_rendered: '<main />' })],
+    ['updateClonePage', () => updateClonePage('foton-au', 'tunland', { edited_rendered: '<main />' })],
     ['updatePageSections', () => updatePageSections('foton-au', 'tunland', [])],
-    ['createSubpage', () => createSubpage('gac-au', 'emkoo', 'specs', 'Specifications', 'specs')],
+    ['createSubpage', () => createSubpage('foton-au', 'tunland', 'specs', 'Specifications', 'specs')],
     ['saveDealerOverrides', () => saveDealerOverrides('foton-au', 'tunland', { dealer_name: 'Dealer' })],
-    ['importLegacyPage', () => importLegacyPage('gac-au', 'emkoo', undefined, { header: {}, content: {} })],
+    ['importLegacyPage', () => importLegacyPage('foton-au', 'tunland', undefined, { header: {}, content: {} })],
   ])('blocks %s before making a request', async (_, call) => {
     await expect(call()).rejects.toThrow('protected from dashboard writes')
     expect(fetch).not.toHaveBeenCalled()

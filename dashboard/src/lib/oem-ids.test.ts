@@ -9,8 +9,8 @@ describe('dashboard OEM IDs', () => {
     expect(OEM_IDS).toContain('renault-au')
   })
 
-  it('marks live website OEM model pages as dashboard-write protected', () => {
-    expect(isModelPageWriteProtected('gac-au')).toBe(true)
+  it('keeps GAC editable while protecting intentionally read-only OEM pages', () => {
+    expect(isModelPageWriteProtected('gac-au')).toBe(false)
     expect(isModelPageWriteProtected('foton-au')).toBe(true)
     expect(isModelPageWriteProtected('ford-au')).toBe(false)
   })
