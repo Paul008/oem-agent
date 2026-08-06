@@ -32,7 +32,7 @@
       "config": {
         "oem_ids": ["kia-au", "hyundai-au", "mazda-au", "toyota-au", "nissan-au", "gwm-au", "chery-au", "renault-au"],
         "extraction_layers": ["L2_FAST_PATH", "L3_ADAPTIVE"],
-        "max_concurrent": 3,
+        "max_concurrent": 1,
         "notify_on_change": true,
         "notify_channel": "slack:#oem-alerts"
       }

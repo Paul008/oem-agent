@@ -169,6 +169,20 @@ function onMessage(event: MessageEvent) {
   if (iframe.value?.contentWindow && source !== iframe.value.contentWindow)
     return
 
+  if (data.type === 'clone-studio:ready') {
+    if (props.editable !== false && data.indexedFallbackRegions === true) {
+      const html = typeof data.bodyHtml === 'string' ? data.bodyHtml : data.html
+      if (typeof html === 'string')
+        emit('domUpdated', html)
+      const regions = Array.isArray(data.regions) ? data.regions : []
+      for (const region of regions) {
+        if (region && typeof region === 'object')
+          emit('regionAdded', region)
+      }
+    }
+    return
+  }
+
   if (data.type === 'clone-studio:select-region' && data.region) {
     emit('selectRegion', enrichRegionForHost(data.region))
     return

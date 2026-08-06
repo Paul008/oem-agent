@@ -166,6 +166,20 @@ describe('buildCloneStudioHtml', () => {
     expect(head).not.toContain('href="https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-nameplates.min.css"')
   })
 
+  it('includes the source page when proxying GAC stylesheets so stale bundles can recover', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<main><h1>EMZOOM</h1></main>',
+      title: 'EMZOOM',
+      baseHref: 'https://www.gacgroup.com/en-au/suv/gac-emzoom',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      stylesheetUrls: ['https://eu-www-resouce-cdn.gacgroup.com/www/static/css/entry-old.css'],
+      selectedRegionId: null,
+    })
+
+    const head = extractDocumentHead(html)
+    expect(head).toContain('?page=https%3A%2F%2Fwww.gacgroup.com%2Fen-au%2Fsuv%2Fgac-emzoom')
+  })
+
   it('proxies preserved style-block asset URLs through the media worker', () => {
     const html = buildCloneStudioHtml({
       rendered: '<style>.hero{background-image:url("/content/dam/Ford/au/nameplate/mustang/hero.webp")}</style><main><h1>Mustang</h1></main>',
@@ -843,6 +857,22 @@ describe('buildCloneStudioHtml', () => {
     })).toBe('overview')
   })
 
+  it('indexes top-level legacy clone sections when no region index exists', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<section>Hero</section><section>Gallery</section>',
+      title: 'EMZOOM',
+      baseHref: 'https://www.gacgroup.com/en-au/suv/gac-emzoom',
+      selectedRegionId: null,
+    })
+    const bridgeScript = extractBridgeScript(html)
+
+    expect(bridgeScript).toContain('function initializeFallbackRegionIndex()')
+    expect(bridgeScript).toContain('body > section, body > article, body > main > section, body > main > article')
+    expect(bridgeScript).toContain('initializeFallbackRegionIndex()')
+    expect(bridgeScript).toContain('var indexedFallbackRegions = initializeFallbackRegionIndex()')
+    expect(bridgeScript).toContain('post(MESSAGE_READY, { regions: collectRegionPayloads(), indexedFallbackRegions: indexedFallbackRegions })')
+  })
+
   it('uses message.html for html patch-field messages', () => {
     const html = buildCloneStudioHtml({
       rendered: '<main data-oem-region-id="r1"><p>Mustang</p></main>',
@@ -922,7 +952,8 @@ describe('buildCloneStudioHtml', () => {
       '<form action=/lead><button formaction=javascript:alert(1)>Send</button></form><iframe srcdoc="<script>alert(2)</script>"></iframe><object data=javascript:alert(3)></object><embed src=javascript:alert(4)><base href=https://evil.test><meta http-equiv=refresh content="0;url=javascript:alert(5)"><link rel=modulepreload href=javascript:alert(6)><blockquote cite=javascript:alert(7)>Quote</blockquote>',
     )
 
-    expect(html).toContain('formaction=""')
+    expect(html).not.toContain('<form')
+    expect(html).not.toContain('Send')
     expect(html).toContain('cite=""')
     expect(html).not.toContain('<iframe')
     expect(html).not.toContain('<object')
@@ -932,6 +963,26 @@ describe('buildCloneStudioHtml', () => {
     expect(html).not.toContain('<link')
     expect(html).not.toContain('srcdoc')
     expect(html).not.toContain('javascript:')
+  })
+
+  it('removes forms and standalone form controls from cloned content', () => {
+    const html = sanitizeCloneStudioHtmlForTest(`
+      <main>
+        <form action="/lead"><label>Email<input name="email"></label><button type="submit">Send</button></form>
+        <input type="search" name="q">
+        <textarea name="notes">Notes</textarea>
+        <select name="model"><option>EMZOOM</option></select>
+        <button type="reset">Reset</button>
+        <button type="button">Keep interactive control</button>
+        <p>Keep page content</p>
+      </main>
+    `)
+
+    expect(html).not.toMatch(/<(?:form|input|textarea|select|option)\b/i)
+    expect(html).not.toContain('Send')
+    expect(html).not.toContain('Reset')
+    expect(html).toContain('<button type="button">Keep interactive control</button>')
+    expect(html).toContain('<p>Keep page content</p>')
   })
 
   it('applies context-specific URL policy for link and media patches', () => {

@@ -87,6 +87,7 @@ export interface MoltbotEnv {
   APIFY_PDF_FETCH_ACTOR_ID?: string; // Apify actor id for the generic PDF fetcher (brochure mirror)
   // Cloudflare Workflows
   BROCHURE_MIRROR?: Workflow;   // Durable brochure mirror → R2 → extract workflow
+  CRON_JOB_RUNNER?: Workflow<{ jobId: string; runId: string; startedAt: string; oemIds?: string[] }>;
 }
 
 /**

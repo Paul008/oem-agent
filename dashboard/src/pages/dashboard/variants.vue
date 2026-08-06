@@ -8,6 +8,7 @@ import type { Offer, Product, ProductSpecs, VehicleModel } from '@/composables/u
 import { BasicPage } from '@/components/global-layout'
 import { useOemData } from '@/composables/use-oem-data'
 import { supabase } from '@/lib/supabase'
+import { isNissanModelShell } from '@/lib/variant-visibility'
 
 const { fetchProducts, fetchVehicleModels, fetchOems, fetchOffersByProducts, fetchPriceChangeDates } = useOemData()
 
@@ -15,6 +16,7 @@ const products = ref<Product[]>([])
 const models = ref<VehicleModel[]>([])
 const oems = ref<{ id: string, name: string }[]>([])
 const heroMap = ref<Map<string, string>>(new Map())
+const brokenImages = ref<Set<string>>(new Set())
 const offersByProduct = ref<Map<string, Offer[]>>(new Map())
 const priceChangeDates = ref<Map<string, string>>(new Map())
 const loading = ref(true)
@@ -42,15 +44,15 @@ async function fetchHeroImages() {
   while (true) {
     const { data, error } = await supabase
       .from('variant_colors')
-      .select('product_id, hero_image_url')
-      .not('hero_image_url', 'is', null)
+      .select('product_id, hero_image_url, source_hero_url')
       .order('product_id')
       .range(from, from + PAGE - 1)
     if (error || !data || data.length === 0)
       break
     for (const row of data) {
-      if (!map.has(row.product_id)) {
-        map.set(row.product_id, row.hero_image_url)
+      const url = row.hero_image_url || row.source_hero_url
+      if (url && !map.has(row.product_id)) {
+        map.set(row.product_id, url)
       }
     }
     if (data.length < PAGE)
@@ -58,6 +60,18 @@ async function fetchHeroImages() {
     from += PAGE
   }
   return map
+}
+
+function imageUrl(product: Product): string | undefined {
+  const rawUrl = heroMap.value.get(product.id)
+  const url = rawUrl && rawUrl.startsWith('/')
+    ? `https://www.nissan.com.au${rawUrl}`
+    : rawUrl
+  return url && !brokenImages.value.has(product.id) ? url : undefined
+}
+
+function onImageError(productId: string) {
+  brokenImages.value = new Set(brokenImages.value).add(productId)
 }
 
 onMounted(async () => {
@@ -117,7 +131,7 @@ const bodyTypes = computed(() => {
 // ── Filtered & sorted ────────────────────────────────────────────────────────
 
 const filtered = computed(() => {
-  let list = products.value
+  let list = products.value.filter(product => !isNissanModelShell(product, models.value))
 
   if (filterOem.value !== 'all') {
     list = list.filter(p => p.oem_id === filterOem.value)
@@ -167,10 +181,14 @@ const filtered = computed(() => {
 })
 
 // Reset page on filter change
-watch([filterOem, filterModel, filterFuel, filterBody, searchQuery, sortBy, pageSize], () => { page.value = 1 })
+watch([filterOem, filterModel, filterFuel, filterBody, searchQuery, sortBy, pageSize], () => {
+  page.value = 1
+})
 
 // Reset model filter when OEM changes
-watch(filterOem, () => { filterModel.value = 'all' })
+watch(filterOem, () => {
+  filterModel.value = 'all'
+})
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
 
@@ -551,11 +569,12 @@ const specsWithCount = computed(() => filtered.value.filter(p => hasSpecs(p)).le
           <!-- Hero Image -->
           <div class="aspect-[16/10] relative bg-muted overflow-hidden">
             <img
-              v-if="heroMap.get(product.id)"
-              :src="heroMap.get(product.id)"
+              v-if="imageUrl(product)"
+              :src="imageUrl(product)"
               :alt="product.title"
               class="w-full h-full object-contain transition-opacity duration-200"
               loading="lazy"
+              @error="onImageError(product.id)"
             >
             <div v-else class="w-full h-full flex items-center justify-center">
               <ImageOff class="size-8 text-muted-foreground/20" />

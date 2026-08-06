@@ -116,6 +116,13 @@ const ALLOWED_HOSTS = new Set([
   'eu-www-resource-cdn.gacgroup.com',
 ]);
 
+const GAC_STYLESHEET_HOSTS = new Set([
+  'www.gacgroup.com',
+  'eu-www-resouce-cdn.gacgroup.com',
+  'eu-www-resource-cdn.gacgroup.com',
+]);
+const MAX_GAC_STYLESHEETS = 32;
+
 export function isAllowedMediaHost(hostname: string): boolean {
   return ALLOWED_HOSTS.has(hostname.toLowerCase());
 }
@@ -168,6 +175,63 @@ export function rewriteCssAssetUrlsForMediaProxy(css: string, stylesheetUrl: str
     const proxied = `/media/${oemId}/${encodeUrl(absolute)}`;
     return `url(${quote || '"'}${proxied}${quote || '"'})`;
   });
+}
+
+export function extractGacStylesheetUrls(html: string, pageUrl: string): string[] {
+  const urls = [...String(html ?? '').matchAll(/<link\b[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi)]
+    .map((match) => {
+      try {
+        const url = new URL(match[1], pageUrl);
+        return url.protocol === 'https:' && GAC_STYLESHEET_HOSTS.has(url.hostname) && /\.css(?:$|[?#])/i.test(url.href)
+          ? url.href
+          : '';
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+
+  return [...new Set(urls)].slice(0, MAX_GAC_STYLESHEETS);
+}
+
+function stylesheetFamily(url: string): string {
+  try {
+    return new URL(url).pathname.split('/').pop()?.replace(/-\d+\.[^.]+\.css$/i, '') ?? '';
+  } catch {
+    return '';
+  }
+}
+
+async function fetchCurrentGacStylesheetBundle(pageUrl: string, staleStylesheetUrl: string, headers: Record<string, string>): Promise<string | null> {
+  let page: URL;
+  try {
+    page = new URL(pageUrl);
+  } catch {
+    return null;
+  }
+  if (page.hostname !== 'www.gacgroup.com')
+    return null;
+
+  const pageResponse = await fetch(page.href, { headers });
+  if (!pageResponse.ok)
+    return null;
+
+  const stylesheetUrls = extractGacStylesheetUrls(await pageResponse.text(), page.href);
+  const requestedFamily = stylesheetFamily(staleStylesheetUrl);
+  const matchingUrls = stylesheetUrls.filter(url => stylesheetFamily(url) === requestedFamily);
+  const fallbackUrls = matchingUrls.length > 0 ? matchingUrls : stylesheetUrls;
+  if (fallbackUrls.length === 0)
+    return null;
+
+  const stylesheets = await Promise.all(fallbackUrls.map(async (url) => {
+    const response = await fetch(url, { headers });
+    if (!response.ok)
+      return '';
+    return rewriteCssAssetUrlsForMediaProxy(await response.text(), url, 'gac-au');
+  }));
+
+  const css = stylesheets.filter(Boolean).join('\n');
+  return css || null;
 }
 
 // GET /media/fonts/:oemId/:filename — serve OEM fonts from R2
@@ -332,6 +396,21 @@ media.get('/:oemId/:encodedUrl', async (c) => {
   const originResp = await fetch(resolved, { headers });
 
   if (!originResp.ok) {
+    const pageUrl = c.req.query('page');
+    const isStaleGacStylesheet = oemId === 'gac-au' && /\.css(?:[?#]|$)/i.test(resolved);
+    if (isStaleGacStylesheet && pageUrl) {
+      const fallbackCss = await fetchCurrentGacStylesheetBundle(pageUrl, resolved, headers);
+      if (fallbackCss) {
+        const fallbackHeaders = new Headers({
+          'Content-Type': 'text/css; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+          'Access-Control-Allow-Origin': '*',
+        });
+        const fallbackResponse = new Response(fallbackCss, { status: 200, headers: fallbackHeaders });
+        c.executionCtx.waitUntil(cache.put(cacheKey, fallbackResponse.clone()));
+        return fallbackResponse;
+      }
+    }
     return c.text(`Origin returned ${originResp.status}`, originResp.status as any);
   }
 

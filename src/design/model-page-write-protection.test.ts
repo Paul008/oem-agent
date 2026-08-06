@@ -41,11 +41,13 @@ const throwingBrowser = {
 };
 
 describe('model page write protection', () => {
-  it('identifies live OEMs that must remain read-only', () => {
-    expect(isModelPageWriteProtected('gac-au')).toBe(true);
+  it('keeps GAC editable while protecting intentionally read-only OEM pages', () => {
+    expect(isModelPageWriteProtected('gac-au')).toBe(false);
     expect(isModelPageWriteProtected('foton-au')).toBe(true);
+    expect(isModelPageWriteProtected('nissan-au')).toBe(true);
     expect(isModelPageWriteProtected('nissan-au', 'ariya')).toBe(true);
     expect(isModelPageWriteProtected('nissan-au', 'ariya', 'manual-editor')).toBe(false);
+    expect(isModelPageWriteProtected('nissan-au', 'qashqai--candidate-candidate-001')).toBe(false);
     expect(isModelPageWriteProtected('mazda-au')).toBe(false);
   });
 
@@ -58,7 +60,7 @@ describe('model page write protection', () => {
       browser: throwingBrowser as any,
     });
 
-    const result = await generator.generateModelPage('gac-au', 'emkoo');
+    const result = await generator.generateModelPage('foton-au', 'tunland');
     expect(result.success).toBe(false);
     expect(result.error).toContain('protected from admin writes');
 
@@ -83,9 +85,9 @@ describe('model page write protection', () => {
     expect(cloneResult.error).toContain('protected from admin writes');
 
     const screenshots = await capturer.captureSectionScreenshots(
-      'https://example.test/emkoo',
-      'gac-au',
-      'emkoo',
+      'https://example.test/tunland',
+      'foton-au',
+      'tunland',
     );
     expect(screenshots.size).toBe(0);
   });
@@ -96,7 +98,7 @@ describe('model page write protection', () => {
       r2Bucket: throwingR2Bucket as any,
     });
 
-    const structureResult = await structurer.structurePage('gac-au', 'emkoo');
+    const structureResult = await structurer.structurePage('foton-au', 'tunland');
     expect(structureResult.success).toBe(false);
     expect(structureResult.error).toContain('protected from admin writes');
 
@@ -119,10 +121,10 @@ describe('model page write protection', () => {
     });
 
     const result = await pipeline.run(
-      'gac-au',
-      'emkoo',
-      'https://example.test/emkoo',
-      'EMKOO',
+      'foton-au',
+      'tunland',
+      'https://example.test/tunland',
+      'TUNLAND',
     );
     expect(result.success).toBe(false);
     expect(result.error).toContain('protected from admin writes');

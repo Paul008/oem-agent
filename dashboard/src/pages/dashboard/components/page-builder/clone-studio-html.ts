@@ -48,6 +48,7 @@ export type CloneStudioUrlContext = 'link' | 'media'
 const HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 const LINK_URL_ATTRIBUTE_NAMES = new Set(['href', 'action', 'formaction', 'cite', 'manifest'])
 const MEDIA_URL_ATTRIBUTE_NAMES = new Set(['src', 'poster', 'data', 'xlink:href'])
+const CLONE_STUDIO_FORM_SELECTOR = 'form, input, textarea, select, option, optgroup, fieldset, legend, datalist, output, button[type="submit"], button[type="reset"], button[form]'
 const SAFE_HEAD_LINK_REL_NAMES = new Set(['stylesheet', 'preconnect', 'dns-prefetch', 'preload'])
 const SAFE_HEAD_PRELOAD_AS_NAMES = new Set(['style', 'font', 'image'])
 const CLONE_STUDIO_BRIDGE_STYLE_VERSION = '2026-07-03-empty-feature-app-v1'
@@ -1403,6 +1404,27 @@ ${rendered}
     }
 
     return payloads
+  }
+
+  function initializeFallbackRegionIndex() {
+    if (!EDITABLE || document.querySelectorAll(REGION_SELECTOR).length > 0)
+      return false
+
+    var candidates = document.querySelectorAll('body > section, body > article, body > main > section, body > main > article')
+    if (candidates.length === 0) {
+      var root = document.querySelector('main') || document.body
+      candidates = root && root.children ? root.children : []
+    }
+
+    for (var i = 0; i < candidates.length; i++) {
+      var candidate = candidates[i]
+      var tag = String(candidate.tagName || '').toLowerCase()
+      if (!candidate || candidate.hasAttribute('data-clone-studio-bridge') || /^(?:script|style|link|meta|base)$/.test(tag))
+        continue
+      ensureRegionId(candidate)
+    }
+
+    return document.querySelectorAll(REGION_SELECTOR).length > 0
   }
 
   function isNavigationElement(target) {
@@ -4390,6 +4412,7 @@ ${rendered}
     }
   })
 
+  var indexedFallbackRegions = initializeFallbackRegionIndex()
   selectRegion(findRegionById(window.__CLONE_STUDIO_SELECTED_REGION__), false)
   applyRegionOverrides(window.__CLONE_STUDIO_REGION_OVERRIDES__)
   installBrokenPictureFallbacks()
@@ -4403,7 +4426,7 @@ ${rendered}
   if (!EDITABLE)
     enableInteractivity()
 
-  post(MESSAGE_READY)
+  post(MESSAGE_READY, { regions: collectRegionPayloads(), indexedFallbackRegions: indexedFallbackRegions })
 })()
 </script>${runtimeScript}
 </body>
@@ -4567,7 +4590,12 @@ function proxyCloneStudioExternalAssetUrl(rawUrl: string, baseHref: string, medi
   if (!oemId || !encoded)
     return ''
 
-  return `${mediaBase}/media/${oemId}/${encoded}`
+  const proxied = `${mediaBase}/media/${oemId}/${encoded}`
+  if (oemId === 'gac-au' && /\.css(?:[?#]|$)/i.test(absolute) && baseHref) {
+    return `${proxied}?page=${encodeURIComponent(baseHref)}`
+  }
+
+  return proxied
 }
 
 function cloneStudioMediaProxyOemIdForUrl(url: string): string {
@@ -5028,7 +5056,7 @@ function sanitizeCloneStudioHtml(value: unknown): string {
 function sanitizeCloneStudioHtmlWithDom(value: unknown): string {
   const parser = new DOMParser()
   const doc = parser.parseFromString(`<body>${String(value ?? '')}</body>`, 'text/html')
-  const removable = doc.body.querySelectorAll('script, object, embed, base, meta, link')
+  const removable = doc.body.querySelectorAll(`script, object, embed, base, meta, link, ${CLONE_STUDIO_FORM_SELECTOR}`)
 
   for (const element of Array.from(removable))
     element.parentNode?.removeChild(element)
@@ -5089,6 +5117,16 @@ function isCloneStudioMediaUrlAttribute(name: string): boolean {
 
 function sanitizeCloneStudioHtmlFallback(value: unknown): string {
   let html = String(value ?? '')
+  html = html.replace(/<\s*(form|textarea|select|fieldset|datalist|output|option|optgroup|legend)\b[^>]*>[\s\S]*?<\/\s*\1\s*>/gi, '')
+  html = html.replace(/<\s*(form|textarea|select|fieldset|datalist|output|option|optgroup|legend)\b[^>]*>/gi, '')
+  html = html.replace(/<\/\s*(form|textarea|select|fieldset|datalist|output|option|optgroup|legend)\s*>/gi, '')
+  html = html.replace(/<\s*input\b[^>]*>/gi, '')
+  html = html.replace(/<\s*button\b[^>]*>[\s\S]*?<\/\s*button\s*>/gi, (match: string) => {
+    const openingTag = match.slice(0, match.indexOf('>') + 1)
+    const submitsForm = /\btype\s*=\s*(?:["'](?:submit|reset)["']|(?:submit|reset)(?=[\s>]))/i.test(openingTag)
+      || /\bform\s*=/i.test(openingTag)
+    return submitsForm ? '' : match
+  })
   html = html.replace(/<\s*(script|object|embed)\b[\s\S]*?<\/\s*\1\s*>/gi, '')
   html = html.replace(/<\s*(script|object|embed|base|meta|link)\b[^>]*>/gi, '')
   html = html.replace(/<\s*iframe\b[^>]*>[\s\S]*?<\/\s*iframe\s*>/gi, (match: string) => (isCloneStudioTrustedIframeMarkup(match) ? match : ''))

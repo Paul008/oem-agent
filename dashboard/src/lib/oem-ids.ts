@@ -22,7 +22,7 @@ export const OEM_IDS = [
 
 export type OemId = typeof OEM_IDS[number]
 
-export const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = ['foton-au', 'gac-au'] as const
+export const PROTECTED_MODEL_PAGE_WRITE_OEM_IDS = ['foton-au'] as const
 
 export function isModelPageWriteProtected(oemId: string | null | undefined): boolean {
   return PROTECTED_MODEL_PAGE_WRITE_OEM_IDS.includes(oemId as typeof PROTECTED_MODEL_PAGE_WRITE_OEM_IDS[number])

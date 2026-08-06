@@ -209,6 +209,7 @@ export class OemAgentOrchestrator {
     crawlType?: string,
     opts?: {
       oemIds?: string[];
+      maxConcurrent?: number;
       onProgress?: (partial: {
         phase: string;
         completed: number;
@@ -388,7 +389,7 @@ export class OemAgentOrchestrator {
     // cleanup. Any OEMs not started before the deadline are recorded as
     // 'skipped' so we can see them in the run history.
     const PER_OEM_TIMEOUT_MS = 60_000;
-    const CONCURRENCY = 6;
+    const CONCURRENCY = Math.max(1, Math.min(6, Math.floor(opts?.maxConcurrent ?? 3)));
     const GLOBAL_DEADLINE_MS = 6 * 60_000; // 6 min hard cap (cron stale cleanup at 10 min)
 
     const oemResults: Array<{

@@ -440,6 +440,7 @@ describe('usePageBuilder addCloneRegion', () => {
 
     builder.addCloneRegion(region as any)
 
+    expect(builder.cloneRegions.value.some(r => r.id === 'clone-region-99')).toBe(true)
     expect(builder.cloneRegionsForSave.value.some(r => r.id === 'clone-region-99')).toBe(true)
     expect(builder.isDirty.value).toBe(true)
   })

@@ -528,6 +528,17 @@ describe('cloneStudioCanvas duplicate-region relay', () => {
     expect(source).toContain('duplicateRegion,')
     expect(source).toContain('emit(\'regionAdded\', data.newRegion)')
   })
+
+  it('stages auto-indexed legacy clone regions and HTML when the bridge becomes ready', () => {
+    const source = readFileSync(new URL('./CloneStudioCanvas.vue', import.meta.url), 'utf8')
+    const readyStart = source.indexOf('if (data.type === \'clone-studio:ready\')')
+    const readyEnd = source.indexOf('if (data.type === \'clone-studio:select-region\')', readyStart)
+    const readyBlock = source.slice(readyStart, readyEnd)
+
+    expect(readyBlock).toContain('props.editable !== false && data.indexedFallbackRegions === true')
+    expect(readyBlock).toContain('emit(\'domUpdated\', html)')
+    expect(readyBlock).toContain('emit(\'regionAdded\', region)')
+  })
 })
 
 describe('clone region conversion wiring', () => {

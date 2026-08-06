@@ -57,6 +57,7 @@ function transformErrorMessage(message: string, host: string): string {
 export { ContainerProxy, Sandbox };
 export { McpSession };
 export { BrochureMirrorWorkflow } from './workflows/brochure-mirror';
+export { CronJobRunnerWorkflow } from './workflows/cron-job-runner';
 
 /**
  * Validate required environment variables.
