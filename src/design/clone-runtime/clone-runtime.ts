@@ -83,11 +83,51 @@ function cloneSetImgWithFallback(img, resolved) {
 }
 
 // Best responsive path for the current viewport from a featureItems entry.
-function cloneCompItemPath(item) {
+function cloneCompResponsivePath(desktop, tablet, mobile) {
   var width = window.innerWidth || 1024;
-  return (width >= 1024 && item.desktopImagePath)
-    || (width >= 768 && item.tabletImagePath)
-    || item.mobileImagePath || item.tabletImagePath || item.desktopImagePath || null;
+  return (width >= 1024 && desktop) || (width >= 768 && tablet) || mobile || tablet || desktop || null;
+}
+
+function cloneCompItemPath(item) {
+  // Video items carry null image paths but a poster set — the poster is the
+  // right still for any surface that renders the item as an image.
+  return cloneCompResponsivePath(item.desktopImagePath, item.tabletImagePath, item.mobileImagePath)
+    || cloneCompResponsivePath(item.desktopPosterImagePath, item.tabletPosterImagePath, item.mobilePosterImagePath);
+}
+
+function cloneCompItemVideo(item) {
+  if (item.mediaType !== 'video') return null;
+  var path = cloneCompResponsivePath(item.desktopVideoPath, item.tabletVideoPath, item.mobileVideoPath);
+  if (!path || typeof path !== 'string') return null;
+  // Videos are never captured into the proxied asset space — always absolute.
+  return path.slice(0, 2) === '//' ? 'https:' + path : path;
+}
+
+// Builds the corporate-style inline feature video: muted autoplay loop with
+// the item's poster, falling back to a plain poster <img> if the CDN video
+// errors. Returns null when the item has no usable video.
+function cloneCompVideoElement(item, className) {
+  var videoSrc = cloneCompItemVideo(item);
+  if (!videoSrc) return null;
+  var video = document.createElement('video');
+  video.className = className;
+  video.muted = true;
+  video.autoplay = true;
+  video.loop = true;
+  video.setAttribute('playsinline', '');
+  video.setAttribute('muted', '');
+  var poster = cloneCompImageSrc(cloneCompItemPath(item));
+  if (poster) video.poster = poster.src;
+  video.addEventListener('error', function () {
+    if (!poster) { video.remove(); return; }
+    var img = document.createElement('img');
+    img.className = className;
+    img.alt = typeof item.videoAltText === 'string' ? item.videoAltText : '';
+    cloneSetImgWithFallback(img, poster);
+    if (video.parentNode) video.parentNode.replaceChild(img, video);
+  }, { once: true });
+  video.src = videoSrc;
+  return video;
 }
 
 document.addEventListener('alpine:init', function () {
@@ -314,14 +354,19 @@ document.addEventListener('alpine:init', function () {
         props.items.forEach(function (item) {
           var figure = document.createElement('figure');
           figure.className = 'clone-fo-item';
-          var resolved = self.resolveImage(item);
-          if (resolved) {
-            var image = document.createElement('img');
-            image.className = 'clone-fo-image';
-            image.alt = typeof item.imageAltText === 'string' ? item.imageAltText : '';
-            image.loading = 'lazy';
-            cloneSetImgWithFallback(image, resolved);
-            figure.appendChild(image);
+          var video = cloneCompVideoElement(item, 'clone-fo-image');
+          if (video) {
+            figure.appendChild(video);
+          } else {
+            var resolved = self.resolveImage(item);
+            if (resolved) {
+              var image = document.createElement('img');
+              image.className = 'clone-fo-image';
+              image.alt = typeof item.imageAltText === 'string' ? item.imageAltText : '';
+              image.loading = 'lazy';
+              cloneSetImgWithFallback(image, resolved);
+              figure.appendChild(image);
+            }
           }
           var caption = document.createElement('figcaption');
           if (typeof item.label === 'string' && item.label) {
@@ -414,8 +459,23 @@ document.addEventListener('alpine:init', function () {
         if (!item) return;
         var media = this.root.querySelector('[data-id="feature-slider-media"]');
         if (media) {
+          // Video slides (Patrol's Intelligent Mobility) get an inline video
+          // element; image slides restore the captured img.
+          var previousVideo = media.querySelector('video.clone-fs-video');
+          if (previousVideo) previousVideo.remove();
           var img = media.querySelector('img');
-          if (img) {
+          var video = cloneCompVideoElement(item, 'clone-fs-video');
+          if (video) {
+            video.style.setProperty('display', 'block', 'important');
+            video.style.setProperty('width', '100%', 'important');
+            video.style.setProperty('height', 'auto', 'important');
+            var mount = img ? ((img.closest('picture') || img).parentNode || media) : media;
+            mount.appendChild(video);
+            if (img) img.style.setProperty('display', 'none', 'important');
+          } else if (img) {
+            img.style.removeProperty('display');
+          }
+          if (!video && img) {
             // The captured <picture> sources AND the img's own srcset carry
             // item-0 variants only — either would override a plain src swap
             // (the browser keeps picking the srcset candidate), so drop both
