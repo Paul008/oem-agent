@@ -334,3 +334,92 @@ describe('cloneFeatureSlider (jsdom-executed)', () => {
     host.remove()
   })
 })
+
+describe('compprops video media (jsdom-executed)', () => {
+  const VIDEO_ITEM = {
+    label: 'Intelligent Around View Monitor',
+    featureDescription: 'See everything around you.',
+    desktopImagePath: null, tabletImagePath: null, mobileImagePath: null,
+    desktopVideoPath: '//cdn.example/19TDI_LEAFw035ani_master-rev-1_1080p.mp4',
+    desktopPosterImagePath: '//cdn.example/Pathfinder-poster-1200x675.jpg',
+    mediaType: 'video',
+    imageAltText: null, videoAltText: 'Around View Monitor demo',
+  }
+  const IMAGE_ITEM = {
+    label: 'Slide zero', featureDescription: 'Image slide',
+    desktopImagePath: '//cdn.example/slide0.png', tabletImagePath: null, mobileImagePath: null,
+    mediaType: 'image', imageAltText: 'Slide zero',
+  }
+
+  function makeVideoSlider() {
+    const host = document.createElement('div')
+    host.setAttribute('data-compprops', JSON.stringify({ featureItems: [IMAGE_ITEM, VIDEO_ITEM] }))
+    host.innerHTML = `
+      <div class="custom-slider-container" data-clone-interaction="feature-slider">
+        <button data-clone-prev="" disabled></button>
+        <button data-clone-next=""></button>
+        <div data-id="feature-slider-list">
+          <div class="slider-media" data-id="feature-slider-media">
+            <picture><img alt="Slide zero" src="/slide0.png"></picture>
+          </div>
+        </div>
+      </div>`
+    document.body.appendChild(host)
+    const root = host.querySelector('.custom-slider-container') as HTMLElement
+    const component = factories['cloneFeatureSlider']() as Record<string, any>
+    component.$el = root
+    component.init()
+    return { host, root, component }
+  }
+
+  it('slider renders an inline muted looping video for video slides and restores the img on the way back', () => {
+    const { host, root, component } = makeVideoSlider()
+    component.next()
+
+    const video = root.querySelector('video.clone-fs-video') as HTMLVideoElement
+    expect(video).not.toBeNull()
+    expect(video.getAttribute('src')).toBe('https://cdn.example/19TDI_LEAFw035ani_master-rev-1_1080p.mp4')
+    expect(video.poster).toContain('Pathfinder-poster-1200x675.jpg')
+    expect(video.muted).toBe(true)
+    expect(video.loop).toBe(true)
+    const img = root.querySelector('img') as HTMLImageElement
+    expect(img.style.display).toBe('none')
+
+    component.prev()
+    expect(root.querySelector('video.clone-fs-video')).toBeNull()
+    expect(img.style.display).not.toBe('none')
+    host.remove()
+  })
+
+  it('video element falls back to the poster img when the video errors', () => {
+    const { host, root, component } = makeVideoSlider()
+    component.next()
+    const video = root.querySelector('video.clone-fs-video') as HTMLVideoElement
+    video.dispatchEvent(new Event('error'))
+
+    expect(root.querySelector('video.clone-fs-video')).toBeNull()
+    const fallback = root.querySelector('img.clone-fs-video') as HTMLImageElement
+    expect(fallback).not.toBeNull()
+    expect(fallback.getAttribute('src')).toBe('https://cdn.example/Pathfinder-poster-1200x675.jpg')
+    expect(fallback.alt).toBe('Around View Monitor demo')
+    host.remove()
+  })
+
+  it('overlay renders video items as inline video under the image styling class', () => {
+    const root = document.createElement('div')
+    root.setAttribute('data-clone-interaction', 'feature-overlay')
+    root.setAttribute('data-compprops', JSON.stringify({ featureItems: [VIDEO_ITEM], title: 'NIM', subtitle: 'TECH' }))
+    document.body.appendChild(root)
+    const component = factories['cloneFeatureOverlay']() as Record<string, any>
+    component.$el = root
+    component.init()
+    component.open()
+
+    const video = root.querySelector('.clone-fo-overlay video.clone-fo-image') as HTMLVideoElement
+    expect(video).not.toBeNull()
+    expect(video.getAttribute('src')).toBe('https://cdn.example/19TDI_LEAFw035ani_master-rev-1_1080p.mp4')
+    expect(root.querySelector('.clone-fo-overlay img')).toBeNull()
+    component.close()
+    root.remove()
+  })
+})
