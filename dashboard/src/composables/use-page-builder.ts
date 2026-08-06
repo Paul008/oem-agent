@@ -208,7 +208,14 @@ export function usePageBuilder() {
   const activeMode = computed<PageMode>(() => getActivePageMode(page.value))
   const availableModes = computed<PageMode[]>(() => getAvailablePageModes(page.value))
   const cloneHtml = computed(() => getCloneHtml(page.value))
-  const cloneRegions = computed<CloneRegion[]>(() => getCloneRegions(page.value))
+  const cloneRegions = computed<CloneRegion[]>(() => {
+    const byId = new Map<string, CloneRegion>()
+    for (const region of getCloneRegions(page.value))
+      byId.set(region.id, region)
+    for (const draft of cloneRegionDrafts.value)
+      byId.set(draft.id, draft)
+    return [...byId.values()]
+  })
 
   const sections = computed({
     get: () => getSectionItems(page.value).map((section: any) => resolveSectionMediaPaths(section, resolveMediaUrl)),
