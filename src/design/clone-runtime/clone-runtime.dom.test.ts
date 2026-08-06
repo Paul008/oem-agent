@@ -357,6 +357,7 @@ describe('cloneFeatureSlider counter and video-first init', () => {
     component.next()
 
     expect(host.querySelector('[data-id$="-label"]')!.textContent).toBe('2/2 | SECOND')
+    // Nissan labels that carry their own pipe don't get a second one
     component.prev()
     expect(host.querySelector('[data-id$="-label"]')!.textContent).toBe('1/2 | FIRST')
     host.remove()
@@ -465,5 +466,31 @@ describe('compprops video media (jsdom-executed)', () => {
     expect(root.querySelector('.clone-fo-overlay img')).toBeNull()
     component.close()
     root.remove()
+  })
+})
+
+describe('cloneFeatureSlider counter with pipe-carrying labels', () => {
+  it('does not double the separator when the label already starts with |', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-compprops', JSON.stringify({ featureItems: [
+      { label: '| INTELLIGENT EMERGENCY BRAKING', desktopImagePath: '//cdn.example/a.png', mediaType: 'image' },
+      { label: '| BLIND SPOT WARNING', desktopImagePath: '//cdn.example/b.png', mediaType: 'image' },
+    ] }))
+    host.innerHTML = `
+      <div class="custom-slider-container">
+        <button data-clone-prev="" disabled></button><button data-clone-next=""></button>
+        <div data-id="feature-slider-media">
+          <img src="/a.png">
+          <h4 data-id="C-feature-item-0-label">1/2 | INTELLIGENT EMERGENCY BRAKING</h4>
+        </div>
+      </div>`
+    document.body.appendChild(host)
+    const component = factories['cloneFeatureSlider']() as Record<string, any>
+    component.$el = host.querySelector('.custom-slider-container')
+    component.init()
+    component.next()
+
+    expect(host.querySelector('[data-id$="-label"]')!.textContent).toBe('2/2 | BLIND SPOT WARNING')
+    host.remove()
   })
 })
