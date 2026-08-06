@@ -44,6 +44,11 @@
       "name": "brochure-mirror",
       "binding": "BROCHURE_MIRROR",
       "class_name": "BrochureMirrorWorkflow"
+    },
+    {
+      "name": "cron-job-runner",
+      "binding": "CRON_JOB_RUNNER",
+      "class_name": "CronJobRunnerWorkflow"
     }
   ],
 

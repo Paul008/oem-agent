@@ -67,7 +67,7 @@ export async function saveRun(bucket: R2Bucket, run: JobRun): Promise<void> {
 }
 
 /**
- * Clean stale R2 run records: any run stuck in "running" for >10 min
+ * Clean stale R2 run records: any run stuck in "running" for >30 min
  * gets marked as "failed" with a timeout message.
  */
 export async function cleanStaleRuns(bucket: R2Bucket, jobId: string): Promise<number> {
@@ -78,7 +78,11 @@ export async function cleanStaleRuns(bucket: R2Bucket, jobId: string): Promise<n
 
     const runs: JobRun[] = await obj.json();
     const now = Date.now();
-    const STALE_MS = 10 * 60 * 1000; // 10 minutes
+    // Extraction and data-sync jobs fan out across multiple OEM APIs and can
+    // legitimately exceed the old 10-minute threshold. Keep this aligned with
+    // global_config.job_timeout_minutes (30m) so healthy runs are not reported
+    // as failed while they are still executing.
+    const STALE_MS = 30 * 60 * 1000;
     let cleaned = 0;
 
     for (const run of runs) {
@@ -87,7 +91,7 @@ export async function cleanStaleRuns(bucket: R2Bucket, jobId: string): Promise<n
         if (age > STALE_MS) {
           run.status = 'failed';
           run.completedAt = new Date().toISOString();
-          run.error = 'Automatically marked as failed — run exceeded 10 min without completion';
+          run.error = 'Automatically marked as failed — run exceeded 30 min without completion';
           cleaned++;
         }
       }

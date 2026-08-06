@@ -65,7 +65,7 @@ export function useCronJobs() {
 
     try {
       const response = await fetchCronJobs() as CronJobsResponse
-      jobs.value = response.jobs
+      jobs.value = Array.isArray(response.jobs) ? response.jobs : []
       cloudflareTriggers.value = response.cloudflareTriggers ?? []
       return response
     }

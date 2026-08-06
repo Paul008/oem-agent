@@ -12,6 +12,8 @@ import cronHistoryHtml from '../assets/cron-history.html';
 import { getRunHistory, saveRun, cleanStaleRuns, type JobRun } from '../utils/cron-runs';
 import { CLOUDFLARE_TRIGGERS } from '../scheduled';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+import { requiresDedicatedOfficialConnector } from '../sync/oem-sync-policy';
+import { buildOemExtractCrawlOptions } from '../utils/cron-options';
 
 interface CronJob {
   id: string;
@@ -189,6 +191,10 @@ cron.post('/run/:jobId', async (c) => {
     return c.json({ error: 'Job is disabled', jobId }, 400);
   }
 
+  if (!c.env.CRON_JOB_RUNNER) {
+    return c.json({ error: 'CRON_JOB_RUNNER workflow binding not configured', jobId }, 503);
+  }
+
   // Check runtime override
   try {
     const { createSupabaseClient } = await import('../utils/supabase');
@@ -225,54 +231,42 @@ cron.post('/run/:jobId', async (c) => {
 
   await saveRun(bucket, run);
 
-  // Heavy jobs (oem-extract, brand-ambassador, data-sync) run via waitUntil
-  // so the HTTP handler returns immediately. Lightweight jobs run inline.
-  const heavySkills = ['oem-extract', 'oem-brand-ambassador', 'oem-data-sync'];
-  const isHeavy = heavySkills.includes(job.skill);
-
-  if (isHeavy) {
-    // Return immediately, execute in background
-    c.executionCtx.waitUntil(
-      (async () => {
-        try {
-          await executeJob(job, run, bucket, c.env);
-        } catch (e) {
-          console.error(`[Cron] Job ${jobId} failed:`, e);
-          run.status = 'failed';
-          run.completedAt = new Date().toISOString();
-          run.error = e instanceof Error ? e.message : String(e);
-        }
-        try { await saveRun(bucket, run); } catch {}
-      })()
-    );
+  try {
+    const instance = await c.env.CRON_JOB_RUNNER.create({
+      id: runId,
+      params: {
+        jobId,
+        runId,
+        startedAt: run.startedAt,
+        oemIds: job.skill === 'oem-extract'
+          ? ((job.config.oem_ids as string[] | undefined) ?? [])
+              .filter(oemId => !requiresDedicatedOfficialConnector(oemId))
+          : undefined,
+      },
+    });
 
     return c.json({
-      message: 'Job started (running in background)',
+      message: 'Job accepted',
       jobId,
       runId,
+      workflowInstanceId: instance.id,
       status: 'running',
-    });
-  }
-
-  // Lightweight jobs run inline (awaited)
-  try {
-    await executeJob(job, run, bucket, c.env);
+    }, 202);
   } catch (e) {
-    console.error(`[Cron] Job ${jobId} failed:`, e);
+    console.error(`[Cron] Failed to start Workflow for ${jobId}:`, e);
     run.status = 'failed';
     run.completedAt = new Date().toISOString();
     run.error = e instanceof Error ? e.message : String(e);
     await saveRun(bucket, run);
-  }
 
-  return c.json({
-    message: run.status === 'success' ? 'Job completed' : `Job ${run.status}`,
-    jobId,
-    runId,
-    status: run.status,
-    result: run.result,
-    error: run.error,
-  });
+    return c.json({
+      message: 'Failed to start job',
+      jobId,
+      runId,
+      status: run.status,
+      error: run.error,
+    }, 502);
+  }
 });
 
 /**
@@ -468,6 +462,157 @@ async function executeJob(
   console.log(`[Cron] Job ${job.id} completed with status: ${run.status}`);
 }
 
+export interface CronJobWorkflowParams {
+  jobId: string;
+  runId: string;
+  startedAt: string;
+  oemIds?: string[];
+}
+
+export function getCronOemWorkflowIds(jobId: string): string[] {
+  const job = (cronJobsConfig.jobs as CronJob[]).find(candidate => candidate.id === jobId);
+  if (!job || job.skill !== 'oem-extract') return [];
+  return ((job.config.oem_ids as string[] | undefined) ?? [])
+    .filter(oemId => !requiresDedicatedOfficialConnector(oemId));
+}
+
+/** Execute a manual cron run inside a durable Cloudflare Workflow step. */
+export async function executeCronJobWorkflow(
+  params: CronJobWorkflowParams,
+  env: AppEnv['Bindings'],
+): Promise<JobRun> {
+  const job = (cronJobsConfig.jobs as CronJob[]).find(candidate => candidate.id === params.jobId);
+  const run: JobRun = {
+    id: params.runId,
+    jobId: params.jobId,
+    startedAt: params.startedAt,
+    status: 'running',
+  };
+
+  if (!job) {
+    run.status = 'failed';
+    run.completedAt = new Date().toISOString();
+    run.error = `Job not found: ${params.jobId}`;
+    await saveRun(env.MOLTBOT_BUCKET, run);
+    return run;
+  }
+
+  await executeJob(job, run, env.MOLTBOT_BUCKET, env);
+  return run;
+}
+
+export async function markCronJobWorkflowFailed(
+  params: CronJobWorkflowParams,
+  env: AppEnv['Bindings'],
+  error: string,
+): Promise<JobRun> {
+  const run: JobRun = {
+    id: params.runId,
+    jobId: params.jobId,
+    startedAt: params.startedAt,
+    completedAt: new Date().toISOString(),
+    status: 'failed',
+    error,
+  };
+  await saveRun(env.MOLTBOT_BUCKET, run);
+  return run;
+}
+
+async function loadCronWorkflowRun(
+  params: CronJobWorkflowParams,
+  env: AppEnv['Bindings'],
+): Promise<JobRun> {
+  const runs = await getRunHistory(env.MOLTBOT_BUCKET, params.jobId, 100);
+  return runs.find(run => run.id === params.runId) ?? {
+    id: params.runId,
+    jobId: params.jobId,
+    startedAt: params.startedAt,
+    status: 'running',
+  };
+}
+
+export async function executeCronOemWorkflowStep(
+  params: CronJobWorkflowParams,
+  oemId: string,
+  completed: number,
+  total: number,
+  env: AppEnv['Bindings'],
+): Promise<{ oemId: string; jobsProcessed: number; pagesChanged: number; errors: number }> {
+  const job = (cronJobsConfig.jobs as CronJob[]).find(candidate => candidate.id === params.jobId);
+  if (!job || job.skill !== 'oem-extract') {
+    throw new Error(`OEM extraction job not found: ${params.jobId}`);
+  }
+
+  const unitJob: CronJob = {
+    ...job,
+    config: {
+      ...job.config,
+      oem_ids: [oemId],
+      max_concurrent: 1,
+    },
+  };
+  const result = await executeOemExtract(unitJob, env);
+  const run = await loadCronWorkflowRun(params, env);
+  const previousResults = Array.isArray(run.result?.oemResults) ? run.result.oemResults : [];
+  const currentResults = Array.isArray(result.oemResults) ? result.oemResults : [];
+  const oemResults = [...previousResults, ...currentResults];
+  const jobsProcessed = Number(run.result?.jobsProcessed ?? 0) + Number(result.jobsProcessed ?? 0);
+  const pagesChanged = Number(run.result?.pagesChanged ?? 0) + Number(result.pagesChanged ?? 0);
+  const errors = Number(run.result?.errors ?? 0) + Number(result.errors ?? 0);
+
+  run.result = {
+    phase: 'oem_complete',
+    completed,
+    total,
+    jobsProcessed,
+    pagesChanged,
+    errors,
+    oemResults,
+  };
+  await saveRun(env.MOLTBOT_BUCKET, run);
+
+  return { oemId, jobsProcessed: Number(result.jobsProcessed ?? 0), pagesChanged: Number(result.pagesChanged ?? 0), errors: Number(result.errors ?? 0) };
+}
+
+export async function recordCronOemWorkflowStepFailure(
+  params: CronJobWorkflowParams,
+  oemId: string,
+  completed: number,
+  total: number,
+  env: AppEnv['Bindings'],
+  error: string,
+): Promise<{ oemId: string; status: 'failed'; error: string }> {
+  const run = await loadCronWorkflowRun(params, env);
+  const previousResults = Array.isArray(run.result?.oemResults) ? run.result.oemResults : [];
+  const errors = Number(run.result?.errors ?? 0) + 1;
+  run.result = {
+    ...(run.result ?? {}),
+    phase: 'oem_failed',
+    completed,
+    total,
+    errors,
+    oemResults: [
+      ...previousResults,
+      { oemId, status: 'error', durationMs: 0, jobsProcessed: 0, pagesChanged: 0, errors: 1, error },
+    ],
+  };
+  await saveRun(env.MOLTBOT_BUCKET, run);
+  return { oemId, status: 'failed', error };
+}
+
+export async function completeCronOemWorkflow(
+  params: CronJobWorkflowParams,
+  env: AppEnv['Bindings'],
+): Promise<{ runId: string; status: JobRun['status']; errors: number }> {
+  const run = await loadCronWorkflowRun(params, env);
+  const errors = Number(run.result?.errors ?? 0);
+  run.status = errors > 0 ? 'failed' : 'success';
+  run.completedAt = new Date().toISOString();
+  if (errors > 0) run.error = `${errors} OEM extraction error${errors === 1 ? '' : 's'}`;
+  await saveRun(env.MOLTBOT_BUCKET, run);
+  return { runId: run.id, status: run.status, errors };
+}
+
 /**
  * Execute OEM extraction job
  */
@@ -524,8 +669,9 @@ async function executeOemExtract(
   // (Promise trap), but control flow exits so the run record gets finalised.
   const OUTER_TIMEOUT_MS = 7 * 60_000;
   const crawlStart = Date.now();
+  let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(
+    timeoutId = setTimeout(
       () => reject(new Error(`runScheduledCrawl exceeded outer ${OUTER_TIMEOUT_MS}ms wall-clock timeout`)),
       OUTER_TIMEOUT_MS,
     );
@@ -534,7 +680,10 @@ async function executeOemExtract(
   let result: Awaited<ReturnType<typeof orchestrator.runScheduledCrawl>>;
   try {
     result = await Promise.race([
-      orchestrator.runScheduledCrawl(undefined, { onProgress }),
+      orchestrator.runScheduledCrawl(
+        undefined,
+        buildOemExtractCrawlOptions(config.oem_ids, config.max_concurrent, onProgress),
+      ),
       timeoutPromise,
     ]);
   } catch (err) {
@@ -543,6 +692,8 @@ async function executeOemExtract(
     const elapsed = Date.now() - crawlStart;
     console.error(`[Cron] oem-extract crawl terminated after ${elapsed}ms:`, err);
     throw err;
+  } finally {
+    clearTimeout(timeoutId!);
   }
 
   // Surface the full per-OEM breakdown to the cron run record so the
