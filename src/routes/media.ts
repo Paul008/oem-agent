@@ -97,6 +97,10 @@ const ALLOWED_HOSTS = new Set([
   'www.gwmanz.com',
   'www.ford.com.au',
   'www.gpas-cache.ford.com',
+  // ADME's own Bunny CDN zone for Ford WordPress assets — vehicle_models
+  // hero images are stored as direct fordoem.b-cdn.net URLs, and the catalog
+  // route proxies every hero through /media, so the host must be allowed.
+  'fordoem.b-cdn.net',
   'www.subaru.com.au',
   'cdn-image-handler.oem-production.subaru.com.au',
   'gn6lyzqet4.execute-api.ap-southeast-2.amazonaws.com',
