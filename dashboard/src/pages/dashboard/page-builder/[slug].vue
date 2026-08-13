@@ -798,91 +798,91 @@ watch(
   <!-- Full-width layout: -m-4 cancels p-4 from default layout -->
   <div class="-m-4 flex flex-col h-[calc(100vh-4rem)]">
     <!-- Toolbar -->
-    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 border-b bg-card shrink-0">
-      <UiButton
-        size="sm"
-        variant="ghost"
-        class="shrink-0"
-        @click="router.push('/dashboard/model-pages')"
-      >
-        <ArrowLeft class="size-4 sm:mr-1" />
-        <span class="hidden sm:inline">Pages</span>
-      </UiButton>
-
-      <UiSeparator orientation="vertical" class="h-5 shrink-0 hidden sm:block" />
-
-      <template v-if="page">
-        <!-- Subpage breadcrumb -->
-        <template v-if="isSubpage && parentFullSlug">
-          <button
-            class="text-sm text-muted-foreground hover:text-foreground transition-colors truncate max-w-[100px] sm:max-w-[160px]"
-            @click="router.push(`/dashboard/page-builder/${parentFullSlug}`)"
-          >
-            {{ parentPageName }}
-          </button>
-          <ChevronRight class="size-3.5 text-muted-foreground shrink-0" />
-          <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[200px] 2xl:max-w-[320px]">{{ subpageDisplayName }}</span>
-          <UiBadge variant="secondary" class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shrink-0">
-            Subpage
-          </UiBadge>
-        </template>
-        <template v-else>
-          <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[220px] xl:max-w-[280px] 2xl:max-w-[420px]">{{ pageTitle }}</span>
-        </template>
-        <UiBadge v-if="page.version" variant="secondary" class="text-[10px] shrink-0">
-          v{{ page.version }}
-        </UiBadge>
-        <UiBadge v-if="isWriteProtectedPage" variant="secondary" class="text-[10px] shrink-0">
-          <Lock class="size-3 mr-1" />
-          Read-only
-        </UiBadge>
-        <UiBadge v-if="pageWorkflowState === 'structured'" variant="default" class="text-[10px] bg-emerald-600 shrink-0 hidden sm:inline-flex">
-          Structured
-        </UiBadge>
-        <UiBadge v-else-if="pageWorkflowState === 'cloned'" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
-          Cloned
-        </UiBadge>
-        <UiBadge
-          v-if="captureStatus.tone !== 'neutral'"
-          variant="default"
-          class="text-[10px] shrink-0 hidden md:inline-flex"
-          :class="captureStatusBadgeClass"
-          :title="captureStatus.detail"
+    <div data-page-builder-toolbar="true" class="flex items-center gap-1.5 overflow-hidden border-b bg-card px-2 py-2 shrink-0 sm:gap-2 sm:px-4">
+      <div data-page-builder-context="true" class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden sm:gap-2">
+        <UiButton
+          size="sm"
+          variant="ghost"
+          class="shrink-0"
+          @click="router.push('/dashboard/model-pages')"
         >
-          {{ captureStatus.label }}
-        </UiBadge>
-        <UiBadge
-          v-if="mappingStatus"
-          variant="default"
-          class="text-[10px] shrink-0 hidden md:inline-flex"
-          :class="mappingStatus.needsAiFallback ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'"
-          :title="mappingStatus.detail"
-        >
-          <template v-if="mappingStatus.needsAiFallback">
-            AI fallback {{ mappingStatus.percent }}%
+          <ArrowLeft class="size-4 sm:mr-1" />
+          <span class="hidden sm:inline">Pages</span>
+        </UiButton>
+
+        <UiSeparator orientation="vertical" class="h-5 shrink-0 hidden sm:block" />
+
+        <template v-if="page">
+          <!-- Subpage breadcrumb -->
+          <template v-if="isSubpage && parentFullSlug">
+            <button
+              class="text-sm text-muted-foreground hover:text-foreground transition-colors truncate max-w-[100px] sm:max-w-[160px]"
+              @click="router.push(`/dashboard/page-builder/${parentFullSlug}`)"
+            >
+              {{ parentPageName }}
+            </button>
+            <ChevronRight class="size-3.5 text-muted-foreground shrink-0" />
+            <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[200px] 2xl:max-w-[320px]">{{ subpageDisplayName }}</span>
+            <UiBadge variant="secondary" class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shrink-0">
+              Subpage
+            </UiBadge>
           </template>
           <template v-else>
-            Map {{ mappingStatus.percent }}%
+            <span class="font-semibold text-sm truncate min-w-0 max-w-[120px] sm:max-w-[220px] xl:max-w-[280px] 2xl:max-w-[420px]">{{ pageTitle }}</span>
           </template>
-        </UiBadge>
-        <div v-if="canShowModeSwitcher" class="ml-1 hidden lg:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
-          <button
-            v-for="mode in availableModes"
-            :key="mode"
-            type="button"
-            class="px-2.5 py-1 text-xs font-medium rounded transition-colors capitalize"
-            :class="activeMode === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            @click="setPageMode(mode)"
+          <UiBadge v-if="page.version" variant="secondary" class="text-[10px] shrink-0">
+            v{{ page.version }}
+          </UiBadge>
+          <UiBadge v-if="isWriteProtectedPage" variant="secondary" class="text-[10px] shrink-0">
+            <Lock class="size-3 mr-1" />
+            Read-only
+          </UiBadge>
+          <UiBadge v-if="pageWorkflowState === 'structured'" variant="default" class="text-[10px] bg-emerald-600 shrink-0 hidden sm:inline-flex">
+            Structured
+          </UiBadge>
+          <UiBadge v-else-if="pageWorkflowState === 'cloned'" variant="default" class="text-[10px] bg-amber-600 shrink-0 hidden sm:inline-flex">
+            Cloned
+          </UiBadge>
+          <UiBadge
+            v-if="captureStatus.tone !== 'neutral'"
+            variant="default"
+            class="text-[10px] shrink-0 hidden md:inline-flex"
+            :class="captureStatusBadgeClass"
+            :title="captureStatus.detail"
           >
-            {{ mode === 'clone' ? 'Clone Studio' : mode === 'sections' ? 'Sections' : mode.replace('-', ' ') }}
-          </button>
-        </div>
-      </template>
-
-      <div class="hidden lg:block flex-1 min-w-0" />
+            {{ captureStatus.label }}
+          </UiBadge>
+          <UiBadge
+            v-if="mappingStatus"
+            variant="default"
+            class="text-[10px] shrink-0 hidden md:inline-flex"
+            :class="mappingStatus.needsAiFallback ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'"
+            :title="mappingStatus.detail"
+          >
+            <template v-if="mappingStatus.needsAiFallback">
+              AI fallback {{ mappingStatus.percent }}%
+            </template>
+            <template v-else>
+              Map {{ mappingStatus.percent }}%
+            </template>
+          </UiBadge>
+          <div v-if="canShowModeSwitcher" class="ml-1 hidden lg:inline-flex items-center rounded-md border bg-muted/40 p-0.5 shrink-0">
+            <button
+              v-for="mode in availableModes"
+              :key="mode"
+              type="button"
+              class="px-2.5 py-1 text-xs font-medium rounded transition-colors capitalize"
+              :class="activeMode === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+              @click="setPageMode(mode)"
+            >
+              {{ mode === 'clone' ? 'Clone Studio' : mode === 'sections' ? 'Sections' : mode.replace('-', ' ') }}
+            </button>
+          </div>
+        </template>
+      </div>
 
       <!-- Actions -->
-      <div class="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5">
+      <div data-page-builder-actions="true" class="ml-auto flex shrink-0 flex-nowrap items-center justify-end gap-1.5">
         <!-- Undo/Redo — always visible (icon-only, small) -->
         <UiButton
           v-if="canShowSectionActions"
@@ -915,7 +915,7 @@ watch(
           size="sm"
           variant="outline"
           title="Import sections from another page"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="showSectionBrowser = true"
         >
           <Import class="size-3.5 mr-1" />
@@ -928,7 +928,7 @@ watch(
           size="sm"
           variant="outline"
           title="Capture sections from a live webpage"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="showCapture = true"
         >
           <MousePointer2 class="size-3.5 mr-1" />
@@ -941,7 +941,7 @@ watch(
           size="sm"
           variant="outline"
           title="Paste sections from clipboard (Ctrl+V)"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="pasteSectionFromClipboard()"
         >
           <ClipboardPaste class="size-3.5 mr-1" />
@@ -954,25 +954,14 @@ watch(
           size="sm"
           :variant="showHistory ? 'default' : 'outline'"
           title="History"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="showHistory = !showHistory"
         >
           <History class="size-3.5 mr-1" />
           History
         </UiButton>
 
-        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden min-[2100px]:block" />
-
-        <!-- Source URL input for subpages -->
-        <div v-if="canShowSourceUrlInput" class="order-last flex basis-full items-center gap-1.5 min-w-0 lg:order-none lg:basis-auto">
-          <Globe class="size-3.5 text-muted-foreground shrink-0" />
-          <input
-            v-model="sourceUrlOverride"
-            type="url"
-            placeholder="OEM page URL to clone..."
-            class="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring lg:w-64 lg:flex-none"
-          >
-        </div>
+        <UiSeparator v-if="canShowSectionActions" orientation="vertical" class="h-5 hidden min-[2400px]:block" />
 
         <!-- Clone -->
         <UiButton
@@ -980,7 +969,7 @@ watch(
           size="sm"
           variant="outline"
           :disabled="cloning || pipelining || (needsSourceUrl && !sourceUrlOverride?.trim())"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="runClone()"
         >
           <Copy v-if="!cloning" class="size-3.5 mr-1" />
@@ -989,7 +978,7 @@ watch(
         </UiButton>
 
         <!-- AI model selector -->
-        <div v-if="canShowWorkflowActions" class="hidden min-[2100px]:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
+        <div v-if="canShowWorkflowActions" class="hidden min-[2400px]:flex items-center gap-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-1.5 py-1">
           <Cpu class="size-3.5 text-violet-500 shrink-0" />
           <UiSelect v-model="selectedModel">
             <UiSelectTrigger class="h-7 w-44 text-xs bg-background">
@@ -1009,7 +998,7 @@ watch(
           size="sm"
           :variant="primaryWorkflowAction.key === 'structure' ? 'default' : 'outline'"
           :disabled="structuring || pipelining"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="runStructure(selectedModelOverride)"
         >
           <Sparkles v-if="!structuring" class="size-3.5 mr-1" />
@@ -1023,7 +1012,7 @@ watch(
           size="sm"
           :variant="pipelining || primaryWorkflowAction.key === 'pipeline' ? 'default' : 'outline'"
           :disabled="pipelineActionDisabled"
-          class="hidden min-[2100px]:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
+          class="hidden min-[2400px]:inline-flex border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
           title="Run full preview pipeline (clone, structure, refresh preview)"
           @click="runAdaptivePipeline(selectedModelOverride)"
         >
@@ -1032,7 +1021,7 @@ watch(
           {{ fullPreviewButtonLabel }}
         </UiButton>
 
-        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden min-[2100px]:block" />
+        <UiSeparator v-if="canShowWorkflowActions" orientation="vertical" class="h-5 hidden min-[2400px]:block" />
 
         <!-- Save Draft — persistence stays separate from candidate build and publish -->
         <UiButton
@@ -1070,7 +1059,7 @@ watch(
           v-if="canShowEditorActions && page?.source_url"
           :href="page.source_url"
           target="_blank"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
         >
           <UiButton size="sm" variant="outline">
             <ExternalLink class="size-3.5 mr-1" />
@@ -1083,7 +1072,7 @@ watch(
           v-if="canShowEditorActions && (isCloned || isStructured)"
           size="sm"
           variant="outline"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           title="Preview page in a new tab"
           @click="openPagePreview"
         >
@@ -1096,7 +1085,7 @@ watch(
           v-if="canShowEditorActions && !isWriteProtectedPage"
           size="sm"
           :variant="showJson ? 'default' : 'outline'"
-          class="hidden min-[2100px]:inline-flex"
+          class="hidden min-[2400px]:inline-flex"
           @click="showJson = !showJson"
         >
           <Code class="size-3.5 mr-1" />
@@ -1106,7 +1095,7 @@ watch(
         <!-- === OVERFLOW MENU except on very wide screens === -->
         <UiDropdownMenu v-if="canShowEditorActions">
           <UiDropdownMenuTrigger as-child>
-            <UiButton size="sm" variant="outline" class="min-[2100px]:hidden size-8 p-0" title="More actions">
+            <UiButton size="sm" variant="outline" class="min-[2400px]:hidden size-8 p-0" title="More actions">
               <Menu class="size-4" />
             </UiButton>
           </UiDropdownMenuTrigger>
@@ -1204,6 +1193,23 @@ watch(
           </UiDropdownMenuContent>
         </UiDropdownMenu>
       </div>
+    </div>
+
+    <!-- Required source URL gets its own row so it never competes with primary actions. -->
+    <div
+      v-if="canShowSourceUrlInput"
+      data-page-builder-source-url="true"
+      class="flex min-w-0 items-center gap-2 border-b bg-card px-3 py-2 shrink-0 sm:px-4"
+    >
+      <Globe class="size-3.5 text-muted-foreground shrink-0" />
+      <label for="page-builder-source-url" class="sr-only">OEM source page URL</label>
+      <input
+        id="page-builder-source-url"
+        v-model="sourceUrlOverride"
+        type="url"
+        placeholder="OEM page URL to clone..."
+        class="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
     </div>
 
     <div

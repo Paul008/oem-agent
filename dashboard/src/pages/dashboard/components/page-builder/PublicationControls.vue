@@ -100,7 +100,7 @@ function confirmRollback() {
 
 <template>
   <div class="flex max-w-full items-center gap-1.5" :aria-busy="busy">
-    <div class="hidden items-center gap-1.5 text-[11px] text-muted-foreground xl:flex">
+    <div class="hidden items-center gap-1.5 text-[11px] text-muted-foreground min-[1900px]:flex">
       <span class="rounded border bg-muted/40 px-2 py-1">Draft {{ draftVersion ?? '—' }} saved</span>
       <span class="rounded border bg-muted/40 px-2 py-1">Production {{ publishedRevision ?? 'none' }}</span>
       <span class="rounded border bg-muted/40 px-2 py-1">{{ candidateLabel }}</span>
@@ -147,7 +147,7 @@ function confirmRollback() {
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" side="bottom" :side-offset="8" class="z-[80] w-80 max-w-[calc(100vw-1rem)] space-y-3 p-3">
-          <div class="grid grid-cols-2 gap-2 text-xs xl:hidden">
+          <div class="grid grid-cols-2 gap-2 text-xs min-[1900px]:hidden">
             <div class="rounded border bg-muted/30 p-2">
               Draft {{ draftVersion ?? '—' }} saved
             </div>
