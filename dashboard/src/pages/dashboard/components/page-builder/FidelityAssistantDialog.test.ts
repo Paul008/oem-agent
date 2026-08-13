@@ -17,4 +17,23 @@ describe('fidelityAssistantDialog safety gates', () => {
     expect(source).not.toContain('https://cdn.tailwindcss.com')
     expect(source).not.toContain('sandbox="allow-scripts allow-same-origin"')
   })
+
+  it('clears stale measurement state when the dialog closes and reopens', () => {
+    const watcher = source.slice(
+      source.indexOf('watch(() => props.open'),
+      source.indexOf('function setFrame'),
+    )
+
+    expect(watcher).toContain('runToken += 1')
+    expect(watcher).toContain('measuring.value = false')
+    expect(watcher).toContain('measurementStep.value = \'\'')
+  })
+
+  it('reports incremental progress and avoids a second PNG decode pass', () => {
+    expect(source).toContain('import { toCanvas } from \'html-to-image\'')
+    expect(source).toMatch(/measurementStep\.value = `Measuring \$\{viewport\.name\}/)
+    expect(source).toContain('results.value = [...measured]')
+    expect(source).toContain('withFidelityMeasurementTimeout')
+    expect(source).not.toContain('async function dataUrlImageData')
+  })
 })

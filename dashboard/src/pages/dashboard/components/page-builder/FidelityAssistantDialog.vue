@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toPng } from 'html-to-image'
+import { toCanvas } from 'html-to-image'
 import { AlertTriangle, CheckCircle2, Eye, Loader2, ScanSearch, Sparkles } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -7,6 +7,7 @@ import { toast } from 'vue-sonner'
 import type { RegionFidelityStatus } from '@/lib/region-fidelity'
 
 import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls } from '@/lib/fidelity-assets'
+import { withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
 import { compareRegionPixels } from '@/lib/region-fidelity'
 import { scoreRegionQuality } from '@/lib/worker-api'
 
@@ -21,6 +22,11 @@ interface ViewportResult {
   reference: string
   candidate: string
   diff: string
+}
+
+interface CapturedFrame {
+  dataUrl: string
+  pixels: ImageData
 }
 
 const props = defineProps<{
@@ -42,12 +48,15 @@ const VIEWPORTS = [
   { name: 'tablet' as const, width: 1024, height: 900 },
   { name: 'mobile' as const, width: 390, height: 844 },
 ]
+const FRAME_ASSET_TIMEOUT_MS = 10_000
+const FRAME_CAPTURE_TIMEOUT_MS = 20_000
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const selectedViewport = ref<ViewportName>('desktop')
 const evidenceMode = ref<'side-by-side' | 'overlay' | 'diff'>('side-by-side')
 const overlayOpacity = ref(50)
 const measuring = ref(false)
+const measurementStep = ref('')
 const measureError = ref('')
 const results = ref<ViewportResult[]>([])
 const aiReviewing = ref(false)
@@ -69,8 +78,12 @@ const canApply = computed(() => Boolean(
 watch(() => props.open, async (open) => {
   if (!open) {
     runToken += 1
+    measuring.value = false
+    measurementStep.value = ''
     return
   }
+  measuring.value = false
+  measurementStep.value = ''
   selectedViewport.value = 'desktop'
   evidenceMode.value = 'side-by-side'
   results.value = []
@@ -117,13 +130,23 @@ async function waitForFrame(frame: HTMLIFrameElement, requiredFonts: string[]) {
   const doc = frame.contentDocument
   if (!doc)
     throw new Error('Comparison frame is unavailable')
-  await doc.fonts?.ready
-  await Promise.all(Array.from(doc.images).map(image => image.complete
-    ? Promise.resolve()
-    : new Promise<void>((resolve) => {
-        image.addEventListener('load', () => resolve(), { once: true })
-        image.addEventListener('error', () => resolve(), { once: true })
-      })))
+  if (doc.fonts) {
+    await withFidelityMeasurementTimeout(
+      () => doc.fonts.ready,
+      FRAME_ASSET_TIMEOUT_MS,
+      'Comparison fonts',
+    )
+  }
+  await withFidelityMeasurementTimeout(
+    () => Promise.all(Array.from(doc.images).map(image => image.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          image.addEventListener('load', () => resolve(), { once: true })
+          image.addEventListener('error', () => resolve(), { once: true })
+        }))),
+    FRAME_ASSET_TIMEOUT_MS,
+    'Comparison assets',
+  )
   const brokenImages = Array.from(doc.images).filter(image => Boolean(image.currentSrc || image.src) && image.naturalWidth === 0)
   if (brokenImages.length) {
     const firstUrl = brokenImages[0].currentSrc || brokenImages[0].src
@@ -141,35 +164,32 @@ async function waitForFrame(frame: HTMLIFrameElement, requiredFonts: string[]) {
   await new Promise(resolve => setTimeout(resolve, 150))
 }
 
-async function captureFrame(frame: HTMLIFrameElement, width: number, height: number, requiredFonts: string[]): Promise<string> {
+async function captureFrame(frame: HTMLIFrameElement, width: number, height: number, requiredFonts: string[]): Promise<CapturedFrame> {
   await waitForFrame(frame, requiredFonts)
   const body = frame.contentDocument?.body
   if (!body)
     throw new Error('Comparison body is unavailable')
-  return toPng(body, {
-    backgroundColor: '#ffffff',
-    cacheBust: true,
-    pixelRatio: 1,
-    width,
-    height,
-    canvasWidth: width,
-    canvasHeight: height,
-    style: { margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden' },
-  })
-}
-
-async function dataUrlImageData(dataUrl: string, width: number, height: number): Promise<ImageData> {
-  const image = new Image()
-  image.src = dataUrl
-  await image.decode()
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
+  const canvas = await withFidelityMeasurementTimeout(
+    () => toCanvas(body, {
+      backgroundColor: '#ffffff',
+      cacheBust: false,
+      pixelRatio: 1,
+      width,
+      height,
+      canvasWidth: width,
+      canvasHeight: height,
+      style: { margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden' },
+    }),
+    FRAME_CAPTURE_TIMEOUT_MS,
+    `${width}px comparison capture`,
+  )
   const context = canvas.getContext('2d')
   if (!context)
     throw new Error('Canvas comparison is unavailable')
-  context.drawImage(image, 0, 0, width, height)
-  return context.getImageData(0, 0, width, height)
+  return {
+    dataUrl: canvas.toDataURL('image/png'),
+    pixels: context.getImageData(0, 0, width, height),
+  }
 }
 
 function createDiff(reference: ImageData, candidate: ImageData): string {
@@ -211,7 +231,8 @@ async function measure() {
     const referenceFonts = extractDeclaredFontFamilies(props.originalCss)
     const candidateCss = [props.candidateSection?._generated_css, props.candidateSection?._tailwind_leftover_css].filter(Boolean).join('\n')
     const candidateFonts = extractDeclaredFontFamilies(candidateCss)
-    for (const viewport of VIEWPORTS) {
+    for (const [index, viewport] of VIEWPORTS.entries()) {
+      measurementStep.value = `Measuring ${viewport.name} (${index + 1}/${VIEWPORTS.length})`
       const pair = framePairs.get(viewport.name)
       if (!pair?.reference || !pair.candidate)
         throw new Error(`${viewport.name} comparison frames are not ready`)
@@ -221,19 +242,16 @@ async function measure() {
       ])
       if (token !== runToken)
         return
-      const [referencePixels, candidatePixels] = await Promise.all([
-        dataUrlImageData(reference, viewport.width, viewport.height),
-        dataUrlImageData(candidate, viewport.width, viewport.height),
-      ])
-      const comparison = compareRegionPixels(referencePixels.data, candidatePixels.data)
+      const comparison = compareRegionPixels(reference.pixels.data, candidate.pixels.data)
       measured.push({
         ...viewport,
         mismatchRatio: comparison.mismatchRatio,
         status: comparison.status,
-        reference,
-        candidate,
-        diff: createDiff(referencePixels, candidatePixels),
+        reference: reference.dataUrl,
+        candidate: candidate.dataUrl,
+        diff: createDiff(reference.pixels, candidate.pixels),
       })
+      results.value = [...measured]
     }
     if (token === runToken)
       results.value = measured
@@ -243,8 +261,10 @@ async function measure() {
       measureError.value = error?.message || 'Unable to compare this region'
   }
   finally {
-    if (token === runToken)
+    if (token === runToken) {
       measuring.value = false
+      measurementStep.value = ''
+    }
   }
 }
 
@@ -284,7 +304,7 @@ function applyCandidate() {
 
 <template>
   <UiDialog :open="open" @update:open="emit('update:open', $event)">
-    <UiDialogContent class="max-h-[92vh] overflow-y-auto sm:max-w-[1100px]">
+    <UiDialogContent class="max-h-[92vh] overflow-y-auto sm:max-w-[1100px]" :aria-busy="measuring">
       <UiDialogHeader>
         <UiDialogTitle class="flex items-center gap-2">
           <ScanSearch class="size-5" /> Match OEM
@@ -295,15 +315,25 @@ function applyCandidate() {
       </UiDialogHeader>
 
       <div class="flex flex-wrap items-center gap-2">
-        <UiButton :disabled="measuring" @click="measure">
+        <UiButton data-fidelity-measure="true" :disabled="measuring" @click="measure">
           <Loader2 v-if="measuring" class="mr-2 size-4 animate-spin" />
           <Eye v-else class="mr-2 size-4" />
-          {{ results.length ? 'Measure again' : 'Measure all viewports' }}
+          {{ measuring ? measurementStep : results.length ? 'Measure again' : 'Measure all viewports' }}
         </UiButton>
-        <UiBadge v-if="results.length" :variant="overallStatus === 'pixel-perfect' ? 'default' : overallStatus === 'review' ? 'secondary' : 'destructive'">
+        <UiBadge v-if="results.length === VIEWPORTS.length && !measuring" :variant="overallStatus === 'pixel-perfect' ? 'default' : overallStatus === 'review' ? 'secondary' : 'destructive'">
           {{ statusLabel(overallStatus) }} · worst {{ percent(worstResult?.mismatchRatio || 0) }}
         </UiBadge>
         <span class="text-xs text-muted-foreground">Pass ≤1% · review ≤3% · mismatch &gt;3%</span>
+      </div>
+
+      <div v-if="measuring" role="status" aria-live="polite" class="space-y-2 rounded-md border bg-muted/30 p-3">
+        <div class="flex items-center justify-between gap-3 text-sm">
+          <span class="font-medium">{{ measurementStep }}</span>
+          <span class="text-xs text-muted-foreground">{{ results.length }} of {{ VIEWPORTS.length }} captured</span>
+        </div>
+        <div class="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div class="h-full rounded-full bg-primary transition-[width]" :style="{ width: `${Math.max(8, (results.length / VIEWPORTS.length) * 100)}%` }" />
+        </div>
       </div>
 
       <div v-if="measureError" class="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -311,12 +341,12 @@ function applyCandidate() {
       </div>
 
       <template v-if="results.length">
-        <div v-if="!canApply" class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
+        <div v-if="!canApply && !measuring" class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
           <AlertTriangle class="mr-1 inline size-4" /> All viewports must be Pixel stable (≤1%) before this conversion can be added to the draft.
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex gap-1 rounded-md bg-muted p-1">
-            <button v-for="viewport in VIEWPORTS" :key="viewport.name" class="rounded px-3 py-1.5 text-xs font-medium capitalize" :class="selectedViewport === viewport.name ? 'bg-background shadow-sm' : 'text-muted-foreground'" @click="selectedViewport = viewport.name">
+            <button v-for="viewport in VIEWPORTS" :key="viewport.name" class="rounded px-3 py-1.5 text-xs font-medium capitalize disabled:cursor-not-allowed disabled:opacity-40" :class="selectedViewport === viewport.name ? 'bg-background shadow-sm' : 'text-muted-foreground'" :disabled="!results.some(result => result.name === viewport.name)" @click="selectedViewport = viewport.name">
               {{ viewport.name }} · {{ percent(results.find(result => result.name === viewport.name)?.mismatchRatio || 0) }}
             </button>
           </div>
@@ -357,7 +387,7 @@ function applyCandidate() {
           </figure>
         </div>
 
-        <div class="rounded-lg border p-4">
+        <div v-if="results.length === VIEWPORTS.length && !measuring" class="rounded-lg border p-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="font-medium">
