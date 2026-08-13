@@ -4,7 +4,7 @@ import { ref } from 'vue'
 
 import MediaUploadButton from './MediaUploadButton.vue'
 
-const props = defineProps<{
+defineProps<{
   currentUrl?: string
   oemId?: string
   modelSlug?: string

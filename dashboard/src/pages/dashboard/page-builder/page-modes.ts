@@ -71,7 +71,7 @@ const PAGE_MODE_ORDER: PageMode[] = ['clone', 'sections', 'raw-html', 'generated
 const CLONE_HEAD_PART_PATTERN = /<link\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style>/gi
 const FALLBACK_CLONE_VIEWPORT: CloneViewport = { width: 1280, height: 1080 }
 
-export function normalizeDashboardPageModes<T extends any>(page: T): T {
+export function normalizeDashboardPageModes<T>(page: T): T {
   if (!page || !isRecord(page)) {
     return page
   }

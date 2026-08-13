@@ -206,7 +206,7 @@ describe('oem-agent region quality scoring route', () => {
   });
 
   it('sends two ordered images to Gemini and bounds its response', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
       candidates: [{ content: { parts: [{ text: JSON.stringify({
         score: 104,
         feedback: 'The dashboard image is too tall.',

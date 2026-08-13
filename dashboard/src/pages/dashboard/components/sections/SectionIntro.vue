@@ -3,7 +3,7 @@ import { useInlineEdit } from '@/composables/use-inline-edit'
 
 import ImageOverlay from '../page-builder/ImageOverlay.vue'
 
-const props = defineProps<{
+defineProps<{
   section: {
     type: 'intro'
     title?: string

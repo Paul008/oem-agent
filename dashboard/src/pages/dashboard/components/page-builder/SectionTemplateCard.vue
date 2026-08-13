@@ -9,7 +9,7 @@ import {
 import { getSectionTypeIcon } from './section-icons'
 import { countSectionImages } from './section-media'
 
-const props = defineProps<{
+defineProps<{
   section: any
   sourceOemId?: string
   sourcePageName?: string

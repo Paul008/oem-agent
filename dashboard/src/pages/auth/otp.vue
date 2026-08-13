@@ -3,7 +3,6 @@ import AuthTitle from './components/auth-title.vue'
 
 const value = ref<string[]>([])
 function handleComplete(e: string[]) {
-  // eslint-disable-next-line no-alert
   alert(e.join(''))
 }
 </script>

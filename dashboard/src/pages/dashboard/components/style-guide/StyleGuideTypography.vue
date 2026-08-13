@@ -29,7 +29,7 @@ function capFontSize(size: string | number | undefined, max = 48): string {
   if (!size)
     return '16px'
   const n = typeof size === 'number' ? size : Number.parseInt(String(size), 10)
-  if (isNaN(n))
+  if (Number.isNaN(n))
     return String(size)
   return `${Math.min(n, max)}px`
 }

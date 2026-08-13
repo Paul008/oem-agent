@@ -6,7 +6,7 @@ import type { GoogleFont } from '@/composables/use-google-fonts'
 
 import { useGoogleFonts } from '@/composables/use-google-fonts'
 
-const props = defineProps<{
+defineProps<{
   modelValue?: string
 }>()
 

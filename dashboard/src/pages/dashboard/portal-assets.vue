@@ -209,7 +209,7 @@ function fmtDate(s: string | null | undefined) {
   if (!s)
     return null
   const d = new Date(s)
-  if (isNaN(d.getTime()))
+  if (Number.isNaN(d.getTime()))
     return null
   return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
 }

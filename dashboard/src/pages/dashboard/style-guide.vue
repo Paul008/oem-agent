@@ -89,7 +89,7 @@ onMounted(async () => {
       selectedOem.value = toyota?.id ?? o[0].id
     }
   }
-  catch (err: any) {
+  catch {
     loadError.value = 'Failed to load OEMs'
   }
 })
@@ -302,7 +302,8 @@ async function exportPdf() {
     const scaledW = contentW
     const scaledH = contentW * imgAspect
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const PDFDocument = jsPDF
+    const pdf = new PDFDocument({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
     // Slice the image into page-sized chunks using canvas
     const canvas = document.createElement('canvas')

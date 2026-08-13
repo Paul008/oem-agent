@@ -3,7 +3,7 @@
 // capturePseudoElementRules.toString() into the page. No outside references.
 export function capturePseudoElementRules() {
   function fromCodePointForCapture(code: number): string {
-    if (!isFinite(code) || code <= 0 || code > 0x10FFFF)
+    if (!Number.isFinite(code) || code <= 0 || code > 0x10FFFF)
       return ''
     if (typeof String.fromCodePoint === 'function')
       return String.fromCodePoint(code)
@@ -73,9 +73,11 @@ export function capturePseudoElementRules() {
       if (!cleaned)
         return
       const lower = cleaned.toLowerCase()
-      for (let i = 0; skip && i < skip.length; i++) {
-        if (lower === skip[i])
-          return
+      if (skip) {
+        for (let i = 0; i < skip.length; i++) {
+          if (lower === skip[i])
+            return
+        }
       }
       out.push(`${prop}:${cleaned}`)
     }

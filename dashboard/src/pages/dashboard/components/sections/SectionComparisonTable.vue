@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
-const props = defineProps<{
+defineProps<{
   section: {
     type: 'comparison-table'
     title?: string
