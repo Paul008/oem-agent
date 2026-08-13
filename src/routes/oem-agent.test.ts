@@ -184,6 +184,63 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('oem-agent region quality scoring route', () => {
+  const env = {
+    SUPABASE_URL: 'https://supabase.test',
+    SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+    GOOGLE_API_KEY: 'google-test-key',
+    DEV_MODE: 'true',
+  } as never;
+
+  it('requires both OEM reference and dashboard candidate images', async () => {
+    const response = await oemAgentApp.request('/admin/quality/score', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ oem_id: 'nissan-au', candidate_base64: 'candidate' }),
+    }, env);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: 'oem_id, reference_base64, and candidate_base64 are required',
+    });
+  });
+
+  it('sends two ordered images to Gemini and bounds its response', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({
+        score: 104,
+        feedback: 'The dashboard image is too tall.',
+        suggestions: ['Reduce vertical padding', 'Match the image width', 'Align the swatches', 'Ignored fourth item'],
+      }) }] } }],
+    }), { headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/admin/quality/score', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        oem_id: 'nissan-au',
+        reference_base64: 'data:image/png;base64,reference-png',
+        candidate_base64: 'data:image/png;base64,candidate-png',
+      }),
+    }, env);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      score: 100,
+      feedback: 'The dashboard image is too tall.',
+      suggestions: ['Reduce vertical padding', 'Match the image width', 'Align the swatches'],
+    });
+    const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(request.contents[0].parts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: 'OEM reference image:' }),
+      expect.objectContaining({ inlineData: { mimeType: 'image/png', data: 'reference-png' } }),
+      expect.objectContaining({ text: 'Dashboard candidate image:' }),
+      expect.objectContaining({ inlineData: { mimeType: 'image/png', data: 'candidate-png' } }),
+    ]));
+  });
+});
+
 describe('oem-agent production HTML route', () => {
   it('serves edited clone HTML as the production artifact even when sections mode is active', async () => {
     const latestKey = 'pages/definitions/mitsubishi-au/outlander/latest.json';

@@ -285,6 +285,29 @@ export async function scoreQuality(oemId: string, thumbnailBase64: string): Prom
   })
 }
 
+export interface RegionQualityComparison {
+  score: number
+  feedback: string
+  suggestions: string[]
+  scored_at: string
+}
+
+export async function scoreRegionQuality(
+  oemId: string,
+  referenceBase64: string,
+  candidateBase64: string,
+): Promise<RegionQualityComparison> {
+  return workerFetch('/api/v1/oem-agent/admin/quality/score', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      oem_id: oemId,
+      reference_base64: referenceBase64.replace(/^data:image\/\w+;base64,/, ''),
+      candidate_base64: candidateBase64.replace(/^data:image\/\w+;base64,/, ''),
+    }),
+  })
+}
+
 export async function fetchDesignHealth(): Promise<{ oems: Array<{ oem_id: string, last_crawled: string | null, token_count: number, has_fonts: boolean }> }> {
   return workerFetch('/api/v1/oem-agent/admin/design-health')
 }

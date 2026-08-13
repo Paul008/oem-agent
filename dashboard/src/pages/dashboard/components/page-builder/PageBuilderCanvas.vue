@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronLeft, ChevronRight, Copy, Database, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, Settings, Smartphone, Tablet, Trash2, Type, Wand2, X } from 'lucide-vue-next'
+import { AlertCircle, AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronLeft, ChevronRight, Copy, Database, EyeOff, GripVertical, Image, Link, Monitor, Palette, Pipette, Play, Ruler, ScanSearch, Settings, Smartphone, Tablet, Trash2, Type, Wand2, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { scopeOemSection } from '@/lib/scope-oem-section'
@@ -489,6 +489,13 @@ function quickCloneConvertRegion() {
   clearCloneToolbarSelection()
 }
 
+function quickCloneMatchOem() {
+  const region = cloneToolbarRegion.value
+  if (!region || props.readOnly)
+    return
+  emit('regionAction', { action: 'match-oem', regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
+}
+
 function quickCloneBindCatalog() {
   const region = cloneToolbarRegion.value
   if (!region || props.readOnly)
@@ -672,6 +679,10 @@ function runCloneAction(id: RegionActionId) {
       openCloneInput('background')
       break
     case 'bind-catalog':
+      emit('regionAction', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
+      closeCloneMenu()
+      break
+    case 'match-oem':
       emit('regionAction', { action: id, regionId: region.id, html: region.html, tailwindRecipeArtifact: region.tailwindRecipeArtifact })
       closeCloneMenu()
       break
@@ -1298,6 +1309,13 @@ watch(
               </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Match OEM pixel fidelity"
+                @click="quickCloneMatchOem"
+              >
+                <ScanSearch class="size-3.5" />
+              </button>
+              <button
+                class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 title="Convert selected section to Tailwind"
                 @click="quickCloneConvertRegion"
               >
@@ -1347,7 +1365,7 @@ watch(
                   @click="action.children?.length ? toggleCloneSubmenu(action.id) : runCloneAction(action.id)"
                 >
                   <component
-                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert-tailwind' ? Wand2 : action.id === 'bind-catalog' ? Database : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
+                    :is="action.id === 'background' ? Palette : action.id === 'edit-text' ? Settings : action.id === 'replace-image' ? Image : action.id === 'edit-link' ? Link : action.id === 'height' ? Ruler : action.id === 'duplicate' ? Copy : action.id === 'delete' ? Trash2 : action.id === 'convert-tailwind' ? Wand2 : action.id === 'match-oem' ? ScanSearch : action.id === 'bind-catalog' ? Database : action.id === 'hide' ? EyeOff : action.id === 'next-panel' ? ChevronRight : action.id === 'prev-panel' ? ChevronLeft : Settings"
                     class="size-3.5"
                     :class="action.id === 'delete' ? '' : 'text-muted-foreground'"
                   />

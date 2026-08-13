@@ -4842,9 +4842,18 @@ app.delete('/admin/webhooks/:id', async (c) => {
 // ============================================================================
 
 app.post('/admin/quality/score', async (c) => {
-  const body = await c.req.json<{ oem_id: string; component_r2_key?: string; component_html?: string; thumbnail_base64: string }>();
-  if (!body.oem_id || !body.thumbnail_base64) {
-    return c.json({ error: 'oem_id and thumbnail_base64 are required' }, 400);
+  const body = await c.req.json<{
+    oem_id: string;
+    component_r2_key?: string;
+    component_html?: string;
+    thumbnail_base64?: string;
+    reference_base64?: string;
+    candidate_base64?: string;
+  }>();
+  const referenceBase64 = body.reference_base64?.replace(/^data:image\/\w+;base64,/, '');
+  const candidateBase64 = (body.candidate_base64 || body.thumbnail_base64)?.replace(/^data:image\/\w+;base64,/, '');
+  if (!body.oem_id || !referenceBase64 || !candidateBase64) {
+    return c.json({ error: 'oem_id, reference_base64, and candidate_base64 are required' }, 400);
   }
 
   try {
@@ -4859,13 +4868,18 @@ Rate the similarity on a scale of 0-100 where:
 - 30-49: Loosely related but significantly different
 - 0-29: Very different
 
-Respond with JSON: { "score": number, "feedback": "brief explanation of differences" }`;
+Identify the three highest-impact visual corrections without changing wording, links, assets, or interactions.
+
+Respond with JSON: { "score": number, "feedback": "brief explanation of differences", "suggestions": ["specific correction"] }`;
 
     const model = GEMINI_31_CONFIG.model;
     const url = `${GEMINI_CONFIG.api_base}/models/${model}:generateContent?key=${c.env.GOOGLE_API_KEY}`;
 
     const parts: any[] = [
-      { inlineData: { mimeType: 'image/jpeg', data: body.thumbnail_base64 } },
+      { text: 'OEM reference image:' },
+      { inlineData: { mimeType: 'image/png', data: referenceBase64 } },
+      { text: 'Dashboard candidate image:' },
+      { inlineData: { mimeType: 'image/png', data: candidateBase64 } },
       { text: prompt },
     ];
 
@@ -4887,7 +4901,12 @@ Respond with JSON: { "score": number, "feedback": "brief explanation of differen
     if (!content) return c.json({ error: 'Empty response' }, 500);
 
     const parsed = JSON.parse(content);
-    return c.json({ score: parsed.score, feedback: parsed.feedback, scored_at: new Date().toISOString() });
+    const score = Math.min(100, Math.max(0, Number(parsed.score) || 0));
+    const feedback = String(parsed.feedback || '').slice(0, 2_000);
+    const suggestions = Array.isArray(parsed.suggestions)
+      ? parsed.suggestions.map((item: unknown) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+      : [];
+    return c.json({ score, feedback, suggestions, scored_at: new Date().toISOString() });
   } catch (err: any) {
     return c.json({ error: err.message || 'Scoring failed' }, 500);
   }

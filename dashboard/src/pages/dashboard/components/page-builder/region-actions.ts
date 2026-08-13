@@ -4,6 +4,7 @@ export type RegionActionId
   = | 'edit-text' | 'replace-image' | 'alt-text' | 'edit-link' | 'background'
     | 'height' | 'bind-catalog' | 'convert' | 'convert-tailwind'
     | 'convert-tailwind-selected' | 'convert-tailwind-all'
+    | 'match-oem'
     | 'hide' | 'duplicate' | 'delete'
     | 'next-panel' | 'prev-panel'
 
@@ -32,6 +33,7 @@ export function getRegionActions(region: CloneRegion): RegionAction[] {
     out.push({ id: 'prev-panel', label: 'Previous panel', group: 'layout' })
   }
   out.push({ id: 'height', label: 'Set visible height…', group: 'layout' })
+  out.push({ id: 'match-oem', label: 'Match OEM…', group: 'layout' })
   out.push({
     id: 'convert-tailwind',
     label: 'Convert to Tailwind',

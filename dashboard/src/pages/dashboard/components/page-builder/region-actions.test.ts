@@ -5,11 +5,12 @@ import { buildPatchPayload, getRegionActions } from './region-actions'
 const base = { id: 'r1', label: 'Region', selector: 'div', tag: 'div', classes: [], top: 0, height: 100, editable_fields: [] as any[] }
 
 describe('getRegionActions', () => {
-  it('always offers colour, height, Tailwind submenu, hide, duplicate, delete', () => {
+  it('always offers colour, height, OEM matching, Tailwind submenu, hide, duplicate, delete', () => {
     const actions = getRegionActions(base)
     const ids = actions.map(a => a.id)
     expect(ids).toEqual(expect.arrayContaining(['background', 'height', 'convert-tailwind', 'hide', 'duplicate', 'delete']))
     expect(ids).toContain('bind-catalog')
+    expect(ids).toContain('match-oem')
 
     const convert = actions.find(action => action.id === 'convert-tailwind')
     expect(convert?.children?.map(child => child.id)).toEqual([

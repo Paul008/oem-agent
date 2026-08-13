@@ -330,7 +330,7 @@ function extractStyleBlocks(html: string): { html: string, css: string } {
   return { html: withoutStyles.trim(), css: css.join('\n') }
 }
 
-function extractTailwindRecipeArtifactCss(artifact: any): string {
+export function extractTailwindRecipeArtifactCss(artifact: any): string {
   if (!artifact || typeof artifact !== 'object')
     return ''
 

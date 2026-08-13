@@ -18,6 +18,7 @@ import {
   publishModelPagePublicationCandidate,
   rollbackModelPagePublication,
   saveDealerOverrides,
+  scoreRegionQuality,
   updateClonePage,
   updatePageSections,
   workerTextFetch,
@@ -30,6 +31,34 @@ vi.mock('@/lib/supabase', () => ({
     },
   },
 }))
+
+describe('worker-api scoreRegionQuality', () => {
+  it('sends two stripped PNG payloads with the authenticated request', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: { session: { access_token: 'session-token' } },
+    } as any)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      score: 91,
+      feedback: 'Close match',
+      suggestions: ['Reduce top padding'],
+      scored_at: '2026-08-13T08:00:00.000Z',
+    }), { headers: { 'content-type': 'application/json' } })))
+
+    await expect(scoreRegionQuality(
+      'nissan-au',
+      'data:image/png;base64,reference',
+      'data:image/png;base64,candidate',
+    )).resolves.toMatchObject({ score: 91 })
+
+    const [, options] = vi.mocked(fetch).mock.calls[0]
+    expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer session-token')
+    expect(JSON.parse(String(options?.body))).toEqual({
+      oem_id: 'nissan-au',
+      reference_base64: 'reference',
+      candidate_base64: 'candidate',
+    })
+  })
+})
 
 describe('worker-api clonePage', () => {
   beforeEach(() => {

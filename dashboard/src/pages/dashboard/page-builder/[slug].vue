@@ -41,8 +41,9 @@ import type { CloneFieldPatchPayload } from '../components/page-builder/CloneReg
 import type { RegionActionId } from '../components/page-builder/region-actions'
 import type { CloneRegion, PageMode } from './page-modes'
 
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, convertCloneRegionsToTailwindSections } from '../components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '../components/page-builder/clone-region-converter'
 import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
+import FidelityAssistantDialog from '../components/page-builder/FidelityAssistantDialog.vue'
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
 import JsonEditorView from '../components/page-builder/JsonEditorView.vue'
 import PageBuilderCanvas from '../components/page-builder/PageBuilderCanvas.vue'
@@ -145,6 +146,11 @@ const showSectionBrowser = ref(false)
 const showCapture = ref(false)
 const cloneDraftHtml = ref<string | null>(null)
 const cloneEditorOpen = ref(false)
+const fidelityOpen = ref(false)
+const fidelityRegionId = ref('')
+const fidelityOriginalHtml = ref('')
+const fidelityOriginalCss = ref('')
+const fidelityCandidateSection = ref<Record<string, any> | null>(null)
 const pageBuilderCanvas = ref<{
   patchCloneField: (payload: CloneFieldPatchPayload) => void
   duplicateRegion: (regionId: string) => void
@@ -253,6 +259,28 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     pageBuilderCanvas.value?.duplicateRegion(regionId)
     return
   }
+  if (action === 'match-oem') {
+    const section = await buildEditableSectionFromCloneRegion({
+      html,
+      tailwindRecipeArtifact,
+      compileTailwindRecipeArtifact,
+    })
+    if (!section || !html?.trim()) {
+      toast.error('This region does not include enough captured HTML to compare')
+      return
+    }
+    fidelityRegionId.value = regionId
+    fidelityOriginalHtml.value = html
+    fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
+    fidelityCandidateSection.value = {
+      ...section,
+      _clone_region_id: regionId,
+      _tailwind_original_html: html,
+    }
+    fidelityOpen.value = true
+    cloneEditorOpen.value = false
+    return
+  }
   if (action === 'convert' || action === 'convert-tailwind-selected') {
     const section = await buildEditableSectionFromCloneRegion({
       html,
@@ -324,6 +352,15 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
       toast.error(`Failed to bind catalog data: ${error?.message || 'Unknown error'}`)
     }
   }
+}
+
+function applyFidelityCandidate(section: Record<string, any>) {
+  if (isWriteProtectedPage.value || !fidelityOpen.value)
+    return
+  addSectionFromLiveData(section)
+  setActiveMode('sections')
+  fidelityOpen.value = false
+  toast.success('OEM-matched conversion added to the unsaved draft')
 }
 
 async function saveActiveMode() {
@@ -1413,6 +1450,18 @@ watch(
       :open="showSectionBrowser"
       @update:open="showSectionBrowser = $event"
       @paste="pasteSections"
+    />
+
+    <FidelityAssistantDialog
+      v-if="canShowEditorActions && !isWriteProtectedPage"
+      :open="fidelityOpen"
+      :oem-id="oemId"
+      :region-id="fidelityRegionId"
+      :original-html="fidelityOriginalHtml"
+      :original-css="fidelityOriginalCss"
+      :candidate-section="fidelityCandidateSection"
+      @update:open="fidelityOpen = $event"
+      @apply="applyFidelityCandidate"
     />
 
     <!-- History Sheet -->
