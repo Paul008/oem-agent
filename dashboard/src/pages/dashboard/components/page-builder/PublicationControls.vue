@@ -61,9 +61,10 @@ const validationLabel = computed(() => {
 })
 
 const rollbackHistory = computed(() => props.history.filter(entry => entry.revision !== props.publishedRevision))
+const buildCandidateLabel = computed(() => props.candidateStatus === 'building' ? 'Retry Build' : 'Build Candidate')
 
 function requestBuildCandidate() {
-  if (!props.busy)
+  if (!props.busy && props.canBuild)
     emit('buildCandidate')
 }
 
@@ -109,12 +110,12 @@ function confirmRollback() {
       <Button
         size="sm"
         variant="outline"
-        :disabled="busy || !canBuild || candidateStatus === 'building'"
-        title="Build and validate a candidate from the saved draft"
+        :disabled="busy || !canBuild"
+        :title="candidateStatus === 'building' ? 'Retry a candidate build that did not finish' : 'Build and validate a candidate from the saved draft'"
         @click="requestBuildCandidate"
       >
         <WandSparkles class="size-3.5 sm:mr-1" />
-        <span class="hidden sm:inline">Build Candidate</span>
+        <span class="hidden sm:inline">{{ buildCandidateLabel }}</span>
       </Button>
 
       <Button
@@ -231,11 +232,11 @@ function confirmRollback() {
               size="sm"
               variant="outline"
               class="w-full justify-start"
-              :disabled="busy || !canBuild || candidateStatus === 'building'"
-              title="Build and validate a candidate from the saved draft"
+              :disabled="busy || !canBuild"
+              :title="candidateStatus === 'building' ? 'Retry a candidate build that did not finish' : 'Build and validate a candidate from the saved draft'"
               @click="requestBuildCandidate"
             >
-              <WandSparkles class="mr-1 size-3.5" /> Build Candidate
+              <WandSparkles class="mr-1 size-3.5" /> {{ buildCandidateLabel }}
             </Button>
             <Button
               size="sm"

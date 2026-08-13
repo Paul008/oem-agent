@@ -21,6 +21,7 @@ import FidelityAssistantDialog from '@/pages/dashboard/components/page-builder/F
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import PublicationControls from '@/pages/dashboard/components/page-builder/PublicationControls.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 // Standalone, chrome-free preview of a model page as the builder renders it.
 // Reuses PageBuilderCanvas so clone and structured pages render faithfully. Non-protected pages keep
@@ -37,6 +38,7 @@ interface StyleGuideFontFace {
 }
 
 const route = useRoute()
+const authStore = useAuthStore()
 const {
   page,
   loading,
@@ -115,7 +117,8 @@ const isCandidateView = computed(() => previewView.value === 'candidate')
 const isSourceView = computed(() => previewView.value === 'source')
 const isCompareView = computed(() => previewView.value === 'compare')
 const isStandaloneView = computed(() => previewView.value === 'standalone')
-const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)
+const canAdministerPreview = computed(() => authStore.isLogin)
+const previewReadOnly = computed(() => !canAdministerPreview.value || isWriteProtectedPage.value || isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)
 
 const canEditPreview = computed(() => !previewReadOnly.value)
 const hasTailwindSource = computed(() => Boolean(
@@ -165,8 +168,16 @@ onMounted(async () => {
   const slug = pageSlug.value
   if (slug) {
     await loadPage(slug)
-    await refreshPublicationState()
+    if (canAdministerPreview.value)
+      await refreshPublicationState()
+    else
+      publicationStateLoaded.value = true
   }
+})
+
+watch(canAdministerPreview, async (canAdminister) => {
+  if (canAdminister && publicationPageId.value)
+    await refreshPublicationState()
 })
 
 watch([oemId, previewView], async ([nextOemId, nextPreviewView]) => {
@@ -1079,6 +1090,7 @@ async function rollbackPublication(revision: number) {
           {{ isDirty ? 'Unsaved' : 'Saved' }}
         </div>
         <PublicationControls
+          v-if="canAdministerPreview"
           :draft-version="draftVersion"
           :published-revision="publication.publishedRevision.value"
           :candidate-revision="publication.candidate.value?.revision ?? null"
@@ -1130,6 +1142,7 @@ async function rollbackPublication(revision: number) {
           <span class="hidden sm:inline">Save Draft</span>
         </button>
         <a
+          v-if="canAdministerPreview"
           class="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted"
           :href="builderUrl"
           title="Open full builder"
@@ -1496,7 +1509,7 @@ async function rollbackPublication(revision: number) {
         :model-slug="modelSlug"
         :read-only="previewReadOnly"
         :fit-width="true"
-        :allow-same-origin-sandbox="previewReadOnly"
+        :allow-same-origin-sandbox="false"
         :auto-responsive-preview="true"
         :hide-preview-chrome="true"
         @select-section="selectSection"

@@ -365,16 +365,16 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(disabled).toContain('onclick="return false"')
   })
 
-  it('lets the standalone preview host editable canvas menus unless the view is read-only', () => {
+  it('lets only authenticated standalone previews host editable canvas menus unless the view is read-only', () => {
     const previewSource = readFileSync(new URL('../../../preview/[slug].vue', import.meta.url), 'utf8')
 
     expect(previewSource).toContain('isModelPageWriteProtected')
-    expect(previewSource).toContain('const previewReadOnly = computed(() => isWriteProtectedPage.value || isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)')
+    expect(previewSource).toContain('const previewReadOnly = computed(() => !canAdministerPreview.value || isWriteProtectedPage.value || isProductionView.value || isCandidateView.value || isSourceView.value || isCompareView.value || isStandaloneView.value)')
     expect(previewSource).toContain('const canEditPreview = computed(() => !previewReadOnly.value)')
     expect(previewSource).toContain(':read-only="previewReadOnly"')
-    expect(previewSource).toContain(':allow-same-origin-sandbox="previewReadOnly"')
+    expect(previewSource).toContain(':allow-same-origin-sandbox="false"')
     expect(previewSource).not.toContain(':read-only="true"')
-    expect(previewSource).not.toContain(':allow-same-origin-sandbox="true"')
+    expect(previewSource).not.toContain(':allow-same-origin-sandbox="previewReadOnly"')
     expect(previewSource).toContain('@select-section="selectSection"')
     expect(previewSource).toContain('@open-editor="openEditor"')
     expect(previewSource).toContain('@move-section="moveSection"')
@@ -415,7 +415,7 @@ describe('pageBuilderCanvas preview mode', () => {
     expect(previewSource).toContain('addCloneRegion(region)')
     expect(previewSource).toContain('setRegionHeight(id, value == null ? null : Number(value))')
     expect(previewSource).toContain('pageBuilderCanvas.value?.duplicateRegion(regionId)')
-    expect(previewSource).toContain('fieldId: `${regionId}:visibility`')
+    expect(previewSource).toContain('fieldId: `$' + '{regionId}:visibility`')
     expect(previewSource).toContain('<SectionEditorDialog')
   })
 

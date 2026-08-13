@@ -177,6 +177,19 @@ export function rewriteCssAssetUrlsForMediaProxy(css: string, stylesheetUrl: str
   });
 }
 
+export function nissanNavaraFallbackUrl(sourceUrl: string): string | null {
+  try {
+    const url = new URL(sourceUrl);
+    if (url.hostname !== 'www.nissan.com.au' || !url.pathname.startsWith('/_next/static/'))
+      return null;
+    url.protocol = 'https:';
+    url.hostname = 'navara.nissan.com.au';
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 export function extractGacStylesheetUrls(html: string, pageUrl: string): string[] {
   const urls = [...String(html ?? '').matchAll(/<link\b[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi)]
     .map((match) => {
@@ -393,13 +406,28 @@ media.get('/:oemId/:encodedUrl', async (c) => {
     headers.Referer = 'https://navara.nissan.com.au/';
   }
 
-  const originResp = await fetch(resolved, { headers });
+  let upstreamUrl = resolved;
+  let originResp = await fetch(upstreamUrl, { headers });
+
+  if (!originResp.ok && oemId === 'nissan-au') {
+    const fallbackUrl = nissanNavaraFallbackUrl(upstreamUrl);
+    if (fallbackUrl) {
+      upstreamUrl = fallbackUrl;
+      originResp = await fetch(upstreamUrl, {
+        headers: {
+          ...headers,
+          Origin: 'https://navara.nissan.com.au',
+          Referer: 'https://navara.nissan.com.au/',
+        },
+      });
+    }
+  }
 
   if (!originResp.ok) {
     const pageUrl = c.req.query('page');
-    const isStaleGacStylesheet = oemId === 'gac-au' && /\.css(?:[?#]|$)/i.test(resolved);
+    const isStaleGacStylesheet = oemId === 'gac-au' && /\.css(?:[?#]|$)/i.test(upstreamUrl);
     if (isStaleGacStylesheet && pageUrl) {
-      const fallbackCss = await fetchCurrentGacStylesheetBundle(pageUrl, resolved, headers);
+      const fallbackCss = await fetchCurrentGacStylesheetBundle(pageUrl, upstreamUrl, headers);
       if (fallbackCss) {
         const fallbackHeaders = new Headers({
           'Content-Type': 'text/css; charset=utf-8',
@@ -417,7 +445,7 @@ media.get('/:oemId/:encodedUrl', async (c) => {
   // Build cacheable response
   const respHeaders = new Headers();
   const ct = originResp.headers.get('content-type');
-  const isCss = (ct ?? '').toLowerCase().includes('text/css') || /\.css(?:[?#]|$)/i.test(resolved);
+  const isCss = (ct ?? '').toLowerCase().includes('text/css') || /\.css(?:[?#]|$)/i.test(upstreamUrl);
   if (isCss)
     respHeaders.set('Content-Type', 'text/css; charset=utf-8');
   else if (ct)
@@ -426,7 +454,7 @@ media.get('/:oemId/:encodedUrl', async (c) => {
   respHeaders.set('Access-Control-Allow-Origin', '*');
 
   const body = isCss
-    ? rewriteCssAssetUrlsForMediaProxy(await originResp.text(), resolved, oemId)
+    ? rewriteCssAssetUrlsForMediaProxy(await originResp.text(), upstreamUrl, oemId)
     : originResp.body;
   const response = new Response(body, { status: 200, headers: respHeaders });
 

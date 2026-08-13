@@ -54,6 +54,7 @@ function fakeBrowser(options: FakeBrowserOptions = {}) {
     html = '';
     viewport = { width: 0, height: 0 };
     screenshotComplete = false;
+    screenshotOptions: Array<Record<string, unknown>> = [];
 
     on(event: string, handler: (event: any) => void) { this.handlers.set(event, handler); return this; }
     async setViewport(viewport: { width: number; height: number }) { this.viewport = viewport; }
@@ -90,7 +91,8 @@ function fakeBrowser(options: FakeBrowserOptions = {}) {
     async waitForNetworkIdle() {
       if (options.networkSettleFailure) throw new Error('network idle timeout');
     }
-    async screenshot() {
+    async screenshot(options: Record<string, unknown> = {}) {
+      this.screenshotOptions.push(options);
       await Promise.resolve();
       this.screenshotComplete = true;
       return new Uint8Array([137, 80, 78, 71, pageNumber]);
@@ -115,7 +117,7 @@ function fakeBrowser(options: FakeBrowserOptions = {}) {
       }
       if (fn === compareScreenshotsInPage) {
         return {
-          mismatchPercent: options.mismatch ?? 0.1,
+          mismatchPercent: options.mismatch ?? 0.005,
           sourceSize: { width: options.sourceWidth ?? 1440, height: options.sourceHeight ?? 1200 },
           candidateSize: { width: options.candidateWidth ?? 1440, height: options.candidateHeight ?? 1200 },
           diffDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
@@ -148,11 +150,11 @@ function installDom(html: string): void {
 }
 
 describe('browser publication validation', () => {
-  it('warns from 20 percent visual mismatch and blocks above 35 percent', () => {
-    expect(classifyVisualMismatch(0.1999)).toBe('pass');
-    expect(classifyVisualMismatch(0.2)).toBe('warning');
-    expect(classifyVisualMismatch(0.35)).toBe('warning');
-    expect(classifyVisualMismatch(0.3501)).toBe('blocking');
+  it('passes through 1 percent visual mismatch, warns through 3 percent, and blocks above it', () => {
+    expect(classifyVisualMismatch(0.01)).toBe('pass');
+    expect(classifyVisualMismatch(0.0101)).toBe('warning');
+    expect(classifyVisualMismatch(0.03)).toBe('warning');
+    expect(classifyVisualMismatch(0.0301)).toBe('blocking');
   });
 
   it('uses the maximum RGBA channel delta from the fidelity report algorithm', () => {
@@ -295,6 +297,9 @@ describe('browser publication validation', () => {
     expect(evidence.every(item => item.bytes.byteLength > 0)).toBe(true);
     expect(result.viewports.every(viewport => viewport.evidence?.candidate.sha256.match(/^[a-f0-9]{64}$/))).toBe(true);
     expect(result.viewports.every(viewport => viewport.evidence?.candidate.byteLength === 5)).toBe(true);
+    const screenshotOptions = browser.writtenPages.flatMap(page => page.screenshotOptions);
+    expect(screenshotOptions).toHaveLength(6);
+    expect(screenshotOptions.every(options => options.fullPage === false)).toBe(true);
   });
 
   it.each([
@@ -374,7 +379,7 @@ describe('browser publication validation', () => {
 
   it('blocks overflow, failed media, non-finite height, failed interaction, and high mismatch', async () => {
     launch.mockResolvedValue(fakeBrowser({
-      mismatch: 0.3501,
+      mismatch: 0.0301,
       overflow: 24,
       bodyHeight: Number.POSITIVE_INFINITY,
       brokenMedia: true,

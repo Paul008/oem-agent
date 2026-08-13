@@ -148,6 +148,33 @@ describe('publicationControls', () => {
     container.remove()
   })
 
+  it('allows an idle editor to recover a candidate stranded in building state', async () => {
+    const onBuildCandidate = vi.fn()
+    const container = document.createElement('div')
+    document.body.append(container)
+    const app = createApp(PublicationControls, {
+      draftVersion: 8,
+      publishedRevision: null,
+      candidateRevision: 2,
+      candidateStatus: 'building',
+      canBuild: true,
+      canPublish: false,
+      busy: false,
+      validation: null,
+      history: [],
+      onBuildCandidate,
+    })
+    app.mount(container)
+
+    const retryButton = findButton(container, 'Retry Build')
+    expect(retryButton?.disabled).toBe(false)
+    retryButton?.click()
+    expect(onBuildCandidate).toHaveBeenCalledOnce()
+
+    app.unmount()
+    container.remove()
+  })
+
   it('keeps open publish and rollback confirmations inert when busy begins', async () => {
     const busy = ref(false)
     const onPublish = vi.fn()

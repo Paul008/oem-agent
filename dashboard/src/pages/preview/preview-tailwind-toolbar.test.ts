@@ -6,6 +6,17 @@ import { resolvePublicationPreviewView } from '@/composables/use-model-page-publ
 vi.mock('@/lib/worker-api', () => ({}))
 
 describe('preview Tailwind conversion toolbar', () => {
+  it('keeps the public preview read-only and does not expose authenticated publication controls', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('import { useAuthStore } from \'@/stores/auth\'')
+    expect(source).toContain('const canAdministerPreview = computed(() => authStore.isLogin)')
+    expect(source).toContain('!canAdministerPreview.value || isWriteProtectedPage.value')
+    expect(source).toContain('<PublicationControls\n          v-if="canAdministerPreview"')
+    expect(source).toContain('if (canAdministerPreview.value)\n      await refreshPublicationState()')
+    expect(source).toContain('v-if="canAdministerPreview"\n          class="inline-flex h-8 items-center')
+  })
+
   it('redirects a direct stale candidate route before candidate HTML can render', () => {
     expect(resolvePublicationPreviewView('candidate', 'stale', null)).toBe('edit')
     expect(resolvePublicationPreviewView('candidate', 'ready', null)).toBe('edit')
@@ -81,13 +92,13 @@ describe('preview Tailwind conversion toolbar', () => {
     const applyEnd = source.indexOf('async function convertSelectedCloneRegionToTailwind', applyStart)
     const applySource = source.slice(applyStart, applyEnd)
 
-    expect(source).toContain("action === 'match-oem'")
+    expect(source).toContain('action === \'match-oem\'')
     expect(source).toContain('buildEditableSectionFromCloneRegion({')
     expect(source).toContain('extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)')
     expect(source).toContain('<FidelityAssistantDialog')
     expect(source).toContain('@apply="applyFidelityCandidate"')
     expect(applySource).toContain('addSectionFromLiveData(section)')
-    expect(applySource).toContain("setActiveMode('sections')")
+    expect(applySource).toContain('setActiveMode(\'sections\')')
     expect(applySource).not.toContain('saveSections(')
     expect(applySource).not.toContain('publication.buildCandidate()')
   })
@@ -205,7 +216,7 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('tailwind.config')
     expect(source).toContain(':srcdoc="tailwindCompareSrcdoc(tailwindCompareOriginalHtml(section), \'Original capture\', section)"')
     expect(source).toContain(':srcdoc="tailwindCompareSrcdoc(tailwindCompareConvertedHtml(section), \'Converted Tailwind\', section)"')
-    expect(source).not.toContain('<div class="frame-label">${safeLabel}</div>${body}')
+    expect(source).not.toContain('<div class="frame-label">$' + '{safeLabel}</div>$' + '{body}')
     expect(source).toContain('function styleGuideFontCss(): string')
     expect(source).toContain('function styleGuideFontFaces(): StyleGuideFontFace[]')
     expect(source).toContain('const typography = styleGuideTokens.value?.typography')

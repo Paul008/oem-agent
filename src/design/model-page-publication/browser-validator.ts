@@ -76,10 +76,11 @@ const RESOURCE_TIMEOUT_MS = 5_000;
 const RENDER_CRITICAL_RESOURCE_TYPES = new Set(['stylesheet', 'font', 'image', 'media']);
 const REVISION_EVIDENCE_PREFIX = /^model-pages\/[^/]+\/publication\/revisions\/[1-9]\d*\/evidence\/?$/;
 const DISABLE_MOTION_CSS = '*,*::before,*::after{animation-delay:0s!important;animation-duration:0s!important;scroll-behavior:auto!important;transition-delay:0s!important;transition-duration:0s!important}';
+export const PUBLICATION_SCREENSHOT_OPTIONS = { fullPage: false, type: 'png' as const };
 
 export function classifyVisualMismatch(mismatchPercent: number): VisualMismatchClassification {
-  if (mismatchPercent > 0.35) return 'blocking';
-  if (mismatchPercent >= 0.20) return 'warning';
+  if (mismatchPercent > 0.03) return 'blocking';
+  if (mismatchPercent > 0.01) return 'warning';
   return 'pass';
 }
 
@@ -512,8 +513,8 @@ export async function validateInBrowser(
       let comparisonPage: any;
       try {
         const [sourceBytes, candidateBytes] = await Promise.all([
-          sourceCapture.page.screenshot({ fullPage: true, type: 'png' }).then(asBytes),
-          candidateCapture.page.screenshot({ fullPage: true, type: 'png' }).then(asBytes),
+          sourceCapture.page.screenshot(PUBLICATION_SCREENSHOT_OPTIONS).then(asBytes),
+          candidateCapture.page.screenshot(PUBLICATION_SCREENSHOT_OPTIONS).then(asBytes),
         ]);
         const audit = await auditPage(candidateCapture.page);
         const interactionResults = await exerciseInteractions(candidateCapture.page, declaredInteractions);
@@ -550,8 +551,8 @@ export async function validateInBrowser(
         viewports.push(result);
 
         const classification = classifyVisualMismatch(result.mismatchPercent);
-        if (classification === 'blocking') blocking.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% exceeds 35%` });
-        if (classification === 'warning') warnings.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% is at least 20%` });
+        if (classification === 'blocking') blocking.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% exceeds the 3% publication limit` });
+        if (classification === 'warning') warnings.push({ code: 'visual-mismatch', viewport: viewport.name, message: `Visual mismatch ${(result.mismatchPercent * 100).toFixed(2)}% exceeds the 1% pixel-stable target` });
         if (dimension.classification !== 'pass') {
           const finding = { code: 'screenshot-dimension-mismatch', viewport: viewport.name, message: `Screenshot dimensions differ by ${(dimension.mismatchPercent * 100).toFixed(2)}%: source ${comparison.sourceSize.width}x${comparison.sourceSize.height}, candidate ${comparison.candidateSize.width}x${comparison.candidateSize.height}` };
           if (dimension.classification === 'blocking') blocking.push(finding);

@@ -47,10 +47,10 @@ describe('buildCloneStudioHtml', () => {
       selectedRegionId: 'r1',
     })
 
-    expect(html).toContain("var MESSAGE_SELECTED_GEOMETRY = 'clone-studio:selected-geometry'")
+    expect(html).toContain('var MESSAGE_SELECTED_GEOMETRY = \'clone-studio:selected-geometry\'')
     expect(html).toContain('function postSelectedGeometry()')
-    expect(html).toContain("window.addEventListener('scroll', scheduleSelectedGeometry, true)")
-    expect(html).toContain("window.addEventListener('resize', scheduleSelectedGeometry, false)")
+    expect(html).toContain('window.addEventListener(\'scroll\', scheduleSelectedGeometry, true)')
+    expect(html).toContain('window.addEventListener(\'resize\', scheduleSelectedGeometry, false)')
     expect(html).toContain('window.requestAnimationFrame(postSelectedGeometry)')
   })
 
@@ -164,6 +164,21 @@ describe('buildCloneStudioHtml', () => {
     const head = extractDocumentHead(html)
     expect(head).toContain('href="https://oem-agent.adme-dev.workers.dev/media/ford-au/')
     expect(head).not.toContain('href="https://www.ford.com.au/etc.clientlibs/dxdfoap/clientlibs/sites/clientlib-nameplates.min.css"')
+  })
+
+  it('proxies preserved Navara stylesheets and font URLs through the media worker', () => {
+    const html = buildCloneStudioHtml({
+      rendered: '<link rel="stylesheet" href="https://navara.nissan.com.au/_next/static/css/navara.css"><style>@font-face{font-family:Nissan;src:url(https://navara.nissan.com.au/_next/static/media/NissanBrand.woff2)}</style><main><h1>Navara</h1></main>',
+      title: 'Navara',
+      baseHref: 'https://navara.nissan.com.au/',
+      mediaBase: 'https://oem-agent.adme-dev.workers.dev',
+      selectedRegionId: null,
+    })
+
+    const head = extractDocumentHead(html)
+    expect(head.match(/https:\/\/oem-agent\.adme-dev\.workers\.dev\/media\/nissan-au\//g)).toHaveLength(2)
+    expect(head).not.toContain('rel="stylesheet" href="https://navara.nissan.com.au')
+    expect(head).not.toContain('url(https://navara.nissan.com.au')
   })
 
   it('includes the source page when proxying GAC stylesheets so stale bundles can recover', () => {

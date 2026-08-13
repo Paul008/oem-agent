@@ -6,6 +6,7 @@ import { toast } from 'vue-sonner'
 
 import type { RegionFidelityStatus } from '@/lib/region-fidelity'
 
+import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls } from '@/lib/fidelity-assets'
 import { compareRegionPixels } from '@/lib/region-fidelity'
 import { scoreRegionQuality } from '@/lib/worker-api'
 
@@ -41,6 +42,7 @@ const VIEWPORTS = [
   { name: 'tablet' as const, width: 1024, height: 900 },
   { name: 'mobile' as const, width: 390, height: 844 },
 ]
+const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const selectedViewport = ref<ViewportName>('desktop')
 const evidenceMode = ref<'side-by-side' | 'overlay' | 'diff'>('side-by-side')
@@ -56,7 +58,13 @@ let runToken = 0
 const selectedResult = computed(() => results.value.find(result => result.name === selectedViewport.value) ?? null)
 const worstResult = computed(() => [...results.value].sort((a, b) => b.mismatchRatio - a.mismatchRatio)[0] ?? null)
 const overallStatus = computed<RegionFidelityStatus>(() => worstResult.value?.status ?? 'mismatch')
-const canApply = computed(() => Boolean(props.candidateSection && results.value.length === VIEWPORTS.length && !measuring.value))
+const canApply = computed(() => Boolean(
+  props.candidateSection
+  && results.value.length === VIEWPORTS.length
+  && overallStatus.value === 'pixel-perfect'
+  && !measureError.value
+  && !measuring.value,
+))
 
 watch(() => props.open, async (open) => {
   if (!open) {
@@ -88,8 +96,10 @@ function safeHtml(value: string): string {
 }
 
 function frameDocument(html: string, css = ''): string {
-  const safeCss = String(css || '').replace(/<\/style/gi, '<\\/style').replace(/javascript:/gi, '')
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://cdn.tailwindcss.com"><\/script><style>${safeCss}\n*,*::before,*::after{animation:none!important;transition:none!important}html,body{margin:0;min-height:100%;background:#fff;color:#111}</style></head><body>${safeHtml(html)}</body></html>`
+  const proxiedCss = rewriteFidelityCssAssetUrls(css, props.oemId, WORKER_BASE)
+  const safeCss = proxiedCss.replace(/<\/style/gi, '<\\/style').replace(/javascript:/gi, '')
+  const safeBody = safeHtml(rewriteFidelityHtmlAssetUrls(html, props.oemId, WORKER_BASE))
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${safeCss}\n*,*::before,*::after{animation:none!important;transition:none!important}html,body{margin:0;min-height:100%;background:#fff;color:#111}</style></head><body>${safeBody}</body></html>`
 }
 
 function referenceSrcdoc(): string {
@@ -103,7 +113,7 @@ function candidateSrcdoc(): string {
   )
 }
 
-async function waitForFrame(frame: HTMLIFrameElement) {
+async function waitForFrame(frame: HTMLIFrameElement, requiredFonts: string[]) {
   const doc = frame.contentDocument
   if (!doc)
     throw new Error('Comparison frame is unavailable')
@@ -114,11 +124,25 @@ async function waitForFrame(frame: HTMLIFrameElement) {
         image.addEventListener('load', () => resolve(), { once: true })
         image.addEventListener('error', () => resolve(), { once: true })
       })))
+  const brokenImages = Array.from(doc.images).filter(image => Boolean(image.currentSrc || image.src) && image.naturalWidth === 0)
+  if (brokenImages.length) {
+    const firstUrl = brokenImages[0].currentSrc || brokenImages[0].src
+    throw new Error(`Comparison asset failed to load: ${firstUrl}`)
+  }
+  const requiredFontSet = new Set(requiredFonts.map(family => family.toLowerCase()))
+  const missingFonts: string[] = []
+  doc.fonts?.forEach((fontFace) => {
+    const family = fontFace.family.replace(/^["']|["']$/g, '')
+    if (fontFace.status === 'error' && requiredFontSet.has(family.toLowerCase()))
+      missingFonts.push(family)
+  })
+  if (missingFonts.length)
+    throw new Error(`Comparison font failed to load: ${missingFonts.join(', ')}`)
   await new Promise(resolve => setTimeout(resolve, 150))
 }
 
-async function captureFrame(frame: HTMLIFrameElement, width: number, height: number): Promise<string> {
-  await waitForFrame(frame)
+async function captureFrame(frame: HTMLIFrameElement, width: number, height: number, requiredFonts: string[]): Promise<string> {
+  await waitForFrame(frame, requiredFonts)
   const body = frame.contentDocument?.body
   if (!body)
     throw new Error('Comparison body is unavailable')
@@ -184,13 +208,16 @@ async function measure() {
   aiReview.value = null
   try {
     const measured: ViewportResult[] = []
+    const referenceFonts = extractDeclaredFontFamilies(props.originalCss)
+    const candidateCss = [props.candidateSection?._generated_css, props.candidateSection?._tailwind_leftover_css].filter(Boolean).join('\n')
+    const candidateFonts = extractDeclaredFontFamilies(candidateCss)
     for (const viewport of VIEWPORTS) {
       const pair = framePairs.get(viewport.name)
       if (!pair?.reference || !pair.candidate)
         throw new Error(`${viewport.name} comparison frames are not ready`)
       const [reference, candidate] = await Promise.all([
-        captureFrame(pair.reference, viewport.width, viewport.height),
-        captureFrame(pair.candidate, viewport.width, viewport.height),
+        captureFrame(pair.reference, viewport.width, viewport.height, referenceFonts),
+        captureFrame(pair.candidate, viewport.width, viewport.height, candidateFonts),
       ])
       if (token !== runToken)
         return
@@ -250,7 +277,7 @@ function statusLabel(status: RegionFidelityStatus): string {
 }
 
 function applyCandidate() {
-  if (props.candidateSection)
+  if (canApply.value && props.candidateSection)
     emit('apply', props.candidateSection)
 }
 </script>
@@ -284,6 +311,9 @@ function applyCandidate() {
       </div>
 
       <template v-if="results.length">
+        <div v-if="!canApply" class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
+          <AlertTriangle class="mr-1 inline size-4" /> All viewports must be Pixel stable (≤1%) before this conversion can be added to the draft.
+        </div>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex gap-1 rounded-md bg-muted p-1">
             <button v-for="viewport in VIEWPORTS" :key="viewport.name" class="rounded px-3 py-1.5 text-xs font-medium capitalize" :class="selectedViewport === viewport.name ? 'bg-background shadow-sm' : 'text-muted-foreground'" @click="selectedViewport = viewport.name">
@@ -356,8 +386,8 @@ function applyCandidate() {
 
       <div class="pointer-events-none fixed left-[-100000px] top-0 opacity-0" aria-hidden="true">
         <template v-for="viewport in VIEWPORTS" :key="viewport.name">
-          <iframe :ref="value => setFrame(viewport.name, 'reference', value as Element | null)" title="Hidden OEM fidelity reference" sandbox="allow-scripts allow-same-origin" :srcdoc="referenceSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
-          <iframe :ref="value => setFrame(viewport.name, 'candidate', value as Element | null)" title="Hidden dashboard fidelity candidate" sandbox="allow-scripts allow-same-origin" :srcdoc="candidateSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
+          <iframe :ref="value => setFrame(viewport.name, 'reference', value as Element | null)" title="Hidden OEM fidelity reference" sandbox="allow-same-origin" :srcdoc="referenceSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
+          <iframe :ref="value => setFrame(viewport.name, 'candidate', value as Element | null)" title="Hidden dashboard fidelity candidate" sandbox="allow-same-origin" :srcdoc="candidateSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
         </template>
       </div>
 

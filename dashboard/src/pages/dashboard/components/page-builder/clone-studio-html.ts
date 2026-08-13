@@ -4611,7 +4611,7 @@ function cloneStudioMediaProxyOemIdForUrl(url: string): string {
       return 'isuzu-au'
     if (host === 'www.kia.com' || host === 'kia.com')
       return 'kia-au'
-    if (host === 'www.nissan.com.au' || host === 'www-asia.nissan-cdn.net' || host === 'ms-prd.apn.mediaserver.heliosnissan.net')
+    if (host === 'www.nissan.com.au' || host === 'navara.nissan.com.au' || host === 'www-asia.nissan-cdn.net' || host === 'ms-prd.apn.mediaserver.heliosnissan.net')
       return 'nissan-au'
     if (host === 'www.subaru.com.au' || host === 'cdn-image-handler.oem-production.subaru.com.au')
       return 'subaru-au'

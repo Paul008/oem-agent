@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { encodeUrl } from '../utils/image-proxy';
-import { extractGacStylesheetUrls, rewriteCssAssetUrlsForMediaProxy } from './media';
+import { extractGacStylesheetUrls, nissanNavaraFallbackUrl, rewriteCssAssetUrlsForMediaProxy } from './media';
 
 describe('rewriteCssAssetUrlsForMediaProxy', () => {
   it('rewrites relative and absolute CSS assets to the media proxy', () => {
@@ -38,5 +38,17 @@ describe('extractGacStylesheetUrls', () => {
       'https://eu-www-resouce-cdn.gacgroup.com/www/static/css/entry-new.css',
       'https://www.gacgroup.com/www/static/css/local.css',
     ]);
+  });
+});
+
+describe('nissanNavaraFallbackUrl', () => {
+  it('moves stale Nissan Next.js assets to the Navara host without changing the path or query', () => {
+    expect(nissanNavaraFallbackUrl('https://www.nissan.com.au/_next/static/css/1a1fd95b92b4775a.css?v=2'))
+      .toBe('https://navara.nissan.com.au/_next/static/css/1a1fd95b92b4775a.css?v=2');
+  });
+
+  it('does not redirect ordinary Nissan pages or non-Nissan assets', () => {
+    expect(nissanNavaraFallbackUrl('https://www.nissan.com.au/vehicles/browse-range/navara.html')).toBeNull();
+    expect(nissanNavaraFallbackUrl('https://www.ford.com.au/_next/static/css/site.css')).toBeNull();
   });
 });
