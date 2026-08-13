@@ -355,7 +355,7 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
 }
 
 function applyFidelityCandidate(section: Record<string, any>) {
-  if (isWriteProtectedPage.value || !fidelityOpen.value)
+  if (!fidelityOpen.value || isModelPageWriteProtected(oemId.value))
     return
   addSectionFromLiveData(section)
   setActiveMode('sections')
