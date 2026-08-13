@@ -15,8 +15,9 @@ import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { scopeOemSection } from '@/lib/scope-oem-section'
 import { compileTailwindRecipeArtifact, fetchStyleGuide } from '@/lib/worker-api'
-import { buildCatalogSectionsFromModel, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import { buildCloneStudioFrameHtmlForCanvas } from '@/pages/dashboard/components/page-builder/clone-studio-canvas-helpers'
+import FidelityAssistantDialog from '@/pages/dashboard/components/page-builder/FidelityAssistantDialog.vue'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
 import PublicationControls from '@/pages/dashboard/components/page-builder/PublicationControls.vue'
 import SectionEditorDialog from '@/pages/dashboard/components/page-builder/SectionEditorDialog.vue'
@@ -81,6 +82,11 @@ const pageBuilderCanvas = ref<{
 const cloneDraftHtml = ref<string | null>(null)
 const convertingCloneRegion = ref(false)
 const convertingPage = ref(false)
+const fidelityOpen = ref(false)
+const fidelityRegionId = ref('')
+const fidelityOriginalHtml = ref('')
+const fidelityOriginalCss = ref('')
+const fidelityCandidateSection = ref<Record<string, any> | null>(null)
 const editorSectionId = ref<string | null>(null)
 const styleGuideTokens = ref<Record<string, any> | null>(null)
 const compareLayoutMode = ref<CompareLayoutMode>('accurate')
@@ -718,6 +724,28 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     return
   }
 
+  if (action === 'match-oem') {
+    const section = await buildEditableSectionFromCloneRegion({
+      html,
+      tailwindRecipeArtifact,
+      compileTailwindRecipeArtifact,
+    })
+    if (!section || !html?.trim()) {
+      toast.error('This region does not include enough captured HTML to compare')
+      return
+    }
+    fidelityRegionId.value = regionId
+    fidelityOriginalHtml.value = html
+    fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
+    fidelityCandidateSection.value = {
+      ...section,
+      _clone_region_id: regionId,
+      _tailwind_original_html: html,
+    }
+    fidelityOpen.value = true
+    return
+  }
+
   if (action === 'convert' || action === 'convert-tailwind-selected') {
     await replaceCloneRegionWithTailwind({ regionId, html, tailwindRecipeArtifact })
     return
@@ -761,6 +789,15 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
       toast.error(`Failed to bind catalog data: ${error?.message || 'Unknown error'}`)
     }
   }
+}
+
+function applyFidelityCandidate(section: Record<string, any>) {
+  if (!fidelityOpen.value || previewReadOnly.value)
+    return
+  addSectionFromLiveData(section)
+  setActiveMode('sections')
+  fidelityOpen.value = false
+  toast.success('OEM-matched conversion added to the unsaved draft')
 }
 
 async function convertSelectedCloneRegionToTailwind() {
@@ -1485,6 +1522,18 @@ async function rollbackPublication(revision: number) {
         @delete="deleteSection(editorSection.id); closeEditor()"
         @convert="(type: string) => convertSection(editorSection.id, type as any)"
         @update:section="updateEditorSection($event)"
+      />
+
+      <FidelityAssistantDialog
+        v-if="canEditPreview"
+        :open="fidelityOpen"
+        :oem-id="oemId"
+        :region-id="fidelityRegionId"
+        :original-html="fidelityOriginalHtml"
+        :original-css="fidelityOriginalCss"
+        :candidate-section="fidelityCandidateSection"
+        @update:open="fidelityOpen = $event"
+        @apply="applyFidelityCandidate"
       />
     </div>
 

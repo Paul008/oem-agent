@@ -75,6 +75,23 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('await convertPageToTailwind()')
   })
 
+  it('opens the fidelity assistant from the preview context menu without saving', () => {
+    const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
+    const applyStart = source.indexOf('function applyFidelityCandidate')
+    const applyEnd = source.indexOf('async function convertSelectedCloneRegionToTailwind', applyStart)
+    const applySource = source.slice(applyStart, applyEnd)
+
+    expect(source).toContain("action === 'match-oem'")
+    expect(source).toContain('buildEditableSectionFromCloneRegion({')
+    expect(source).toContain('extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)')
+    expect(source).toContain('<FidelityAssistantDialog')
+    expect(source).toContain('@apply="applyFidelityCandidate"')
+    expect(applySource).toContain('addSectionFromLiveData(section)')
+    expect(applySource).toContain("setActiveMode('sections')")
+    expect(applySource).not.toContain('saveSections(')
+    expect(applySource).not.toContain('publication.buildCandidate()')
+  })
+
   it('adds a read-only Tailwind source view for converted sections', () => {
     const source = readFileSync(new URL('./[slug].vue', import.meta.url), 'utf8')
 
