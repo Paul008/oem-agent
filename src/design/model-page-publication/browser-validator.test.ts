@@ -8,6 +8,7 @@ import {
   compareRgbaChannels,
   compareScreenshotsInPage,
   evaluatePublicationInteractions,
+  stabilizePublicationMedia,
   validateInBrowser,
   waitForPublicationResources,
 } from './browser-validator';
@@ -99,6 +100,7 @@ function fakeBrowser(options: FakeBrowserOptions = {}) {
     }
     async close() {}
     async evaluate(fn: (...args: any[]) => unknown) {
+      if (fn === stabilizePublicationMedia) return { posterFailures: [] };
       if (fn === waitForPublicationResources) return { timedOut: false, stalledResources: [] };
       if (fn === auditPublicationPage) {
         return {
@@ -224,7 +226,7 @@ describe('browser publication validation', () => {
       <section data-oem-region-id="accordion"><button aria-expanded="false">Open</button></section>
       <section data-oem-region-id="tabs"><button role="tab" aria-selected="false" aria-controls="panel">Tab</button><div id="panel" hidden>Panel</div></section>
       <section data-oem-region-id="modal"><button aria-expanded="false">Open</button></section>
-      <section data-oem-region-id="carousel" data-clone-carousel-index="0"><button>Next</button></section>
+      <section data-oem-region-id="carousel" data-clone-carousel-index="0"><button data-carousel-next>Next</button></section>
     </main>`);
     const accordion = document.querySelector('[data-oem-region-id="accordion"] button')!;
     const modal = document.querySelector('[data-oem-region-id="modal"] button')!;
@@ -261,6 +263,45 @@ describe('browser publication validation', () => {
     vi.stubGlobal('document', { fonts: { ready: Promise.resolve() }, images: [failedImage] });
     const failed = await waitForPublicationResources({ timeoutMs: 50 });
     expect(failed.timedOut).toBe(false);
+  });
+
+  it('treats document-level horizontal clipping as no user-visible page overflow', () => {
+    document.documentElement.style.overflowX = 'hidden';
+    Object.defineProperty(document.documentElement, 'scrollWidth', { configurable: true, value: 6000 });
+    Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 1200 });
+
+    expect(auditPublicationPage().horizontalOverflowPx).toBe(0);
+
+    document.documentElement.style.overflowX = 'visible';
+    expect(auditPublicationPage().horizontalOverflowPx).toBe(6000 - window.innerWidth);
+  });
+
+  it('stabilizes autoplay video on its poster and reports only poster decode failures', async () => {
+    const pause = vi.fn();
+    const load = vi.fn();
+    const source = document.createElement('source');
+    source.src = 'https://cdn.test/hero.mp4';
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.poster = 'https://cdn.test/poster.webp';
+    video.pause = pause;
+    video.load = load;
+    video.appendChild(source);
+    document.body.appendChild(video);
+    const decode = vi.fn(async () => {});
+    vi.stubGlobal('Image', class {
+      src = '';
+      decode = decode;
+    });
+
+    const result = await stabilizePublicationMedia();
+
+    expect(pause).toHaveBeenCalledOnce();
+    expect(load).toHaveBeenCalledOnce();
+    expect(video.autoplay).toBe(false);
+    expect(source.hasAttribute('src')).toBe(false);
+    expect(decode).toHaveBeenCalledOnce();
+    expect(result.posterFailures).toEqual([]);
   });
 
   it('requires revision-scoped evidence persistence before launching a browser', async () => {
@@ -363,6 +404,38 @@ describe('browser publication validation', () => {
     expect(result.viewports.every(item => item.failedRequests.length === 4)).toBe(true);
     expect(result.viewports.flatMap(item => item.failedRequests).join('\n')).not.toContain('analytics.test');
     expect(result.viewports.flatMap(item => item.failedRequests).join('\n')).not.toContain('working');
+  });
+
+  it('ignores browser-cancelled media playback when the deterministic poster remains healthy', async () => {
+    const candidate = browserCandidate();
+    const controlledBrowser = fakeBrowser();
+    launch.mockResolvedValue(controlledBrowser);
+
+    // The live Nissan page aborts its autoplay MP4 when validation freezes the video on its
+    // poster. That cancellation is not a broken render-critical asset.
+    const originalNewPage = controlledBrowser.newPage.bind(controlledBrowser);
+    controlledBrowser.newPage = async () => {
+      const page = await originalNewPage();
+      const originalSetContent = page.setContent.bind(page);
+      page.setContent = async (html: string) => {
+        await originalSetContent(html);
+        page.handlers.get('requestfailed')?.({
+          url: () => 'https://cdn.test/hero.mp4',
+          resourceType: () => 'media',
+          failure: () => ({ errorText: 'net::ERR_ABORTED' }),
+        });
+      };
+      return page;
+    };
+
+    const result = await validateInBrowser(candidate, {
+      browser: {} as Fetcher,
+      evidencePrefix: 'model-pages/nissan-au-ariya/publication/revisions/21/evidence',
+      writeEvidence: async () => {},
+    });
+
+    expect(result.viewports.every(item => item.failedRequests.length === 0)).toBe(true);
+    expect(result.blocking.some(item => item.code === 'media-request-failed')).toBe(false);
   });
 
   it('returns no evidence keys when persistence fails', async () => {

@@ -171,6 +171,15 @@ function isRenderCriticalResource(request: any): boolean {
   return RENDER_CRITICAL_RESOURCE_TYPES.has(browserResourceType(request));
 }
 
+function isExpectedMediaCancellation(request: any): boolean {
+  if (browserResourceType(request) !== 'media') return false;
+  try {
+    return String(request?.failure?.()?.errorText || '').toUpperCase() === 'NET::ERR_ABORTED';
+  } catch {
+    return false;
+  }
+}
+
 function syntheticViewports(candidate: ComposedPublicationCandidate): PublicationViewportValidation[] {
   const interactions = candidate.regions
     .filter(region => region.interactionKind !== 'none')
@@ -253,6 +262,37 @@ export async function waitForPublicationResources(
   return { timedOut, stalledResources: [...pending] };
 }
 
+/**
+ * Autoplay video is inherently timing-dependent in screenshot comparisons. Freeze each video on
+ * its poster and explicitly decode that poster so source and candidate captures start from the same
+ * stable visual frame. Removing media sources also avoids downloading multi-megabyte video during
+ * a publication gate that only compares a fixed viewport screenshot.
+ */
+export async function stabilizePublicationMedia(): Promise<{ posterFailures: string[] }> {
+  const posterUrls = new Set<string>();
+  for (const media of Array.from(document.querySelectorAll('video,audio'))) {
+    if (!(media instanceof HTMLMediaElement)) continue;
+    media.pause();
+    media.autoplay = false;
+    media.preload = 'none';
+    media.removeAttribute('src');
+    for (const source of Array.from(media.querySelectorAll('source'))) source.removeAttribute('src');
+    if (media instanceof HTMLVideoElement && media.poster) posterUrls.add(media.poster);
+    media.load();
+  }
+  const posterFailures: string[] = [];
+  await Promise.all([...posterUrls].map(async (url) => {
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+    } catch {
+      posterFailures.push(url);
+    }
+  }));
+  return { posterFailures: posterFailures.sort() };
+}
+
 export function auditPublicationPage(): { horizontalOverflowPx: number; bodyHeight: number; brokenMedia: string[] } {
     const root = document.documentElement;
     const body = document.body;
@@ -265,8 +305,15 @@ export function auditPublicationPage(): { horizontalOverflowPx: number; bodyHeig
         return false;
       })
       .map(element => element.getAttribute('src') || element.getAttribute('srcset') || element.tagName.toLowerCase());
+    const documentClipsOverflow = [root, body].some(element => {
+      if (!element) return false;
+      const overflowX = getComputedStyle(element).overflowX;
+      return overflowX === 'hidden' || overflowX === 'clip';
+    });
     return {
-      horizontalOverflowPx: Math.max(0, scrollWidth - window.innerWidth),
+      // Wide carousel tracks legitimately extend beyond the viewport inside clipped containers.
+      // Count only user-scrollable page overflow, not content the document explicitly clips.
+      horizontalOverflowPx: documentClipsOverflow ? 0 : Math.max(0, scrollWidth - window.innerWidth),
       bodyHeight,
       brokenMedia,
     };
@@ -338,7 +385,7 @@ export async function evaluatePublicationInteractions(
         results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed, detail: `tab state changed from ${before} to ${after}` });
         continue;
       }
-      const trigger = firstEnabled(region, '[data-carousel-next],[data-clone-action="next"],[aria-label*="next" i],button,[role="button"]');
+      const trigger = firstEnabled(region, '[data-carousel-next],[data-clone-action="next"],[aria-label*="next" i],[x-on\\:click*="next"],[\\@click*="next"]');
       if (!trigger) {
         results.push({ regionId: declared.regionId, kind: declared.interactionKind, passed: false, detail: 'No enabled slide trigger was found' });
         continue;
@@ -453,6 +500,7 @@ async function captureDocument(browser: any, html: string, viewport: { width: nu
   });
   page.on('requestfailed', (request: any) => {
     if (!isRenderCriticalResource(request)) return;
+    if (isExpectedMediaCancellation(request)) return;
     recordAssetFailure(request.url(), `${request.failure()?.errorText || 'request failed'} (${browserResourceType(request)})`, 1);
   });
   page.on('response', (response: any) => {
@@ -464,6 +512,8 @@ async function captureDocument(browser: any, html: string, viewport: { width: nu
   });
   await page.setViewport(viewport);
   await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  const media = await page.evaluate(stabilizePublicationMedia);
+  for (const poster of media.posterFailures) recordAssetFailure(poster, 'poster decode failed (image)', 1);
   await page.addStyleTag({ content: DISABLE_MOTION_CSS });
   try {
     await page.waitForNetworkIdle({ idleTime: 100, timeout: RESOURCE_TIMEOUT_MS });

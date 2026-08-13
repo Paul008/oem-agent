@@ -221,6 +221,10 @@ function absolutizeHtml(html: string, sourceUrl: string | undefined, origin: str
 function interactionKind(html: string, type?: unknown): PublicationInteractionKind {
   const match = html.match(/data-clone-interaction=["']([^"']+)/i)?.[1] || String(type || '');
   if (match === 'gallery-lightbox' || match === 'modal') return 'modal';
+  if ((match === 'carousel' || match === 'slider')
+    && !/(?:data-carousel-next|data-clone-action=["']next|aria-label=["'][^"']*next|(?:x-on:click|@click)=["'][^"']*next)/i.test(html)) {
+    return 'none';
+  }
   return ['accordion', 'tabs', 'carousel', 'slider'].includes(match) ? match as PublicationInteractionKind : 'none';
 }
 

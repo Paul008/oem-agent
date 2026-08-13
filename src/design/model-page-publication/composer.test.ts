@@ -112,6 +112,24 @@ describe('composePublicationCandidate', () => {
     expect(csp).toBe(await publicationContentSecurityPolicy(scripts));
   });
 
+  it('does not declare a passive swipe track as a button-testable carousel', async () => {
+    const page = mixedDraft();
+    page.content.modes.sections.items = [];
+    page.content.modes.clone.section_index = [
+      region('passive', 0, '<section data-clone-interaction="carousel"><div data-clone-track><article data-clone-slide>One</article><article data-clone-slide>Two</article></div></section>'),
+      region('back-only', 300, '<section data-clone-interaction="carousel"><div data-clone-track><article data-clone-slide>One</article><article data-clone-slide>Two</article></div><button data-clone-action="prev">Previous</button></section>'),
+      region('controlled', 600, '<section data-clone-interaction="carousel"><div data-clone-track><article data-clone-slide>One</article><article data-clone-slide>Two</article></div><button data-clone-action="next">Next</button></section>'),
+    ];
+
+    const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', revision: 21, page, origin });
+
+    expect(result.regions.map(item => [item.regionId, item.interactionKind])).toEqual([
+      ['passive', 'none'],
+      ['back-only', 'none'],
+      ['controlled', 'carousel'],
+    ]);
+  });
+
   it('returns body integrity metadata and rejects an empty body', async () => {
     const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', revision: 21, page: mixedDraft(), origin });
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(result.body));
