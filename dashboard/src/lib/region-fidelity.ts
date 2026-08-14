@@ -7,6 +7,45 @@ export interface RegionPixelComparison {
   status: RegionFidelityStatus
 }
 
+export interface RegionOverflowMeasurement {
+  scrollWidth: number
+  clientWidth: number
+  scrollHeight: number
+  clientHeight: number
+  horizontalOverflow: boolean
+  verticalOverflow: boolean
+  clippedMedia: number
+  clippedContent: boolean
+}
+
+export function measureRegionOverflow(root: Element): RegionOverflowMeasurement {
+  const scrollWidth = root.scrollWidth
+  const clientWidth = root.clientWidth
+  const scrollHeight = root.scrollHeight
+  const clientHeight = root.clientHeight
+  const horizontalOverflow = scrollWidth > clientWidth + 1
+  const verticalOverflow = scrollHeight > clientHeight + 1
+  const bounds = root.getBoundingClientRect()
+  const clippedMedia = Array.from(root.querySelectorAll('img, picture, video, svg, canvas')).reduce((count, media) => {
+    const rect = media.getBoundingClientRect()
+    const clipped = rect.left < bounds.left - 1
+      || rect.right > bounds.right + 1
+      || rect.top < bounds.top - 1
+      || rect.bottom > bounds.bottom + 1
+    return count + Number(clipped)
+  }, 0)
+  return {
+    scrollWidth,
+    clientWidth,
+    scrollHeight,
+    clientHeight,
+    horizontalOverflow,
+    verticalOverflow,
+    clippedMedia,
+    clippedContent: horizontalOverflow || verticalOverflow || clippedMedia > 0,
+  }
+}
+
 export function classifyRegionFidelity(mismatchRatio: number): RegionFidelityStatus {
   if (!Number.isFinite(mismatchRatio) || mismatchRatio < 0)
     return 'mismatch'
