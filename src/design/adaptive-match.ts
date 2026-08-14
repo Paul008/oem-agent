@@ -573,7 +573,13 @@ function buildPrompt(request: AdaptiveMatchRequest): string {
   const evidence = redactedEvidence(request);
   const common = `You are reconstructing one bounded automotive OEM page region. Return JSON only.\n\nSafety rules:\n- Never output JavaScript, event-handler attributes, iframes, objects, embeds, global CSS, or unsafe URLs.\n- Preserve all supplied wording and required assets.\n- Use exactly one supported kind: carousel, gallery-lightbox, tabs, or accordion.\n- Use only bounded layoutTokens and appearanceTokens.\n- The regionId must remain "${request.evidence.regionId}".\n\nEvidence:\n${JSON.stringify(evidence)}`;
   if (request.mode === 'repair') {
-    return `${common}\n\nReturn exactly one CandidateMutation JSON object with version, regionId, operations, and explanation. Do not wrap the object in a content, candidate, result, or section key. Operations may target only /section or /interaction.\nPrevious graph:\n${JSON.stringify(request.previousGraph)}\nDeterministic QA failures:\n${JSON.stringify(request.qaFailures)}`;
+    const example = {
+      version: 1,
+      regionId: request.evidence.regionId,
+      operations: [{ op: 'set', path: '/section/title', value: 'Exact captured heading' }],
+      explanation: 'Restore the captured heading.',
+    };
+    return `${common}\n\nReturn exactly one CandidateMutation JSON object with version, regionId, operations, and explanation. Do not wrap the object in a content, candidate, result, or section key. Operations may target only /section or /interaction. Use only op values set, insert, remove, or move and use path (not target). Follow this exact shape (replace values using the evidence and QA failures):\n${JSON.stringify(example)}\nPrevious graph:\n${JSON.stringify(request.previousGraph)}\nDeterministic QA failures:\n${JSON.stringify(request.qaFailures)}`;
   }
   return `${common}\n\nReturn exactly one CandidateGraph JSON object with version, kind, regionId, confidence, section, and interaction. Do not wrap the object in a content, candidate, result, or section key. The server adds authoritative provenance. Follow this exact shape (replace values using the evidence):\n${JSON.stringify(interpretationExample(request))}`;
 }
@@ -616,6 +622,27 @@ function readAt(root: any, path: string): unknown {
   }, root);
 }
 
+function normalizeMutationOperation(input: unknown): unknown {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return input;
+  const raw = { ...input } as Record<string, unknown>;
+  const supportedOps = new Set(['set', 'insert', 'remove', 'move']);
+  const aliases = [raw.op, raw.action]
+    .filter((value): value is string => typeof value === 'string')
+    .map(value => value === 'replace' ? 'set' : value);
+  const op = aliases.find(value => supportedOps.has(value)) ?? aliases[0];
+  const path = typeof raw.path === 'string'
+    ? raw.path
+    : typeof raw.target === 'string' ? raw.target : raw.path;
+  delete raw.action;
+  delete raw.target;
+  return {
+    ...raw,
+    ...(op ? { op } : {}),
+    ...(path ? { path } : {}),
+  };
+}
+
 function applyMutation(graph: WorkerCandidateGraph, input: unknown): { graph: WorkerCandidateGraph; mutation: WorkerCandidateMutation } {
   const raw = input && typeof input === 'object' && !Array.isArray(input)
     ? input as Record<string, unknown>
@@ -625,6 +652,9 @@ function applyMutation(graph: WorkerCandidateGraph, input: unknown): { graph: Wo
         ...raw,
         version: raw.version ?? 1,
         regionId: raw.regionId ?? graph.regionId,
+        operations: Array.isArray(raw.operations)
+          ? raw.operations.map(normalizeMutationOperation)
+          : raw.operations,
       }
     : input);
   if (mutation.regionId !== graph.regionId)

@@ -240,6 +240,74 @@ describe('executeAdaptiveMatch', () => {
     expect(response.mutation).toMatchObject({ version: 1, regionId: 'safety' })
   })
 
+  it('normalizes safe JSON Patch repair aliases before validation', async () => {
+    const { bucket } = memoryBucket()
+    const response = await executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 2,
+      previousGraph: graph,
+      qaFailures: ['2 required text items are missing'],
+    }, {
+      infer: async () => inference(JSON.stringify({
+        operations: [
+          { op: 'replace', target: '/section/title', value: 'Advanced safety technology' },
+          { action: 'set', target: '/section/appearanceTokens/bodySizePx', value: 16 },
+        ],
+        explanation: 'Restore the captured content and type scale.',
+      })),
+      bucket,
+    })
+
+    expect(response.graph.section.title).toBe('Advanced safety technology')
+    expect(response.graph.section.appearanceTokens.bodySizePx).toBe(16)
+    expect(response.mutation?.operations).toEqual([
+      { op: 'set', path: '/section/title', value: 'Advanced safety technology' },
+      { op: 'set', path: '/section/appearanceTokens/bodySizePx', value: 16 },
+    ])
+  })
+
+  it('gives schema-less fallback models an exact repair-operation example', async () => {
+    const { bucket } = memoryBucket()
+    const routed: InferenceRequest[] = []
+    await executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 2,
+      previousGraph: graph,
+      qaFailures: ['2 required text items are missing'],
+    }, {
+      infer: async (input) => {
+        routed.push(input)
+        return inference(JSON.stringify({
+          operations: [{ op: 'set', path: '/section/title', value: 'Advanced safety' }],
+          explanation: 'Restore the captured heading.',
+        }))
+      },
+      bucket,
+    })
+
+    expect(routed[0].prompt).toContain('"op":"set","path":"/section/title"')
+    expect(routed[0].prompt).toContain('use path (not target)')
+  })
+
+  it('keeps repair alias paths inside the section and interaction allowlist', async () => {
+    const { bucket } = memoryBucket()
+    await expect(executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 2,
+      previousGraph: graph,
+      qaFailures: ['content mismatch'],
+    }, {
+      infer: async () => inference(JSON.stringify({
+        operations: [{ action: 'set', target: '/provenance/provider', value: 'forged' }],
+        explanation: 'Invalid server-owned mutation.',
+      })),
+      bucket,
+    })).rejects.toThrow(/path is not allowed/i)
+  })
+
   it('rejects executable model output and records the rejected attempt without raw output', async () => {
     const { bucket, values } = memoryBucket()
     await expect(executeAdaptiveMatch(request, {

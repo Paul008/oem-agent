@@ -131,7 +131,7 @@ describe('Kimi K3 Page Builder defaults', () => {
     });
   });
 
-  it('sends a JSON schema through Gemini structured output configuration', async () => {
+  it('sends a JSON schema through Gemini generateContent structured output fields', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => geminiResponse('{"kind":"carousel"}'));
     vi.stubGlobal('fetch', fetchMock);
     const router = new AiRouter({ google: 'test-key' });
@@ -152,13 +152,10 @@ describe('Kimi K3 Page Builder defaults', () => {
     const request = fetchMock.mock.calls[0][1] as RequestInit;
     const body = JSON.parse(String(request.body));
     expect(body.generationConfig).toMatchObject({
-      responseFormat: {
-        text: {
-          mimeType: 'application/json',
-          schema: responseJsonSchema,
-        },
-      },
+      responseMimeType: 'application/json',
+      responseJsonSchema,
     });
+    expect(body.generationConfig).not.toHaveProperty('responseFormat');
   });
 
   it('keeps database overrides above the K3 task default', async () => {

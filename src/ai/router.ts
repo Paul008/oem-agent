@@ -1004,12 +1004,8 @@ export class AiRouter {
         maxOutputTokens: request.maxTokens || defaults.maxOutputTokens,
         ...(request.responseJsonSchema
           ? {
-              responseFormat: {
-                text: {
-                  mimeType: 'application/json',
-                  schema: request.responseJsonSchema,
-                },
-              },
+              responseMimeType: 'application/json',
+              responseJsonSchema: request.responseJsonSchema,
             }
           : { responseMimeType: request.requireJson !== false ? 'application/json' : 'text/plain' }),
       },

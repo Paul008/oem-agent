@@ -60,4 +60,31 @@ describe('measureRegionOverflow', () => {
       clippedContent: true,
     })
   })
+
+  it('does not report deliberately clipped off-canvas carousel media', () => {
+    const root = {
+      scrollWidth: 390,
+      clientWidth: 390,
+      scrollHeight: 300,
+      clientHeight: 300,
+      getBoundingClientRect: () => ({ left: 0, top: 0, right: 390, bottom: 300 }),
+    } as unknown as Element
+    const viewport = {
+      parentElement: root,
+      ownerDocument: { defaultView: { getComputedStyle: () => ({ overflowX: 'hidden', overflowY: 'hidden' }) } },
+    }
+    const image = {
+      parentElement: viewport,
+      ownerDocument: viewport.ownerDocument,
+      getBoundingClientRect: () => ({ left: 400, top: 0, right: 790, bottom: 260 }),
+    }
+    Object.assign(root, { querySelectorAll: () => [image] })
+
+    expect(measureRegionOverflow(root)).toMatchObject({
+      horizontalOverflow: false,
+      verticalOverflow: false,
+      clippedMedia: 0,
+      clippedContent: false,
+    })
+  })
 })
