@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-14
 
-**Status:** Implemented; production deployment in progress
+**Status:** Implemented and deployed to production on 2026-08-14
 
 **Supersedes:** The selected-region workflow in `2026-08-13-oem-fidelity-assistant-design.md`
 
