@@ -31,6 +31,7 @@ describe('adaptive Match OEM dialog contracts', () => {
     expect(source).toContain('import { getFontEmbedCSS, toSvg } from \'html-to-image\'')
     expect(source).toContain('for (const viewport of VIEWPORTS)')
     expect(source).toContain('withFidelityMeasurementTimeout')
+    expect(source).toContain('withFidelityMeasurementFallback')
     expect(source).toContain('background tab')
     expect(source).not.toContain('toCanvas(')
     expect(source).not.toContain('Promise.all([captureRoot')

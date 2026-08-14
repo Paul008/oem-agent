@@ -21,3 +21,17 @@ export async function withFidelityMeasurementTimeout<T>(
       clearTimeout(timeoutId)
   }
 }
+
+export async function withFidelityMeasurementFallback<T>(
+  operation: () => T | PromiseLike<T>,
+  timeoutMs: number,
+  label: string,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await withFidelityMeasurementTimeout(operation, timeoutMs, label)
+  }
+  catch {
+    return fallback
+  }
+}

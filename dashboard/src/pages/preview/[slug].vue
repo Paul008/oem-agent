@@ -15,7 +15,7 @@ import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { scopeOemSection } from '@/lib/scope-oem-section'
 import { compileTailwindRecipeArtifact, fetchStyleGuide } from '@/lib/worker-api'
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildFidelityReferenceHtmlFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import { buildCloneStudioFrameHtmlForCanvas } from '@/pages/dashboard/components/page-builder/clone-studio-canvas-helpers'
 import FidelityAssistantDialog from '@/pages/dashboard/components/page-builder/FidelityAssistantDialog.vue'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
@@ -747,7 +747,7 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
       return
     }
     fidelityRegionId.value = regionId
-    fidelityOriginalHtml.value = html
+    fidelityOriginalHtml.value = buildFidelityReferenceHtmlFromCloneRegion({ html, tailwindRecipeArtifact })
     fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
     fidelityRecipeArtifact.value = tailwindRecipeArtifact && typeof tailwindRecipeArtifact === 'object' ? tailwindRecipeArtifact : null
     fidelityCandidateSection.value = {

@@ -10,7 +10,7 @@ import { candidateGraphToSection } from '@/lib/adaptive-match-contracts'
 import { detectAdaptiveMatchInteraction } from '@/lib/adaptive-match-detection'
 import { evaluateAdaptiveCandidate } from '@/lib/adaptive-match-qa'
 import { inlineFidelityFrameImages, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
-import { withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
+import { withFidelityMeasurementFallback, withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
 import { compareRegionPixels, measureRegionOverflow } from '@/lib/region-fidelity'
 import { requestAdaptiveMatch } from '@/lib/worker-api'
 
@@ -68,7 +68,8 @@ const VIEWPORTS = [
   { name: 'mobile' as const, width: 390, height: 844, timeoutMs: 30_000 },
 ]
 const FRAME_ASSET_TIMEOUT_MS = 10_000
-const FRAME_FONT_TIMEOUT_MS = 30_000
+const FRAME_FONT_READY_TIMEOUT_MS = 3_000
+const FRAME_FONT_TIMEOUT_MS = 10_000
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const selectedViewport = ref<ViewportName>('desktop')
@@ -112,7 +113,12 @@ function setCandidateFrame(name: ViewportName, value: unknown) {
 
 async function waitForAssets(root: HTMLElement, doc: Document, label: string): Promise<void> {
   if (doc.fonts) {
-    await withFidelityMeasurementTimeout(() => doc.fonts.ready, FRAME_ASSET_TIMEOUT_MS, `${label} fonts`)
+    await withFidelityMeasurementFallback(
+      () => doc.fonts.ready,
+      FRAME_FONT_READY_TIMEOUT_MS,
+      `${label} fonts`,
+      null,
+    )
   }
   await withFidelityMeasurementTimeout(
     () => Promise.all(Array.from(root.querySelectorAll('img')).map(image => image.complete
@@ -136,10 +142,11 @@ async function captureRoot(root: HTMLElement, doc: Document, viewport: typeof VI
     FRAME_ASSET_TIMEOUT_MS,
     `${label} image preparation`,
   )
-  const fontEmbedCSS = await withFidelityMeasurementTimeout(
+  const fontEmbedCSS = await withFidelityMeasurementFallback(
     () => getFontEmbedCSS(root, { cacheBust: false }),
     FRAME_FONT_TIMEOUT_MS,
     `${label} font preparation`,
+    '',
   )
   // WebKit can stall html-to-image's requestAnimationFrame-based canvas path in a
   // background tab, so rasterise the generated SVG directly and sequentially.

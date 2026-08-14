@@ -94,6 +94,7 @@ describe('preview Tailwind conversion toolbar', () => {
 
     expect(source).toContain('action === \'match-oem\'')
     expect(source).toContain('buildEditableSectionFromCloneRegion({')
+    expect(source).toContain('buildFidelityReferenceHtmlFromCloneRegion({')
     expect(source).toContain('extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)')
     expect(source).toContain('<FidelityAssistantDialog')
     expect(source).toContain(':recipe-artifact="fidelityRecipeArtifact"')

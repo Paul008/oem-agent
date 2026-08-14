@@ -41,7 +41,7 @@ import type { CloneFieldPatchPayload } from '../components/page-builder/CloneReg
 import type { RegionActionId } from '../components/page-builder/region-actions'
 import type { CloneRegion, PageMode } from './page-modes'
 
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '../components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildFidelityReferenceHtmlFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '../components/page-builder/clone-region-converter'
 import CloneRegionEditor from '../components/page-builder/CloneRegionEditor.vue'
 import FidelityAssistantDialog from '../components/page-builder/FidelityAssistantDialog.vue'
 import HistoryPanel from '../components/page-builder/HistoryPanel.vue'
@@ -271,7 +271,7 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
       return
     }
     fidelityRegionId.value = regionId
-    fidelityOriginalHtml.value = html
+    fidelityOriginalHtml.value = buildFidelityReferenceHtmlFromCloneRegion({ html, tailwindRecipeArtifact })
     fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
     fidelityRecipeArtifact.value = tailwindRecipeArtifact && typeof tailwindRecipeArtifact === 'object' ? tailwindRecipeArtifact : null
     fidelityCandidateSection.value = {

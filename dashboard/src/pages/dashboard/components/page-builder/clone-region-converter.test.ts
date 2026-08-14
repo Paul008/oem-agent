@@ -1,6 +1,41 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, buildRawHtmlSectionFromCloneRegion, convertCloneRegionsToTailwindSections } from './clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildFidelityReferenceHtmlFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, buildRawHtmlSectionFromCloneRegion, convertCloneRegionsToTailwindSections } from './clone-region-converter'
+
+describe('buildFidelityReferenceHtmlFromCloneRegion', () => {
+  it('inlines the captured computed styles into the OEM reference HTML', () => {
+    const reference = buildFidelityReferenceHtmlFromCloneRegion({
+      html: '<section class="safety"><h2>Safety</h2></section>',
+      tailwindRecipeArtifact: {
+        computed_snapshots: [{
+          viewport: { name: 'desktop', width: 1440 },
+          root: {
+            path: '0',
+            tag: 'section',
+            computed_style: { 'display': 'grid', 'grid-template-columns': 'repeat(3, 1fr)', 'gap': '24px' },
+            children: [{
+              path: '0.0',
+              tag: 'h2',
+              computed_style: { 'font-size': '48px', 'color': 'rgb(17, 17, 17)' },
+              children: [],
+            }],
+          },
+        }],
+      },
+    })
+
+    expect(reference).toContain('style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px"')
+    expect(reference).toContain('style="font-size: 48px; color: rgb(17, 17, 17)"')
+    expect(reference).toContain('Safety')
+  })
+
+  it('preserves raw HTML when no computed-style artifact exists', () => {
+    expect(buildFidelityReferenceHtmlFromCloneRegion({
+      html: '<section><p>Fallback</p></section>',
+      tailwindRecipeArtifact: null,
+    })).toBe('<section><p>Fallback</p></section>')
+  })
+})
 
 describe('buildRawHtmlSectionFromCloneRegion', () => {
   it('wraps clone region HTML in an editable content block', () => {
