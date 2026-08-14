@@ -11,6 +11,7 @@
 
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
@@ -64,6 +65,7 @@ import {
 } from '../design/model-page-publication/storage';
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
+import { adaptiveMatchRequestSchema, executeAdaptiveMatch } from '../design/adaptive-match';
 import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts';
 import type { CompileRunStatus } from '../design/compiler-contracts';
 import onboardingRoutes from './onboarding';
@@ -1161,6 +1163,70 @@ app.post('/admin/compile-tailwind-recipe', async (c) => {
 
   const result = compileTailwindRecipe(artifact);
   return c.json({ success: true, result });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/adaptive-match
+ *
+ * Interprets or repairs one captured OEM region. The endpoint never updates the
+ * page draft; it only returns a validated candidate and records its attempt.
+ */
+app.post('/admin/adaptive-match', async (c) => {
+  let rawBody: unknown;
+  try {
+    rawBody = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  const parsed = adaptiveMatchRequestSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    const error = parsed.error.issues
+      .map(issue => `${issue.path.join('.') || 'request'}: ${issue.message}`)
+      .join('; ')
+      .slice(0, 2_000);
+    return c.json({ success: false, error: `Invalid Adaptive Match request: ${error}` }, 400);
+  }
+
+  const request = parsed.data;
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, undefined, c.env.AI);
+  const run = () => executeAdaptiveMatch(request, {
+    infer: inferenceRequest => aiRouter.route(inferenceRequest),
+    bucket: c.env.MOLTBOT_BUCKET,
+  });
+
+  if (c.req.header('Accept')?.includes('text/event-stream')) {
+    return streamSSE(c, async (stream) => {
+      const write = (event: string, data: unknown) => stream.writeSSE({ event, data: JSON.stringify(data) });
+      await write('accepted', { runId: request.runId, attempt: request.attempt });
+      await write(request.mode === 'repair' ? 'repairing' : 'interpreting', {
+        runId: request.runId,
+        attempt: request.attempt,
+      });
+      try {
+        const result = await run();
+        await write('validated', { runId: result.runId, attempt: result.attempt });
+        await write('persisted', { runId: result.runId, attempt: result.attempt });
+        await write('complete', result);
+      } catch (error) {
+        const message = (error instanceof Error ? error.message : 'Adaptive Match failed').slice(0, 2_000);
+        await write('error', { runId: request.runId, attempt: request.attempt, error: message });
+      }
+    });
+  }
+
+  try {
+    return c.json(await run());
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : 'Adaptive Match failed').slice(0, 2_000);
+    return c.json({ success: false, error: message }, 502);
+  }
 });
 
 /**

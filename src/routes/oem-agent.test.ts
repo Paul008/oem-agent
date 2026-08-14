@@ -1698,6 +1698,155 @@ describe('oem-agent Tailwind recipe compiler route', () => {
   });
 });
 
+const adaptiveMatchGraph = {
+  version: 1,
+  kind: 'carousel',
+  regionId: 'safety',
+  confidence: 0.93,
+  section: {
+    type: 'gallery',
+    title: 'Safety',
+    layout: 'carousel',
+    images: [
+      { url: 'https://example.test/braking.png', alt: 'Braking', caption: 'Intelligent braking', description: '' },
+      { url: 'https://example.test/lane.png', alt: 'Lane departure', caption: 'Lane departure warning', description: '' },
+    ],
+    initialIndex: 0,
+    lightbox: false,
+    layoutTokens: { desktopColumns: 3, tabletColumns: 2, mobileColumns: 1, gapPx: 16 },
+    appearanceTokens: { backgroundColor: '#ffffff', textColor: '#111111', imageFit: 'contain' },
+  },
+  interaction: { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true },
+  provenance: { strategy: 'ai-interpretation', attempt: 1 },
+};
+
+function adaptiveMatchRouteRequest() {
+  return {
+    version: 1,
+    mode: 'interpret',
+    runId: 'route-run-123',
+    attempt: 1,
+    contactSheetBase64: 'ZmFrZS1wbmc=',
+    evidence: {
+      version: 1,
+      oemId: 'nissan-au',
+      modelSlug: 'navara',
+      sourceUrl: 'https://www.nissan.com.au/vehicles/browse-range/navara.html',
+      regionId: 'safety',
+      html: '<section class="swiper"><article class="swiper-slide">Safety</article></section>',
+      css: '.swiper{display:flex}',
+      recipeArtifact: null,
+      detection: { kind: 'carousel', confidence: 0.95, markers: ['swiper'], itemCount: 2, requiresAi: true },
+      interactionStates: [{ id: 'initial', activeIndex: 0, visibleItems: [0], expandedItems: [] }],
+      viewports: [
+        { name: 'desktop', width: 1440, height: 1100 },
+        { name: 'tablet', width: 1024, height: 900 },
+        { name: 'mobile', width: 390, height: 844 },
+      ],
+      content: {
+        text: ['Safety', 'Intelligent braking', 'Lane departure warning'],
+        assets: [
+          { url: 'https://example.test/braking.png', alt: 'Braking', required: true },
+          { url: 'https://example.test/lane.png', alt: 'Lane departure', required: true },
+        ],
+      },
+    },
+    qaFailures: [],
+  };
+}
+
+function stubAdaptiveMatchGemini(graph = adaptiveMatchGraph) {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text: JSON.stringify(graph) }] } }],
+    usageMetadata: { promptTokenCount: 1200, candidatesTokenCount: 400, totalTokenCount: 1600 },
+  }), {
+    headers: { 'content-type': 'application/json' },
+  })));
+}
+
+describe('oem-agent adaptive match route', () => {
+  function env(bucket: RouteMemoryR2Bucket) {
+    return {
+      MOLTBOT_BUCKET: bucket,
+      GOOGLE_API_KEY: 'google-test-key',
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never;
+  }
+
+  it('rejects malformed or invalid requests before inference', async () => {
+    const bucket = new RouteMemoryR2Bucket();
+    const malformed = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{',
+    }, env(bucket));
+    expect(malformed.status).toBe(400);
+
+    const invalid = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...adaptiveMatchRouteRequest(), attempt: 4 }),
+    }, env(bucket));
+    expect(invalid.status).toBe(400);
+    expect([...bucket.objects.keys()].some(key => key.includes('/adaptive-match/'))).toBe(false);
+  });
+
+  it('returns a validated candidate and persists its attempt ledger', async () => {
+    stubAdaptiveMatchGemini();
+    const bucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(adaptiveMatchRouteRequest()),
+    }, env(bucket));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      success: true,
+      runId: 'route-run-123',
+      graph: { kind: 'carousel', regionId: 'safety' },
+    });
+    expect(bucket.objects.has('model-pages/nissan-au/navara/adaptive-match/route-run-123/attempt-1.json')).toBe(true);
+  });
+
+  it('streams bounded progress events in order', async () => {
+    stubAdaptiveMatchGemini();
+    const bucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify(adaptiveMatchRouteRequest()),
+    }, env(bucket));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+    const body = await response.text();
+    const eventNames = [...body.matchAll(/^event: (.+)$/gm)].map(match => match[1]);
+    expect(eventNames).toEqual(['accepted', 'interpreting', 'validated', 'persisted', 'complete']);
+    expect(body).toContain('"runId":"route-run-123"');
+  });
+
+  it('returns a bounded error and persists a rejected ledger when inference fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('provider unavailable', { status: 503 })));
+    const bucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(adaptiveMatchRouteRequest()),
+    }, env(bucket));
+
+    expect(response.status).toBe(502);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.length).toBeLessThanOrEqual(2_000);
+    const ledger = bucket.objects.get('model-pages/nissan-au/navara/adaptive-match/route-run-123/attempt-1.json');
+    expect(ledger).toBeTruthy();
+    expect(JSON.parse(ledger!.body)).toMatchObject({ status: 'rejected' });
+  });
+});
+
 describe('oem-agent clone update route', () => {
   it.each([
     {

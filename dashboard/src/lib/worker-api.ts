@@ -5,7 +5,12 @@ import type {
   PublishModelPagePublicationInput,
 } from '@/lib/model-page-publication'
 import type { Recipe } from '@/lib/recipes'
+import type { CandidateGraph, CandidateMutation } from '@/lib/adaptive-match-contracts'
 
+import {
+  candidateMutationSchema,
+  parseAdaptiveMatchGraph,
+} from '@/lib/adaptive-match-contracts'
 import {
   parsePublicationCandidateResponse,
   parsePublicationHistoryResponse,
@@ -516,6 +521,177 @@ export async function compileTailwindRecipeArtifact(artifact: any) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ artifact }),
   })
+}
+
+export type AdaptiveMatchProgressEventName =
+  | 'accepted'
+  | 'interpreting'
+  | 'repairing'
+  | 'validated'
+  | 'persisted'
+  | 'complete'
+  | 'error'
+
+export interface AdaptiveMatchProgressEvent {
+  event: AdaptiveMatchProgressEventName
+  data: Record<string, unknown>
+}
+
+export interface AdaptiveMatchApiRequest {
+  version: 1
+  mode: 'interpret' | 'repair'
+  runId: string
+  attempt: number
+  contactSheetBase64: string
+  evidence: {
+    version: 1
+    oemId: string
+    modelSlug: string
+    sourceUrl: string
+    regionId: string
+    html: string
+    css: string
+    recipeArtifact: Record<string, unknown> | null
+    detection: {
+      kind: 'static' | 'carousel' | 'gallery-lightbox' | 'tabs' | 'accordion' | 'unknown'
+      confidence: number
+      markers: string[]
+      itemCount: number
+      requiresAi: boolean
+    }
+    interactionStates: Array<{
+      id: string
+      activeIndex?: number
+      visibleItems: number[]
+      expandedItems: number[]
+    }>
+    viewports: Array<{
+      name: 'desktop' | 'tablet' | 'mobile'
+      width: number
+      height: number
+      mismatchRatio?: number
+    }>
+    content: {
+      text: string[]
+      assets: Array<{ url: string, alt: string, required: boolean }>
+    }
+  }
+  previousGraph?: CandidateGraph
+  qaFailures: string[]
+  modelOverride?: {
+    provider?: string
+    model?: string
+    fallbackProvider?: string
+    fallbackModel?: string
+  }
+}
+
+export interface AdaptiveMatchApiResponse {
+  success: true
+  runId: string
+  attempt: number
+  graph: CandidateGraph
+  mutation?: CandidateMutation
+  provider: string
+  model: string
+  latencyMs: number
+  usage: { prompt_tokens: number, completion_tokens: number, total_tokens: number }
+}
+
+function parseAdaptiveMatchResponse(input: unknown): AdaptiveMatchApiResponse {
+  if (!input || typeof input !== 'object')
+    throw new Error('Adaptive Match returned an invalid response')
+  const value = input as Record<string, any>
+  if (value.success !== true || typeof value.runId !== 'string' || !Number.isInteger(value.attempt))
+    throw new Error('Adaptive Match returned an invalid response')
+  return {
+    success: true,
+    runId: value.runId,
+    attempt: value.attempt,
+    graph: parseAdaptiveMatchGraph(value.graph),
+    ...(value.mutation ? { mutation: candidateMutationSchema.parse(value.mutation) } : {}),
+    provider: String(value.provider || ''),
+    model: String(value.model || ''),
+    latencyMs: Number(value.latencyMs || 0),
+    usage: {
+      prompt_tokens: Number(value.usage?.prompt_tokens || 0),
+      completion_tokens: Number(value.usage?.completion_tokens || 0),
+      total_tokens: Number(value.usage?.total_tokens || 0),
+    },
+  }
+}
+
+function parseAdaptiveMatchEvent(frame: string): AdaptiveMatchProgressEvent | null {
+  let event = ''
+  const data: string[] = []
+  for (const line of frame.split(/\r?\n/)) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
+  }
+  if (!event || !data.length)
+    return null
+  const allowed: AdaptiveMatchProgressEventName[] = ['accepted', 'interpreting', 'repairing', 'validated', 'persisted', 'complete', 'error']
+  if (!allowed.includes(event as AdaptiveMatchProgressEventName))
+    return null
+  const parsed = JSON.parse(data.join('\n'))
+  return { event: event as AdaptiveMatchProgressEventName, data: parsed }
+}
+
+/** Request one non-mutating Adaptive Match candidate and consume streamed progress. */
+export async function requestAdaptiveMatch(
+  input: AdaptiveMatchApiRequest,
+  options: { onProgress?: (event: AdaptiveMatchProgressEvent) => void } = {},
+): Promise<AdaptiveMatchApiResponse> {
+  const headers = await buildWorkerHeaders({
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+  })
+  const request = {
+    ...input,
+    contactSheetBase64: input.contactSheetBase64.replace(/^data:image\/png;base64,/i, ''),
+  }
+  const response = await fetch(`${WORKER_BASE}/api/v1/oem-agent/admin/adaptive-match`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(request),
+  })
+  if (!response.ok) {
+    const message = await response.text().catch(() => 'No response body')
+    throw new Error(`Worker API error ${response.status}: ${message.slice(0, 2_000)}`)
+  }
+
+  if (!response.headers.get('content-type')?.includes('text/event-stream'))
+    return parseAdaptiveMatchResponse(await response.json())
+  if (!response.body)
+    throw new Error('Adaptive Match stream had no response body')
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let pending = ''
+  let result: AdaptiveMatchApiResponse | null = null
+  const handle = (frame: string) => {
+    const progress = parseAdaptiveMatchEvent(frame)
+    if (!progress) return
+    options.onProgress?.(progress)
+    if (progress.event === 'error')
+      throw new Error(String(progress.data.error || 'Adaptive Match failed'))
+    if (progress.event === 'complete')
+      result = parseAdaptiveMatchResponse(progress.data)
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    pending += decoder.decode(value, { stream: !done })
+    const frames = pending.split(/\r?\n\r?\n/)
+    pending = frames.pop() || ''
+    for (const frame of frames) handle(frame)
+    if (done) break
+  }
+  if (pending.trim()) handle(pending)
+  if (!result)
+    throw new Error('Adaptive Match stream ended before completion')
+  return result
 }
 
 export async function updatePageSections(oemId: string, modelSlug: string, sections: any[]) {
