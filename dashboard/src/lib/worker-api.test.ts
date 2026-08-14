@@ -401,6 +401,8 @@ function adaptiveMatchApiRequest() {
 
 describe('worker-api requestAdaptiveMatch', () => {
   it('streams authenticated progress and returns the validated complete event', async () => {
+    const timeoutSignal = AbortSignal.abort(new DOMException('timed out', 'TimeoutError'))
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeoutSignal)
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
       data: { session: { access_token: 'adaptive-session-token' } },
     } as any)
@@ -429,6 +431,8 @@ describe('worker-api requestAdaptiveMatch', () => {
     expect(headers.get('Accept')).toBe('text/event-stream')
     expect(headers.get('Content-Type')).toBe('application/json')
     expect(options?.method).toBe('POST')
+    expect(timeoutSpy).toHaveBeenCalledWith(180_000)
+    expect(options?.signal).toBe(timeoutSignal)
     expect(JSON.parse(String(options?.body)).contactSheetBase64).toBe('ZmFrZS1wbmc=')
   })
 

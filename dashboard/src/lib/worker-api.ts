@@ -657,6 +657,7 @@ export async function requestAdaptiveMatch(
     credentials: 'include',
     headers,
     body: JSON.stringify(request),
+    signal: AbortSignal.timeout(180_000),
   })
   if (!response.ok) {
     const message = await response.text().catch(() => 'No response body')
