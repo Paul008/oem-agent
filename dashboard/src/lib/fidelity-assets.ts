@@ -54,6 +54,18 @@ export function rewriteFidelityCssAssetUrls(css: string, oemId: string, workerBa
   })
 }
 
+/**
+ * Drops `srcset` attributes so fidelity captures stay self-contained. html-to-image
+ * inlines `<img src>` as a data URL but never inlines `<source srcset>`, and an SVG
+ * used as an image cannot load external subresources — a live proxied `srcset` URL
+ * therefore renders as a broken image in the capture on both sides of the comparison
+ * (blank == blank false positive) and floods the media proxy with variant requests
+ * while the frames load.
+ */
+export function stripFidelitySrcsetAttributes(html: string): string {
+  return String(html || '').replace(/\ssrcset\s*=\s*("[^"]*"|'[^']*')/gi, '')
+}
+
 export function extractDeclaredFontFamilies(css: string): string[] {
   const families: string[] = []
   for (const match of String(css || '').matchAll(/@font-face\s*\{([\s\S]*?)\}/gi)) {

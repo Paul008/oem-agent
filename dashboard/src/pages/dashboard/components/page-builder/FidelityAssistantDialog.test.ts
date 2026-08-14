@@ -30,11 +30,18 @@ describe('fidelityAssistantDialog safety gates', () => {
   })
 
   it('reports incremental progress and avoids a second PNG decode pass', () => {
-    expect(source).toContain('import { getFontEmbedCSS, toCanvas } from \'html-to-image\'')
+    expect(source).toContain('import { getFontEmbedCSS, toSvg } from \'html-to-image\'')
     expect(source).toMatch(/measurementStep\.value = `Capturing \$\{viewport\.name\} OEM/)
     expect(source).toContain('results.value = [...measured]')
     expect(source).toContain('withFidelityMeasurementTimeout')
     expect(source).not.toContain('async function dataUrlImageData')
+  })
+
+  it('rasterizes without toCanvas so hidden tabs cannot stall the capture', () => {
+    expect(source).not.toMatch(/import\s*\{[^}]*\btoCanvas\b[^}]*\}\s*from 'html-to-image'/)
+    expect(source).not.toContain('toCanvas(body')
+    expect(source).toContain('requestAnimationFrame, which stays stalled')
+    expect(source).toContain('capture image failed to render')
   })
 
   it('reuses embedded font CSS and does not render a viewport pair concurrently', () => {
@@ -42,5 +49,9 @@ describe('fidelityAssistantDialog safety gates', () => {
     expect(source).toContain('getFontEmbedCSS')
     expect(source).not.toMatch(/Promise\.all\(\[\s*captureFrame\(/)
     expect(source).toContain('FRAME_DESKTOP_CAPTURE_TIMEOUT_MS = 60_000')
+  })
+
+  it('strips srcset so captures embed images instead of broken live variants', () => {
+    expect(source).toContain('stripFidelitySrcsetAttributes')
   })
 })

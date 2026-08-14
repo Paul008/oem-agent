@@ -62,6 +62,7 @@ declare global {
   const readonly: typeof import('vue').readonly
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
+  const resolvePublicationPreviewView: typeof import('../composables/use-model-page-publication').resolvePublicationPreviewView
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
@@ -89,6 +90,7 @@ declare global {
   const useLink: typeof import('vue-router')['useLink']
   const useModal: typeof import('../composables/use-modal').useModal
   const useModel: typeof import('vue').useModel
+  const useModelPagePublication: typeof import('../composables/use-model-page-publication').useModelPagePublication
   const useOemData: typeof import('../composables/use-oem-data').useOemData
   const useOnboarding: typeof import('../composables/use-onboarding').useOnboarding
   const usePageBuilder: typeof import('../composables/use-page-builder').usePageBuilder
@@ -130,6 +132,9 @@ declare global {
   // @ts-ignore
   export type { GoogleFont } from '../composables/use-google-fonts'
   import('../composables/use-google-fonts')
+  // @ts-ignore
+  export type { ModelPagePublicationStatus } from '../composables/use-model-page-publication'
+  import('../composables/use-model-page-publication')
   // @ts-ignore
   export type { Oem, ImportRun, ChangeEvent, VehicleModel, OemPortal, ProductSpecs, Product, Offer, VariantColor, OemColorPalette, VariantPricing, Banner, SourcePage, Accessory, AccessoryModel } from '../composables/use-oem-data'
   import('../composables/use-oem-data')

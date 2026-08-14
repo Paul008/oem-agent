@@ -7,12 +7,12 @@ import FidelityAssistantDialog from './FidelityAssistantDialog.vue'
 
 const htmlToImageMocks = vi.hoisted(() => ({
   getFontEmbedCSS: vi.fn(() => Promise.resolve('')),
-  toCanvas: vi.fn(() => new Promise<HTMLCanvasElement>(() => {})),
+  toSvg: vi.fn(() => new Promise<string>(() => {})),
 }))
 
 vi.mock('html-to-image', () => ({
   getFontEmbedCSS: htmlToImageMocks.getFontEmbedCSS,
-  toCanvas: htmlToImageMocks.toCanvas,
+  toSvg: htmlToImageMocks.toSvg,
 }))
 
 afterEach(() => {
@@ -84,7 +84,7 @@ describe('fidelityAssistantDialog measurement lifecycle', () => {
     await vi.advanceTimersByTimeAsync(600)
 
     expect(htmlToImageMocks.getFontEmbedCSS).toHaveBeenCalledTimes(2)
-    expect(htmlToImageMocks.toCanvas).toHaveBeenCalledTimes(1)
+    expect(htmlToImageMocks.toSvg).toHaveBeenCalledTimes(1)
     expect(findMeasureButton()?.textContent).toContain('Capturing desktop OEM')
 
     app.unmount()

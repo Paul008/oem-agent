@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls } from './fidelity-assets'
+import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from './fidelity-assets'
 
 const worker = 'https://oem-agent.adme-dev.workers.dev'
 
@@ -27,5 +27,20 @@ describe('fidelity comparison assets', () => {
 
     expect(rewriteFidelityCssAssetUrls(css, 'nissan-au', worker)).toContain('url(data:font/woff2;base64,abc)')
     expect(extractDeclaredFontFamilies(css)).toEqual(['Nissan Brand', 'Nissan Bold'])
+  })
+
+  it('strips srcset so captures embed the inlined img src instead of broken live variants', () => {
+    const html = `<picture><source srcset="${worker}/media/nissan-au/abc 480w, ${worker}/media/nissan-au/def 728w"><img src="${worker}/media/pages/assets/nissan-au/navara/hero.png" srcset='${worker}/media/nissan-au/ghi 1x' alt="Hero"></picture>`
+
+    const stripped = stripFidelitySrcsetAttributes(html)
+
+    expect(stripped).not.toContain('srcset')
+    expect(stripped).toContain(`<img src="${worker}/media/pages/assets/nissan-au/navara/hero.png"`)
+    expect(stripped).toContain('<picture>')
+  })
+
+  it('keeps other attributes and non-string input intact when stripping srcset', () => {
+    expect(stripFidelitySrcsetAttributes('<img src="a.png" alt="srcset note">')).toBe('<img src="a.png" alt="srcset note">')
+    expect(stripFidelitySrcsetAttributes('')).toBe('')
   })
 })

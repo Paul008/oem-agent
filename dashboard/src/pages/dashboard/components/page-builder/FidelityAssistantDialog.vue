@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { getFontEmbedCSS, toCanvas } from 'html-to-image'
+import { getFontEmbedCSS, toSvg } from 'html-to-image'
 import { AlertTriangle, CheckCircle2, Eye, Loader2, ScanSearch, Sparkles } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import type { RegionFidelityStatus } from '@/lib/region-fidelity'
 
-import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls } from '@/lib/fidelity-assets'
+import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
 import { withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
 import { compareRegionPixels } from '@/lib/region-fidelity'
 import { scoreRegionQuality } from '@/lib/worker-api'
@@ -106,15 +106,16 @@ function setFrame(name: ViewportName, kind: 'reference' | 'candidate', value: El
 
 function safeHtml(value: string): string {
   return String(value || '')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/\son[a-z]+\s*=\s*(["']).*?\1/gi, '')
+    .replace(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<script\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/javascript:/gi, '')
 }
 
 function frameDocument(html: string, css = ''): string {
   const proxiedCss = rewriteFidelityCssAssetUrls(css, props.oemId, WORKER_BASE)
   const safeCss = proxiedCss.replace(/<\/style/gi, '<\\/style').replace(/javascript:/gi, '')
-  const safeBody = safeHtml(rewriteFidelityHtmlAssetUrls(html, props.oemId, WORKER_BASE))
+  const safeBody = safeHtml(stripFidelitySrcsetAttributes(rewriteFidelityHtmlAssetUrls(html, props.oemId, WORKER_BASE)))
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${safeCss}\n*,*::before,*::after{animation:none!important;transition:none!important}html,body{margin:0;min-height:100%;background:#fff;color:#111}</style></head><body>${safeBody}</body></html>`
 }
 
@@ -192,24 +193,40 @@ async function captureFrame(
   const body = frame.contentDocument?.body
   if (!body)
     throw new Error('Comparison body is unavailable')
-  const canvas = await withFidelityMeasurementTimeout(
-    () => toCanvas(body, {
-      backgroundColor: '#ffffff',
+  // toCanvas() resolves through requestAnimationFrame, which stays stalled while the
+  // tab is hidden or the window is occluded and the capture then dies on the timeout.
+  // Rasterize the SVG manually so measurement works in background tabs too.
+  const svgDataUrl = await withFidelityMeasurementTimeout(
+    () => toSvg(body, {
       cacheBust: false,
       fontEmbedCSS,
       pixelRatio: 1,
       width,
       height,
-      canvasWidth: width,
-      canvasHeight: height,
       style: { margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden' },
     }),
     timeoutMs,
     `${width}px ${label} capture`,
   )
+  const image = await withFidelityMeasurementTimeout(
+    () => new Promise<HTMLImageElement>((resolve, reject) => {
+      const raster = new Image()
+      raster.onload = () => resolve(raster)
+      raster.onerror = () => reject(new Error(`${width}px ${label} capture image failed to render`))
+      raster.src = svgDataUrl
+    }),
+    timeoutMs,
+    `${width}px ${label} capture`,
+  )
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
   const context = canvas.getContext('2d')
   if (!context)
     throw new Error('Canvas comparison is unavailable')
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, width, height)
+  context.drawImage(image, 0, 0, width, height)
   return {
     dataUrl: canvas.toDataURL('image/png'),
     pixels: context.getImageData(0, 0, width, height),
