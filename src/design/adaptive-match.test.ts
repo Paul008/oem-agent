@@ -125,6 +125,65 @@ describe('executeAdaptiveMatch', () => {
     expect((writes[0].options?.onlyIf as Headers).get('if-none-match')).toBe('*')
   })
 
+  it('hydrates server-owned interpretation fields before validating model output', async () => {
+    const { bucket } = memoryBucket()
+    const modelGraph = {
+      kind: graph.kind,
+      confidence: graph.confidence,
+      section: graph.section,
+      interaction: graph.interaction,
+    }
+
+    const response = await executeAdaptiveMatch(request, {
+      infer: async () => inference(JSON.stringify(modelGraph)),
+      bucket,
+    })
+
+    expect(response.graph).toMatchObject({
+      version: 1,
+      regionId: 'safety',
+      provenance: {
+        strategy: 'ai-interpretation',
+        attempt: 1,
+        provider: 'google_gemini',
+        model: 'gemini-3.1-pro',
+      },
+    })
+  })
+
+  it('requests a schema-constrained candidate graph for the detected interaction kind', async () => {
+    const { bucket } = memoryBucket()
+    const routed: InferenceRequest[] = []
+
+    await executeAdaptiveMatch(request, {
+      infer: async (input) => {
+        routed.push(input)
+        return inference(JSON.stringify(graph))
+      },
+      bucket,
+    })
+
+    expect(routed[0].responseJsonSchema).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        version: { type: 'integer', enum: [1] },
+        kind: { type: 'string', enum: ['carousel'] },
+        regionId: { type: 'string', enum: ['safety'] },
+        section: {
+          type: 'object',
+          properties: { type: { type: 'string', enum: ['gallery'] } },
+        },
+        interaction: {
+          type: 'object',
+          properties: { kind: { type: 'string', enum: ['carousel'] } },
+        },
+      },
+      required: ['version', 'kind', 'regionId', 'confidence', 'section', 'interaction'],
+    })
+    expect(routed[0].prompt).toContain('Do not wrap the object in a content, candidate, result, or section key')
+  })
+
   it('never overwrites an existing run attempt ledger', async () => {
     const { bucket, values } = memoryBucket()
     await executeAdaptiveMatch(request, { infer: async () => inference(JSON.stringify(graph)), bucket })
@@ -159,6 +218,26 @@ describe('executeAdaptiveMatch', () => {
     expect(response.graph.section.title).toBe('Advanced safety')
     expect(response.graph.provenance).toMatchObject({ strategy: 'ai-repair', attempt: 2 })
     expect(graph.section.title).toBe('Safety')
+  })
+
+  it('hydrates server-owned repair fields before applying a model mutation', async () => {
+    const { bucket } = memoryBucket()
+    const response = await executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 2,
+      previousGraph: graph,
+      qaFailures: ['desktop pixel mismatch exceeds 3%'],
+    }, {
+      infer: async () => inference(JSON.stringify({
+        operations: [{ op: 'set', path: '/section/title', value: 'Safety technology' }],
+        explanation: 'Restore the captured heading.',
+      })),
+      bucket,
+    })
+
+    expect(response.graph.section.title).toBe('Safety technology')
+    expect(response.mutation).toMatchObject({ version: 1, regionId: 'safety' })
   })
 
   it('rejects executable model output and records the rejected attempt without raw output', async () => {

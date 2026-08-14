@@ -465,6 +465,8 @@ export interface InferenceRequest {
   importRunId?: string;
   useBatch?: boolean;
   requireJson?: boolean;
+  /** JSON Schema for providers that support schema-constrained structured output. */
+  responseJsonSchema?: Record<string, unknown>;
   /** Override max tokens for this request */
   maxTokens?: number;
   /** Per-request model override (highest priority — used by page builder A/B testing) */
@@ -1000,7 +1002,16 @@ export class AiRouter {
       generationConfig: {
         temperature: defaults.temperature,
         maxOutputTokens: request.maxTokens || defaults.maxOutputTokens,
-        responseMimeType: request.requireJson !== false ? 'application/json' : 'text/plain',
+        ...(request.responseJsonSchema
+          ? {
+              responseFormat: {
+                text: {
+                  mimeType: 'application/json',
+                  schema: request.responseJsonSchema,
+                },
+              },
+            }
+          : { responseMimeType: request.requireJson !== false ? 'application/json' : 'text/plain' }),
       },
     };
 

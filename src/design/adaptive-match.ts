@@ -272,13 +272,310 @@ function redactedEvidence(request: AdaptiveMatchRequest) {
   };
 }
 
+type JsonSchema = Record<string, unknown>;
+
+const layoutTokensJsonSchema: JsonSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    maxWidthPx: { type: 'integer', minimum: 240, maximum: 2_400 },
+    desktopColumns: { type: 'integer', minimum: 1, maximum: 8 },
+    tabletColumns: { type: 'integer', minimum: 1, maximum: 6 },
+    mobileColumns: { type: 'integer', minimum: 1, maximum: 2 },
+    gapPx: { type: 'integer', minimum: 0, maximum: 128 },
+    paddingBlockPx: { type: 'integer', minimum: 0, maximum: 240 },
+    paddingInlinePx: { type: 'integer', minimum: 0, maximum: 240 },
+    textAlign: { type: 'string', enum: ['left', 'center', 'right'] },
+  },
+};
+
+const appearanceTokensJsonSchema: JsonSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    backgroundColor: { type: 'string' },
+    textColor: { type: 'string' },
+    accentColor: { type: 'string' },
+    borderColor: { type: 'string' },
+    borderRadiusPx: { type: 'integer', minimum: 0, maximum: 80 },
+    headingSizePx: { type: 'integer', minimum: 12, maximum: 96 },
+    bodySizePx: { type: 'integer', minimum: 10, maximum: 40 },
+    fontWeight: { type: 'integer', minimum: 100, maximum: 900 },
+    imageFit: { type: 'string', enum: ['contain', 'cover', 'fill'] },
+    imageAspectRatio: { type: 'string', enum: ['auto', '1/1', '4/3', '3/2', '16/9'] },
+    shadow: { type: 'boolean' },
+  },
+};
+
+const imageJsonSchema: JsonSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    url: { type: 'string' },
+    alt: { type: 'string' },
+    caption: { type: 'string' },
+    description: { type: 'string' },
+  },
+  required: ['url'],
+};
+
+function candidateSectionJsonSchema(kind: AdaptiveMatchRequest['evidence']['detection']['kind']): JsonSchema {
+  if (kind === 'carousel' || kind === 'gallery-lightbox') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        type: { type: 'string', enum: ['gallery'] },
+        title: { type: 'string' },
+        layout: { type: 'string', enum: kind === 'carousel' ? ['carousel'] : ['grid'] },
+        images: { type: 'array', minItems: 1, maxItems: 60, items: imageJsonSchema },
+        initialIndex: { type: 'integer', minimum: 0, maximum: 59 },
+        lightbox: { type: 'boolean' },
+        layoutTokens: layoutTokensJsonSchema,
+        appearanceTokens: appearanceTokensJsonSchema,
+      },
+      required: ['type', 'layout', 'images'],
+    };
+  }
+  if (kind === 'tabs') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        type: { type: 'string', enum: ['tabs'] },
+        title: { type: 'string' },
+        category: { type: 'string' },
+        tabs: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 30,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              label: { type: 'string' },
+              contentHtml: { type: 'string' },
+              imageUrl: { type: 'string' },
+              imageAlt: { type: 'string' },
+            },
+            required: ['label'],
+          },
+        },
+        defaultTab: { type: 'integer', minimum: 0, maximum: 29 },
+        layoutTokens: layoutTokensJsonSchema,
+        appearanceTokens: appearanceTokensJsonSchema,
+      },
+      required: ['type', 'tabs'],
+    };
+  }
+  if (kind === 'accordion') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        type: { type: 'string', enum: ['accordion'] },
+        title: { type: 'string' },
+        items: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 40,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: { question: { type: 'string' }, answer: { type: 'string' } },
+            required: ['question', 'answer'],
+          },
+        },
+        allowMultiple: { type: 'boolean' },
+        layoutTokens: layoutTokensJsonSchema,
+        appearanceTokens: appearanceTokensJsonSchema,
+      },
+      required: ['type', 'items'],
+    };
+  }
+  return {
+    anyOf: [
+      candidateSectionJsonSchema('carousel'),
+      candidateSectionJsonSchema('gallery-lightbox'),
+      candidateSectionJsonSchema('tabs'),
+      candidateSectionJsonSchema('accordion'),
+    ],
+  };
+}
+
+function candidateInteractionJsonSchema(kind: AdaptiveMatchRequest['evidence']['detection']['kind']): JsonSchema {
+  if (kind === 'carousel') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string', enum: ['carousel'] },
+        wrap: { type: 'boolean' },
+        keyboard: { type: 'boolean' },
+        showIndicators: { type: 'boolean' },
+      },
+      required: ['kind', 'wrap', 'keyboard'],
+    };
+  }
+  if (kind === 'gallery-lightbox') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string', enum: ['gallery-lightbox'] },
+        wrap: { type: 'boolean' },
+        keyboard: { type: 'boolean' },
+      },
+      required: ['kind', 'wrap', 'keyboard'],
+    };
+  }
+  if (kind === 'tabs') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string', enum: ['tabs'] },
+        keyboard: { type: 'boolean' },
+        activation: { type: 'string', enum: ['automatic', 'manual'] },
+      },
+      required: ['kind', 'keyboard'],
+    };
+  }
+  if (kind === 'accordion') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string', enum: ['accordion'] },
+        allowMultiple: { type: 'boolean' },
+        keyboard: { type: 'boolean' },
+      },
+      required: ['kind', 'allowMultiple', 'keyboard'],
+    };
+  }
+  return {
+    anyOf: [
+      candidateInteractionJsonSchema('carousel'),
+      candidateInteractionJsonSchema('gallery-lightbox'),
+      candidateInteractionJsonSchema('tabs'),
+      candidateInteractionJsonSchema('accordion'),
+    ],
+  };
+}
+
+function interpretationResponseJsonSchema(request: AdaptiveMatchRequest): JsonSchema {
+  const detectedKind = request.evidence.detection.kind;
+  const supportedKinds = detectedKind === 'unknown' || detectedKind === 'static'
+    ? ['carousel', 'gallery-lightbox', 'tabs', 'accordion']
+    : [detectedKind];
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      version: { type: 'integer', enum: [1] },
+      kind: { type: 'string', enum: supportedKinds },
+      regionId: { type: 'string', enum: [request.evidence.regionId] },
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+      section: candidateSectionJsonSchema(detectedKind),
+      interaction: candidateInteractionJsonSchema(detectedKind),
+    },
+    required: ['version', 'kind', 'regionId', 'confidence', 'section', 'interaction'],
+  };
+}
+
+function repairResponseJsonSchema(request: AdaptiveMatchRequest): JsonSchema {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      version: { type: 'integer', enum: [1] },
+      regionId: { type: 'string', enum: [request.evidence.regionId] },
+      operations: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 40,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            op: { type: 'string', enum: ['set', 'insert', 'remove', 'move'] },
+            path: { type: 'string' },
+            value: {},
+            from: { type: 'string' },
+          },
+          required: ['op', 'path'],
+        },
+      },
+      explanation: { type: 'string' },
+    },
+    required: ['version', 'regionId', 'operations', 'explanation'],
+  };
+}
+
+function modelResponseJsonSchema(request: AdaptiveMatchRequest): JsonSchema {
+  return request.mode === 'repair'
+    ? repairResponseJsonSchema(request)
+    : interpretationResponseJsonSchema(request);
+}
+
+function interpretationExample(request: AdaptiveMatchRequest): Record<string, unknown> {
+  const detected = request.evidence.detection.kind;
+  const kind = detected === 'unknown' || detected === 'static' ? 'carousel' : detected;
+  const firstAsset = request.evidence.content.assets[0];
+  const image = {
+    url: firstAsset?.url || request.evidence.sourceUrl,
+    alt: firstAsset?.alt || '',
+    caption: request.evidence.content.text[0] || '',
+    description: '',
+  };
+  if (kind === 'carousel' || kind === 'gallery-lightbox') {
+    return {
+      version: 1,
+      kind,
+      regionId: request.evidence.regionId,
+      confidence: 0.9,
+      section: {
+        type: 'gallery',
+        title: request.evidence.content.text[0] || '',
+        layout: kind === 'carousel' ? 'carousel' : 'grid',
+        images: [image],
+        initialIndex: 0,
+        lightbox: kind === 'gallery-lightbox',
+        layoutTokens: {},
+        appearanceTokens: {},
+      },
+      interaction: kind === 'carousel'
+        ? { kind, wrap: true, keyboard: true, showIndicators: true }
+        : { kind, wrap: true, keyboard: true },
+    };
+  }
+  if (kind === 'tabs') {
+    return {
+      version: 1,
+      kind,
+      regionId: request.evidence.regionId,
+      confidence: 0.9,
+      section: { type: 'tabs', title: '', category: '', tabs: [{ label: 'Tab', contentHtml: '', imageUrl: '', imageAlt: '' }], defaultTab: 0, layoutTokens: {}, appearanceTokens: {} },
+      interaction: { kind, keyboard: true, activation: 'automatic' },
+    };
+  }
+  return {
+    version: 1,
+    kind,
+    regionId: request.evidence.regionId,
+    confidence: 0.9,
+    section: { type: 'accordion', title: '', items: [{ question: 'Question', answer: 'Answer' }], allowMultiple: true, layoutTokens: {}, appearanceTokens: {} },
+    interaction: { kind, allowMultiple: true, keyboard: true },
+  };
+}
+
 function buildPrompt(request: AdaptiveMatchRequest): string {
   const evidence = redactedEvidence(request);
   const common = `You are reconstructing one bounded automotive OEM page region. Return JSON only.\n\nSafety rules:\n- Never output JavaScript, event-handler attributes, iframes, objects, embeds, global CSS, or unsafe URLs.\n- Preserve all supplied wording and required assets.\n- Use exactly one supported kind: carousel, gallery-lightbox, tabs, or accordion.\n- Use only bounded layoutTokens and appearanceTokens.\n- The regionId must remain "${request.evidence.regionId}".\n\nEvidence:\n${JSON.stringify(evidence)}`;
   if (request.mode === 'repair') {
-    return `${common}\n\nReturn a CandidateMutation with version, regionId, operations, and explanation. Operations may target only /section or /interaction.\nPrevious graph:\n${JSON.stringify(request.previousGraph)}\nDeterministic QA failures:\n${JSON.stringify(request.qaFailures)}`;
+    return `${common}\n\nReturn exactly one CandidateMutation JSON object with version, regionId, operations, and explanation. Do not wrap the object in a content, candidate, result, or section key. Operations may target only /section or /interaction.\nPrevious graph:\n${JSON.stringify(request.previousGraph)}\nDeterministic QA failures:\n${JSON.stringify(request.qaFailures)}`;
   }
-  return `${common}\n\nReturn a complete CandidateGraph with version, kind, regionId, confidence, section, interaction, and provenance. The server will replace provenance with authoritative model data.`;
+  return `${common}\n\nReturn exactly one CandidateGraph JSON object with version, kind, regionId, confidence, section, and interaction. Do not wrap the object in a content, candidate, result, or section key. The server adds authoritative provenance. Follow this exact shape (replace values using the evidence):\n${JSON.stringify(interpretationExample(request))}`;
 }
 
 function extractJson(content: string): unknown {
@@ -320,7 +617,16 @@ function readAt(root: any, path: string): unknown {
 }
 
 function applyMutation(graph: WorkerCandidateGraph, input: unknown): { graph: WorkerCandidateGraph; mutation: WorkerCandidateMutation } {
-  const mutation = mutationSchema.parse(input);
+  const raw = input && typeof input === 'object' && !Array.isArray(input)
+    ? input as Record<string, unknown>
+    : null;
+  const mutation = mutationSchema.parse(raw
+    ? {
+        ...raw,
+        version: raw.version ?? 1,
+        regionId: raw.regionId ?? graph.regionId,
+      }
+    : input);
   if (mutation.regionId !== graph.regionId)
     throw new Error(`Mutation region mismatch: expected ${graph.regionId}, received ${mutation.regionId}`);
   const next = structuredClone(graph) as any;
@@ -396,6 +702,7 @@ export async function executeAdaptiveMatch(input: unknown, deps: AdaptiveMatchDe
     inference = await deps.infer({
       taskType: 'section_deep_analysis',
       requireJson: true,
+      responseJsonSchema: modelResponseJsonSchema(request),
       imageBase64: request.contactSheetBase64,
       imageMimeType: 'image/png',
       prompt: buildPrompt(request),
@@ -420,7 +727,23 @@ export async function executeAdaptiveMatch(input: unknown, deps: AdaptiveMatchDe
       graph = repaired.graph;
       mutation = repaired.mutation;
     } else {
-      graph = workerCandidateGraphSchema.parse(parsed);
+      const raw = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : null;
+      const authoritativeProvenance = {
+        strategy: 'ai-interpretation' as const,
+        attempt: request.attempt,
+        provider: inference.provider,
+        model: inference.model,
+      };
+      graph = workerCandidateGraphSchema.parse(raw
+        ? {
+            ...raw,
+            version: raw.version ?? 1,
+            regionId: raw.regionId ?? request.evidence.regionId,
+            provenance: authoritativeProvenance,
+          }
+        : parsed);
       if (graph.kind === 'static')
         throw new Error('AI interpretation cannot generate executable static markup');
     }
