@@ -72,10 +72,15 @@ function inference(content: string): InferenceResponse {
 
 function memoryBucket() {
   const values = new Map<string, string>()
+  const writes: Array<{ key: string, options: R2PutOptions | undefined }> = []
   return {
     values,
+    writes,
     bucket: {
-      async put(key: string, value: string) {
+      async put(key: string, value: string, options?: R2PutOptions) {
+        writes.push({ key, options })
+        if (options?.onlyIf instanceof Headers && options.onlyIf.get('if-none-match') === '*' && values.has(key))
+          return null
         values.set(key, value)
         return {} as R2Object
       },
@@ -85,7 +90,7 @@ function memoryBucket() {
 
 describe('executeAdaptiveMatch', () => {
   it('validates interpretation output and persists an immutable attempt ledger', async () => {
-    const { bucket, values } = memoryBucket()
+    const { bucket, values, writes } = memoryBucket()
     const response = await executeAdaptiveMatch(request, {
       infer: async () => inference(JSON.stringify(graph)),
       bucket,
@@ -116,6 +121,20 @@ describe('executeAdaptiveMatch', () => {
       evidence: { regionId: 'safety', kind: 'carousel' },
     })
     expect(values.get(key)).not.toContain(request.evidence.html)
+    expect(writes[0].options?.onlyIf).toBeInstanceOf(Headers)
+    expect((writes[0].options?.onlyIf as Headers).get('if-none-match')).toBe('*')
+  })
+
+  it('never overwrites an existing run attempt ledger', async () => {
+    const { bucket, values } = memoryBucket()
+    await executeAdaptiveMatch(request, { infer: async () => inference(JSON.stringify(graph)), bucket })
+    await executeAdaptiveMatch(request, {
+      infer: async () => inference(JSON.stringify({ ...graph, section: { ...graph.section, title: 'Changed' } })),
+      bucket,
+    })
+
+    const stored = JSON.parse(values.get('model-pages/nissan-au/navara/adaptive-match/run-123/attempt-1.json')!)
+    expect(stored.graph.section.title).toBe('Safety')
   })
 
   it('applies a validated repair mutation without changing the previous graph', async () => {
@@ -156,6 +175,34 @@ describe('executeAdaptiveMatch', () => {
     expect(JSON.parse(stored)).toMatchObject({ status: 'rejected' })
     expect(stored).not.toContain('<script>')
     expect(stored).not.toContain('rawModelOutput')
+  })
+
+  it('rejects active markup and inline styles in model-authored rich text', async () => {
+    const { bucket } = memoryBucket()
+    const tabs = {
+      ...graph,
+      kind: 'tabs',
+      section: {
+        type: 'tabs',
+        title: 'Safety',
+        category: '',
+        tabs: [{
+          label: 'Safety',
+          contentHtml: '<meta http-equiv="refresh" content="0;url=https://example.test"><p style="position:fixed">Safety</p>',
+          imageUrl: '',
+          imageAlt: '',
+        }],
+        defaultTab: 0,
+        layoutTokens: {},
+        appearanceTokens: {},
+      },
+      interaction: { kind: 'tabs', keyboard: true, activation: 'automatic' },
+    }
+
+    await expect(executeAdaptiveMatch(request, {
+      infer: async () => inference(JSON.stringify(tabs)),
+      bucket,
+    })).rejects.toThrow(/validation|unsafe|executable/i)
   })
 
   it('rejects AI output that changes the selected region identity', async () => {

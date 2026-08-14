@@ -6,9 +6,10 @@ export type SupportedAdaptiveMatchKind = Exclude<AdaptiveMatchKind, 'unknown'>
 export type AdaptiveViewportName = 'desktop' | 'tablet' | 'mobile'
 
 const executablePattern = /<\s*(?:script|iframe|object|embed)\b|\son[a-z]+\s*=|javascript\s*:/i
+const unsafeRichTextPattern = /<\s*(?:style|link|meta|base|form|input|button|textarea|select|option|svg|math|video|audio|source|track|canvas)\b|\s(?:style|srcdoc|formaction)\s*=|(?:href|src)\s*=\s*(?:["']\s*)?(?:data|blob|file):/i
 const unsafeCssPattern = /<\s*\/\s*style|javascript\s*:|@import\b|expression\s*\(/i
 const safeText = (maximum = 4_000) => z.string().max(maximum).refine(value => !executablePattern.test(value), 'Executable content is not allowed')
-const safeRichText = safeText(40_000)
+const safeRichText = safeText(40_000).refine(value => !unsafeRichTextPattern.test(value), 'Unsafe rich text is not allowed')
 const safeCss = z.string().max(80_000).refine(value => !unsafeCssPattern.test(value), 'Unsafe CSS is not allowed')
 const safeAssetUrl = z.string().min(1).max(4_000).refine((value) => {
   if (executablePattern.test(value) || /^(?:data|blob):/i.test(value))
@@ -235,12 +236,17 @@ export function sectionToDeterministicGraph(input: { regionId: string, section: 
 
 export function candidateGraphToSection(
   graph: CandidateGraph,
-  metadata: { runId: string, qa: { passed: boolean, worstMismatchRatio: number } },
+  metadata: {
+    runId: string
+    qa: AdaptiveMatchAttemptQa | { passed: boolean, worstMismatchRatio: number }
+    appliedAt?: string
+  },
 ): Record<string, any> {
   const common = {
     _clone_region_id: graph.regionId,
     _adaptive_layout: graph.section.layoutTokens,
     _adaptive_appearance: graph.section.appearanceTokens,
+    _adaptive_interaction: graph.interaction,
     _adaptive_match: {
       version: 1,
       run_id: metadata.runId,
@@ -250,6 +256,7 @@ export function candidateGraphToSection(
       provider: graph.provenance.provider,
       model: graph.provenance.model,
       qa: metadata.qa,
+      ...(metadata.appliedAt ? { applied_at: metadata.appliedAt } : {}),
     },
   }
 

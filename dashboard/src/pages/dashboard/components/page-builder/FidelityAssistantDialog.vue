@@ -350,13 +350,31 @@ async function probeInteractions(root: HTMLElement, graph: CandidateGraph) {
   return { required, passed, failures }
 }
 
-function contentMatches(root: HTMLElement, evidence: CapturedAdaptiveMatchEvidence['evidence']) {
+function graphAssetEvidence(graph: CandidateGraph, sourceUrl: string): Array<{ url: string, alt: string }> {
+  if (graph.section.type === 'gallery')
+    return graph.section.images.map(image => ({ url: image.url, alt: image.alt }))
+  if (graph.section.type === 'tabs')
+    return graph.section.tabs.filter(tab => tab.imageUrl).map(tab => ({ url: tab.imageUrl, alt: tab.imageAlt }))
+  if (graph.section.type !== 'content-block')
+    return []
+  const parsed = new DOMParser().parseFromString(graph.section.generatedHtml, 'text/html')
+  return Array.from(parsed.querySelectorAll('img')).flatMap((image) => {
+    try {
+      return [{ url: new URL(image.getAttribute('src') || '', sourceUrl).toString(), alt: image.alt }]
+    }
+    catch {
+      return []
+    }
+  })
+}
+
+function contentMatches(root: HTMLElement, evidence: CapturedAdaptiveMatchEvidence['evidence'], graph: CandidateGraph) {
   const renderedText = String(root.textContent || '').replace(/\s+/g, ' ').toLowerCase()
   const matchedText = evidence.content.text.filter(item => renderedText.includes(item.toLowerCase())).length
-  const images = Array.from(root.querySelectorAll('img'))
-  const matchedAssets = evidence.content.assets.filter(asset => images.some((image) => {
-    const altMatches = asset.alt && image.alt === asset.alt
-    const sourceMatches = image.src === asset.url || image.src.endsWith(new URL(asset.url).pathname)
+  const candidateAssets = graphAssetEvidence(graph, evidence.sourceUrl)
+  const matchedAssets = evidence.content.assets.filter(asset => candidateAssets.some((candidate) => {
+    const altMatches = asset.alt && candidate.alt === asset.alt
+    const sourceMatches = candidate.url === asset.url
     return Boolean(altMatches || sourceMatches)
   })).length
   return {
@@ -375,7 +393,7 @@ async function evaluateCandidate(graph: CandidateGraph, context: { evidence: Cap
   if (!desktopRoot)
     throw new Error('Adaptive candidate frame is unavailable')
   const interaction = await probeInteractions(desktopRoot, graph)
-  const content = contentMatches(desktopRoot, context.evidence.evidence)
+  const content = contentMatches(desktopRoot, context.evidence.evidence, graph)
   const measured: ViewportResult[] = []
   for (const viewport of VIEWPORTS) {
     const handle = candidateFrames.get(viewport.name)
@@ -467,7 +485,8 @@ function applyCandidate() {
     return
   emit('apply', candidateGraphToSection(best.graph, {
     runId: controller.state.runId,
-    qa: { passed: best.qa.passed, worstMismatchRatio: best.qa.worstMismatchRatio },
+    qa: best.qa,
+    appliedAt: new Date().toISOString(),
   }))
 }
 
@@ -511,6 +530,14 @@ function percent(value: number): string {
           <p v-if="attempt.qa" class="mt-1 text-muted-foreground">
             Worst mismatch {{ percent(attempt.qa.worstMismatchRatio) }} · {{ attempt.qa.failureCount }} failure{{ attempt.qa.failureCount === 1 ? '' : 's' }}
           </p>
+          <p v-if="attempt.graph?.provenance.provider" class="mt-1 text-muted-foreground">
+            {{ attempt.graph.provenance.provider }} · {{ attempt.graph.provenance.model }}
+          </p>
+          <ul v-if="attempt.qa?.failures.length" class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+            <li v-for="failure in attempt.qa.failures" :key="failure">
+              {{ failure }}
+            </li>
+          </ul>
           <p v-if="attempt.error" class="mt-1 text-destructive">
             {{ attempt.error }}
           </p>

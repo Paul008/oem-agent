@@ -1,12 +1,14 @@
 import { z } from 'zod';
 
 import type { InferenceRequest, InferenceResponse } from '../ai/router';
-import type { AiProvider, OemId } from '../oem/types';
+import type { OemId } from '../oem/types';
 
 const executablePattern = /<\s*(?:script|iframe|object|embed)\b|\son[a-z]+\s*=|javascript\s*:/i;
+const unsafeRichTextPattern = /<\s*(?:style|link|meta|base|form|input|button|textarea|select|option|svg|math|video|audio|source|track|canvas)\b|\s(?:style|srcdoc|formaction)\s*=|(?:href|src)\s*=\s*["']?\s*(?:data|blob|file):/i;
 const unsafeCssPattern = /<\s*\/\s*style|javascript\s*:|@import\b|expression\s*\(/i;
+const aiProviderSchema = z.enum(['groq', 'together', 'moonshot', 'anthropic', 'cloudflare_ai_gateway', 'google_gemini', 'workers_ai']);
 const safeText = (max = 4_000) => z.string().max(max).refine(value => !executablePattern.test(value), 'Executable content is not allowed');
-const safeRichText = safeText(40_000);
+const safeRichText = safeText(40_000).refine(value => !unsafeRichTextPattern.test(value), 'Unsafe rich text is not allowed');
 const safeCss = z.string().max(80_000).refine(value => !unsafeCssPattern.test(value), 'Unsafe CSS is not allowed');
 const safeUrl = z.string().min(1).max(4_000).refine((value) => {
   if (executablePattern.test(value) || /^(?:data|blob):/i.test(value)) return false;
@@ -196,9 +198,9 @@ export const adaptiveMatchRequestSchema = z.object({
   previousGraph: workerCandidateGraphSchema.optional(),
   qaFailures: z.array(safeText(2_000)).max(60),
   modelOverride: z.object({
-    provider: z.string().min(1).max(100).optional(),
+    provider: aiProviderSchema.optional(),
     model: z.string().min(1).max(300).optional(),
-    fallbackProvider: z.string().min(1).max(100).optional(),
+    fallbackProvider: aiProviderSchema.optional(),
     fallbackModel: z.string().min(1).max(300).optional(),
   }).strict().optional(),
 }).strict().superRefine((request, context) => {
@@ -381,7 +383,10 @@ async function persistLedger(
     },
     ...entry,
   };
-  await bucket.put(key, JSON.stringify(ledger), { httpMetadata: { contentType: 'application/json' } });
+  await bucket.put(key, JSON.stringify(ledger), {
+    httpMetadata: { contentType: 'application/json' },
+    onlyIf: new Headers({ 'if-none-match': '*' }),
+  });
 }
 
 export async function executeAdaptiveMatch(input: unknown, deps: AdaptiveMatchDependencies): Promise<AdaptiveMatchResponse> {
@@ -398,9 +403,9 @@ export async function executeAdaptiveMatch(input: unknown, deps: AdaptiveMatchDe
       ...(request.modelOverride
         ? {
             overrideRoute: {
-              provider: request.modelOverride.provider as AiProvider | undefined,
+              provider: request.modelOverride.provider,
               model: request.modelOverride.model,
-              fallbackProvider: request.modelOverride.fallbackProvider as AiProvider | undefined,
+              fallbackProvider: request.modelOverride.fallbackProvider,
               fallbackModel: request.modelOverride.fallbackModel,
             },
           }

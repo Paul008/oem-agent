@@ -1790,6 +1790,15 @@ describe('oem-agent adaptive match route', () => {
       body: JSON.stringify({ ...adaptiveMatchRouteRequest(), attempt: 4 }),
     }, env(bucket));
     expect(invalid.status).toBe(400);
+    const invalidProvider = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...adaptiveMatchRouteRequest(),
+        modelOverride: { provider: 'untrusted-provider', model: 'model' },
+      }),
+    }, env(bucket));
+    expect(invalidProvider.status).toBe(400);
     expect([...bucket.objects.keys()].some(key => key.includes('/adaptive-match/'))).toBe(false);
   });
 

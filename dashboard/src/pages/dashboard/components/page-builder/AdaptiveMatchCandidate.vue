@@ -6,6 +6,7 @@ import { computed, defineComponent, h } from 'vue'
 import type { CandidateGraph } from '@/lib/adaptive-match-contracts'
 
 import { candidateGraphToSection } from '@/lib/adaptive-match-contracts'
+import { proxyFidelityAssetUrl, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
 
 import SectionAccordion from '../sections/SectionAccordion.vue'
 import SectionGallery from '../sections/SectionGallery.vue'
@@ -15,16 +16,45 @@ const props = defineProps<{
   graph: CandidateGraph
   oemId: string
 }>()
+const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const DeterministicStyle = defineComponent({
   props: { css: { type: String, required: true } },
   setup: styleProps => () => h('style', styleProps.css),
 })
 
-const section = computed(() => candidateGraphToSection(props.graph, {
-  runId: 'adaptive-match-preview',
-  qa: { passed: false, worstMismatchRatio: 1 },
-}))
+const section = computed(() => {
+  const value = candidateGraphToSection(props.graph, {
+    runId: 'adaptive-match-preview',
+    qa: { passed: false, worstMismatchRatio: 1 },
+  })
+  if (value.type === 'gallery') {
+    return {
+      ...value,
+      images: value.images.map((image: Record<string, any>) => ({
+        ...image,
+        url: proxyFidelityAssetUrl(String(image.url || ''), props.oemId, WORKER_BASE),
+      })),
+    }
+  }
+  if (value.type === 'tabs') {
+    return {
+      ...value,
+      tabs: value.tabs.map((tab: Record<string, any>) => ({
+        ...tab,
+        image_url: proxyFidelityAssetUrl(String(tab.image_url || ''), props.oemId, WORKER_BASE),
+      })),
+    }
+  }
+  return value
+})
+
+const deterministicHtml = computed(() => props.graph.section.type === 'content-block'
+  ? stripFidelitySrcsetAttributes(rewriteFidelityHtmlAssetUrls(props.graph.section.generatedHtml, props.oemId, WORKER_BASE))
+  : '')
+const deterministicCss = computed(() => props.graph.section.type === 'content-block'
+  ? rewriteFidelityCssAssetUrls(props.graph.section.generatedCss, props.oemId, WORKER_BASE)
+  : '')
 
 const wrapperStyle = computed<CSSProperties>(() => {
   const layout = props.graph.section.layoutTokens
@@ -60,8 +90,8 @@ const wrapperStyle = computed<CSSProperties>(() => {
     class="adaptive-match-candidate"
   >
     <template v-if="graph.section.type === 'content-block'">
-      <DeterministicStyle v-if="graph.section.generatedCss" :css="graph.section.generatedCss" />
-      <div data-adaptive-section="static" v-html="graph.section.generatedHtml" />
+      <DeterministicStyle v-if="deterministicCss" :css="deterministicCss" />
+      <div data-adaptive-section="static" v-html="deterministicHtml" />
     </template>
     <SectionGallery v-else-if="graph.section.type === 'gallery'" :section="section as any" />
     <SectionTabs v-else-if="graph.section.type === 'tabs'" :section="section as any" />

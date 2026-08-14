@@ -43,6 +43,30 @@ describe('adaptiveMatchGraphSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('rejects active markup and inline styles inside rich text fields', () => {
+    const tabs = {
+      ...galleryGraph,
+      kind: 'tabs',
+      section: {
+        type: 'tabs',
+        title: 'Safety',
+        category: '',
+        tabs: [{
+          label: 'Safety',
+          contentHtml: '<meta http-equiv="refresh" content="0;url=https://example.test"><p style="position:fixed">Safety</p>',
+          imageUrl: '',
+          imageAlt: '',
+        }],
+        defaultTab: 0,
+        layoutTokens: {},
+        appearanceTokens: {},
+      },
+      interaction: { kind: 'tabs', keyboard: true, activation: 'automatic' },
+    }
+
+    expect(adaptiveMatchGraphSchema.safeParse(tabs).success).toBe(false)
+  })
+
   it('rejects unsafe asset protocols', () => {
     const result = adaptiveMatchGraphSchema.safeParse({
       ...galleryGraph,
@@ -100,6 +124,7 @@ describe('adaptive match graph conversion', () => {
       title: 'Safety',
       layout: 'carousel',
       _clone_region_id: 'safety',
+      _adaptive_interaction: { kind: 'gallery-lightbox', wrap: true, keyboard: true },
       _adaptive_match: {
         version: 1,
         run_id: 'run-1',

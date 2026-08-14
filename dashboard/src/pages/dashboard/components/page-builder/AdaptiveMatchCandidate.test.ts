@@ -58,9 +58,25 @@ describe('adaptiveMatchCandidate', () => {
     }, { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true }))
 
     expect(container.querySelector('[data-adaptive-item="0"]')?.getAttribute('data-adaptive-active')).toBe('true')
+    expect(container.querySelectorAll('[data-adaptive-indicator]')).toHaveLength(2)
     ;(container.querySelector('[data-adaptive-next]') as HTMLButtonElement).click()
     await nextTick()
     expect(container.querySelector('[data-adaptive-item="1"]')?.getAttribute('data-adaptive-active')).toBe('true')
+  })
+
+  it('routes remote candidate assets through the authenticated media proxy for capture', () => {
+    const container = mountCandidate(graph({
+      type: 'gallery',
+      title: 'Safety',
+      layout: 'grid',
+      images: [{ url: 'https://www.nissan.com.au/assets/safety.png', alt: 'Safety', caption: '', description: '' }],
+      initialIndex: 0,
+      lightbox: false,
+      layoutTokens: {},
+      appearanceTokens: {},
+    }, { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true }))
+
+    expect((container.querySelector('img') as HTMLImageElement).src).toContain('/media/nissan-au/')
   })
 
   it('opens and closes a gallery lightbox with Escape', async () => {

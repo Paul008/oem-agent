@@ -14,6 +14,7 @@ const props = defineProps<{
     lightbox?: boolean
     _adaptive_match?: boolean
     _adaptive_layout?: { desktopColumns?: number, tabletColumns?: number, mobileColumns?: number }
+    _adaptive_interaction?: { wrap?: boolean, keyboard?: boolean, showIndicators?: boolean }
   }
 }>()
 
@@ -49,23 +50,31 @@ function closeLightbox() {
 function prevImage(total: number) {
   if (lightboxIndex.value === null)
     return
-  lightboxIndex.value = (lightboxIndex.value - 1 + total) % total
+  lightboxIndex.value = props.section._adaptive_interaction?.wrap === false
+    ? Math.max(0, lightboxIndex.value - 1)
+    : (lightboxIndex.value - 1 + total) % total
 }
 
 function nextImage(total: number) {
   if (lightboxIndex.value === null)
     return
-  lightboxIndex.value = (lightboxIndex.value + 1) % total
+  lightboxIndex.value = props.section._adaptive_interaction?.wrap === false
+    ? Math.min(total - 1, lightboxIndex.value + 1)
+    : (lightboxIndex.value + 1) % total
 }
 
 function adaptivePrevious() {
   const total = props.section.images.length
-  activeIndex.value = activeIndex.value === 0 ? total - 1 : activeIndex.value - 1
+  activeIndex.value = activeIndex.value === 0
+    ? (props.section._adaptive_interaction?.wrap === false ? 0 : total - 1)
+    : activeIndex.value - 1
 }
 
 function adaptiveNext() {
   const total = props.section.images.length
-  activeIndex.value = activeIndex.value === total - 1 ? 0 : activeIndex.value + 1
+  activeIndex.value = activeIndex.value === total - 1
+    ? (props.section._adaptive_interaction?.wrap === false ? total - 1 : 0)
+    : activeIndex.value + 1
 }
 </script>
 
@@ -79,11 +88,15 @@ function adaptiveNext() {
     <div
       v-if="section.layout === 'carousel' && section._adaptive_match"
       class="relative w-full"
+      :tabindex="section._adaptive_interaction?.keyboard ? 0 : undefined"
+      aria-roledescription="carousel"
       :style="{
         '--adaptive-desktop-columns': section._adaptive_layout?.desktopColumns || 3,
         '--adaptive-tablet-columns': section._adaptive_layout?.tabletColumns || 2,
         '--adaptive-mobile-columns': section._adaptive_layout?.mobileColumns || 1,
       }"
+      @keydown.left.prevent="section._adaptive_interaction?.keyboard && adaptivePrevious()"
+      @keydown.right.prevent="section._adaptive_interaction?.keyboard && adaptiveNext()"
     >
       <div class="overflow-hidden">
         <div
@@ -113,6 +126,19 @@ function adaptiveNext() {
       <button type="button" data-adaptive-next aria-label="Next image" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/90 p-2 shadow" @click="adaptiveNext">
         <ChevronRight class="size-5" />
       </button>
+      <div v-if="section._adaptive_interaction?.showIndicators" class="mt-3 flex justify-center gap-2" aria-label="Choose image">
+        <button
+          v-for="(_, index) in section.images"
+          :key="index"
+          type="button"
+          data-adaptive-indicator
+          :aria-label="`Show image ${index + 1}`"
+          :aria-current="index === activeIndex ? 'true' : undefined"
+          class="size-2.5 rounded-full bg-muted-foreground/30"
+          :class="index === activeIndex && 'bg-foreground'"
+          @click="activeIndex = index"
+        />
+      </div>
     </div>
 
     <UiCarousel v-else-if="section.layout === 'carousel'" class="w-full">

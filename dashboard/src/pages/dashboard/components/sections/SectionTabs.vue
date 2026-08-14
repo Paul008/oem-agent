@@ -20,6 +20,7 @@ const props = defineProps<{
       disclaimer?: string
     }>
     default_tab: number
+    _adaptive_interaction?: { keyboard?: boolean, activation?: 'automatic' | 'manual' }
   }
 }>()
 
@@ -44,6 +45,8 @@ function select(index: number) {
 function onTabKeydown(event: KeyboardEvent, index: number) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
     return
+  if (props.section._adaptive_interaction?.keyboard === false)
+    return
   event.preventDefault()
   const last = props.section.tabs.length - 1
   const next = event.key === 'Home'
@@ -53,7 +56,8 @@ function onTabKeydown(event: KeyboardEvent, index: number) {
       : event.key === 'ArrowRight'
         ? (index + 1) % props.section.tabs.length
         : (index - 1 + props.section.tabs.length) % props.section.tabs.length
-  select(next)
+  if (props.section._adaptive_interaction?.activation !== 'manual')
+    select(next)
   const owner = (event.currentTarget as HTMLElement).ownerDocument
   owner.getElementById(`${tabsId}-tab-${next}`)?.focus()
 }
