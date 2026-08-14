@@ -6,7 +6,7 @@ import { toast } from 'vue-sonner'
 
 import type { RegionFidelityStatus } from '@/lib/region-fidelity'
 
-import { extractDeclaredFontFamilies, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
+import { extractDeclaredFontFamilies, inlineFidelityFrameImages, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
 import { withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
 import { compareRegionPixels } from '@/lib/region-fidelity'
 import { scoreRegionQuality } from '@/lib/worker-api'
@@ -65,6 +65,7 @@ const results = ref<ViewportResult[]>([])
 const aiReviewing = ref(false)
 const aiReview = ref<{ score: number, feedback: string, suggestions: string[] } | null>(null)
 const framePairs = new Map<ViewportName, { reference?: HTMLIFrameElement, candidate?: HTMLIFrameElement }>()
+const frameImageCache = new Map<string, Promise<string>>()
 let runToken = 0
 
 const selectedResult = computed(() => results.value.find(result => result.name === selectedViewport.value) ?? null)
@@ -190,9 +191,15 @@ async function captureFrame(
   label: string,
 ): Promise<CapturedFrame> {
   await waitForFrame(frame, requiredFonts)
-  const body = frame.contentDocument?.body
+  const document = frame.contentDocument
+  const body = document?.body
   if (!body)
     throw new Error('Comparison body is unavailable')
+  await withFidelityMeasurementTimeout(
+    () => inlineFidelityFrameImages(document, { cache: frameImageCache }),
+    FRAME_ASSET_TIMEOUT_MS,
+    `${width}px ${label} image preparation`,
+  )
   // toCanvas() resolves through requestAnimationFrame, which stays stalled while the
   // tab is hidden or the window is occluded and the capture then dies on the timeout.
   // Rasterize the SVG manually so measurement works in background tabs too.

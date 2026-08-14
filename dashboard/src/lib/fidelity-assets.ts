@@ -2,6 +2,56 @@ function workerRoot(workerBase: string): string {
   return String(workerBase || '').replace(/\/+$/, '')
 }
 
+interface InlineFidelityFrameImagesOptions {
+  fetch?: typeof fetch
+  cache?: Map<string, Promise<string>>
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error ?? new Error('Comparison image could not be read'))
+    reader.onloadend = () => resolve(String(reader.result || ''))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function fetchImageAsDataUrl(url: string, fetchAsset: typeof fetch): Promise<string> {
+  const response = await fetchAsset(url, { credentials: 'omit', mode: 'cors' })
+  if (!response.ok)
+    throw new Error(`Comparison asset failed to load (${response.status}): ${url}`)
+  return blobToDataUrl(await response.blob())
+}
+
+/**
+ * Inlines images while they are still attached to the comparison frame. WebKit can
+ * indefinitely defer the load event when html-to-image replaces an image source on
+ * its detached clone, so the clone must receive an already self-contained data URL.
+ */
+export async function inlineFidelityFrameImages(document: Document, options: InlineFidelityFrameImagesOptions = {}): Promise<void> {
+  const fetchAsset = options.fetch ?? fetch
+  await Promise.all(Array.from(document.images).map(async (image) => {
+    const url = image.currentSrc || image.src
+    if (!url || /^(?:data|blob):/i.test(url))
+      return
+
+    let pending = options.cache?.get(url)
+    if (!pending) {
+      pending = fetchImageAsDataUrl(url, fetchAsset)
+      options.cache?.set(url, pending)
+    }
+
+    try {
+      image.removeAttribute('srcset')
+      image.src = await pending
+    }
+    catch (error) {
+      options.cache?.delete(url)
+      throw error
+    }
+  }))
+}
+
 function encodeUrl(value: string): string {
   const bytes = new TextEncoder().encode(value)
   let binary = ''
