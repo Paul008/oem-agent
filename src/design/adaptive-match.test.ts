@@ -308,6 +308,35 @@ describe('executeAdaptiveMatch', () => {
     })).rejects.toThrow(/path is not allowed/i)
   })
 
+  it('keeps graph discriminators server-owned during repair', async () => {
+    const { bucket } = memoryBucket()
+    const response = await executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 3,
+      previousGraph: graph,
+      qaFailures: ['mobile pixel mismatch exceeds 3%'],
+    }, {
+      infer: async () => inference(JSON.stringify({
+        operations: [
+          { op: 'replace', path: '/section/type', value: 'carousel' },
+          { op: 'replace', path: '/interaction/kind', value: 'gallery' },
+          { op: 'replace', path: '/section/title', value: 'Safety technology' },
+        ],
+        explanation: 'Repair the carousel presentation.',
+      })),
+      bucket,
+    })
+
+    expect(response.graph.section.type).toBe('gallery')
+    expect(response.graph.interaction?.kind).toBe('carousel')
+    expect(response.graph.section.title).toBe('Safety technology')
+    expect(response.mutation?.operations.slice(0, 2)).toEqual([
+      { op: 'set', path: '/section/type', value: 'gallery' },
+      { op: 'set', path: '/interaction/kind', value: 'carousel' },
+    ])
+  })
+
   it('rejects executable model output and records the rejected attempt without raw output', async () => {
     const { bucket, values } = memoryBucket()
     await expect(executeAdaptiveMatch(request, {

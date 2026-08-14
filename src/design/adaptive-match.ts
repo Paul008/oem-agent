@@ -622,7 +622,7 @@ function readAt(root: any, path: string): unknown {
   }, root);
 }
 
-function normalizeMutationOperation(input: unknown): unknown {
+function normalizeMutationOperation(input: unknown, graph: WorkerCandidateGraph): unknown {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     return input;
   const raw = { ...input } as Record<string, unknown>;
@@ -630,10 +630,17 @@ function normalizeMutationOperation(input: unknown): unknown {
   const aliases = [raw.op, raw.action]
     .filter((value): value is string => typeof value === 'string')
     .map(value => value === 'replace' ? 'set' : value);
-  const op = aliases.find(value => supportedOps.has(value)) ?? aliases[0];
+  let op = aliases.find(value => supportedOps.has(value)) ?? aliases[0];
   const path = typeof raw.path === 'string'
     ? raw.path
     : typeof raw.target === 'string' ? raw.target : raw.path;
+  if (path === '/section/type') {
+    op = 'set';
+    raw.value = graph.section.type;
+  } else if (path === '/interaction/kind' && graph.interaction) {
+    op = 'set';
+    raw.value = graph.interaction.kind;
+  }
   delete raw.action;
   delete raw.target;
   return {
@@ -653,7 +660,7 @@ function applyMutation(graph: WorkerCandidateGraph, input: unknown): { graph: Wo
         version: raw.version ?? 1,
         regionId: raw.regionId ?? graph.regionId,
         operations: Array.isArray(raw.operations)
-          ? raw.operations.map(normalizeMutationOperation)
+          ? raw.operations.map(operation => normalizeMutationOperation(operation, graph))
           : raw.operations,
       }
     : input);
