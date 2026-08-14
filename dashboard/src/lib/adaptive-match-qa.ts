@@ -86,7 +86,7 @@ function decodePointer(path: string): string[] {
 }
 
 function parentAt(root: any, segments: string[]): { parent: any, key: string } {
-  const key = segments.at(-1)!
+  const key = segments[segments.length - 1]!
   let parent = root
   for (const segment of segments.slice(0, -1)) {
     if (parent == null || typeof parent !== 'object' || !(segment in parent))

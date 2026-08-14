@@ -1,3 +1,4 @@
+import type { CandidateGraph, CandidateMutation } from '@/lib/adaptive-match-contracts'
 import type {
   PublicationCandidateResponse,
   PublicationHistoryResponse,
@@ -5,7 +6,6 @@ import type {
   PublishModelPagePublicationInput,
 } from '@/lib/model-page-publication'
 import type { Recipe } from '@/lib/recipes'
-import type { CandidateGraph, CandidateMutation } from '@/lib/adaptive-match-contracts'
 
 import {
   candidateMutationSchema,
@@ -523,14 +523,14 @@ export async function compileTailwindRecipeArtifact(artifact: any) {
   })
 }
 
-export type AdaptiveMatchProgressEventName =
-  | 'accepted'
-  | 'interpreting'
-  | 'repairing'
-  | 'validated'
-  | 'persisted'
-  | 'complete'
-  | 'error'
+export type AdaptiveMatchProgressEventName
+  = | 'accepted'
+    | 'interpreting'
+    | 'repairing'
+    | 'validated'
+    | 'persisted'
+    | 'complete'
+    | 'error'
 
 export interface AdaptiveMatchProgressEvent {
   event: AdaptiveMatchProgressEventName
@@ -625,8 +625,10 @@ function parseAdaptiveMatchEvent(frame: string): AdaptiveMatchProgressEvent | nu
   let event = ''
   const data: string[] = []
   for (const line of frame.split(/\r?\n/)) {
-    if (line.startsWith('event:')) event = line.slice(6).trim()
-    if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
+    if (line.startsWith('event:'))
+      event = line.slice(6).trim()
+    if (line.startsWith('data:'))
+      data.push(line.slice(5).trimStart())
   }
   if (!event || !data.length)
     return null
@@ -672,7 +674,8 @@ export async function requestAdaptiveMatch(
   let result: AdaptiveMatchApiResponse | null = null
   const handle = (frame: string) => {
     const progress = parseAdaptiveMatchEvent(frame)
-    if (!progress) return
+    if (!progress)
+      return
     options.onProgress?.(progress)
     if (progress.event === 'error')
       throw new Error(String(progress.data.error || 'Adaptive Match failed'))
@@ -686,9 +689,11 @@ export async function requestAdaptiveMatch(
     const frames = pending.split(/\r?\n\r?\n/)
     pending = frames.pop() || ''
     for (const frame of frames) handle(frame)
-    if (done) break
+    if (done)
+      break
   }
-  if (pending.trim()) handle(pending)
+  if (pending.trim())
+    handle(pending)
   if (!result)
     throw new Error('Adaptive Match stream ended before completion')
   return result
