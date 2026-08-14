@@ -16,6 +16,7 @@ function carouselGraph(title = 'Safety'): CandidateGraph {
     section: {
       type: 'gallery',
       title,
+      description: '',
       layout: 'carousel',
       images: [{ url: 'https://example.test/safety.png', alt: 'Safety', caption: title, description: '' }],
       initialIndex: 0,

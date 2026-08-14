@@ -8,6 +8,7 @@ const props = defineProps<{
   section: {
     type: 'gallery'
     title?: string
+    description?: string
     images: Array<{ url: string, alt?: string, caption?: string, description?: string }>
     layout: 'carousel' | 'grid'
     initial_index?: number
@@ -83,6 +84,9 @@ function adaptiveNext() {
     <h3 class="text-xl font-bold mb-4 cursor-text outline-none" :style="{ opacity: section.title ? 1 : 0.4 }" @dblclick="startEditing('title', titleEdit, $event)" @blur="titleEdit.stopEdit()" @keydown="titleEdit.onKeydown" @paste="titleEdit.onPaste">
       {{ section.title || 'Double-click to add title' }}
     </h3>
+    <p v-if="section.description" class="mb-6 text-sm leading-relaxed text-muted-foreground">
+      {{ section.description }}
+    </p>
 
     <!-- Carousel layout -->
     <div

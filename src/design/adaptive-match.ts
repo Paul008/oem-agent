@@ -67,6 +67,7 @@ const contentBlockSchema = z.object({
 const gallerySchema = z.object({
   type: z.literal('gallery'),
   title: safeText(2_000).default(''),
+  description: safeText(4_000).default(''),
   layout: z.enum(['carousel', 'grid']),
   images: z.array(imageSchema).min(1).max(60),
   initialIndex: z.number().int().min(0).max(59).default(0),
@@ -327,6 +328,7 @@ function candidateSectionJsonSchema(kind: AdaptiveMatchRequest['evidence']['dete
       properties: {
         type: { type: 'string', enum: ['gallery'] },
         title: { type: 'string' },
+        description: { type: 'string' },
         layout: { type: 'string', enum: kind === 'carousel' ? ['carousel'] : ['grid'] },
         images: { type: 'array', minItems: 1, maxItems: 60, items: imageJsonSchema },
         initialIndex: { type: 'integer', minimum: 0, maximum: 59 },
@@ -537,6 +539,7 @@ function interpretationExample(request: AdaptiveMatchRequest): Record<string, un
       section: {
         type: 'gallery',
         title: request.evidence.content.text[0] || '',
+        description: request.evidence.content.text[1] || '',
         layout: kind === 'carousel' ? 'carousel' : 'grid',
         images: [image],
         initialIndex: 0,

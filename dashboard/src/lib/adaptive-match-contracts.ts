@@ -71,6 +71,7 @@ const contentBlockSectionSchema = z.object({
 const gallerySectionSchema = z.object({
   type: z.literal('gallery'),
   title: safeText(2_000).default(''),
+  description: safeText(4_000).default(''),
   layout: z.enum(['carousel', 'grid']),
   images: z.array(imageSchema).min(1).max(60),
   initialIndex: z.number().int().min(0).max(59).default(0),
@@ -274,6 +275,7 @@ export function candidateGraphToSection(
     return {
       type: 'gallery',
       title: graph.section.title,
+      description: graph.section.description,
       layout: graph.section.layout,
       images: graph.section.images,
       initial_index: graph.section.initialIndex,

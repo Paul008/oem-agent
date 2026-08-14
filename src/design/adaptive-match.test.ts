@@ -172,7 +172,10 @@ describe('executeAdaptiveMatch', () => {
         regionId: { type: 'string', enum: ['safety'] },
         section: {
           type: 'object',
-          properties: { type: { type: 'string', enum: ['gallery'] } },
+          properties: {
+            type: { type: 'string', enum: ['gallery'] },
+            description: { type: 'string' },
+          },
         },
         interaction: {
           type: 'object',
@@ -335,6 +338,28 @@ describe('executeAdaptiveMatch', () => {
       { op: 'set', path: '/section/type', value: 'gallery' },
       { op: 'set', path: '/interaction/kind', value: 'carousel' },
     ])
+  })
+
+  it('preserves gallery introductory copy during repair', async () => {
+    const { bucket } = memoryBucket()
+    const response = await executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 3,
+      previousGraph: graph,
+      qaFailures: ['2 required text items are missing'],
+    }, {
+      infer: async () => inference(JSON.stringify({
+        operations: [{ op: 'set', path: '/section/description', value: 'Advanced active safety features include:' }],
+        explanation: 'Restore the captured introduction.',
+      })),
+      bucket,
+    })
+
+    expect(response.graph.section).toMatchObject({
+      type: 'gallery',
+      description: 'Advanced active safety features include:',
+    })
   })
 
   it('rejects executable model output and records the rejected attempt without raw output', async () => {

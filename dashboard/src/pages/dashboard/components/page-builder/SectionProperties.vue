@@ -1022,6 +1022,10 @@ function onMediaLibrarySelect(url: string) {
           <UiInput :model-value="section.title || ''" class="h-8 text-xs" @update:model-value="update('title', $event)" />
         </div>
         <div>
+          <label class="text-xs text-muted-foreground mb-1 block">Description</label>
+          <UiTextarea :model-value="section.description || ''" class="text-xs min-h-16" @update:model-value="update('description', $event)" />
+        </div>
+        <div>
           <label class="text-xs text-muted-foreground mb-1 block">Layout</label>
           <UiSelect :model-value="section.layout || 'carousel'" @update:model-value="update('layout', $event)">
             <UiSelectTrigger class="h-8 text-xs">

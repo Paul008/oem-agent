@@ -15,6 +15,7 @@ const galleryGraph = {
   section: {
     type: 'gallery',
     title: 'Safety',
+    description: 'Advanced active safety features include:',
     layout: 'carousel',
     images: [
       { url: 'https://example.test/a.jpg', alt: 'Front braking', caption: 'Intelligent braking', description: '' },
@@ -122,6 +123,7 @@ describe('adaptive match graph conversion', () => {
     expect(section).toMatchObject({
       type: 'gallery',
       title: 'Safety',
+      description: 'Advanced active safety features include:',
       layout: 'carousel',
       _clone_region_id: 'safety',
       _adaptive_interaction: { kind: 'gallery-lightbox', wrap: true, keyboard: true },

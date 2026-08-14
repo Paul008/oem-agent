@@ -46,6 +46,7 @@ describe('adaptiveMatchCandidate', () => {
     const container = mountCandidate(graph({
       type: 'gallery',
       title: 'Safety',
+      description: 'Advanced active safety features include:',
       layout: 'carousel',
       images: [
         { url: 'https://example.test/one.png', alt: 'One', caption: 'One', description: '' },
@@ -58,6 +59,7 @@ describe('adaptiveMatchCandidate', () => {
     }, { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true }))
 
     expect(container.querySelector('[data-adaptive-item="0"]')?.getAttribute('data-adaptive-active')).toBe('true')
+    expect(container.textContent).toContain('Advanced active safety features include:')
     expect(container.querySelectorAll('[data-adaptive-indicator]')).toHaveLength(2)
     ;(container.querySelector('[data-adaptive-next]') as HTMLButtonElement).click()
     await nextTick()
@@ -68,6 +70,7 @@ describe('adaptiveMatchCandidate', () => {
     const container = mountCandidate(graph({
       type: 'gallery',
       title: 'Safety',
+      description: '',
       layout: 'grid',
       images: [{ url: 'https://www.nissan.com.au/assets/safety.png', alt: 'Safety', caption: '', description: '' }],
       initialIndex: 0,
@@ -83,6 +86,7 @@ describe('adaptiveMatchCandidate', () => {
     const container = mountCandidate(graph({
       type: 'gallery',
       title: 'Gallery',
+      description: '',
       layout: 'grid',
       images: [{ url: 'https://example.test/one.png', alt: 'One', caption: 'One', description: 'First image' }],
       initialIndex: 0,
