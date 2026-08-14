@@ -9,6 +9,8 @@ const props = defineProps<{
     type: 'gallery'
     title?: string
     description?: string
+    cta_text?: string
+    cta_url?: string
     images: Array<{ url: string, alt?: string, caption?: string, description?: string }>
     layout: 'carousel' | 'grid'
     initial_index?: number
@@ -192,6 +194,15 @@ function adaptiveNext() {
         </p>
       </div>
     </div>
+
+    <a
+      v-if="section.cta_text"
+      data-adaptive-cta
+      :href="section.cta_url || '#'"
+      class="mt-6 inline-flex text-sm font-medium underline underline-offset-4"
+    >
+      {{ section.cta_text }}
+    </a>
 
     <!-- Lightbox overlay -->
     <Teleport to="body" :disabled="Boolean(section._adaptive_match)">

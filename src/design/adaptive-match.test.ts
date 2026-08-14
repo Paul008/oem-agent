@@ -175,6 +175,13 @@ describe('executeAdaptiveMatch', () => {
           properties: {
             type: { type: 'string', enum: ['gallery'] },
             description: { type: 'string' },
+            cta: {
+              type: 'object',
+              properties: {
+                text: { type: 'string' },
+                url: { type: 'string' },
+              },
+            },
           },
         },
         interaction: {
@@ -359,6 +366,35 @@ describe('executeAdaptiveMatch', () => {
     expect(response.graph.section).toMatchObject({
       type: 'gallery',
       description: 'Advanced active safety features include:',
+    })
+  })
+
+  it('preserves a bounded gallery call to action during repair', async () => {
+    const { bucket } = memoryBucket()
+    const response = await executeAdaptiveMatch({
+      ...request,
+      mode: 'repair',
+      attempt: 3,
+      previousGraph: graph,
+      qaFailures: ['1 required text item is missing'],
+    }, {
+      infer: async () => inference(JSON.stringify({
+        operations: [{
+          op: 'set',
+          path: '/section/cta',
+          value: { text: 'Learn More', url: 'https://www.nissan.com.au/vehicles/browse-range/navara.html#safety' },
+        }],
+        explanation: 'Restore the captured gallery action.',
+      })),
+      bucket,
+    })
+
+    expect(response.graph.section).toMatchObject({
+      type: 'gallery',
+      cta: {
+        text: 'Learn More',
+        url: 'https://www.nissan.com.au/vehicles/browse-range/navara.html#safety',
+      },
     })
   })
 

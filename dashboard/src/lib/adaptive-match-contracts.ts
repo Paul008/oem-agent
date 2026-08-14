@@ -24,6 +24,21 @@ const safeAssetUrl = z.string().min(1).max(4_000).refine((value) => {
     return false
   }
 }, 'Unsafe asset URL')
+const safeCtaUrl = z.string().max(4_000).refine((value) => {
+  if (!value)
+    return true
+  if (executablePattern.test(value) || /^(?:data|blob|file):/i.test(value))
+    return false
+  if (value.startsWith('/') || value.startsWith('#'))
+    return true
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+  }
+  catch {
+    return false
+  }
+}, 'Unsafe CTA URL')
 
 const layoutTokensSchema = z.object({
   maxWidthPx: z.number().int().min(240).max(2_400).optional(),
@@ -58,6 +73,11 @@ const imageSchema = z.object({
   description: safeText(4_000).default(''),
 }).strict()
 
+const ctaSchema = z.object({
+  text: safeText(500).default(''),
+  url: safeCtaUrl.default(''),
+}).strict()
+
 const contentBlockSectionSchema = z.object({
   type: z.literal('content-block'),
   title: safeText(2_000).default(''),
@@ -72,6 +92,7 @@ const gallerySectionSchema = z.object({
   type: z.literal('gallery'),
   title: safeText(2_000).default(''),
   description: safeText(4_000).default(''),
+  cta: ctaSchema.optional(),
   layout: z.enum(['carousel', 'grid']),
   images: z.array(imageSchema).min(1).max(60),
   initialIndex: z.number().int().min(0).max(59).default(0),
@@ -276,6 +297,8 @@ export function candidateGraphToSection(
       type: 'gallery',
       title: graph.section.title,
       description: graph.section.description,
+      cta_text: graph.section.cta?.text || '',
+      cta_url: graph.section.cta?.url || '',
       layout: graph.section.layout,
       images: graph.section.images,
       initial_index: graph.section.initialIndex,

@@ -16,6 +16,7 @@ const galleryGraph = {
     type: 'gallery',
     title: 'Safety',
     description: 'Advanced active safety features include:',
+    cta: { text: 'Learn More', url: '/vehicles/browse-range/navara.html#safety' },
     layout: 'carousel',
     images: [
       { url: 'https://example.test/a.jpg', alt: 'Front braking', caption: 'Intelligent braking', description: '' },
@@ -80,6 +81,18 @@ describe('adaptiveMatchGraphSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('rejects unsafe gallery call-to-action URLs', () => {
+    const result = adaptiveMatchGraphSchema.safeParse({
+      ...galleryGraph,
+      section: {
+        ...galleryGraph.section,
+        cta: { text: 'Learn More', url: 'javascript:alert(1)' },
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('allows generated markup only for deterministic static candidates', () => {
     const staticSection = {
       type: 'content-block',
@@ -124,6 +137,8 @@ describe('adaptive match graph conversion', () => {
       type: 'gallery',
       title: 'Safety',
       description: 'Advanced active safety features include:',
+      cta_text: 'Learn More',
+      cta_url: '/vehicles/browse-range/navara.html#safety',
       layout: 'carousel',
       _clone_region_id: 'safety',
       _adaptive_interaction: { kind: 'gallery-lightbox', wrap: true, keyboard: true },

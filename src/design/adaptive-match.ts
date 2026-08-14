@@ -20,6 +20,17 @@ const safeUrl = z.string().min(1).max(4_000).refine((value) => {
     return false;
   }
 }, 'Unsafe URL');
+const safeCtaUrl = z.string().max(4_000).refine((value) => {
+  if (!value) return true;
+  if (executablePattern.test(value) || /^(?:data|blob|file):/i.test(value)) return false;
+  if (value.startsWith('/') || value.startsWith('#')) return true;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}, 'Unsafe CTA URL');
 
 const layoutTokensSchema = z.object({
   maxWidthPx: z.number().int().min(240).max(2_400).optional(),
@@ -54,6 +65,11 @@ const imageSchema = z.object({
   description: safeText(4_000).default(''),
 }).strict();
 
+const ctaSchema = z.object({
+  text: safeText(500).default(''),
+  url: safeCtaUrl.default(''),
+}).strict();
+
 const contentBlockSchema = z.object({
   type: z.literal('content-block'),
   title: safeText(2_000).default(''),
@@ -68,6 +84,7 @@ const gallerySchema = z.object({
   type: z.literal('gallery'),
   title: safeText(2_000).default(''),
   description: safeText(4_000).default(''),
+  cta: ctaSchema.optional(),
   layout: z.enum(['carousel', 'grid']),
   images: z.array(imageSchema).min(1).max(60),
   initialIndex: z.number().int().min(0).max(59).default(0),
@@ -329,6 +346,14 @@ function candidateSectionJsonSchema(kind: AdaptiveMatchRequest['evidence']['dete
         type: { type: 'string', enum: ['gallery'] },
         title: { type: 'string' },
         description: { type: 'string' },
+        cta: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            text: { type: 'string' },
+            url: { type: 'string' },
+          },
+        },
         layout: { type: 'string', enum: kind === 'carousel' ? ['carousel'] : ['grid'] },
         images: { type: 'array', minItems: 1, maxItems: 60, items: imageJsonSchema },
         initialIndex: { type: 'integer', minimum: 0, maximum: 59 },
@@ -540,6 +565,7 @@ function interpretationExample(request: AdaptiveMatchRequest): Record<string, un
         type: 'gallery',
         title: request.evidence.content.text[0] || '',
         description: request.evidence.content.text[1] || '',
+        cta: { text: '', url: '' },
         layout: kind === 'carousel' ? 'carousel' : 'grid',
         images: [image],
         initialIndex: 0,
@@ -582,7 +608,7 @@ function buildPrompt(request: AdaptiveMatchRequest): string {
       operations: [{ op: 'set', path: '/section/title', value: 'Exact captured heading' }],
       explanation: 'Restore the captured heading.',
     };
-    return `${common}\n\nReturn exactly one CandidateMutation JSON object with version, regionId, operations, and explanation. Do not wrap the object in a content, candidate, result, or section key. Operations may target only /section or /interaction. Use only op values set, insert, remove, or move and use path (not target). Follow this exact shape (replace values using the evidence and QA failures):\n${JSON.stringify(example)}\nPrevious graph:\n${JSON.stringify(request.previousGraph)}\nDeterministic QA failures:\n${JSON.stringify(request.qaFailures)}`;
+    return `${common}\n\nReturn exactly one CandidateMutation JSON object with version, regionId, operations, and explanation. Do not wrap the object in a content, candidate, result, or section key. Operations may target only /section or /interaction. Use only op values set, insert, remove, or move and use path (not target). For a gallery action, set /section/cta to exactly {"text":"Learn More","url":"https://safe.example/path"}. Follow this exact shape (replace values using the evidence and QA failures):\n${JSON.stringify(example)}\nPrevious graph:\n${JSON.stringify(request.previousGraph)}\nDeterministic QA failures:\n${JSON.stringify(request.qaFailures)}`;
   }
   return `${common}\n\nReturn exactly one CandidateGraph JSON object with version, kind, regionId, confidence, section, and interaction. Do not wrap the object in a content, candidate, result, or section key. The server adds authoritative provenance. Follow this exact shape (replace values using the evidence):\n${JSON.stringify(interpretationExample(request))}`;
 }

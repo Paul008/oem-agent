@@ -47,6 +47,7 @@ describe('adaptiveMatchCandidate', () => {
       type: 'gallery',
       title: 'Safety',
       description: 'Advanced active safety features include:',
+      cta: { text: 'Learn More', url: '/vehicles/browse-range/navara.html#safety' },
       layout: 'carousel',
       images: [
         { url: 'https://example.test/one.png', alt: 'One', caption: 'One', description: '' },
@@ -60,6 +61,8 @@ describe('adaptiveMatchCandidate', () => {
 
     expect(container.querySelector('[data-adaptive-item="0"]')?.getAttribute('data-adaptive-active')).toBe('true')
     expect(container.textContent).toContain('Advanced active safety features include:')
+    expect(container.querySelector('[data-adaptive-cta]')?.textContent).toContain('Learn More')
+    expect(container.querySelector('[data-adaptive-cta]')?.getAttribute('href')).toBe('/vehicles/browse-range/navara.html#safety')
     expect(container.querySelectorAll('[data-adaptive-indicator]')).toHaveLength(2)
     ;(container.querySelector('[data-adaptive-next]') as HTMLButtonElement).click()
     await nextTick()
