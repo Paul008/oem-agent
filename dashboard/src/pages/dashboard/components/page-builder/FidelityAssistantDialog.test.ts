@@ -30,10 +30,17 @@ describe('fidelityAssistantDialog safety gates', () => {
   })
 
   it('reports incremental progress and avoids a second PNG decode pass', () => {
-    expect(source).toContain('import { toCanvas } from \'html-to-image\'')
-    expect(source).toMatch(/measurementStep\.value = `Measuring \$\{viewport\.name\}/)
+    expect(source).toContain('import { getFontEmbedCSS, toCanvas } from \'html-to-image\'')
+    expect(source).toMatch(/measurementStep\.value = `Capturing \$\{viewport\.name\} OEM/)
     expect(source).toContain('results.value = [...measured]')
     expect(source).toContain('withFidelityMeasurementTimeout')
     expect(source).not.toContain('async function dataUrlImageData')
+  })
+
+  it('reuses embedded font CSS and does not render a viewport pair concurrently', () => {
+    expect(source).toContain('fontEmbedCSS')
+    expect(source).toContain('getFontEmbedCSS')
+    expect(source).not.toMatch(/Promise\.all\(\[\s*captureFrame\(/)
+    expect(source).toContain('FRAME_DESKTOP_CAPTURE_TIMEOUT_MS = 60_000')
   })
 })

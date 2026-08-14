@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCanvas } from 'html-to-image'
+import { getFontEmbedCSS, toCanvas } from 'html-to-image'
 import { AlertTriangle, CheckCircle2, Eye, Loader2, ScanSearch, Sparkles } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -43,13 +43,16 @@ const emit = defineEmits<{
   'apply': [section: Record<string, any>]
 }>()
 
-const VIEWPORTS = [
-  { name: 'desktop' as const, width: 1440, height: 1100 },
-  { name: 'tablet' as const, width: 1024, height: 900 },
-  { name: 'mobile' as const, width: 390, height: 844 },
-]
 const FRAME_ASSET_TIMEOUT_MS = 10_000
-const FRAME_CAPTURE_TIMEOUT_MS = 20_000
+const FRAME_FONT_EMBED_TIMEOUT_MS = 30_000
+const FRAME_DESKTOP_CAPTURE_TIMEOUT_MS = 60_000
+const FRAME_TABLET_CAPTURE_TIMEOUT_MS = 45_000
+const FRAME_MOBILE_CAPTURE_TIMEOUT_MS = 30_000
+const VIEWPORTS = [
+  { name: 'desktop' as const, width: 1440, height: 1100, captureTimeoutMs: FRAME_DESKTOP_CAPTURE_TIMEOUT_MS },
+  { name: 'tablet' as const, width: 1024, height: 900, captureTimeoutMs: FRAME_TABLET_CAPTURE_TIMEOUT_MS },
+  { name: 'mobile' as const, width: 390, height: 844, captureTimeoutMs: FRAME_MOBILE_CAPTURE_TIMEOUT_MS },
+]
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const selectedViewport = ref<ViewportName>('desktop')
@@ -164,7 +167,27 @@ async function waitForFrame(frame: HTMLIFrameElement, requiredFonts: string[]) {
   await new Promise(resolve => setTimeout(resolve, 150))
 }
 
-async function captureFrame(frame: HTMLIFrameElement, width: number, height: number, requiredFonts: string[]): Promise<CapturedFrame> {
+async function prepareFontEmbedCss(frame: HTMLIFrameElement, requiredFonts: string[], label: string): Promise<string> {
+  await waitForFrame(frame, requiredFonts)
+  const body = frame.contentDocument?.body
+  if (!body)
+    throw new Error('Comparison body is unavailable')
+  return withFidelityMeasurementTimeout(
+    () => getFontEmbedCSS(body, { cacheBust: false }),
+    FRAME_FONT_EMBED_TIMEOUT_MS,
+    `${label} font preparation`,
+  )
+}
+
+async function captureFrame(
+  frame: HTMLIFrameElement,
+  width: number,
+  height: number,
+  requiredFonts: string[],
+  fontEmbedCSS: string,
+  timeoutMs: number,
+  label: string,
+): Promise<CapturedFrame> {
   await waitForFrame(frame, requiredFonts)
   const body = frame.contentDocument?.body
   if (!body)
@@ -173,6 +196,7 @@ async function captureFrame(frame: HTMLIFrameElement, width: number, height: num
     () => toCanvas(body, {
       backgroundColor: '#ffffff',
       cacheBust: false,
+      fontEmbedCSS,
       pixelRatio: 1,
       width,
       height,
@@ -180,8 +204,8 @@ async function captureFrame(frame: HTMLIFrameElement, width: number, height: num
       canvasHeight: height,
       style: { margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden' },
     }),
-    FRAME_CAPTURE_TIMEOUT_MS,
-    `${width}px comparison capture`,
+    timeoutMs,
+    `${width}px ${label} capture`,
   )
   const context = canvas.getContext('2d')
   if (!context)
@@ -231,20 +255,51 @@ async function measure() {
     const referenceFonts = extractDeclaredFontFamilies(props.originalCss)
     const candidateCss = [props.candidateSection?._generated_css, props.candidateSection?._tailwind_leftover_css].filter(Boolean).join('\n')
     const candidateFonts = extractDeclaredFontFamilies(candidateCss)
+    const desktopPair = framePairs.get('desktop')
+    if (!desktopPair?.reference || !desktopPair.candidate)
+      throw new Error('desktop comparison frames are not ready')
+    measurementStep.value = 'Preparing OEM fonts'
+    const referenceFontEmbedCss = await prepareFontEmbedCss(desktopPair.reference, referenceFonts, 'OEM')
+    if (token !== runToken)
+      return
+    measurementStep.value = 'Preparing conversion fonts'
+    const candidateFontEmbedCss = await prepareFontEmbedCss(desktopPair.candidate, candidateFonts, 'Conversion')
+    if (token !== runToken)
+      return
     for (const [index, viewport] of VIEWPORTS.entries()) {
-      measurementStep.value = `Measuring ${viewport.name} (${index + 1}/${VIEWPORTS.length})`
       const pair = framePairs.get(viewport.name)
       if (!pair?.reference || !pair.candidate)
         throw new Error(`${viewport.name} comparison frames are not ready`)
-      const [reference, candidate] = await Promise.all([
-        captureFrame(pair.reference, viewport.width, viewport.height, referenceFonts),
-        captureFrame(pair.candidate, viewport.width, viewport.height, candidateFonts),
-      ])
+      measurementStep.value = `Capturing ${viewport.name} OEM (${index + 1}/${VIEWPORTS.length})`
+      const reference = await captureFrame(
+        pair.reference,
+        viewport.width,
+        viewport.height,
+        referenceFonts,
+        referenceFontEmbedCss,
+        viewport.captureTimeoutMs,
+        'OEM',
+      )
       if (token !== runToken)
         return
+      measurementStep.value = `Capturing ${viewport.name} conversion (${index + 1}/${VIEWPORTS.length})`
+      const candidate = await captureFrame(
+        pair.candidate,
+        viewport.width,
+        viewport.height,
+        candidateFonts,
+        candidateFontEmbedCss,
+        viewport.captureTimeoutMs,
+        'conversion',
+      )
+      if (token !== runToken)
+        return
+      measurementStep.value = `Comparing ${viewport.name} (${index + 1}/${VIEWPORTS.length})`
       const comparison = compareRegionPixels(reference.pixels.data, candidate.pixels.data)
       measured.push({
-        ...viewport,
+        name: viewport.name,
+        width: viewport.width,
+        height: viewport.height,
         mismatchRatio: comparison.mismatchRatio,
         status: comparison.status,
         reference: reference.dataUrl,

@@ -5,11 +5,20 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 
 import FidelityAssistantDialog from './FidelityAssistantDialog.vue'
 
-vi.mock('html-to-image', () => ({
+const htmlToImageMocks = vi.hoisted(() => ({
+  getFontEmbedCSS: vi.fn(() => Promise.resolve('')),
   toCanvas: vi.fn(() => new Promise<HTMLCanvasElement>(() => {})),
 }))
 
+vi.mock('html-to-image', () => ({
+  getFontEmbedCSS: htmlToImageMocks.getFontEmbedCSS,
+  toCanvas: htmlToImageMocks.toCanvas,
+}))
+
 afterEach(() => {
+  vi.clearAllTimers()
+  vi.useRealTimers()
+  vi.clearAllMocks()
   document.body.innerHTML = ''
 })
 
@@ -40,7 +49,7 @@ describe('fidelityAssistantDialog measurement lifecycle', () => {
     expect(initialButton?.disabled).toBe(false)
     initialButton?.click()
     await nextTick()
-    expect(findMeasureButton()?.textContent).toContain('Measuring desktop (1/3)')
+    expect(findMeasureButton()?.textContent).toContain('Preparing OEM fonts')
     expect(findMeasureButton()?.disabled).toBe(true)
 
     open.value = false
@@ -50,6 +59,33 @@ describe('fidelityAssistantDialog measurement lifecycle', () => {
 
     expect(findMeasureButton()?.textContent).toContain('Measure all viewports')
     expect(findMeasureButton()?.disabled).toBe(false)
+
+    app.unmount()
+    container.remove()
+  })
+
+  it('captures the OEM and conversion sequentially to avoid Safari canvas contention', async () => {
+    vi.useFakeTimers()
+    const container = document.createElement('div')
+    document.body.append(container)
+    const app = createApp(FidelityAssistantDialog, {
+      open: true,
+      oemId: 'nissan-au-navara',
+      regionId: 'hero',
+      originalHtml: '<main>OEM reference</main>',
+      originalCss: '',
+      candidateSection: { _generated_html: '<main>Candidate</main>' },
+    })
+    app.mount(container)
+    await nextTick()
+
+    findMeasureButton()?.click()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(htmlToImageMocks.getFontEmbedCSS).toHaveBeenCalledTimes(2)
+    expect(htmlToImageMocks.toCanvas).toHaveBeenCalledTimes(1)
+    expect(findMeasureButton()?.textContent).toContain('Capturing desktop OEM')
 
     app.unmount()
     container.remove()
