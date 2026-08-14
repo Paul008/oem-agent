@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
 import { encodeUrl } from '../utils/image-proxy';
-import { extractGacStylesheetUrls, nissanNavaraFallbackUrl, rewriteCssAssetUrlsForMediaProxy } from './media';
+import {
+  extractGacStylesheetUrls,
+  isAllowedMediaHost,
+  nissanNavaraFallbackUrl,
+  rewriteCssAssetUrlsForMediaProxy,
+} from './media';
+
+describe('isAllowedMediaHost', () => {
+  it('allows the Nissan Storyblok CDN used by current Navara assets', () => {
+    expect(isAllowedMediaHost('storyblok-assets.prod.nissan.eu')).toBe(true);
+  });
+
+  it('continues to reject untrusted lookalike hosts', () => {
+    expect(isAllowedMediaHost('storyblok-assets.prod.nissan.eu.example.com')).toBe(false);
+  });
+});
 
 describe('rewriteCssAssetUrlsForMediaProxy', () => {
   it('rewrites relative and absolute CSS assets to the media proxy', () => {

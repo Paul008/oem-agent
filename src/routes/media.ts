@@ -92,6 +92,7 @@ const ALLOWED_HOSTS = new Set([
   'www-asia.nissan-cdn.net',
   'ms-prd.apn.mediaserver.heliosnissan.net',
   'a.storyblok.com',
+  'storyblok-assets.prod.nissan.eu',
   'payloadb.therefinerydesign.com',
   'kgm.com.au',
   'www.gwmanz.com',
