@@ -89,6 +89,7 @@ const fidelityRegionId = ref('')
 const fidelityOriginalHtml = ref('')
 const fidelityOriginalCss = ref('')
 const fidelityCandidateSection = ref<Record<string, any> | null>(null)
+const fidelityRecipeArtifact = ref<Record<string, unknown> | null>(null)
 const editorSectionId = ref<string | null>(null)
 const styleGuideTokens = ref<Record<string, any> | null>(null)
 const compareLayoutMode = ref<CompareLayoutMode>('accurate')
@@ -748,6 +749,7 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     fidelityRegionId.value = regionId
     fidelityOriginalHtml.value = html
     fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
+    fidelityRecipeArtifact.value = tailwindRecipeArtifact && typeof tailwindRecipeArtifact === 'object' ? tailwindRecipeArtifact : null
     fidelityCandidateSection.value = {
       ...section,
       _clone_region_id: regionId,
@@ -1541,10 +1543,13 @@ async function rollbackPublication(revision: number) {
         v-if="canEditPreview"
         :open="fidelityOpen"
         :oem-id="oemId"
+        :model-slug="modelSlug"
+        :source-url="page?.source_url || ''"
         :region-id="fidelityRegionId"
         :original-html="fidelityOriginalHtml"
         :original-css="fidelityOriginalCss"
         :candidate-section="fidelityCandidateSection"
+        :recipe-artifact="fidelityRecipeArtifact"
         @update:open="fidelityOpen = $event"
         @apply="applyFidelityCandidate"
       />

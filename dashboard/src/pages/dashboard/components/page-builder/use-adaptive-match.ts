@@ -207,6 +207,7 @@ export function useAdaptiveMatch(options: UseAdaptiveMatchOptions) {
 
     if (!isCurrent(token))
       return
+    candidateGraph.value = bestAttempt.value?.graph ?? null
     state.stage = bestAttempt.value ? 'ready' : 'failed'
     state.error = bestAttempt.value ? '' : 'No safe Adaptive Match candidate was produced after three attempts.'
   }

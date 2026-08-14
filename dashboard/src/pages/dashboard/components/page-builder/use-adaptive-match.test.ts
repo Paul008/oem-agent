@@ -148,6 +148,7 @@ describe('useAdaptiveMatch', () => {
     expect(request.mock.calls[1][0].qaFailures).toContain('desktop pixel mismatch exceeds 3%')
     expect(controller.attempts.value).toHaveLength(3)
     expect(controller.bestAttempt.value?.attempt).toBe(2)
+    expect(controller.candidateGraph.value?.provenance.attempt).toBe(2)
     expect(controller.state.stage).toBe('ready')
   })
 

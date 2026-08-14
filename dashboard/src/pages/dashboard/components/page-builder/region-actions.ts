@@ -33,7 +33,7 @@ export function getRegionActions(region: CloneRegion): RegionAction[] {
     out.push({ id: 'prev-panel', label: 'Previous panel', group: 'layout' })
   }
   out.push({ id: 'height', label: 'Set visible height…', group: 'layout' })
-  out.push({ id: 'match-oem', label: 'Match OEM…', group: 'layout' })
+  out.push({ id: 'match-oem', label: 'Adaptive Match OEM…', group: 'layout' })
   out.push({
     id: 'convert-tailwind',
     label: 'Convert to Tailwind',

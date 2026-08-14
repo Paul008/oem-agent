@@ -96,6 +96,8 @@ describe('preview Tailwind conversion toolbar', () => {
     expect(source).toContain('buildEditableSectionFromCloneRegion({')
     expect(source).toContain('extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)')
     expect(source).toContain('<FidelityAssistantDialog')
+    expect(source).toContain(':recipe-artifact="fidelityRecipeArtifact"')
+    expect(source).toContain(':source-url="page?.source_url || \'\'"')
     expect(source).toContain('@apply="applyFidelityCandidate"')
     expect(applySource).toContain('addSectionFromLiveData(section)')
     expect(applySource).toContain('setActiveMode(\'sections\')')

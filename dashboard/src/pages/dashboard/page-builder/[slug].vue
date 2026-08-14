@@ -151,6 +151,7 @@ const fidelityRegionId = ref('')
 const fidelityOriginalHtml = ref('')
 const fidelityOriginalCss = ref('')
 const fidelityCandidateSection = ref<Record<string, any> | null>(null)
+const fidelityRecipeArtifact = ref<Record<string, unknown> | null>(null)
 const pageBuilderCanvas = ref<{
   patchCloneField: (payload: CloneFieldPatchPayload) => void
   duplicateRegion: (regionId: string) => void
@@ -272,6 +273,7 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
     fidelityRegionId.value = regionId
     fidelityOriginalHtml.value = html
     fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
+    fidelityRecipeArtifact.value = tailwindRecipeArtifact && typeof tailwindRecipeArtifact === 'object' ? tailwindRecipeArtifact : null
     fidelityCandidateSection.value = {
       ...section,
       _clone_region_id: regionId,
@@ -1462,10 +1464,13 @@ watch(
       v-if="canShowEditorActions && !isWriteProtectedPage"
       :open="fidelityOpen"
       :oem-id="oemId"
+      :model-slug="modelSlug"
+      :source-url="page?.source_url || ''"
       :region-id="fidelityRegionId"
       :original-html="fidelityOriginalHtml"
       :original-css="fidelityOriginalCss"
       :candidate-section="fidelityCandidateSection"
+      :recipe-artifact="fidelityRecipeArtifact"
       @update:open="fidelityOpen = $event"
       @apply="applyFidelityCandidate"
     />

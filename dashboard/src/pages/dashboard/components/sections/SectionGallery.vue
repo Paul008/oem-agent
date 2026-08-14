@@ -164,7 +164,7 @@ function adaptiveNext() {
     </div>
 
     <!-- Lightbox overlay -->
-    <Teleport to="body">
+    <Teleport to="body" :disabled="Boolean(section._adaptive_match)">
       <div
         v-if="lightboxIndex !== null && section.images[lightboxIndex]"
         ref="lightboxRoot"
