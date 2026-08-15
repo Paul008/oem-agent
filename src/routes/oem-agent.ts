@@ -1195,7 +1195,9 @@ app.post('/admin/adaptive-match', async (c) => {
     moonshot: c.env.MOONSHOT_API_KEY,
     anthropic: c.env.ANTHROPIC_API_KEY,
     google: c.env.GOOGLE_API_KEY,
-  }, undefined, c.env.AI);
+  }, undefined, c.env.AI, {
+    workersAiGatewayId: c.env.CF_AI_GATEWAY_GATEWAY_ID,
+  });
   const run = () => executeAdaptiveMatch(request, {
     infer: inferenceRequest => aiRouter.route(inferenceRequest),
     bucket: c.env.MOLTBOT_BUCKET,

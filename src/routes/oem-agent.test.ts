@@ -1755,20 +1755,21 @@ function adaptiveMatchRouteRequest() {
   };
 }
 
-function stubAdaptiveMatchGemini(graph = adaptiveMatchGraph) {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
-    candidates: [{ content: { parts: [{ text: JSON.stringify(graph) }] } }],
-    usageMetadata: { promptTokenCount: 1200, candidatesTokenCount: 400, totalTokenCount: 1600 },
-  }), {
-    headers: { 'content-type': 'application/json' },
-  })));
+function adaptiveMatchAi(graph = adaptiveMatchGraph) {
+  return {
+    run: vi.fn(async () => ({
+      response: JSON.stringify(graph),
+      usage: { prompt_tokens: 1200, completion_tokens: 400, total_tokens: 1600 },
+    })),
+  };
 }
 
 describe('oem-agent adaptive match route', () => {
-  function env(bucket: RouteMemoryR2Bucket) {
+  function env(bucket: RouteMemoryR2Bucket, ai?: ReturnType<typeof adaptiveMatchAi>) {
     return {
       MOLTBOT_BUCKET: bucket,
-      GOOGLE_API_KEY: 'google-test-key',
+      AI: ai,
+      CF_AI_GATEWAY_GATEWAY_ID: 'adaptive-match-test',
       SUPABASE_URL: 'https://supabase.test',
       SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
       DEV_MODE: 'true',
@@ -1803,13 +1804,13 @@ describe('oem-agent adaptive match route', () => {
   });
 
   it('returns a validated candidate and persists its attempt ledger', async () => {
-    stubAdaptiveMatchGemini();
+    const ai = adaptiveMatchAi();
     const bucket = new RouteMemoryR2Bucket();
     const response = await oemAgentApp.request('/admin/adaptive-match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(adaptiveMatchRouteRequest()),
-    }, env(bucket));
+    }, env(bucket, ai));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -1817,17 +1818,22 @@ describe('oem-agent adaptive match route', () => {
       runId: 'route-run-123',
       graph: { kind: 'carousel', regionId: 'safety' },
     });
+    expect(ai.run).toHaveBeenCalledWith(
+      'moonshotai/kimi-k3',
+      expect.objectContaining({ response_format: expect.objectContaining({ type: 'json_schema' }) }),
+      { gateway: { id: 'adaptive-match-test' } },
+    );
     expect(bucket.objects.has('model-pages/nissan-au/navara/adaptive-match/route-run-123/attempt-1.json')).toBe(true);
   });
 
   it('streams bounded progress events in order', async () => {
-    stubAdaptiveMatchGemini();
+    const ai = adaptiveMatchAi();
     const bucket = new RouteMemoryR2Bucket();
     const response = await oemAgentApp.request('/admin/adaptive-match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
       body: JSON.stringify(adaptiveMatchRouteRequest()),
-    }, env(bucket));
+    }, env(bucket, ai));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/event-stream');
@@ -1838,13 +1844,14 @@ describe('oem-agent adaptive match route', () => {
   });
 
   it('returns a bounded error and persists a rejected ledger when inference fails', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('provider unavailable', { status: 503 })));
+    const ai = adaptiveMatchAi();
+    ai.run.mockRejectedValue(new Error('provider unavailable'));
     const bucket = new RouteMemoryR2Bucket();
     const response = await oemAgentApp.request('/admin/adaptive-match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(adaptiveMatchRouteRequest()),
-    }, env(bucket));
+    }, env(bucket, ai));
 
     expect(response.status).toBe(502);
     const body = await response.json() as any;
