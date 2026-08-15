@@ -587,7 +587,7 @@ export class AiRouter {
   private apiKeys: Record<string, string>;
   private supabase: SupabaseClient | null;
   private aiBinding: Ai | null;
-  private workersAiGatewayId: string;
+  private workersAiGatewayId: string | null;
   private inferenceLog: AiInferenceLog[] = []; // Fallback when supabase is not provided
   private overrides: Record<string, Partial<RouteDecision>> | null = null;
 
@@ -606,7 +606,7 @@ export class AiRouter {
     };
     this.supabase = supabase || null;
     this.aiBinding = aiBinding || null;
-    this.workersAiGatewayId = runtimeOptions?.workersAiGatewayId?.trim() || 'default';
+    this.workersAiGatewayId = runtimeOptions?.workersAiGatewayId?.trim() || null;
   }
 
   /**
@@ -1133,6 +1133,9 @@ export class AiRouter {
 
     const isCloudflareKimiK3 = model === CLOUDFLARE_KIMI_K3_CONFIG.model;
     const isKimiK26 = model === KIMI_K2_6_CONFIG.model;
+    if (isCloudflareKimiK3 && !this.workersAiGatewayId) {
+      throw new Error('Cloudflare unified K3 requires CF_AI_GATEWAY_GATEWAY_ID');
+    }
     const defaults = isCloudflareKimiK3
       ? CLOUDFLARE_KIMI_K3_CONFIG.default_params
       : isKimiK26
@@ -1159,7 +1162,7 @@ export class AiRouter {
     // hosted @cf models use the binding directly and remain an independent
     // fallback if unified billing or the upstream provider is unavailable.
     const response = isCloudflareKimiK3
-      ? await (this.aiBinding as any).run(model, input, { gateway: { id: this.workersAiGatewayId } })
+      ? await (this.aiBinding as any).run(model, input, { gateway: { id: this.workersAiGatewayId! } })
       : await (this.aiBinding as any).run(model, input);
 
     // Workers AI returns { response: string } or OpenAI-compatible format

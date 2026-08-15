@@ -254,6 +254,25 @@ describe('Kimi K3 Page Builder defaults', () => {
     expect(run.mock.calls[1][2]).toBeUndefined();
   });
 
+  it('skips unified K3 when no AI Gateway is configured', async () => {
+    const run = vi.fn(async (..._args: unknown[]) => ({ response: '{"mutations":[]}', usage: {} }));
+    const router = new AiRouter({}, undefined, { run } as unknown as Ai);
+
+    const result = await router.route({
+      taskType: 'section_deep_analysis',
+      prompt: 'Repair this section',
+      requireJson: true,
+    });
+
+    expect(result).toMatchObject({
+      provider: 'workers_ai',
+      model: KIMI_K2_6_CONFIG.model,
+      wasFallback: true,
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls[0][0]).toBe(KIMI_K2_6_CONFIG.model);
+  });
+
   it('keeps database overrides above the K3 task default', async () => {
     const supabase = {
       from(table: string) {
