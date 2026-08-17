@@ -2166,6 +2166,51 @@ describe('oem-agent production embed routes', () => {
     expect(response.headers.get('Content-Type')).toContain('text/css');
     expect(stored.size).toBe(1);
   });
+
+  it('sends Navara origin headers when loading saved production stylesheets', async () => {
+    const stylesheetUrl = 'https://navara.nissan.com.au/_next/static/css/navara.css';
+    const navaraPage = {
+      version: 3,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main><section class="navara-feature">Feature</section></main>',
+            stylesheet_urls: [stylesheetUrl],
+            source_url: 'https://navara.nissan.com.au/',
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === 'pages/definitions/nissan-au/all-new-navara/latest.json'
+          ? jsonObject(navaraPage)
+          : null;
+      },
+      async put() {},
+    };
+    const fetchMock = vi.fn(async () => new Response('.navara-feature { color: red; }', {
+      headers: { 'content-type': 'text/css' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/pages/nissan-au-navara/production-embed-css', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('[data-model-slug="all-new-navara"] .navara-feature');
+    expect(fetchMock).toHaveBeenCalledWith(stylesheetUrl, {
+      headers: expect.objectContaining({
+        Origin: 'https://navara.nissan.com.au',
+        Referer: 'https://navara.nissan.com.au/',
+        'User-Agent': expect.stringContaining('Mozilla/5.0'),
+      }),
+    });
+  });
 });
 
 describe('oem-agent production embed runtime route', () => {

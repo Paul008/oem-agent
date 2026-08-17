@@ -78,6 +78,27 @@ const OEM_URL_BASES: Record<string, string> = {
   'mazda-au': 'https://www.mazda.com.au',
 };
 
+export function oemOriginRequestHeaders(oemId: string, sourceUrl: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'text/css,font/woff2,font/woff,font/ttf,application/font-woff,application/octet-stream,image/webp,image/avif,image/png,image/jpeg,image/*,*/*',
+    ...OEM_HEADERS[oemId],
+  };
+
+  let hostname = '';
+  try {
+    hostname = new URL(sourceUrl).hostname.toLowerCase();
+  } catch {
+    // The caller performs URL validation and will report malformed sources.
+  }
+
+  if (oemId === 'nissan-au' && hostname === 'navara.nissan.com.au') {
+    headers.Origin = 'https://navara.nissan.com.au';
+    headers.Referer = 'https://navara.nissan.com.au/';
+  }
+
+  return headers;
+}
+
 // ── Allowed origin hostnames (security: only proxy known OEM domains) ───────
 
 const ALLOWED_HOSTS = new Set([
@@ -398,14 +419,7 @@ media.get('/:oemId/:encodedUrl', async (c) => {
   if (cached) return cached;
 
   // Build headers for OEM origin
-  const headers: Record<string, string> = {
-    Accept: 'text/css,font/woff2,font/woff,font/ttf,application/font-woff,application/octet-stream,image/webp,image/avif,image/png,image/jpeg,image/*,*/*',
-    ...OEM_HEADERS[oemId],
-  };
-  if (oemId === 'nissan-au' && hostname === 'navara.nissan.com.au') {
-    headers.Origin = 'https://navara.nissan.com.au';
-    headers.Referer = 'https://navara.nissan.com.au/';
-  }
+  const headers = oemOriginRequestHeaders(oemId, resolved);
 
   let upstreamUrl = resolved;
   let originResp = await fetch(upstreamUrl, { headers });

@@ -15,7 +15,7 @@ import { streamSSE } from 'hono/streaming';
 import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
-import { encodeUrl } from './media';
+import { encodeUrl, oemOriginRequestHeaders } from './media';
 import { proxyImage } from '../utils/image-proxy';
 import {
   AiRouter,
@@ -2906,7 +2906,9 @@ app.get('/pages/:slug/production-embed-css', async (c) => {
     const cacheKey = scopedCssCacheKey(scope, url);
     let css = await cache.get(cacheKey);
     if (css === null) {
-      const response = await fetch(url).catch(() => null);
+      const response = await fetch(url, {
+        headers: oemOriginRequestHeaders(parsed.oemId, url),
+      }).catch(() => null);
       const rawCss = response && response.ok ? await response.text() : null;
       if (!rawCss) continue;
       const scoped = scopeCss(absolutizeCssAssetUrls(rawCss, url), scope);
