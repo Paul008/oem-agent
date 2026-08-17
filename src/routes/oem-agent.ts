@@ -111,7 +111,11 @@ function isPublicationEnabled(env: MoltbotEnv, pageId: string): boolean {
 
 function parsePublicationPageId(pageId: string): { oemId: OemId; modelSlug: string } | null {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(pageId)) return null;
-  return parseGeneratedPageSlug(pageId);
+  const parsed = parseGeneratedPageSlug(pageId);
+  if (!parsed) return null;
+  const prefix = `${parsed.oemId}-`;
+  if (!pageId.startsWith(prefix)) return null;
+  return { oemId: parsed.oemId, modelSlug: pageId.slice(prefix.length) };
 }
 
 function positiveInteger(value: unknown): number | null {

@@ -1400,6 +1400,48 @@ describe('oem-agent model page publication admin routes', () => {
     });
   });
 
+  it('publishes the saved draft stored under an allow-listed model page alias', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-navara', 21, 9);
+    seedPublicationState(publicationBucket, 'nissan-au-navara', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 9,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-17T07:00:00.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/navara/latest.json', { version: 9 });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-navara/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revision: 21,
+        expectedDraftVersion: 9,
+        validationDigest: readyValidation.digest,
+      }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-navara',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      published_revision: 21,
+      propagation: 'delivered',
+    });
+  });
+
   it('returns canonical failed candidate validation with publication history', async () => {
     const publicationBucket = new RouteMemoryR2Bucket();
     await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
