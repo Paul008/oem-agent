@@ -1931,6 +1931,116 @@ export function normalizeCapturedLazyMedia(result: DomCaptureResult, sourceUrl: 
   };
 }
 
+function capturePictureAssetKey(url: string, sourceUrl: string): string {
+  const absolute = absolutizeCaptureUrl(url, sourceUrl);
+  try {
+    const parsed = new URL(absolute);
+    parsed.search = '';
+    parsed.hash = '';
+    parsed.pathname = parsed.pathname.replace(/(\.(?:avif|gif|jpe?g|png|webp))\.ximg\..*$/i, '$1');
+    return parsed.toString();
+  } catch {
+    return absolute.replace(/[?#].*$/, '').replace(/(\.(?:avif|gif|jpe?g|png|webp))\.ximg\..*$/i, '$1');
+  }
+}
+
+function capturePictureUrls($: ReturnType<typeof load>, picture: Cheerio<any>, sourceUrl: string): string[] {
+  const urls: string[] = [];
+  picture.find('source, img').each((_index, node) => {
+    const element = $(node);
+    for (const attr of ['srcset', 'data-srcset']) {
+      const value = (element.attr(attr) || '').trim();
+      if (!value)
+        continue;
+      for (const entry of value.split(',')) {
+        const url = entry.trim().split(/\s+/)[0];
+        if (url)
+          urls.push(absolutizeCaptureUrl(url, sourceUrl));
+      }
+    }
+    const src = (element.attr('src') || element.attr('data-src') || '').trim();
+    if (src)
+      urls.push(absolutizeCaptureUrl(src, sourceUrl));
+  });
+  return urls.filter(url => isHttpCaptureUrl(url) && !isLikelyCaptureDocumentUrl(url, sourceUrl));
+}
+
+/**
+ * Nissan and several PACE sites hydrate `<picture>` sources for the current
+ * viewport only. Recover the complete SSR source sets while retaining the
+ * hydrated browser DOM, using shared desktop asset identities to pair images.
+ */
+export function mergeResponsivePictureSources(
+  browserCapture: DomCaptureResult,
+  initialCapture: DomCaptureResult,
+  sourceUrl: string,
+): DomCaptureResult {
+  const browser$ = load(browserCapture.html, {}, false);
+  const initial$ = load(initialCapture.html, {}, false);
+  const initialPictures = initial$('picture').toArray();
+  const used = new Set<number>();
+  const recoveredUrls: string[] = [];
+
+  browser$('picture').each((_browserIndex, browserNode) => {
+    const browserPicture = browser$(browserNode);
+    const browserKeys = new Set(capturePictureUrls(browser$, browserPicture as Cheerio<any>, sourceUrl)
+      .map(url => capturePictureAssetKey(url, sourceUrl)));
+    if (browserKeys.size === 0)
+      return;
+
+    let matchIndex = -1;
+    let matchScore = 0;
+    for (let index = 0; index < initialPictures.length; index += 1) {
+      if (used.has(index))
+        continue;
+      const candidate = initial$(initialPictures[index]);
+      const candidateKeys = new Set(capturePictureUrls(initial$, candidate as Cheerio<any>, sourceUrl)
+        .map(url => capturePictureAssetKey(url, sourceUrl)));
+      const score = [...browserKeys].filter(key => candidateKeys.has(key)).length;
+      if (score > matchScore) {
+        matchIndex = index;
+        matchScore = score;
+      }
+    }
+    if (matchIndex < 0 || matchScore === 0)
+      return;
+
+    used.add(matchIndex);
+    const initialPicture = initial$(initialPictures[matchIndex]);
+    const initialSources = initialPicture.find('source').toArray();
+    const browserSources = browserPicture.find('source').toArray();
+    const browserSourceByMedia = new Map(browserSources.map(node => [browser$(node).attr('media') || '', browser$(node)]));
+
+    initialSources.forEach((node, sourceIndex) => {
+      const source = initial$(node);
+      const media = source.attr('media') || '';
+      const target = browserSourceByMedia.get(media) || (browserSources[sourceIndex] ? browser$(browserSources[sourceIndex]) : null);
+      const srcset = (source.attr('srcset') || source.attr('data-srcset') || '').trim();
+      if (!target || !srcset)
+        return;
+      const normalized = normalizeCaptureSrcset(srcset, sourceUrl, new Set());
+      if (!normalized)
+        return;
+      target.attr('srcset', normalized);
+      target.removeAttr('data-srcset');
+      for (const entry of normalized.split(',')) {
+        const url = entry.trim().split(/\s+/)[0];
+        if (!url)
+          continue;
+        const key = capturePictureAssetKey(url, sourceUrl);
+        if (!browserKeys.has(key))
+          recoveredUrls.push(url);
+      }
+    });
+  });
+
+  return {
+    ...browserCapture,
+    html: browser$.html(),
+    imageUrls: [...new Set([...recoveredUrls, ...browserCapture.imageUrls])],
+  };
+}
+
 export function prioritizeCaptureImageUrls(
   imageUrls: string[],
   options: { heroUrl?: string; limit?: number } = {},
@@ -2070,8 +2180,13 @@ export class PageCapturer {
         // Browser render already passing its gate (even if SSR "wins" the styled-class
         // preference contest) or SSR simply not preferred: never swap it away. Still
         // merge SSR head parts so CSS enrichment applies to the kept browser render.
-        if (!initialDocumentPreferred && initialDocument.headParts.length > 0) {
-          capture.stylesheetLinks = mergeCaptureHeadParts(capture.stylesheetLinks, initialDocument.headParts);
+        if (!initialDocumentPreferred) {
+          if (initialDocument.capture) {
+            capture = mergeResponsivePictureSources(capture, initialDocument.capture, sourceUrl);
+          }
+          if (initialDocument.headParts.length > 0) {
+            capture.stylesheetLinks = mergeCaptureHeadParts(capture.stylesheetLinks, initialDocument.headParts);
+          }
         }
       }
 

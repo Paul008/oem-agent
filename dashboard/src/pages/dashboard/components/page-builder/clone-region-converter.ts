@@ -239,6 +239,19 @@ export interface BuildEditableSectionFromCloneRegionInput {
   compileTailwindRecipeArtifact?: (artifact: any) => Promise<any>
 }
 
+export interface BuildFidelityReferenceHtmlFromCloneRegionInput {
+  html?: string | null
+  tailwindRecipeArtifact?: any
+}
+
+export function buildFidelityReferenceHtmlFromCloneRegion(input: BuildFidelityReferenceHtmlFromCloneRegionInput): string {
+  const html = typeof input.html === 'string' ? input.html.trim() : ''
+  if (!html)
+    return ''
+
+  return inlineComputedStyleArtifactIntoHtml(html, input.tailwindRecipeArtifact)
+}
+
 export async function buildEditableSectionFromCloneRegion(input: BuildEditableSectionFromCloneRegionInput): Promise<Record<string, any> | null> {
   if (input.tailwindRecipeArtifact && input.compileTailwindRecipeArtifact) {
     try {

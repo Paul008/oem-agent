@@ -11,6 +11,7 @@ describe('getRegionActions', () => {
     expect(ids).toEqual(expect.arrayContaining(['background', 'height', 'convert-tailwind', 'hide', 'duplicate', 'delete']))
     expect(ids).toContain('bind-catalog')
     expect(ids).toContain('match-oem')
+    expect(actions.find(action => action.id === 'match-oem')?.label).toBe('Adaptive Match OEM…')
 
     const convert = actions.find(action => action.id === 'convert-tailwind')
     expect(convert?.children?.map(child => child.id)).toEqual([

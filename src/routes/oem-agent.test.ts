@@ -1383,6 +1383,139 @@ describe('oem-agent model page publication admin routes', () => {
     expect(body.history.map(entry => entry.revision)).toEqual([21]);
   });
 
+  it('accepts an allow-listed model page read alias for publication', async () => {
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-navara/publication/history', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: new RouteMemoryR2Bucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-navara',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      state: null,
+      candidateValidation: null,
+      history: [],
+    });
+  });
+
+  it('publishes the saved draft stored under an allow-listed model page alias', async () => {
+    const publicationBucket = new RouteMemoryR2Bucket();
+    const definitions = new RouteMemoryR2Bucket();
+    await seedPublicationRevision(publicationBucket, 'nissan-au-navara', 21, 9);
+    seedPublicationState(publicationBucket, 'nissan-au-navara', {
+      publishedRevision: null,
+      history: [],
+      nextRevision: 22,
+      candidate: {
+        revision: 21,
+        draft_version: 9,
+        status: 'ready',
+        validation_digest: readyValidation.digest,
+        created_at: '2026-08-17T07:00:00.000Z',
+        created_by: 'editor@test',
+      },
+    });
+    definitions.seed('pages/definitions/nissan-au/navara/latest.json', { version: 9 });
+
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-navara/publication/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revision: 21,
+        expectedDraftVersion: 9,
+        validationDigest: readyValidation.digest,
+      }),
+    }, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      OEM_PAGE_BUCKET: publicationBucket,
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-navara',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      published_revision: 21,
+      propagation: 'delivered',
+    });
+  });
+
+  it('loads the saved alias draft before falling back to the canonical model page', async () => {
+    const definitions = new RouteMemoryR2Bucket();
+    definitions.seed('pages/definitions/nissan-au/navara/latest.json', {
+      id: 'nissan-au-navara',
+      slug: 'navara',
+      oem_id: 'nissan-au',
+      name: 'All-new Navara',
+      version: 10,
+      header: { slides: [] },
+      content: { sections: [] },
+    });
+    definitions.seed('pages/definitions/nissan-au/all-new-navara/latest.json', {
+      id: 'nissan-au-all-new-navara',
+      slug: 'all-new-navara',
+      oem_id: 'nissan-au',
+      name: 'All-new Navara',
+      version: 3,
+      header: { slides: [] },
+      content: { sections: [] },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', {
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    const response = await oemAgentApp.request('/pages/nissan-au-navara', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      BROWSER: {} as Fetcher,
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      id: 'nissan-au-navara',
+      slug: 'navara',
+      version: 10,
+    });
+    expect(definitions.reads[0]).toBe('pages/definitions/nissan-au/navara/latest.json');
+  });
+
+  it('falls back to the canonical model page when an alias has no saved draft', async () => {
+    const definitions = new RouteMemoryR2Bucket();
+    definitions.seed('pages/definitions/nissan-au/all-new-navara/latest.json', {
+      id: 'nissan-au-all-new-navara',
+      slug: 'all-new-navara',
+      oem_id: 'nissan-au',
+      name: 'All-new Navara',
+      version: 3,
+      header: { slides: [] },
+      content: { sections: [] },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', {
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    const response = await oemAgentApp.request('/pages/nissan-au-navara', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      BROWSER: {} as Fetcher,
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      id: 'nissan-au-all-new-navara',
+      slug: 'all-new-navara',
+      version: 3,
+    });
+    expect(definitions.reads.slice(0, 2)).toEqual([
+      'pages/definitions/nissan-au/navara/latest.json',
+      'pages/definitions/nissan-au/all-new-navara/latest.json',
+    ]);
+  });
+
   it('returns canonical failed candidate validation with publication history', async () => {
     const publicationBucket = new RouteMemoryR2Bucket();
     await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
@@ -1698,6 +1831,171 @@ describe('oem-agent Tailwind recipe compiler route', () => {
   });
 });
 
+const adaptiveMatchGraph = {
+  version: 1,
+  kind: 'carousel',
+  regionId: 'safety',
+  confidence: 0.93,
+  section: {
+    type: 'gallery',
+    title: 'Safety',
+    layout: 'carousel',
+    images: [
+      { url: 'https://example.test/braking.png', alt: 'Braking', caption: 'Intelligent braking', description: '' },
+      { url: 'https://example.test/lane.png', alt: 'Lane departure', caption: 'Lane departure warning', description: '' },
+    ],
+    initialIndex: 0,
+    lightbox: false,
+    layoutTokens: { desktopColumns: 3, tabletColumns: 2, mobileColumns: 1, gapPx: 16 },
+    appearanceTokens: { backgroundColor: '#ffffff', textColor: '#111111', imageFit: 'contain' },
+  },
+  interaction: { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true },
+  provenance: { strategy: 'ai-interpretation', attempt: 1 },
+};
+
+function adaptiveMatchRouteRequest() {
+  return {
+    version: 1,
+    mode: 'interpret',
+    runId: 'route-run-123',
+    attempt: 1,
+    contactSheetBase64: 'ZmFrZS1wbmc=',
+    evidence: {
+      version: 1,
+      oemId: 'nissan-au',
+      modelSlug: 'navara',
+      sourceUrl: 'https://www.nissan.com.au/vehicles/browse-range/navara.html',
+      regionId: 'safety',
+      html: '<section class="swiper"><article class="swiper-slide">Safety</article></section>',
+      css: '.swiper{display:flex}',
+      recipeArtifact: null,
+      detection: { kind: 'carousel', confidence: 0.95, markers: ['swiper'], itemCount: 2, requiresAi: true },
+      interactionStates: [{ id: 'initial', activeIndex: 0, visibleItems: [0], expandedItems: [] }],
+      viewports: [
+        { name: 'desktop', width: 1440, height: 1100 },
+        { name: 'tablet', width: 1024, height: 900 },
+        { name: 'mobile', width: 390, height: 844 },
+      ],
+      content: {
+        text: ['Safety', 'Intelligent braking', 'Lane departure warning'],
+        assets: [
+          { url: 'https://example.test/braking.png', alt: 'Braking', required: true },
+          { url: 'https://example.test/lane.png', alt: 'Lane departure', required: true },
+        ],
+      },
+    },
+    qaFailures: [],
+  };
+}
+
+function adaptiveMatchAi(graph = adaptiveMatchGraph) {
+  return {
+    run: vi.fn(async () => ({
+      response: JSON.stringify(graph),
+      usage: { prompt_tokens: 1200, completion_tokens: 400, total_tokens: 1600 },
+    })),
+  };
+}
+
+describe('oem-agent adaptive match route', () => {
+  function env(bucket: RouteMemoryR2Bucket, ai?: ReturnType<typeof adaptiveMatchAi>) {
+    return {
+      MOLTBOT_BUCKET: bucket,
+      AI: ai,
+      CF_AI_GATEWAY_GATEWAY_ID: 'adaptive-match-test',
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never;
+  }
+
+  it('rejects malformed or invalid requests before inference', async () => {
+    const bucket = new RouteMemoryR2Bucket();
+    const malformed = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{',
+    }, env(bucket));
+    expect(malformed.status).toBe(400);
+
+    const invalid = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...adaptiveMatchRouteRequest(), attempt: 4 }),
+    }, env(bucket));
+    expect(invalid.status).toBe(400);
+    const invalidProvider = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...adaptiveMatchRouteRequest(),
+        modelOverride: { provider: 'untrusted-provider', model: 'model' },
+      }),
+    }, env(bucket));
+    expect(invalidProvider.status).toBe(400);
+    expect([...bucket.objects.keys()].some(key => key.includes('/adaptive-match/'))).toBe(false);
+  });
+
+  it('returns a validated candidate and persists its attempt ledger', async () => {
+    const ai = adaptiveMatchAi();
+    const bucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(adaptiveMatchRouteRequest()),
+    }, env(bucket, ai));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      success: true,
+      runId: 'route-run-123',
+      graph: { kind: 'carousel', regionId: 'safety' },
+    });
+    expect(ai.run).toHaveBeenCalledWith(
+      'moonshotai/kimi-k3',
+      expect.objectContaining({ response_format: expect.objectContaining({ type: 'json_schema' }) }),
+      { gateway: { id: 'adaptive-match-test' } },
+    );
+    expect(bucket.objects.has('model-pages/nissan-au/navara/adaptive-match/route-run-123/attempt-1.json')).toBe(true);
+  });
+
+  it('streams bounded progress events in order', async () => {
+    const ai = adaptiveMatchAi();
+    const bucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify(adaptiveMatchRouteRequest()),
+    }, env(bucket, ai));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+    const body = await response.text();
+    const eventNames = [...body.matchAll(/^event: (.+)$/gm)].map(match => match[1]);
+    expect(eventNames).toEqual(['accepted', 'interpreting', 'validated', 'persisted', 'complete']);
+    expect(body).toContain('"runId":"route-run-123"');
+  });
+
+  it('returns a bounded error and persists a rejected ledger when inference fails', async () => {
+    const ai = adaptiveMatchAi();
+    ai.run.mockRejectedValue(new Error('provider unavailable'));
+    const bucket = new RouteMemoryR2Bucket();
+    const response = await oemAgentApp.request('/admin/adaptive-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(adaptiveMatchRouteRequest()),
+    }, env(bucket, ai));
+
+    expect(response.status).toBe(502);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.error.length).toBeLessThanOrEqual(2_000);
+    const ledger = bucket.objects.get('model-pages/nissan-au/navara/adaptive-match/route-run-123/attempt-1.json');
+    expect(ledger).toBeTruthy();
+    expect(JSON.parse(ledger!.body)).toMatchObject({ status: 'rejected' });
+  });
+});
+
 describe('oem-agent clone update route', () => {
   it.each([
     {
@@ -2000,6 +2298,51 @@ describe('oem-agent production embed routes', () => {
     expect(css).toContain('.oem-production-scope[data-oem-id="mitsubishi-au"][data-model-slug="outlander"] .hero');
     expect(response.headers.get('Content-Type')).toContain('text/css');
     expect(stored.size).toBe(1);
+  });
+
+  it('sends Navara origin headers when loading saved production stylesheets', async () => {
+    const stylesheetUrl = 'https://navara.nissan.com.au/_next/static/css/navara.css';
+    const navaraPage = {
+      version: 3,
+      content: {
+        modes: {
+          clone: {
+            rendered: '<main><section class="navara-feature">Feature</section></main>',
+            stylesheet_urls: [stylesheetUrl],
+            source_url: 'https://navara.nissan.com.au/',
+          },
+        },
+      },
+    };
+    const bucket = {
+      async get(key: string) {
+        return key === 'pages/definitions/nissan-au/all-new-navara/latest.json'
+          ? jsonObject(navaraPage)
+          : null;
+      },
+      async put() {},
+    };
+    const fetchMock = vi.fn(async () => new Response('.navara-feature { color: red; }', {
+      headers: { 'content-type': 'text/css' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await oemAgentApp.request('/pages/nissan-au-navara/production-embed-css', {}, {
+      MOLTBOT_BUCKET: bucket,
+      SUPABASE_URL: 'https://supabase.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('[data-model-slug="all-new-navara"] .navara-feature');
+    expect(fetchMock).toHaveBeenCalledWith(stylesheetUrl, {
+      headers: expect.objectContaining({
+        Origin: 'https://navara.nissan.com.au',
+        Referer: 'https://navara.nissan.com.au/',
+        'User-Agent': expect.stringContaining('Mozilla/5.0'),
+      }),
+    });
   });
 });
 

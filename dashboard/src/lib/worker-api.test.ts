@@ -16,6 +16,7 @@ import {
   importLegacyPage,
   mapAndStructurePage,
   publishModelPagePublicationCandidate,
+  requestAdaptiveMatch,
   rollbackModelPagePublication,
   saveDealerOverrides,
   scoreRegionQuality,
@@ -333,6 +334,118 @@ describe('worker-api compileTailwindRecipeArtifact', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/oem-agent/admin/compile-tailwind-recipe')
     expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
     expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({ artifact }))
+  })
+})
+
+const adaptiveMatchApiGraph = {
+  version: 1,
+  kind: 'carousel',
+  regionId: 'safety',
+  confidence: 0.93,
+  section: {
+    type: 'gallery',
+    title: 'Safety',
+    layout: 'carousel',
+    images: [{ url: 'https://example.test/braking.png', alt: 'Braking', caption: 'Braking', description: '' }],
+    initialIndex: 0,
+    lightbox: false,
+    layoutTokens: {},
+    appearanceTokens: {},
+  },
+  interaction: { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true },
+  provenance: {
+    strategy: 'ai-interpretation',
+    attempt: 1,
+    provider: 'google_gemini',
+    model: 'gemini-3.1-pro-preview',
+  },
+}
+
+function adaptiveMatchApiResponse() {
+  return {
+    success: true,
+    runId: 'client-run-1',
+    attempt: 1,
+    graph: adaptiveMatchApiGraph,
+    provider: 'google_gemini',
+    model: 'gemini-3.1-pro-preview',
+    latencyMs: 321,
+    usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+  }
+}
+
+function adaptiveMatchApiRequest() {
+  return {
+    version: 1 as const,
+    mode: 'interpret' as const,
+    runId: 'client-run-1',
+    attempt: 1,
+    contactSheetBase64: 'data:image/png;base64,ZmFrZS1wbmc=',
+    evidence: {
+      version: 1 as const,
+      oemId: 'nissan-au',
+      modelSlug: 'navara',
+      sourceUrl: 'https://www.nissan.com.au/navara',
+      regionId: 'safety',
+      html: '<section class="swiper">Safety</section>',
+      css: '.swiper{display:flex}',
+      recipeArtifact: null,
+      detection: { kind: 'carousel' as const, confidence: 0.9, markers: ['swiper'], itemCount: 1, requiresAi: true },
+      interactionStates: [{ id: 'initial', activeIndex: 0, visibleItems: [0], expandedItems: [] }],
+      viewports: [{ name: 'desktop' as const, width: 1440, height: 900 }],
+      content: { text: ['Safety'], assets: [] },
+    },
+    qaFailures: [],
+  }
+}
+
+describe('worker-api requestAdaptiveMatch', () => {
+  it('streams authenticated progress and returns the validated complete event', async () => {
+    const timeoutSignal = AbortSignal.abort(new DOMException('timed out', 'TimeoutError'))
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeoutSignal)
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: { session: { access_token: 'adaptive-session-token' } },
+    } as any)
+    const result = adaptiveMatchApiResponse()
+    const sse = [
+      'event: accepted\ndata: {"attempt":1}\n\n',
+      'event: interpreting\ndata: {"attempt":1}\n\n',
+      'event: validated\ndata: {"attempt":1}\n\n',
+      'event: persisted\ndata: {"attempt":1}\n\n',
+      `event: complete\ndata: ${JSON.stringify(result)}\n\n`,
+    ].join('')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(sse, {
+      headers: { 'content-type': 'text/event-stream; charset=utf-8' },
+    })))
+    const progress: string[] = []
+
+    await expect(requestAdaptiveMatch(adaptiveMatchApiRequest(), {
+      onProgress: event => progress.push(event.event),
+    })).resolves.toMatchObject({ graph: { kind: 'carousel', regionId: 'safety' } })
+
+    expect(progress).toEqual(['accepted', 'interpreting', 'validated', 'persisted', 'complete'])
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toContain('/api/v1/oem-agent/admin/adaptive-match')
+    const headers = new Headers(options?.headers)
+    expect(headers.get('Authorization')).toBe('Bearer adaptive-session-token')
+    expect(headers.get('Accept')).toBe('text/event-stream')
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(options?.method).toBe('POST')
+    expect(timeoutSpy).toHaveBeenCalledWith(180_000)
+    expect(options?.signal).toBe(timeoutSignal)
+    expect(JSON.parse(String(options?.body)).contactSheetBase64).toBe('ZmFrZS1wbmc=')
+  })
+
+  it('accepts the JSON fallback response', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(adaptiveMatchApiResponse()), {
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    await expect(requestAdaptiveMatch(adaptiveMatchApiRequest())).resolves.toMatchObject({
+      success: true,
+      runId: 'client-run-1',
+      graph: { regionId: 'safety' },
+    })
   })
 })
 

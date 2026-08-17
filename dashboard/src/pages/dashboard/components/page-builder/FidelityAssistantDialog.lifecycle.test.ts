@@ -1,93 +1,167 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createApp, defineComponent, h, nextTick, ref } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApp, defineComponent, h, nextTick, reactive, ref } from 'vue'
+
+import type { CandidateGraph } from '@/lib/adaptive-match-contracts'
 
 import FidelityAssistantDialog from './FidelityAssistantDialog.vue'
 
-const htmlToImageMocks = vi.hoisted(() => ({
-  getFontEmbedCSS: vi.fn(() => Promise.resolve('')),
-  toSvg: vi.fn(() => new Promise<string>(() => {})),
+const adaptiveMocks = vi.hoisted(() => ({ useAdaptiveMatch: vi.fn() }))
+
+vi.mock('./use-adaptive-match', () => ({
+  useAdaptiveMatch: adaptiveMocks.useAdaptiveMatch,
+}))
+
+vi.mock('@/lib/worker-api', () => ({
+  requestAdaptiveMatch: vi.fn(),
 }))
 
 vi.mock('html-to-image', () => ({
-  getFontEmbedCSS: htmlToImageMocks.getFontEmbedCSS,
-  toSvg: htmlToImageMocks.toSvg,
+  getFontEmbedCSS: vi.fn(async () => ''),
+  toSvg: vi.fn(async () => 'data:image/svg+xml;base64,PHN2Zy8+'),
 }))
 
-afterEach(() => {
-  vi.clearAllTimers()
-  vi.useRealTimers()
-  vi.clearAllMocks()
-  document.body.innerHTML = ''
-})
-
-function findMeasureButton(): HTMLButtonElement | null {
-  return document.body.querySelector<HTMLButtonElement>('[data-fidelity-measure="true"]')
+function candidateGraph(): CandidateGraph {
+  return {
+    version: 1,
+    kind: 'carousel',
+    regionId: 'safety',
+    confidence: 0.9,
+    section: {
+      type: 'gallery',
+      title: 'Safety',
+      description: '',
+      layout: 'carousel',
+      images: [{ url: 'https://example.test/safety.png', alt: 'Safety', caption: 'Safety', description: '' }],
+      initialIndex: 0,
+      lightbox: false,
+      layoutTokens: {},
+      appearanceTokens: {},
+    },
+    interaction: { kind: 'carousel', wrap: true, keyboard: true, showIndicators: true },
+    provenance: { strategy: 'ai-interpretation', attempt: 1 },
+  }
 }
 
-describe('fidelityAssistantDialog measurement lifecycle', () => {
-  it('does not reopen in a permanently measuring state after cancellation', async () => {
+function mockController(ready = false) {
+  const graph = candidateGraph()
+  return {
+    state: reactive({ stage: ready ? 'ready' : 'idle', runId: 'dialog-run', error: '' }),
+    attempts: ref(ready
+      ? [{
+          attempt: 1,
+          safe: true,
+          graph,
+          qa: {
+            passed: true,
+            failures: [],
+            failureCount: 0,
+            worstMismatchRatio: 0.02,
+            interactionPassed: 1,
+            contentMatched: 2,
+            overflowFailures: 0,
+          },
+        }]
+      : []),
+    progress: ref(null),
+    candidateGraph: ref(null),
+    bestAttempt: ref(ready
+      ? {
+          attempt: 1,
+          safe: true,
+          graph,
+          qa: {
+            passed: true,
+            failures: [],
+            failureCount: 0,
+            worstMismatchRatio: 0.02,
+            interactionPassed: 1,
+            contentMatched: 2,
+            overflowFailures: 0,
+          },
+        }
+      : null),
+    bestCandidate: ref(ready ? graph : null),
+    start: vi.fn(async () => {}),
+    cancel: vi.fn(),
+  }
+}
+
+function props(open: boolean) {
+  return {
+    open,
+    oemId: 'nissan-au',
+    modelSlug: 'navara',
+    sourceUrl: 'https://www.nissan.com.au/navara',
+    regionId: 'safety',
+    originalHtml: '<section>Safety</section>',
+    originalCss: '',
+    recipeArtifact: null,
+    candidateSection: { type: 'content-block', _generated_html: '<section>Safety</section>' },
+  }
+}
+
+beforeEach(() => {
+  adaptiveMocks.useAdaptiveMatch.mockReset()
+})
+
+afterEach(() => {
+  document.body.innerHTML = ''
+  vi.clearAllMocks()
+})
+
+describe('adaptive Match dialog lifecycle', () => {
+  it('starts on open, cancels on close, and starts cleanly when reopened', async () => {
+    const controller = mockController()
+    adaptiveMocks.useAdaptiveMatch.mockReturnValue(controller)
     const open = ref(true)
-    const container = document.createElement('div')
-    document.body.append(container)
+    const host = document.createElement('div')
+    document.body.append(host)
     const app = createApp(defineComponent({
       setup: () => () => h(FidelityAssistantDialog, {
-        'open': open.value,
-        'oemId': 'nissan-au-navara',
-        'regionId': 'hero',
-        'originalHtml': '<main>OEM reference</main>',
-        'originalCss': '',
-        'candidateSection': { _generated_html: '<main>Candidate</main>' },
+        ...props(open.value),
         'onUpdate:open': value => open.value = value,
       }),
     }))
-    app.mount(container)
+    app.mount(host)
     await nextTick()
-
-    const initialButton = findMeasureButton()
-    expect(initialButton?.disabled).toBe(false)
-    initialButton?.click()
     await nextTick()
-    expect(findMeasureButton()?.textContent).toContain('Preparing OEM fonts')
-    expect(findMeasureButton()?.disabled).toBe(true)
+    expect(controller.start).toHaveBeenCalledTimes(1)
 
     open.value = false
     await nextTick()
+    expect(controller.cancel).toHaveBeenCalled()
     open.value = true
     await nextTick()
-
-    expect(findMeasureButton()?.textContent).toContain('Measure all viewports')
-    expect(findMeasureButton()?.disabled).toBe(false)
-
+    await nextTick()
+    expect(controller.start).toHaveBeenCalledTimes(2)
     app.unmount()
-    container.remove()
   })
 
-  it('captures the OEM and conversion sequentially to avoid Safari canvas contention', async () => {
-    vi.useFakeTimers()
-    const container = document.createElement('div')
-    document.body.append(container)
+  it('emits Apply only after the explicit enabled action', async () => {
+    const controller = mockController(true)
+    adaptiveMocks.useAdaptiveMatch.mockReturnValue(controller)
+    const applied = vi.fn()
+    const host = document.createElement('div')
+    document.body.append(host)
     const app = createApp(FidelityAssistantDialog, {
-      open: true,
-      oemId: 'nissan-au-navara',
-      regionId: 'hero',
-      originalHtml: '<main>OEM reference</main>',
-      originalCss: '',
-      candidateSection: { _generated_html: '<main>Candidate</main>' },
+      ...props(true),
+      onApply: applied,
     })
-    app.mount(container)
+    app.mount(host)
     await nextTick()
 
-    findMeasureButton()?.click()
+    expect(applied).not.toHaveBeenCalled()
+    const apply = document.body.querySelector<HTMLButtonElement>('[data-adaptive-apply]')
+    expect(apply?.disabled).toBe(false)
+    apply?.click()
     await nextTick()
-    await vi.advanceTimersByTimeAsync(600)
-
-    expect(htmlToImageMocks.getFontEmbedCSS).toHaveBeenCalledTimes(2)
-    expect(htmlToImageMocks.toSvg).toHaveBeenCalledTimes(1)
-    expect(findMeasureButton()?.textContent).toContain('Capturing desktop OEM')
-
+    expect(applied).toHaveBeenCalledTimes(1)
+    expect(applied.mock.calls[0][0]).toMatchObject({
+      type: 'gallery',
+      _adaptive_match: { run_id: 'dialog-run', qa: { passed: true } },
+    })
     app.unmount()
-    container.remove()
   })
 })

@@ -28,9 +28,9 @@ async function fetchImageAsDataUrl(url: string, fetchAsset: typeof fetch): Promi
  * indefinitely defer the load event when html-to-image replaces an image source on
  * its detached clone, so the clone must receive an already self-contained data URL.
  */
-export async function inlineFidelityFrameImages(document: Document, options: InlineFidelityFrameImagesOptions = {}): Promise<void> {
+export async function inlineFidelityFrameImages(root: Document | Element, options: InlineFidelityFrameImagesOptions = {}): Promise<void> {
   const fetchAsset = options.fetch ?? fetch
-  await Promise.all(Array.from(document.images).map(async (image) => {
+  await Promise.all(Array.from(root.querySelectorAll('img')).map(async (image) => {
     const url = image.currentSrc || image.src
     if (!url || /^(?:data|blob):/i.test(url))
       return

@@ -88,6 +88,37 @@ export const GEMMA4_CONFIG = {
   },
 };
 
+// Kimi K3 through Cloudflare's unified model catalog. This is a third-party
+// model invoked through the Workers AI binding and an AI Gateway.
+export const CLOUDFLARE_KIMI_K3_CONFIG = {
+  model: 'moonshotai/kimi-k3',
+  max_context: 1_048_576,
+  supports_vision: true,
+  supports_thinking: true,
+  supports_tools: true,
+  default_params: {
+    temperature: 0.2,
+    max_tokens: 16384,
+    reasoning_effort: 'high' as const,
+  },
+};
+
+// Cloudflare-hosted Kimi fallback. Keeping the fallback on a separately
+// hosted model avoids repeating a third-party gateway or billing failure.
+export const KIMI_K2_6_CONFIG = {
+  model: '@cf/moonshotai/kimi-k2.6',
+  max_context: 262144,
+  supports_vision: true,
+  supports_thinking: true,
+  supports_tools: true,
+  cost_per_m_input: 0.95,
+  cost_per_m_output: 4.00,
+  default_params: {
+    temperature: 0.2,
+    max_tokens: 16384,
+  },
+};
+
 export const AI_ROUTER_CONFIG: AiRouterConfig = {
   groq: {
     api_base: 'https://api.groq.com/openai/v1',
@@ -193,7 +224,9 @@ export const AVAILABLE_MODELS: AvailableModel[] = [
   // Gemini
   { id: 'gemini-2.5-pro', provider: 'google_gemini', model: GEMINI_CONFIG.model, displayName: 'Gemini 2.5 Pro', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
   { id: 'gemini-3.1-pro', provider: 'google_gemini', model: GEMINI_31_CONFIG.model, displayName: 'Gemini 3.1 Pro', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning'] },
-  // Workers AI (on-network, zero egress)
+  // Workers AI and Cloudflare unified-catalog models
+  { id: 'kimi-k3-cloudflare', provider: 'workers_ai', model: CLOUDFLARE_KIMI_K3_CONFIG.model, displayName: 'Kimi K3 (Cloudflare)', costTier: 'high', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
+  { id: 'kimi-k2.6-workers-ai', provider: 'workers_ai', model: KIMI_K2_6_CONFIG.model, displayName: 'Kimi K2.6 (Workers AI)', costTier: 'medium', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
   { id: 'gemma-4-26b', provider: 'workers_ai', model: GEMMA4_CONFIG.model, displayName: 'Gemma 4 26B A4B (Workers AI)', costTier: 'free', capabilities: ['vision', 'json_mode', 'reasoning', 'tools'] },
   // Anthropic
   { id: 'claude-haiku-4.5', provider: 'anthropic', model: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4.5', costTier: 'low', capabilities: ['json_mode', 'tools'] },
@@ -419,13 +452,14 @@ export const TASK_ROUTING: Record<AiTaskType, RouteDecision> = {
     fallbackModel: AI_ROUTER_CONFIG.groq.models.powerful.model,
   },
 
-  // Adaptive Pipeline — Deep section analysis with vision
+  // Adaptive Pipeline — Deep section analysis with frontier multimodal Kimi.
+  // K3 runs through Cloudflare's unified catalog; K2.6 is Cloudflare-hosted.
   section_deep_analysis: {
-    provider: 'google_gemini',
-    model: GEMINI_31_CONFIG.model,
+    provider: 'workers_ai',
+    model: CLOUDFLARE_KIMI_K3_CONFIG.model,
     modelConfig: null,
     fallbackProvider: 'workers_ai',
-    fallbackModel: GEMMA4_CONFIG.model,
+    fallbackModel: KIMI_K2_6_CONFIG.model,
   },
 
   // Adaptive Pipeline — Bespoke component generation (Claude)
@@ -465,6 +499,8 @@ export interface InferenceRequest {
   importRunId?: string;
   useBatch?: boolean;
   requireJson?: boolean;
+  /** JSON Schema for providers that support schema-constrained structured output. */
+  responseJsonSchema?: Record<string, unknown>;
   /** Override max tokens for this request */
   maxTokens?: number;
   /** Per-request model override (highest priority — used by page builder A/B testing) */
@@ -482,6 +518,10 @@ export interface InferenceResponse {
   model: string;
   latency_ms: number;
   wasFallback: boolean;
+}
+
+export interface AiRouterRuntimeOptions {
+  workersAiGatewayId?: string;
 }
 
 export function calculateInferenceCost(
@@ -521,6 +561,13 @@ export function calculateInferenceCost(
   }
 
   if (provider === 'workers_ai') {
+    if (model === KIMI_K2_6_CONFIG.model) {
+      return promptM * KIMI_K2_6_CONFIG.cost_per_m_input
+        + completionM * KIMI_K2_6_CONFIG.cost_per_m_output;
+    }
+    // K3 is billed by the third-party unified catalog. Do not report the call
+    // as free when its current catalog rate is not represented locally.
+    if (model === CLOUDFLARE_KIMI_K3_CONFIG.model) return null;
     return 0;
   }
 
@@ -540,10 +587,16 @@ export class AiRouter {
   private apiKeys: Record<string, string>;
   private supabase: SupabaseClient | null;
   private aiBinding: Ai | null;
+  private workersAiGatewayId: string | null;
   private inferenceLog: AiInferenceLog[] = []; // Fallback when supabase is not provided
   private overrides: Record<string, Partial<RouteDecision>> | null = null;
 
-  constructor(apiKeys: { groq?: string; together?: string; moonshot?: string; anthropic?: string; google?: string }, supabase?: SupabaseClient, aiBinding?: Ai) {
+  constructor(
+    apiKeys: { groq?: string; together?: string; moonshot?: string; anthropic?: string; google?: string },
+    supabase?: SupabaseClient,
+    aiBinding?: Ai,
+    runtimeOptions?: AiRouterRuntimeOptions,
+  ) {
     this.apiKeys = {
       [AI_ROUTER_CONFIG.groq.api_key_env]: apiKeys.groq || '',
       [AI_ROUTER_CONFIG.kimi_k2_5.api_key_env]: apiKeys.together || '',
@@ -553,6 +606,7 @@ export class AiRouter {
     };
     this.supabase = supabase || null;
     this.aiBinding = aiBinding || null;
+    this.workersAiGatewayId = runtimeOptions?.workersAiGatewayId?.trim() || null;
   }
 
   /**
@@ -1000,7 +1054,12 @@ export class AiRouter {
       generationConfig: {
         temperature: defaults.temperature,
         maxOutputTokens: request.maxTokens || defaults.maxOutputTokens,
-        responseMimeType: request.requireJson !== false ? 'application/json' : 'text/plain',
+        ...(request.responseJsonSchema
+          ? {
+              responseMimeType: 'application/json',
+              responseJsonSchema: request.responseJsonSchema,
+            }
+          : { responseMimeType: request.requireJson !== false ? 'application/json' : 'text/plain' }),
       },
     };
 
@@ -1043,9 +1102,9 @@ export class AiRouter {
   }
 
   /**
-   * Call Workers AI (Gemma 4 26B A4B — on-network, zero egress).
-   * Uses the Ai binding from the Worker environment.
-   * Supports vision via OpenAI-compatible chat completions format.
+   * Call a Cloudflare-hosted or unified-catalog model through the Workers AI
+   * binding. Supports vision and schema-constrained structured output through
+   * the OpenAI-compatible chat completions format.
    */
   private async callWorkersAi(
     model: string,
@@ -1072,12 +1131,39 @@ export class AiRouter {
       content = request.prompt;
     }
 
-    const response = await this.aiBinding.run(model as any, {
+    const isCloudflareKimiK3 = model === CLOUDFLARE_KIMI_K3_CONFIG.model;
+    const isKimiK26 = model === KIMI_K2_6_CONFIG.model;
+    if (isCloudflareKimiK3 && !this.workersAiGatewayId) {
+      throw new Error('Cloudflare unified K3 requires CF_AI_GATEWAY_GATEWAY_ID');
+    }
+    const defaults = isCloudflareKimiK3
+      ? CLOUDFLARE_KIMI_K3_CONFIG.default_params
+      : isKimiK26
+        ? KIMI_K2_6_CONFIG.default_params
+        : GEMMA4_CONFIG.default_params;
+    const input = {
       messages: [{ role: 'user', content }],
-      temperature: GEMMA4_CONFIG.default_params.temperature,
-      max_tokens: request.maxTokens || GEMMA4_CONFIG.default_params.max_tokens,
-      ...(request.requireJson !== false ? { response_format: { type: 'json_object' } } : {}),
-    }) as any;
+      temperature: defaults.temperature,
+      max_tokens: request.maxTokens || defaults.max_tokens,
+      ...(isCloudflareKimiK3
+        ? { reasoning_effort: CLOUDFLARE_KIMI_K3_CONFIG.default_params.reasoning_effort }
+        : {}),
+      ...(isKimiK26 ? { chat_template_kwargs: { thinking: true } } : {}),
+      ...(request.requireJson !== false
+        ? {
+            response_format: request.responseJsonSchema
+              ? { type: 'json_schema', json_schema: request.responseJsonSchema }
+              : { type: 'json_object' },
+          }
+        : {}),
+    };
+
+    // Unified-catalog third-party models require an AI Gateway. Cloudflare-
+    // hosted @cf models use the binding directly and remain an independent
+    // fallback if unified billing or the upstream provider is unavailable.
+    const response = isCloudflareKimiK3
+      ? await (this.aiBinding as any).run(model, input, { gateway: { id: this.workersAiGatewayId! } })
+      : await (this.aiBinding as any).run(model, input);
 
     // Workers AI returns { response: string } or OpenAI-compatible format
     const text = typeof response === 'string'

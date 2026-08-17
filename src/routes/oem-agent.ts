@@ -11,10 +11,11 @@
 
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
-import { encodeUrl } from './media';
+import { encodeUrl, oemOriginRequestHeaders } from './media';
 import { proxyImage } from '../utils/image-proxy';
 import {
   AiRouter,
@@ -64,6 +65,7 @@ import {
 } from '../design/model-page-publication/storage';
 import { compileTailwindRecipe } from '../design/tailwind-recipe-compiler';
 import { isTailwindRecipeArtifact } from '../design/tailwind-recipe-types';
+import { adaptiveMatchRequestSchema, executeAdaptiveMatch } from '../design/adaptive-match';
 import { enrichBrandTokensWithHostedFontFaces } from '../design/hosted-oem-fonts';
 import type { CompileRunStatus } from '../design/compiler-contracts';
 import onboardingRoutes from './onboarding';
@@ -78,10 +80,12 @@ import {
   isModelPageWriteProtected,
   type ModelPageWriteIntent,
 } from '../model-page-protection';
+import { resolveModelPageReadAlias } from '../model-page-aliases';
 
 type PageBuilderModelOverride = { provider?: AiProvider; model?: string };
 
 function parseGeneratedPageSlug(slug: string): { oemId: OemId; modelSlug: string } | null {
+  slug = resolveModelPageReadAlias(slug);
   for (const oemId of allOemIds) {
     const prefix = `${oemId}-`;
     if (slug.startsWith(prefix)) {
@@ -106,8 +110,12 @@ function isPublicationEnabled(env: MoltbotEnv, pageId: string): boolean {
 }
 
 function parsePublicationPageId(pageId: string): { oemId: OemId; modelSlug: string } | null {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(pageId)) return null;
   const parsed = parseGeneratedPageSlug(pageId);
-  return parsed && `${parsed.oemId}-${parsed.modelSlug}` === pageId ? parsed : null;
+  if (!parsed) return null;
+  const prefix = `${parsed.oemId}-`;
+  if (!pageId.startsWith(prefix)) return null;
+  return { oemId: parsed.oemId, modelSlug: pageId.slice(prefix.length) };
 }
 
 function positiveInteger(value: unknown): number | null {
@@ -1161,6 +1169,72 @@ app.post('/admin/compile-tailwind-recipe', async (c) => {
 
   const result = compileTailwindRecipe(artifact);
   return c.json({ success: true, result });
+});
+
+/**
+ * POST /api/v1/oem-agent/admin/adaptive-match
+ *
+ * Interprets or repairs one captured OEM region. The endpoint never updates the
+ * page draft; it only returns a validated candidate and records its attempt.
+ */
+app.post('/admin/adaptive-match', async (c) => {
+  let rawBody: unknown;
+  try {
+    rawBody = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  const parsed = adaptiveMatchRequestSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    const error = parsed.error.issues
+      .map(issue => `${issue.path.join('.') || 'request'}: ${issue.message}`)
+      .join('; ')
+      .slice(0, 2_000);
+    return c.json({ success: false, error: `Invalid Adaptive Match request: ${error}` }, 400);
+  }
+
+  const request = parsed.data;
+  const aiRouter = new AiRouter({
+    groq: c.env.GROQ_API_KEY,
+    together: c.env.TOGETHER_API_KEY,
+    moonshot: c.env.MOONSHOT_API_KEY,
+    anthropic: c.env.ANTHROPIC_API_KEY,
+    google: c.env.GOOGLE_API_KEY,
+  }, undefined, c.env.AI, {
+    workersAiGatewayId: c.env.CF_AI_GATEWAY_GATEWAY_ID,
+  });
+  const run = () => executeAdaptiveMatch(request, {
+    infer: inferenceRequest => aiRouter.route(inferenceRequest),
+    bucket: c.env.MOLTBOT_BUCKET,
+  });
+
+  if (c.req.header('Accept')?.includes('text/event-stream')) {
+    return streamSSE(c, async (stream) => {
+      const write = (event: string, data: unknown) => stream.writeSSE({ event, data: JSON.stringify(data) });
+      await write('accepted', { runId: request.runId, attempt: request.attempt });
+      await write(request.mode === 'repair' ? 'repairing' : 'interpreting', {
+        runId: request.runId,
+        attempt: request.attempt,
+      });
+      try {
+        const result = await run();
+        await write('validated', { runId: result.runId, attempt: result.attempt });
+        await write('persisted', { runId: result.runId, attempt: result.attempt });
+        await write('complete', result);
+      } catch (error) {
+        const message = (error instanceof Error ? error.message : 'Adaptive Match failed').slice(0, 2_000);
+        await write('error', { runId: request.runId, attempt: request.attempt, error: message });
+      }
+    });
+  }
+
+  try {
+    return c.json(await run());
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : 'Adaptive Match failed').slice(0, 2_000);
+    return c.json({ success: false, error: message }, 502);
+  }
 });
 
 /**
@@ -2836,7 +2910,9 @@ app.get('/pages/:slug/production-embed-css', async (c) => {
     const cacheKey = scopedCssCacheKey(scope, url);
     let css = await cache.get(cacheKey);
     if (css === null) {
-      const response = await fetch(url).catch(() => null);
+      const response = await fetch(url, {
+        headers: oemOriginRequestHeaders(parsed.oemId, url),
+      }).catch(() => null);
       const rawCss = response && response.ok ? await response.text() : null;
       if (!rawCss) continue;
       const scoped = scopeCss(absolutizeCssAssetUrls(rawCss, url), scope);
@@ -3201,7 +3277,8 @@ app.get('/admin/pages/:pageId/publication/history', async (c) => {
  * Get an AI-generated VehicleModelPage by slug
  */
 app.get('/pages/:slug', async (c) => {
-  const slug = c.req.param('slug');
+  const requestedSlug = c.req.param('slug');
+  const slug = requestedSlug;
 
   const { PageGenerator } = await import('../design/page-generator');
   const { DesignAgent } = await import('../design/agent');
@@ -3240,12 +3317,15 @@ app.get('/pages/:slug', async (c) => {
 
   // Attach cost from ai_inference_log if available
   try {
+    const storedModelSlug = typeof page.slug === 'string' && page.slug
+      ? page.slug
+      : slug.replace(/^[a-z]+-au-/, '');
     const { data: costRows } = await supabase
       .from('ai_inference_log')
       .select('cost_usd')
       .eq('task_type', 'page_structuring')
       .eq('status', 'success')
-      .or(`metadata_json->>model_slug.eq.${slug.replace(/^[a-z]+-au-/, '')}`)
+      .or(`metadata_json->>model_slug.eq.${storedModelSlug}`)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -3258,7 +3338,7 @@ app.get('/pages/:slug', async (c) => {
   if (page.content?.sections?.length) {
     // Extract oemId and modelSlug from the page slug (e.g. "foton-au-tunland")
     const pageOemId = page.oem_id || slug.replace(/-[^-]+$/, '');
-    const pageModelSlug = slug.replace(/^[a-z]+-[a-z]+-/, '');
+    const pageModelSlug = page.slug || slug.replace(/^[a-z]+-[a-z]+-/, '');
 
     try {
       // Get products for this model

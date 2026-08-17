@@ -1309,7 +1309,7 @@ watch(
               </button>
               <button
                 class="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Match OEM pixel fidelity"
+                title="Adaptive Match OEM"
                 @click="quickCloneMatchOem"
               >
                 <ScanSearch class="size-3.5" />

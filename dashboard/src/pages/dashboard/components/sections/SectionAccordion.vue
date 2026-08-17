@@ -1,14 +1,15 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
-defineProps<{
+const props = defineProps<{
   section: {
     type: 'accordion'
     title?: string
     items: Array<{ question: string, answer: string }>
     section_id?: string
+    allow_multiple?: boolean
   }
 }>()
 
@@ -19,11 +20,17 @@ const emit = defineEmits<{
 
 const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 const expanded = ref<Set<number>>(new Set())
+const accordionId = useId()
 
 function toggle(index: number) {
-  if (expanded.value.has(index))
+  if (expanded.value.has(index)) {
     expanded.value.delete(index)
-  else expanded.value.add(index)
+  }
+  else {
+    if (!props.section.allow_multiple)
+      expanded.value.clear()
+    expanded.value.add(index)
+  }
 }
 
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) {
@@ -34,7 +41,7 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
 </script>
 
 <template>
-  <div :id="section.section_id || undefined" class="px-8 py-10">
+  <div :id="section.section_id || undefined" class="px-8 py-10" data-adaptive-section="accordion">
     <h3
       class="text-xl font-bold mb-6 cursor-text outline-none"
       :style="{ opacity: section.title ? 1 : 0.4 }"
@@ -48,6 +55,11 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
     <div class="divide-y border rounded-lg">
       <div v-for="(item, i) in section.items" :key="i">
         <button
+          :id="`${accordionId}-trigger-${i}`"
+          type="button"
+          :aria-expanded="expanded.has(i)"
+          :aria-controls="`${accordionId}-panel-${i}`"
+          :data-adaptive-accordion-trigger="i"
           class="flex items-center justify-between w-full px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 transition-colors"
           @click="toggle(i)"
         >
@@ -56,7 +68,14 @@ function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: 
             {{ expanded.has(i) ? '−' : '+' }}
           </span>
         </button>
-        <div v-if="expanded.has(i)" class="px-4 pb-3 text-sm text-muted-foreground">
+        <div
+          v-if="expanded.has(i)"
+          :id="`${accordionId}-panel-${i}`"
+          role="region"
+          :aria-labelledby="`${accordionId}-trigger-${i}`"
+          :data-adaptive-panel="i"
+          class="px-4 pb-3 text-sm text-muted-foreground"
+        >
           {{ item.answer || 'No answer provided.' }}
         </div>
       </div>

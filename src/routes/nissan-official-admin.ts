@@ -65,6 +65,30 @@ function normalizedUrl(value: unknown): string | null {
   }
 }
 
+const NISSAN_STAGED_MODEL_ALIASES: Partial<Record<NissanModelSlug, readonly string[]>> = {
+  'all-new-navara': ['navara'],
+};
+
+const NISSAN_REVIEWED_SOURCE_ALIASES: Partial<Record<NissanModelSlug, readonly string[]>> = {
+  'all-new-navara': ['https://www.nissan.com.au/vehicles/browse-range/all-new-navara.html'],
+  z: ['https://www.nissan.com.au/vehicles/browse-range/z.html'],
+};
+
+export function nissanStagedModelSlugs(modelSlug: NissanModelSlug): string[] {
+  return [modelSlug, ...(NISSAN_STAGED_MODEL_ALIASES[modelSlug] || [])];
+}
+
+export function isReviewedNissanSourceUrl(
+  modelSlug: NissanModelSlug,
+  sourceUrl: unknown,
+  targetSourceUrl: string,
+): boolean {
+  const normalizedSource = normalizedUrl(sourceUrl);
+  if (!normalizedSource) return false;
+  return [targetSourceUrl, ...(NISSAN_REVIEWED_SOURCE_ALIASES[modelSlug] || [])]
+    .some(value => normalizedUrl(value) === normalizedSource);
+}
+
 function requireNissanOperator(c: Context<AppEnv>): Response | null {
   const email = c.get('accessUser')?.email?.trim().toLowerCase();
   if (!email) {
@@ -361,7 +385,9 @@ nissanOfficialAdmin.post('/promote-catalog', async (c) => {
   } catch {
     return c.json({ error: 'Reviewed Nissan model page is invalid' }, 409);
   }
-  const pageErrors = validateNissanModelPageArtifact(target, page);
+  const pageErrors = validateNissanModelPageArtifact(target, page, {
+    mode: pageMetadata.artifact_mode === 'clone' ? 'clone' : 'structured',
+  });
   if (pageErrors.length > 0) {
     return c.json({ error: 'Reviewed Nissan model page failed revalidation', details: pageErrors }, 409);
   }
@@ -602,13 +628,18 @@ nissanOfficialAdmin.post('/build-candidate', async (c) => {
   // Factual model/variant data must be staged before page generation.
   const { data: model, error: modelError } = await supabase
     .from('vehicle_models')
-    .select('id, source_url')
+    .select('id, slug, source_url')
     .eq('oem_id', 'nissan-au')
-    .eq('slug', modelSlug)
-    .maybeSingle();
+    .in('slug', nissanStagedModelSlugs(modelSlug))
+    .order('slug', { ascending: true })
+    .limit(10)
+    .then(({ data, error }) => ({
+      data: data?.find(item => item.slug === modelSlug) || data?.[0] || null,
+      error,
+    }));
   if (modelError) return c.json({ error: `Nissan model preflight failed: ${modelError.message}` }, 502);
   if (!model) return c.json({ error: 'Run the official staged Nissan sync before building this page' }, 409);
-  if (normalizedUrl(model.source_url) !== normalizedUrl(target.sourceUrl)) {
+  if (!isReviewedNissanSourceUrl(modelSlug, model.source_url, target.sourceUrl)) {
     return c.json({ error: 'Staged model source_url does not match the reviewed Nissan source' }, 409);
   }
   const { count: productCount, error: productError } = await supabase
@@ -675,7 +706,9 @@ nissanOfficialAdmin.get('/candidates/:modelSlug/:candidateId', async (c) => {
     candidate_key: key,
     status: object.customMetadata?.candidate_status || 'unknown',
     metadata: object.customMetadata || {},
-    validation_errors: validateNissanModelPageArtifact(target, page),
+    validation_errors: validateNissanModelPageArtifact(target, page, {
+      mode: object.customMetadata?.artifact_mode === 'clone' ? 'clone' : 'structured',
+    }),
     page,
   });
 });

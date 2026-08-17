@@ -15,7 +15,7 @@ import { usePageBuilder } from '@/composables/use-page-builder'
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '@/lib/oem-ids'
 import { scopeOemSection } from '@/lib/scope-oem-section'
 import { compileTailwindRecipeArtifact, fetchStyleGuide } from '@/lib/worker-api'
-import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '@/pages/dashboard/components/page-builder/clone-region-converter'
+import { buildCatalogSectionsFromModel, buildEditableSectionFromCloneRegion, buildFidelityReferenceHtmlFromCloneRegion, buildPreviewReplacementHtmlFromCloneRegion, convertCloneRegionsToTailwindSections, extractTailwindRecipeArtifactCss } from '@/pages/dashboard/components/page-builder/clone-region-converter'
 import { buildCloneStudioFrameHtmlForCanvas } from '@/pages/dashboard/components/page-builder/clone-studio-canvas-helpers'
 import FidelityAssistantDialog from '@/pages/dashboard/components/page-builder/FidelityAssistantDialog.vue'
 import PageBuilderCanvas from '@/pages/dashboard/components/page-builder/PageBuilderCanvas.vue'
@@ -89,6 +89,7 @@ const fidelityRegionId = ref('')
 const fidelityOriginalHtml = ref('')
 const fidelityOriginalCss = ref('')
 const fidelityCandidateSection = ref<Record<string, any> | null>(null)
+const fidelityRecipeArtifact = ref<Record<string, unknown> | null>(null)
 const editorSectionId = ref<string | null>(null)
 const styleGuideTokens = ref<Record<string, any> | null>(null)
 const compareLayoutMode = ref<CompareLayoutMode>('accurate')
@@ -746,8 +747,9 @@ async function onRegionAction({ action, regionId, html, tailwindRecipeArtifact }
       return
     }
     fidelityRegionId.value = regionId
-    fidelityOriginalHtml.value = html
+    fidelityOriginalHtml.value = buildFidelityReferenceHtmlFromCloneRegion({ html, tailwindRecipeArtifact })
     fidelityOriginalCss.value = extractTailwindRecipeArtifactCss(tailwindRecipeArtifact)
+    fidelityRecipeArtifact.value = tailwindRecipeArtifact && typeof tailwindRecipeArtifact === 'object' ? tailwindRecipeArtifact : null
     fidelityCandidateSection.value = {
       ...section,
       _clone_region_id: regionId,
@@ -1541,10 +1543,13 @@ async function rollbackPublication(revision: number) {
         v-if="canEditPreview"
         :open="fidelityOpen"
         :oem-id="oemId"
+        :model-slug="modelSlug"
+        :source-url="page?.source_url || ''"
         :region-id="fidelityRegionId"
         :original-html="fidelityOriginalHtml"
         :original-css="fidelityOriginalCss"
         :candidate-section="fidelityCandidateSection"
+        :recipe-artifact="fidelityRecipeArtifact"
         @update:open="fidelityOpen = $event"
         @apply="applyFidelityCandidate"
       />

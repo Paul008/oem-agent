@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Proposed for implementation planning
+**Status:** Superseded for selected-region matching by `2026-08-14-adaptive-match-oem-design.md`
 
 **Pilot:** `nissan-au-navara`
 

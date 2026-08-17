@@ -7,6 +7,64 @@ export interface RegionPixelComparison {
   status: RegionFidelityStatus
 }
 
+export interface RegionOverflowMeasurement {
+  scrollWidth: number
+  clientWidth: number
+  scrollHeight: number
+  clientHeight: number
+  horizontalOverflow: boolean
+  verticalOverflow: boolean
+  clippedMedia: number
+  clippedContent: boolean
+}
+
+function isDeliberatelyClipped(media: Element, root: Element, horizontal: boolean, vertical: boolean): boolean {
+  const view = media.ownerDocument?.defaultView
+  if (!view)
+    return false
+  let horizontalClip = !horizontal
+  let verticalClip = !vertical
+  let parent = media.parentElement
+  while (parent && parent !== root) {
+    const style = view.getComputedStyle(parent)
+    const overflowX = style.overflowX || style.overflow
+    const overflowY = style.overflowY || style.overflow
+    horizontalClip ||= /^(?:hidden|clip)$/.test(overflowX)
+    verticalClip ||= /^(?:hidden|clip)$/.test(overflowY)
+    if (horizontalClip && verticalClip)
+      return true
+    parent = parent.parentElement
+  }
+  return horizontalClip && verticalClip
+}
+
+export function measureRegionOverflow(root: Element): RegionOverflowMeasurement {
+  const scrollWidth = root.scrollWidth
+  const clientWidth = root.clientWidth
+  const scrollHeight = root.scrollHeight
+  const clientHeight = root.clientHeight
+  const horizontalOverflow = scrollWidth > clientWidth + 1
+  const verticalOverflow = scrollHeight > clientHeight + 1
+  const bounds = root.getBoundingClientRect()
+  const clippedMedia = Array.from(root.querySelectorAll('img, picture, video, svg, canvas')).reduce((count, media) => {
+    const rect = media.getBoundingClientRect()
+    const horizontal = rect.left < bounds.left - 1 || rect.right > bounds.right + 1
+    const vertical = rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1
+    const clipped = (horizontal || vertical) && !isDeliberatelyClipped(media, root, horizontal, vertical)
+    return count + Number(clipped)
+  }, 0)
+  return {
+    scrollWidth,
+    clientWidth,
+    scrollHeight,
+    clientHeight,
+    horizontalOverflow,
+    verticalOverflow,
+    clippedMedia,
+    clippedContent: horizontalOverflow || verticalOverflow || clippedMedia > 0,
+  }
+}
+
 export function classifyRegionFidelity(mismatchRatio: number): RegionFidelityStatus {
   if (!Number.isFinite(mismatchRatio) || mismatchRatio < 0)
     return 'mismatch'

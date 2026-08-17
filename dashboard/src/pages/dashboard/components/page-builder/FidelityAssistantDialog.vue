@@ -1,17 +1,35 @@
 <script lang="ts" setup>
 import { getFontEmbedCSS, toSvg } from 'html-to-image'
-import { AlertTriangle, CheckCircle2, Eye, Loader2, ScanSearch, Sparkles } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, Loader2, ScanSearch } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
 
+import type { CandidateGraph } from '@/lib/adaptive-match-contracts'
 import type { RegionFidelityStatus } from '@/lib/region-fidelity'
 
-import { extractDeclaredFontFamilies, inlineFidelityFrameImages, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
-import { withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
-import { compareRegionPixels } from '@/lib/region-fidelity'
-import { scoreRegionQuality } from '@/lib/worker-api'
+import { candidateGraphToSection } from '@/lib/adaptive-match-contracts'
+import { detectAdaptiveMatchInteraction } from '@/lib/adaptive-match-detection'
+import { evaluateAdaptiveCandidate } from '@/lib/adaptive-match-qa'
+import { inlineFidelityFrameImages, rewriteFidelityCssAssetUrls, rewriteFidelityHtmlAssetUrls, stripFidelitySrcsetAttributes } from '@/lib/fidelity-assets'
+import { withFidelityMeasurementFallback, withFidelityMeasurementTimeout } from '@/lib/fidelity-measurement'
+import { compareRegionPixels, measureRegionOverflow } from '@/lib/region-fidelity'
+import { requestAdaptiveMatch } from '@/lib/worker-api'
+
+import type { CapturedAdaptiveMatchEvidence } from './use-adaptive-match'
+
+import AdaptiveMatchFrame from './AdaptiveMatchFrame.vue'
+import { useAdaptiveMatch } from './use-adaptive-match'
 
 type ViewportName = 'desktop' | 'tablet' | 'mobile'
+interface CandidateFrameHandle {
+  ready: () => Promise<void>
+  root: () => HTMLElement | null
+  document: () => Document | null
+}
+
+interface CapturedFrame {
+  dataUrl: string
+  pixels: ImageData
+}
 
 interface ViewportResult {
   name: ViewportName
@@ -22,20 +40,21 @@ interface ViewportResult {
   reference: string
   candidate: string
   diff: string
-}
-
-interface CapturedFrame {
-  dataUrl: string
-  pixels: ImageData
+  horizontalOverflow: boolean
+  clippedContent: boolean
 }
 
 const props = defineProps<{
   open: boolean
   oemId: string
+  modelSlug: string
+  sourceUrl: string
   regionId: string
   originalHtml: string
   originalCss: string
+  recipeArtifact?: Record<string, unknown> | null
   candidateSection: Record<string, any> | null
+  modelOverride?: { provider?: string, model?: string, fallbackProvider?: string, fallbackModel?: string }
 }>()
 
 const emit = defineEmits<{
@@ -43,67 +62,24 @@ const emit = defineEmits<{
   'apply': [section: Record<string, any>]
 }>()
 
-const FRAME_ASSET_TIMEOUT_MS = 10_000
-const FRAME_FONT_EMBED_TIMEOUT_MS = 30_000
-const FRAME_DESKTOP_CAPTURE_TIMEOUT_MS = 60_000
-const FRAME_TABLET_CAPTURE_TIMEOUT_MS = 45_000
-const FRAME_MOBILE_CAPTURE_TIMEOUT_MS = 30_000
 const VIEWPORTS = [
-  { name: 'desktop' as const, width: 1440, height: 1100, captureTimeoutMs: FRAME_DESKTOP_CAPTURE_TIMEOUT_MS },
-  { name: 'tablet' as const, width: 1024, height: 900, captureTimeoutMs: FRAME_TABLET_CAPTURE_TIMEOUT_MS },
-  { name: 'mobile' as const, width: 390, height: 844, captureTimeoutMs: FRAME_MOBILE_CAPTURE_TIMEOUT_MS },
+  { name: 'desktop' as const, width: 1440, height: 1100, timeoutMs: 60_000 },
+  { name: 'tablet' as const, width: 1024, height: 900, timeoutMs: 45_000 },
+  { name: 'mobile' as const, width: 390, height: 844, timeoutMs: 30_000 },
 ]
+const FRAME_ASSET_TIMEOUT_MS = 10_000
+const FRAME_FONT_READY_TIMEOUT_MS = 3_000
+const FRAME_FONT_TIMEOUT_MS = 10_000
 const WORKER_BASE = import.meta.env.VITE_WORKER_URL || 'https://oem-agent.adme-dev.workers.dev'
 
 const selectedViewport = ref<ViewportName>('desktop')
 const evidenceMode = ref<'side-by-side' | 'overlay' | 'diff'>('side-by-side')
 const overlayOpacity = ref(50)
-const measuring = ref(false)
-const measurementStep = ref('')
-const measureError = ref('')
 const results = ref<ViewportResult[]>([])
-const aiReviewing = ref(false)
-const aiReview = ref<{ score: number, feedback: string, suggestions: string[] } | null>(null)
-const framePairs = new Map<ViewportName, { reference?: HTMLIFrameElement, candidate?: HTMLIFrameElement }>()
+const referenceFrames = new Map<ViewportName, HTMLIFrameElement>()
+const candidateFrames = new Map<ViewportName, CandidateFrameHandle>()
+const referenceCaptures = new Map<ViewportName, CapturedFrame>()
 const frameImageCache = new Map<string, Promise<string>>()
-let runToken = 0
-
-const selectedResult = computed(() => results.value.find(result => result.name === selectedViewport.value) ?? null)
-const worstResult = computed(() => [...results.value].sort((a, b) => b.mismatchRatio - a.mismatchRatio)[0] ?? null)
-const overallStatus = computed<RegionFidelityStatus>(() => worstResult.value?.status ?? 'mismatch')
-const canApply = computed(() => Boolean(
-  props.candidateSection
-  && results.value.length === VIEWPORTS.length
-  && overallStatus.value === 'pixel-perfect'
-  && !measureError.value
-  && !measuring.value,
-))
-
-watch(() => props.open, async (open) => {
-  if (!open) {
-    runToken += 1
-    measuring.value = false
-    measurementStep.value = ''
-    return
-  }
-  measuring.value = false
-  measurementStep.value = ''
-  selectedViewport.value = 'desktop'
-  evidenceMode.value = 'side-by-side'
-  results.value = []
-  aiReview.value = null
-  measureError.value = ''
-  await nextTick()
-})
-
-function setFrame(name: ViewportName, kind: 'reference' | 'candidate', value: Element | null) {
-  const pair = framePairs.get(name) ?? {}
-  if (value instanceof HTMLIFrameElement)
-    pair[kind] = value
-  else
-    delete pair[kind]
-  framePairs.set(name, pair)
-}
 
 function safeHtml(value: string): string {
   return String(value || '')
@@ -113,131 +89,99 @@ function safeHtml(value: string): string {
     .replace(/javascript:/gi, '')
 }
 
-function frameDocument(html: string, css = ''): string {
-  const proxiedCss = rewriteFidelityCssAssetUrls(css, props.oemId, WORKER_BASE)
-  const safeCss = proxiedCss.replace(/<\/style/gi, '<\\/style').replace(/javascript:/gi, '')
-  const safeBody = safeHtml(stripFidelitySrcsetAttributes(rewriteFidelityHtmlAssetUrls(html, props.oemId, WORKER_BASE)))
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${safeCss}\n*,*::before,*::after{animation:none!important;transition:none!important}html,body{margin:0;min-height:100%;background:#fff;color:#111}</style></head><body>${safeBody}</body></html>`
-}
-
 function referenceSrcdoc(): string {
-  return frameDocument(props.originalHtml, props.originalCss)
+  const css = rewriteFidelityCssAssetUrls(props.originalCss, props.oemId, WORKER_BASE)
+    .replace(/<\/style/gi, '<\\/style')
+    .replace(/javascript:/gi, '')
+  const html = safeHtml(stripFidelitySrcsetAttributes(rewriteFidelityHtmlAssetUrls(props.originalHtml, props.oemId, WORKER_BASE)))
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}\n*,*::before,*::after{animation:none!important;transition:none!important}html,body{margin:0;min-height:100%;background:#fff;color:#111}</style></head><body>${html}</body></html>`
 }
 
-function candidateSrcdoc(): string {
-  return frameDocument(
-    String(props.candidateSection?._generated_html || props.candidateSection?.content_html || ''),
-    [props.candidateSection?._generated_css, props.candidateSection?._tailwind_leftover_css].filter(Boolean).join('\n'),
-  )
+function setReferenceFrame(name: ViewportName, value: Element | null) {
+  if (value instanceof HTMLIFrameElement)
+    referenceFrames.set(name, value)
+  else
+    referenceFrames.delete(name)
 }
 
-async function waitForFrame(frame: HTMLIFrameElement, requiredFonts: string[]) {
-  const doc = frame.contentDocument
-  if (!doc)
-    throw new Error('Comparison frame is unavailable')
+function setCandidateFrame(name: ViewportName, value: unknown) {
+  if (value && typeof value === 'object' && 'ready' in value)
+    candidateFrames.set(name, value as CandidateFrameHandle)
+  else
+    candidateFrames.delete(name)
+}
+
+async function waitForAssets(root: HTMLElement, doc: Document, label: string): Promise<void> {
   if (doc.fonts) {
-    await withFidelityMeasurementTimeout(
+    await withFidelityMeasurementFallback(
       () => doc.fonts.ready,
-      FRAME_ASSET_TIMEOUT_MS,
-      'Comparison fonts',
+      FRAME_FONT_READY_TIMEOUT_MS,
+      `${label} fonts`,
+      null,
     )
   }
   await withFidelityMeasurementTimeout(
-    () => Promise.all(Array.from(doc.images).map(image => image.complete
+    () => Promise.all(Array.from(root.querySelectorAll('img')).map(image => image.complete
       ? Promise.resolve()
       : new Promise<void>((resolve) => {
           image.addEventListener('load', () => resolve(), { once: true })
           image.addEventListener('error', () => resolve(), { once: true })
         }))),
     FRAME_ASSET_TIMEOUT_MS,
-    'Comparison assets',
+    `${label} assets`,
   )
-  const brokenImages = Array.from(doc.images).filter(image => Boolean(image.currentSrc || image.src) && image.naturalWidth === 0)
-  if (brokenImages.length) {
-    const firstUrl = brokenImages[0].currentSrc || brokenImages[0].src
-    throw new Error(`Comparison asset failed to load: ${firstUrl}`)
-  }
-  const requiredFontSet = new Set(requiredFonts.map(family => family.toLowerCase()))
-  const missingFonts: string[] = []
-  doc.fonts?.forEach((fontFace) => {
-    const family = fontFace.family.replace(/^["']|["']$/g, '')
-    if (fontFace.status === 'error' && requiredFontSet.has(family.toLowerCase()))
-      missingFonts.push(family)
-  })
-  if (missingFonts.length)
-    throw new Error(`Comparison font failed to load: ${missingFonts.join(', ')}`)
-  await new Promise(resolve => setTimeout(resolve, 150))
+  const broken = Array.from(root.querySelectorAll('img')).find(image => Boolean(image.currentSrc || image.src) && image.naturalWidth === 0)
+  if (broken)
+    throw new Error(`Comparison asset failed to load: ${broken.currentSrc || broken.src}`)
 }
 
-async function prepareFontEmbedCss(frame: HTMLIFrameElement, requiredFonts: string[], label: string): Promise<string> {
-  await waitForFrame(frame, requiredFonts)
-  const body = frame.contentDocument?.body
-  if (!body)
-    throw new Error('Comparison body is unavailable')
-  return withFidelityMeasurementTimeout(
-    () => getFontEmbedCSS(body, { cacheBust: false }),
-    FRAME_FONT_EMBED_TIMEOUT_MS,
-    `${label} font preparation`,
-  )
-}
-
-async function captureFrame(
-  frame: HTMLIFrameElement,
-  width: number,
-  height: number,
-  requiredFonts: string[],
-  fontEmbedCSS: string,
-  timeoutMs: number,
-  label: string,
-): Promise<CapturedFrame> {
-  await waitForFrame(frame, requiredFonts)
-  const document = frame.contentDocument
-  const body = document?.body
-  if (!body)
-    throw new Error('Comparison body is unavailable')
+async function captureRoot(root: HTMLElement, doc: Document, viewport: typeof VIEWPORTS[number], label: string): Promise<CapturedFrame> {
+  await waitForAssets(root, doc, label)
   await withFidelityMeasurementTimeout(
-    () => inlineFidelityFrameImages(document, { cache: frameImageCache }),
+    () => inlineFidelityFrameImages(root, { cache: frameImageCache }),
     FRAME_ASSET_TIMEOUT_MS,
-    `${width}px ${label} image preparation`,
+    `${label} image preparation`,
   )
-  // toCanvas() resolves through requestAnimationFrame, which stays stalled while the
-  // tab is hidden or the window is occluded and the capture then dies on the timeout.
-  // Rasterize the SVG manually so measurement works in background tabs too.
-  const svgDataUrl = await withFidelityMeasurementTimeout(
-    () => toSvg(body, {
+  const fontEmbedCSS = await withFidelityMeasurementFallback(
+    () => getFontEmbedCSS(root, { cacheBust: false }),
+    FRAME_FONT_TIMEOUT_MS,
+    `${label} font preparation`,
+    '',
+  )
+  // WebKit can stall html-to-image's requestAnimationFrame-based canvas path in a
+  // background tab, so rasterise the generated SVG directly and sequentially.
+  const svg = await withFidelityMeasurementTimeout(
+    () => toSvg(root, {
       cacheBust: false,
       fontEmbedCSS,
       pixelRatio: 1,
-      width,
-      height,
-      style: { margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden' },
+      width: viewport.width,
+      height: viewport.height,
+      style: { margin: '0', width: `${viewport.width}px`, height: `${viewport.height}px`, overflow: 'hidden' },
     }),
-    timeoutMs,
-    `${width}px ${label} capture`,
+    viewport.timeoutMs,
+    `${viewport.name} ${label} capture`,
   )
   const image = await withFidelityMeasurementTimeout(
     () => new Promise<HTMLImageElement>((resolve, reject) => {
       const raster = new Image()
       raster.onload = () => resolve(raster)
-      raster.onerror = () => reject(new Error(`${width}px ${label} capture image failed to render`))
-      raster.src = svgDataUrl
+      raster.onerror = () => reject(new Error(`${viewport.name} ${label} capture image failed to render`))
+      raster.src = svg
     }),
-    timeoutMs,
-    `${width}px ${label} capture`,
+    viewport.timeoutMs,
+    `${viewport.name} ${label} raster`,
   )
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
+  const canvas = doc.createElement('canvas')
+  canvas.width = viewport.width
+  canvas.height = viewport.height
   const context = canvas.getContext('2d')
   if (!context)
     throw new Error('Canvas comparison is unavailable')
   context.fillStyle = '#ffffff'
-  context.fillRect(0, 0, width, height)
-  context.drawImage(image, 0, 0, width, height)
-  return {
-    dataUrl: canvas.toDataURL('image/png'),
-    pixels: context.getImageData(0, 0, width, height),
-  }
+  context.fillRect(0, 0, viewport.width, viewport.height)
+  context.drawImage(image, 0, 0, viewport.width, viewport.height)
+  return { dataUrl: canvas.toDataURL('image/png'), pixels: context.getImageData(0, 0, viewport.width, viewport.height) }
 }
 
 function createDiff(reference: ImageData, candidate: ImageData): string {
@@ -256,176 +200,365 @@ function createDiff(reference: ImageData, candidate: ImageData): string {
       Math.abs(reference.data[index + 2] - candidate.data[index + 2]),
       Math.abs(reference.data[index + 3] - candidate.data[index + 3]),
     )
-    if (delta > threshold) {
+    if (delta > threshold)
       diff.data.set([239, 68, 68, 230], index)
-    }
-    else {
-      const gray = Math.round((reference.data[index] + reference.data[index + 1] + reference.data[index + 2]) / 3)
-      diff.data.set([gray, gray, gray, 65], index)
-    }
+    else diff.data.set([reference.data[index], reference.data[index + 1], reference.data[index + 2], 55], index)
   }
   context.putImageData(diff, 0, 0)
   return canvas.toDataURL('image/png')
 }
 
-async function measure() {
-  const token = ++runToken
-  measuring.value = true
-  measureError.value = ''
+function stripPngPrefix(value: string): string {
+  return value.replace(/^data:image\/png;base64,/i, '')
+}
+
+async function createContactSheet(dataUrls: string[]): Promise<string> {
+  const images = await Promise.all(dataUrls.map(dataUrl => new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Adaptive Match contact sheet image failed to render'))
+    image.src = dataUrl
+  })))
+  const width = 720
+  const cellHeight = 480
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = cellHeight * images.length
+  const context = canvas.getContext('2d')
+  if (!context)
+    throw new Error('Adaptive Match contact sheet canvas is unavailable')
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  images.forEach((image, index) => {
+    const scale = Math.min(width / image.width, cellHeight / image.height)
+    const drawWidth = image.width * scale
+    const drawHeight = image.height * scale
+    context.drawImage(image, (width - drawWidth) / 2, index * cellHeight + (cellHeight - drawHeight) / 2, drawWidth, drawHeight)
+  })
+  return stripPngPrefix(canvas.toDataURL('image/png'))
+}
+
+function resolvedSourceUrl(): string {
+  return new URL(props.sourceUrl || '/', window.location.origin).toString()
+}
+
+function extractEvidenceContent() {
+  const parsed = new DOMParser().parseFromString(safeHtml(props.originalHtml), 'text/html')
+  const text = [...new Set(Array.from(parsed.querySelectorAll('h1,h2,h3,h4,p,li,button,a'))
+    .map(node => String(node.textContent || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean))].slice(0, 500)
+  const assets = Array.from(parsed.querySelectorAll('img')).slice(0, 200).flatMap((image) => {
+    const raw = image.getAttribute('src') || ''
+    try {
+      const url = new URL(raw, resolvedSourceUrl()).toString()
+      return [{ url, alt: image.getAttribute('alt') || '', required: true }]
+    }
+    catch {
+      return []
+    }
+  })
+  return { text, assets }
+}
+
+async function captureEvidence(): Promise<CapturedAdaptiveMatchEvidence> {
+  referenceCaptures.clear()
   results.value = []
-  aiReview.value = null
-  try {
-    const measured: ViewportResult[] = []
-    const referenceFonts = extractDeclaredFontFamilies(props.originalCss)
-    const candidateCss = [props.candidateSection?._generated_css, props.candidateSection?._tailwind_leftover_css].filter(Boolean).join('\n')
-    const candidateFonts = extractDeclaredFontFamilies(candidateCss)
-    const desktopPair = framePairs.get('desktop')
-    if (!desktopPair?.reference || !desktopPair.candidate)
-      throw new Error('desktop comparison frames are not ready')
-    measurementStep.value = 'Preparing OEM fonts'
-    const referenceFontEmbedCss = await prepareFontEmbedCss(desktopPair.reference, referenceFonts, 'OEM')
-    if (token !== runToken)
-      return
-    measurementStep.value = 'Preparing conversion fonts'
-    const candidateFontEmbedCss = await prepareFontEmbedCss(desktopPair.candidate, candidateFonts, 'Conversion')
-    if (token !== runToken)
-      return
-    for (const [index, viewport] of VIEWPORTS.entries()) {
-      const pair = framePairs.get(viewport.name)
-      if (!pair?.reference || !pair.candidate)
-        throw new Error(`${viewport.name} comparison frames are not ready`)
-      measurementStep.value = `Capturing ${viewport.name} OEM (${index + 1}/${VIEWPORTS.length})`
-      const reference = await captureFrame(
-        pair.reference,
-        viewport.width,
-        viewport.height,
-        referenceFonts,
-        referenceFontEmbedCss,
-        viewport.captureTimeoutMs,
-        'OEM',
-      )
-      if (token !== runToken)
-        return
-      measurementStep.value = `Capturing ${viewport.name} conversion (${index + 1}/${VIEWPORTS.length})`
-      const candidate = await captureFrame(
-        pair.candidate,
-        viewport.width,
-        viewport.height,
-        candidateFonts,
-        candidateFontEmbedCss,
-        viewport.captureTimeoutMs,
-        'conversion',
-      )
-      if (token !== runToken)
-        return
-      measurementStep.value = `Comparing ${viewport.name} (${index + 1}/${VIEWPORTS.length})`
-      const comparison = compareRegionPixels(reference.pixels.data, candidate.pixels.data)
-      measured.push({
-        name: viewport.name,
-        width: viewport.width,
-        height: viewport.height,
-        mismatchRatio: comparison.mismatchRatio,
-        status: comparison.status,
-        reference: reference.dataUrl,
-        candidate: candidate.dataUrl,
-        diff: createDiff(reference.pixels, candidate.pixels),
-      })
-      results.value = [...measured]
-    }
-    if (token === runToken)
-      results.value = measured
+  const detection = detectAdaptiveMatchInteraction({ html: props.originalHtml, artifact: props.recipeArtifact })
+  for (const viewport of VIEWPORTS) {
+    const frame = referenceFrames.get(viewport.name)
+    const doc = frame?.contentDocument
+    if (!doc?.body)
+      throw new Error(`${viewport.name} OEM comparison frame is unavailable`)
+    const capture = await captureRoot(doc.body, doc, viewport, 'OEM')
+    referenceCaptures.set(viewport.name, capture)
   }
-  catch (error: any) {
-    if (token === runToken)
-      measureError.value = error?.message || 'Unable to compare this region'
-  }
-  finally {
-    if (token === runToken) {
-      measuring.value = false
-      measurementStep.value = ''
-    }
+  const referenceContactSheet = await createContactSheet(VIEWPORTS.map((viewport) => {
+    const capture = referenceCaptures.get(viewport.name)
+    if (!capture)
+      throw new Error(`${viewport.name} OEM evidence was not captured`)
+    return capture.dataUrl
+  }))
+  return {
+    contactSheetBase64: referenceContactSheet,
+    evidence: {
+      version: 1 as const,
+      oemId: props.oemId,
+      modelSlug: props.modelSlug,
+      sourceUrl: resolvedSourceUrl(),
+      regionId: props.regionId,
+      html: props.originalHtml,
+      css: props.originalCss,
+      recipeArtifact: props.recipeArtifact ?? null,
+      detection,
+      interactionStates: [{
+        id: 'initial',
+        ...(detection.itemCount ? { activeIndex: 0 } : {}),
+        visibleItems: detection.itemCount ? [0] : [],
+        expandedItems: [],
+      }],
+      viewports: VIEWPORTS.map(({ name, width, height }) => ({ name, width, height })),
+      content: extractEvidenceContent(),
+    },
   }
 }
 
-async function requestAiReview() {
-  const evidence = worstResult.value
-  if (!evidence || !props.oemId)
+async function probeInteractions(root: HTMLElement, graph: CandidateGraph) {
+  const failures: string[] = []
+  let required = 0
+  let passed = 0
+  if (graph.kind === 'carousel') {
+    required += 1
+    const before = root.querySelector('[data-adaptive-active="true"]')?.getAttribute('data-adaptive-item')
+    ;(root.querySelector('[data-adaptive-next]') as HTMLButtonElement | null)?.click()
+    await nextTick()
+    const after = root.querySelector('[data-adaptive-active="true"]')?.getAttribute('data-adaptive-item')
+    if (before !== after)
+      passed += 1
+    else failures.push('Carousel next control did not change the active item')
+    ;(root.querySelector('[data-adaptive-prev]') as HTMLButtonElement | null)?.click()
+    await nextTick()
+  }
+  else if (graph.kind === 'gallery-lightbox') {
+    required += 2
+    ;(root.querySelector('[data-adaptive-item="0"]') as HTMLElement | null)?.click()
+    await nextTick()
+    const lightbox = root.querySelector('[data-adaptive-lightbox]') as HTMLElement | null
+    if (lightbox)
+      passed += 1
+    else failures.push('Gallery item did not open the lightbox')
+    lightbox?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    if (!root.querySelector('[data-adaptive-lightbox]'))
+      passed += 1
+    else failures.push('Gallery lightbox did not close with Escape')
+  }
+  else if (graph.kind === 'tabs') {
+    required += 1
+    const tabs = root.querySelectorAll<HTMLButtonElement>('[data-adaptive-tab]')
+    tabs[1]?.click()
+    await nextTick()
+    if (tabs.length < 2 || tabs[1]?.getAttribute('aria-selected') === 'true')
+      passed += 1
+    else failures.push('Tab selection did not update the visible panel')
+    tabs[0]?.click()
+    await nextTick()
+  }
+  else if (graph.kind === 'accordion') {
+    required += 1
+    const trigger = root.querySelector<HTMLButtonElement>('[data-adaptive-accordion-trigger="0"]')
+    trigger?.click()
+    await nextTick()
+    if (trigger?.getAttribute('aria-expanded') === 'true')
+      passed += 1
+    else failures.push('Accordion trigger did not expand its panel')
+    trigger?.click()
+    await nextTick()
+  }
+  return { required, passed, failures }
+}
+
+function graphAssetEvidence(graph: CandidateGraph, sourceUrl: string): Array<{ url: string, alt: string }> {
+  if (graph.section.type === 'gallery')
+    return graph.section.images.map(image => ({ url: image.url, alt: image.alt }))
+  if (graph.section.type === 'tabs')
+    return graph.section.tabs.filter(tab => tab.imageUrl).map(tab => ({ url: tab.imageUrl, alt: tab.imageAlt }))
+  if (graph.section.type !== 'content-block')
+    return []
+  const parsed = new DOMParser().parseFromString(graph.section.generatedHtml, 'text/html')
+  return Array.from(parsed.querySelectorAll('img')).flatMap((image) => {
+    try {
+      return [{ url: new URL(image.getAttribute('src') || '', sourceUrl).toString(), alt: image.alt }]
+    }
+    catch {
+      return []
+    }
+  })
+}
+
+function contentMatches(root: HTMLElement, evidence: CapturedAdaptiveMatchEvidence['evidence'], graph: CandidateGraph) {
+  const renderedText = String(root.textContent || '').replace(/\s+/g, ' ').toLowerCase()
+  const matchedText = evidence.content.text.filter(item => renderedText.includes(item.toLowerCase())).length
+  const candidateAssets = graphAssetEvidence(graph, evidence.sourceUrl)
+  const matchedAssets = evidence.content.assets.filter(asset => candidateAssets.some((candidate) => {
+    const altMatches = asset.alt && candidate.alt === asset.alt
+    const sourceMatches = candidate.url === asset.url
+    return Boolean(altMatches || sourceMatches)
+  })).length
+  return {
+    expectedText: evidence.content.text.length,
+    matchedText,
+    expectedAssets: evidence.content.assets.filter(asset => asset.required).length,
+    matchedAssets,
+  }
+}
+
+async function evaluateCandidate(graph: CandidateGraph, context: { evidence: CapturedAdaptiveMatchEvidence, attempt: number }) {
+  await nextTick()
+  const desktopHandle = candidateFrames.get('desktop')
+  await desktopHandle?.ready()
+  const desktopRoot = desktopHandle?.root()
+  if (!desktopRoot)
+    throw new Error('Adaptive candidate frame is unavailable')
+  const interaction = await probeInteractions(desktopRoot, graph)
+  const content = contentMatches(desktopRoot, context.evidence.evidence, graph)
+  const measured: ViewportResult[] = []
+  for (const viewport of VIEWPORTS) {
+    const handle = candidateFrames.get(viewport.name)
+    await handle?.ready()
+    const root = handle?.root()
+    const doc = handle?.document()
+    const reference = referenceCaptures.get(viewport.name)
+    if (!root || !doc || !reference)
+      throw new Error(`${viewport.name} candidate comparison frame is unavailable`)
+    const overflow = measureRegionOverflow(root)
+    const candidate = await captureRoot(root, doc, viewport, `candidate ${context.attempt}`)
+    const comparison = compareRegionPixels(reference.pixels.data, candidate.pixels.data)
+    measured.push({
+      name: viewport.name,
+      width: viewport.width,
+      height: viewport.height,
+      mismatchRatio: comparison.mismatchRatio,
+      status: comparison.status,
+      reference: reference.dataUrl,
+      candidate: candidate.dataUrl,
+      diff: createDiff(reference.pixels, candidate.pixels),
+      horizontalOverflow: overflow.horizontalOverflow,
+      clippedContent: overflow.clippedContent,
+    })
+    results.value = [...measured]
+  }
+  const qa = evaluateAdaptiveCandidate({
+    viewports: measured.map(result => ({
+      name: result.name,
+      mismatchRatio: result.mismatchRatio,
+      horizontalOverflow: result.horizontalOverflow,
+      clippedContent: result.clippedContent,
+    })),
+    interaction,
+    content,
+  })
+  const worst = [...measured].sort((left, right) => right.mismatchRatio - left.mismatchRatio)[0]
+  return {
+    qa,
+    contactSheetBase64: worst ? await createContactSheet([worst.reference, worst.candidate]) : undefined,
+  }
+}
+
+const controller = useAdaptiveMatch({
+  captureEvidence,
+  deterministicSection: props.candidateSection,
+  evaluateCandidate,
+  requestAdaptiveMatch,
+  modelOverride: props.modelOverride,
+})
+
+const selectedResult = computed(() => results.value.find(result => result.name === selectedViewport.value) ?? null)
+const isRunning = computed(() => ['capturing', 'detecting', 'building', 'testing', 'repairing'].includes(controller.state.stage))
+const canApply = computed(() => controller.state.stage === 'ready' && Boolean(controller.bestAttempt.value?.safe && controller.bestCandidate.value))
+const applyAnyway = computed(() => canApply.value && controller.bestAttempt.value?.qa?.passed === false)
+const stageLabel = computed(() => ({
+  idle: 'Ready',
+  capturing: 'Capturing OEM evidence',
+  detecting: 'Detecting interaction pattern',
+  building: 'Interpreting OEM region',
+  testing: 'Testing candidate',
+  repairing: 'Repairing candidate',
+  ready: controller.bestAttempt.value?.qa?.passed ? 'Candidate passed' : 'Best candidate ready for review',
+  failed: 'No safe candidate',
+  cancelled: 'Cancelled',
+}[controller.state.stage]))
+
+watch(() => props.open, async (open) => {
+  if (!open) {
+    controller.cancel()
     return
-  aiReviewing.value = true
-  try {
-    aiReview.value = await scoreRegionQuality(props.oemId, evidence.reference, evidence.candidate)
   }
-  catch (error: any) {
-    toast.error(error?.message || 'AI visual review failed')
-  }
-  finally {
-    aiReviewing.value = false
-  }
+  selectedViewport.value = 'desktop'
+  evidenceMode.value = 'side-by-side'
+  results.value = []
+  referenceCaptures.clear()
+  await nextTick()
+  await controller.start()
+}, { immediate: true })
+
+function close() {
+  controller.cancel()
+  emit('update:open', false)
+}
+
+function applyCandidate() {
+  const best = controller.bestAttempt.value
+  if (!canApply.value || !best?.graph || !best.qa)
+    return
+  emit('apply', candidateGraphToSection(best.graph, {
+    runId: controller.state.runId,
+    qa: best.qa,
+    appliedAt: new Date().toISOString(),
+  }))
 }
 
 function percent(value: number): string {
   return `${(value * 100).toFixed(2)}%`
 }
-
-function statusLabel(status: RegionFidelityStatus): string {
-  if (status === 'pixel-perfect')
-    return 'Pixel stable'
-  if (status === 'review')
-    return 'Review'
-  return 'Mismatch'
-}
-
-function applyCandidate() {
-  if (canApply.value && props.candidateSection)
-    emit('apply', props.candidateSection)
-}
 </script>
 
 <template>
   <UiDialog :open="open" @update:open="emit('update:open', $event)">
-    <UiDialogContent class="max-h-[92vh] overflow-y-auto sm:max-w-[1100px]" :aria-busy="measuring">
+    <UiDialogContent class="max-h-[92vh] overflow-y-auto sm:max-w-[1100px]" :aria-busy="isRunning">
       <UiDialogHeader>
         <UiDialogTitle class="flex items-center gap-2">
-          <ScanSearch class="size-5" /> Match OEM
+          <ScanSearch class="size-5" /> Adaptive Match OEM
         </UiDialogTitle>
         <UiDialogDescription>
-          Compare the captured OEM region with its editable Tailwind conversion before adding it to the draft.
+          Interprets static and interactive OEM regions, tests up to three candidates, then waits for your explicit Apply.
         </UiDialogDescription>
       </UiDialogHeader>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <UiButton data-fidelity-measure="true" :disabled="measuring" @click="measure">
-          <Loader2 v-if="measuring" class="mr-2 size-4 animate-spin" />
-          <Eye v-else class="mr-2 size-4" />
-          {{ measuring ? measurementStep : results.length ? 'Measure again' : 'Measure all viewports' }}
-        </UiButton>
-        <UiBadge v-if="results.length === VIEWPORTS.length && !measuring" :variant="overallStatus === 'pixel-perfect' ? 'default' : overallStatus === 'review' ? 'secondary' : 'destructive'">
-          {{ statusLabel(overallStatus) }} · worst {{ percent(worstResult?.mismatchRatio || 0) }}
-        </UiBadge>
-        <span class="text-xs text-muted-foreground">Pass ≤1% · review ≤3% · mismatch &gt;3%</span>
+      <div role="status" aria-live="polite" class="space-y-2 rounded-md border bg-muted/30 p-3">
+        <div class="flex items-center gap-2 text-sm font-medium">
+          <Loader2 v-if="isRunning" class="size-4 animate-spin" />
+          <CheckCircle2 v-else-if="controller.state.stage === 'ready'" class="size-4 text-emerald-600" />
+          <AlertTriangle v-else-if="controller.state.stage === 'failed'" class="size-4 text-destructive" />
+          {{ stageLabel }}
+        </div>
+        <p v-if="controller.progress.value" class="text-xs text-muted-foreground capitalize">
+          {{ controller.progress.value.event.replace('-', ' ') }} · attempt {{ controller.progress.value.data.attempt || controller.attempts.value.length + 1 }} of 3
+        </p>
+        <p v-if="controller.state.error" class="text-sm text-destructive">
+          {{ controller.state.error }}
+        </p>
       </div>
 
-      <div v-if="measuring" role="status" aria-live="polite" class="space-y-2 rounded-md border bg-muted/30 p-3">
-        <div class="flex items-center justify-between gap-3 text-sm">
-          <span class="font-medium">{{ measurementStep }}</span>
-          <span class="text-xs text-muted-foreground">{{ results.length }} of {{ VIEWPORTS.length }} captured</span>
-        </div>
-        <div class="h-1.5 overflow-hidden rounded-full bg-muted">
-          <div class="h-full rounded-full bg-primary transition-[width]" :style="{ width: `${Math.max(8, (results.length / VIEWPORTS.length) * 100)}%` }" />
+      <div v-if="controller.attempts.value.length" class="grid gap-2 sm:grid-cols-3" data-adaptive-attempts>
+        <div v-for="attempt in controller.attempts.value" :key="attempt.attempt" class="rounded-md border p-3 text-xs" :class="attempt.qa?.passed ? 'border-emerald-500/50 bg-emerald-500/5' : ''">
+          <p class="font-semibold">
+            Attempt {{ attempt.attempt }} · {{ attempt.qa?.passed ? 'Passed' : attempt.safe ? 'Review' : 'Rejected' }}
+          </p>
+          <p v-if="attempt.qa" class="mt-1 text-muted-foreground">
+            Worst mismatch {{ percent(attempt.qa.worstMismatchRatio) }} · {{ attempt.qa.failureCount }} failure{{ attempt.qa.failureCount === 1 ? '' : 's' }}
+          </p>
+          <p v-if="attempt.graph?.provenance.provider" class="mt-1 text-muted-foreground">
+            {{ attempt.graph.provenance.provider }} · {{ attempt.graph.provenance.model }}
+          </p>
+          <ul v-if="attempt.qa?.failures.length" class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+            <li v-for="failure in attempt.qa.failures" :key="failure">
+              {{ failure }}
+            </li>
+          </ul>
+          <p v-if="attempt.error" class="mt-1 text-destructive">
+            {{ attempt.error }}
+          </p>
         </div>
       </div>
 
-      <div v-if="measureError" class="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-        <AlertTriangle class="mr-1 inline size-4" /> {{ measureError }}
+      <div v-if="applyAnyway" class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
+        <AlertTriangle class="mr-1 inline size-4" /> No candidate passed the balanced gate. This is the best safe candidate from three attempts; applying it may retain visible differences.
       </div>
 
       <template v-if="results.length">
-        <div v-if="!canApply && !measuring" class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-200">
-          <AlertTriangle class="mr-1 inline size-4" /> All viewports must be Pixel stable (≤1%) before this conversion can be added to the draft.
-        </div>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex gap-1 rounded-md bg-muted p-1">
-            <button v-for="viewport in VIEWPORTS" :key="viewport.name" class="rounded px-3 py-1.5 text-xs font-medium capitalize disabled:cursor-not-allowed disabled:opacity-40" :class="selectedViewport === viewport.name ? 'bg-background shadow-sm' : 'text-muted-foreground'" :disabled="!results.some(result => result.name === viewport.name)" @click="selectedViewport = viewport.name">
+            <button v-for="viewport in VIEWPORTS" :key="viewport.name" class="rounded px-3 py-1.5 text-xs font-medium capitalize" :class="selectedViewport === viewport.name ? 'bg-background shadow-sm' : 'text-muted-foreground'" @click="selectedViewport = viewport.name">
               {{ viewport.name }} · {{ percent(results.find(result => result.name === viewport.name)?.mismatchRatio || 0) }}
             </button>
           </div>
@@ -441,71 +574,41 @@ function applyCandidate() {
             <figure class="border-b md:border-b-0 md:border-r">
               <figcaption class="border-b px-3 py-2 text-xs font-semibold">
                 OEM reference
-              </figcaption>
-              <img :src="selectedResult.reference" alt="OEM reference region capture" class="h-auto w-full object-contain">
+              </figcaption><img :src="selectedResult.reference" alt="OEM reference region capture" class="h-auto w-full object-contain">
             </figure>
             <figure>
               <figcaption class="border-b px-3 py-2 text-xs font-semibold">
-                Dashboard conversion
-              </figcaption>
-              <img :src="selectedResult.candidate" alt="Dashboard converted region capture" class="h-auto w-full object-contain">
+                Adaptive candidate
+              </figcaption><img :src="selectedResult.candidate" alt="Adaptive candidate region capture" class="h-auto w-full object-contain">
             </figure>
           </div>
           <div v-else-if="evidenceMode === 'overlay'" class="space-y-2 p-3">
             <div class="relative overflow-hidden rounded border bg-white">
-              <img :src="selectedResult.reference" alt="OEM reference beneath comparison overlay" class="h-auto w-full">
-              <img :src="selectedResult.candidate" alt="Dashboard conversion overlay" class="absolute inset-0 h-auto w-full" :style="{ opacity: overlayOpacity / 100 }">
+              <img :src="selectedResult.reference" alt="OEM reference beneath overlay" class="h-auto w-full"><img :src="selectedResult.candidate" alt="Adaptive candidate overlay" class="absolute inset-0 h-auto w-full" :style="{ opacity: overlayOpacity / 100 }">
             </div>
             <label class="flex items-center gap-3 text-xs"><span>Candidate opacity</span><input v-model.number="overlayOpacity" type="range" min="0" max="100" class="flex-1"><span>{{ overlayOpacity }}%</span></label>
           </div>
           <figure v-else>
             <figcaption class="border-b px-3 py-2 text-xs font-semibold">
-              Pixel diff · red pixels exceed the channel threshold
-            </figcaption>
-            <img :src="selectedResult.diff" alt="Pixel difference evidence" class="h-auto w-full object-contain">
+              Pixel diff
+            </figcaption><img :src="selectedResult.diff" alt="Pixel difference evidence" class="h-auto w-full object-contain">
           </figure>
-        </div>
-
-        <div v-if="results.length === VIEWPORTS.length && !measuring" class="rounded-lg border p-4">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p class="font-medium">
-                AI visual review
-              </p>
-              <p class="text-xs text-muted-foreground">
-                Uses the worst viewport and cannot change the draft automatically.
-              </p>
-            </div>
-            <UiButton variant="outline" :disabled="aiReviewing" @click="requestAiReview">
-              <Loader2 v-if="aiReviewing" class="mr-2 size-4 animate-spin" />
-              <Sparkles v-else class="mr-2 size-4" />
-              Review differences
-            </UiButton>
-          </div>
-          <div v-if="aiReview" class="mt-3 space-y-2 text-sm">
-            <p><strong>{{ aiReview.score }}/100</strong> · {{ aiReview.feedback }}</p>
-            <ul v-if="aiReview.suggestions.length" class="list-disc space-y-1 pl-5 text-muted-foreground">
-              <li v-for="suggestion in aiReview.suggestions" :key="suggestion">
-                {{ suggestion }}
-              </li>
-            </ul>
-          </div>
         </div>
       </template>
 
-      <div class="pointer-events-none fixed left-[-100000px] top-0 opacity-0" aria-hidden="true">
+      <div v-if="open" class="pointer-events-none fixed left-[-100000px] top-0 opacity-0" aria-hidden="true">
         <template v-for="viewport in VIEWPORTS" :key="viewport.name">
-          <iframe :ref="value => setFrame(viewport.name, 'reference', value as Element | null)" title="Hidden OEM fidelity reference" sandbox="allow-same-origin" :srcdoc="referenceSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
-          <iframe :ref="value => setFrame(viewport.name, 'candidate', value as Element | null)" title="Hidden dashboard fidelity candidate" sandbox="allow-same-origin" :srcdoc="candidateSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
+          <iframe :ref="value => setReferenceFrame(viewport.name, value as Element | null)" title="Hidden OEM Adaptive Match reference" sandbox="allow-same-origin" :srcdoc="referenceSrcdoc()" :style="{ width: `${viewport.width}px`, height: `${viewport.height}px` }" />
+          <AdaptiveMatchFrame v-if="controller.candidateGraph.value" :ref="value => setCandidateFrame(viewport.name, value)" :graph="controller.candidateGraph.value" :oem-id="oemId" :viewport="viewport" />
         </template>
       </div>
 
       <UiDialogFooter>
-        <UiButton variant="outline" @click="emit('update:open', false)">
+        <UiButton variant="outline" @click="close">
           Cancel
         </UiButton>
-        <UiButton :disabled="!canApply" @click="applyCandidate">
-          <CheckCircle2 class="mr-2 size-4" /> Add conversion to draft
+        <UiButton data-adaptive-apply :disabled="!canApply" @click="applyCandidate">
+          <CheckCircle2 class="mr-2 size-4" /> {{ applyAnyway ? 'Apply anyway' : 'Apply' }}
         </UiButton>
       </UiDialogFooter>
     </UiDialogContent>

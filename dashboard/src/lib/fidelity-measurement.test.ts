@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { withFidelityMeasurementTimeout } from './fidelity-measurement'
+import { withFidelityMeasurementFallback, withFidelityMeasurementTimeout } from './fidelity-measurement'
 
 describe('fidelity measurement timeouts', () => {
   it('returns a completed measurement and clears its timeout', async () => {
@@ -24,5 +24,30 @@ describe('fidelity measurement timeouts', () => {
     expect(vi.getTimerCount()).toBe(0)
 
     vi.useRealTimers()
+  })
+
+  it('returns a safe fallback when optional font work times out', async () => {
+    vi.useFakeTimers()
+    const pending = withFidelityMeasurementFallback(
+      () => new Promise<never>(() => {}),
+      2_000,
+      'OEM fonts',
+      '',
+    )
+
+    await vi.advanceTimersByTimeAsync(2_000)
+    await expect(pending).resolves.toBe('')
+    expect(vi.getTimerCount()).toBe(0)
+
+    vi.useRealTimers()
+  })
+
+  it('returns a safe fallback when optional font work rejects', async () => {
+    await expect(withFidelityMeasurementFallback(
+      () => Promise.reject(new Error('Font stylesheet blocked by CORS')),
+      2_000,
+      'OEM font preparation',
+      'fallback-font-css',
+    )).resolves.toBe('fallback-font-css')
   })
 })

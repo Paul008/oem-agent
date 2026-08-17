@@ -321,7 +321,7 @@ export class PageStructurer {
           sections_extracted: 0,
           section_types: [],
           gemini_tokens_used: response.usage.total_tokens,
-          error: 'Failed to parse Gemini response as JSON.',
+          error: 'Failed to parse AI response as JSON.',
         };
       }
 
@@ -672,7 +672,7 @@ ${hasRenderedHtml ? `## Source HTML (extract better data from this if available)
           sections_extracted: 0,
           section_types: [],
           gemini_tokens_used: response.usage.total_tokens,
-          error: 'Failed to parse Gemini response as JSON.',
+          error: 'Failed to parse AI response as JSON.',
         };
       }
 

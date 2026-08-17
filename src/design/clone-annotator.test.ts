@@ -317,6 +317,23 @@ describe('Nissan wds-carousel recognition', () => {
     expect(result.html).toContain('data-clone-next');
     expect(result.html).toContain('data-clone-track');
   });
+
+  it('leaves a passive horizontal card rail native when it has no carousel controls', () => {
+    const passiveRail = `
+      <section class="wds-carousel-section">
+        <ul class="wds-carousel-slider">
+          <li class="carousel-card"><button>View specs</button></li>
+          <li class="carousel-card"><button>View specs</button></li>
+        </ul>
+      </section>`;
+
+    const result = annotateCloneInteractions(passiveRail);
+
+    expect(result.interactions).toEqual([]);
+    expect(result.html).toBe(passiveRail);
+    expect(result.html).not.toContain('data-clone-track');
+    expect(result.html).not.toContain('x-data="cloneCarousel"');
+  });
 });
 
 describe('feature-overlay stamping', () => {

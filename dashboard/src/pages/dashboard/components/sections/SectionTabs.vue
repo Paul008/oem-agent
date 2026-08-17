@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Info, X } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 
 import { useInlineEdit } from '@/composables/use-inline-edit'
 
@@ -20,6 +20,7 @@ const props = defineProps<{
       disclaimer?: string
     }>
     default_tab: number
+    _adaptive_interaction?: { keyboard?: boolean, activation?: 'automatic' | 'manual' }
   }
 }>()
 
@@ -28,6 +29,7 @@ const titleEdit = useInlineEdit(v => emit('update-text', 'title', v))
 function startEditing(field: string, edit: ReturnType<typeof useInlineEdit>, e: MouseEvent) { const el = e.target as HTMLElement; edit.startEdit(el); emit('inline-edit', field, el.textContent || '', el) }
 
 const activeIndex = ref(props.section.default_tab ?? 0)
+const tabsId = useId()
 const disclaimerOpen = ref(false)
 
 const activeTab = computed(() => props.section.tabs?.[activeIndex.value])
@@ -39,10 +41,30 @@ function select(index: number) {
   activeIndex.value = index
   disclaimerOpen.value = false
 }
+
+function onTabKeydown(event: KeyboardEvent, index: number) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+    return
+  if (props.section._adaptive_interaction?.keyboard === false)
+    return
+  event.preventDefault()
+  const last = props.section.tabs.length - 1
+  const next = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? last
+      : event.key === 'ArrowRight'
+        ? (index + 1) % props.section.tabs.length
+        : (index - 1 + props.section.tabs.length) % props.section.tabs.length
+  if (props.section._adaptive_interaction?.activation !== 'manual')
+    select(next)
+  const owner = (event.currentTarget as HTMLElement).ownerDocument
+  owner.getElementById(`${tabsId}-tab-${next}`)?.focus()
+}
 </script>
 
 <template>
-  <div v-if="section.tabs?.length">
+  <div v-if="section.tabs?.length" data-adaptive-section="tabs">
     <!-- ========== VARIANT: kia-feature-bullets ========== -->
     <template v-if="isFeatureBullets">
       <div
@@ -178,11 +200,21 @@ function select(index: number) {
         <!-- Tab bar -->
         <div
           class="flex gap-1 border-b mb-6"
+          role="tablist"
+          :aria-label="section.title || 'Section tabs'"
           :class="isDark ? 'border-neutral-700' : 'border-neutral-200'"
         >
           <button
             v-for="(tab, index) in section.tabs"
+            :id="`${tabsId}-tab-${index}`"
             :key="tab.label"
+            type="button"
+            role="tab"
+            data-adaptive-tab
+            :data-adaptive-index="index"
+            :aria-selected="index === activeIndex"
+            :aria-controls="`${tabsId}-panel-${index}`"
+            :tabindex="index === activeIndex ? 0 : -1"
             class="px-4 py-2.5 text-sm font-medium transition-colors relative -mb-px"
             :class="index === activeIndex
               ? (isDark
@@ -192,13 +224,21 @@ function select(index: number) {
                 ? 'text-neutral-400 hover:text-neutral-200'
                 : 'text-neutral-500 hover:text-neutral-700')"
             @click="select(index)"
+            @keydown="onTabKeydown($event, index)"
           >
             {{ tab.label }}
           </button>
         </div>
 
         <!-- Tab content -->
-        <div v-if="activeTab" class="flex flex-col md:flex-row gap-6 items-start">
+        <div
+          v-if="activeTab"
+          :id="`${tabsId}-panel-${activeIndex}`"
+          role="tabpanel"
+          :aria-labelledby="`${tabsId}-tab-${activeIndex}`"
+          :data-adaptive-panel="activeIndex"
+          class="flex flex-col md:flex-row gap-6 items-start"
+        >
           <div
             class="prose prose-sm max-w-none flex-1"
             :class="isDark ? 'prose-invert' : ''"
