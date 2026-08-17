@@ -1442,6 +1442,80 @@ describe('oem-agent model page publication admin routes', () => {
     });
   });
 
+  it('loads the saved alias draft before falling back to the canonical model page', async () => {
+    const definitions = new RouteMemoryR2Bucket();
+    definitions.seed('pages/definitions/nissan-au/navara/latest.json', {
+      id: 'nissan-au-navara',
+      slug: 'navara',
+      oem_id: 'nissan-au',
+      name: 'All-new Navara',
+      version: 10,
+      header: { slides: [] },
+      content: { sections: [] },
+    });
+    definitions.seed('pages/definitions/nissan-au/all-new-navara/latest.json', {
+      id: 'nissan-au-all-new-navara',
+      slug: 'all-new-navara',
+      oem_id: 'nissan-au',
+      name: 'All-new Navara',
+      version: 3,
+      header: { slides: [] },
+      content: { sections: [] },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', {
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    const response = await oemAgentApp.request('/pages/nissan-au-navara', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      BROWSER: {} as Fetcher,
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      id: 'nissan-au-navara',
+      slug: 'navara',
+      version: 10,
+    });
+    expect(definitions.reads[0]).toBe('pages/definitions/nissan-au/navara/latest.json');
+  });
+
+  it('falls back to the canonical model page when an alias has no saved draft', async () => {
+    const definitions = new RouteMemoryR2Bucket();
+    definitions.seed('pages/definitions/nissan-au/all-new-navara/latest.json', {
+      id: 'nissan-au-all-new-navara',
+      slug: 'all-new-navara',
+      oem_id: 'nissan-au',
+      name: 'All-new Navara',
+      version: 3,
+      header: { slides: [] },
+      content: { sections: [] },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', {
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    const response = await oemAgentApp.request('/pages/nissan-au-navara', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: definitions,
+      BROWSER: {} as Fetcher,
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      id: 'nissan-au-all-new-navara',
+      slug: 'all-new-navara',
+      version: 3,
+    });
+    expect(definitions.reads.slice(0, 2)).toEqual([
+      'pages/definitions/nissan-au/navara/latest.json',
+      'pages/definitions/nissan-au/all-new-navara/latest.json',
+    ]);
+  });
+
   it('returns canonical failed candidate validation with publication history', async () => {
     const publicationBucket = new RouteMemoryR2Bucket();
     await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);

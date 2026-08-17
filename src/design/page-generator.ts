@@ -1228,21 +1228,27 @@ export class PageGenerator {
    * Read a generated page by slug (searches all OEMs).
    */
   async getPageBySlug(slug: string): Promise<VehicleModelPage | null> {
-    slug = resolveModelPageReadAlias(slug);
-    // Try each known OEM ID as prefix (e.g. "gwm-au-haval-h6" → oem_id=gwm-au, model=haval-h6)
-    for (const oemId of allOemIds) {
-      const prefix = `${oemId}-`;
-      if (slug.startsWith(prefix) && slug.length > prefix.length) {
-        const modelSlug = slug.slice(prefix.length);
-        const page = await this.getGeneratedPage(oemId, modelSlug);
-        if (page) return page;
+    const canonicalSlug = resolveModelPageReadAlias(slug);
+    const readCandidates = canonicalSlug === slug ? [slug] : [slug, canonicalSlug];
+
+    for (const candidate of readCandidates) {
+      // Try each known OEM ID as prefix (e.g. "gwm-au-haval-h6" → oem_id=gwm-au, model=haval-h6)
+      for (const oemId of allOemIds) {
+        const prefix = `${oemId}-`;
+        if (candidate.startsWith(prefix) && candidate.length > prefix.length) {
+          const modelSlug = candidate.slice(prefix.length);
+          const page = await this.getGeneratedPage(oemId, modelSlug);
+          if (page) return page;
+        }
       }
     }
 
     // Fallback: try exact slug match against all OEMs
-    for (const oemId of allOemIds) {
-      const page = await this.getGeneratedPage(oemId, slug);
-      if (page) return page;
+    for (const candidate of readCandidates) {
+      for (const oemId of allOemIds) {
+        const page = await this.getGeneratedPage(oemId, candidate);
+        if (page) return page;
+      }
     }
 
     return null;

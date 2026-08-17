@@ -3278,7 +3278,7 @@ app.get('/admin/pages/:pageId/publication/history', async (c) => {
  */
 app.get('/pages/:slug', async (c) => {
   const requestedSlug = c.req.param('slug');
-  const slug = resolveModelPageReadAlias(requestedSlug);
+  const slug = requestedSlug;
 
   const { PageGenerator } = await import('../design/page-generator');
   const { DesignAgent } = await import('../design/agent');
@@ -3317,12 +3317,15 @@ app.get('/pages/:slug', async (c) => {
 
   // Attach cost from ai_inference_log if available
   try {
+    const storedModelSlug = typeof page.slug === 'string' && page.slug
+      ? page.slug
+      : slug.replace(/^[a-z]+-au-/, '');
     const { data: costRows } = await supabase
       .from('ai_inference_log')
       .select('cost_usd')
       .eq('task_type', 'page_structuring')
       .eq('status', 'success')
-      .or(`metadata_json->>model_slug.eq.${slug.replace(/^[a-z]+-au-/, '')}`)
+      .or(`metadata_json->>model_slug.eq.${storedModelSlug}`)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -3335,7 +3338,7 @@ app.get('/pages/:slug', async (c) => {
   if (page.content?.sections?.length) {
     // Extract oemId and modelSlug from the page slug (e.g. "foton-au-tunland")
     const pageOemId = page.oem_id || slug.replace(/-[^-]+$/, '');
-    const pageModelSlug = slug.replace(/^[a-z]+-[a-z]+-/, '');
+    const pageModelSlug = page.slug || slug.replace(/^[a-z]+-[a-z]+-/, '');
 
     try {
       // Get products for this model
