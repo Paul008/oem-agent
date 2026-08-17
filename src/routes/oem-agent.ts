@@ -110,8 +110,8 @@ function isPublicationEnabled(env: MoltbotEnv, pageId: string): boolean {
 }
 
 function parsePublicationPageId(pageId: string): { oemId: OemId; modelSlug: string } | null {
-  const parsed = parseGeneratedPageSlug(pageId);
-  return parsed && `${parsed.oemId}-${parsed.modelSlug}` === pageId ? parsed : null;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(pageId)) return null;
+  return parseGeneratedPageSlug(pageId);
 }
 
 function positiveInteger(value: unknown): number | null {

@@ -1383,6 +1383,23 @@ describe('oem-agent model page publication admin routes', () => {
     expect(body.history.map(entry => entry.revision)).toEqual([21]);
   });
 
+  it('accepts an allow-listed model page read alias for publication', async () => {
+    const response = await oemAgentApp.request('/admin/pages/nissan-au-navara/publication/history', {}, {
+      ...publicationRouteEnv,
+      MOLTBOT_BUCKET: new RouteMemoryR2Bucket(),
+      OEM_PAGE_BUCKET: new RouteMemoryR2Bucket(),
+      MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS: 'nissan-au-navara',
+      DEV_MODE: 'true',
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      state: null,
+      candidateValidation: null,
+      history: [],
+    });
+  });
+
   it('returns canonical failed candidate validation with publication history', async () => {
     const publicationBucket = new RouteMemoryR2Bucket();
     await seedPublicationRevision(publicationBucket, 'nissan-au-ariya', 22, 25);
