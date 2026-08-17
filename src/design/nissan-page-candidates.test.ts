@@ -66,6 +66,33 @@ function completePage(sourceUrl = 'https://www.nissan.com.au/vehicles/browse-ran
   };
 }
 
+function completeClonePage(): VehicleModelPage {
+  return {
+    ...completePage(),
+    active_mode: 'clone',
+    content: {
+      rendered: '<main>Nissan QASHQAI clone</main>'.repeat(800),
+      sections: [],
+      modes: {
+        clone: {
+          rendered: '<main>Nissan QASHQAI clone</main>'.repeat(800),
+          source_url: 'https://www.nissan.com.au/vehicles/browse-range/qashqai.html',
+          captured_at: '2026-07-21T00:00:00.000Z',
+          viewport: { width: 1440, height: 1100 },
+          asset_map: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`asset-${index}`, `https://example.com/${index}.jpg`])),
+          stylesheet_urls: ['https://www.nissan.com.au/nissan.css'],
+          section_index: [],
+          stripped_selectors: [],
+          warnings: [],
+          interactions: [{ id: 'gallery', type: 'carousel', trigger_count: 2, panel_count: 2 }],
+          runtime_js: 'window.__cloneRuntime = true;',
+          runtime_version: 'clone-runtime-v1',
+        },
+      },
+    },
+  } as VehicleModelPage;
+}
+
 describe('Nissan page candidate staging', () => {
   const target = NISSAN_MODEL_PAGE_BUILD_PLAN[0];
   const latestKey = 'pages/definitions/nissan-au/qashqai/latest.json';
@@ -122,6 +149,31 @@ describe('Nissan page candidate staging', () => {
     expect(store.objects.has(result.candidateKey!)).toBe(true);
   });
 
+  it('stages an explicit clone candidate without structured section validation', async () => {
+    const generated = completeClonePage();
+    const store = new MemoryCandidateStore();
+    const pipeline = {
+      run: async (_oemId: string, stagingSlug: string, _sourceUrl: string, _modelName: string, options: any): Promise<PipelineResult> => {
+        expect(options.forceClone).toBe(true);
+        expect(options.cloneOnly).toBe(true);
+        expect(options.validateSections).toBeUndefined();
+        await store.put(`pages/definitions/nissan-au/${stagingSlug}/latest.json`, JSON.stringify(generated));
+        return { success: true, sections: [] } as unknown as PipelineResult;
+      },
+    };
+
+    const result = await stageNissanModelPageCandidate(store, pipeline, target, {
+      candidateId: 'clone-candidate-001',
+      forceClone: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(store.objects.get(result.candidateKey!)?.customMetadata).toMatchObject({
+      candidate_status: 'pending-review',
+      artifact_mode: 'clone',
+    });
+  });
+
   it('rejects a candidate with a non-official source and restores public latest', async () => {
     const published = { ...completePage(), version: 4 };
     const generated = completePage('https://nissan-adme.adus.com.au/api/');
@@ -158,6 +210,33 @@ describe('validateNissanModelPageArtifact', () => {
       'missing color-picker section',
     ]));
   });
+
+  it('accepts only complete clones when clone validation is explicit', () => {
+    const target = NISSAN_MODEL_PAGE_BUILD_PLAN[0];
+    expect(validateNissanModelPageArtifact(target, completeClonePage(), { mode: 'clone' })).toEqual([]);
+
+    const incomplete = completeClonePage() as any;
+    incomplete.content.modes.clone.rendered = '<main>Too short</main>';
+    incomplete.content.rendered = '<main>Too short</main>';
+    incomplete.content.modes.clone.asset_map = {};
+    expect(validateNissanModelPageArtifact(target, incomplete, { mode: 'clone' })).toEqual(expect.arrayContaining([
+      'clone rendered HTML is incomplete',
+      'clone asset map is incomplete',
+    ]));
+  });
+
+  it('allows the Navara microsite clone to retain passive native rails without invented controls', () => {
+    const target = NISSAN_MODEL_PAGE_BUILD_PLAN.find(item => item.modelSlug === 'all-new-navara')!;
+    const clone = completeClonePage() as any;
+    clone.id = target.pageId;
+    clone.slug = target.modelSlug;
+    clone.name = target.modelName;
+    clone.source_url = target.sourceUrl;
+    clone.content.modes.clone.source_url = target.sourceUrl;
+    clone.content.modes.clone.interactions = [];
+
+    expect(validateNissanModelPageArtifact(target, clone, { mode: 'clone' })).toEqual([]);
+  });
 });
 
 describe('Nissan page candidate promotion', () => {
@@ -190,6 +269,29 @@ describe('Nissan page candidate promotion', () => {
     });
   });
 
+  it('snapshots the replaced public artifact for rollback', async () => {
+    const published = { ...completePage(), version: 8, name: 'Previous public QASHQAI' };
+    const candidate = { ...completePage(), version: 9, name: 'Reviewed QASHQAI' };
+    const store = new MemoryCandidateStore({ [latestKey]: published });
+    store.objects.set(candidateKey, {
+      body: JSON.stringify(candidate),
+      customMetadata: { candidate_status: 'pending-review', artifact_mode: 'structured' },
+    });
+
+    const result = await publishNissanModelPageCandidate(store, target, 'candidate-001', {
+      reviewedBy: 'developer@example.com',
+      now: () => new Date('2026-07-21T02:00:00.000Z'),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.rollbackKey).toContain('pages/definitions/nissan-au/qashqai/rollback-');
+    expect(JSON.parse(store.objects.get(result.rollbackKey!)!.body)).toEqual(published);
+    expect(store.objects.get(result.rollbackKey!)!.customMetadata).toMatchObject({
+      rollback_for_candidate: 'candidate-001',
+      replaced_key: latestKey,
+    });
+  });
+
   it('refuses an invalid candidate without replacing public latest', async () => {
     const published = { ...completePage(), version: 8, name: 'Current public page' };
     const invalid = {
@@ -208,6 +310,22 @@ describe('Nissan page candidate promotion', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toContain('source_url does not match the reviewed Nissan model source');
     expect(JSON.parse(store.objects.get(latestKey)!.body)).toEqual(published);
+  });
+
+  it('publishes a revalidated explicit clone candidate', async () => {
+    const candidate = completeClonePage();
+    const store = new MemoryCandidateStore();
+    store.objects.set(candidateKey, {
+      body: JSON.stringify(candidate),
+      customMetadata: { candidate_status: 'pending-review', artifact_mode: 'clone' },
+    });
+
+    const result = await publishNissanModelPageCandidate(store, target, 'candidate-001', {
+      reviewedBy: 'developer@example.com',
+    });
+
+    expect(result.success).toBe(true);
+    expect(store.objects.get(latestKey)?.customMetadata).toMatchObject({ artifact_mode: 'clone' });
   });
 
   it('requires a named reviewer before promotion', async () => {

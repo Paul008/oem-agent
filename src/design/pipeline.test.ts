@@ -53,6 +53,18 @@ describe('getStructuringFailure', () => {
 });
 
 describe('AdaptivePipeline CLONE step capture diagnostics wiring', () => {
+  it('returns a successful clone artifact before screenshots or AI structuring when cloneOnly is set', () => {
+    const source = readFileSync(new URL('./pipeline.ts', import.meta.url), 'utf8');
+    const captureCall = source.indexOf('const cloneResult = await this.capturer.captureModelPage(oemId, modelSlug, sourceUrl, modelName);');
+    const cloneOnlyGate = source.indexOf('if (options.cloneOnly)', captureCall);
+    const screenshotStep = source.indexOf('Step 1: SCREENSHOT', captureCall);
+
+    expect(cloneOnlyGate).toBeGreaterThan(captureCall);
+    expect(cloneOnlyGate).toBeLessThan(screenshotStep);
+    expect(source.slice(cloneOnlyGate, screenshotStep)).toContain('success: true');
+    expect(source.slice(cloneOnlyGate, screenshotStep)).toContain("reason: 'clone-only artifact requested'");
+  });
+
   it('records capture diagnostics after captureModelPage and before the success/failure branch', () => {
     const source = readFileSync(new URL('./pipeline.ts', import.meta.url), 'utf8');
     const captureCall = source.indexOf('const cloneResult = await this.capturer.captureModelPage(oemId, modelSlug, sourceUrl, modelName);');

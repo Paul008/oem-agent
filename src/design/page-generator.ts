@@ -21,6 +21,7 @@ import type { DesignMemoryManager } from './memory';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { allOemIds } from '../oem/registry';
 import { getModelPageWriteProtectedMessage, isModelPageWriteProtected } from '../model-page-protection';
+import { resolveModelPageReadAlias } from '../model-page-aliases';
 
 // ============================================================================
 // Utilities
@@ -1227,6 +1228,7 @@ export class PageGenerator {
    * Read a generated page by slug (searches all OEMs).
    */
   async getPageBySlug(slug: string): Promise<VehicleModelPage | null> {
+    slug = resolveModelPageReadAlias(slug);
     // Try each known OEM ID as prefix (e.g. "gwm-au-haval-h6" → oem_id=gwm-au, model=haval-h6)
     for (const oemId of allOemIds) {
       const prefix = `${oemId}-`;

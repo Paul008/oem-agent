@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createMockEnv } from '../test-utils';
-import { nissanOfficialAdmin } from './nissan-official-admin';
+import {
+  isReviewedNissanSourceUrl,
+  nissanOfficialAdmin,
+  nissanStagedModelSlugs,
+} from './nissan-official-admin';
 
 function app(accessEmail?: string) {
   const instance = new Hono<AppEnv>();
@@ -17,6 +21,26 @@ function app(accessEmail?: string) {
 }
 
 describe('Nissan official admin route', () => {
+  it('accepts only the reviewed legacy model aliases used during Nissan slug migrations', () => {
+    expect(nissanStagedModelSlugs('all-new-navara')).toEqual(['all-new-navara', 'navara']);
+    expect(nissanStagedModelSlugs('z')).toEqual(['z']);
+    expect(isReviewedNissanSourceUrl(
+      'all-new-navara',
+      'https://www.nissan.com.au/vehicles/browse-range/all-new-navara.html',
+      'https://navara.nissan.com.au/',
+    )).toBe(true);
+    expect(isReviewedNissanSourceUrl(
+      'z',
+      'https://www.nissan.com.au/vehicles/browse-range/z.html',
+      'https://www.nissan.com.au/vehicles/browse-range/Z.html',
+    )).toBe(true);
+    expect(isReviewedNissanSourceUrl(
+      'all-new-navara',
+      'https://example.com/navara',
+      'https://navara.nissan.com.au/',
+    )).toBe(false);
+  });
+
   it('returns the exact six-model staged plan without credentials', async () => {
     const response = await app().request(
       'https://example.com/admin/nissan-official/plan',

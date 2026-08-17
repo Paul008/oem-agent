@@ -67,6 +67,12 @@ function stripForcedStyles($el: any): void {
   else $el.removeAttr('style');
 }
 
+function clearInteractionRoot(root: any): void {
+  root.removeAttr(CLONE_INTERACTION_ATTR);
+  root.removeAttr(CLONE_REGION_ID_ATTR);
+  root.removeAttr('x-data');
+}
+
 /**
  * Collapses an unselected infinite-loop clone panel: strips its capture-forced-visible inline styles
  * (display/opacity/visibility/height/overflow) then appends `display:none !important` so it occupies
@@ -293,6 +299,12 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
           || /prev|next|back|forward/i.test(String(c.attribs?.['aria-label'] ?? '')));
         const prev = candidates.filter((_i: number, c: CheerioNode) => /prev|back/i.test(String(c.attribs?.['aria-label'] ?? ''))).first();
         const next = candidates.filter((_i: number, c: CheerioNode) => /next|forward/i.test(String(c.attribs?.['aria-label'] ?? ''))).first();
+        if (!prev.length && !next.length) {
+          clearInteractionRoot(root);
+          if (track) $(track).removeAttr('data-clone-track');
+          slides.removeAttr('data-clone-slide');
+          return;
+        }
         if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
         if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
         interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
@@ -303,6 +315,12 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
         slides.each((i, el) => { $(el).attr('data-clone-slide', String(i)); });
         const prev = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /prev|previous|arrow-left|slide-left/i.test(classAttr(c))).first();
         const next = root.find('button, a, [role="button"]').filter((_i: number, c: CheerioNode) => /next|arrow-right|slide-right/i.test(classAttr(c))).first();
+        if (!prev.length && !next.length) {
+          clearInteractionRoot(root);
+          track.removeAttr('data-clone-track');
+          slides.removeAttr('data-clone-slide');
+          return;
+        }
         if (prev.length) { prev.attr('data-clone-prev', ''); prev.attr('x-on:click', 'prev'); }
         if (next.length) { next.attr('data-clone-next', ''); next.attr('x-on:click', 'next'); }
         interactions.push({ id, type: region.type, trigger_count: (prev.length ? 1 : 0) + (next.length ? 1 : 0), panel_count: slides.length });
@@ -352,6 +370,8 @@ export function annotateCloneInteractions(html: string): AnnotateResult {
       interactions.push({ id, type: region.type, trigger_count: thumbIndex, panel_count: 1 });
     }
   });
+
+  if (interactions.length === 0) return { html, interactions };
 
   // Full-document parsing hoists LEADING head-eligible elements (<style>,
   // <link>, <title>, <meta>) into <head>; captured fragments can open with a

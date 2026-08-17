@@ -58,6 +58,7 @@ export interface NissanPagePipeline {
     modelName?: string,
     options?: {
       forceClone?: boolean;
+      cloneOnly?: boolean;
       validateSections?: (sections: PageSection[]) => string[];
     },
   ): Promise<PipelineResult>;

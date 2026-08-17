@@ -19,6 +19,7 @@ import {
   collectCaptureHeadPartsFromHtml,
   countEmptyFeatureAppShellsInHtml,
   isCaptureBlockedBySecurityPage,
+  mergeResponsivePictureSources,
   normalizeCapturedLazyMedia,
   normalizePseudoElementContentForCapture,
   PageCapturer,
@@ -1213,6 +1214,58 @@ describe('pseudo-element capture helpers', () => {
       visibility: 'visible',
       opacity: '1',
     })).toBe('display:inline-block;color:rgb(255, 255, 255);background-color:rgb(0, 0, 0);font-weight:700;font-size:12px;line-height:16px;margin:0px 4px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.2px')
+  })
+})
+
+describe('mergeResponsivePictureSources', () => {
+  it('restores SSR mobile creatives without replacing the hydrated browser DOM', () => {
+    const sourceUrl = 'https://www.nissan.com.au/vehicles/browse-range/qashqai.html'
+    const desktop = 'https://www-asia.nissan-cdn.net/qashqai-hero-d.jpg'
+    const mobile = 'https://www-asia.nissan-cdn.net/qashqai-hero-m.jpg'
+    const base = {
+      stylesheetLinks: [],
+      imageUrls: [desktop],
+      heroUrl: desktop,
+      title: 'QASHQAI',
+      elementCount: 4,
+      viewport: { width: 1440, height: 1080 },
+    }
+    const browserCapture = {
+      ...base,
+      html: `<main data-hydrated="true"><picture><source media="(min-width: 320px)" srcset="${desktop}.ximg.m_6_m.smart.jpg"><img src="${desktop}"></picture></main>`,
+    }
+    const initialCapture = {
+      ...base,
+      html: `<main><picture><source media="(min-width: 320px)" srcset="${mobile}.ximg.m_6_m.smart.jpg, ${mobile}.ximg.l_4_h.smart.jpg 2x"><img src="${desktop}"></picture></main>`,
+    }
+
+    const merged = mergeResponsivePictureSources(browserCapture, initialCapture, sourceUrl)
+
+    expect(merged.html).toContain('data-hydrated="true"')
+    expect(merged.html).toContain('qashqai-hero-m.jpg.ximg.m_6_m.smart.jpg')
+    expect(merged.html).not.toContain(`<main><picture>`)
+    expect(merged.imageUrls[0]).toContain('qashqai-hero-m.jpg')
+    expect(merged.imageUrls).toContain(desktop)
+  })
+
+  it('does not merge an unrelated SSR picture', () => {
+    const sourceUrl = 'https://www.nissan.com.au/model.html'
+    const base = {
+      stylesheetLinks: [],
+      imageUrls: ['https://cdn.example/hero.jpg'],
+      heroUrl: 'https://cdn.example/hero.jpg',
+      title: 'Model',
+      elementCount: 2,
+      viewport: { width: 1440, height: 1080 },
+    }
+    const merged = mergeResponsivePictureSources(
+      { ...base, html: '<picture><source media="(max-width: 600px)" srcset="https://cdn.example/hero.jpg"><img src="https://cdn.example/hero.jpg"></picture>' },
+      { ...base, html: '<picture><source media="(max-width: 600px)" srcset="https://cdn.example/other-mobile.jpg"><img src="https://cdn.example/other.jpg"></picture>' },
+      sourceUrl,
+    )
+
+    expect(merged.html).not.toContain('other-mobile.jpg')
+    expect(merged.imageUrls).toEqual(base.imageUrls)
   })
 })
 

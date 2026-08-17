@@ -47,6 +47,7 @@ export interface CloneDecisionOptions {
 
 export interface AdaptivePipelineRunOptions {
   forceClone?: boolean;
+  cloneOnly?: boolean;
   validateSections?: import('./page-structurer').PageSectionValidator;
 }
 
@@ -275,6 +276,41 @@ export class AdaptivePipeline {
         }
         // Can't continue without a clone
         throw err;
+      }
+
+      if (options.cloneOnly) {
+        const skippedSteps = ['screenshot', 'classify', 'extract', 'validate', 'generate', 'learn'] as const;
+        steps.push(...skippedSteps.map(step => ({
+          step,
+          status: 'skipped' as const,
+          duration_ms: 0,
+          details: { reason: 'clone-only artifact requested' },
+        })));
+        try {
+          await this.memoryManager.completeExtractionRun(runId, {
+            sections_extracted: 0,
+            quality_score: 1,
+            total_tokens: 0,
+            total_cost_usd: 0,
+            errors: [],
+            successful_selectors: ['clone:captured'],
+            failed_selectors: [],
+          });
+        } catch (err) {
+          console.warn('[Pipeline] Failed to complete clone-only extraction run:', err);
+        }
+        return {
+          success: true,
+          oem_id: oemId,
+          model_slug: modelSlug,
+          steps,
+          sections: [],
+          quality_score: 1,
+          total_tokens: 0,
+          total_cost_usd: 0,
+          total_duration_ms: Date.now() - pipelineStart,
+          screenshots_captured: 0,
+        };
       }
 
       // ================================================================

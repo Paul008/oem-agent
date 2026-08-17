@@ -80,10 +80,12 @@ import {
   isModelPageWriteProtected,
   type ModelPageWriteIntent,
 } from '../model-page-protection';
+import { resolveModelPageReadAlias } from '../model-page-aliases';
 
 type PageBuilderModelOverride = { provider?: AiProvider; model?: string };
 
 function parseGeneratedPageSlug(slug: string): { oemId: OemId; modelSlug: string } | null {
+  slug = resolveModelPageReadAlias(slug);
   for (const oemId of allOemIds) {
     const prefix = `${oemId}-`;
     if (slug.startsWith(prefix)) {
@@ -3269,7 +3271,8 @@ app.get('/admin/pages/:pageId/publication/history', async (c) => {
  * Get an AI-generated VehicleModelPage by slug
  */
 app.get('/pages/:slug', async (c) => {
-  const slug = c.req.param('slug');
+  const requestedSlug = c.req.param('slug');
+  const slug = resolveModelPageReadAlias(requestedSlug);
 
   const { PageGenerator } = await import('../design/page-generator');
   const { DesignAgent } = await import('../design/agent');

@@ -13,6 +13,10 @@ vi.mock('./use-adaptive-match', () => ({
   useAdaptiveMatch: adaptiveMocks.useAdaptiveMatch,
 }))
 
+vi.mock('@/lib/worker-api', () => ({
+  requestAdaptiveMatch: vi.fn(),
+}))
+
 vi.mock('html-to-image', () => ({
   getFontEmbedCSS: vi.fn(async () => ''),
   toSvg: vi.fn(async () => 'data:image/svg+xml;base64,PHN2Zy8+'),

@@ -99,6 +99,7 @@
     "NISSAN_OFFER_STAGING_ENABLED": "false",
     "NISSAN_OFFER_PROMOTION_ENABLED": "false",
     "NISSAN_OFFER_ROLLBACK_ENABLED": "false",
+    "NISSAN_OFFICIAL_OPERATORS": "paul@adme.net.au",
     "OPENCLAW_DEV_MODE": "false",
     "MODEL_PAGE_PUBLICATION_ENABLED_PAGE_IDS": "nissan-au-navara",
     "MODEL_PAGE_WEBHOOK_ALLOWED_ORIGINS": "https://dealer-network.pages.dev",

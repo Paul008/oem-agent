@@ -48,7 +48,12 @@ export interface NissanPageCandidatePublishResult {
   candidateKey: string;
   publishedKey: string | null;
   versionKey: string | null;
+  rollbackKey: string | null;
   errors: string[];
+}
+
+export interface NissanPageArtifactValidationOptions {
+  mode?: 'structured' | 'clone';
 }
 
 function normalizedUrl(value: string): string | null {
@@ -62,6 +67,7 @@ function normalizedUrl(value: string): string | null {
 export function validateNissanModelPageArtifact(
   target: NissanModelPageBuildTarget,
   page: VehicleModelPage,
+  options: NissanPageArtifactValidationOptions = {},
 ): string[] {
   const errors: string[] = [];
   if (page.id !== target.pageId) errors.push(`page id must be ${target.pageId}`);
@@ -74,8 +80,35 @@ export function validateNissanModelPageArtifact(
     errors.push('source_url does not match the reviewed Nissan model source');
   }
 
-  const sections = Array.isArray(page.content?.sections) ? page.content.sections : [];
-  errors.push(...validateNissanPageSections(sections));
+  if (options.mode === 'clone') {
+    const clone = (page as any).content?.modes?.clone;
+    const rendered = typeof clone?.edited_rendered === 'string' && clone.edited_rendered.trim()
+      ? clone.edited_rendered
+      : clone?.rendered;
+    const cloneSource = normalizedUrl(clone?.source_url);
+    const assetCount = clone?.asset_map && typeof clone.asset_map === 'object'
+      ? Object.keys(clone.asset_map).length
+      : 0;
+    const stylesheetCount = Array.isArray(clone?.stylesheet_urls) ? clone.stylesheet_urls.length : 0;
+    const interactionCount = Array.isArray(clone?.interactions) ? clone.interactions.length : 0;
+    const viewportWidth = Number(clone?.viewport?.width || 0);
+    const viewportHeight = Number(clone?.viewport?.height || 0);
+
+    if ((page as any).active_mode !== 'clone') errors.push('active_mode must be clone');
+    if (cloneSource !== expectedSource) errors.push('clone source_url does not match the reviewed Nissan model source');
+    if (typeof rendered !== 'string' || rendered.trim().length < 20_000) {
+      errors.push('clone rendered HTML is incomplete');
+    }
+    if (assetCount < 5) errors.push('clone asset map is incomplete');
+    if (stylesheetCount < 1) errors.push('clone stylesheets are incomplete');
+    if (interactionCount < 1 && target.modelSlug !== 'all-new-navara') {
+      errors.push('clone interaction inventory is incomplete');
+    }
+    if (viewportWidth < 1024 || viewportHeight < 700) errors.push('clone capture viewport is incomplete');
+  } else {
+    const sections = Array.isArray(page.content?.sections) ? page.content.sections : [];
+    errors.push(...validateNissanPageSections(sections));
+  }
 
   const serialized = JSON.stringify(page).toLowerCase();
   if (serialized.includes('adus.com.au') || serialized.includes('nissan-adme')) {
@@ -124,7 +157,8 @@ export async function stageNissanModelPageCandidate(
       target.modelName,
       {
         forceClone: options.forceClone,
-        validateSections: validateNissanPageSections,
+        cloneOnly: options.forceClone,
+        ...(options.forceClone ? {} : { validateSections: validateNissanPageSections }),
       },
     );
     if (!pipelineResult.success) {
@@ -145,7 +179,8 @@ export async function stageNissanModelPageCandidate(
       slug: target.modelSlug,
       oem_id: target.oemId,
     };
-    const validationErrors = validateNissanModelPageArtifact(target, candidate);
+    const artifactMode = options.forceClone ? 'clone' : 'structured';
+    const validationErrors = validateNissanModelPageArtifact(target, candidate, { mode: artifactMode });
     if (validationErrors.length > 0) {
       result.errors.push(...validationErrors);
       return result;
@@ -160,6 +195,7 @@ export async function stageNissanModelPageCandidate(
         oem_id: target.oemId,
         model_slug: target.modelSlug,
         source_url: sourceUrl,
+        artifact_mode: artifactMode,
         staged_at: stagedAt,
       },
     });
@@ -190,6 +226,7 @@ export async function publishNissanModelPageCandidate(
     candidateKey: initialCandidateKey,
     publishedKey: null,
     versionKey: null,
+    rollbackKey: null,
     errors: [],
   };
   if (!reviewedBy) {
@@ -213,7 +250,8 @@ export async function publishNissanModelPageCandidate(
       return result;
     }
     const candidate = await candidateObject.json<VehicleModelPage>();
-    const validationErrors = validateNissanModelPageArtifact(target, candidate);
+    const artifactMode = candidateObject.customMetadata?.artifact_mode === 'clone' ? 'clone' : 'structured';
+    const validationErrors = validateNissanModelPageArtifact(target, candidate, { mode: artifactMode });
     if (candidateObject.customMetadata?.candidate_status !== 'pending-review') {
       validationErrors.push('candidate status must be pending-review');
     }
@@ -230,15 +268,30 @@ export async function publishNissanModelPageCandidate(
     const body = JSON.stringify(candidate);
     const publishedKey = `pages/definitions/${target.oemId}/${target.modelSlug}/latest.json`;
     const versionKey = `pages/definitions/${target.oemId}/${target.modelSlug}/v-${publishedAt.getTime()}-${candidateId}.json`;
+    const replacedObject = await store.get(publishedKey);
+    const rollbackKey = replacedObject
+      ? `pages/definitions/${target.oemId}/${target.modelSlug}/rollback-${publishedAt.getTime()}-${candidateId}.json`
+      : null;
     const publicationMetadata = {
       pipeline: 'nissan-official-candidate-v1',
       oem_id: target.oemId,
       model_slug: target.modelSlug,
       candidate_id: candidateId,
+      artifact_mode: artifactMode,
       reviewed_by: reviewedBy,
       published_at: publishedAt.toISOString(),
     };
 
+    if (replacedObject && rollbackKey) {
+      await store.put(rollbackKey, await replacedObject.arrayBuffer(), {
+        httpMetadata: replacedObject.httpMetadata,
+        customMetadata: {
+          rollback_for_candidate: candidateId,
+          replaced_key: publishedKey,
+          snapshotted_at: publishedAt.toISOString(),
+        },
+      });
+    }
     await store.put(versionKey, body, {
       httpMetadata: { contentType: 'application/json' },
       customMetadata: publicationMetadata,
@@ -261,6 +314,7 @@ export async function publishNissanModelPageCandidate(
     result.success = true;
     result.publishedKey = publishedKey;
     result.versionKey = versionKey;
+    result.rollbackKey = rollbackKey;
     return result;
   } catch (error) {
     result.errors.push(error instanceof Error ? error.message : String(error));
