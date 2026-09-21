@@ -56,6 +56,7 @@ function transformErrorMessage(message: string, host: string): string {
 
 export { ContainerProxy, Sandbox };
 export { McpSession };
+export { NewsroomOfferFeed } from './newsroom-offer-feed';
 export { BrochureMirrorWorkflow } from './workflows/brochure-mirror';
 export { CronJobRunnerWorkflow } from './workflows/cron-job-runner';
 
