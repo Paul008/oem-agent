@@ -14,6 +14,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
+import { mediaOrigin } from '../utils/image-proxy';
 import { AiRouter } from '../ai/router';
 import { executePdfSpecExtraction, executePdfSpecExtractionVision } from '../sync/pdf-spec-extractor';
 import type { ExtractedSpecs, SpecCategory, SpecEntry } from '../sync/pdf-spec-extractor';
@@ -426,8 +427,7 @@ specsApi.post('/admin/upload-brochure/:modelId', async (c) => {
   });
 
   // Build public URL via media serving route
-  const workerUrl = new URL(c.req.url).origin;
-  const brochureUrl = `${workerUrl}/media/${r2Key}`;
+  const brochureUrl = `${mediaOrigin(c.env, c.req.url)}/media/${r2Key}`;
 
   // Update model with new brochure_url and clear stale extraction data
   const { error: updateError } = await supabase

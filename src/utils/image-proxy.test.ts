@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { proxyImage, encodeUrl } from './image-proxy';
+import { proxyImage, encodeUrl, mediaOrigin } from './image-proxy';
 
 const WORKER = 'https://oem-agent.adme-dev.workers.dev';
 const FOTON = 'https://www.fotonaustralia.com.au/media/mith44mu/foton-my26-tunland-v7-c-4x2-flare-white.png';
@@ -110,6 +110,32 @@ describe('proxyImage', () => {
       const decoded = decodeBase64Url(extractPayload(result, WORKER, 'hyundai-au'));
       expect(decoded).not.toContain('width=1920');
     });
+  });
+});
+
+describe('MotorStack bucket URLs', () => {
+  const r2 = 'https://pub-150d4c02365b4ffe9e158d72b3b048a1.r2.dev/ford/images/ranger/xl/white-hero.png?v=2';
+
+  it('maps to the R2 custom domain, never the worker proxy', () => {
+    const expected = 'https://motorstackmedia.driveagent.io/ford/images/ranger/xl/white-hero.png?v=2';
+    expect(proxyImage(r2, { oemId: 'ford-au' })).toBe(expected);
+    expect(proxyImage(r2, { oemId: 'ford-au', workerOrigin: 'https://oemmedia.driveagent.io' })).toBe(expected);
+  });
+
+  it('leaves other r2.dev buckets on the generic path', () => {
+    const other = 'https://pub-other.r2.dev/x.png';
+    expect(proxyImage(other, { oemId: 'ford-au' })).toBe(`/media/ford-au/${encodeUrl(other)}`);
+  });
+});
+
+describe('mediaOrigin', () => {
+  it('prefers MEDIA_BASE_URL over the request host', () => {
+    expect(mediaOrigin({ MEDIA_BASE_URL: 'https://oemmedia.driveagent.io/' }, 'https://oem-agent.adme-dev.workers.dev/api/x'))
+      .toBe('https://oemmedia.driveagent.io');
+  });
+
+  it('falls back to the request origin when unset', () => {
+    expect(mediaOrigin({ MEDIA_BASE_URL: ' ' }, 'http://localhost:8787/api/x')).toBe('http://localhost:8787');
   });
 });
 

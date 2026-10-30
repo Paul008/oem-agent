@@ -15,7 +15,7 @@ import type { MoltbotEnv, AccessUser } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
 import { OemAgentOrchestrator } from '../orchestrator';
 import { encodeUrl } from './media';
-import { proxyImage } from '../utils/image-proxy';
+import { mediaOrigin, proxyImage } from '../utils/image-proxy';
 import {
   AiRouter,
   KIMI_K3_CONFIG,
@@ -184,7 +184,7 @@ function absoluteMediaUrls(html: string, origin: string): string {
 }
 
 function styleGuideMediaBaseUrl(c: Context<OemAgentEnv>): string {
-  return c.env.WORKER_URL || new URL(c.req.url).origin;
+  return mediaOrigin(c.env, c.req.url);
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -329,9 +329,12 @@ async function serveProductionCloneArtifact(
 
   // R2-stored artifact layer: unlike the per-colo Cache API above, this survives across
   // datacenters and deploys. Keyed by the latest.json etag, so any page edit invalidates it.
-  const sourceFingerprint = sourceObject.httpEtag
+  const mediaBase = mediaOrigin(c.env, c.req.url);
+  const sourceEtag = sourceObject.httpEtag
     || sourceObject.etag
     || (page?.version != null ? `version-${page.version}` : null);
+  // The media origin is baked into the HTML, so it is part of the cache identity.
+  const sourceFingerprint = sourceEtag ? `${sourceEtag}|${mediaBase}` : null;
   const storedArtifactKey = `pages/production-artifacts/${parsed.oemId}/${parsed.modelSlug}/${bodyOnly ? 'body' : 'full'}.html`;
   if (sourceFingerprint) {
     try {
@@ -362,7 +365,7 @@ async function serveProductionCloneArtifact(
 
   const artifact = await buildProductionCloneArtifact(
     page,
-    new URL(c.req.url).origin,
+    mediaBase,
     parsed,
     { bodyOnly, cssCache: r2ScopedCssCache(c.env.MOLTBOT_BUCKET) },
   );
@@ -1030,7 +1033,7 @@ app.post('/admin/smart-capture', async (c) => {
 
         // Rewrite image URLs in the Tailwind HTML to full worker URLs
         // (v-html doesn't go through Vue's resolveMediaUrl, so /media/ paths don't work)
-        const workerOrigin = new URL(c.req.url).origin;
+        const workerOrigin = mediaOrigin(c.env, c.req.url);
         for (const [origUrl, r2Path] of imageMap) {
           tailwindHtml = tailwindHtml.replaceAll(origUrl, `${workerOrigin}${r2Path}`);
         }
@@ -2746,7 +2749,7 @@ app.get('/pages/:slug/production-embed-html', async (c) => {
     return c.json({ error: 'Clone HTML is not available for this page', slug, active_mode: page?.active_mode ?? null }, 409);
   }
 
-  const origin = new URL(c.req.url).origin;
+  const origin = mediaOrigin(c.env, c.req.url);
   const stripped = hydrateProductionInteractions(stripProductionHeroHtml(html));
   const scoped = await scopeProductionCloneHtml(absoluteMediaUrls(stripped, origin), {
     ...parsed,
@@ -2881,7 +2884,7 @@ app.get('/pages/:slug/production-manifest', async (c) => {
   }
 
   const page = await obj.json() as any;
-  const origin = new URL(c.req.url).origin;
+  const origin = mediaOrigin(c.env, c.req.url);
   const artifact = await buildProductionCloneArtifact(page, origin, parsed, {
     cssCache: r2ScopedCssCache(c.env.MOLTBOT_BUCKET),
   });
@@ -3037,7 +3040,7 @@ app.post('/admin/pages/:pageId/publication/candidate', async (c) => {
       page,
       expectedDraftVersion,
       actor: c.get('accessUser')?.email || 'unknown',
-      origin: new URL(c.req.url).origin,
+      origin: mediaOrigin(c.env, c.req.url),
     });
     setPublicationAuditMetadata(c, result.audit);
     return c.json({
@@ -4784,7 +4787,7 @@ app.post('/admin/recipes/upload-thumbnail', async (c) => {
     httpMetadata: { contentType: 'image/jpeg' },
   });
 
-  const url = `${new URL(c.req.url).origin}/media/recipes/thumbnails/${body.oem_id}/${filename}`;
+  const url = `${mediaOrigin(c.env, c.req.url)}/media/recipes/thumbnails/${body.oem_id}/${filename}`;
   return c.json({ url });
 });
 

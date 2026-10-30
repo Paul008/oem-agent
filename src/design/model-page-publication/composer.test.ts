@@ -7,6 +7,7 @@ import {
   publicationContentSecurityPolicy,
   publicationResizeScript,
 } from './composer';
+import { encodeUrl } from '../../utils/image-proxy';
 
 const origin = 'https://oem-agent.example.test';
 const region = (id: string, top: number, html: string, extra: Record<string, unknown> = {}) => ({
@@ -76,12 +77,35 @@ describe('composePublicationCandidate', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('.clone-card{background:url("../img/card.webp")}', { headers: { 'content-type': 'text/css' } })));
     const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', revision: 21, page, origin });
     expect(result.body).toContain('https://oem-agent.example.test/media/ariya.webp');
-    expect(result.body).toContain('https://www.nissan.com.au/vehicles/ariya/images/s.webp 480w');
+    // Allowlisted OEM images are served through the media proxy, never hotlinked.
+    expect(result.body).toContain(`${origin}/media/nissan-au/${encodeUrl('https://www.nissan.com.au/vehicles/ariya/images/s.webp')} 480w`);
+    expect(result.body).not.toContain('https://www.nissan.com.au/vehicles/ariya/images/s.webp');
     expect(result.body).toContain('https://cdn.nissan.test/img/card.webp');
     expect(result.body).toContain('[data-oem-publication-body="true"] .clone-card');
     expect(result.body).toContain('[data-oem-region-id="clone-region-6"] .tw-six');
     expect(result.body).not.toContain('<link rel="stylesheet"');
     expect(result.body).not.toContain('<base');
+  });
+
+  it('proxies allowlisted OEM images and posters but leaves other hosts, videos and links alone', async () => {
+    const page = mixedDraft();
+    const hero = 'https://storyblok-assets.prod.nissan.eu/f/1/1280x854/abc/hero.jpg';
+    page.content.modes.clone.section_index[2].html = [
+      '<section class="clone-card">',
+      `<picture><source srcset="${hero}/m/480x480 480w"><img src="${hero}"></picture>`,
+      `<video poster="${hero}"><source src="https://storyblok-assets.prod.nissan.eu/f/1/x/abc/film.mp4"></video>`,
+      '<img src="https://images.unlisted.test/card.jpg">',
+      `<a href="${hero}">Open</a>`,
+      '</section>',
+    ].join('');
+    const result = await composePublicationCandidate({ pageId: 'nissan-au-ariya', revision: 21, page, origin });
+    const proxied = `${origin}/media/nissan-au/${encodeUrl(hero)}`;
+    expect(result.body).toContain(`<img src="${proxied}">`);
+    expect(result.body).toContain(`poster="${proxied}"`);
+    expect(result.body).toContain(`srcset="${origin}/media/nissan-au/${encodeUrl(`${hero}/m/480x480`)} 480w"`);
+    expect(result.body).toContain('src="https://storyblok-assets.prod.nissan.eu/f/1/x/abc/film.mp4"');
+    expect(result.body).toContain('src="https://images.unlisted.test/card.jpg"');
+    expect(result.body).toContain(`href="${hero}"`);
   });
 
   it('includes exactly the three composer-owned scripts and ignores draft-supplied runtime text', async () => {

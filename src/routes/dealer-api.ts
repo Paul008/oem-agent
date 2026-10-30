@@ -14,7 +14,8 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types';
 import { createSupabaseClient } from '../utils/supabase';
-import { proxyImage } from '../utils/image-proxy';
+import { isMotorstackR2Url, mediaOrigin, proxyImage } from '../utils/image-proxy';
+import { isAllowedMediaHost } from './media';
 import { resolveDealerDriveawayAmount } from './dealer-pricing';
 
 const dealerApi = new Hono<AppEnv>();
@@ -75,9 +76,25 @@ function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
   return map;
 }
 
+/**
+ * Route a stored asset URL (swatch, render, brochure) through a CDN when one can serve it:
+ * MotorStack bucket URLs go to its R2 custom domain, allowlisted OEM hosts to the media
+ * proxy. Anything else is left as stored, so a host the proxy would 403 never replaces a
+ * working URL.
+ */
+function cdnAsset(url: string | null | undefined, opts: { oemId: string; workerOrigin: string }): string {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    if (isMotorstackR2Url(url) || isAllowedMediaHost(parsed.hostname)) return proxyImage(url, opts);
+  } catch {
+    // relative or malformed: leave as stored
+  }
+  return url;
+}
+
 function getMediaOrigin(c: { env: AppEnv['Bindings']; req: { url: string } }): string {
-  const configured = c.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '');
-  return configured || new URL(c.req.url).origin;
+  return mediaOrigin(c.env, c.req.url);
 }
 
 /**
@@ -451,7 +468,7 @@ function transformProduct(
       // Re-proxy defensively — already-proxied URLs are a no-op via isAlreadyProxied().
       gallery_urls: galleryArr.map(u => proxyImage(u, { oemId, workerOrigin })),
       swatch_colour_: hexByCode[clr.color_code] || '',
-      swatch_image: clr.swatch_url || '',
+      swatch_image: cdnAsset(clr.swatch_url, { oemId, workerOrigin }),
       colour_name: clr.color_name || '',
       paint_price: String(clr.price_delta ?? (clr.is_standard ? '0' : '')),
       images_360: exterior360.map(u => proxyImage(u, { oemId, workerOrigin })),
@@ -475,7 +492,7 @@ function transformProduct(
     grade_id: null,
     features: formatFeatures(features),
     em: product.variant_code || product.external_key || '',
-    vehicle_image: [product.primary_image_r2_key || '', 750, 450, false] as [string, number, number, boolean],
+    vehicle_image: [cdnAsset(product.primary_image_r2_key, { oemId, workerOrigin }), 750, 450, false] as [string, number, number, boolean],
     disclaimer: product.disclaimer_text || '',
     model: modelName,
     grade: product.subtitle || product.variant_name || product.body_type || '',
@@ -504,7 +521,7 @@ function transformProduct(
       || pricing?.price_qualifier
       || '',
     offers: applicableOffers,
-    brochure: brochureUrl,
+    brochure: brochureUrl ? cdnAsset(brochureUrl, { oemId, workerOrigin }) : null,
     specifications: specs.engine || specs.dimensions || specs.performance ? specs : null,
     pdf_specs: extractPdfVariantSpecs(specs),
   };
@@ -1047,7 +1064,7 @@ dealerApi.get('/variants-import', async (c) => {
         doors: String(product.doors || meta.doors || specs.dimensions?.doors || ''),
         excerpt: { rendered: '' },
         features: formatFeatures(Array.isArray(product.key_features) ? product.key_features : []),
-        vehicle_image: product.primary_image_r2_key || '',
+        vehicle_image: cdnAsset(product.primary_image_r2_key, { oemId, workerOrigin }),
         offer_title: '&nbsp;',
         offer_preview: '&nbsp;',
         offer_disclaimer: '&nbsp;',

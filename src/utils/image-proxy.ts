@@ -54,9 +54,20 @@ function isAlreadyProxied(url: string, workerOrigin?: string): boolean {
   }
 }
 
+// MotorStack's oem-assets bucket: its rate-limited r2.dev URL maps onto the bucket's R2 custom
+// domain, which Cloudflare serves from cache without running a Worker. Never sent through the
+// generic proxy (r2.dev is not on its allowlist, and a Worker hop is exactly the cost avoided).
+const MOTORSTACK_R2_PREFIX = 'https://pub-150d4c02365b4ffe9e158d72b3b048a1.r2.dev/';
+export const MOTORSTACK_MEDIA_CDN = 'https://motorstackmedia.driveagent.io/';
+
+export function isMotorstackR2Url(url: string): boolean {
+  return url.startsWith(MOTORSTACK_R2_PREFIX);
+}
+
 export function proxyImage(url: string | null | undefined, opts: ProxyImageOptions): string {
   if (!url) return '';
   if (isAlreadyProxied(url, opts.workerOrigin)) return url;
+  if (isMotorstackR2Url(url)) return MOTORSTACK_MEDIA_CDN + url.slice(MOTORSTACK_R2_PREFIX.length);
 
   // Foton hi-res: ensure Umbraco ?width=1920 is set before proxying so the
   // edge cache key captures the upscaled variant.
@@ -70,4 +81,14 @@ export function proxyImage(url: string | null | undefined, opts: ProxyImageOptio
 
   const path = `/media/${opts.oemId}/${encodeUrl(source)}`;
   return opts.workerOrigin ? `${opts.workerOrigin}${path}` : path;
+}
+
+/**
+ * Public origin for `/media/` URLs handed to consumers (dealer sites, published
+ * pages, brochures). MEDIA_BASE_URL (oemmedia.driveagent.io in production) wins so
+ * no consumer is ever pointed at the workers.dev hostname; falls back to the
+ * request origin when unset (local dev).
+ */
+export function mediaOrigin(env: { MEDIA_BASE_URL?: string }, requestUrl: string): string {
+  return env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '') || new URL(requestUrl).origin;
 }

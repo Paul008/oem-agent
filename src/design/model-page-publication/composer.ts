@@ -8,6 +8,8 @@ import {
   type ScopedCssCache,
 } from '../production-css-scope';
 import { buildCloneRuntimeScript } from '../clone-runtime/clone-runtime';
+import { isAllowedMediaHost } from '../../routes/media';
+import { proxyImage } from '../../utils/image-proxy';
 
 export type PublicationInteractionKind = 'none' | 'accordion' | 'tabs' | 'modal' | 'carousel' | 'slider';
 
@@ -198,13 +200,29 @@ function assetUrl(value: string, sourceUrl: string | undefined, origin: string):
   try { return new URL(value, value.startsWith('/media/') ? origin : sourceUrl || origin).href; } catch { return value; }
 }
 
-function absolutizeHtml(html: string, sourceUrl: string | undefined, origin: string): string {
+// Captured OEM images are served through the media proxy, never hotlinked. Only hosts the
+// proxy allows are rewritten, so a rewrite can never turn a working image into a 403.
+function proxiedImageUrl(value: string, origin: string, oemId: string): string {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || !isAllowedMediaHost(url.hostname)) return value;
+  } catch {
+    return value;
+  }
+  return proxyImage(value, { oemId, workerOrigin: origin });
+}
+
+function absolutizeHtml(html: string, sourceUrl: string | undefined, origin: string, oemId: string): string {
   const $ = load(`<div data-absolute-root>${html}</div>`);
   const root = $('[data-absolute-root]').first();
   root.find('[src], [poster], [href], [action]').addBack('[src], [poster], [href], [action]').each((_i, element) => {
+    const isImage = element.type === 'tag' && element.name === 'img';
     for (const attr of ['src', 'poster', 'href', 'action']) {
       const value = $(element).attr(attr);
-      if (value) $(element).attr(attr, assetUrl(value, sourceUrl, origin));
+      if (!value) continue;
+      const absolute = assetUrl(value, sourceUrl, origin);
+      const proxied = attr === 'poster' || (attr === 'src' && isImage);
+      $(element).attr(attr, proxied ? proxiedImageUrl(absolute, origin, oemId) : absolute);
     }
   });
   root.find('[srcset]').addBack('[srcset]').each((_i, element) => {
@@ -212,7 +230,7 @@ function absolutizeHtml(html: string, sourceUrl: string | undefined, origin: str
     if (!value) return;
     $(element).attr('srcset', value.split(',').map(candidate => {
       const parts = candidate.trim().split(/\s+/);
-      return [assetUrl(parts.shift() || '', sourceUrl, origin), ...parts].join(' ');
+      return [proxiedImageUrl(assetUrl(parts.shift() || '', sourceUrl, origin), origin, oemId), ...parts].join(' ');
     }).join(', '));
   });
   return root.html() || '';
@@ -315,6 +333,7 @@ export async function composePublicationCandidate(input: {
     throw new Error('Publication candidate revision must be a positive integer');
   }
   const clone = input.page?.content?.modes?.clone || {};
+  const { oemId } = slugParts(input.pageId);
   const sourceUrl = typeof clone.source_url === 'string' ? clone.source_url : input.page?.source_url;
   const indexedRegions = (Array.isArray(clone.section_index) ? clone.section_index : [])
     .filter((item: unknown): item is Record<string, any> => Boolean(item && typeof item === 'object' && typeof (item as any).id === 'string'))
@@ -339,7 +358,7 @@ export async function composePublicationCandidate(input: {
   const fullCloneHtml = [clone.edited_rendered, clone.rendered]
     .find((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0) || '';
   const documentHtml = fullCloneHtml
-    ? absolutizeHtml(hydrateProductionInteractions(stripProductionHeroHtml(fullCloneHtml)), sourceUrl, input.origin)
+    ? absolutizeHtml(hydrateProductionInteractions(stripProductionHeroHtml(fullCloneHtml)), sourceUrl, input.origin, oemId)
     : '';
   const bodyDocument = load(`<div data-oem-doc-root="true">${documentHtml}</div>`);
   const referenceDocument = load(`<div data-oem-doc-root="true">${documentHtml}</div>`);
@@ -371,14 +390,14 @@ export async function composePublicationCandidate(input: {
       const ids = cloneRegionIds(section);
       const id = ids.length > 1 ? String(section.id || ids.join('--')) : leaf.id;
       const generatedHtml = stripNissanCompatibilityHtml(input.pageId, section._generated_html);
-      const html = absolutizeHtml(generatedHtml, sourceUrl, input.origin);
+      const html = absolutizeHtml(generatedHtml, sourceUrl, input.origin, oemId);
       if (!html.trim()) continue;
       if (isPlatformRegion(section, html)) continue;
       const base = { regionId: id, order: regions.length, renderer: 'tailwind' as const, interactionKind: interactionKind(html, section.type) };
       const wrapped = wrapRegion(base, html, section._generated_css || section._tailwind_leftover_css);
       regions.push({ ...base, html: wrapped });
       const originalHtml = stripNissanCompatibilityHtml(input.pageId, section._tailwind_original_html || cloneHtml);
-      const original = absolutizeHtml(originalHtml, sourceUrl, input.origin);
+      const original = absolutizeHtml(originalHtml, sourceUrl, input.origin, oemId);
       const wrappedReference = wrapRegion({ ...base, renderer: 'clone', interactionKind: interactionKind(original) }, original);
       if (!replaceRegionInDocument(bodyDocument, ids, wrapped)) appendedBodyParts.push(wrapped);
       if (!replaceRegionInDocument(referenceDocument, ids, wrappedReference)) appendedReferenceParts.push(wrappedReference);
@@ -397,7 +416,7 @@ export async function composePublicationCandidate(input: {
       regions.push({ ...embeddedBase, html: '', fallbackReason: 'No converted structured section' });
       continue;
     }
-    cloneHtml = absolutizeHtml(hydrateProductionInteractions(cloneHtml), sourceUrl, input.origin);
+    cloneHtml = absolutizeHtml(hydrateProductionInteractions(cloneHtml), sourceUrl, input.origin, oemId);
     const wrapped = wrapRegion(embeddedBase, cloneHtml);
     regions.push({ ...embeddedBase, html: wrapped, fallbackReason: 'No converted structured section' });
     appendedBodyParts.push(wrapped);
@@ -408,7 +427,7 @@ export async function composePublicationCandidate(input: {
     .sort((a: any, b: any) => Number(a.order || 0) - Number(b.order || 0));
   for (const section of manual) {
     const generatedHtml = stripNissanCompatibilityHtml(input.pageId, section._generated_html);
-    const html = absolutizeHtml(generatedHtml, sourceUrl, input.origin);
+    const html = absolutizeHtml(generatedHtml, sourceUrl, input.origin, oemId);
     if (!html.trim() || isPlatformRegion(section, html)) continue;
     const base = { regionId: String(section.id || `manual-${regions.length + 1}`), order: regions.length, renderer: 'tailwind' as const, interactionKind: interactionKind(html, section.type) };
     const wrapped = wrapRegion(base, html, section._generated_css || section._tailwind_leftover_css);
